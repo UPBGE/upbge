@@ -10,6 +10,7 @@
 #include "GHOST_EventCursor.h"
 #include "GHOST_EventDragnDrop.h"
 #include "GHOST_EventKey.h"
+#include "GHOST_EventTrackpad.h"
 #include "GHOST_EventWheel.h"
 #include "GHOST_PathUtils.h"
 #include "GHOST_TimerManager.h"
@@ -116,6 +117,8 @@ static bool use_gnome_confine_hack = false;
  * This define could be removed without changing any functionality,
  * it just means GNOME users will see verbose warning messages that alert them about
  * a known problem that needs to be fixed up-stream.
+ *
+ * This has been fixed for GNOME 43. Keep the workaround until support for gnome 42 is dropped.
  * See: https://gitlab.gnome.org/GNOME/mutter/-/issues/2457
  */
 #define USE_GNOME_KEYBOARD_SUPPRESS_WARNING
@@ -140,8 +143,7 @@ static bool use_gnome_confine_hack = false;
  * \{ */
 
 /**
- * The event codes are used to
- * to differentiate from which mouse button an event comes from.
+ * The event codes are used to differentiate from which mouse button an event comes from.
  */
 #define BTN_LEFT 0x110
 #define BTN_RIGHT 0x111
@@ -289,7 +291,7 @@ struct GWL_DataOffer {
 };
 
 struct GWL_DataSource {
-  struct wl_data_source *data_source = nullptr;
+  struct wl_data_source *wl_data_source = nullptr;
   char *buffer_out = nullptr;
 };
 
@@ -358,6 +360,19 @@ struct GWL_SeatStatePointer {
 };
 
 /**
+ * Scroll state, applying to pointer (not tablet) events.
+ * Otherwise this would be part of #GWL_SeatStatePointer.
+ */
+struct GWL_SeatStatePointerScroll {
+  /** Smooth scrolling (handled & reset with pointer "frame" callback). */
+  wl_fixed_t smooth_xy[2] = {0, 0};
+  /** Discrete scrolling (handled & reset with pointer "frame" callback). */
+  int32_t discrete_xy[2] = {0, 0};
+  /** The source of scroll event. */
+  enum wl_pointer_axis_source axis_source = WL_POINTER_AXIS_SOURCE_WHEEL;
+};
+
+/**
  * State of the keyboard (in #GWL_Seat).
  */
 struct GWL_SeatStateKeyboard {
@@ -416,6 +431,7 @@ struct GWL_Seat {
   std::string name;
   struct wl_seat *wl_seat = nullptr;
   struct wl_pointer *wl_pointer = nullptr;
+  struct wl_touch *wl_touch = nullptr;
   struct wl_keyboard *wl_keyboard = nullptr;
   struct zwp_tablet_seat_v2 *tablet_seat = nullptr;
 
@@ -426,6 +442,7 @@ struct GWL_Seat {
   uint32_t cursor_source_serial = 0;
 
   GWL_SeatStatePointer pointer;
+  GWL_SeatStatePointerScroll pointer_scroll;
 
   /** Mostly this can be interchanged with `pointer` however it can't be locked/confined. */
   GWL_SeatStatePointer tablet;
@@ -601,8 +618,8 @@ static void display_destroy(GWL_Display *display)
       std::lock_guard lock{seat->data_source_mutex};
       if (seat->data_source) {
         free(seat->data_source->buffer_out);
-        if (seat->data_source->data_source) {
-          wl_data_source_destroy(seat->data_source->data_source);
+        if (seat->data_source->wl_data_source) {
+          wl_data_source_destroy(seat->data_source->wl_data_source);
         }
         delete seat->data_source;
       }
@@ -643,6 +660,11 @@ static void display_destroy(GWL_Display *display)
         wl_pointer_destroy(seat->wl_pointer);
       }
     }
+
+    if (seat->wl_touch) {
+      wl_touch_destroy(seat->wl_touch);
+    }
+
     if (seat->wl_keyboard) {
       if (seat->key_repeat.timer) {
         keyboard_handle_key_repeat_cancel(seat);
@@ -835,6 +857,21 @@ static GHOST_TKey xkb_map_gkey_or_scan_code(const xkb_keysym_t sym, const uint32
   }
 
   return gkey;
+}
+
+static int pointer_axis_as_index(const uint32_t axis)
+{
+  switch (axis) {
+    case WL_POINTER_AXIS_HORIZONTAL_SCROLL: {
+      return 0;
+    }
+    case WL_POINTER_AXIS_VERTICAL_SCROLL: {
+      return 1;
+    }
+    default: {
+      return -1;
+    }
+  }
 }
 
 static GHOST_TTabletMode tablet_tool_map_type(enum zwp_tablet_tool_v2_type wl_tablet_tool_type)
@@ -1242,9 +1279,14 @@ static void data_source_handle_send(void *data,
   close(fd);
 }
 
-static void data_source_handle_cancelled(void * /*data*/, struct wl_data_source *wl_data_source)
+static void data_source_handle_cancelled(void *data, struct wl_data_source *wl_data_source)
 {
   CLOG_INFO(LOG, 2, "cancelled");
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  GWL_DataSource *data_source = seat->data_source;
+  GHOST_ASSERT(seat->data_source->wl_data_source == wl_data_source, "Data source mismatch!");
+  data_source->wl_data_source = nullptr;
+
   wl_data_source_destroy(wl_data_source);
 }
 
@@ -1726,6 +1768,15 @@ static void pointer_handle_enter(void *data,
   seat->pointer.serial = serial;
   seat->pointer.xy[0] = surface_x;
   seat->pointer.xy[1] = surface_y;
+
+  /* Resetting scroll events is likely unnecessary,
+   * do this to avoid any possible problems as it's harmless. */
+  seat->pointer_scroll.smooth_xy[0] = 0;
+  seat->pointer_scroll.smooth_xy[1] = 0;
+  seat->pointer_scroll.discrete_xy[0] = 0;
+  seat->pointer_scroll.discrete_xy[1] = 0;
+  seat->pointer_scroll.axis_source = WL_POINTER_AXIS_SOURCE_WHEEL;
+
   seat->pointer.wl_surface = wl_surface;
 
   win->setCursorShape(win->getCursorShape());
@@ -1837,24 +1888,91 @@ static void pointer_handle_button(void *data,
   }
 }
 
-static void pointer_handle_axis(void * /*data*/,
+static void pointer_handle_axis(void *data,
                                 struct wl_pointer * /*wl_pointer*/,
                                 const uint32_t /*time*/,
                                 const uint32_t axis,
                                 const wl_fixed_t value)
 {
+  /* NOTE: this is used for touch based scrolling - or other input that doesn't scroll with
+   * discrete "steps". This allows supporting smooth-scrolling without "touch" gesture support. */
   CLOG_INFO(LOG, 2, "axis (axis=%u, value=%d)", axis, value);
+  const int index = pointer_axis_as_index(axis);
+  if (UNLIKELY(index == -1)) {
+    return;
+  }
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  seat->pointer_scroll.smooth_xy[index] = value;
 }
 
-static void pointer_handle_frame(void * /*data*/, struct wl_pointer * /*wl_pointer*/)
+static void pointer_handle_frame(void *data, struct wl_pointer * /*wl_pointer*/)
 {
   CLOG_INFO(LOG, 2, "frame");
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+
+  /* Both discrete and smooth events may be set at once, never generate events for both
+   * as this will be handling the same event in to different ways.
+   * Prioritize discrete axis events for the mouse wheel, otherwise smooth scroll. */
+  if (seat->pointer_scroll.axis_source == WL_POINTER_AXIS_SOURCE_WHEEL) {
+    if (seat->pointer_scroll.discrete_xy[0]) {
+      seat->pointer_scroll.smooth_xy[0] = 0;
+    }
+    if (seat->pointer_scroll.discrete_xy[1]) {
+      seat->pointer_scroll.smooth_xy[1] = 0;
+    }
+  }
+  else {
+    if (seat->pointer_scroll.smooth_xy[0]) {
+      seat->pointer_scroll.discrete_xy[0] = 0;
+    }
+    if (seat->pointer_scroll.smooth_xy[1]) {
+      seat->pointer_scroll.discrete_xy[1] = 0;
+    }
+  }
+
+  /* Discrete X axis currently unsupported. */
+  if (seat->pointer_scroll.discrete_xy[1]) {
+    if (wl_surface *wl_surface_focus = seat->pointer.wl_surface) {
+      GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
+      const int32_t discrete = seat->pointer_scroll.discrete_xy[1];
+      seat->system->pushEvent(new GHOST_EventWheel(
+          seat->system->getMilliSeconds(), win, std::signbit(discrete) ? +1 : -1));
+    }
+    seat->pointer_scroll.discrete_xy[0] = 0;
+    seat->pointer_scroll.discrete_xy[1] = 0;
+  }
+
+  if (seat->pointer_scroll.smooth_xy[0] || seat->pointer_scroll.smooth_xy[1]) {
+    if (wl_surface *wl_surface_focus = seat->pointer.wl_surface) {
+      GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
+      const wl_fixed_t scale = win->scale();
+      seat->system->pushEvent(new GHOST_EventTrackpad(
+          seat->system->getMilliSeconds(),
+          win,
+          GHOST_kTrackpadEventScroll,
+          wl_fixed_to_int(scale * seat->pointer.xy[0]),
+          wl_fixed_to_int(scale * seat->pointer.xy[1]),
+          /* NOTE: scaling the delta doesn't seem necessary.
+           * NOTE: inverting delta gives correct results, see: QTBUG-85767. */
+          -wl_fixed_to_int(seat->pointer_scroll.smooth_xy[0]),
+          -wl_fixed_to_int(seat->pointer_scroll.smooth_xy[1]),
+          /* TODO: investigate a way to request this configuration from the system. */
+          false));
+    }
+
+    seat->pointer_scroll.smooth_xy[0] = 0;
+    seat->pointer_scroll.smooth_xy[1] = 0;
+  }
+
+  seat->pointer_scroll.axis_source = WL_POINTER_AXIS_SOURCE_WHEEL;
 }
-static void pointer_handle_axis_source(void * /*data*/,
+static void pointer_handle_axis_source(void *data,
                                        struct wl_pointer * /*wl_pointer*/,
                                        uint32_t axis_source)
 {
   CLOG_INFO(LOG, 2, "axis_source (axis_source=%u)", axis_source);
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  seat->pointer_scroll.axis_source = (enum wl_pointer_axis_source)axis_source;
 }
 static void pointer_handle_axis_stop(void * /*data*/,
                                      struct wl_pointer * /*wl_pointer*/,
@@ -1868,18 +1986,15 @@ static void pointer_handle_axis_discrete(void *data,
                                          uint32_t axis,
                                          int32_t discrete)
 {
+  /* NOTE: a discrete axis are typically mouse wheel events.
+   * The non-discrete version of this function is used for touch-pad. */
   CLOG_INFO(LOG, 2, "axis_discrete (axis=%u, discrete=%d)", axis, discrete);
-
-  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  if (axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
+  const int index = pointer_axis_as_index(axis);
+  if (UNLIKELY(index == -1)) {
     return;
   }
-
-  if (wl_surface *wl_surface_focus = seat->pointer.wl_surface) {
-    GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
-    seat->system->pushEvent(new GHOST_EventWheel(
-        seat->system->getMilliSeconds(), win, std::signbit(discrete) ? +1 : -1));
-  }
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  seat->pointer_scroll.discrete_xy[index] = discrete;
 }
 
 static const struct wl_pointer_listener pointer_listener = {
@@ -1892,6 +2007,89 @@ static const struct wl_pointer_listener pointer_listener = {
     pointer_handle_axis_source,
     pointer_handle_axis_stop,
     pointer_handle_axis_discrete,
+};
+
+#undef LOG
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Listener (Touch Seat), #wl_touch_listener
+ *
+ * TODO(@campbellbarton): Only setup the callbacks for now as I don't have
+ * hardware that generates touch events.
+ * \{ */
+
+static CLG_LogRef LOG_WL_TOUCH = {"ghost.wl.handle.touch"};
+#define LOG (&LOG_WL_TOUCH)
+
+static void touch_seat_handle_down(void * /*data*/,
+                                   struct wl_touch * /*wl_touch*/,
+                                   uint32_t /*serial*/,
+                                   uint32_t /*time*/,
+                                   struct wl_surface * /*wl_surface*/,
+                                   int32_t /*id*/,
+                                   wl_fixed_t /*x*/,
+                                   wl_fixed_t /*y*/)
+{
+  CLOG_INFO(LOG, 2, "down");
+}
+
+static void touch_seat_handle_up(void * /*data*/,
+                                 struct wl_touch * /*wl_touch*/,
+                                 uint32_t /*serial*/,
+                                 uint32_t /*time*/,
+                                 int32_t /*id*/)
+{
+  CLOG_INFO(LOG, 2, "up");
+}
+
+static void touch_seat_handle_motion(void * /*data*/,
+                                     struct wl_touch * /*wl_touch*/,
+                                     uint32_t /*time*/,
+                                     int32_t /*id*/,
+                                     wl_fixed_t /*x*/,
+                                     wl_fixed_t /*y*/)
+{
+  CLOG_INFO(LOG, 2, "motion");
+}
+
+static void touch_seat_handle_frame(void * /*data*/, struct wl_touch * /*wl_touch*/)
+{
+  CLOG_INFO(LOG, 2, "frame");
+}
+
+static void touch_seat_handle_cancel(void * /*data*/, struct wl_touch * /*wl_touch*/)
+{
+
+  CLOG_INFO(LOG, 2, "cancel");
+}
+
+static void touch_seat_handle_shape(void * /*data*/,
+                                    struct wl_touch * /*touch*/,
+                                    int32_t /*id*/,
+                                    wl_fixed_t /*major*/,
+                                    wl_fixed_t /*minor*/)
+{
+  CLOG_INFO(LOG, 2, "shape");
+}
+
+static void touch_seat_handle_orientation(void * /*data*/,
+                                          struct wl_touch * /*touch*/,
+                                          int32_t /*id*/,
+                                          wl_fixed_t /*orientation*/)
+{
+  CLOG_INFO(LOG, 2, "orientation");
+}
+
+static const struct wl_touch_listener touch_seat_listener = {
+    touch_seat_handle_down,
+    touch_seat_handle_up,
+    touch_seat_handle_motion,
+    touch_seat_handle_frame,
+    touch_seat_handle_cancel,
+    touch_seat_handle_shape,
+    touch_seat_handle_orientation,
 };
 
 #undef LOG
@@ -2717,6 +2915,12 @@ static void seat_handle_capabilities(void *data,
     ghost_wl_surface_tag_cursor_pointer(seat->cursor.wl_surface);
   }
 
+  if (capabilities & WL_SEAT_CAPABILITY_TOUCH) {
+    seat->wl_touch = wl_seat_get_touch(wl_seat);
+    wl_touch_set_user_data(seat->wl_touch, seat);
+    wl_touch_add_listener(seat->wl_touch, &touch_seat_listener, seat);
+  }
+
   if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
     seat->wl_keyboard = wl_seat_get_keyboard(wl_seat);
     wl_keyboard_add_listener(seat->wl_keyboard, &keyboard_listener, data);
@@ -3383,18 +3587,18 @@ void GHOST_SystemWayland::putClipboard(const char *buffer, bool /*selection*/) c
   data_source->buffer_out = static_cast<char *>(malloc(buffer_size));
   std::memcpy(data_source->buffer_out, buffer, buffer_size);
 
-  data_source->data_source = wl_data_device_manager_create_data_source(
+  data_source->wl_data_source = wl_data_device_manager_create_data_source(
       display_->data_device_manager);
 
-  wl_data_source_add_listener(data_source->data_source, &data_source_listener, seat);
+  wl_data_source_add_listener(data_source->wl_data_source, &data_source_listener, seat);
 
   for (const std::string &type : mime_send) {
-    wl_data_source_offer(data_source->data_source, type.c_str());
+    wl_data_source_offer(data_source->wl_data_source, type.c_str());
   }
 
   if (seat->data_device) {
     wl_data_device_set_selection(
-        seat->data_device, data_source->data_source, seat->data_source_serial);
+        seat->data_device, data_source->wl_data_source, seat->data_source_serial);
   }
 }
 
@@ -3616,7 +3820,6 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
                                                  const uint32_t width,
                                                  const uint32_t height,
                                                  const GHOST_TWindowState state,
-                                                 const GHOST_TDrawingContextType type,
                                                  const GHOST_GLSettings glSettings,
                                                  const bool exclusive,
                                                  const bool is_dialog,
@@ -3636,7 +3839,7 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
       height,
       state,
       parentWindow,
-      type,
+      glSettings.context_type,
       is_dialog,
       ((glSettings.flags & GHOST_glStereoVisual) != 0),
       exclusive);

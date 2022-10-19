@@ -715,6 +715,7 @@ endif()
 if(WITH_CYCLES_DEVICE_ONEAPI)
   if(WIN32)
     set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/cycles_kernel_oneapi.dll)
+    set(cycles_kernel_oneapi_linker_lib ${CMAKE_CURRENT_BINARY_DIR}/cycles_kernel_oneapi.lib)
   else()
     set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/libcycles_kernel_oneapi.so)
   endif()
@@ -767,6 +768,8 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "-device ${CYCLES_ONEAPI_SPIR64_GEN_DEVICES} ")
 
   if (WITH_CYCLES_ONEAPI_BINARIES)
+    # AoT binaries aren't currently reused when calling sycl::build.
+    list (APPEND sycl_compiler_flags -DSYCL_SKIP_KERNELS_PRELOAD)
     # Iterate over all targest and their options
     list (JOIN CYCLES_ONEAPI_SYCL_TARGETS "," targets_string)
     list (APPEND sycl_compiler_flags -fsycl-targets=${targets_string})
@@ -819,12 +822,17 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -DONEAPI_EXPORT)
 
     string(REPLACE /Redist/ /Tools/ MSVC_TOOLS_DIR ${MSVC_REDIST_DIR})
-    if(NOT CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION) # case for Ninja on Windows
+    # Version Folder between Redist and Tools can mismatch sometimes
+    if(NOT EXISTS ${MSVC_TOOLS_DIR})
+      get_filename_component(cmake_ar_dir ${CMAKE_AR} DIRECTORY)
+      get_filename_component(MSVC_TOOLS_DIR "${cmake_ar_dir}/../../../" ABSOLUTE)
+    endif()
+    if(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
+      set(WINDOWS_KIT_DIR ${WINDOWS_KITS_DIR}/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION})
+    else() # case for Ninja on Windows
       get_filename_component(cmake_mt_dir ${CMAKE_MT} DIRECTORY)
       string(REPLACE /bin/ /Lib/ WINDOWS_KIT_DIR ${cmake_mt_dir})
       get_filename_component(WINDOWS_KIT_DIR "${WINDOWS_KIT_DIR}/../" ABSOLUTE)
-    else()
-      set(WINDOWS_KIT_DIR ${WINDOWS_KITS_DIR}/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION})
     endif()
     list(APPEND sycl_compiler_flags
                 -L "${MSVC_TOOLS_DIR}/lib/x64"
@@ -844,7 +852,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
                 -Xclang --dependent-lib=${sycl_library_debug_name})
 
     add_custom_command(
-      OUTPUT ${cycles_kernel_oneapi_lib}
+      OUTPUT ${cycles_kernel_oneapi_lib} ${cycles_kernel_oneapi_linker_lib}
       COMMAND ${CMAKE_COMMAND} -E env
               "LIB=${sycl_compiler_root}/../lib" # for compiler to find sycl.lib
               "PATH=${OCLOC_INSTALL_DIR}\;${sycl_compiler_root}"
