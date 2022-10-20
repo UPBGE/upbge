@@ -284,6 +284,8 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_image_vert.glsl
   shaders/gpu_shader_2D_image_rect_vert.glsl
   shaders/gpu_shader_2D_image_multi_rect_vert.glsl
+  shaders/gpu_shader_icon_frag.glsl
+  shaders/gpu_shader_icon_vert.glsl
   shaders/gpu_shader_image_frag.glsl
   shaders/gpu_shader_image_desaturate_frag.glsl
   shaders/gpu_shader_image_linear_frag.glsl #UPBGE
@@ -352,6 +354,7 @@ set(GLSL_SRC
   shaders/compositor/compositor_morphological_distance_feather.glsl
   shaders/compositor/compositor_morphological_distance_threshold.glsl
   shaders/compositor/compositor_morphological_step.glsl
+  shaders/compositor/compositor_normalize.glsl
   shaders/compositor/compositor_parallel_reduction.glsl
   shaders/compositor/compositor_projector_lens_distortion.glsl
   shaders/compositor/compositor_realize_on_domain.glsl
@@ -360,6 +363,8 @@ set(GLSL_SRC
   shaders/compositor/compositor_split_viewer.glsl
   shaders/compositor/compositor_symmetric_blur.glsl
   shaders/compositor/compositor_symmetric_separable_blur.glsl
+  shaders/compositor/compositor_tone_map_photoreceptor.glsl
+  shaders/compositor/compositor_tone_map_simple.glsl
 
   shaders/compositor/library/gpu_shader_compositor_alpha_over.glsl
   shaders/compositor/library/gpu_shader_compositor_blur_common.glsl
@@ -610,6 +615,7 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_3D_smooth_color_info.hh
   shaders/infos/gpu_shader_3D_uniform_color_info.hh
   shaders/infos/gpu_shader_gpencil_stroke_info.hh
+  shaders/infos/gpu_shader_icon_info.hh
   shaders/infos/gpu_shader_instance_varying_color_varying_size_info.hh
   shaders/infos/gpu_shader_keyframe_shape_info.hh
   shaders/infos/gpu_shader_line_dashed_uniform_color_info.hh
@@ -635,6 +641,7 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/compositor/infos/compositor_morphological_distance_info.hh
   shaders/compositor/infos/compositor_morphological_distance_threshold_info.hh
   shaders/compositor/infos/compositor_morphological_step_info.hh
+  shaders/compositor/infos/compositor_normalize_info.hh
   shaders/compositor/infos/compositor_parallel_reduction_info.hh
   shaders/compositor/infos/compositor_projector_lens_distortion_info.hh
   shaders/compositor/infos/compositor_realize_on_domain_info.hh
@@ -643,6 +650,8 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/compositor/infos/compositor_split_viewer_info.hh
   shaders/compositor/infos/compositor_symmetric_blur_info.hh
   shaders/compositor/infos/compositor_symmetric_separable_blur_info.hh
+  shaders/compositor/infos/compositor_tone_map_photoreceptor_info.hh
+  shaders/compositor/infos/compositor_tone_map_simple_info.hh
 )
 
 set(SRC_SHADER_CREATE_INFOS_MTL
