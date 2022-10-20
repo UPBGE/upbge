@@ -117,6 +117,7 @@
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
+#include "windowmanager/intern/wm_window_private.h"
 
 #include "CM_Message.h"
 #include "KX_Globals.h"
@@ -268,6 +269,8 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
     if (stereoVisual) {
       glSettings.flags |= GHOST_glStereoVisual;
     }
+    const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+    glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
 
     GHOST_IWindow *window = system->createWindow(title,
                                                  0,
@@ -275,7 +278,6 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
                                                  windowWidth,
                                                  windowHeight,
                                                  GHOST_kWindowStateMinimized,
-                                                 GHOST_kDrawingContextTypeOpenGL,
                                                  glSettings);
     if (!window) {
       CM_Error("could not create main window");
@@ -387,13 +389,15 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
   if (stereoVisual)
     glSettings.flags |= GHOST_glStereoVisual;
 
+  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+
   GHOST_IWindow *window = system->createWindow(title,
                                                windowLeft,
                                                windowTop,
                                                windowWidth,
                                                windowHeight,
                                                GHOST_kWindowStateNormal,
-                                               GHOST_kDrawingContextTypeOpenGL,
                                                glSettings);
   if (!window) {
     CM_Error("could not create main window");
@@ -424,8 +428,12 @@ static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
 
   if (parentWindow != 0)
     state = GHOST_kWindowStateEmbedded;
+
+  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+
   GHOST_IWindow *window = system->createWindow(
-      title, 0, 0, 0, 0, state, GHOST_kDrawingContextTypeOpenGL, glSettings, false, parentWindow);
+      title, 0, 0, 0, 0, state, glSettings, false, parentWindow);
 
   if (!window) {
     CM_Error("could not create main window");
