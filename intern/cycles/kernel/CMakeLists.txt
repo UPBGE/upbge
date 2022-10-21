@@ -713,11 +713,17 @@ endif()
 # oneAPI module
 
 if(WITH_CYCLES_DEVICE_ONEAPI)
-  if(WIN32)
-    set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/cycles_kernel_oneapi.dll)
-    set(cycles_kernel_oneapi_linker_lib ${CMAKE_CURRENT_BINARY_DIR}/cycles_kernel_oneapi.lib)
+  if(WITH_CYCLES_ONEAPI_BINARIES)
+    set(cycles_kernel_oneapi_lib_suffix "_aot")
   else()
-    set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/libcycles_kernel_oneapi.so)
+    set(cycles_kernel_oneapi_lib_suffix "_jit")
+  endif()
+
+  if(WIN32)
+    set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/cycles_kernel_oneapi${cycles_kernel_oneapi_lib_suffix}.dll)
+    set(cycles_kernel_oneapi_linker_lib ${CMAKE_CURRENT_BINARY_DIR}/cycles_kernel_oneapi${cycles_kernel_oneapi_lib_suffix}.lib)
+  else()
+    set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/libcycles_kernel_oneapi${cycles_kernel_oneapi_lib_suffix}.so)
   endif()
 
   set(cycles_oneapi_kernel_sources
@@ -751,10 +757,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       -I${CMAKE_CURRENT_SOURCE_DIR}/..
       ${SYCL_CPP_FLAGS}
       )
-
-  if (WITH_CYCLES_ONEAPI_SYCL_HOST_ENABLED)
-    list(APPEND sycl_compiler_flags -DWITH_ONEAPI_SYCL_HOST_ENABLED)
-  endif()
 
   # Set defaults for spir64 and spir64_gen options
   if (NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64)
@@ -844,12 +846,10 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     set(sycl_compiler_flags_RelWithDebInfo ${sycl_compiler_flags})
     set(sycl_compiler_flags_MinSizeRel ${sycl_compiler_flags})
     list(APPEND sycl_compiler_flags_RelWithDebInfo -g)
-    get_filename_component(sycl_library_debug_name ${SYCL_LIBRARY_DEBUG} NAME_WE)
     list(APPEND sycl_compiler_flags_Debug
                 -g
                 -D_DEBUG
-                -nostdlib -Xclang --dependent-lib=msvcrtd
-                -Xclang --dependent-lib=${sycl_library_debug_name})
+                -nostdlib -Xclang --dependent-lib=msvcrtd)
 
     add_custom_command(
       OUTPUT ${cycles_kernel_oneapi_lib} ${cycles_kernel_oneapi_linker_lib}

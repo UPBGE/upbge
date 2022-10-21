@@ -326,18 +326,10 @@ if(WITH_FFTW3)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  windows_find_package(WebP)
-  if(NOT WEBP_FOUND)
-    if(EXISTS ${LIBDIR}/webp)
-      set(WEBP_INCLUDE_DIRS ${LIBDIR}/webp/include)
-      set(WEBP_ROOT_DIR ${LIBDIR}/webp)
-      set(WEBP_LIBRARIES ${LIBDIR}/webp/lib/webp.lib ${LIBDIR}/webp/lib/webpdemux.lib ${LIBDIR}/webp/lib/webpmux.lib)
-      set(WEBP_FOUND ON)
-    else()
-      message(STATUS "WITH_IMAGE_WEBP is ON but WEBP libraries are not found, setting WITH_IMAGE_WEBP=OFF")
-      set(WITH_IMAGE_WEBP OFF)
-    endif()
-  endif()
+  set(WEBP_INCLUDE_DIRS ${LIBDIR}/webp/include)
+  set(WEBP_ROOT_DIR ${LIBDIR}/webp)
+  set(WEBP_LIBRARIES ${LIBDIR}/webp/lib/webp.lib ${LIBDIR}/webp/lib/webpdemux.lib ${LIBDIR}/webp/lib/webpmux.lib)
+  set(WEBP_FOUND ON)
 endif()
 
 if(WITH_OPENCOLLADA)
@@ -358,7 +350,6 @@ if(WITH_OPENCOLLADA)
     optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter.lib
     optimized ${OPENCOLLADA}/lib/opencollada/MathMLSolver.lib
     optimized ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/xml.lib
     optimized ${OPENCOLLADA}/lib/opencollada/buffer.lib
     optimized ${OPENCOLLADA}/lib/opencollada/ftoa.lib
 
@@ -368,10 +359,14 @@ if(WITH_OPENCOLLADA)
     debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/MathMLSolver_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/xml_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/buffer_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/ftoa_d.lib
   )
+  if(EXISTS ${LIBDIR}/xml2/lib/libxml2s.lib) # 3.4 libraries
+    list(APPEND OPENCOLLADA_LIBRARIES ${LIBDIR}/xml2/lib/libxml2s.lib)
+  else()
+    list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/xml.lib)
+  endif()
 
   list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
 
@@ -700,12 +695,6 @@ if(WITH_OPENSUBDIV)
       debug ${OPENSUBDIV_LIBPATH}/osdCPU_d.lib
       debug ${OPENSUBDIV_LIBPATH}/osdGPU_d.lib
     )
-    set(OPENSUBDIV_HAS_OPENMP TRUE)
-    set(OPENSUBDIV_HAS_TBB FALSE)
-    set(OPENSUBDIV_HAS_OPENCL TRUE)
-    set(OPENSUBDIV_HAS_CUDA FALSE)
-    set(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK TRUE)
-    set(OPENSUBDIV_HAS_GLSL_COMPUTE TRUE)
   endif()
 endif()
 
@@ -795,13 +784,6 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
   endif()
   find_path(OSL_INCLUDE_DIR OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
   find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
-
-  if(OSL_INCLUDE_DIR AND OSL_LIBRARIES AND OSL_COMPILER)
-    set(OSL_FOUND TRUE)
-  else()
-    message(STATUS "OSL not found")
-    set(WITH_CYCLES_OSL OFF)
-  endif()
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
@@ -901,21 +883,16 @@ if(WINDOWS_PYTHON_DEBUG)
 endif()
 
 if(WITH_XR_OPENXR)
-  if(EXISTS ${LIBDIR}/xr_openxr_sdk)
-    set(XR_OPENXR_SDK ${LIBDIR}/xr_openxr_sdk)
-    set(XR_OPENXR_SDK_LIBPATH ${LIBDIR}/xr_openxr_sdk/lib)
-    set(XR_OPENXR_SDK_INCLUDE_DIR ${XR_OPENXR_SDK}/include)
-    # This is the old name of this library, it is checked to
-    # support the transition between the old and new lib versions
-    # this can be removed after the next lib update.
-    if(EXISTS ${XR_OPENXR_SDK_LIBPATH}/openxr_loader_d.lib)
-      set(XR_OPENXR_SDK_LIBRARIES optimized ${XR_OPENXR_SDK_LIBPATH}/openxr_loader.lib debug ${XR_OPENXR_SDK_LIBPATH}/openxr_loader_d.lib)
-    else()
-      set(XR_OPENXR_SDK_LIBRARIES optimized ${XR_OPENXR_SDK_LIBPATH}/openxr_loader.lib debug ${XR_OPENXR_SDK_LIBPATH}/openxr_loaderd.lib)
-    endif()
+  set(XR_OPENXR_SDK ${LIBDIR}/xr_openxr_sdk)
+  set(XR_OPENXR_SDK_LIBPATH ${LIBDIR}/xr_openxr_sdk/lib)
+  set(XR_OPENXR_SDK_INCLUDE_DIR ${XR_OPENXR_SDK}/include)
+  # This is the old name of this library, it is checked to
+  # support the transition between the old and new lib versions
+  # this can be removed after the next lib update.
+  if(EXISTS ${XR_OPENXR_SDK_LIBPATH}/openxr_loader_d.lib)
+    set(XR_OPENXR_SDK_LIBRARIES optimized ${XR_OPENXR_SDK_LIBPATH}/openxr_loader.lib debug ${XR_OPENXR_SDK_LIBPATH}/openxr_loader_d.lib)
   else()
-    message(WARNING "OpenXR-SDK was not found, disabling WITH_XR_OPENXR")
-    set(WITH_XR_OPENXR OFF)
+    set(XR_OPENXR_SDK_LIBRARIES optimized ${XR_OPENXR_SDK_LIBPATH}/openxr_loader.lib debug ${XR_OPENXR_SDK_LIBPATH}/openxr_loaderd.lib)
   endif()
 endif()
 
@@ -933,15 +910,10 @@ if(WITH_POTRACE)
 endif()
 
 if(WITH_HARU)
-  if(EXISTS ${LIBDIR}/haru)
-    set(HARU_FOUND ON)
-    set(HARU_ROOT_DIR ${LIBDIR}/haru)
-    set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
-    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
-  else()
-    message(WARNING "Haru was not found, disabling WITH_HARU")
-    set(WITH_HARU OFF)
-  endif()
+  set(HARU_FOUND ON)
+  set(HARU_ROOT_DIR ${LIBDIR}/haru)
+  set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
+  set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
