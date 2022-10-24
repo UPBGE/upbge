@@ -3057,6 +3057,7 @@ static void outliner_draw_iconrow(bContext *C,
                                   int *offsx,
                                   int ys,
                                   float alpha_fac,
+                                  bool in_bone_hierarchy,
                                   MergedIconRow *merged)
 {
   eOLDrawState active = OL_DRAWSEL_NONE;
@@ -3066,8 +3067,12 @@ static void outliner_draw_iconrow(bContext *C,
     te->flag &= ~(TE_ICONROW | TE_ICONROW_MERGED);
 
     /* object hierarchy always, further constrained on level */
+    /* Bones are also hierarchies and get a merged count, but we only start recursing into them if
+     * an they are at the root level of a collapsed subtree (e.g. not "hidden" in a collapsed
+     * collection). */
+    const bool is_bone = ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL);
     if ((level < 1) || ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) ||
-        ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
+        (in_bone_hierarchy && is_bone)) {
       /* active blocks get white circle */
       if (tselem->type == TSE_SOME_ID) {
         if (te->idcode == ID_OB) {
@@ -3110,8 +3115,13 @@ static void outliner_draw_iconrow(bContext *C,
       }
     }
 
-    /* this tree element always has same amount of branches, so don't draw */
-    if (tselem->type != TSE_R_LAYER) {
+    /* TSE_R_LAYER tree element always has same amount of branches, so don't draw. */
+    /* Also only recurse into bone hierarchies if a direct child of the collapsed element to merge
+     * into. */
+    const bool is_root_level_bone = is_bone && (level == 0);
+    in_bone_hierarchy |= is_root_level_bone;
+    if (!ELEM(tselem->type, TSE_R_LAYER, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL) ||
+        in_bone_hierarchy) {
       outliner_draw_iconrow(C,
                             block,
                             fstyle,
@@ -3123,6 +3133,7 @@ static void outliner_draw_iconrow(bContext *C,
                             offsx,
                             ys,
                             alpha_fac,
+                            in_bone_hierarchy,
                             merged);
     }
   }
@@ -3384,6 +3395,7 @@ static void outliner_draw_tree_element(bContext *C,
                                 &tempx,
                                 *starty,
                                 alpha_fac,
+                                false,
                                 &merged);
 
           GPU_blend(GPU_BLEND_NONE);
