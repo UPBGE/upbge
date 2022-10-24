@@ -1369,7 +1369,7 @@ int main(int argc,
 #endif
   {
     // Create the system
-    if (GHOST_ISystem::createSystem(true) == GHOST_kSuccess) {
+    if (GHOST_ISystem::createSystem(true, false) == GHOST_kSuccess) {
       system = GHOST_ISystem::getSystem();
       BLI_assert(system);
 
