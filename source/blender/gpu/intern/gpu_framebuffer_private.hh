@@ -205,6 +205,11 @@ class FrameBuffer {
     return attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot].tex;
   };
 
+  inline const char *const name_get() const
+  {
+    return name_;
+  };
+
   virtual int get_bindcode() = 0;  // UPBGE
 };
 
