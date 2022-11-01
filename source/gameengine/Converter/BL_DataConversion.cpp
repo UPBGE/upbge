@@ -58,6 +58,7 @@
 
 /* This list includes only data type definitions */
 #include "BKE_armature.h"
+#include "BKE_attribute.hh"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
@@ -332,6 +333,16 @@ static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
   return bucket;
 }
 
+static int GetPolygonMaterialIndex(const Mesh *me, int polyid)
+{
+  using namespace blender;
+  using namespace blender::bke;
+  const AttributeAccessor attributes = me->attributes();
+  const VArray<int> material_indices = attributes.lookup_or_default<int>(
+      "material_index", ATTR_DOMAIN_FACE, 0);
+  return material_indices[polyid];
+}
+
 /* blenderobj can be nullptr, make sure its checked for */
 RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                Object *blenderobj,
@@ -490,7 +501,12 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   for (unsigned int i = 0; i < numpolys; ++i) {
     const MPoly &mpoly = mpolys[i];
 
-    const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy];
+    /* Try to get evaluated mesh poly material index */
+    /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
+    int mat_nr = GetPolygonMaterialIndex(final_me, i);
+
+    const ConvertedMaterial &mat = convertedMats[mat_nr];
+
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
     // Mark face as flat, so vertices are split.
