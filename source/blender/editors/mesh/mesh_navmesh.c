@@ -125,7 +125,7 @@ static void createVertsTrisData(
       MVert *v = &mvert[i];
 
       copy_v3_v3(co, v->co);
-      mul_v3_m4v3(wco, ob->obmat, co);
+      mul_v3_m4v3(wco, ob->object_to_world, co);
 
       verts[3 * (basenverts + i) + 0] = wco[0];
       verts[3 * (basenverts + i) + 1] = wco[2];

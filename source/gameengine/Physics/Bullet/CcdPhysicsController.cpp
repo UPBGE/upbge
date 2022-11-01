@@ -890,7 +890,7 @@ void CcdPhysicsController::UpdateSoftBody()
             MT_Vector3 p2 = ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com);
             MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
 
-            // Do we need obmat? maybe
+            // Do we need object_to_world? maybe
             copy_v3_v3(v1->co, p1.getValue());
             copy_v3_v3(v2->co, p2.getValue());
             copy_v3_v3(v3->co, p3.getValue());

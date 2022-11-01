@@ -938,13 +938,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     gameobj->SetScene(kxscene);
     gameobj->SetBlenderObject(ob);
 
-    /* Bakup Objects obmat to restore at scene exit */
+    /* Bakup Objects object_to_world to restore at scene exit */
     if (kxscene->GetBlenderScene()->gm.flag & GAME_USE_UNDO) {
       if (!converting_during_runtime) {
         BackupObj *backup = new BackupObj();  // Can't allocate on stack
         backup->ob = ob;
         backup->obtfm = BKE_object_tfm_backup(ob);
-        kxscene->BackupObjectsObmat(backup);
+        kxscene->BackupObjectsMatToWorld(backup);
       }
     }
 

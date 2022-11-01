@@ -58,7 +58,7 @@ class BL_ArmatureObject : public KX_GameObject {
   size_t m_constraintNumber;
   size_t m_channelNumber;
   /// Store the original armature object matrix.
-  float m_obmat[4][4];
+  float m_object_to_world[4][4];
   /// Set to true to allow draw debug info for one frame, reset in DrawDebugArmature.
   bool m_drawDebug;
 

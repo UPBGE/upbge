@@ -95,8 +95,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   //  aabb.m_color.getValue(c);
 
   //  float mvp[16];
-  //  MT_Matrix4x4 obmat(mat);
-  //  MT_Matrix4x4 m(m_cameraMatrix * obmat);
+  //  MT_Matrix4x4 object_to_world(mat);
+  //  MT_Matrix4x4 m(m_cameraMatrix * object_to_world);
   //  m.getValue(mvp);
 
   //  /*BindVBO(mvp, c, vertexes, m_wireibo);

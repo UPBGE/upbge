@@ -110,7 +110,7 @@ KX_GameObject::KX_GameObject()
 {
   m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
 
-  unit_m4(m_prevObmat);  // eevee
+  unit_m4(m_prevobject_to_world);  // eevee
 };
 
 KX_GameObject::~KX_GameObject()
@@ -234,7 +234,7 @@ void KX_GameObject::SyncTransformWithDepsgraph()
   Object *ob = GetBlenderObject();
   if (ob) {
     float loc[3], rot[3][3], size[3];
-    mat4_to_loc_rot_size(loc, rot, size, ob->obmat);
+    mat4_to_loc_rot_size(loc, rot, size, ob->object_to_world);
     MT_Matrix3x3 orientation;
     NodeSetWorldPosition(MT_Vector3(loc));
     // MT_Matrix3x3's constructor expects a 4x4 matrix
@@ -252,8 +252,8 @@ void KX_GameObject::ForceIgnoreParentTx()
 
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
-  float obmat[4][4];
-  NodeGetWorldTransform().getValue(&obmat[0][0]);
+  float object_to_world[4][4];
+  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
@@ -267,11 +267,11 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     }
     else if (multiple_render_passes && is_last_render_pass) {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      copy_m4_m4(m_prevObmat, obmat);  // This is used for ImageRender but could be changed...
+      copy_m4_m4(m_prevobject_to_world, object_to_world);  // This is used for ImageRender but could be changed...
     }
     else {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      copy_m4_m4(m_prevObmat, obmat);
+      copy_m4_m4(m_prevobject_to_world, object_to_world);
     }
   }
 
@@ -294,9 +294,9 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
 
     if (applyTransformToOrig) {
-      copy_m4_m4(ob_orig->obmat, obmat);
+      copy_m4_m4(ob_orig->object_to_world, object_to_world);
       BKE_object_apply_mat4(
-          ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
+          ob_orig, ob_orig->object_to_world, false, ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
     if (!staticObject || m_forceIgnoreParentTx) {
@@ -336,8 +336,8 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
 void KX_GameObject::TagForTransformUpdateEvaluated()
 {
-  float obmat[4][4];
-  NodeGetWorldTransform().getValue(&obmat[0][0]);
+  float object_to_world[4][4];
+  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -352,8 +352,8 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
 
   if (ob_orig && !skip_transform) {
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
-    copy_m4_m4(ob_eval->obmat, obmat);
-    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+    copy_m4_m4(ob_eval->object_to_world, object_to_world);
+    BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world, false, true);
   }
 }
 
@@ -616,9 +616,9 @@ void KX_GameObject::SetIsReplicaObject()
   m_isReplica = true;
 }
 
-float *KX_GameObject::GetPrevObmat()
+float *KX_GameObject::GetPrevObjectMatToWorld()
 {
-  return (float *)m_prevObmat;
+  return (float *)m_prevobject_to_world;
 }
 
 /********************End of EEVEE INTEGRATION*********************/
@@ -1080,11 +1080,11 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
   if (!blendobj)
     blendobj = m_pBlenderObject;
   if (blendobj) {
-    float obmat[4][4];
-    NodeGetWorldTransform().getValue(&obmat[0][0]);
-    copy_m4_m4(blendobj->obmat, obmat);
+    float object_to_world[4][4];
+    NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+    copy_m4_m4(blendobj->object_to_world, object_to_world);
     /* Making sure it's updated. (To move volumes) */
-    invert_m4_m4(blendobj->imat, blendobj->obmat);
+    invert_m4_m4(blendobj->imat, blendobj->object_to_world);
   }
 }
 

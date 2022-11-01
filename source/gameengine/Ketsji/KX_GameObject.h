@@ -105,7 +105,7 @@ class KX_GameObject : public SCA_IObject {
 
  protected:
   /* EEVEE INTEGRATION */
-  float m_prevObmat[4][4];
+  float m_prevobject_to_world[4][4];
   bool m_isReplica;
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
@@ -166,7 +166,7 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
-  float *GetPrevObmat();
+  float *GetPrevObjectMatToWorld();
   BL_ActionManager *GetActionManagerNoCreate();
   /* END OF EEVEE INTEGRATION */
 
@@ -217,7 +217,7 @@ class KX_GameObject : public SCA_IObject {
   Relink(std::map<SCA_IObject *, SCA_IObject *> &map);
 
   /**
-   * Update the blender object obmat field from the object world position
+   * Update the blender object object_to_world field from the object world position
    * if blendobj is nullptr, update the object pointed by m_pBlenderObject
    * The user must take action to restore the matrix before leaving the GE.
    * Used in Armature evaluation

@@ -362,9 +362,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void RestoreRestrictFlags();
   void TagForCollectionRemap();
   KX_GameObject *GetGameObjectFromObject(Object *ob);
-  void BackupObjectsObmat(BackupObj *back);
-  void RestoreObjectsObmat();
-  void TagForObmatRestore();
+  void BackupObjectsMatToWorld(BackupObj *back);
+  void RestoreObjectsMatToWorld();
+  void TagForObjectsMatToWorldRestore();
   bool OrigObCanBeTransformedInRealtime(Object *ob);
   void IgnoreParentTxBGE(struct Main *bmain,
                          struct Depsgraph *depsgraph,

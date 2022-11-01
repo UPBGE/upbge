@@ -3138,7 +3138,7 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
   if (!current)
     return NULL;
 
-  dist_sq = len_squared_v3v3(ob->obmat[3], camera_position);
+  dist_sq = len_squared_v3v3(ob->object_to_world[3], camera_position);
 
   if (dist_sq < square_f(current->distance)) {
     /* check for higher LoD */

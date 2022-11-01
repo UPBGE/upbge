@@ -50,7 +50,7 @@
  * Don't copy the constraints for the pose used by the Action actuator, it does not need them.
  * Scan the constraint structures so that the KX equivalent of target objects are identified and
  * stored in separate list.
- * When it is about to evaluate the pose, set the KX object position in the obmat of the
+ * When it is about to evaluate the pose, set the KX object position in the object_to_world of the
  * corresponding Blender objects and restore after the evaluation.
  */
 // static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
@@ -229,7 +229,7 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   // m_objArma->pose->flag |= POSE_GAME_ENGINE;
 
   if (m_objArma) {
-    memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
+    memcpy(m_object_to_world, m_objArma->object_to_world, sizeof(m_object_to_world));
     LoadChannels();
   }
 }
@@ -425,7 +425,7 @@ void BL_ArmatureObject::ApplyPose()
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
     // restore ourself
-    memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
+    memcpy(m_objArma->object_to_world, m_object_to_world, sizeof(m_object_to_world));
     m_lastapplyframe = m_lastframe;
   }
 }

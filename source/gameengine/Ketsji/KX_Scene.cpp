@@ -267,7 +267,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_idsToUpdateInAllRenderPasses = {};
   m_idsToUpdateInOverlayPass = {};
 
-  /* To backup and restore obmat */
+  /* To backup and restore object_to_world */
   m_backupObList = {};
 
   /* Configure Shading types and overlays according to
@@ -317,10 +317,10 @@ KX_Scene::~KX_Scene()
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  /* Restore Objects obmat */
+  /* Restore Objects object_to_world mat */
   if (scene->gm.flag & GAME_USE_UNDO) {
-    RestoreObjectsObmat();
-    TagForObmatRestore();
+    RestoreObjectsMatToWorld();
+    TagForObjectsMatToWorldRestore();
   }
   /*************************/
 
@@ -771,7 +771,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   UpdateParents(0.0);
 
-  /* Update evaluated object obmat according to SceneGraph. */
+  /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForTransformUpdateEvaluated();
   }
@@ -1238,12 +1238,12 @@ KX_GameObject *KX_Scene::GetGameObjectFromObject(Object *ob)
   return m_sceneConverter->FindGameObject(ob);
 }
 
-void KX_Scene::BackupObjectsObmat(BackupObj *backup)
+void KX_Scene::BackupObjectsMatToWorld(BackupObj *backup)
 {
   m_backupObList.push_back(backup);
 }
 
-void KX_Scene::RestoreObjectsObmat()
+void KX_Scene::RestoreObjectsMatToWorld()
 {
   for (BackupObj *backup : m_backupObList) {
     BKE_object_tfm_restore(backup->ob, backup->obtfm);
@@ -1276,9 +1276,9 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
     if (child->parent == ob) {
       ob_child = child;
       Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
-      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->obmat, true, false);
+      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world, true, false);
       BKE_object_workob_calc_parent(depsgraph, GetBlenderScene(), ob_child_eval, &workob);
-      invert_m4_m4(ob_child->parentinv, workob.obmat);
+      invert_m4_m4(ob_child->parentinv, workob.object_to_world);
       /* Copy result of BKE_object_apply_mat4(). */
       BKE_object_transform_copy(ob_child, ob_child_eval);
       /* Make sure evaluated object is in a consistent state with the original one.
@@ -1296,7 +1296,7 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
   }
 }
 
-void KX_Scene::TagForObmatRestore()
+void KX_Scene::TagForObjectsMatToWorldRestore()
 {
   for (BackupObj *backup : m_backupObList) {
 
@@ -1308,7 +1308,7 @@ void KX_Scene::TagForObmatRestore()
 
       if (applyTransformToOrig) {
         BKE_object_apply_mat4(
-            ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
+            ob_orig, ob_orig->object_to_world, false, ob_orig->parent && ob_orig->partype != PARVERT1);
       }
 
       if (applyTransformToOrig) {
@@ -1337,8 +1337,8 @@ void KX_Scene::TagForObmatRestore()
 bool KX_Scene::SomethingIsMoving()
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
-    if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObmat()),
-                       gameobj->GetBlenderObject()->obmat,
+    if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObjectMatToWorld()),
+                       gameobj->GetBlenderObject()->object_to_world,
                        FLT_MIN))) {
       return true;
     }

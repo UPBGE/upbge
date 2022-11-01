@@ -438,7 +438,7 @@ static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id
       mul_v3_fl(scale, 0.2f);
       axis_angle_to_mat3(rotmat, axis, len_v3(axis));
       loc_rot_size_to_mat4(tmp, xyz, rotmat, scale);
-      mul_m4_m4m4(tmp, ob->obmat, tmp);
+      mul_m4_m4m4(tmp, ob->object_to_world, tmp);
       DRW_buffer_add_entry(cb->origin_xform, color, tmp);
     }
   }
