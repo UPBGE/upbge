@@ -153,6 +153,19 @@ void BLI_path_normalize(const char *relabase, char *path)
    */
 
 #ifdef WIN32
+
+  while ((start = strstr(path, "\\.\\"))) {
+    eind = start + strlen("\\.\\") - 1;
+    memmove(start, eind, strlen(eind) + 1);
+  }
+
+  /* remove two consecutive backslashes, but skip the UNC prefix,
+   * which needs to be preserved */
+  while ((start = strstr(path + BLI_path_unc_prefix_len(path), "\\\\"))) {
+    eind = start + strlen("\\\\") - 1;
+    memmove(start, eind, strlen(eind) + 1);
+  }
+
   while ((start = strstr(path, "\\..\\"))) {
     eind = start + strlen("\\..\\") - 1;
     a = start - path - 1;
@@ -170,18 +183,18 @@ void BLI_path_normalize(const char *relabase, char *path)
     }
   }
 
-  while ((start = strstr(path, "\\.\\"))) {
-    eind = start + strlen("\\.\\") - 1;
+#else
+
+  while ((start = strstr(path, "/./"))) {
+    eind = start + (3 - 1) /* strlen("/./") - 1 */;
     memmove(start, eind, strlen(eind) + 1);
   }
 
-  /* remove two consecutive backslashes, but skip the UNC prefix,
-   * which needs to be preserved */
-  while ((start = strstr(path + BLI_path_unc_prefix_len(path), "\\\\"))) {
-    eind = start + strlen("\\\\") - 1;
+  while ((start = strstr(path, "//"))) {
+    eind = start + (2 - 1) /* strlen("//") - 1 */;
     memmove(start, eind, strlen(eind) + 1);
   }
-#else
+
   while ((start = strstr(path, "/../"))) {
     a = start - path - 1;
     if (a > 0) {
@@ -206,15 +219,6 @@ void BLI_path_normalize(const char *relabase, char *path)
     }
   }
 
-  while ((start = strstr(path, "/./"))) {
-    eind = start + (3 - 1) /* strlen("/./") - 1 */;
-    memmove(start, eind, strlen(eind) + 1);
-  }
-
-  while ((start = strstr(path, "//"))) {
-    eind = start + (2 - 1) /* strlen("//") - 1 */;
-    memmove(start, eind, strlen(eind) + 1);
-  }
 #endif
 }
 
@@ -626,14 +630,28 @@ bool BLI_path_parent_dir(char *path)
   char tmp[FILE_MAX + 4];
 
   BLI_path_join(tmp, sizeof(tmp), path, parent_dir);
-  BLI_path_normalize(NULL, tmp); /* does all the work of normalizing the path for us */
+  /* Does all the work of normalizing the path for us.
+   *
+   * NOTE(@campbellbarton): While it's possible strip text after the second last slash,
+   * this would have to be clever and skip cases like "/./" & multiple slashes.
+   * Since this ends up solving some of the same problems as #BLI_path_normalize,
+   * call this function instead of attempting to handle them separately. */
+  BLI_path_normalize(NULL, tmp);
 
-  if (!BLI_path_extension_check(tmp, parent_dir)) {
-    strcpy(path, tmp); /* We assume the parent directory is always shorter. */
-    return true;
+  /* Use #BLI_path_name_at_index instead of checking if the strings ends with `parent_dir`
+   * to ensure the logic isn't confused by:
+   * - Directory names that happen to end with `..`.
+   * - When `path` is empty, the contents will be `../`
+   *   which would cause checking for a tailing `/../` fail.
+   * Extracting the span of the final directory avoids both these issues. */
+  int tail_ofs = 0, tail_len = 0;
+  if (BLI_path_name_at_index(tmp, -1, &tail_ofs, &tail_len) && (tail_len == 2) &&
+      (memcmp(&tmp[tail_ofs], "..", 2) == 0)) {
+    return false;
   }
 
-  return false;
+  strcpy(path, tmp); /* We assume the parent directory is always shorter. */
+  return true;
 }
 
 bool BLI_path_parent_dir_until_exists(char *dir)
