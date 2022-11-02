@@ -133,7 +133,7 @@ foreach(GLSL_FILE ${GLSL_SRC})
   data_to_c_simple(${GLSL_FILE} GLSL_C)
 endforeach()
 
-blender_add_lib(bf_compositor_shaders "${GLSL_C}" "" "" "")
+blender_add_lib(bf_compositor_shaders "${GLSL_C}" "${SRC}" "${GLSL_SRC}" "${LIB}")
 
 list(APPEND LIB
   bf_compositor_shaders
