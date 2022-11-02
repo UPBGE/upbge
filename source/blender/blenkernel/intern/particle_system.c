@@ -1639,7 +1639,7 @@ static void sph_springs_modify(ParticleSystem *psys, float dtime)
     }
   }
 
-  /* Loop through springs backwaqrds - for efficient delete function */
+  /* Loop through springs backwards - for efficient delete function. */
   for (i = psys->tot_fluidsprings - 1; i >= 0; i--) {
     if (psys->fluid_springs[i].delete_flag) {
       sph_spring_delete(psys, i);
@@ -3555,7 +3555,7 @@ static void save_hair(ParticleSimulationData *sim, float UNUSED(cfra))
   HairKey *key, *root;
   PARTICLE_P;
 
-  invert_m4_m4(ob->imat, ob->object_to_world);
+  invert_m4_m4(ob->world_to_object, ob->object_to_world);
 
   psys->lattice_deform_data = psys_create_lattice_deform_data(sim);
 
@@ -3577,7 +3577,7 @@ static void save_hair(ParticleSimulationData *sim, float UNUSED(cfra))
 
     /* convert from global to geometry space */
     copy_v3_v3(key->co, pa->state.co);
-    mul_m4_v3(ob->imat, key->co);
+    mul_m4_v3(ob->world_to_object, key->co);
 
     if (pa->totkey) {
       sub_v3_v3(key->co, root->co);
@@ -4764,7 +4764,7 @@ void particle_system_update(struct Depsgraph *depsgraph,
   float cfra;
   ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 
-  /* drawdata is outdated after ANY change */
+  /* Draw data is outdated after ANY change. */
   if (psys->pdd) {
     psys->pdd->flag &= ~PARTICLE_DRAW_DATA_UPDATED;
   }

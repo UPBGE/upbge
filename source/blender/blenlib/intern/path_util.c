@@ -626,10 +626,9 @@ bool BLI_path_suffix(char *string, size_t maxlen, const char *suffix, const char
 
 bool BLI_path_parent_dir(char *path)
 {
-  const char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
-  char tmp[FILE_MAX + 4];
+  char tmp[FILE_MAX];
 
-  BLI_path_join(tmp, sizeof(tmp), path, parent_dir);
+  STRNCPY(tmp, path);
   /* Does all the work of normalizing the path for us.
    *
    * NOTE(@campbellbarton): While it's possible strip text after the second last slash,
@@ -645,12 +644,19 @@ bool BLI_path_parent_dir(char *path)
    *   which would cause checking for a tailing `/../` fail.
    * Extracting the span of the final directory avoids both these issues. */
   int tail_ofs = 0, tail_len = 0;
-  if (BLI_path_name_at_index(tmp, -1, &tail_ofs, &tail_len) && (tail_len == 2) &&
-      (memcmp(&tmp[tail_ofs], "..", 2) == 0)) {
+  if (!BLI_path_name_at_index(tmp, -1, &tail_ofs, &tail_len)) {
     return false;
   }
+  if (tail_len == 1) {
+    /* Last path is ".", as normalize should remove this, it's safe to assume failure.
+     * This happens when the input a single period (possibly with slashes before or after). */
+    if (tmp[tail_ofs] == '.') {
+      return false;
+    }
+  }
 
-  strcpy(path, tmp); /* We assume the parent directory is always shorter. */
+  memcpy(path, tmp, tail_ofs);
+  path[tail_ofs] = '\0';
   return true;
 }
 
@@ -1499,6 +1505,27 @@ size_t BLI_path_join_array(char *__restrict dst,
   if (ofs == dst_last) {
     return ofs;
   }
+
+#ifdef WIN32
+  /* Special case "//" for relative paths, don't use separator #SEP
+   * as this has a special meaning on both WIN32 & UNIX.
+   * Without this check joining `"//", "path"`. results in `"//\path"`. */
+  if (ofs != 0) {
+    size_t i;
+    for (i = 0; i < ofs; i++) {
+      if (dst[i] != '/') {
+        break;
+      }
+    }
+    if (i == ofs) {
+      /* All slashes, keep them as-is, and join the remaining path array. */
+      return path_array_num > 1 ?
+                 BLI_path_join_array(
+                     dst + ofs, dst_len - ofs, &path_array[1], path_array_num - 1) :
+                 ofs;
+    }
+  }
+#endif
 
   /* Remove trailing slashes, unless there are *only* trailing slashes
    * (allow `//` or `//some_path` as the first argument). */

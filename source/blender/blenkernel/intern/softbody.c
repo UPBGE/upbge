@@ -318,7 +318,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
   /* OBBs for idea1 */
   pccd_M->mima = MEM_mallocN(sizeof(ccdf_minmax) * pccd_M->tri_num, "ccd_Mesh_Faces_mima");
 
-  /* anyhoo we need to walk the list of faces and find OBB they live in */
+  /* Anyhow we need to walk the list of faces and find OBB they live in. */
   for (i = 0, mima = pccd_M->mima, vt = pccd_M->tri; i < pccd_M->tri_num; i++, mima++, vt++) {
     const float *v;
 
@@ -413,7 +413,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
     pccd_M->bbmax[2] = max_ff(pccd_M->bbmax[2], v[2] + hull);
   }
 
-  /* anyhoo we need to walk the list of faces and find OBB they live in */
+  /* Anyhow we need to walk the list of faces and find OBB they live in. */
   for (i = 0, mima = pccd_M->mima, vt = pccd_M->tri; i < pccd_M->tri_num; i++, mima++, vt++) {
     const float *v;
 
@@ -3073,12 +3073,13 @@ static void softbody_to_object(Object *ob, float (*vertexCos)[3], int numVerts, 
       SB_estimate_transform(ob, sb->lcom, sb->lrot, sb->lscale);
     }
     /* Inverse matrix is not up to date. */
-    invert_m4_m4(ob->imat, ob->object_to_world);
+    invert_m4_m4(ob->world_to_object, ob->object_to_world);
 
     for (a = 0; a < numVerts; a++, bp++) {
       copy_v3_v3(vertexCos[a], bp->pos);
       if (local == 0) {
-        mul_m4_v3(ob->imat, vertexCos[a]); /* softbody is in global coords, baked optionally not */
+        mul_m4_v3(ob->world_to_object,
+                  vertexCos[a]); /* softbody is in global coords, baked optionally not */
       }
     }
   }
