@@ -1084,7 +1084,7 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
     NodeGetWorldTransform().getValue(&object_to_world[0][0]);
     copy_m4_m4(blendobj->object_to_world, object_to_world);
     /* Making sure it's updated. (To move volumes) */
-    invert_m4_m4(blendobj->imat, blendobj->object_to_world);
+    invert_m4_m4(blendobj->world_to_object, blendobj->object_to_world);
   }
 }
 
