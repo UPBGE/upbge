@@ -39,7 +39,7 @@ struct RecordingState {
   bool front_facing = true;
   bool inverted_view = false;
   DRWState pipeline_state = DRW_STATE_NO_DRAW;
-  int view_clip_plane_count = 0;
+  int clip_plane_count = 0;
   /** Used for gl_BaseInstance workaround. */
   GPUStorageBuf *resource_id_buf = nullptr;
 
@@ -325,6 +325,7 @@ struct Clear {
 
 struct StateSet {
   DRWState new_state;
+  int clip_plane_count;
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
@@ -482,7 +483,7 @@ class DrawMultiBuf {
                    ResourceHandle handle)
   {
     /* Custom draw-calls cannot be batched and will produce one group per draw. */
-    const bool custom_group = (vertex_first != 0 || vertex_first != -1 || vertex_len != -1);
+    const bool custom_group = ((vertex_first != 0 && vertex_first != -1) || vertex_len != -1);
 
     instance_len = instance_len != -1 ? instance_len : 1;
 
