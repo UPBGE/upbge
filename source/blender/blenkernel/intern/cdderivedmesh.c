@@ -1534,7 +1534,7 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
        BLI_edgesetIterator_step(ehi), i++, med++, index++) {
     BLI_edgesetIterator_getKey(ehi, &med->v1, &med->v2);
 
-    med->flag = ME_EDGEDRAW | ME_EDGERENDER;
+    med->flag = ME_EDGEDRAW;
     *index = ORIGINDEX_NONE;
   }
   BLI_edgesetIterator_free(ehi);
@@ -1604,11 +1604,11 @@ void CDDM_calc_edges(DerivedMesh *dm)
     j = POINTER_AS_INT(BLI_edgehashIterator_getValue(ehi));
 
     if (j == 0 || !eindex) {
-      med->flag = ME_EDGEDRAW | ME_EDGERENDER;
+      med->flag = ME_EDGEDRAW;
       *index = ORIGINDEX_NONE;
     }
     else {
-      med->flag = ME_EDGEDRAW | ME_EDGERENDER | origmed[j - 1].flag;
+      med->flag = ME_EDGEDRAW | origmed[j - 1].flag;
       *index = eindex[j - 1];
     }
 
