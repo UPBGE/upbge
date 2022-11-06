@@ -20,6 +20,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_legacy_convert.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
@@ -384,7 +385,7 @@ void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool UNUSED(do_face_nor_
 
   /* Tessellation recreated faceData, and the active layer indices need to get re-propagated
    * from loops and polys to faces */
-  CustomData_bmesh_update_active_layers(&dm->faceData, &dm->loopData);
+  update_active_fdata_layers(&dm->faceData, &dm->loopData);
 }
 
 void CDDM_recalc_tessellation(DerivedMesh *dm)

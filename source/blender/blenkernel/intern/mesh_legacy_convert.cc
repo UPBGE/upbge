@@ -530,7 +530,7 @@ static void convert_mfaces_to_mpolys(ID *id,
 #undef ME_FGON
 }
 
-static void update_active_fdata_layers(CustomData *fdata, CustomData *ldata)
+void update_active_fdata_layers(CustomData *fdata, CustomData *ldata) // UPBGE: Not static
 {
   int act;
 
@@ -1268,7 +1268,7 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *ldata, int total)
     }
   }
 
-  CustomData_bmesh_update_active_layers(fdata, ldata);
+  update_active_fdata_layers(fdata, ldata);
 }
 
 /* End of UPBGE */

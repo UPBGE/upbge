@@ -154,6 +154,8 @@ BLI_INLINE int BKE_mesh_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 bool CustomData_from_bmeshpoly_test(CustomData *fdata, CustomData *ldata, bool fallback);
 #endif
 
+void update_active_fdata_layers(struct CustomData *fdata, struct CustomData *ldata); /* UPBGE : Not static */
+
 void CustomData_from_bmeshpoly(struct CustomData *fdata, struct CustomData *ldata, int total);
 
 void mesh_loops_to_tessdata(struct CustomData *fdata, /* UPBGE (not static) */
