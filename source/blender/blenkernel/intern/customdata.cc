@@ -2801,6 +2801,7 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data,
   int flag = 0;
 
   if (!typeInfo->defaultname && CustomData_has_layer(data, type)) {
+    MEM_SAFE_FREE(layerdata);
     return &data->layers[CustomData_get_layer_index(data, type)];
   }
 
