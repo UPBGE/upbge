@@ -993,7 +993,7 @@ static PyObject *pyrna_prop_str(BPy_PropertyRNA *self)
   }
 
   if (len != -1) {
-    sprintf(--c, "[%d]", len);
+    BLI_sprintf(--c, "[%d]", len);
   }
 
   /* If a pointer, try to print name of pointer target too. */
@@ -2328,7 +2328,7 @@ static int pyrna_prop_collection_ass_subscript_int(BPy_PropertyRNA *self,
   return 0;
 }
 
-static PyObject *pyrna_prop_array_subscript_int(BPy_PropertyArrayRNA *self, int keynum)
+static PyObject *pyrna_prop_array_subscript_int(BPy_PropertyArrayRNA *self, Py_ssize_t keynum)
 {
   int len;
 
@@ -2883,7 +2883,7 @@ static PyObject *pyrna_prop_array_subscript(BPy_PropertyArrayRNA *self, PyObject
     if (key_slice->start == Py_None && key_slice->stop == Py_None) {
       /* NOTE: no significant advantage with optimizing [:] slice as with collections,
        * but include here for consistency with collection slice func */
-      const Py_ssize_t len = (Py_ssize_t)pyrna_prop_array_length(self);
+      const Py_ssize_t len = pyrna_prop_array_length(self);
       return pyrna_prop_array_subscript_slice(self, &self->ptr, self->prop, 0, len, len);
     }
 
@@ -3497,8 +3497,10 @@ PyDoc_STRVAR(pyrna_struct_keys_doc,
              "   :return: custom property keys.\n"
              "   :rtype: :class:`idprop.type.IDPropertyGroupViewKeys`\n"
              "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
-static PyObject *pyrna_struct_keys(BPy_PropertyRNA *self)
+static PyObject *pyrna_struct_keys(BPy_StructRNA *self)
 {
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
   if (RNA_struct_idprops_check(self->ptr.type) == 0) {
     PyErr_SetString(PyExc_TypeError, "bpy_struct.keys(): this type doesn't support IDProperties");
     return NULL;
@@ -3518,8 +3520,10 @@ PyDoc_STRVAR(pyrna_struct_items_doc,
              "   :return: custom property key, value pairs.\n"
              "   :rtype: :class:`idprop.type.IDPropertyGroupViewItems`\n"
              "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
-static PyObject *pyrna_struct_items(BPy_PropertyRNA *self)
+static PyObject *pyrna_struct_items(BPy_StructRNA *self)
 {
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
   if (RNA_struct_idprops_check(self->ptr.type) == 0) {
     PyErr_SetString(PyExc_TypeError, "bpy_struct.items(): this type doesn't support IDProperties");
     return NULL;
@@ -3539,8 +3543,10 @@ PyDoc_STRVAR(pyrna_struct_values_doc,
              "   :return: custom property values.\n"
              "   :rtype: :class:`idprop.type.IDPropertyGroupViewValues`\n"
              "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
-static PyObject *pyrna_struct_values(BPy_PropertyRNA *self)
+static PyObject *pyrna_struct_values(BPy_StructRNA *self)
 {
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
   if (RNA_struct_idprops_check(self->ptr.type) == 0) {
     PyErr_SetString(PyExc_TypeError,
                     "bpy_struct.values(): this type doesn't support IDProperties");
@@ -7672,14 +7678,14 @@ static struct PyMethodDef bpy_types_module_methods[] = {
 PyDoc_STRVAR(bpy_types_module_doc, "Access to internal Blender types");
 static struct PyModuleDef bpy_types_module_def = {
     PyModuleDef_HEAD_INIT,
-    "bpy.types",                          /* m_name */
-    bpy_types_module_doc,                 /* m_doc */
-    sizeof(struct BPy_TypesModule_State), /* m_size */
-    bpy_types_module_methods,             /* m_methods */
-    NULL,                                 /* m_slots */
-    NULL,                                 /* m_traverse */
-    NULL,                                 /* m_clear */
-    NULL,                                 /* m_free */
+    /*m_name*/ "bpy.types",
+    /*m_doc*/ bpy_types_module_doc,
+    /*m_size*/ sizeof(struct BPy_TypesModule_State),
+    /*m_methods*/ bpy_types_module_methods,
+    /*m_slots*/ NULL,
+    /*m_traverse*/ NULL,
+    /*m_clear*/ NULL,
+    /*m_free*/ NULL,
 };
 
 PyObject *BPY_rna_types(void)
