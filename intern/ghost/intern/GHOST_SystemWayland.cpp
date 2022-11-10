@@ -1264,6 +1264,12 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t sym)
       GXMAP(gkey, XKB_KEY_XF86AudioStop, GHOST_kKeyMediaStop);
       GXMAP(gkey, XKB_KEY_XF86AudioPrev, GHOST_kKeyMediaFirst);
       GXMAP(gkey, XKB_KEY_XF86AudioNext, GHOST_kKeyMediaLast);
+
+      /* Additional keys for non US layouts. */
+
+      /* Uses the same physical key as #XKB_KEY_KP_Decimal for QWERTZ layout, see: T102287. */
+      GXMAP(gkey, XKB_KEY_KP_Separator, GHOST_kKeyNumpadPeriod);
+
       default:
         /* Rely on #xkb_map_gkey_or_scan_code to report when no key can be found. */
         gkey = GHOST_kKeyUnknown;
@@ -4979,6 +4985,42 @@ static const struct wl_registry_listener registry_listener = {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Listener (Display), #wl_display_listener
+ * \{ */
+
+static CLG_LogRef LOG_WL_DISPLAY = {"ghost.wl.handle.display"};
+#define LOG (&LOG_WL_DISPLAY)
+
+static void display_handle_error(
+    void *data, struct wl_display *wl_display, void *object_id, uint32_t code, const char *message)
+{
+  GWL_Display *display = static_cast<GWL_Display *>(data);
+  GHOST_ASSERT(display->wl_display == wl_display, "Invalid internal state");
+  (void)display;
+
+  /* NOTE: code is #wl_display_error, there isn't a convenient way to convert to an ID. */
+  CLOG_INFO(LOG, 2, "error (code=%u, object_id=%p, message=%s)", code, object_id, message);
+}
+
+static void display_handle_delete_id(void *data, struct wl_display *wl_display, uint32_t id)
+{
+  GWL_Display *display = static_cast<GWL_Display *>(data);
+  GHOST_ASSERT(display->wl_display == wl_display, "Invalid internal state");
+  (void)display;
+
+  CLOG_INFO(LOG, 2, "delete_id (id=%u)", id);
+}
+
+static const struct wl_display_listener display_listener = {
+    display_handle_error,
+    display_handle_delete_id,
+};
+
+#undef LOG
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name GHOST Implementation
  *
  * WAYLAND specific implementation of the #GHOST_System interface.
@@ -4999,6 +5041,8 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
 
   /* This may be removed later if decorations are required, needed as part of registration. */
   display_->xdg_decor = new GWL_XDG_Decor_System;
+
+  wl_display_add_listener(display_->wl_display, &display_listener, display_);
 
   /* Register interfaces. */
   {
@@ -5059,6 +5103,8 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
     }
   }
   else
+#else
+  (void)background;
 #endif
   {
     GWL_XDG_Decor_System &decor = *display_->xdg_decor;
