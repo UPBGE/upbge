@@ -196,6 +196,7 @@ set(SRC
 set(INC
   .
   ..
+  ../../asset_system
   ../../blenfont
   ../../blenkernel
   ../../blenlib

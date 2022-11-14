@@ -532,6 +532,8 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "AS_asset_representation.h"
+
 #  include "DNA_anim_types.h"
 #  include "DNA_asset_types.h"
 #  include "DNA_scene_types.h"
@@ -542,7 +544,6 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 #  include "BLI_string.h"
 
 #  include "BKE_anim_data.h"
-#  include "BKE_asset.h"
 #  include "BKE_brush.h"
 #  include "BKE_colortools.h"
 #  include "BKE_context.h"
@@ -2770,14 +2771,14 @@ static PointerRNA rna_FileBrowser_FileSelectEntry_asset_data_get(PointerRNA *ptr
     return PointerRNA_NULL;
   }
 
-  AssetMetaData *asset_data = BKE_asset_representation_metadata_get(entry->asset);
+  AssetMetaData *asset_data = AS_asset_representation_metadata_get(entry->asset);
 
   /* Note that the owning ID of the RNA pointer (`ptr->owner_id`) has to be set carefully:
    * Local IDs (`entry->id`) own their asset metadata themselves. Asset metadata from other blend
    * files are owned by the file browser (`entry`). Only if this is set correctly, we can tell from
    * the metadata RNA pointer if the metadata is stored locally and can thus be edited or not. */
 
-  if (BKE_asset_representation_is_local_id(entry->asset)) {
+  if (AS_asset_representation_is_local_id(entry->asset)) {
     PointerRNA id_ptr;
     RNA_id_pointer_create(entry->id, &id_ptr);
     return rna_pointer_inherit_refine(&id_ptr, &RNA_AssetMetaData, asset_data);
@@ -7766,6 +7767,17 @@ static void rna_def_space_clip(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "around");
   RNA_def_property_enum_items(prop, pivot_items);
   RNA_def_property_ui_text(prop, "Pivot Point", "Pivot center for rotation/scaling");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
+
+  /* Gizmo Toggles. */
+  prop = RNA_def_property(srna, "show_gizmo", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", SCLIP_GIZMO_HIDE);
+  RNA_def_property_ui_text(prop, "Show Gizmo", "Show gizmos of all types");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
+
+  prop = RNA_def_property(srna, "show_gizmo_navigate", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "gizmo_flag", SCLIP_GIZMO_HIDE_NAVIGATE);
+  RNA_def_property_ui_text(prop, "Navigate Gizmo", "Viewport navigation gizmo");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
 }
 
