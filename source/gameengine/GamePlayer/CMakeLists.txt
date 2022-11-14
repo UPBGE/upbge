@@ -40,6 +40,7 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
+  ../../blender/asset_system
   ../../blender/blenfont
   ../../blender/blenkernel
   ../../blender/blenlib

@@ -125,6 +125,10 @@
 #include "LA_PlayerLauncher.h"
 #include "LA_SystemCommandLine.h"
 
+extern "C" {
+ void UV_clipboard_free(void);
+}
+
 #ifdef __APPLE__
 extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #endif
@@ -1833,6 +1837,7 @@ int main(int argc,
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
   BKE_node_clipboard_free();
+  UV_clipboard_free();
 
 #ifdef WITH_COMPOSITOR_CPU
   COM_deinitialize();

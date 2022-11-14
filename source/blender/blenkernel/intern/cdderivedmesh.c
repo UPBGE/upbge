@@ -812,9 +812,9 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
                               numPolys,
                               use_split_normals,
                               split_angle,
+                              NULL,
                               r_lnors_spacearr,
-                              clnor_data,
-                              NULL);
+                              clnor_data);
 #ifdef DEBUG_CLNORS
   if (r_lnors_spacearr) {
     int i;
