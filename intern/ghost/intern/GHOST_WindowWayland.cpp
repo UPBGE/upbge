@@ -35,6 +35,8 @@
 #include <xdg-decoration-unstable-v1-client-protocol.h>
 #include <xdg-shell-client-protocol.h>
 
+#include <atomic>
+
 /* Logging, use `ghost.wl.*` prefix. */
 #include "CLG_log.h"
 
@@ -81,6 +83,13 @@ static void gwl_xdg_decor_window_destroy(WGL_XDG_Decor_Window *decor)
 /** \name Internal #GWL_Window
  * \{ */
 
+struct GWL_WindowFrame {
+  int32_t size[2] = {0, 0};
+  bool is_maximised = false;
+  bool is_fullscreen = false;
+  bool is_active = false;
+};
+
 struct GWL_Window {
   GHOST_WindowWayland *ghost_window = nullptr;
   GHOST_SystemWayland *ghost_system = nullptr;
@@ -106,16 +115,31 @@ struct GWL_Window {
 #endif
   WGL_XDG_Decor_Window *xdg_decor = nullptr;
 
+  /** The current value of frame, copied from `frame_pending` when applying updates. */
+  GWL_WindowFrame frame;
+  GWL_WindowFrame frame_pending;
+
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  /**
+   * Needed so calls such as #GHOST_Window::setClientSize
+   * doesn't conflict with WAYLAND callbacks that may run in a thread.
+   */
+  std::mutex frame_pending_mutex;
+#endif
+
   wl_egl_window *egl_window = nullptr;
 
   std::string title;
-  bool is_maximised = false;
-  bool is_fullscreen = false;
-  bool is_active = false;
+
   bool is_dialog = false;
 
-  int32_t size[2] = {0, 0};
-  int32_t size_pending[2] = {0, 0};
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  /**
+   * These pending actions can't be performed when WAYLAND handlers are running from a thread.
+   * Postpone their execution until the main thread can handle them.
+   */
+  std::atomic<bool> pending_actions[3];
+#endif /* USE_EVENT_BACKGROUND_THREAD */
 };
 
 static void gwl_window_title_set(GWL_Window *win, const char *title)
@@ -137,10 +161,10 @@ static void gwl_window_title_set(GWL_Window *win, const char *title)
 
 static GHOST_TWindowState gwl_window_state_get(const GWL_Window *win)
 {
-  if (win->is_fullscreen) {
+  if (win->frame.is_fullscreen) {
     return GHOST_kWindowStateFullScreen;
   }
-  if (win->is_maximised) {
+  if (win->frame.is_maximised) {
     return GHOST_kWindowStateMaximized;
   }
   return GHOST_kWindowStateNormal;
@@ -228,6 +252,115 @@ static bool gwl_window_state_set(GWL_Window *win, const GHOST_TWindowState state
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Internal #GWL_Window Pending Actions
+ * \{ */
+
+static void gwl_window_frame_pending_size_set(GWL_Window *win)
+{
+  if (win->frame_pending.size[0] == 0 || win->frame_pending.size[1] == 0) {
+    return;
+  }
+
+  win->frame.size[0] = win->frame_pending.size[0];
+  win->frame.size[1] = win->frame_pending.size[1];
+
+  wl_egl_window_resize(win->egl_window, UNPACK2(win->frame.size), 0, 0);
+  win->ghost_window->notify_size();
+
+  win->frame_pending.size[0] = 0;
+  win->frame_pending.size[1] = 0;
+}
+
+static void gwl_window_frame_update_from_pending(GWL_Window *win);
+
+#ifdef USE_EVENT_BACKGROUND_THREAD
+
+enum eGWL_PendingWindowActions {
+  PENDING_FRAME_CONFIGURE = 0,
+  PENDING_EGL_RESIZE,
+#  ifdef GHOST_OPENGL_ALPHA
+  PENDING_OPAQUE_SET,
+#  endif
+  PENDING_SWAP_BUFFERS,
+  PENDING_SCALE_UPDATE,
+};
+#  define PENDING_NUM (PENDING_SWAP_BUFFERS + 1)
+
+static void gwl_window_pending_actions_tag(GWL_Window *win, enum eGWL_PendingWindowActions type)
+{
+  win->pending_actions[int(type)].store(true);
+  win->ghost_system->has_pending_actions_for_window.store(true);
+}
+
+static void gwl_window_pending_actions_handle(GWL_Window *win)
+{
+  if (win->pending_actions[PENDING_FRAME_CONFIGURE].exchange(false)) {
+    gwl_window_frame_update_from_pending(win);
+  }
+  if (win->pending_actions[PENDING_EGL_RESIZE].exchange(false)) {
+    wl_egl_window_resize(win->egl_window, UNPACK2(win->frame.size), 0, 0);
+  }
+#  ifdef GHOST_OPENGL_ALPHA
+  if (win->pending_actions[PENDING_OPAQUE_SET].exchange(false)) {
+    win->ghost_window->setOpaque();
+  }
+#  endif
+  if (win->pending_actions[PENDING_SCALE_UPDATE].exchange(false)) {
+    win->ghost_window->outputs_changed_update_scale();
+  }
+  if (win->pending_actions[PENDING_SWAP_BUFFERS].exchange(false)) {
+    win->ghost_window->swapBuffers();
+  }
+}
+
+#endif /* USE_EVENT_BACKGROUND_THREAD */
+
+/**
+ * Update the window's #GWL_WindowFrame
+ */
+static void gwl_window_frame_update_from_pending_lockfree(GWL_Window *win)
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  GHOST_ASSERT(win->ghost_system->main_thread_id == std::this_thread::get_id(),
+               "Only from main thread!");
+
+#endif
+
+  if (win->frame_pending.size[0] != 0 && win->frame_pending.size[1] != 0) {
+    if ((win->frame.size[0] != win->frame_pending.size[0]) ||
+        (win->frame.size[1] != win->frame_pending.size[1])) {
+      gwl_window_frame_pending_size_set(win);
+    }
+  }
+
+  if (win->frame_pending.is_active) {
+    win->ghost_window->activate();
+  }
+  else {
+    win->ghost_window->deactivate();
+  }
+
+  win->frame_pending.size[0] = win->frame.size[0];
+  win->frame_pending.size[1] = win->frame.size[1];
+
+  win->frame = win->frame_pending;
+
+  /* Signal not to apply the scale unless it's configured. */
+  win->frame_pending.size[0] = 0;
+  win->frame_pending.size[1] = 0;
+}
+
+static void gwl_window_frame_update_from_pending(GWL_Window *win)
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_frame_guard{win->frame_pending_mutex};
+#endif
+  gwl_window_frame_update_from_pending_lockfree(win);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
 
@@ -304,24 +437,29 @@ static void xdg_toplevel_handle_configure(void *data,
   CLOG_INFO(LOG, 2, "configure (size=[%d, %d])", width, height);
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
-  win->size_pending[0] = win->scale * width;
-  win->size_pending[1] = win->scale * height;
 
-  win->is_maximised = false;
-  win->is_fullscreen = false;
-  win->is_active = false;
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_frame_guard{win->frame_pending_mutex};
+#endif
+
+  win->frame_pending.size[0] = win->scale * width;
+  win->frame_pending.size[1] = win->scale * height;
+
+  win->frame_pending.is_maximised = false;
+  win->frame_pending.is_fullscreen = false;
+  win->frame_pending.is_active = false;
 
   enum xdg_toplevel_state *state;
   WL_ARRAY_FOR_EACH (state, states) {
     switch (*state) {
       case XDG_TOPLEVEL_STATE_MAXIMIZED:
-        win->is_maximised = true;
+        win->frame_pending.is_maximised = true;
         break;
       case XDG_TOPLEVEL_STATE_FULLSCREEN:
-        win->is_fullscreen = true;
+        win->frame_pending.is_fullscreen = true;
         break;
       case XDG_TOPLEVEL_STATE_ACTIVATED:
-        win->is_active = true;
+        win->frame_pending.is_active = true;
         break;
       default:
         break;
@@ -332,7 +470,10 @@ static void xdg_toplevel_handle_configure(void *data,
 static void xdg_toplevel_handle_close(void *data, xdg_toplevel * /*xdg_toplevel*/)
 {
   CLOG_INFO(LOG, 2, "close");
-  static_cast<GWL_Window *>(data)->ghost_window->close();
+
+  GWL_Window *win = static_cast<GWL_Window *>(data);
+
+  win->ghost_window->close();
 }
 
 static const xdg_toplevel_listener xdg_toplevel_listener = {
@@ -359,81 +500,87 @@ static void frame_handle_configure(struct libdecor_frame *frame,
 {
   CLOG_INFO(LOG, 2, "configure");
 
-  GWL_Window *win = static_cast<GWL_Window *>(data);
+#  ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_frame_guard{static_cast<GWL_Window *>(data)->frame_pending_mutex};
+#  endif
 
+  GWL_WindowFrame *frame_pending = &static_cast<GWL_Window *>(data)->frame_pending;
+
+  /* Set the size. */
   int size_next[2];
-  enum libdecor_window_state window_state;
-  struct libdecor_state *state;
-  bool do_redraw = false;
-
-  if (!libdecor_configuration_get_content_size(
-          configuration, frame, &size_next[0], &size_next[1])) {
-    size_next[0] = win->size[0] / win->scale;
-    size_next[1] = win->size[1] / win->scale;
-  }
-
-  const int size_prev[2] = {UNPACK2(win->size)};
-  win->size[0] = win->scale * size_next[0];
-  win->size[1] = win->scale * size_next[1];
-
-  const bool do_resize = (size_prev[0] != win->size[0]) || (size_prev[1] != win->size[1]);
-
-  if (do_resize) {
-    wl_egl_window_resize(win->egl_window, UNPACK2(win->size), 0, 0);
-    win->ghost_window->notify_size();
-  }
-
-  if (!libdecor_configuration_get_window_state(configuration, &window_state)) {
-    window_state = LIBDECOR_WINDOW_STATE_NONE;
-  }
-
-  win->is_maximised = window_state & LIBDECOR_WINDOW_STATE_MAXIMIZED;
-  win->is_fullscreen = window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN;
-
-  GHOST_SystemWayland *system = win->ghost_system;
-  const bool is_active_prev_ghost = (win->ghost_window ==
-                                     system->getWindowManager()->getActiveWindow());
-  win->is_active = window_state & LIBDECOR_WINDOW_STATE_ACTIVE;
-  if (is_active_prev_ghost != win->is_active) {
-    if (win->is_active) {
-      win->ghost_window->activate();
+  {
+    const int scale = static_cast<GWL_Window *>(data)->scale;
+    if (!libdecor_configuration_get_content_size(
+            configuration, frame, &size_next[0], &size_next[1])) {
+      GWL_Window *win = static_cast<GWL_Window *>(data);
+      size_next[0] = win->frame.size[0] / scale;
+      size_next[1] = win->frame.size[1] / scale;
     }
-    else {
-      win->ghost_window->deactivate();
+
+    frame_pending->size[0] = scale * size_next[0];
+    frame_pending->size[1] = scale * size_next[1];
+  }
+
+  /* Set the state. */
+  {
+    enum libdecor_window_state window_state;
+    if (!libdecor_configuration_get_window_state(configuration, &window_state)) {
+      window_state = LIBDECOR_WINDOW_STATE_NONE;
+    }
+
+    frame_pending->is_maximised = window_state & LIBDECOR_WINDOW_STATE_MAXIMIZED;
+    frame_pending->is_fullscreen = window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN;
+    frame_pending->is_active = window_state & LIBDECOR_WINDOW_STATE_ACTIVE;
+  }
+
+  /* Commit the changes. */
+  {
+    GWL_Window *win = static_cast<GWL_Window *>(data);
+    struct libdecor_state *state = libdecor_state_new(UNPACK2(size_next));
+    libdecor_frame_commit(frame, state, configuration);
+    libdecor_state_free(state);
+
+    win->libdecor->configured = true;
+  }
+
+  {
+    GWL_Window *win = static_cast<GWL_Window *>(data);
+#  ifdef USE_EVENT_BACKGROUND_THREAD
+    GHOST_SystemWayland *system = win->ghost_system;
+    const bool is_main_thread = system->main_thread_id == std::this_thread::get_id();
+    if (!is_main_thread) {
+      /* NOTE(@campbellbarton): this only gets one redraw,
+       * I could not find a case where this causes problems. */
+      gwl_window_pending_actions_tag(win, PENDING_FRAME_CONFIGURE);
+    }
+    else
+#  endif
+    {
+      gwl_window_frame_update_from_pending_lockfree(win);
     }
   }
-
-  const bool is_active_prev_decor = win->is_active;
-  if (is_active_prev_decor) {
-    /* Without this, activating another window doesn't refresh the title-bar as inactive. */
-    do_redraw = true;
-  }
-
-  state = libdecor_state_new(UNPACK2(size_next));
-  libdecor_frame_commit(frame, state, configuration);
-  libdecor_state_free(state);
-
-  if (do_redraw) {
-    win->ghost_window->swapBuffers();
-  }
-
-  win->libdecor->configured = true;
 }
 
 static void frame_handle_close(struct libdecor_frame * /*frame*/, void *data)
 {
   CLOG_INFO(LOG, 2, "close");
 
-  static_cast<GWL_Window *>(data)->ghost_window->close();
+  GWL_Window *win = static_cast<GWL_Window *>(data);
+
+  win->ghost_window->close();
 }
 
 static void frame_handle_commit(struct libdecor_frame * /*frame*/, void *data)
 {
   CLOG_INFO(LOG, 2, "commit");
 
-  /* We have to swap twice to keep any pop-up menus alive. */
-  static_cast<GWL_Window *>(data)->ghost_window->swapBuffers();
-  static_cast<GWL_Window *>(data)->ghost_window->swapBuffers();
+  GWL_Window *win = static_cast<GWL_Window *>(data);
+
+#  ifdef USE_EVENT_BACKGROUND_THREAD
+  gwl_window_pending_actions_tag(win, PENDING_SWAP_BUFFERS);
+#  else
+  win->ghost_window->swapBuffers();
+#  endif
 }
 
 static struct libdecor_frame_interface libdecor_frame_iface = {
@@ -461,7 +608,10 @@ static void xdg_toplevel_decoration_handle_configure(
     const uint32_t mode)
 {
   CLOG_INFO(LOG, 2, "configure (mode=%u)", mode);
-  static_cast<GWL_Window *>(data)->xdg_decor->mode = (zxdg_toplevel_decoration_v1_mode)mode;
+
+  GWL_Window *win = static_cast<GWL_Window *>(data);
+
+  win->xdg_decor->mode = (zxdg_toplevel_decoration_v1_mode)mode;
 }
 
 static const zxdg_toplevel_decoration_v1_listener xdg_toplevel_decoration_v1_listener = {
@@ -489,28 +639,20 @@ static void xdg_surface_handle_configure(void *data,
     CLOG_INFO(LOG, 2, "configure (skipped)");
     return;
   }
-  const bool do_resize = win->size_pending[0] != 0 && win->size_pending[1] != 0;
-  CLOG_INFO(LOG, 2, "configure (do_resize=%d)", do_resize);
+  CLOG_INFO(LOG, 2, "configure");
 
-  if (do_resize) {
-    win->size[0] = win->size_pending[0];
-    win->size[1] = win->size_pending[1];
-    wl_egl_window_resize(win->egl_window, UNPACK2(win->size), 0, 0);
-    win->size_pending[0] = 0;
-    win->size_pending[1] = 0;
-    win->ghost_window->notify_size();
-  }
-
+#ifdef USE_EVENT_BACKGROUND_THREAD
   GHOST_SystemWayland *system = win->ghost_system;
-  const bool is_active_prev_ghost = (win->ghost_window ==
-                                     system->getWindowManager()->getActiveWindow());
-  if (is_active_prev_ghost != win->is_active) {
-    if (win->is_active) {
-      win->ghost_window->activate();
-    }
-    else {
-      win->ghost_window->deactivate();
-    }
+  const bool is_main_thread = system->main_thread_id == std::this_thread::get_id();
+  if (!is_main_thread) {
+    /* NOTE(@campbellbarton): this only gets one redraw,
+     * I could not find a case where this causes problems. */
+    gwl_window_pending_actions_tag(win, PENDING_FRAME_CONFIGURE);
+  }
+  else
+#endif
+  {
+    gwl_window_frame_update_from_pending(win);
   }
 
   xdg_surface_ack_configure(xdg_surface, serial);
@@ -601,6 +743,10 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
       system_(system),
       window_(new GWL_Window)
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system->server_mutex};
+#endif
+
   /* Globally store pointer to window manager. */
   if (!window_manager) {
     window_manager = system_->getWindowManager();
@@ -609,8 +755,8 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   window_->ghost_window = this;
   window_->ghost_system = system;
 
-  window_->size[0] = int32_t(width);
-  window_->size[1] = int32_t(height);
+  window_->frame.size[0] = int32_t(width);
+  window_->frame.size[1] = int32_t(height);
 
   window_->is_dialog = is_dialog;
 
@@ -634,7 +780,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   wl_surface_add_listener(window_->wl_surface, &wl_surface_listener, window_);
 
   window_->egl_window = wl_egl_window_create(
-      window_->wl_surface, int(window_->size[0]), int(window_->size[1]));
+      window_->wl_surface, int(window_->frame.size[0]), int(window_->frame.size[1]));
 
   /* NOTE: The limit is in points (not pixels) so Hi-DPI will limit to larger number of pixels.
    * This has the advantage that the size limit is the same when moving the window between monitors
@@ -742,8 +888,20 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   setSwapInterval(0);
 }
 
+GHOST_TSuccess GHOST_WindowWayland::swapBuffers()
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  GHOST_ASSERT(system_->main_thread_id == std::this_thread::get_id(), "Only from main thread!");
+#endif
+  return GHOST_Window::swapBuffers();
+}
+
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorGrab(GHOST_TGrabCursorMode mode)
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
+
   GHOST_Rect bounds_buf;
   GHOST_Rect *bounds = nullptr;
   if (m_cursorGrab == GHOST_kGrabWrap) {
@@ -773,6 +931,9 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCursorShape(GHOST_TStandardCursor s
 
 bool GHOST_WindowWayland::getCursorGrabUseSoftwareDisplay()
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
   return system_->cursor_grab_use_software_display_get(m_cursorGrab);
 }
 
@@ -784,11 +945,17 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(
 
 GHOST_TSuccess GHOST_WindowWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitmap)
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
   return system_->cursor_bitmap_get(bitmap);
 }
 
 void GHOST_WindowWayland::setTitle(const char *title)
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
   gwl_window_title_set(window_, title);
 }
 
@@ -804,31 +971,30 @@ void GHOST_WindowWayland::getWindowBounds(GHOST_Rect &bounds) const
 
 void GHOST_WindowWayland::getClientBounds(GHOST_Rect &bounds) const
 {
-  bounds.set(0, 0, UNPACK2(window_->size));
+  bounds.set(0, 0, UNPACK2(window_->frame.size));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setClientWidth(const uint32_t width)
 {
-  return setClientSize(width, uint32_t(window_->size[1]));
+  return setClientSize(width, uint32_t(window_->frame.size[1]));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setClientHeight(const uint32_t height)
 {
-  return setClientSize(uint32_t(window_->size[0]), height);
+  return setClientSize(uint32_t(window_->frame.size[0]), height);
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setClientSize(const uint32_t width, const uint32_t height)
 {
-  wl_egl_window_resize(window_->egl_window, int(width), int(height), 0, 0);
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+  std::lock_guard lock_frame_guard{window_->frame_pending_mutex};
+#endif
 
-  /* Override any pending size that may be set. */
-  window_->size_pending[0] = 0;
-  window_->size_pending[1] = 0;
+  window_->frame_pending.size[0] = width;
+  window_->frame_pending.size[1] = height;
 
-  window_->size[0] = width;
-  window_->size[1] = height;
-
-  notify_size();
+  gwl_window_frame_pending_size_set(window_);
 
   return GHOST_kSuccess;
 }
@@ -853,6 +1019,10 @@ void GHOST_WindowWayland::clientToScreen(int32_t inX,
 
 GHOST_WindowWayland::~GHOST_WindowWayland()
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
+
   releaseNativeHandles();
 
   wl_egl_window_destroy(window_->egl_window);
@@ -890,16 +1060,25 @@ uint16_t GHOST_WindowWayland::getDPIHint()
 
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorVisibility(bool visible)
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
   return system_->cursor_visibility_set(visible);
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setState(GHOST_TWindowState state)
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
   return gwl_window_state_set(window_, state) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TWindowState GHOST_WindowWayland::getState() const
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
   return gwl_window_state_get(window_);
 }
 
@@ -915,6 +1094,10 @@ GHOST_TSuccess GHOST_WindowWayland::setOrder(GHOST_TWindowOrder /*order*/)
 
 GHOST_TSuccess GHOST_WindowWayland::beginFullScreen() const
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
+
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
     libdecor_frame_set_fullscreen(window_->libdecor->frame, nullptr);
@@ -930,6 +1113,10 @@ GHOST_TSuccess GHOST_WindowWayland::beginFullScreen() const
 
 GHOST_TSuccess GHOST_WindowWayland::endFullScreen() const
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
+
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
     libdecor_frame_unset_fullscreen(window_->libdecor->frame);
@@ -1047,33 +1234,55 @@ const std::vector<GWL_Output *> &GHOST_WindowWayland::outputs()
 
 GHOST_TSuccess GHOST_WindowWayland::close()
 {
-  return system_->pushEvent(
+  return system_->pushEvent_maybe_pending(
       new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::activate()
 {
-  if (system_->getWindowManager()->setActiveWindow(this) == GHOST_kFailure) {
-    return GHOST_kFailure;
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  const bool is_main_thread = system_->main_thread_id == std::this_thread::get_id();
+  if (is_main_thread)
+#endif
+  {
+    if (system_->getWindowManager()->setActiveWindow(this) == GHOST_kFailure) {
+      return GHOST_kFailure;
+    }
   }
-  return system_->pushEvent(
+  return system_->pushEvent_maybe_pending(
       new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::deactivate()
 {
-  system_->getWindowManager()->setWindowInactive(this);
-  return system_->pushEvent(
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  /* Actual activation is handled when processing pending events. */
+  const bool is_main_thread = system_->main_thread_id == std::this_thread::get_id();
+  if (is_main_thread)
+#endif
+  {
+    system_->getWindowManager()->setWindowInactive(this);
+  }
+  return system_->pushEvent_maybe_pending(
       new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_size()
 {
 #ifdef GHOST_OPENGL_ALPHA
-  setOpaque();
+#  ifdef USE_EVENT_BACKGROUND_THREAD
+  /* Actual activation is handled when processing pending events. */
+  const bool is_main_thread = system_->main_thread_id == std::this_thread::get_id();
+  if (!is_main_thread) {
+    gwl_window_pending_actions_tag(window_, PENDING_OPAQUE_SET);
+  }
+#  endif
+  {
+    setOpaque();
+  }
 #endif
 
-  return system_->pushEvent(
+  return system_->pushEvent_maybe_pending(
       new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
 }
 
@@ -1090,6 +1299,13 @@ GHOST_TSuccess GHOST_WindowWayland::notify_size()
  */
 bool GHOST_WindowWayland::outputs_changed_update_scale()
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  if (system_->main_thread_id != std::this_thread::get_id()) {
+    gwl_window_pending_actions_tag(window_, PENDING_SCALE_UPDATE);
+    return false;
+  }
+#endif
+
   wl_fixed_t scale_fractional_next = 0;
   const int scale_next = outputs_max_scale_or_default(outputs(), 0, &scale_fractional_next);
   if (UNLIKELY(scale_next == 0)) {
@@ -1104,19 +1320,24 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
     window_->scale = scale_next;
     wl_surface_set_buffer_scale(window_->wl_surface, scale_next);
 
+#ifdef USE_EVENT_BACKGROUND_THREAD
+    std::lock_guard lock_frame_guard{window_->frame_pending_mutex};
+#endif
+
     /* It's important to resize the window immediately, to avoid the window changing size
      * and flickering in a constant feedback loop (in some bases). */
-    if ((window_->size_pending[0] != 0) && (window_->size_pending[1] != 0)) {
+
+    if ((window_->frame_pending.size[0] != 0) && (window_->frame_pending.size[1] != 0)) {
       /* Unlikely but possible there is a pending size change is set. */
-      window_->size[0] = window_->size_pending[0];
-      window_->size[1] = window_->size_pending[1];
-      window_->size_pending[0] = 0;
-      window_->size_pending[1] = 0;
+      window_->frame.size[0] = window_->frame_pending.size[0];
+      window_->frame.size[1] = window_->frame_pending.size[1];
     }
-    window_->size[0] = (window_->size[0] / scale_curr) * scale_next;
-    window_->size[1] = (window_->size[1] / scale_curr) * scale_next;
-    wl_egl_window_resize(window_->egl_window, UNPACK2(window_->size), 0, 0);
-    window_->ghost_window->notify_size();
+
+    /* Write to the pending values as these are what is applied. */
+    window_->frame_pending.size[0] = (window_->frame.size[0] / scale_curr) * scale_next;
+    window_->frame_pending.size[1] = (window_->frame.size[1] / scale_curr) * scale_next;
+
+    gwl_window_frame_pending_size_set(window_);
 
     changed = true;
   }
@@ -1156,5 +1377,20 @@ bool GHOST_WindowWayland::outputs_leave(GWL_Output *output)
   outputs.erase(it);
   return true;
 }
+
+#ifdef USE_EVENT_BACKGROUND_THREAD
+
+void GHOST_WindowWayland::pending_actions_handle()
+{
+  /* Caller must lock `server_mutex`, while individual actions could lock,
+   * it's simpler to lock once when handling all window actions. */
+  GWL_Window *win = window_;
+  GHOST_ASSERT(win->ghost_system->main_thread_id == std::this_thread::get_id(),
+               "Run from main thread!");
+
+  gwl_window_pending_actions_handle(win);
+}
+
+#endif /* USE_EVENT_BACKGROUND_THREAD */
 
 /** \} */
