@@ -399,15 +399,9 @@ const float (*BKE_mesh_poly_normals_ensure(const struct Mesh *mesh))[3];
 void BKE_mesh_normals_tag_dirty(struct Mesh *mesh);
 
 /**
- * Check that a mesh with non-dirty normals has vertex and face custom data layers.
- * If these asserts fail, it means some area cleared the dirty flag but didn't copy or add the
- * normal layers, or removed normals but didn't set the dirty flag.
- */
-void BKE_mesh_assert_normals_dirty_or_calculated(const struct Mesh *mesh);
-
-/**
- * Retrieve write access to the vertex normal layer, ensuring that it exists and that it is not
- * shared. The provided vertex normals should be the same as if they were calculated automatically.
+ * Retrieve write access to the cached vertex normals, ensuring that they are allocated but *not*
+ * that they are calculated. The provided vertex normals should be the same as if they were
+ * calculated automatically.
  *
  * \note In order to clear the dirty flag, this function should be followed by a call to
  * #BKE_mesh_vertex_normals_clear_dirty. This is separate so that normals are still tagged dirty
@@ -419,8 +413,9 @@ void BKE_mesh_assert_normals_dirty_or_calculated(const struct Mesh *mesh);
 float (*BKE_mesh_vertex_normals_for_write(struct Mesh *mesh))[3];
 
 /**
- * Retrieve write access to the poly normal layer, ensuring that it exists and that it is not
- * shared. The provided poly normals should be the same as if they were calculated automatically.
+ * Retrieve write access to the cached polygon normals, ensuring that they are allocated but *not*
+ * that they are calculated. The provided polygon normals should be the same as if they were
+ * calculated automatically.
  *
  * \note In order to clear the dirty flag, this function should be followed by a call to
  * #BKE_mesh_poly_normals_clear_dirty. This is separate so that normals are still tagged dirty
@@ -430,17 +425,6 @@ float (*BKE_mesh_vertex_normals_for_write(struct Mesh *mesh))[3];
  * allocated.
  */
 float (*BKE_mesh_poly_normals_for_write(struct Mesh *mesh))[3];
-
-/**
- * Free any cached vertex or poly normals. Face corner (loop) normals are also derived data,
- * but are not handled with the same method yet, so they are not included. It's important that this
- * is called after the mesh changes size, since otherwise cached normal arrays might not be large
- * enough (though it may be called indirectly by other functions).
- *
- * \note Normally it's preferred to call #BKE_mesh_normals_tag_dirty instead,
- * but this can be used in specific situations to reset a mesh or reduce memory usage.
- */
-void BKE_mesh_clear_derived_normals(struct Mesh *mesh);
 
 /**
  * Mark the mesh's vertex normals non-dirty, for when they are calculated or assigned manually.
@@ -506,12 +490,6 @@ void BKE_mesh_calc_normals(struct Mesh *me);
  * Called after calculating all modifiers.
  */
 void BKE_mesh_ensure_normals_for_display(struct Mesh *mesh);
-void BKE_mesh_calc_normals_looptri(const struct MVert *mverts,
-                                   int numVerts,
-                                   const struct MLoop *mloop,
-                                   const struct MLoopTri *looptri,
-                                   int looptri_num,
-                                   float (*r_tri_nors)[3]);
 
 /**
  * Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
@@ -1005,10 +983,10 @@ void BKE_mesh_eval_geometry(struct Depsgraph *depsgraph, struct Mesh *mesh);
 
 /* Draw Cache */
 void BKE_mesh_batch_cache_dirty_tag(struct Mesh *me, eMeshBatchDirtyMode mode);
-void BKE_mesh_batch_cache_free(struct Mesh *me);
+void BKE_mesh_batch_cache_free(void *batch_cache);
 
 extern void (*BKE_mesh_batch_cache_dirty_tag_cb)(struct Mesh *me, eMeshBatchDirtyMode mode);
-extern void (*BKE_mesh_batch_cache_free_cb)(struct Mesh *me);
+extern void (*BKE_mesh_batch_cache_free_cb)(void *batch_cache);
 
 /* mesh_debug.c */
 

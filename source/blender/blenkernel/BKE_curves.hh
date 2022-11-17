@@ -18,11 +18,11 @@
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_vec_types.hh"
+#include "BLI_shared_cache.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
-#include "BLI_shared_cache.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
@@ -65,9 +65,7 @@ struct BasisCache {
 }  // namespace curves::nurbs
 
 /**
- * Contains derived data, caches, and other information not saved in files, besides a few pointers
- * to arrays that are kept in the non-runtime struct to avoid dereferencing this whenever they are
- * accessed.
+ * Contains derived data, caches, and other information not saved in files.
  */
 class CurvesGeometryRuntime {
  public:
