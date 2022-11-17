@@ -2307,6 +2307,8 @@ typedef enum eSnapSourceSelect {
   SCE_SNAP_SOURCE_ACTIVE = 3,
 } eSnapSourceSelect;
 
+ENUM_OPERATORS(eSnapSourceSelect, SCE_SNAP_SOURCE_ACTIVE)
+
 /** #TransSnap.target_select and #ToolSettings.snap_flag (#SCE_SNAP_NOT_TO_ACTIVE,
  * #SCE_SNAP_TO_INCLUDE_EDITED, #SCE_SNAP_TO_INCLUDE_NONEDITED, #SCE_SNAP_TO_ONLY_SELECTABLE) */
 typedef enum eSnapTargetSelect {
@@ -2317,6 +2319,7 @@ typedef enum eSnapTargetSelect {
   SCE_SNAP_TARGET_ONLY_SELECTABLE = (1 << 3),
   SCE_SNAP_TARGET_NOT_NONEDITED = (1 << 4),
 } eSnapTargetSelect;
+ENUM_OPERATORS(eSnapTargetSelect, SCE_SNAP_TARGET_NOT_NONEDITED)
 
 /** #ToolSettings.snap_mode */
 typedef enum eSnapMode {

@@ -17,6 +17,14 @@ extern "C" {
 typedef struct AssetLibrary AssetLibrary;
 
 /**
+ * Force clearing of all asset library data. After calling this, new asset libraries can be loaded
+ * just as usual using #AS_asset_library_load(), no init or other setup is needed.
+ *
+ * Does not need to be called on exit, this is handled internally.
+ */
+void AS_asset_libraries_exit(void);
+
+/**
  * Return the #AssetLibrary rooted at the given directory path.
  *
  * Will return the same pointer for repeated calls, until another blend file is loaded.
@@ -34,7 +42,7 @@ bool AS_asset_library_has_any_unsaved_catalogs(void);
 
 /** An asset library can include local IDs (IDs in the current file). Their pointers need to be
  * remapped on change (or assets removed as IDs gets removed). */
-void AS_asset_library_remap_ids(struct IDRemapper *mappings);
+void AS_asset_library_remap_ids(const struct IDRemapper *mappings);
 
 #ifdef __cplusplus
 }
