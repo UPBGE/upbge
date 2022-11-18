@@ -2,6 +2,11 @@
 
 /** \file
  * \ingroup asset_system
+ *
+ * \brief Main runtime representation of an asset.
+ *
+ * Abstraction to reference an asset, with necessary data for display & interaction.
+ * https://wiki.blender.org/wiki/Source/Architecture/Asset_System/Back_End#Asset_Representation
  */
 
 #pragma once
@@ -16,15 +21,7 @@ struct ID;
 
 namespace blender::asset_system {
 
-/**
- * \brief Abstraction to reference an asset, with necessary data for display & interaction.
- *
- * https://wiki.blender.org/wiki/Source/Architecture/Asset_System/Back_End#Asset_Representation
- */
 class AssetRepresentation {
-  friend struct AssetLibrary;
-  friend class AssetStorage;
-
   struct ExternalAsset {
     std::string name;
     std::unique_ptr<AssetMetaData> metadata_ = nullptr;
@@ -38,6 +35,8 @@ class AssetRepresentation {
     ExternalAsset external_asset_;
     ID *local_asset_id_ = nullptr; /* Non-owning. */
   };
+
+  friend class AssetStorage;
 
  public:
   /** Constructs an asset representation for an external ID. The asset will not be editable. */

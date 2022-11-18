@@ -49,6 +49,8 @@
 
 #include "RE_texture.h"
 
+#include "NOD_composite.h"
+
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
@@ -2333,6 +2335,7 @@ static void rna_Node_parent_set(PointerRNA *ptr,
 {
   bNode *node = ptr->data;
   bNode *parent = value.data;
+  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
 
   if (parent) {
     /* XXX only Frame node allowed for now,
@@ -2348,10 +2351,19 @@ static void rna_Node_parent_set(PointerRNA *ptr,
     }
   }
 
-  nodeDetachNode(node);
+  nodeDetachNode(ntree, node);
   if (parent) {
-    nodeAttachNode(node, parent);
+    nodeAttachNode(ntree, node, parent);
   }
+}
+
+static void rna_Node_internal_links_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  bNode *node = ptr->data;
+  bNodeLink **begin;
+  int len;
+  nodeInternalLinks(node, &begin, &len);
+  rna_iterator_array_begin(iter, begin, sizeof(bNodeLink *), len, false, NULL);
 }
 
 static bool rna_Node_parent_poll(PointerRNA *ptr, PointerRNA value)
@@ -2419,7 +2431,7 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
 
 static bool allow_changing_sockets(bNode *node)
 {
-  return ELEM(node->type, NODE_CUSTOM, SH_NODE_SCRIPT);
+  return ELEM(node->type, NODE_CUSTOM, SH_NODE_SCRIPT, CMP_NODE_OUTPUT_FILE);
 }
 
 static bNodeSocket *rna_Node_inputs_new(ID *id,
@@ -2619,6 +2631,15 @@ static void rna_Node_width_range(
   *max = *softmax = node->typeinfo->maxwidth;
 }
 
+static void rna_Node_width_hidden_set(PointerRNA *UNUSED(ptr), float UNUSED(value))
+{
+}
+
+static float rna_Node_width_hidden_get(PointerRNA *UNUSED(ptr))
+{
+  return 0.0f;
+}
+
 static void rna_Node_height_range(
     PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
 {
@@ -2630,8 +2651,7 @@ static void rna_Node_height_range(
 static void rna_Node_dimensions_get(PointerRNA *ptr, float *value)
 {
   bNode *node = ptr->data;
-  value[0] = node->totr.xmax - node->totr.xmin;
-  value[1] = node->totr.ymax - node->totr.ymin;
+  nodeDimensionsGet(node, &value[0], &value[1]);
 }
 
 /* ******** Node Socket ******** */
@@ -3472,7 +3492,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
 
 static void rna_CompositorNode_tag_need_exec(bNode *node)
 {
-  node->need_exec = true;
+  ntreeCompositTagNeedExec(node);
 }
 
 static void rna_Node_tex_image_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -3903,7 +3923,7 @@ static void rna_Image_Node_update_id(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  node->update |= NODE_UPDATE_ID;
+  nodeTagUpdateID(node);
   rna_Node_update(bmain, scene, ptr);
 }
 
@@ -12188,10 +12208,11 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, NULL);
 
   prop = RNA_def_property(srna, "width_hidden", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, NULL, "miniwidth");
-  RNA_def_property_float_funcs(prop, NULL, NULL, "rna_Node_width_range");
-  RNA_def_property_ui_text(prop, "Width Hidden", "Width of the node in hidden state");
-  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, NULL);
+  RNA_def_property_float_funcs(
+      prop, "rna_Node_width_hidden_get", "rna_Node_width_hidden_set", "rna_Node_width_range");
+  RNA_def_property_ui_text(
+      prop, "Width Hidden", "Deprecated width of the node when it is collapsed");
+  RNA_def_property_update(prop, 0, NULL);
 
   prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, NULL, "height");
@@ -12231,7 +12252,15 @@ static void rna_def_node(BlenderRNA *brna)
   rna_def_node_sockets_api(brna, prop, SOCK_OUT);
 
   prop = RNA_def_property(srna, "internal_links", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, NULL, "internal_links", NULL);
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Node_internal_links_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_dereference_get",
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    NULL);
   RNA_def_property_struct_type(prop, "NodeLink");
   RNA_def_property_ui_text(
       prop, "Internal Links", "Internal input-to-output connections for muting");

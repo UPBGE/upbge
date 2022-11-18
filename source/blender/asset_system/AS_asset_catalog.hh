@@ -6,6 +6,11 @@
 
 #pragma once
 
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
@@ -14,11 +19,6 @@
 #include "BLI_vector.hh"
 
 #include "AS_asset_catalog_path.hh"
-
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
 
 namespace blender::asset_system {
 
@@ -38,6 +38,13 @@ using OwningAssetCatalogMap = Map<CatalogID, std::unique_ptr<AssetCatalog>>;
 /* Manages the asset catalogs of a single asset library (i.e. of catalogs defined in a single
  * directory hierarchy). */
 class AssetCatalogService {
+  std::unique_ptr<AssetCatalogCollection> catalog_collection_;
+  std::unique_ptr<AssetCatalogTree> catalog_tree_;
+  CatalogFilePath asset_library_root_;
+
+  Vector<std::unique_ptr<AssetCatalogCollection>> undo_snapshots_;
+  Vector<std::unique_ptr<AssetCatalogCollection>> redo_snapshots_;
+
  public:
   static const CatalogFilePath DEFAULT_CATALOG_FILENAME;
 
@@ -164,13 +171,6 @@ class AssetCatalogService {
   bool is_redo_possbile() const;
 
  protected:
-  std::unique_ptr<AssetCatalogCollection> catalog_collection_;
-  std::unique_ptr<AssetCatalogTree> catalog_tree_ = std::make_unique<AssetCatalogTree>();
-  CatalogFilePath asset_library_root_;
-
-  Vector<std::unique_ptr<AssetCatalogCollection>> undo_snapshots_;
-  Vector<std::unique_ptr<AssetCatalogCollection>> redo_snapshots_;
-
   void load_directory_recursive(const CatalogFilePath &directory_path);
   void load_single_file(const CatalogFilePath &catalog_definition_file_path);
 
@@ -246,15 +246,6 @@ class AssetCatalogService {
  * struct.
  */
 class AssetCatalogCollection {
-  friend AssetCatalogService;
-
- public:
-  AssetCatalogCollection() = default;
-  AssetCatalogCollection(const AssetCatalogCollection &other) = delete;
-  AssetCatalogCollection(AssetCatalogCollection &&other) noexcept = default;
-
-  std::unique_ptr<AssetCatalogCollection> deep_copy() const;
-
  protected:
   /** All catalogs known, except the known-but-deleted ones. */
   OwningAssetCatalogMap catalogs_;
@@ -271,95 +262,28 @@ class AssetCatalogCollection {
   /** Whether any of the catalogs have unsaved changes. */
   bool has_unsaved_changes_ = false;
 
+  friend AssetCatalogService;
+
+ public:
+  AssetCatalogCollection() = default;
+  AssetCatalogCollection(const AssetCatalogCollection &other) = delete;
+  AssetCatalogCollection(AssetCatalogCollection &&other) noexcept = default;
+
+  std::unique_ptr<AssetCatalogCollection> deep_copy() const;
+
+ protected:
   static OwningAssetCatalogMap copy_catalog_map(const OwningAssetCatalogMap &orig);
-};
-
-/**
- * Representation of a catalog path in the #AssetCatalogTree.
- */
-class AssetCatalogTreeItem {
-  friend class AssetCatalogTree;
-
- public:
-  /** Container for child items. Uses a #std::map to keep items ordered by their name (i.e. their
-   * last catalog component). */
-  using ChildMap = std::map<std::string, AssetCatalogTreeItem>;
-  using ItemIterFn = FunctionRef<void(AssetCatalogTreeItem &)>;
-
-  AssetCatalogTreeItem(StringRef name,
-                       CatalogID catalog_id,
-                       StringRef simple_name,
-                       const AssetCatalogTreeItem *parent = nullptr);
-
-  CatalogID get_catalog_id() const;
-  StringRefNull get_simple_name() const;
-  StringRefNull get_name() const;
-  bool has_unsaved_changes() const;
-  /** Return the full catalog path, defined as the name of this catalog prefixed by the full
-   * catalog path of its parent and a separator. */
-  AssetCatalogPath catalog_path() const;
-  int count_parents() const;
-  bool has_children() const;
-
-  /** Iterate over children calling \a callback for each of them, but do not recurse into their
-   * children. */
-  void foreach_child(ItemIterFn callback);
-
- protected:
-  /** Child tree items, ordered by their names. */
-  ChildMap children_;
-  /** The user visible name of this component. */
-  CatalogPathComponent name_;
-  CatalogID catalog_id_;
-  /** Copy of #AssetCatalog::simple_name. */
-  std::string simple_name_;
-  /** Copy of #AssetCatalog::flags.has_unsaved_changes. */
-  bool has_unsaved_changes_ = false;
-
-  /** Pointer back to the parent item. Used to reconstruct the hierarchy from an item (e.g. to
-   * build a path). */
-  const AssetCatalogTreeItem *parent_ = nullptr;
-
- private:
-  static void foreach_item_recursive(ChildMap &children_, ItemIterFn callback);
-};
-
-/**
- * A representation of the catalog paths as tree structure. Each component of the catalog tree is
- * represented by an #AssetCatalogTreeItem. The last path component of an item is used as its name,
- * which may also be shown to the user.
- * An item can not have multiple children with the same name. That means the name uniquely
- * identifies an item within its parent.
- *
- * There is no single root tree element, the #AssetCatalogTree instance itself represents the root.
- */
-class AssetCatalogTree {
-  using ChildMap = AssetCatalogTreeItem::ChildMap;
-  using ItemIterFn = AssetCatalogTreeItem::ItemIterFn;
-
- public:
-  /** Ensure an item representing \a path is in the tree, adding it if necessary. */
-  void insert_item(const AssetCatalog &catalog);
-
-  void foreach_item(ItemIterFn callback);
-  /** Iterate over root items calling \a callback for each of them, but do not recurse into their
-   * children. */
-  void foreach_root_item(ItemIterFn callback);
-
-  bool is_empty() const;
-
-  AssetCatalogTreeItem *find_item(const AssetCatalogPath &path);
-  AssetCatalogTreeItem *find_root_item(const AssetCatalogPath &path);
-
- protected:
-  /** Child tree items, ordered by their names. */
-  ChildMap root_items_;
 };
 
 /** Keeps track of which catalogs are defined in a certain file on disk.
  * Only contains non-owning pointers to the #AssetCatalog instances, so ensure the lifetime of this
  * class is shorter than that of the #`AssetCatalog`s themselves. */
 class AssetCatalogDefinitionFile {
+ protected:
+  /* Catalogs stored in this file. They are mapped by ID to make it possible to query whether a
+   * catalog is already known, without having to find the corresponding `AssetCatalog*`. */
+  Map<CatalogID, AssetCatalog *> catalogs_;
+
  public:
   /* For now this is the only version of the catalog definition files that is supported.
    * Later versioning code may be added to handle older files. */
@@ -372,6 +296,7 @@ class AssetCatalogDefinitionFile {
 
   CatalogFilePath file_path;
 
+ public:
   AssetCatalogDefinitionFile() = default;
 
   /**
@@ -405,10 +330,6 @@ class AssetCatalogDefinitionFile {
       const OwningAssetCatalogMap &catalogs, const OwningAssetCatalogMap &deleted_catalogs) const;
 
  protected:
-  /* Catalogs stored in this file. They are mapped by ID to make it possible to query whether a
-   * catalog is already known, without having to find the corresponding `AssetCatalog*`. */
-  Map<CatalogID, AssetCatalog *> catalogs_;
-
   bool parse_version_line(StringRef line);
   std::unique_ptr<AssetCatalog> parse_catalog_line(StringRef line);
 
@@ -420,13 +341,16 @@ class AssetCatalogDefinitionFile {
   bool ensure_directory_exists(const CatalogFilePath directory_path) const;
 };
 
-/** Asset Catalog definition, containing a symbolic ID and a path that points to a node in the
- * catalog hierarchy. */
+/**
+ * Asset Catalog definition, containing a symbolic ID and a path that points to a node in the
+ * catalog hierarchy.
+ *
+ * \warning The asset system may reload catalogs, invalidating pointers. Thus it's not recommended
+ *          to store pointers to asset catalogs. Store the #CatalogID instead and do a lookup when
+ *          needed.
+ */
 class AssetCatalog {
  public:
-  AssetCatalog() = default;
-  AssetCatalog(CatalogID catalog_id, const AssetCatalogPath &path, const std::string &simple_name);
-
   CatalogID catalog_id;
   AssetCatalogPath path;
   /**
@@ -457,6 +381,10 @@ class AssetCatalog {
      * memory are considered "unsaved" by definition. */
     bool has_unsaved_changes = false;
   } flags;
+
+ public:
+  AssetCatalog() = default;
+  AssetCatalog(CatalogID catalog_id, const AssetCatalogPath &path, const std::string &simple_name);
 
   /**
    * Create a new Catalog with the given path, auto-generating a sensible catalog simple-name.
@@ -502,6 +430,11 @@ using MutableAssetCatalogOrderedSet = std::set<AssetCatalog *, AssetCatalogLessT
  * \see AssetCatalogService::create_catalog_filter()
  */
 class AssetCatalogFilter {
+  const Set<CatalogID> matching_catalog_ids_;
+  const Set<CatalogID> known_catalog_ids_;
+
+  friend AssetCatalogService;
+
  public:
   bool contains(CatalogID asset_catalog_id) const;
 
@@ -509,10 +442,6 @@ class AssetCatalogFilter {
   bool is_known(CatalogID asset_catalog_id) const;
 
  protected:
-  friend AssetCatalogService;
-  const Set<CatalogID> matching_catalog_ids;
-  const Set<CatalogID> known_catalog_ids;
-
   explicit AssetCatalogFilter(Set<CatalogID> &&matching_catalog_ids,
                               Set<CatalogID> &&known_catalog_ids);
 };

@@ -98,7 +98,8 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(StringRefNull top_l
 
   std::string top_dir_trailing_slash = normalize_directory_path(top_level_directory);
 
-  AssetLibraryPtr *lib_uptr_ptr = on_disk_libraries_.lookup_ptr(top_dir_trailing_slash);
+  std::unique_ptr<AssetLibrary> *lib_uptr_ptr = on_disk_libraries_.lookup_ptr(
+      top_dir_trailing_slash);
   if (lib_uptr_ptr != nullptr) {
     CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", top_dir_trailing_slash.c_str());
     AssetLibrary *lib = lib_uptr_ptr->get();
@@ -106,7 +107,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(StringRefNull top_l
     return lib;
   }
 
-  AssetLibraryPtr lib_uptr = std::make_unique<AssetLibrary>();
+  std::unique_ptr lib_uptr = std::make_unique<AssetLibrary>();
   AssetLibrary *lib = lib_uptr.get();
 
   lib->on_blend_save_handler_register();
@@ -145,19 +146,18 @@ void AssetLibraryService::allocate_service_instance()
   }
 }
 
-#ifdef WITH_DESTROY_VIA_LOAD_HANDLER
 static void on_blendfile_load(struct Main * /*bMain*/,
                               struct PointerRNA ** /*pointers*/,
                               const int /*num_pointers*/,
                               void * /*arg*/)
 {
+#ifdef WITH_DESTROY_VIA_LOAD_HANDLER
   AssetLibraryService::destroy();
-}
 #endif
+}
 
 void AssetLibraryService::app_handler_register()
 {
-#ifdef WITH_DESTROY_VIA_LOAD_HANDLER
   /* The callback system doesn't own `on_load_callback_store_`. */
   on_load_callback_store_.alloc = false;
 
@@ -165,16 +165,13 @@ void AssetLibraryService::app_handler_register()
   on_load_callback_store_.arg = this;
 
   BKE_callback_add(&on_load_callback_store_, BKE_CB_EVT_LOAD_PRE);
-#endif
 }
 
 void AssetLibraryService::app_handler_unregister()
 {
-#ifdef WITH_DESTROY_VIA_LOAD_HANDLER
   BKE_callback_remove(&on_load_callback_store_, BKE_CB_EVT_LOAD_PRE);
   on_load_callback_store_.func = nullptr;
   on_load_callback_store_.arg = nullptr;
-#endif
 }
 
 bool AssetLibraryService::has_any_unsaved_catalogs() const

@@ -71,6 +71,8 @@ void BKE_mesh_tag_coords_changed(struct Mesh *mesh);
  */
 void BKE_mesh_tag_coords_changed_uniformly(struct Mesh *mesh);
 
+void BKE_mesh_tag_topology_changed(struct Mesh *mesh);
+
 /* *** mesh.c *** */
 
 struct BMesh *BKE_mesh_to_bmesh_ex(const struct Mesh *me,
@@ -961,7 +963,6 @@ void BKE_mesh_strip_loose_faces(struct Mesh *me);
 void BKE_mesh_strip_loose_polysloops(struct Mesh *me);
 void BKE_mesh_strip_loose_edges(struct Mesh *me);
 
-void BKE_mesh_calc_edges_loose(struct Mesh *mesh);
 /**
  * Calculate edges from polygons.
  */
