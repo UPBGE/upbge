@@ -363,6 +363,10 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
     BLI_dynstr_free(defs);
 
     e_data.smaa_sh[stage] = DRW_shader_create(v_str, nullptr, f_str, d_str);
+
+    MEM_freeN(v_str);
+    MEM_freeN(f_str);
+    MEM_freeN(d_str);
   }
   return e_data.smaa_sh[stage];
 }
