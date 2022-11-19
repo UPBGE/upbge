@@ -271,9 +271,9 @@ extern "C" char datatoc_volumetric_vert_glsl[];
 extern "C" char datatoc_world_vert_glsl[];
 
 /* UPBGE */
-extern char datatoc_common_smaa_lib_glsl[];
-extern char datatoc_effect_smaa_frag_glsl[];
-extern char datatoc_effect_smaa_vert_glsl[];
+extern "C" char datatoc_common_smaa_lib_glsl[];
+extern "C" char datatoc_effect_smaa_frag_glsl[];
+extern "C" char datatoc_effect_smaa_vert_glsl[];
 
 static void free_smaa_shaders(void)
 {
@@ -330,37 +330,39 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
                  "#define SMAA_PREDICATION_SCALE %.8f\n",
                  smaa_predication_scale);
 
-    e_data.smaa_sh[stage] = GPU_shader_create_from_arrays({
-        .vert =
-            (const char *[]){
-                "#define SMAA_INCLUDE_VS 1\n",
-                "#define SMAA_INCLUDE_PS 0\n",
-                "uniform vec4 viewportMetrics;\n",
-                datatoc_common_smaa_lib_glsl,
-                datatoc_effect_smaa_vert_glsl,
-                NULL,
-            },
-        .frag =
-            (const char *[]){
-                "#define SMAA_INCLUDE_VS 0\n",
-                "#define SMAA_INCLUDE_PS 1\n",
-                "uniform vec4 viewportMetrics;\n",
-                datatoc_common_smaa_lib_glsl,
-                datatoc_effect_smaa_frag_glsl,
-                NULL,
-            },
-        .defs =
-            (const char *[]){
-                "#define SMAA_GLSL_3\n",
-                "#define SMAA_RT_METRICS viewportMetrics\n",
-                "#define SMAA_NO_DISCARD\n",
-                smaa_quality_define,
-                "#define SMAA_PREDICATION 1\n",
-                smaa_predication_scale_define,
-                stage_define,
-                NULL,
-            },
-    });
+    DynStr *vert = BLI_dynstr_new();
+    BLI_dynstr_append(vert, "#define SMAA_INCLUDE_VS 1\n");
+    BLI_dynstr_append(vert, "#define SMAA_INCLUDE_PS 0\n");
+    BLI_dynstr_append(vert, "uniform vec4 viewportMetrics;\n");
+    BLI_dynstr_append(vert, datatoc_common_smaa_lib_glsl);
+    BLI_dynstr_append(vert, datatoc_effect_smaa_vert_glsl);
+
+    char *v_str = BLI_dynstr_get_cstring(vert);
+    BLI_dynstr_free(vert);
+
+    DynStr *frag = BLI_dynstr_new();
+    BLI_dynstr_append(frag, "#define SMAA_INCLUDE_VS 0\n");
+    BLI_dynstr_append(frag, "#define SMAA_INCLUDE_PS 1\n");
+    BLI_dynstr_append(frag, "uniform vec4 viewportMetrics;\n");
+    BLI_dynstr_append(frag, datatoc_common_smaa_lib_glsl);
+    BLI_dynstr_append(frag, datatoc_effect_smaa_frag_glsl);
+
+    char *f_str = BLI_dynstr_get_cstring(frag);
+    BLI_dynstr_free(frag);
+
+    DynStr *defs = BLI_dynstr_new();
+    BLI_dynstr_append(defs, "#define SMAA_GLSL_3\n");
+    BLI_dynstr_append(defs, "#define SMAA_RT_METRICS viewportMetrics\n");
+    BLI_dynstr_append(defs, "#define SMAA_NO_DISCARD\n");
+    BLI_dynstr_append(defs, smaa_quality_define);
+    BLI_dynstr_append(defs, "#define SMAA_PREDICATION 1\n");
+    BLI_dynstr_append(defs, smaa_predication_scale_define);
+    BLI_dynstr_append(defs, stage_define);
+
+    char *d_str = BLI_dynstr_get_cstring(defs);
+    BLI_dynstr_free(defs);
+
+    e_data.smaa_sh[stage] = DRW_shader_create(v_str, nullptr, f_str, d_str);
   }
   return e_data.smaa_sh[stage];
 }
