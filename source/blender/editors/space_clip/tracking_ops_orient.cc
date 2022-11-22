@@ -37,7 +37,7 @@
 
 /********************** set origin operator *********************/
 
-static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
+static Object *get_camera_with_movieclip(Scene *scene, const MovieClip *clip)
 {
   Object *camera = scene->camera;
 
@@ -107,9 +107,9 @@ static int count_selected_bundles(bContext *C)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
+  const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   int tot = 0;
-  for (MovieTrackingTrack *track = tracksbase->first; track != NULL; track = track->next) {
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_HAS_BUNDLE)) {
       tot++;
     }
@@ -120,7 +120,7 @@ static int count_selected_bundles(bContext *C)
 static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat[4][4])
 {
   bool found = false;
-  for (bConstraint *con = ob->constraints.first; con != NULL; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
     if (cti == NULL) {
       continue;
@@ -145,7 +145,7 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
 
 static Object *object_solver_camera(Scene *scene, Object *ob)
 {
-  for (bConstraint *con = ob->constraints.first; con != NULL; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
     if (cti == NULL) {
       continue;
@@ -182,12 +182,11 @@ static int set_origin_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
+  const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
 
   float median[3] = {0.0f, 0.0f, 0.0f};
   zero_v3(median);
-  for (MovieTrackingTrack *track = tracksbase->first; track != NULL; track = track->next) {
+  LISTBASE_FOREACH (const MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_HAS_BUNDLE)) {
       add_v3_v3(median, track->bundle_pos);
     }
@@ -240,9 +239,9 @@ void CLIP_OT_set_origin(wmOperatorType *ot)
 
 static void set_axis(Scene *scene,
                      Object *ob,
-                     MovieClip *clip,
-                     MovieTrackingObject *tracking_object,
-                     MovieTrackingTrack *track,
+                     const MovieClip *clip,
+                     const MovieTrackingObject *tracking_object,
+                     const MovieTrackingTrack *track,
                      char axis)
 {
   Object *camera = get_camera_with_movieclip(scene, clip);
@@ -376,10 +375,7 @@ static int set_plane_exec(bContext *C, wmOperator *op)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   Scene *scene = CTX_data_scene(C);
   MovieTracking *tracking = &clip->tracking;
-  MovieTrackingObject *tracking_object;
-  MovieTrackingTrack *track, *axis_track = NULL, *act_track;
-  ListBase *tracksbase;
-  Object *object;
+  const MovieTrackingTrack *axis_track = NULL;
   Object *camera = get_camera_with_movieclip(scene, clip);
   int tot = 0;
   float vec[3][3], mat[4][4], obmat[4][4], newmat[4][4], orig[3] = {0.0f, 0.0f, 0.0f};
@@ -397,11 +393,9 @@ static int set_plane_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  tracking_object = BKE_tracking_object_get_active(tracking);
-  tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
-  act_track = BKE_tracking_track_get_active(tracking);
+  const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
 
-  object = get_orientation_object(C);
+  Object *object = get_orientation_object(C);
   if (object == NULL) {
     BKE_report(op->reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
@@ -410,19 +404,22 @@ static int set_plane_exec(bContext *C, wmOperator *op)
   BKE_tracking_get_camera_object_matrix(camera, mat);
 
   /* Get 3 bundles to use as reference. */
-  track = tracksbase->first;
-  while (track && tot < 3) {
-    if (track->flag & TRACK_HAS_BUNDLE && TRACK_VIEW_SELECTED(sc, track)) {
-      mul_v3_m4v3(vec[tot], mat, track->bundle_pos);
-      if (tot == 0 || track == act_track) {
-        copy_v3_v3(orig, vec[tot]);
+  {
+    const MovieTrackingTrack *track = static_cast<const MovieTrackingTrack *>(
+        tracking_object->tracks.first);
+    while (track && tot < 3) {
+      if (track->flag & TRACK_HAS_BUNDLE && TRACK_VIEW_SELECTED(sc, track)) {
+        mul_v3_m4v3(vec[tot], mat, track->bundle_pos);
+        if (tot == 0 || track == tracking_object->active_track) {
+          copy_v3_v3(orig, vec[tot]);
+        }
+        else {
+          axis_track = track;
+        }
+        tot++;
       }
-      else {
-        axis_track = track;
-      }
-      tot++;
+      track = track->next;
     }
-    track = track->next;
   }
 
   sub_v3_v3(vec[1], vec[0]);
@@ -537,8 +534,8 @@ static int set_axis_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
-  MovieTrackingTrack *track = tracksbase->first;
+  const MovieTrackingTrack *track = static_cast<const MovieTrackingTrack *>(
+      tracking_object->tracks.first);
   while (track) {
     if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_HAS_BUNDLE)) {
       break;
@@ -592,11 +589,9 @@ static int do_set_scale(bContext *C, wmOperator *op, bool scale_solution, bool a
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  MovieTrackingTrack *track;
   Scene *scene = CTX_data_scene(C);
   Object *object = NULL;
   Object *camera = get_camera_with_movieclip(scene, clip);
-  ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
   int tot = 0;
   float vec[2][3], mat[4][4], scale;
   float dist = RNA_float_get(op->ptr, "distance");
@@ -616,13 +611,11 @@ static int do_set_scale(bContext *C, wmOperator *op, bool scale_solution, bool a
 
   BKE_tracking_get_camera_object_matrix(camera, mat);
 
-  track = tracksbase->first;
-  while (track) {
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (TRACK_VIEW_SELECTED(sc, track)) {
       mul_v3_m4v3(vec[tot], mat, track->bundle_pos);
       tot++;
     }
-    track = track->next;
   }
 
   sub_v3_v3(vec[0], vec[1]);
@@ -631,12 +624,11 @@ static int do_set_scale(bContext *C, wmOperator *op, bool scale_solution, bool a
     scale = dist / len_v3(vec[0]);
     if (apply_scale) {
       /* Apply scale on reconstructed scene itself. */
-      MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(
-          tracking);
+      MovieTrackingReconstruction *reconstruction = &tracking_object->reconstruction;
       MovieReconstructedCamera *reconstructed_cameras;
       int i;
 
-      for (track = tracksbase->first; track; track = track->next) {
+      LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
         mul_v3_fl(track->bundle_pos, scale);
       }
 

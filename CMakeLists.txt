@@ -1289,12 +1289,11 @@ if(WITH_OPENGL)
   add_definitions(-DWITH_OPENGL)
 endif()
 
-
-# -----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Configure Vulkan.
 
 if(WITH_VULKAN_BACKEND)
-  add_definitions(-DWITH_VULKAN_BACKEND)
+  list(APPEND BLENDER_GL_LIBRARIES ${VULKAN_LIBRARIES})
 endif()
 
 # -----------------------------------------------------------------------------
