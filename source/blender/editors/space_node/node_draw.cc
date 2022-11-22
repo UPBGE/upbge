@@ -1705,16 +1705,13 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
   if (node.type == NODE_GROUP_OUTPUT) {
     return tree_log->run_time_sum;
   }
-  if (node.type == NODE_FRAME) {
+  else if (node.is_frame()) {
     /* Could be cached in the future if this recursive code turns out to be slow. */
     std::chrono::nanoseconds run_time{0};
     bool found_node = false;
-    LISTBASE_FOREACH (bNode *, tnode, &ntree.nodes) {
-      if (tnode->parent != &node) {
-        continue;
-      }
 
-      if (tnode->type == NODE_FRAME) {
+    for (const bNode *tnode : node.direct_children_in_frame()) {
+      if (tnode->is_frame()) {
         std::optional<std::chrono::nanoseconds> sub_frame_run_time = node_get_execution_time(
             tree_draw_ctx, ntree, *tnode);
         if (sub_frame_run_time.has_value()) {
@@ -2711,7 +2708,6 @@ static void node_update_nodetree(const bContext &C,
 
   count_multi_input_socket_links(ntree, *snode);
 
-  /* Update nodes front to back, so children sizes get updated before parents. */
   for (const int i : nodes.index_range()) {
     bNode &node = *nodes[i];
     uiBlock &block = *blocks[i];
@@ -2733,8 +2729,9 @@ static void node_update_nodetree(const bContext &C,
     }
   }
 
-  /* Now calculate the size of frame nodes, which can depend on the size of other nodes. */
-  for (const int i : nodes.index_range()) {
+  /* Now calculate the size of frame nodes, which can depend on the size of other nodes.
+   * Update nodes in reverse, so children sizes get updated before parents. */
+  for (int i = nodes.size() - 1; i >= 0; i--) {
     if (nodes[i]->type == NODE_FRAME) {
       frame_node_prepare_for_draw(*nodes[i], nodes);
     }

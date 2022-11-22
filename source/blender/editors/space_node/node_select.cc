@@ -1235,86 +1235,48 @@ void NODE_OT_select_linked_from(wmOperatorType *ot)
 /** \name Select Same Type Step Operator
  * \{ */
 
+static bool nodes_are_same_type_for_select(const bNode &a, const bNode &b)
+{
+  return a.type == b.type;
+}
+
 static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  bNode **node_array;
-  bNode *active = nodeGetActive(snode->edittree);
-  int totnodes;
-  const bool revert = RNA_boolean_get(op->ptr, "prev");
-  const bool same_type = true;
+  const bool prev = RNA_boolean_get(op->ptr, "prev");
+  bNode &active_node = *nodeGetActive(snode->edittree);
 
-  ntreeGetDependencyList(snode->edittree, &node_array, &totnodes);
+  bNodeTree &node_tree = *snode->edittree;
+  node_tree.ensure_topology_cache();
+  if (node_tree.all_nodes().size() == 1) {
+    return OPERATOR_CANCELLED;
+  }
 
-  if (totnodes > 1) {
-    int a;
+  const Span<const bNode *> toposort = node_tree.toposort_left_to_right();
+  const int index = toposort.first_index(&active_node);
 
-    for (a = 0; a < totnodes; a++) {
-      if (node_array[a] == active) {
-        break;
-      }
+  int new_index = index;
+  while (true) {
+    new_index += (prev ? -1 : 1);
+    if (!toposort.index_range().contains(new_index)) {
+      return OPERATOR_CANCELLED;
     }
-
-    if (same_type) {
-      bNode *node = nullptr;
-
-      while (node == nullptr) {
-        if (revert) {
-          a--;
-        }
-        else {
-          a++;
-        }
-
-        if (a < 0 || a >= totnodes) {
-          break;
-        }
-
-        node = node_array[a];
-
-        if (node->type == active->type) {
-          break;
-        }
-        node = nullptr;
-      }
-      if (node) {
-        active = node;
-      }
-    }
-    else {
-      if (revert) {
-        if (a == 0) {
-          active = node_array[totnodes - 1];
-        }
-        else {
-          active = node_array[a - 1];
-        }
-      }
-      else {
-        if (a == totnodes - 1) {
-          active = node_array[0];
-        }
-        else {
-          active = node_array[a + 1];
-        }
-      }
-    }
-
-    node_select_single(*C, *active);
-
-    /* is note outside view? */
-    if (active->runtime->totr.xmax < region->v2d.cur.xmin ||
-        active->runtime->totr.xmin > region->v2d.cur.xmax ||
-        active->runtime->totr.ymax < region->v2d.cur.ymin ||
-        active->runtime->totr.ymin > region->v2d.cur.ymax) {
-      const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-      space_node_view_flag(*C, *snode, *region, NODE_SELECT, smooth_viewtx);
+    if (nodes_are_same_type_for_select(*toposort[new_index], active_node)) {
+      break;
     }
   }
 
-  if (node_array) {
-    MEM_freeN(node_array);
+  bNode *new_active_node = node_tree.all_nodes()[toposort[new_index]->runtime->index_in_tree];
+  if (new_active_node == &active_node) {
+    return OPERATOR_CANCELLED;
+  }
+
+  node_select_single(*C, *new_active_node);
+
+  if (!BLI_rctf_inside_rctf(&region->v2d.cur, &new_active_node->runtime->totr)) {
+    const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+    space_node_view_flag(*C, *snode, *region, NODE_SELECT, smooth_viewtx);
   }
 
   return OPERATOR_FINISHED;
@@ -1395,11 +1357,7 @@ static void node_find_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
     ARegion *region = CTX_wm_region(C);
     node_select_single(*C, *active);
 
-    /* is note outside view? */
-    if (active->runtime->totr.xmax < region->v2d.cur.xmin ||
-        active->runtime->totr.xmin > region->v2d.cur.xmax ||
-        active->runtime->totr.ymax < region->v2d.cur.ymin ||
-        active->runtime->totr.ymin > region->v2d.cur.ymax) {
+    if (!BLI_rctf_inside_rctf(&region->v2d.cur, &active->runtime->totr)) {
       space_node_view_flag(*C, *snode, *region, NODE_SELECT, U.smooth_viewtx);
     }
   }
@@ -1474,8 +1432,6 @@ void NODE_OT_find_node(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  RNA_def_boolean(ot->srna, "prev", false, "Previous", "");
 }
 
 /** \} */
