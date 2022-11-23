@@ -1276,6 +1276,7 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
   if (ob) {
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {  // Base can be NULL for objects in linked collections...
       if (v) {
