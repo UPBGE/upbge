@@ -2473,14 +2473,10 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     win->gpuctx = GPU_context_create(ghostwin, NULL);
     wm->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->message_bus;
-    /* needed so we can detect the graphics card below */
-    GPU_init();
   }
   else {
     win->gpuctx = GPU_context_active_get();
     wm->message_bus = runtime_msgbus;
-    GPU_exit();
-    GPU_init();
   }
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
