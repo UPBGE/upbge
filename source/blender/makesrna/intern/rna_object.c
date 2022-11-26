@@ -2585,6 +2585,11 @@ static void rna_object_lineart_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ptr->owner_id);
 }
 
+static char *rna_ObjectLineArt_path(const PointerRNA *UNUSED(ptr))
+{
+  return BLI_strdup("lineart");
+}
+
 static void rna_Object_lod_distance_update(Main *UNUSED(bmain),
                                            Scene *UNUSED(scene),
                                            PointerRNA *ptr)
@@ -3780,6 +3785,7 @@ static void rna_def_object_lineart(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "ObjectLineArt", NULL);
   RNA_def_struct_ui_text(srna, "Object Line Art", "Object line art settings");
   RNA_def_struct_sdna(srna, "ObjectLineArt");
+  RNA_def_struct_path_func(srna, "rna_ObjectLineArt_path");
 
   prop = RNA_def_property(srna, "usage", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_feature_line_usage_items);
@@ -4152,6 +4158,7 @@ static void rna_def_object(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "active_material_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, NULL, "actcol");
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_int_funcs(prop,
                              "rna_Object_active_material_index_get",
