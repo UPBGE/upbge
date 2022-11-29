@@ -42,12 +42,12 @@ set(INC_SYS
 )
 
 set(SRC
-  logic_buttons.c
-  logic_ops.c
-  logic_window.c
-  space_logic.c
+  logic_buttons.cc
+  logic_ops.cc
+  logic_window.cc
+  space_logic.cc
 
-  logic_intern.h
+  logic_intern.hh
 )
 
 if(WITH_GAMEENGINE)

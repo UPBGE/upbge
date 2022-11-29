@@ -2169,9 +2169,9 @@ static void ui_linkline_remove_active(uiBlock *block)
   uiLinkLine *line, *nline;
   int a, b;
 
-  for (but = block->buttons.first; but; but = but->next) {
+  for (but = static_cast<uiBut *>(block->buttons.first); but; but = but->next) {
     if (but->type == UI_BTYPE_LINK && but->link) {
-      for (line = but->link->lines.first; line; line = nline) {
+      for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
         nline = line->next;
 
         if (line->flag & UI_SELECT) {
@@ -2217,7 +2217,7 @@ static uiLinkLine *ui_but_find_link(uiBut *from, uiBut *to)
 
   link = from->link;
   if (link) {
-    for (line = link->lines.first; line; line = line->next) {
+    for (line = static_cast<uiLinkLine *>(link->lines.first); line; line = line->next) {
       if (line->from == from && line->to == to) {
         return line;
       }
@@ -2252,7 +2252,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
 
   /* (1) get the object */
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
-    for (sens_iter = ob_iter->sensors.first; sens_iter; sens_iter = sens_iter->next) {
+    for (sens_iter = static_cast<bSensor *>(ob_iter->sensors.first); sens_iter; sens_iter = sens_iter->next) {
       if (&(sens_iter->links) == sens_from_links) {
         ob = ob_iter;
         break;
@@ -2267,7 +2267,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     return;
 
   /* (2) check if the sensor and the actuator are from the same object */
-  for (act_iter = ob->actuators.first; act_iter; act_iter = (bActuator *)act_iter->next) {
+  for (act_iter = static_cast<bActuator *>(ob->actuators.first); act_iter; act_iter = (bActuator *)act_iter->next) {
     if (act_iter == act_to)
       break;
   }
@@ -2291,7 +2291,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     cont->type = CONT_LOGIC_AND;
 
     /* (4) link the sensor->controller->actuator */
-    tmp_but = MEM_callocN(sizeof(uiBut), "uiBut");
+    tmp_but = static_cast<uiBut *>(MEM_callocN(sizeof(uiBut), "uiBut"));
     UI_but_link_set(tmp_but,
                     (void **)&cont,
                     (void ***)&(cont->links),
@@ -2350,7 +2350,7 @@ static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
     oldppoin = *(link->ppoin);
 
     (*(link->totlink))++;
-    *(link->ppoin) = MEM_callocN(*(link->totlink) * sizeof(void *), "new link");
+    *(link->ppoin) = (void **)MEM_callocN(*(link->totlink) * sizeof(void *), "new link");
 
     for (a = 0; a < (*(link->totlink)) - 1; a++) {
       (*(link->ppoin))[a] = oldppoin[a];
@@ -2370,7 +2370,7 @@ static void ui_apply_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data)
   ARegion *ar = CTX_wm_region(C);
   uiBut *bt;
 
-  for (bt = but->block->buttons.first; bt; bt = bt->next) {
+  for (bt = static_cast<uiBut *>(but->block->buttons.first); bt; bt = bt->next) {
     const int ptxy[2] = {(int)(but->linkto[0] + ar->winrct.xmin), (int)(but->linkto[1] + ar->winrct.ymin)};
     if (ui_but_contains_point_px(
             bt, ar, ptxy))

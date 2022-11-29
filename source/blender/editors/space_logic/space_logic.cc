@@ -54,7 +54,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "logic_intern.h"
+#include "logic_intern.hh"
 
 #include "GPU_framebuffer.h"
 
@@ -75,7 +75,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
   if (ar == NULL)
     return NULL;
 
-  arnew = MEM_callocN(sizeof(ARegion), "buttons for image");
+  arnew = (ARegion *)MEM_callocN(sizeof(ARegion), "buttons for image");
 
   BLI_insertlinkafter(&sa->regionbase, ar, arnew);
   arnew->regiontype = RGN_TYPE_UI;
@@ -93,7 +93,7 @@ static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
   ARegion *ar;
   SpaceLogic *slogic;
 
-  slogic = MEM_callocN(sizeof(SpaceLogic), "initlogic");
+  slogic = (SpaceLogic *)MEM_callocN(sizeof(SpaceLogic), "initlogic");
   slogic->spacetype = SPACE_LOGIC;
 
   /* default options */
@@ -103,21 +103,21 @@ static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
                      (BUTS_SENS_STATE | BUTS_ACT_STATE));
 
   /* header */
-  ar = MEM_callocN(sizeof(ARegion), "header for logic");
+  ar = (ARegion *)MEM_callocN(sizeof(ARegion), "header for logic");
 
   BLI_addtail(&slogic->regionbase, ar);
   ar->regiontype = RGN_TYPE_HEADER;
   ar->alignment = RGN_ALIGN_BOTTOM;
 
   /* buttons/list view */
-  ar = MEM_callocN(sizeof(ARegion), "buttons for logic");
+  ar = (ARegion *)MEM_callocN(sizeof(ARegion), "buttons for logic");
 
   BLI_addtail(&slogic->regionbase, ar);
   ar->regiontype = RGN_TYPE_UI;
   ar->alignment = RGN_ALIGN_RIGHT;
 
   /* main region */
-  ar = MEM_callocN(sizeof(ARegion), "main region for logic");
+  ar = (ARegion *)MEM_callocN(sizeof(ARegion), "main region for logic");
 
   BLI_addtail(&slogic->regionbase, ar);
   ar->regiontype = RGN_TYPE_WINDOW;
@@ -163,7 +163,7 @@ static void logic_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 
 static SpaceLink *logic_duplicate(SpaceLink *sl)
 {
-  SpaceLogic *slogicn = MEM_dupallocN(sl);
+  SpaceLogic *slogicn = (SpaceLogic *)MEM_dupallocN(sl);
 
   return (SpaceLink *)slogicn;
 }
@@ -288,19 +288,25 @@ static void logic_header_region_draw(const bContext *C, ARegion *ar)
 
 /**************************** spacetype *****************************/
 
-static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+//static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+//{
+//  SpaceLogic *slog = (SpaceLogic *)slink;
+//
+//  if (!ELEM(GS(old_id->name), ID_GD)) {
+//    return;
+//  }
+//
+//  if ((ID *)slog->gpd == old_id) {
+//    slog->gpd = (bGPdata *)new_id;
+//    id_us_min(old_id);
+//    id_us_plus(new_id);
+//  }
+//}
+
+static void logic_id_remap(ScrArea *UNUSED(area),
+                            SpaceLink *UNUSED(slink),
+                            const struct IDRemapper *UNUSED(mappings))
 {
-  SpaceLogic *slog = (SpaceLogic *)slink;
-
-  if (!ELEM(GS(old_id->name), ID_GD)) {
-    return;
-  }
-
-  if ((ID *)slog->gpd == old_id) {
-    slog->gpd = (bGPdata *)new_id;
-    id_us_min(old_id);
-    id_us_plus(new_id);
-  }
 }
 
 static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
@@ -328,7 +334,7 @@ static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_logic(void)
 {
-  SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype logic");
+  SpaceType *st = (SpaceType *)MEM_callocN(sizeof(SpaceType), "spacetype logic");
   ARegionType *art;
 
   st->spaceid = SPACE_LOGIC;
@@ -349,7 +355,7 @@ void ED_spacetype_logic(void)
   st->blend_write = logic_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN(sizeof(ARegionType), "spacetype logic region");
+  art = (ARegionType *)MEM_callocN(sizeof(ARegionType), "spacetype logic region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES | ED_KEYMAP_VIEW2D;
   art->init = logic_main_region_init;
@@ -359,7 +365,7 @@ void ED_spacetype_logic(void)
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: listview/buttons */
-  art = MEM_callocN(sizeof(ARegionType), "spacetype logic region");
+  art = (ARegionType *)MEM_callocN(sizeof(ARegionType), "spacetype logic region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = 220;  // XXX
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -369,7 +375,7 @@ void ED_spacetype_logic(void)
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN(sizeof(ARegionType), "spacetype logic region");
+  art = (ARegionType *)MEM_callocN(sizeof(ARegionType), "spacetype logic region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;

@@ -67,9 +67,9 @@
 #include "RNA_prototypes.h"
 
 /* XXX BAD BAD */
-#include "../interface/interface_intern.h"
+#include "../interface/interface_intern.hh"
 
-#include "logic_intern.h"
+#include "logic_intern.hh"
 
 #define B_REDR 1
 
@@ -124,7 +124,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_ADD_SENS:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
         if (ob->scaflag & OB_ADDSENS) {
           ob->scaflag &= ~OB_ADDSENS;
           sens = BKE_sca_new_sensor(SENS_ALWAYS);
@@ -142,8 +143,9 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_CHANGE_SENS:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        sens = ob->sensors.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        sens = static_cast<bSensor *>(ob->sensors.first);
         while (sens) {
           if (sens->type != sens->otype) {
             BKE_sca_init_sensor(sens);
@@ -156,8 +158,9 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_DEL_SENS:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        sens = ob->sensors.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        sens = static_cast<bSensor *>(ob->sensors.first);
         while (sens) {
           if (sens->flag & SENS_DEL) {
             BLI_remlink(&(ob->sensors), sens);
@@ -171,7 +174,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_ADD_CONT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
         if (ob->scaflag & OB_ADDCONT) {
           ob->scaflag &= ~OB_ADDCONT;
           cont = BKE_sca_new_controller(CONT_LOGIC_AND);
@@ -201,7 +205,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_SET_STATE_BIT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
         if (ob->scaflag & OB_ALLSTATE) {
           ob->scaflag &= ~OB_ALLSTATE;
           ob->state = 0x3FFFFFFF;
@@ -210,7 +215,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_INIT_STATE_BIT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
         if (ob->scaflag & OB_INITSTBIT) {
           ob->scaflag &= ~OB_INITSTBIT;
           ob->state = ob->init_state;
@@ -221,8 +227,9 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_CHANGE_CONT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        cont = ob->controllers.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        cont = static_cast<bController *>(ob->controllers.first);
         while (cont) {
           if (cont->type != cont->otype) {
             BKE_sca_init_controller(cont);
@@ -235,8 +242,9 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_DEL_CONT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        cont = ob->controllers.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        cont = static_cast<bController *>(ob->controllers.first);
         while (cont) {
           if (cont->flag & CONT_DEL) {
             BLI_remlink(&(ob->controllers), cont);
@@ -251,7 +259,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_ADD_ACT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
         if (ob->scaflag & OB_ADDACT) {
           ob->scaflag &= ~OB_ADDACT;
           act = BKE_sca_new_actuator(ACT_OBJECT);
@@ -269,8 +278,9 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_CHANGE_ACT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        act = ob->actuators.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        act = static_cast<bActuator *>(ob->actuators.first);
         while (act) {
           if (act->type != act->otype) {
             BKE_sca_init_actuator(act);
@@ -283,8 +293,9 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       break;
 
     case B_DEL_ACT:
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        act = ob->actuators.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        act = static_cast<bActuator *>(ob->actuators.first);
         while (act) {
           if (act->flag & ACT_DEL) {
             BLI_remlink(&(ob->actuators), act);
@@ -301,13 +312,14 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
     case B_SOUNDACT_BROWSE:
       /* since we don't know which... */
       didit = 0;
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        act = ob->actuators.first;
+      for (ob = static_cast<Object *>(bmain->objects.first); ob;
+           ob = static_cast<Object *>(ob->id.next)) {
+        act = static_cast<bActuator *>(ob->actuators.first);
         while (act) {
           if (act->type == ACT_SOUND) {
-            bSoundActuator *sa = act->data;
+            bSoundActuator *sa = (bSoundActuator *)act->data;
             if (sa->sndnr) {
-              ID *sound = bmain->sounds.first;
+              ID *sound = (ID *)bmain->sounds.first;
               int nr = 1;
 
               if (sa->sndnr == -2) {
@@ -321,7 +333,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
                 if (nr == sa->sndnr)
                   break;
                 nr++;
-                sound = sound->next;
+                sound = (ID *)sound->next;
               }
 
               if (sa->sound)
@@ -465,12 +477,12 @@ static void set_sca_ob(Object *ob)
   bController *cont;
   bActuator *act;
 
-  cont = ob->controllers.first;
+  cont = static_cast<bController *>(ob->controllers.first);
   while (cont) {
     cont->mynew = (bController *)ob;
     cont = cont->next;
   }
-  act = ob->actuators.first;
+  act = static_cast<bActuator *>(ob->actuators.first);
   while (act) {
     act->mynew = (bActuator *)ob;
     act = act->next;
@@ -498,14 +510,14 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
   if (scene == NULL)
     return NULL;
 
-  ob = bmain->objects.first;
+  ob = static_cast<Object *>(bmain->objects.first);
   while (ob) {
     ob->scavisflag = 0;
     set_sca_ob(ob);
-    ob = ob->id.next;
+    ob = static_cast<Object *>(ob->id.next);
   }
 
-  for (base = view_layer->object_bases.first; base; base = base->next) {
+  for (base = static_cast<Base *>(view_layer->object_bases.first); base; base = base->next) {
     if ((base->flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) && (base->flag & SELECT)) {
       if (scavisflag & BUTS_SENS_SEL)
         base->object->scavisflag |= OB_VIS_SENS;
@@ -532,13 +544,13 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
     while (do_it) {
       do_it = false;
 
-      ob = bmain->objects.first;
+      ob = static_cast<Object *>(bmain->objects.first);
       while (ob) {
 
         /* 1st case: select sensor when controller selected */
         if ((scavisflag & (BUTS_SENS_LINK | BUTS_SENS_STATE)) &&
             (ob->scavisflag & OB_VIS_SENS) == 0) {
-          sens = ob->sensors.first;
+          sens = static_cast<bSensor *>(ob->sensors.first);
           while (sens) {
             for (a = 0; a < sens->totlinks; a++) {
               if (sens->links[a]) {
@@ -558,7 +570,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 
         /* 2nd case: select cont when act selected */
         if ((scavisflag & BUTS_CONT_LINK) && (ob->scavisflag & OB_VIS_CONT) == 0) {
-          cont = ob->controllers.first;
+          cont = static_cast<bController *>(ob->controllers.first);
           while (cont) {
             for (a = 0; a < cont->totlinks; a++) {
               if (cont->links[a]) {
@@ -578,7 +590,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 
         /* 3rd case: select controller when sensor selected */
         if ((scavisflag & BUTS_CONT_LINK) && (ob->scavisflag & OB_VIS_SENS)) {
-          sens = ob->sensors.first;
+          sens = static_cast<bSensor *>(ob->sensors.first);
           while (sens) {
             for (a = 0; a < sens->totlinks; a++) {
               if (sens->links[a]) {
@@ -595,7 +607,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 
         /* 4th case: select actuator when controller selected */
         if ((scavisflag & (BUTS_ACT_LINK | BUTS_ACT_STATE)) && (ob->scavisflag & OB_VIS_CONT)) {
-          cont = ob->controllers.first;
+          cont = static_cast<bController *>(ob->controllers.first);
           while (cont) {
             for (a = 0; a < cont->totlinks; a++) {
               if (cont->links[a]) {
@@ -609,27 +621,26 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
             cont = cont->next;
           }
         }
-        ob = ob->id.next;
+        ob = static_cast<Object *>(ob->id.next);
       }
     }
   }
 
   /* now we count */
-  ob = bmain->objects.first;
+  ob = static_cast<Object *>(bmain->objects.first);
   while (ob) {
     if (ob->scavisflag)
       (*count)++;
-    ob = ob->id.next;
+    ob = static_cast<Object *>(ob->id.next);
   }
 
   if (*count == 0)
     return NULL;
   // if (*count > 24)
   //*count = 24; /* temporal */
+  idar = (ID **)MEM_callocN((*count) * sizeof(void *), "idar");
 
-  idar = MEM_callocN((*count) * sizeof(void *), "idar");
-
-  ob = bmain->objects.first;
+  ob = static_cast<Object *>(bmain->objects.first);
   nr = 0;
 
   /* make the active object always the first one of the list */
@@ -645,7 +656,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
     }
     // if (nr >= 24)
     // break;
-    ob = ob->id.next;
+    ob = static_cast<Object *>(ob->id.next);
   }
 
   /* just to be sure... these were set in set_sca_done_ob() */
@@ -663,7 +674,7 @@ static void get_armature_bone_constraint(Object *ob,
   if (ob->type == OB_ARMATURE && ob->pose) {
     bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, posechannel);
     if (pchan) {
-      bConstraint *con = BLI_findstring(
+      bConstraint *con = (bConstraint *)BLI_findstring(
           &pchan->constraints, constraint_name, offsetof(bConstraint, name));
       if (con) {
         *constraint = con;
@@ -693,7 +704,7 @@ static void do_sensor_menu(bContext *C, void *UNUSED(arg), int event)
 
   for (a = 0; a < count; a++) {
     ob = (Object *)idar[a];
-    sens = ob->sensors.first;
+    sens = (bSensor *)ob->sensors.first;
     while (sens) {
       if (event == 2)
         sens->flag |= SENS_SHOW;
@@ -800,7 +811,7 @@ static void do_controller_menu(bContext *C, void *UNUSED(arg), int event)
 
   for (a = 0; a < count; a++) {
     ob = (Object *)idar[a];
-    cont = ob->controllers.first;
+    cont = static_cast<bController *>(ob->controllers.first);
     while (cont) {
       if (event == 2)
         cont->flag |= CONT_SHOW;
@@ -907,7 +918,7 @@ static void do_actuator_menu(bContext *C, void *UNUSED(arg), int event)
 
   for (a = 0; a < count; a++) {
     ob = (Object *)idar[a];
-    act = ob->actuators.first;
+    act = static_cast<bActuator *>(ob->actuators.first);
     while (act) {
       if (event == 2)
         act->flag |= ACT_SHOW;
@@ -996,8 +1007,8 @@ static uiBlock *actuator_menu(bContext *C, ARegion *ar, void *UNUSED(arg))
 
 static void check_controller_state_mask(bContext *UNUSED(C), void *arg1_but, void *arg2_mask)
 {
-  unsigned int *cont_mask = arg2_mask;
-  uiBut *but = arg1_but;
+  unsigned int *cont_mask = (unsigned int *)arg2_mask;
+  uiBut *but = (uiBut *)arg1_but;
 
   /* a controller is always in a single state */
   *cont_mask = (1 << but->retval);
@@ -1008,7 +1019,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *ar, void *arg_c
 {
   uiBlock *block;
   uiBut *but;
-  bController *cont = arg_cont;
+  bController *cont = (bController *)arg_cont;
 
   short yco = 12, xco = 0, stbit, offset;
 
@@ -2611,20 +2622,20 @@ void logic_buttons(bContext *C, ARegion *ar)
 
     /* clean ACT_LINKED and ACT_VISIBLE of all potentially visible actuators so that we can
      * determine which is actually linked/visible */
-    act = ob->actuators.first;
+    act = (bActuator *)ob->actuators.first;
     while (act) {
       act->flag &= ~(ACT_LINKED | ACT_VISIBLE);
       act = act->next;
     }
     /* same for sensors */
-    sens = ob->sensors.first;
+    sens = (bSensor *)ob->sensors.first;
     while (sens) {
       sens->flag &= ~(SENS_VISIBLE);
       sens = sens->next;
     }
 
     /* mark the linked and visible actuators */
-    cont = ob->controllers.first;
+    cont = (bController *)ob->controllers.first;
     while (cont) {
       flag = ACT_LINKED;
 
@@ -2735,7 +2746,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 
     uiItemS(layout);
 
-    for (cont = ob->controllers.first; cont; cont = cont->next) {
+    for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
       RNA_pointer_create((ID *)ob, &RNA_Controller, cont, &ptr);
 
       if (!(ob->scaflag & OB_ALLSTATE) && !(ob->state & cont->state_mask))
@@ -2868,7 +2879,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 
     uiItemS(layout);
 
-    for (sens = ob->sensors.first; sens; sens = sens->next) {
+    for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
       RNA_pointer_create((ID *)ob, &RNA_Sensor, sens, &ptr);
 
       if ((ob->scaflag & OB_ALLSTATE) || !(slogic->scaflag & BUTS_SENS_STATE) ||
@@ -2984,7 +2995,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 
     uiItemS(layout);
 
-    for (act = ob->actuators.first; act; act = act->next) {
+    for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
 
       RNA_pointer_create((ID *)ob, &RNA_Actuator, act, &ptr);
 

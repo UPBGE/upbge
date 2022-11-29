@@ -64,7 +64,7 @@
 #include "UI_interface.h"
 #include "UI_view2d.h"
 
-#include "logic_intern.h"
+#include "logic_intern.hh"
 
 /* ************* Generic Operator Helpers ************* */
 static bool edit_sensor_poll(bContext *C)
@@ -110,7 +110,7 @@ static int edit_sensor_invoke_properties(bContext *C, wmOperator *op)
     return 1;
 
   if (ptr.data) {
-    bSensor *sens = ptr.data;
+    bSensor *sens = (bSensor *)ptr.data;
     Object *ob = (Object *)ptr.owner_id;
 
     RNA_string_set(op->ptr, "sensor", sens->name);
@@ -131,7 +131,7 @@ static Object *edit_object_property_get(bContext *C, wmOperator *op)
   /* if ob_name is valid try to find the object with this name
    * otherwise gets the active object */
   if (*ob_name)
-    ob = BLI_findstring(&(CTX_data_main(C)->objects), ob_name, offsetof(ID, name) + 2);
+    ob = (Object *)BLI_findstring(&(CTX_data_main(C)->objects), ob_name, offsetof(ID, name) + 2);
   else
     ob = ED_object_active_context(C);
 
@@ -149,7 +149,7 @@ static bSensor *edit_sensor_property_get(bContext *C, wmOperator *op, Object **o
   if (!*ob)
     return NULL;
 
-  sens = BLI_findstring(&((*ob)->sensors), sensor_name, offsetof(bSensor, name));
+  sens = (bSensor *)BLI_findstring(&((*ob)->sensors), sensor_name, offsetof(bSensor, name));
   return sens;
 }
 
@@ -174,7 +174,7 @@ static int edit_controller_invoke_properties(bContext *C, wmOperator *op)
     return 1;
 
   if (ptr.data) {
-    bController *cont = ptr.data;
+    bController *cont = (bController *)ptr.data;
     Object *ob = (Object *)ptr.owner_id;
 
     RNA_string_set(op->ptr, "controller", cont->name);
@@ -196,7 +196,7 @@ static bController *edit_controller_property_get(bContext *C, wmOperator *op, Ob
   if (!*ob)
     return NULL;
 
-  cont = BLI_findstring(&((*ob)->controllers), controller_name, offsetof(bController, name));
+  cont = (bController *)BLI_findstring(&((*ob)->controllers), controller_name, offsetof(bController, name));
   return cont;
 }
 
@@ -216,7 +216,7 @@ static int edit_actuator_invoke_properties(bContext *C, wmOperator *op)
     return 1;
 
   if (ptr.data) {
-    bActuator *act = ptr.data;
+    bActuator *act = (bActuator *)ptr.data;
     Object *ob = (Object *)ptr.owner_id;
 
     RNA_string_set(op->ptr, "actuator", act->name);
@@ -238,7 +238,7 @@ static bActuator *edit_actuator_property_get(bContext *C, wmOperator *op, Object
   if (!*ob)
     return NULL;
 
-  act = BLI_findstring(&((*ob)->actuators), actuator_name, offsetof(bActuator, name));
+  act = (bActuator *)BLI_findstring(&((*ob)->actuators), actuator_name, offsetof(bActuator, name));
   return act;
 }
 
@@ -929,7 +929,7 @@ static void LOGIC_OT_custom_object_register(wmOperatorType *ot)
                         64,
                         "MyObject",
                         "The class name with module (module.ClassName)");
-  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
 static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
@@ -953,7 +953,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
                         64,
                         "MyObject",
                         "The class name with module (module.ClassName)");
-  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
 static int custom_object_remove_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1107,7 +1107,7 @@ static void LOGIC_OT_python_component_register(wmOperatorType *ot)
                         64,
                         "Component",
                         "The component class name with module (module.ComponentName)");
-  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
 static void LOGIC_OT_python_component_create(wmOperatorType *ot)
@@ -1131,7 +1131,7 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
                         64,
                         "Component",
                         "The component class name with module (module.ComponentName)");
-  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
 static int component_remove_exec(bContext *C, wmOperator *op)
@@ -1144,7 +1144,7 @@ static int component_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  pp = BLI_findlink(&ob->components, index);
+  pp = (PythonProxy *)BLI_findlink(&ob->components, index);
 
   if (!pp) {
     return OPERATOR_CANCELLED;
@@ -1188,13 +1188,13 @@ static int component_move_up_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  p1 = BLI_findlink(&ob->components, index);
+  p1 = (PythonProxy *)BLI_findlink(&ob->components, index);
 
   if (!p1 || index < 1) {
     return OPERATOR_CANCELLED;
   }
 
-  p2 = BLI_findlink(&ob->components, index - 1);
+  p2 = (PythonProxy *)BLI_findlink(&ob->components, index - 1);
 
   if (!p2) {
     return OPERATOR_CANCELLED;
@@ -1278,7 +1278,7 @@ static int component_move_down_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  p1 = BLI_findlink(&ob->components, index);
+  p1 = (PythonProxy *)BLI_findlink(&ob->components, index);
 
   if (!p1) {
     return OPERATOR_CANCELLED;
@@ -1290,7 +1290,7 @@ static int component_move_down_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  p2 = BLI_findlink(&ob->components, index + 1);
+  p2 = (PythonProxy *)BLI_findlink(&ob->components, index + 1);
 
   if (!p2) {
     return OPERATOR_CANCELLED;
@@ -1334,12 +1334,12 @@ static int component_reload_exec(bContext *C, wmOperator *op)
   }
 
   if (index > 0) {
-    prev_pp = BLI_findlink(&ob->components, index - 1);
+    prev_pp = (PythonProxy *)BLI_findlink(&ob->components, index - 1);
     pp = prev_pp->next;
   }
   else {
     /* pc is at the head */
-    pp = BLI_findlink(&ob->components, index);
+    pp = (PythonProxy *)BLI_findlink(&ob->components, index);
   }
 
   if (!pp) {

@@ -47,8 +47,8 @@
 #include "UI_interface.h"
 #include "UI_view2d.h"
 
-#include "interface_intern.h"
-#include "logic_intern.h"
+#include "interface_intern.hh"
+#include "logic_intern.hh"
 
 static int logic_properties_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -119,11 +119,11 @@ static int cut_links_exec(bContext *C, wmOperator *op)
     uiBlock *block;
     uiLinkLine *line, *nline;
     uiBut *but;
-    for (block = ar->uiblocks.first; block; block = block->next) {
-      but = block->buttons.first;
+    for (block = static_cast<uiBlock *>(ar->uiblocks.first); block; block = block->next) {
+      but = static_cast<uiBut *>(block->buttons.first);
       while (but) {
         if (but->type == UI_BTYPE_LINK && but->link) {
-          for (line = but->link->lines.first; line; line = nline) {
+          for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
             nline = line->next;
 
             if (cut_links_intersect(line, mcoords, i)) {
@@ -161,7 +161,7 @@ void LOGIC_OT_links_cut(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_KNIFE, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
 }

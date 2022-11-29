@@ -109,4 +109,7 @@ void register_shader_nodes()
   register_node_type_sh_volume_scatter();
   register_node_type_sh_wavelength();
   register_node_type_sh_wireframe();
+
+  /* UPBGE */
+  register_node_type_sh_sprites_animation();
 }
