@@ -297,17 +297,6 @@ static PHashLink *phash_next(PHash *ph, PHashKey key, PHashLink *link)
   return link;
 }
 
-/* Geometry */
-
-static float p_vec_angle(const float v1[3], const float v2[3], const float v3[3])
-{
-  return angle_v3v3v3(v1, v2, v3);
-}
-static float p_vec2_angle(const float v1[2], const float v2[2], const float v3[2])
-{
-  return angle_v2v2v2(v1, v2, v3);
-}
-
 /* Angles close to 0 or 180 degrees cause rows filled with zeros in the linear_solver.
  * The matrix will then be rank deficient and / or have poor conditioning.
  * => Reduce the maximum angle to 179 degrees, and spread the remainder to the other angles.
@@ -358,9 +347,9 @@ static void fix_large_angle(const float v_fix[3],
 static void p_triangle_angles(
     const float v1[3], const float v2[3], const float v3[3], float *r_a1, float *r_a2, float *r_a3)
 {
-  *r_a1 = p_vec_angle(v3, v1, v2);
-  *r_a2 = p_vec_angle(v1, v2, v3);
-  *r_a3 = p_vec_angle(v2, v3, v1);
+  *r_a1 = angle_v3v3v3(v3, v1, v2);
+  *r_a2 = angle_v3v3v3(v1, v2, v3);
+  *r_a3 = angle_v3v3v3(v2, v3, v1);
 
   /* Fix for degenerate geometry e.g. v1 = sum(v2 + v3). See T100874 */
   fix_large_angle(v1, v2, v3, r_a1, r_a2, r_a3);
@@ -628,25 +617,18 @@ static void p_vert_load_pin_select_uvs(ParamHandle *handle, PVert *v)
 
 static void p_flush_uvs(ParamHandle *handle, PChart *chart)
 {
-  PEdge *e;
-
-  for (e = chart->edges; e; e = e->nextlink) {
+  const float blend = handle->blend;
+  const float invblend = 1.0f - blend;
+  for (PEdge *e = chart->edges; e; e = e->nextlink) {
     if (e->orig_uv) {
-      e->orig_uv[0] = e->vert->uv[0] / handle->aspx;
-      e->orig_uv[1] = e->vert->uv[1] / handle->aspy;
-    }
-  }
-}
-
-static void p_flush_uvs_blend(ParamHandle *handle, PChart *chart, float blend)
-{
-  PEdge *e;
-  float invblend = 1.0f - blend;
-
-  for (e = chart->edges; e; e = e->nextlink) {
-    if (e->orig_uv) {
-      e->orig_uv[0] = blend * e->old_uv[0] + invblend * e->vert->uv[0] / handle->aspx;
-      e->orig_uv[1] = blend * e->old_uv[1] + invblend * e->vert->uv[1] / handle->aspy;
+      if (blend) {
+        e->orig_uv[0] = blend * e->old_uv[0] + invblend * e->vert->uv[0] / handle->aspx;
+        e->orig_uv[1] = blend * e->old_uv[1] + invblend * e->vert->uv[1] / handle->aspy;
+      }
+      else {
+        e->orig_uv[0] = e->vert->uv[0] / handle->aspx;
+        e->orig_uv[1] = e->vert->uv[1] / handle->aspy;
+      }
     }
   }
 }
@@ -1229,7 +1211,7 @@ static float p_edge_boundary_angle(PEdge *e)
   do {
     v1 = we->next->vert;
     v2 = we->next->next->vert;
-    angle -= p_vec_angle(v1->co, v->co, v2->co);
+    angle -= angle_v3v3v3(v1->co, v->co, v2->co);
 
     we = we->next->next->pair;
     n++;
@@ -3588,7 +3570,7 @@ static float p_chart_minimum_area_angle(PChart *chart)
     p2 = points[i];
     p3 = (i == npoints - 1) ? points[0] : points[i + 1];
 
-    angles[i] = float(M_PI) - p_vec2_angle(p1->uv, p2->uv, p3->uv);
+    angles[i] = float(M_PI) - angle_v2v2v2(p1->uv, p2->uv, p3->uv);
 
     if (points[i]->uv[1] < miny) {
       miny = points[i]->uv[1];
@@ -3608,19 +3590,19 @@ static float p_chart_minimum_area_angle(PChart *chart)
 
   v[0] = points[idx[0]]->uv[0];
   v[1] = points[idx[0]]->uv[1] + 1.0f;
-  a[0] = p_vec2_angle(points[(idx[0] + 1) % npoints]->uv, points[idx[0]]->uv, v);
+  a[0] = angle_v2v2v2(points[(idx[0] + 1) % npoints]->uv, points[idx[0]]->uv, v);
 
   v[0] = points[idx[1]]->uv[0] + 1.0f;
   v[1] = points[idx[1]]->uv[1];
-  a[1] = p_vec2_angle(points[(idx[1] + 1) % npoints]->uv, points[idx[1]]->uv, v);
+  a[1] = angle_v2v2v2(points[(idx[1] + 1) % npoints]->uv, points[idx[1]]->uv, v);
 
   v[0] = points[idx[2]]->uv[0];
   v[1] = points[idx[2]]->uv[1] - 1.0f;
-  a[2] = p_vec2_angle(points[(idx[2] + 1) % npoints]->uv, points[idx[2]]->uv, v);
+  a[2] = angle_v2v2v2(points[(idx[2] + 1) % npoints]->uv, points[idx[2]]->uv, v);
 
   v[0] = points[idx[3]]->uv[0] - 1.0f;
   v[1] = points[idx[3]]->uv[1];
-  a[3] = p_vec2_angle(points[(idx[3] + 1) % npoints]->uv, points[idx[3]]->uv, v);
+  a[3] = angle_v2v2v2(points[(idx[3] + 1) % npoints]->uv, points[idx[3]]->uv, v);
 
   /* 4 rotating calipers */
 
@@ -4034,13 +4016,10 @@ void GEO_uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
 
 void GEO_uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *count_failed)
 {
-  PChart *chart;
-  int i;
-
   param_assert(phandle->state == PHANDLE_STATE_LSCM);
 
-  for (i = 0; i < phandle->ncharts; i++) {
-    chart = phandle->charts[i];
+  for (int i = 0; i < phandle->ncharts; i++) {
+    PChart *chart = phandle->charts[i];
 
     if (chart->u.lscm.context) {
       const bool result = p_chart_lscm_solve(phandle, chart);
@@ -4427,12 +4406,7 @@ void GEO_uv_parametrizer_flush(ParamHandle *phandle)
       continue;
     }
 
-    if (phandle->blend == 0.0f) {
-      p_flush_uvs(phandle, chart);
-    }
-    else {
-      p_flush_uvs_blend(phandle, chart, phandle->blend);
-    }
+    p_flush_uvs(phandle, chart);
   }
 }
 
