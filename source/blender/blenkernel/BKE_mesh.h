@@ -73,6 +73,11 @@ void BKE_mesh_tag_coords_changed_uniformly(struct Mesh *mesh);
 
 void BKE_mesh_tag_topology_changed(struct Mesh *mesh);
 
+/**
+ * Call when new edges and vertices have been created but positions and faces haven't changed.
+ */
+void BKE_mesh_tag_edges_split(struct Mesh *mesh);
+
 /* *** mesh.c *** */
 
 struct BMesh *BKE_mesh_to_bmesh_ex(const struct Mesh *me,
@@ -128,7 +133,8 @@ int BKE_mesh_edge_other_vert(const struct MEdge *e, int v);
 /**
  * Sets each output array element to the edge index if it is a real edge, or -1.
  */
-void BKE_mesh_looptri_get_real_edges(const struct Mesh *mesh,
+void BKE_mesh_looptri_get_real_edges(const struct MEdge *edges,
+                                     const struct MLoop *loops,
                                      const struct MLoopTri *looptri,
                                      int r_edges[3]);
 

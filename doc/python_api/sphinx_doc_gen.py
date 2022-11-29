@@ -1303,6 +1303,7 @@ def pycontext2sphinx(basepath):
 
             type_descr = prop.get_type_description(
                 class_fmt=":class:`bpy.types.%s`",
+                mathutils_fmt=":class:`mathutils.%s`",
                 collection_id=_BPY_PROP_COLLECTION_ID,
                 enum_descr_override=enum_descr_override,
             )
@@ -1455,6 +1456,7 @@ def pyrna2sphinx(basepath):
             identifier = " %s" % prop.identifier
 
         kwargs["class_fmt"] = ":class:`%s`"
+        kwargs["mathutils_fmt"] = ":class:`mathutils.%s`"
 
         kwargs["collection_id"] = _BPY_PROP_COLLECTION_ID
 
@@ -1574,6 +1576,7 @@ def pyrna2sphinx(basepath):
 
             type_descr = prop.get_type_description(
                 class_fmt=":class:`%s`",
+                mathutils_fmt=":class:`mathutils.%s`",
                 collection_id=_BPY_PROP_COLLECTION_ID,
                 enum_descr_override=enum_descr_override,
             )
@@ -1640,6 +1643,7 @@ def pyrna2sphinx(basepath):
 
                     type_descr = prop.get_type_description(
                         as_ret=True, class_fmt=":class:`%s`",
+                        mathutils_fmt=":class:`mathutils.%s`",
                         collection_id=_BPY_PROP_COLLECTION_ID,
                         enum_descr_override=enum_descr_override,
                     )
