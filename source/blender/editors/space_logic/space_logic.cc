@@ -43,6 +43,7 @@
 #include "BKE_context.h"
 #include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_remap.h"
 #include "BKE_screen.h"
 
 #include "ED_screen.h"
@@ -288,25 +289,17 @@ static void logic_header_region_draw(const bContext *C, ARegion *ar)
 
 /**************************** spacetype *****************************/
 
-//static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
-//{
-//  SpaceLogic *slog = (SpaceLogic *)slink;
-//
-//  if (!ELEM(GS(old_id->name), ID_GD)) {
-//    return;
-//  }
-//
-//  if ((ID *)slog->gpd == old_id) {
-//    slog->gpd = (bGPdata *)new_id;
-//    id_us_min(old_id);
-//    id_us_plus(new_id);
-//  }
-//}
-
 static void logic_id_remap(ScrArea *UNUSED(area),
-                            SpaceLink *UNUSED(slink),
-                            const struct IDRemapper *UNUSED(mappings))
+                            SpaceLink *slink,
+                            const struct IDRemapper *mappings)
 {
+  SpaceLogic *slog = (SpaceLogic *)slink;
+
+  if (!BKE_id_remapper_has_mapping_for(mappings, FILTER_ID_GD)) {
+    return;
+  }
+
+  BKE_id_remapper_apply(mappings, (ID **)&slog->gpd, ID_REMAP_APPLY_UPDATE_REFCOUNT);
 }
 
 static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
