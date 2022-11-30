@@ -46,11 +46,6 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    */
   uint8_t runtime_flag = 0;
 
-  /** Flag to prevent re-entrant update calls. */
-  short is_updating = 0;
-  /** Generic temporary flag for recursion check (DFS/BFS). */
-  short done = 0;
-
   /** Execution data.
    *
    * XXX It would be preferable to completely move this data out of the underlying node tree,
@@ -137,9 +132,6 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
 
   /* Runtime-only cache of the number of input links, for multi-input sockets. */
   short total_inputs = 0;
-
-  /** Cached data from execution. */
-  void *cache = nullptr;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> directly_linked_links;
