@@ -90,6 +90,13 @@ if(WIN32)
   list(APPEND INC ../../../intern/utfconv)
 endif()
 
+if(WITH_USD)
+  list(APPEND LIB
+    bf_usd
+  )
+  #add_definitions(-DWITH_USD)
+endif()
+
 if(WITH_PYTHON)
   list(APPEND INC_SYS
     ${PYTHON_INCLUDE_DIRS}
