@@ -28,7 +28,7 @@
  *  \ingroup splogic
  */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "DNA_actuator_types.h"
 #include "DNA_controller_types.h"

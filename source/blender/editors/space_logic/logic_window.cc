@@ -28,10 +28,10 @@
  *  \ingroup splogic
  */
 
-#include <float.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
+#include <cfloat>
+#include <cstddef>
+#include <cstdio>
+#include <cstring>
 
 #include "DNA_actuator_types.h"
 #include "DNA_constraint_types.h"
