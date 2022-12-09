@@ -211,7 +211,7 @@ extern "C" char datatoc_common_smaa_lib_glsl[];
 extern "C" char datatoc_effect_smaa_frag_glsl[];
 extern "C" char datatoc_effect_smaa_vert_glsl[];
 
-static void free_smaa_shaders(void)
+static void free_smaa_shaders()
 {
   for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
     struct GPUShader **sh_array = &e_data.smaa_sh[0];
@@ -1633,9 +1633,6 @@ void EEVEE_shaders_free(void)
   }
 
   /* UPBGE */
-  for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
-    struct GPUShader **sh_array = &e_data.smaa_sh[0];
-    DRW_SHADER_FREE_SAFE(sh_array[j]);
-  }
+  free_smaa_shaders();
   /* End of UPBGE */
 }
