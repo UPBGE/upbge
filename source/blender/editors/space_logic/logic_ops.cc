@@ -1376,7 +1376,7 @@ static void LOGIC_OT_python_component_reload(wmOperatorType *ot)
 
 /* ************************* */
 
-void ED_operatortypes_logic(void)
+void ED_operatortypes_logic()
 {
   WM_operatortype_append(LOGIC_OT_sensor_remove);
   WM_operatortype_append(LOGIC_OT_sensor_add);

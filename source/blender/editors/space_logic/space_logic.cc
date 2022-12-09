@@ -169,7 +169,7 @@ static SpaceLink *logic_duplicate(SpaceLink *sl)
   return (SpaceLink *)slogicn;
 }
 
-static void logic_operatortypes(void)
+static void logic_operatortypes()
 {
   WM_operatortype_append(LOGIC_OT_properties);
   WM_operatortype_append(LOGIC_OT_links_cut);
@@ -325,7 +325,7 @@ static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
 }
 
 /* only called once, from space/spacetypes.c */
-void ED_spacetype_logic(void)
+void ED_spacetype_logic()
 {
   SpaceType *st = MEM_cnew<SpaceType>("spacetype logic");
   ARegionType *art;
