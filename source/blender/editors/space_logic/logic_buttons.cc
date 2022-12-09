@@ -53,10 +53,10 @@
 static int logic_properties_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
   ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = logic_has_buttons_region(sa);
+  ARegion *region = logic_has_buttons_region(sa);
 
-  if (ar)
-    ED_region_toggle_hidden(C, ar);
+  if (region)
+    ED_region_toggle_hidden(C, region);
 
   return OPERATOR_FINISHED;
 }
@@ -100,7 +100,7 @@ static int cut_links_intersect(uiLinkLine *line, float mcoords[][2], int tot)
 
 static int cut_links_exec(bContext *C, wmOperator *op)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   float mcoords[256][2];
   int i = 0;
 
@@ -108,7 +108,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
     float loc[2];
 
     RNA_float_get_array(&itemptr, "loc", loc);
-    UI_view2d_region_to_view(&ar->v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
+    UI_view2d_region_to_view(&region->v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
     i++;
     if (i >= 256)
       break;
@@ -119,7 +119,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
     uiBlock *block;
     uiLinkLine *line, *nline;
     uiBut *but;
-    for (block = static_cast<uiBlock *>(ar->uiblocks.first); block; block = block->next) {
+    for (block = static_cast<uiBlock *>(region->uiblocks.first); block; block = block->next) {
       but = static_cast<uiBut *>(block->buttons.first);
       while (but) {
         if (but->type == UI_BTYPE_LINK && but->link) {

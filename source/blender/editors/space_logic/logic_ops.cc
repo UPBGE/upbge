@@ -96,9 +96,9 @@ static bool edit_actuator_poll(bContext *C)
 
 static void edit_sensor_properties(wmOperatorType *ot)
 {
-  RNA_def_string(ot->srna, "sensor", NULL, MAX_NAME, "Sensor", "Name of the sensor to edit");
+  RNA_def_string(ot->srna, "sensor", nullptr, MAX_NAME, "Sensor", "Name of the sensor to edit");
   RNA_def_string(
-      ot->srna, "object", NULL, MAX_NAME, "Object", "Name of the object the sensor belongs to");
+      ot->srna, "object", nullptr, MAX_NAME, "Object", "Name of the object the sensor belongs to");
 }
 
 static int edit_sensor_invoke_properties(bContext *C, wmOperator *op)
@@ -147,7 +147,7 @@ static bSensor *edit_sensor_property_get(bContext *C, wmOperator *op, Object **o
 
   *ob = edit_object_property_get(C, op);
   if (!*ob)
-    return NULL;
+    return nullptr;
 
   sens = (bSensor *)BLI_findstring(&((*ob)->sensors), sensor_name, offsetof(bSensor, name));
   return sens;
@@ -156,10 +156,10 @@ static bSensor *edit_sensor_property_get(bContext *C, wmOperator *op, Object **o
 static void edit_controller_properties(wmOperatorType *ot)
 {
   RNA_def_string(
-      ot->srna, "controller", NULL, MAX_NAME, "Controller", "Name of the controller to edit");
+      ot->srna, "controller", nullptr, MAX_NAME, "Controller", "Name of the controller to edit");
   RNA_def_string(ot->srna,
                  "object",
-                 NULL,
+                 nullptr,
                  MAX_NAME,
                  "Object",
                  "Name of the object the controller belongs to");
@@ -194,7 +194,7 @@ static bController *edit_controller_property_get(bContext *C, wmOperator *op, Ob
 
   *ob = edit_object_property_get(C, op);
   if (!*ob)
-    return NULL;
+    return nullptr;
 
   cont = (bController *)BLI_findstring(&((*ob)->controllers), controller_name, offsetof(bController, name));
   return cont;
@@ -202,9 +202,9 @@ static bController *edit_controller_property_get(bContext *C, wmOperator *op, Ob
 
 static void edit_actuator_properties(wmOperatorType *ot)
 {
-  RNA_def_string(ot->srna, "actuator", NULL, MAX_NAME, "Actuator", "Name of the actuator to edit");
+  RNA_def_string(ot->srna, "actuator", nullptr, MAX_NAME, "Actuator", "Name of the actuator to edit");
   RNA_def_string(
-      ot->srna, "object", NULL, MAX_NAME, "Object", "Name of the object the actuator belongs to");
+      ot->srna, "object", nullptr, MAX_NAME, "Object", "Name of the object the actuator belongs to");
 }
 
 static int edit_actuator_invoke_properties(bContext *C, wmOperator *op)
@@ -236,7 +236,7 @@ static bActuator *edit_actuator_property_get(bContext *C, wmOperator *op, Object
 
   *ob = edit_object_property_get(C, op);
   if (!*ob)
-    return NULL;
+    return nullptr;
 
   act = (bActuator *)BLI_findstring(&((*ob)->actuators), actuator_name, offsetof(bActuator, name));
   return act;
@@ -274,7 +274,7 @@ static bool remove_component_poll(bContext *C)
 
 static int sensor_remove_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = NULL;
+  Object *ob = nullptr;
   bSensor *sens = edit_sensor_property_get(C, op, &ob);
 
   if (!sens)
@@ -285,7 +285,7 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "sensor_remove_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -349,7 +349,7 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "sensor_add_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -375,10 +375,10 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
   ot->prop = prop = RNA_def_enum(
       ot->srna, "type", DummyRNA_NULL_items, SENS_ALWAYS, "Type", "Type of sensor to add");
   RNA_def_enum_funcs(prop, rna_Sensor_type_itemf);
-  prop = RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the Sensor to add");
+  prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Sensor to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(
-      ot->srna, "object", NULL, MAX_NAME, "Object", "Name of the Object to add the Sensor to");
+      ot->srna, "object", nullptr, MAX_NAME, "Object", "Name of the Object to add the Sensor to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -386,7 +386,7 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
 
 static int controller_remove_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = NULL;
+  Object *ob = nullptr;
   bController *cont = edit_controller_property_get(C, op, &ob);
 
   if (!cont)
@@ -398,7 +398,7 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "controller_remove_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -481,7 +481,7 @@ static int controller_add_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "controller_add_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -510,10 +510,10 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
                           CONT_LOGIC_AND,
                           "Type",
                           "Type of controller to add");
-  prop = RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the Controller to add");
+  prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Controller to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(
-      ot->srna, "object", NULL, MAX_NAME, "Object", "Name of the Object to add the Controller to");
+      ot->srna, "object", nullptr, MAX_NAME, "Object", "Name of the Object to add the Controller to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -521,7 +521,7 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
 
 static int actuator_remove_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = NULL;
+  Object *ob = nullptr;
   bActuator *act = edit_actuator_property_get(C, op, &ob);
 
   if (!act)
@@ -533,7 +533,7 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "actuator_remove_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -597,7 +597,7 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "actuator_add_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -623,20 +623,20 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
   ot->prop = prop = RNA_def_enum(
       ot->srna, "type", DummyRNA_NULL_items, CONT_LOGIC_AND, "Type", "Type of actuator to add");
   RNA_def_enum_funcs(prop, rna_Actuator_type_itemf);
-  prop = RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the Actuator to add");
+  prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Actuator to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(
-      ot->srna, "object", NULL, MAX_NAME, "Object", "Name of the Object to add the Actuator to");
+      ot->srna, "object", nullptr, MAX_NAME, "Object", "Name of the Object to add the Actuator to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ************* Move Logic Bricks Operator ************* */
 static const EnumPropertyItem logicbricks_move_direction[] = {
-    {1, "UP", 0, "Move Up", ""}, {2, "DOWN", 0, "Move Down", ""}, {0, NULL, 0, NULL, NULL}};
+    {1, "UP", 0, "Move Up", ""}, {2, "DOWN", 0, "Move Down", ""}, {0, nullptr, 0, nullptr, nullptr}};
 
 static int sensor_move_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = NULL;
+  Object *ob = nullptr;
   bSensor *sens = edit_sensor_property_get(C, op, &ob);
   int move_up = logicbricks_move_property_get(op);
 
@@ -647,7 +647,7 @@ static int sensor_move_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "sensor_move_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -683,7 +683,7 @@ static void LOGIC_OT_sensor_move(wmOperatorType *ot)
 
 static int controller_move_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = NULL;
+  Object *ob = nullptr;
   bController *cont = edit_controller_property_get(C, op, &ob);
   int move_up = logicbricks_move_property_get(op);
 
@@ -694,7 +694,7 @@ static int controller_move_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "controller_move_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -730,7 +730,7 @@ static void LOGIC_OT_controller_move(wmOperatorType *ot)
 
 static int actuator_move_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = NULL;
+  Object *ob = nullptr;
   bActuator *act = edit_actuator_property_get(C, op, &ob);
   int move_up = logicbricks_move_property_get(op);
 
@@ -741,7 +741,7 @@ static int actuator_move_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "actuator_move_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -779,15 +779,15 @@ static void LOGIC_OT_actuator_move(wmOperatorType *ot)
 
 static int logic_view_all_exec(bContext *C, wmOperator *op)
 {
-  ARegion *ar = CTX_wm_region(C);
-  rctf cur_new = ar->v2d.tot;
-  float aspect = BLI_rctf_size_y(&ar->v2d.cur) / BLI_rctf_size_x(&ar->v2d.cur);
+  ARegion *region = CTX_wm_region(C);
+  rctf cur_new = region->v2d.tot;
+  float aspect = BLI_rctf_size_y(&region->v2d.cur) / BLI_rctf_size_x(&region->v2d.cur);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
   /* force the view2d code to zoom to width, not height */
   cur_new.ymin = cur_new.ymax - BLI_rctf_size_x(&cur_new) * aspect;
 
-  UI_view2d_smooth_view(C, ar, &cur_new, smooth_viewtx);
+  UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
 
   return OPERATOR_FINISHED;
 }
@@ -812,24 +812,24 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 static int logic_region_flip_exec(bContext *C, wmOperator *UNUSED(op))
 {
   ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = logic_has_buttons_region(sa);
+  ARegion *region = logic_has_buttons_region(sa);
 
-  if (ar == NULL)
+  if (region == nullptr)
     return OPERATOR_CANCELLED;
 
-  if (ar->alignment == RGN_ALIGN_RIGHT) {
-    ED_region_toggle_hidden(C, ar);
-    ar->alignment = RGN_ALIGN_LEFT;
+  if (region->alignment == RGN_ALIGN_RIGHT) {
+    ED_region_toggle_hidden(C, region);
+    region->alignment = RGN_ALIGN_LEFT;
   }
-  else if (ar->alignment == RGN_ALIGN_LEFT) {
-    ED_region_toggle_hidden(C, ar);
-    ar->alignment = RGN_ALIGN_RIGHT;
+  else if (region->alignment == RGN_ALIGN_LEFT) {
+    ED_region_toggle_hidden(C, region);
+    region->alignment = RGN_ALIGN_RIGHT;
   }
 
   ED_area_tag_redraw(CTX_wm_area(C));
   WM_event_add_mousemove(CTX_wm_window(C));
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
-  ED_region_toggle_hidden(C, ar);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+  ED_region_toggle_hidden(C, region);
 
   return OPERATOR_FINISHED;
 }
@@ -877,7 +877,7 @@ static int custom_object_register_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "custom_object_register_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -903,7 +903,7 @@ static int custom_object_create_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "custom_object_create_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -970,13 +970,13 @@ static int custom_object_remove_exec(bContext *C, wmOperator *UNUSED(op))
     return OPERATOR_CANCELLED;
   }
 
-  ob->custom_object = NULL;
+  ob->custom_object = nullptr;
 
   BKE_python_proxy_free(pp);
 
   ED_undo_push_old(C, "custom_object_remove_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1055,7 +1055,7 @@ static int component_register_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "component_register_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1081,7 +1081,7 @@ static int component_create_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "component_create_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1137,7 +1137,7 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
 static int component_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonProxy *pp = NULL;
+  PythonProxy *pp = nullptr;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
@@ -1155,7 +1155,7 @@ static int component_remove_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "component_remove_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1181,7 +1181,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
 static int component_move_up_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonProxy *p1, *p2 = NULL;
+  PythonProxy *p1, *p2 = nullptr;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
@@ -1204,7 +1204,7 @@ static int component_move_up_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "component_move_up_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1271,7 +1271,7 @@ static bool component_move_down_poll(bContext *C)
 static int component_move_down_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonProxy *p1, *p2 = NULL;
+  PythonProxy *p1, *p2 = nullptr;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
@@ -1300,7 +1300,7 @@ static int component_move_down_exec(bContext *C, wmOperator *op)
 
   ED_undo_push_old(C, "component_move_down_exec");
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1326,7 +1326,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
 static int component_reload_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonProxy *pp = NULL, *prev_pp = NULL;
+  PythonProxy *pp = nullptr, *prev_pp = nullptr;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {

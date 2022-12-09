@@ -63,35 +63,35 @@
 
 ARegion *logic_has_buttons_region(ScrArea *sa)
 {
-  ARegion *ar, *arnew;
+  ARegion *region, *regionnew;
 
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_UI);
-  if (ar)
-    return ar;
+  region = BKE_area_find_region_type(sa, RGN_TYPE_UI);
+  if (region)
+    return region;
 
   /* add subdiv level; after header */
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
+  region = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
 
   /* is error! */
-  if (ar == NULL)
-    return NULL;
+  if (region == nullptr)
+    return nullptr;
 
-  arnew = (ARegion *)MEM_callocN(sizeof(ARegion), "buttons for image");
+  regionnew = (ARegion *)MEM_callocN(sizeof(ARegion), "buttons for image");
 
-  BLI_insertlinkafter(&sa->regionbase, ar, arnew);
-  arnew->regiontype = RGN_TYPE_UI;
-  arnew->alignment = RGN_ALIGN_RIGHT;
+  BLI_insertlinkafter(&sa->regionbase, region, regionnew);
+  regionnew->regiontype = RGN_TYPE_UI;
+  regionnew->alignment = RGN_ALIGN_RIGHT;
 
-  arnew->flag = RGN_FLAG_HIDDEN;
+  regionnew->flag = RGN_FLAG_HIDDEN;
 
-  return arnew;
+  return regionnew;
 }
 
 /* ******************** default callbacks for logic space ***************** */
 
 static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
 {
-  ARegion *ar;
+  ARegion *region;
   SpaceLogic *slogic;
 
   slogic = (SpaceLogic *)MEM_callocN(sizeof(SpaceLogic), "initlogic");
@@ -104,46 +104,46 @@ static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
                      (BUTS_SENS_STATE | BUTS_ACT_STATE));
 
   /* header */
-  ar = (ARegion *)MEM_callocN(sizeof(ARegion), "header for logic");
+  region = (ARegion *)MEM_callocN(sizeof(ARegion), "header for logic");
 
-  BLI_addtail(&slogic->regionbase, ar);
-  ar->regiontype = RGN_TYPE_HEADER;
-  ar->alignment = RGN_ALIGN_BOTTOM;
+  BLI_addtail(&slogic->regionbase, region);
+  region->regiontype = RGN_TYPE_HEADER;
+  region->alignment = RGN_ALIGN_BOTTOM;
 
   /* buttons/list view */
-  ar = (ARegion *)MEM_callocN(sizeof(ARegion), "buttons for logic");
+  region = (ARegion *)MEM_callocN(sizeof(ARegion), "buttons for logic");
 
-  BLI_addtail(&slogic->regionbase, ar);
-  ar->regiontype = RGN_TYPE_UI;
-  ar->alignment = RGN_ALIGN_RIGHT;
+  BLI_addtail(&slogic->regionbase, region);
+  region->regiontype = RGN_TYPE_UI;
+  region->alignment = RGN_ALIGN_RIGHT;
 
   /* main region */
-  ar = (ARegion *)MEM_callocN(sizeof(ARegion), "main region for logic");
+  region = (ARegion *)MEM_callocN(sizeof(ARegion), "main region for logic");
 
-  BLI_addtail(&slogic->regionbase, ar);
-  ar->regiontype = RGN_TYPE_WINDOW;
+  BLI_addtail(&slogic->regionbase, region);
+  region->regiontype = RGN_TYPE_WINDOW;
 
-  ar->v2d.tot.xmin = 0.0f;
-  ar->v2d.tot.ymax = 0.0f;
-  ar->v2d.tot.xmax = 1150.0f;
-  ar->v2d.tot.ymin = (1150.0f / (float)sa->winx) * (float)-sa->winy;
+  region->v2d.tot.xmin = 0.0f;
+  region->v2d.tot.ymax = 0.0f;
+  region->v2d.tot.xmax = 1150.0f;
+  region->v2d.tot.ymin = (1150.0f / (float)sa->winx) * (float)-sa->winy;
 
-  ar->v2d.cur = ar->v2d.tot;
+  region->v2d.cur = region->v2d.tot;
 
-  ar->v2d.min[0] = 1.0f;
-  ar->v2d.min[1] = 1.0f;
+  region->v2d.min[0] = 1.0f;
+  region->v2d.min[1] = 1.0f;
 
-  ar->v2d.max[0] = 32000.0f;
-  ar->v2d.max[1] = 32000.0f;
+  region->v2d.max[0] = 32000.0f;
+  region->v2d.max[1] = 32000.0f;
 
-  ar->v2d.minzoom = 0.5f;
-  ar->v2d.maxzoom = 1.5f;
+  region->v2d.minzoom = 0.5f;
+  region->v2d.maxzoom = 1.5f;
 
-  ar->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
-  ar->v2d.keepzoom = V2D_KEEPZOOM | V2D_LIMITZOOM | V2D_KEEPASPECT;
-  ar->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
-  ar->v2d.align = V2D_ALIGN_NO_POS_Y | V2D_ALIGN_NO_NEG_X;
-  ar->v2d.keepofs = V2D_KEEPOFS_Y;
+  region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
+  region->v2d.keepzoom = V2D_KEEPZOOM | V2D_LIMITZOOM | V2D_KEEPASPECT;
+  region->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
+  region->v2d.align = V2D_ALIGN_NO_POS_Y | V2D_ALIGN_NO_NEG_X;
+  region->v2d.keepofs = V2D_KEEPOFS_Y;
 
   return (SpaceLink *)slogic;
 }
@@ -187,21 +187,21 @@ static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))
 
 static void logic_listener(const wmRegionListenerParams *params)
 {
-  ARegion *ar = params->region;
+  ARegion *region = params->region;
   const wmNotifier *wmn = params->notifier;
   /* context changes */
   switch (wmn->category) {
     case NC_LOGIC:
-      ED_region_tag_redraw(ar);
+      ED_region_tag_redraw(region);
       break;
     case NC_SCENE:
       switch (wmn->data) {
         case ND_FRAME:
-          ED_region_tag_redraw(ar);
+          ED_region_tag_redraw(region);
           break;
 
         case ND_OB_ACTIVE:
-          ED_region_tag_redraw(ar);
+          ED_region_tag_redraw(region);
           break;
       }
       break;
@@ -209,7 +209,7 @@ static void logic_listener(const wmRegionListenerParams *params)
       break;
     case NC_ID:
       if (wmn->action == NA_RENAME)
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       break;
   }
 }
@@ -225,66 +225,66 @@ static int logic_context(const bContext *UNUSED(C),
 /************************** main region ***************************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_main_region_init(wmWindowManager *wm, ARegion *ar)
+static void logic_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   ///* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "Logic Bricks Editor", SPACE_LOGIC, 0);
-  WM_event_add_keymap_handler(&ar->handlers, keymap);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void logic_main_region_draw(const bContext *C, ARegion *ar)
+static void logic_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   //	SpaceLogic *slogic= CTX_wm_space_logic(C);
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
   UI_ThemeClearColor(TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
-  logic_buttons((bContext *)C, ar);
+  logic_buttons((bContext *)C, region);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, NULL);
+  UI_view2d_scrollers_draw(v2d, nullptr);
 }
 
 /* *********************** buttons region ************************ */
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_buttons_region_init(wmWindowManager *wm, ARegion *ar)
+static void logic_buttons_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  ED_region_panels_init(wm, ar);
+  ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Logic Bricks Editor", SPACE_LOGIC, 0);
-  WM_event_add_keymap_handler(&ar->handlers, keymap);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void logic_buttons_region_draw(const bContext *C, ARegion *ar)
+static void logic_buttons_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_panels(C, ar);
+  ED_region_panels(C, region);
 }
 
 /************************* header region **************************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_header_region_init(wmWindowManager *UNUSED(wm), ARegion *ar)
+static void logic_header_region_init(wmWindowManager *UNUSED(wm), ARegion *region)
 {
-  ED_region_header_init(ar);
+  ED_region_header_init(region);
 }
 
-static void logic_header_region_draw(const bContext *C, ARegion *ar)
+static void logic_header_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_header(C, ar);
+  ED_region_header(C, region);
 }
 
 /**************************** spacetype *****************************/

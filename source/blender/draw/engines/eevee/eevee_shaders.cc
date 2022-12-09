@@ -216,7 +216,7 @@ static void free_smaa_shaders()
   for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
     struct GPUShader **sh_array = &e_data.smaa_sh[0];
     DRW_SHADER_FREE_SAFE(sh_array[j]);
-    sh_array[j] = NULL;
+    sh_array[j] = nullptr;
   }
 }
 
