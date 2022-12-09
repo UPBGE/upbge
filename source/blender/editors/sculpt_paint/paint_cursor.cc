@@ -175,8 +175,8 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
 
     int index = j * size + i;
 
-    float x = (float)i / size;
-    float y = (float)j / size;
+    float x = float(i) / size;
+    float y = float(j) / size;
     float len;
 
     if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
@@ -334,8 +334,9 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
     if (!target->overlay_texture) {
       eGPUTextureFormat format = col ? GPU_RGBA8 : GPU_R8;
-      target->overlay_texture = GPU_texture_create_2d(
-          "paint_cursor_overlay", size, size, 1, format, nullptr);
+      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+      target->overlay_texture = GPU_texture_create_2d_ex(
+          "paint_cursor_overlay", size, size, 1, format, usage, nullptr);
       GPU_texture_update(target->overlay_texture, GPU_DATA_UBYTE, buffer);
 
       if (!col) {
@@ -375,8 +376,8 @@ static void load_tex_cursor_task_cb(void *__restrict userdata,
     /* Largely duplicated from tex_strength. */
 
     const int index = j * size + i;
-    const float x = (((float)i / size) - 0.5f) * 2.0f;
-    const float y = (((float)j / size) - 0.5f) * 2.0f;
+    const float x = ((float(i) / size) - 0.5f) * 2.0f;
+    const float y = ((float(j) / size) - 0.5f) * 2.0f;
     const float len = sqrtf(x * x + y * y);
 
     if (len <= 1.0f) {
@@ -452,8 +453,9 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     BLI_task_parallel_range(0, size, &data, load_tex_cursor_task_cb, &settings);
 
     if (!cursor_snap.overlay_texture) {
-      cursor_snap.overlay_texture = GPU_texture_create_2d(
-          "cursor_snap_overaly", size, size, 1, GPU_R8, nullptr);
+      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+      cursor_snap.overlay_texture = GPU_texture_create_2d_ex(
+          "cursor_snap_overaly", size, size, 1, GPU_R8, usage, nullptr);
       GPU_texture_update(cursor_snap.overlay_texture, GPU_DATA_UBYTE, buffer);
 
       GPU_texture_swizzle_set(cursor_snap.overlay_texture, "rrrr");
@@ -1105,7 +1107,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
       /* Radial Symmetry. */
       for (char raxis = 0; raxis < 3; raxis++) {
         for (int r = 1; r < sd->radial_symm[raxis]; r++) {
-          float angle = 2 * M_PI * r / sd->radial_symm[(int)raxis];
+          float angle = 2 * M_PI * r / sd->radial_symm[int(raxis)];
           flip_v3_v3(location, true_location, ePaintSymmetryFlags(i));
           unit_m4(symm_rot_mat);
           rotate_m4(symm_rot_mat, raxis + 'X', angle);
@@ -1286,8 +1288,8 @@ static bool paint_cursor_context_init(bContext *C,
 
   pcontext->x = x;
   pcontext->y = y;
-  pcontext->translation[0] = (float)x;
-  pcontext->translation[1] = (float)y;
+  pcontext->translation[0] = float(x);
+  pcontext->translation[1] = float(y);
 
   float zoomx, zoomy;
   get_imapaint_zoom(C, &zoomx, &zoomy);
