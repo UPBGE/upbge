@@ -830,7 +830,7 @@ static void rna_Object_dup_collection_set(PointerRNA *ptr,
   else {
     BKE_report(NULL,
                RPT_ERROR,
-               "Cannot set instance-collection as object belongs in group being instanced, thus "
+               "Cannot set instance-collection as object belongs in collection being instanced, thus "
                "causing a cycle");
   }
 }
