@@ -74,4 +74,10 @@ bool VKTexture::init_internal(const GPUTexture * /*src*/, int /*mip_offset*/, in
   return false;
 }
 
+/* UPBGE */
+void VKTexture::gl_bindcode_set(int bindcode)
+{
+}
+/*********/
+
 }  // namespace blender::gpu

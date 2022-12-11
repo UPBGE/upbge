@@ -831,20 +831,17 @@ void GPU_shader_force_unbind(void)
 
 char *GPU_shader_validate(GPUShader *shader)
 {
-  Shader *shad = reinterpret_cast<Shader *>(shader);
-  return shad->shader_validate();
+  return unwrap(shader)->shader_validate();
 }
 
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
 {
-  Shader *shad = reinterpret_cast<Shader *>(shader);
-  shad->shader_bind_attributes(locations, names, len);
+  unwrap(shader)->shader_bind_attributes(locations, names, len);
 }
 
 int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
 {
-  Shader *shad = reinterpret_cast<Shader *>(shader);
-  return shad->shader_get_uniform_location_old(name);
+  return unwrap(shader)->shader_get_uniform_location_old(name);
 }
 /**********************End of UPBGE*******************************/
 

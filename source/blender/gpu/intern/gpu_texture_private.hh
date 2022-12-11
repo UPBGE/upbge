@@ -143,6 +143,7 @@ class Texture {
 
   /* UPBGE */
   virtual void gl_bindcode_set(int bindcode) = 0;
+  /*********/
 
   int width_get() const
   {

@@ -76,6 +76,7 @@ class GLTexture : public Texture {
 
   /* UPBGE */
   void gl_bindcode_set(int bindcode) override;
+  /*********/
 
  protected:
   /** Return true on success. */

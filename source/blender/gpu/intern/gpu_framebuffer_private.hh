@@ -209,8 +209,6 @@ class FrameBuffer {
   {
     return name_;
   };
-
-  virtual int get_bindcode() = 0;  // UPBGE
 };
 
 /* Syntactic sugar. */

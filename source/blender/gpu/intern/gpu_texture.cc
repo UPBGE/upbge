@@ -1035,8 +1035,7 @@ void GPU_samplers_update()
 /***********************UPBGE**************************/
 void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
 {
-  Texture *t = reinterpret_cast<Texture *>(tex);
-  t->gl_bindcode_set(bindcode);
+  unwrap(tex)->gl_bindcode_set(bindcode);
 }
 /********************End of UPBGE**********************/
 
