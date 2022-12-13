@@ -26,7 +26,8 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_workspace.h"
 
-#include "ED_node.h" /* own include */
+#include "ED_node.h"  /* own include */
+#include "ED_node.hh" /* own include */
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 #include "ED_view3d.h"
@@ -1267,7 +1268,7 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
     }
   }
 
-  bNode *new_active_node = node_tree.all_nodes()[toposort[new_index]->runtime->index_in_tree];
+  bNode *new_active_node = node_tree.all_nodes()[toposort[new_index]->index()];
   if (new_active_node == &active_node) {
     return OPERATOR_CANCELLED;
   }

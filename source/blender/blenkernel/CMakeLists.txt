@@ -491,6 +491,7 @@ set(SRC
   BKE_type_conversions.hh
   BKE_undo_system.h
   BKE_unit.h
+  BKE_uv_islands.hh
   BKE_vfont.h
   BKE_vfontdata.h
   BKE_viewer_path.h
@@ -515,6 +516,7 @@ set(SRC
   intern/multires_unsubdivide.h
   intern/ocean_intern.h
   intern/pbvh_intern.h
+  intern/pbvh_uv_islands.hh
   intern/subdiv_converter.h
   intern/subdiv_inline.h
 )

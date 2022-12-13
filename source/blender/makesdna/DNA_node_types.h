@@ -358,6 +358,8 @@ typedef struct bNode {
   bNodeRuntimeHandle *runtime;
 
 #ifdef __cplusplus
+  /** The index in the owner node tree. */
+  int index() const;
   blender::StringRefNull label_or_name() const;
   bool is_muted() const;
   bool is_reroute() const;
@@ -415,7 +417,7 @@ typedef struct bNode {
 /* node is always behind others */
 #define NODE_BACKGROUND (1 << 12)
 /* automatic flag for nodes included in transforms */
-#define NODE_TRANSFORM (1 << 13)
+// #define NODE_TRANSFORM (1 << 13) /* deprecated */
 /* node is active texture */
 
 /* NOTE: take care with this flag since its possible it gets

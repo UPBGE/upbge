@@ -27,6 +27,7 @@
 #include "BLI_stack.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
+#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
@@ -792,24 +793,20 @@ void BKE_lnor_space_custom_normal_to_data(const MLoopNorSpace *lnor_space,
 #define LOOP_SPLIT_TASK_BLOCK_SIZE 1024
 
 struct LoopSplitTaskData {
-  /* Specific to each instance (each task). */
+  enum class Type : int8_t {
+    BlockEnd = 0, /* Set implicitly by calloc. */
+    Fan = 1,
+    Single = 2,
+  };
 
   /** We have to create those outside of tasks, since #MemArena is not thread-safe. */
   MLoopNorSpace *lnor_space;
-  float3 *lnor;
-  const MLoop *ml_curr;
-  const MLoop *ml_prev;
   int ml_curr_index;
-  int ml_prev_index;
   /** Also used a flag to switch between single or fan process! */
-  const int *e2l_prev;
+  int ml_prev_index;
   int mp_index;
 
-  /** This one is special, it's owned and managed by worker tasks,
-   * avoid to have to create it for each fan! */
-  BLI_Stack *edge_vectors;
-
-  char pad_c;
+  Type flag;
 };
 
 struct LoopSplitTaskDataCommon {
@@ -825,7 +822,7 @@ struct LoopSplitTaskDataCommon {
   Span<MEdge> edges;
   Span<MLoop> loops;
   Span<MPoly> polys;
-  MutableSpan<int2> edge_to_loops;
+  Span<int2> edge_to_loops;
   Span<int> loop_to_poly;
   Span<float3> polynors;
   Span<float3> vert_normals;
@@ -952,11 +949,13 @@ static void loop_manifold_fan_around_vert_next(const Span<MLoop> loops,
                                                const Span<int> loop_to_poly,
                                                const int *e2lfan_curr,
                                                const uint mv_pivot_index,
-                                               const MLoop **r_mlfan_curr,
                                                int *r_mlfan_curr_index,
                                                int *r_mlfan_vert_index,
                                                int *r_mpfan_curr_index)
 {
+  const int mlfan_curr_orig = *r_mlfan_curr_index;
+  const uint vert_fan_orig = loops[mlfan_curr_orig].v;
+
   /* WARNING: This is rather complex!
    * We have to find our next edge around the vertex (fan mode).
    * First we find the next loop, which is either previous or next to mlfan_curr_index, depending
@@ -970,10 +969,10 @@ static void loop_manifold_fan_around_vert_next(const Span<MLoop> loops,
   BLI_assert(*r_mlfan_curr_index >= 0);
   BLI_assert(*r_mpfan_curr_index >= 0);
 
-  const MLoop &mlfan_next = loops[*r_mlfan_curr_index];
+  const uint vert_fan_next = loops[*r_mlfan_curr_index].v;
   const MPoly &mpfan_next = polys[*r_mpfan_curr_index];
-  if (((*r_mlfan_curr)->v == mlfan_next.v && (*r_mlfan_curr)->v == mv_pivot_index) ||
-      ((*r_mlfan_curr)->v != mlfan_next.v && (*r_mlfan_curr)->v != mv_pivot_index)) {
+  if ((vert_fan_orig == vert_fan_next && vert_fan_orig == mv_pivot_index) ||
+      (vert_fan_orig != vert_fan_next && vert_fan_orig != mv_pivot_index)) {
     /* We need the previous loop, but current one is our vertex's loop. */
     *r_mlfan_vert_index = *r_mlfan_curr_index;
     if (--(*r_mlfan_curr_index) < mpfan_next.loopstart) {
@@ -987,8 +986,6 @@ static void loop_manifold_fan_around_vert_next(const Span<MLoop> loops,
     }
     *r_mlfan_vert_index = *r_mlfan_curr_index;
   }
-  *r_mlfan_curr = &loops[*r_mlfan_curr_index];
-  /* And now we are back in sync, mlfan_curr_index is the index of `mlfan_curr`! Pff! */
 }
 
 static void split_loop_nor_single_do(LoopSplitTaskDataCommon *common_data, LoopSplitTaskData *data)
@@ -998,29 +995,25 @@ static void split_loop_nor_single_do(LoopSplitTaskDataCommon *common_data, LoopS
 
   const Span<MVert> verts = common_data->verts;
   const Span<MEdge> edges = common_data->edges;
+  const Span<MLoop> loops = common_data->loops;
   const Span<float3> polynors = common_data->polynors;
+  MutableSpan<float3> loop_normals = common_data->loopnors;
 
   MLoopNorSpace *lnor_space = data->lnor_space;
-  float3 *lnor = data->lnor;
-  const MLoop *ml_curr = data->ml_curr;
-  const MLoop *ml_prev = data->ml_prev;
   const int ml_curr_index = data->ml_curr_index;
-#if 0 /* Not needed for 'single' loop. */
   const int ml_prev_index = data->ml_prev_index;
-  const int *e2l_prev = data->e2l_prev;
-#endif
   const int mp_index = data->mp_index;
 
   /* Simple case (both edges around that vertex are sharp in current polygon),
    * this loop just takes its poly normal.
    */
-  copy_v3_v3(*lnor, polynors[mp_index]);
+  loop_normals[ml_curr_index] = polynors[mp_index];
 
 #if 0
   printf("BASIC: handling loop %d / edge %d / vert %d / poly %d\n",
          ml_curr_index,
-         ml_curr->e,
-         ml_curr->v,
+         loops[ml_curr_index].e,
+         loops[ml_curr_index].v,
          mp_index);
 #endif
 
@@ -1028,12 +1021,12 @@ static void split_loop_nor_single_do(LoopSplitTaskDataCommon *common_data, LoopS
   if (lnors_spacearr) {
     float vec_curr[3], vec_prev[3];
 
-    const uint mv_pivot_index = ml_curr->v; /* The vertex we are "fanning" around! */
+    const uint mv_pivot_index = loops[ml_curr_index].v; /* The vertex we are "fanning" around! */
     const MVert *mv_pivot = &verts[mv_pivot_index];
-    const MEdge *me_curr = &edges[ml_curr->e];
+    const MEdge *me_curr = &edges[loops[ml_curr_index].e];
     const MVert *mv_2 = (me_curr->v1 == mv_pivot_index) ? &verts[me_curr->v2] :
                                                           &verts[me_curr->v1];
-    const MEdge *me_prev = &edges[ml_prev->e];
+    const MEdge *me_prev = &edges[loops[ml_prev_index].e];
     const MVert *mv_3 = (me_prev->v1 == mv_pivot_index) ? &verts[me_prev->v2] :
                                                           &verts[me_prev->v1];
 
@@ -1042,17 +1035,20 @@ static void split_loop_nor_single_do(LoopSplitTaskDataCommon *common_data, LoopS
     sub_v3_v3v3(vec_prev, mv_3->co, mv_pivot->co);
     normalize_v3(vec_prev);
 
-    BKE_lnor_space_define(lnor_space, *lnor, vec_curr, vec_prev, nullptr);
+    BKE_lnor_space_define(lnor_space, loop_normals[ml_curr_index], vec_curr, vec_prev, nullptr);
     /* We know there is only one loop in this space, no need to create a link-list in this case. */
     BKE_lnor_space_add_loop(lnors_spacearr, lnor_space, ml_curr_index, nullptr, true);
 
     if (!clnors_data.is_empty()) {
-      BKE_lnor_space_custom_data_to_normal(lnor_space, clnors_data[ml_curr_index], *lnor);
+      BKE_lnor_space_custom_data_to_normal(
+          lnor_space, clnors_data[ml_curr_index], loop_normals[ml_curr_index]);
     }
   }
 }
 
-static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSplitTaskData *data)
+static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data,
+                                  LoopSplitTaskData *data,
+                                  BLI_Stack *edge_vectors)
 {
   MLoopNorSpaceArray *lnors_spacearr = common_data->lnors_spacearr;
   MutableSpan<float3> loopnors = common_data->loopnors;
@@ -1070,14 +1066,9 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
 #if 0 /* Not needed for 'fan' loops. */
   float(*lnor)[3] = data->lnor;
 #endif
-  const MLoop *ml_curr = data->ml_curr;
-  const MLoop *ml_prev = data->ml_prev;
   const int ml_curr_index = data->ml_curr_index;
   const int ml_prev_index = data->ml_prev_index;
   const int mp_index = data->mp_index;
-  const int *e2l_prev = data->e2l_prev;
-
-  BLI_Stack *edge_vectors = data->edge_vectors;
 
   /* Sigh! we have to fan around current vertex, until we find the other non-smooth edge,
    * and accumulate face normals into the vertex!
@@ -1085,11 +1076,11 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
    * same as the vertex normal, but I do not see any easy way to detect that (would need to count
    * number of sharp edges per vertex, I doubt the additional memory usage would be worth it,
    * especially as it should not be a common case in real-life meshes anyway). */
-  const uint mv_pivot_index = ml_curr->v; /* The vertex we are "fanning" around! */
+  const uint mv_pivot_index = loops[ml_curr_index].v; /* The vertex we are "fanning" around! */
   const MVert *mv_pivot = &verts[mv_pivot_index];
 
-  /* `ml_curr` would be mlfan_prev if we needed that one. */
-  const MEdge *me_org = &edges[ml_curr->e];
+  /* `ml_curr_index` would be mlfan_prev if we needed that one. */
+  const MEdge *me_org = &edges[loops[ml_curr_index].e];
 
   float vec_curr[3], vec_prev[3], vec_org[3];
   float lnor[3] = {0.0f, 0.0f, 0.0f};
@@ -1105,8 +1096,6 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
   /* Temp clnors stack. */
   BLI_SMALLSTACK_DECLARE(clnors, short *);
 
-  const int *e2lfan_curr = e2l_prev;
-  const MLoop *mlfan_curr = ml_prev;
   /* `mlfan_vert_index` the loop of our current edge might not be the loop of our current vertex!
    */
   int mlfan_curr_index = ml_prev_index;
@@ -1133,7 +1122,7 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
   // printf("FAN: vert %d, start edge %d\n", mv_pivot_index, ml_curr->e);
 
   while (true) {
-    const MEdge *me_curr = &edges[mlfan_curr->e];
+    const MEdge *me_curr = &edges[loops[mlfan_curr_index].e];
     /* Compute edge vectors.
      * NOTE: We could pre-compute those into an array, in the first iteration, instead of computing
      *       them twice (or more) here. However, time gained is not worth memory and time lost,
@@ -1147,7 +1136,7 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
       normalize_v3(vec_curr);
     }
 
-    // printf("\thandling edge %d / loop %d\n", mlfan_curr->e, mlfan_curr_index);
+    // printf("\thandling edge %d / loop %d\n", loops[mlfan_curr_index].e, mlfan_curr_index);
 
     {
       /* Code similar to accumulate_vertex_normals_poly_v3. */
@@ -1185,7 +1174,7 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
       }
     }
 
-    if (IS_EDGE_SHARP(e2lfan_curr) || (me_curr == me_org)) {
+    if (IS_EDGE_SHARP(edge_to_loops[loops[mlfan_curr_index].e]) || (me_curr == me_org)) {
       /* Current edge is sharp and we have finished with this fan of faces around this vert,
        * or this vert is smooth, and we have completed a full turn around it. */
       // printf("FAN: Finished!\n");
@@ -1198,14 +1187,11 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
     loop_manifold_fan_around_vert_next(loops,
                                        polys,
                                        loop_to_poly,
-                                       e2lfan_curr,
+                                       edge_to_loops[loops[mlfan_curr_index].e],
                                        mv_pivot_index,
-                                       &mlfan_curr,
                                        &mlfan_curr_index,
                                        &mlfan_vert_index,
                                        &mpfan_curr_index);
-
-    e2lfan_curr = edge_to_loops[mlfan_curr->e];
   }
 
   {
@@ -1265,11 +1251,9 @@ static void loop_split_worker_do(LoopSplitTaskDataCommon *common_data,
                                  LoopSplitTaskData *data,
                                  BLI_Stack *edge_vectors)
 {
-  BLI_assert(data->ml_curr);
-  if (data->e2l_prev) {
+  if (data->flag == LoopSplitTaskData::Type::Fan) {
     BLI_assert((edge_vectors == nullptr) || BLI_stack_is_empty(edge_vectors));
-    data->edge_vectors = edge_vectors;
-    split_loop_nor_fan_do(common_data, data);
+    split_loop_nor_fan_do(common_data, data, edge_vectors);
   }
   else {
     /* No need for edge_vectors for 'single' case! */
@@ -1288,8 +1272,7 @@ static void loop_split_worker(TaskPool *__restrict pool, void *taskdata)
                                 nullptr;
 
   for (int i = 0; i < LOOP_SPLIT_TASK_BLOCK_SIZE; i++, data++) {
-    /* A nullptr ml_curr is used to tag ended data! */
-    if (data->ml_curr == nullptr) {
+    if (data->flag == LoopSplitTaskData::Type::BlockEnd) {
       break;
     }
 
@@ -1312,13 +1295,11 @@ static bool loop_split_generator_check_cyclic_smooth_fan(const Span<MLoop> mloop
                                                          const Span<int> loop_to_poly,
                                                          const int *e2l_prev,
                                                          BitVector<> &skip_loops,
-                                                         const MLoop *ml_curr,
-                                                         const MLoop *ml_prev,
                                                          const int ml_curr_index,
                                                          const int ml_prev_index,
                                                          const int mp_curr_index)
 {
-  const uint mv_pivot_index = ml_curr->v; /* The vertex we are "fanning" around! */
+  const uint mv_pivot_index = mloops[ml_curr_index].v; /* The vertex we are "fanning" around! */
 
   const int *e2lfan_curr = e2l_prev;
   if (IS_EDGE_SHARP(e2lfan_curr)) {
@@ -1328,7 +1309,6 @@ static bool loop_split_generator_check_cyclic_smooth_fan(const Span<MLoop> mloop
 
   /* `mlfan_vert_index` the loop of our current edge might not be the loop of our current vertex!
    */
-  const MLoop *mlfan_curr = ml_prev;
   int mlfan_curr_index = ml_prev_index;
   int mlfan_vert_index = ml_curr_index;
   int mpfan_curr_index = mp_curr_index;
@@ -1347,12 +1327,11 @@ static bool loop_split_generator_check_cyclic_smooth_fan(const Span<MLoop> mloop
                                        loop_to_poly,
                                        e2lfan_curr,
                                        mv_pivot_index,
-                                       &mlfan_curr,
                                        &mlfan_curr_index,
                                        &mlfan_vert_index,
                                        &mpfan_curr_index);
 
-    e2lfan_curr = edge_to_loops[mlfan_curr->e];
+    e2lfan_curr = edge_to_loops[mloops[mlfan_curr_index].e];
 
     if (IS_EDGE_SHARP(e2lfan_curr)) {
       /* Sharp loop/edge, so not a cyclic smooth fan. */
@@ -1362,7 +1341,7 @@ static bool loop_split_generator_check_cyclic_smooth_fan(const Span<MLoop> mloop
     if (skip_loops[mlfan_vert_index]) {
       if (mlfan_vert_index == ml_curr_index) {
         /* We walked around a whole cyclic smooth fan without finding any already-processed loop,
-         * means we can use initial `ml_curr` / `ml_prev` edge as start for this smooth fan. */
+         * means we can use initial current / previous edge as start for this smooth fan. */
         return true;
       }
       /* Already checked in some previous looping, we can abort. */
@@ -1376,8 +1355,9 @@ static bool loop_split_generator_check_cyclic_smooth_fan(const Span<MLoop> mloop
 
 static void loop_split_generator(TaskPool *pool, LoopSplitTaskDataCommon *common_data)
 {
+  using namespace blender;
+  using namespace blender::bke;
   MLoopNorSpaceArray *lnors_spacearr = common_data->lnors_spacearr;
-  MutableSpan<float3> loopnors = common_data->loopnors;
 
   const Span<MLoop> loops = common_data->loops;
   const Span<MPoly> polys = common_data->polys;
@@ -1408,24 +1388,16 @@ static void loop_split_generator(TaskPool *pool, LoopSplitTaskDataCommon *common
    */
   for (const int mp_index : polys.index_range()) {
     const MPoly &poly = polys[mp_index];
-    const int ml_last_index = (poly.loopstart + poly.totloop) - 1;
-    int ml_curr_index = poly.loopstart;
-    int ml_prev_index = ml_last_index;
 
-    const MLoop *ml_curr = &loops[ml_curr_index];
-    const MLoop *ml_prev = &loops[ml_prev_index];
-    float3 *lnors = &loopnors[ml_curr_index];
-
-    for (; ml_curr_index <= ml_last_index; ml_curr++, ml_curr_index++, lnors++) {
-      const int *e2l_curr = edge_to_loops[ml_curr->e];
-      const int *e2l_prev = edge_to_loops[ml_prev->e];
+    for (const int ml_curr_index : IndexRange(poly.loopstart, poly.totloop)) {
+      const int ml_prev_index = mesh_topology::poly_loop_prev(poly, ml_curr_index);
 
 #if 0
       printf("Checking loop %d / edge %u / vert %u (sharp edge: %d, skiploop: %d)",
              ml_curr_index,
-             ml_curr->e,
-             ml_curr->v,
-             IS_EDGE_SHARP(e2l_curr),
+             loops[ml_curr_index].e,
+             loops[ml_curr_index].v,
+             IS_EDGE_SHARP(edge_to_loops[loops[ml_curr_index].e]),
              skip_loops[ml_curr_index]);
 #endif
 
@@ -1439,18 +1411,17 @@ static void loop_split_generator(TaskPool *pool, LoopSplitTaskDataCommon *common
        * However, this would complicate the code, add more memory usage, and despite its logical
        * complexity, #loop_manifold_fan_around_vert_next() is quite cheap in term of CPU cycles,
        * so really think it's not worth it. */
-      if (!IS_EDGE_SHARP(e2l_curr) && (skip_loops[ml_curr_index] ||
-                                       !loop_split_generator_check_cyclic_smooth_fan(loops,
-                                                                                     polys,
-                                                                                     edge_to_loops,
-                                                                                     loop_to_poly,
-                                                                                     e2l_prev,
-                                                                                     skip_loops,
-                                                                                     ml_curr,
-                                                                                     ml_prev,
-                                                                                     ml_curr_index,
-                                                                                     ml_prev_index,
-                                                                                     mp_index))) {
+      if (!IS_EDGE_SHARP(edge_to_loops[loops[ml_curr_index].e]) &&
+          (skip_loops[ml_curr_index] ||
+           !loop_split_generator_check_cyclic_smooth_fan(loops,
+                                                         polys,
+                                                         edge_to_loops,
+                                                         loop_to_poly,
+                                                         edge_to_loops[loops[ml_prev_index].e],
+                                                         skip_loops,
+                                                         ml_curr_index,
+                                                         ml_prev_index,
+                                                         mp_index))) {
         // printf("SKIPPING!\n");
       }
       else {
@@ -1470,38 +1441,27 @@ static void loop_split_generator(TaskPool *pool, LoopSplitTaskDataCommon *common
           memset(data, 0, sizeof(*data));
         }
 
-        if (IS_EDGE_SHARP(e2l_curr) && IS_EDGE_SHARP(e2l_prev)) {
-          data->lnor = lnors;
-          data->ml_curr = ml_curr;
-          data->ml_prev = ml_prev;
+        if (IS_EDGE_SHARP(edge_to_loops[loops[ml_curr_index].e]) &&
+            IS_EDGE_SHARP(edge_to_loops[loops[ml_prev_index].e])) {
           data->ml_curr_index = ml_curr_index;
-#if 0 /* Not needed for 'single' loop. */
           data->ml_prev_index = ml_prev_index;
-          data->e2l_prev = nullptr; /* Tag as 'single' task. */
-#endif
+          data->flag = LoopSplitTaskData::Type::Single;
           data->mp_index = mp_index;
           if (lnors_spacearr) {
             data->lnor_space = BKE_lnor_space_create(lnors_spacearr);
           }
         }
-        /* We *do not need* to check/tag loops as already computed!
-         * Due to the fact a loop only links to one of its two edges,
-         * a same fan *will never be walked more than once!*
-         * Since we consider edges having neighbor polys with inverted
-         * (flipped) normals as sharp, we are sure that no fan will be skipped,
-         * even only considering the case (sharp curr_edge, smooth prev_edge),
-         * and not the alternative (smooth curr_edge, sharp prev_edge).
-         * All this due/thanks to link between normals and loop ordering (i.e. winding).
-         */
         else {
-#if 0 /* Not needed for 'fan' loops. */
-          data->lnor = lnors;
-#endif
-          data->ml_curr = ml_curr;
-          data->ml_prev = ml_prev;
+          /* We do not need to check/tag loops as already computed. Due to the fact that a loop
+           * only points to one of its two edges, the same fan will never be walked more than once.
+           * Since we consider edges that have neighbor polys with inverted (flipped) normals as
+           * sharp, we are sure that no fan will be skipped, even only considering the case (sharp
+           * current edge, smooth previous edge), and not the alternative (smooth current edge,
+           * sharp previous edge). All this due/thanks to the link between normals and loop
+           * ordering (i.e. winding). */
           data->ml_curr_index = ml_curr_index;
           data->ml_prev_index = ml_prev_index;
-          data->e2l_prev = e2l_prev; /* Also tag as 'fan' task. */
+          data->flag = LoopSplitTaskData::Type::Fan;
           data->mp_index = mp_index;
           if (lnors_spacearr) {
             data->lnor_space = BKE_lnor_space_create(lnors_spacearr);
@@ -1519,14 +1479,9 @@ static void loop_split_generator(TaskPool *pool, LoopSplitTaskDataCommon *common
           loop_split_worker_do(common_data, data, edge_vectors);
         }
       }
-
-      ml_prev = ml_curr;
-      ml_prev_index = ml_curr_index;
     }
   }
 
-  /* Last block of data. Since it is calloc'ed and we use first nullptr item as stopper,
-   * everything is fine. */
   if (pool && data_idx) {
     BLI_task_pool_push(pool, loop_split_worker, data_buff, true, nullptr);
   }
