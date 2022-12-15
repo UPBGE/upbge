@@ -9,13 +9,12 @@
 
 #include "BKE_bpath.h"
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_preferences.h"
 #include "BKE_report.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.h" /* MSVC needs this for `PATH_MAX` */
 #include "BLI_fnmatch.h"
 #include "BLI_path_util.h"
 #include "BLI_set.hh"
@@ -36,8 +35,6 @@
 #include "WM_api.h"
 
 #include "DNA_space_types.h"
-
-#include "BLO_writefile.h"
 
 using namespace blender;
 

@@ -235,11 +235,11 @@ set(OPENVDB_FILE openvdb-${OPENVDB_VERSION}.tar.gz)
 # ------------------------------------------------------------------------------
 # Python Modules
 
-# Needed by: TODO.
+# Needed by: `requests` module (so the version doesn't change on rebuild).
 set(IDNA_VERSION 3.3)
-# Needed by: TODO.
+# Needed by: `requests` module (so the version doesn't change on rebuild).
 set(CHARSET_NORMALIZER_VERSION 2.0.10)
-# Needed by: TODO.
+# Needed by: `requests` module (so the version doesn't change on rebuild).
 set(URLLIB3_VERSION 1.26.8)
 set(URLLIB3_CPE "cpe:2.3:a:urllib3:urllib3:${URLLIB3_VERSION}:*:*:*:*:*:*:*")
 # Needed by: Python's `requests` module (so add-ons can authenticate against trusted certificates).
@@ -369,9 +369,9 @@ set(WEBP_HASH_TYPE MD5)
 set(WEBP_FILE libwebp-${WEBP_VERSION}.tar.gz)
 set(WEBP_CPE "cpe:2.3:a:webmproject:libwebp:${WEBP_VERSION}:*:*:*:*:*:*:*")
 
-set(SPNAV_VERSION 0.2.3)
-set(SPNAV_URI http://downloads.sourceforge.net/project/spacenav/spacenav%20library%20%28SDK%29/libspnav%20${SPNAV_VERSION}/libspnav-${SPNAV_VERSION}.tar.gz)
-set(SPNAV_HASH 44d840540d53326d4a119c0f1aa7bf0a)
+set(SPNAV_VERSION 1.1)
+set(SPNAV_URI https://github.com/FreeSpacenav/libspnav/releases/download/v${SPNAV_VERSION}/libspnav-${SPNAV_VERSION}.tar.gz)
+set(SPNAV_HASH 7c0032034672dfba3c4bb9b49a440e70)
 set(SPNAV_HASH_TYPE MD5)
 set(SPNAV_FILE libspnav-${SPNAV_VERSION}.tar.gz)
 

@@ -1595,15 +1595,15 @@ id<MTLSamplerState> MTLContext::generate_sampler_from_state(MTLSamplerState samp
   MTLSamplerAddressMode clamp_type = (sampler_state.state & GPU_SAMPLER_CLAMP_BORDER) ?
                                          MTLSamplerAddressModeClampToBorderColor :
                                          MTLSamplerAddressModeClampToEdge;
-  descriptor.rAddressMode = (sampler_state.state & GPU_SAMPLER_REPEAT_R) ?
-                                MTLSamplerAddressModeRepeat :
-                                clamp_type;
-  descriptor.sAddressMode = (sampler_state.state & GPU_SAMPLER_REPEAT_S) ?
-                                MTLSamplerAddressModeRepeat :
-                                clamp_type;
-  descriptor.tAddressMode = (sampler_state.state & GPU_SAMPLER_REPEAT_T) ?
-                                MTLSamplerAddressModeRepeat :
-                                clamp_type;
+  MTLSamplerAddressMode repeat_type = (sampler_state.state & GPU_SAMPLER_MIRROR_REPEAT) ?
+                                          MTLSamplerAddressModeMirrorRepeat :
+                                          MTLSamplerAddressModeRepeat;
+  descriptor.rAddressMode = (sampler_state.state & GPU_SAMPLER_REPEAT_R) ? repeat_type :
+                                                                           clamp_type;
+  descriptor.sAddressMode = (sampler_state.state & GPU_SAMPLER_REPEAT_S) ? repeat_type :
+                                                                           clamp_type;
+  descriptor.tAddressMode = (sampler_state.state & GPU_SAMPLER_REPEAT_T) ? repeat_type :
+                                                                           clamp_type;
   descriptor.borderColor = MTLSamplerBorderColorTransparentBlack;
   descriptor.minFilter = (sampler_state.state & GPU_SAMPLER_FILTER) ?
                              MTLSamplerMinMagFilterLinear :
