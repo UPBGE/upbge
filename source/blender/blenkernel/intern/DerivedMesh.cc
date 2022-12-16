@@ -2302,13 +2302,13 @@ void DM_calc_loop_tangents(DerivedMesh *dm,
 
 /* note: until all modifiers can take MPoly's as input,
  * use this at the start of modifiers  */
-void DM_ensure_tessface(DerivedMesh *dm)
+void DM_ensure_tessface(DerivedMesh *dm, Mesh *me)
 {
   const int numTessFaces = dm->getNumTessFaces(dm);
   const int numPolys = dm->getNumPolys(dm);
 
   if ((numTessFaces == 0) && (numPolys != 0)) {
-    dm->recalcTessellation(dm);
+    dm->recalcTessellation(dm, me);
 
     if (dm->getNumTessFaces(dm) != 0) {
       /* printf("info %s: polys -> ngons calculated\n", __func__); */
@@ -2323,7 +2323,7 @@ void DM_ensure_tessface(DerivedMesh *dm)
 
   else if (dm->dirty & DM_DIRTY_TESS_CDLAYERS) {
     BLI_assert(CustomData_has_layer(&dm->faceData, CD_ORIGINDEX) || numTessFaces == 0);
-    DM_update_tessface_data(dm);
+    DM_update_tessface_data(dm, me);
   }
 
   dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
@@ -2345,7 +2345,7 @@ void DM_verttri_from_looptri(MVertTri *verttri,
 /* Update tessface CD data from loop/poly ones. Needed when not retessellating after modstack
  * evaluation. */
 /* NOTE: Assumes dm has valid tessellated data! */
-void DM_update_tessface_data(DerivedMesh *dm)
+void DM_update_tessface_data(DerivedMesh *dm, Mesh *me)
 {
   MFace *mf, *mface = dm->getTessFaceArray(dm);
   MPoly *mp = dm->getPolyArray(dm);
@@ -2364,7 +2364,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
   if (!polyindex)
     return;
 
-  CustomData_from_bmeshpoly(fdata, ldata, totface);
+  CustomData_from_bmeshpoly(me, fdata, ldata, totface);
 
   if (CustomData_has_layer(fdata, CD_MTFACE) || CustomData_has_layer(fdata, CD_MCOL) ||
       CustomData_has_layer(fdata, CD_PREVIEW_MCOL) || CustomData_has_layer(fdata, CD_ORIGSPACE) ||

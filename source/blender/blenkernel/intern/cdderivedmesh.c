@@ -369,28 +369,29 @@ static void cdDM_foreachMappedFaceCenter(
   }
 }
 
-void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool UNUSED(do_face_nor_cpy))
+void CDDM_recalc_tessellation_ex(DerivedMesh *dm, Mesh *me, const bool UNUSED(do_face_nor_cpy))
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 
-  dm->numTessFaceData = mesh_tessface_calc(&dm->faceData,
-                                           &dm->loopData,
-                                           &dm->polyData,
-                                           cddm->mvert,
-                                           dm->numTessFaceData,
-                                           dm->numLoopData,
-                                           dm->numPolyData);
+  dm->numTessFaceData = mesh_tessface_calc_C((void *)me,
+                                             &dm->faceData,
+                                             &dm->loopData,
+                                             &dm->polyData,
+                                             cddm->mvert,
+                                             dm->numTessFaceData,
+                                             dm->numLoopData,
+                                             dm->numPolyData);
 
   cddm->mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
 
   /* Tessellation recreated faceData, and the active layer indices need to get re-propagated
    * from loops and polys to faces */
-  update_active_fdata_layers(&dm->faceData, &dm->loopData);
+  update_active_fdata_layers_C((void *)me, &dm->faceData, &dm->loopData);
 }
 
-void CDDM_recalc_tessellation(DerivedMesh *dm)
+void CDDM_recalc_tessellation(DerivedMesh *dm, Mesh *me)
 {
-  CDDM_recalc_tessellation_ex(dm, true);
+  CDDM_recalc_tessellation_ex(dm, me, true);
 }
 
 static void cdDM_recalc_looptri(DerivedMesh *dm)

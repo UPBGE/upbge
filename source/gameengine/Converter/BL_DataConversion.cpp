@@ -372,7 +372,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Mesh *final_me = (Mesh *)ob_eval->data;
 
   DerivedMesh *dm = CDDM_from_mesh(final_me);
-  DM_ensure_tessface(dm);
+  DM_ensure_tessface(dm, final_me);
 
   const MVert *mverts = dm->getVertArray(dm);
   const int totverts = dm->getNumVerts(dm);

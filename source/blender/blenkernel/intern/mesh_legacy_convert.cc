@@ -1236,7 +1236,7 @@ bool CustomData_from_bmeshpoly_test(CustomData *fdata, CustomData *ldata, bool f
 }
 #endif
 
-void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *ldata, int total)
+void CustomData_from_bmeshpoly(Mesh *me, CustomData *fdata, CustomData *ldata, int total)
 {
   /* avoid accumulating extra layers */
   BLI_assert(!CustomData_from_bmeshpoly_test(fdata, ldata, false));
@@ -1265,7 +1265,7 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *ldata, int total)
     }
   }
 
-  update_active_fdata_layers(fdata, ldata);
+  update_active_fdata_layers_C((void *)me, fdata, ldata);
 }
 
 /* End of UPBGE */
@@ -1759,5 +1759,26 @@ void BKE_mesh_legacy_attribute_strings_to_flags(Mesh *mesh)
     }
   }
 }
+
+/* UPBGE */
+void update_active_fdata_layers_C(void *mesh, CustomData* fdata, CustomData* ldata)
+{
+  Mesh *me = (Mesh *)mesh;
+  update_active_fdata_layers(*me, fdata, ldata);
+}
+
+int mesh_tessface_calc_C(void* mesh,
+  struct CustomData* fdata,
+  struct CustomData* ldata,
+  struct CustomData* pdata,
+  struct MVert* mvert,
+  int totface,
+  int totloop,
+  int totpoly)
+{
+  Mesh *me = (Mesh *)mesh;
+  return mesh_tessface_calc(*me, fdata, ldata, pdata, mvert, totface, totloop, totpoly);
+}
+/**********/
 
 /** \} */

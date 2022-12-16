@@ -90,8 +90,8 @@ void CDDM_calc_edges_tessface(struct DerivedMesh *dm);
 void CDDM_calc_edges(struct DerivedMesh *dm);
 
 /* reconstitute face triangulation */
-void CDDM_recalc_tessellation(struct DerivedMesh *dm);
-void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const bool do_face_nor_cpy);
+void CDDM_recalc_tessellation(struct DerivedMesh *dm, struct Mesh *me);
+void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, struct Mesh *me, const bool do_face_nor_cpy);
 
 /* UPBGE - Not static */
 int mesh_tessface_calc(CustomData *fdata,

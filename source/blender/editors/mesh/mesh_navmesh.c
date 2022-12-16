@@ -40,6 +40,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
+#include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
@@ -87,9 +88,10 @@ static void createVertsTrisData(
   /* calculate number of verts and tris */
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
-    dm = mesh_get_derived_final(
-        depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
-    DM_ensure_tessface(dm);
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Mesh *me = (Mesh *)ob_eval->data;
+    dm = CDDM_from_mesh(me);
+    DM_ensure_tessface(dm, me);
     BLI_linklist_append(&dms_pair, dm);
 
     nverts += dm->getNumVerts(dm);

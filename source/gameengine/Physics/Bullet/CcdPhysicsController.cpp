@@ -850,7 +850,7 @@ void CcdPhysicsController::UpdateSoftBody()
         DerivedMesh *dm = CDDM_from_mesh(me);
 
         // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-        DM_ensure_tessface(dm);
+        DM_ensure_tessface(dm, me);
 
         const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
         const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
@@ -2052,10 +2052,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
     Mesh *me = (Mesh *)ob_eval->data;
     dm = CDDM_from_mesh(me);
+    // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+    DM_ensure_tessface(dm, me);
   }
-
-  // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-  DM_ensure_tessface(dm);
 
   MVert *mvert = dm->getVertArray(dm);
   MFace *mface = dm->getTessFaceArray(dm);
@@ -2408,7 +2407,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
   if (me) {
     dm = CDDM_from_mesh(me);
-    DM_ensure_tessface(dm);
+    DM_ensure_tessface(dm, me);
   }
 
   if (dm && meshobj) {

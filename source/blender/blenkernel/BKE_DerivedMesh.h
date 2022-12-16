@@ -153,7 +153,7 @@ struct DerivedMesh {
                            int tangent_names_count);
 
   /** Recalculates mesh tessellation */
-  void (*recalcTessellation)(DerivedMesh *dm);
+  void (*recalcTessellation)(DerivedMesh *dm, struct Mesh *me);
 
   /** Loop tessellation cache (WARNING! Only call inside threading-protected code!) */
   void (*recalcLoopTri)(DerivedMesh *dm);
@@ -495,14 +495,14 @@ void DM_calc_loop_tangents(DerivedMesh *dm,
                            const char (*tangent_names)[MAX_NAME],
                            int tangent_names_len);
 
-void DM_ensure_tessface(DerivedMesh *dm);
+void DM_ensure_tessface(DerivedMesh *dm, struct Mesh *me);
 
 void DM_verttri_from_looptri(MVertTri *verttri,
                              const MLoop *mloop,
                              const MLoopTri *looptri,
                              int looptri_num);
 
-void DM_update_tessface_data(DerivedMesh *dm);
+void DM_update_tessface_data(DerivedMesh *dm, struct Mesh *me);
 
 void DM_update_materials(DerivedMesh *dm, struct Object *ob);
 

@@ -134,6 +134,7 @@ static float distPointToSegmentSq(const float point[3], const float a[3], const 
 }
 
 static int buildRawVertIndicesData(DerivedMesh *dm,
+                                   Mesh *me,
                                    int *nverts_r,
                                    float **verts_r,
                                    int *ntris_r,
@@ -168,7 +169,7 @@ static int buildRawVertIndicesData(DerivedMesh *dm,
   }
 
   /* calculate number of tris */
-  dm->recalcTessellation(dm);
+  dm->recalcTessellation(dm, me);
   nfaces = dm->getNumTessFaces(dm);
   if (nfaces == 0) {
     printf("Converting navmesh: Error! There are %i vertices, but no faces!\n", nverts);
@@ -508,6 +509,7 @@ fail:
 }
 
 static int buildNavMeshDataByDerivedMesh(DerivedMesh *dm,
+                                         Mesh *me,
                                          int *vertsPerPoly,
                                          int *nverts,
                                          float **verts,
@@ -524,7 +526,7 @@ static int buildNavMeshDataByDerivedMesh(DerivedMesh *dm,
   int ntris = 0, *recastData = NULL;
   unsigned short *tris = NULL;
 
-  res = buildRawVertIndicesData(dm, nverts, verts, &ntris, &tris, trisToFacesMap, &recastData);
+  res = buildRawVertIndicesData(dm, me, nverts, verts, &ntris, &tris, trisToFacesMap, &recastData);
   if (!res) {
     printf("Converting navmesh: Error! Can't get raw vertices and indices from mesh\n");
     goto exit;
@@ -617,7 +619,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
   DerivedMesh *dm = CDDM_from_mesh(final_me);
-  DM_ensure_tessface(dm);
+  DM_ensure_tessface(dm, final_me);
   CustomData *pdata = dm->getPolyDataLayout(dm);
   int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
   if (recastData) {
@@ -625,6 +627,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
     int nAllVerts = 0;
     float *allVerts = nullptr;
     buildNavMeshDataByDerivedMesh(dm,
+                                  final_me,
                                   &vertsPerPoly,
                                   &nAllVerts,
                                   &allVerts,
