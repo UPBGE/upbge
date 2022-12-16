@@ -370,7 +370,7 @@ class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
         layout.separator()
 
         heading = layout.column(align=True, heading="Scrambling Distance")
-        heading.active = cscene.sampling_pattern != 'TABULATED_SOBOL'
+        heading.active = cscene.sampling_pattern == 'TABULATED_SOBOL'
         heading.prop(cscene, "auto_scrambling_distance", text="Automatic")
         heading.prop(cscene, "preview_scrambling_distance", text="Viewport")
         heading.prop(cscene, "scrambling_distance", text="Multiplier")
@@ -395,9 +395,13 @@ class CYCLES_RENDER_PT_sampling_lights(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
         scene = context.scene
         cscene = scene.cycles
 
+        col = layout.column(align=True)
         col.prop(cscene, "use_light_tree")
         sub = col.row()
         sub.prop(cscene, "light_sampling_threshold", text="Light Threshold")
