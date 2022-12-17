@@ -27,6 +27,8 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
+#include "BKE_mesh.h"
+#include "BKE_mesh_legacy_convert.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 
@@ -41,6 +43,7 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+
 
 /// todo: fill all the empty CcdPhysicsController methods, hook them up to the btRigidBody class
 
@@ -2033,7 +2036,6 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   BLI_assert(IsUnused());
   m_shapeType = PHY_SHAPE_NONE;
   m_meshObject = nullptr;
-  bool free_dm = false;
 
   // No mesh object or mesh has no polys
   if (!meshobj || !meshobj->HasColliderPolygon()) {
@@ -2044,27 +2046,23 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     return false;
   }
 
-  if (!dm) {
-    free_dm = true;
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
-    Mesh *me = (Mesh *)ob_eval->data;
-    dm = CDDM_from_mesh(me);
-    // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-    DM_ensure_tessface(dm, me);
-  }
+  Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
+  Mesh *me = (Mesh *)ob_eval->data;
 
-  MVert *mvert = dm->getVertArray(dm);
-  MFace *mface = dm->getTessFaceArray(dm);
-  numpolys = dm->getNumTessFaces(dm);
-  numverts = dm->getNumVerts(dm);
-  MTFace *tface = (MTFace *)dm->getTessFaceDataArray(dm, CD_MTFACE);
+  /* No need to call again ensure_tessface as it was called in BL_DataConversion */
+
+  const MVert *mvert = me->verts().data();
+  MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+  numpolys = me->totpoly;
+  numverts = me->totvert;
+  MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
 
   /* double lookup */
-  const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
-  const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
+  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
+  const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
   if (!index_mf_to_mpoly) {
     index_mp_to_orig = nullptr;
   }
@@ -2222,9 +2220,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
       // only add polygons that have the collisionflag set
       if (poly && poly->IsCollider()) {
-        MVert *v1 = &mvert[mf->v1];
-        MVert *v2 = &mvert[mf->v2];
-        MVert *v3 = &mvert[mf->v3];
+        MVert *v1 = (MVert *)&mvert[mf->v1];
+        MVert *v2 = (MVert *)&mvert[mf->v2];
+        MVert *v3 = (MVert *)&mvert[mf->v3];
 
         // the face indices
         tri_pt[0] = vert_remap_array[mf->v1];
@@ -2266,7 +2264,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
         }
 
         if (mf->v4) {
-          MVert *v4 = &mvert[mf->v4];
+          MVert *v4 = (MVert *)&mvert[mf->v4];
 
           tri_pt[0] = vert_remap_array[mf->v1];
           tri_pt[1] = vert_remap_array[mf->v3];
@@ -2320,10 +2318,6 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 #endif
 
   m_meshObject = meshobj;
-  if (free_dm) {
-    dm->release(dm);
-    dm = nullptr;
-  }
 
   // sharing only on static mesh at present, if you change that, you must also change in FindMesh
   if (!polytope && !dm) {
@@ -2339,9 +2333,6 @@ cleanup_empty_mesh:
   m_polygonIndexArray.clear();
   m_triFaceArray.clear();
   m_triFaceUVcoArray.clear();
-  if (free_dm) {
-    dm->release(dm);
-  }
   return false;
 }
 
@@ -2403,27 +2394,24 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     me = (Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
-  DerivedMesh *dm = nullptr;
-
   if (me) {
-    dm = CDDM_from_mesh(me);
-    DM_ensure_tessface(dm, me);
+    BKE_mesh_tessface_ensure(me);
   }
 
-  if (dm && meshobj) {
+  if (me && meshobj) {
     /*
-     * Derived Mesh Update
+     * Mesh Update
      *
      * */
 
-    MVert *mvert = dm->getVertArray(dm);
-    MFace *mface = dm->getTessFaceArray(dm);
-    numpolys = dm->getNumTessFaces(dm);
-    numverts = dm->getNumVerts(dm);
+    const MVert *mvert = me->verts().data();
+    MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+    numpolys = me->totface;
+    numverts = me->totvert;
 
     // double lookup
-    const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
-    const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
+    const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
+    const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
     if (!index_mf_to_mpoly) {
       index_mp_to_orig = nullptr;
     }
@@ -2431,8 +2419,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     MFace *mf;
     MVert *mv;
 
-    if (CustomData_has_layer(&dm->faceData, CD_MTFACE)) {
-      MTFace *tface = (MTFace *)dm->getTessFaceDataArray(dm, CD_MTFACE);
+    if (CustomData_has_layer(&me->fdata, CD_MTFACE)) {
+      MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
       MTFace *tf;
 
       std::vector<bool> vert_tag_array(numverts, false);
@@ -2499,7 +2487,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
             v_orig = (*(&mf->v1 + (*fv_pt)));
 
             if (vert_tag_array[v_orig]) {
-              mv = mvert + v_orig;
+              mv = (MVert *)mvert + v_orig;
               *bt++ = mv->co[0];
               *bt++ = mv->co[1];
               *bt++ = mv->co[2];
@@ -2533,7 +2521,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
       m_triFaceUVcoArray.clear();
 
-      for (mv = mvert, i = 0; i < numverts; mv++, i++) {
+      for (mv = (MVert *)mvert, i = 0; i < numverts; mv++, i++) {
         *bt++ = mv->co[0];
         *bt++ = mv->co[1];
         *bt++ = mv->co[2];
@@ -2681,10 +2669,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
   m_meshObject = meshobj;
 
-  if (dm) {
-    dm->needsFree = 1;
-    dm->release(dm);
-  }
   return true;
 }
 
