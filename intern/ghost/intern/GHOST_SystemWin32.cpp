@@ -1063,7 +1063,7 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
   if (window->getCursorGrabModeIsWarp()) {
     static uint64_t last_warp_time = 0;
     {
-      /* WORKAROUND: Check the mouse event timestamp so we can ignore mousemove events that were
+      /* WORKAROUND: Check the mouse event timestamp so we can ignore mouse-move events that were
        * already in the queue before we changed the cursor position. */
       MOUSEMOVEPOINT mp = {x_screen, y_screen};
       ::GetMouseMovePointsEx(sizeof(MOUSEMOVEPOINT), &mp, &mp, 1, GMMP_USE_DISPLAY_POINTS);
@@ -1075,20 +1075,49 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
     int32_t x_new = x_screen;
     int32_t y_new = y_screen;
     int32_t x_accum, y_accum;
-    GHOST_Rect bounds;
 
-    /* Fallback to window bounds. */
-    if (window->getCursorGrabBounds(bounds) == GHOST_kFailure) {
-      window->getClientBounds(bounds);
+    /* Warp within bounds. */
+    {
+      GHOST_Rect bounds;
+      int32_t bounds_margin = 0;
+      GHOST_TAxisFlag bounds_axis = GHOST_kAxisNone;
+
+      if (window->getCursorGrabMode() == GHOST_kGrabHide) {
+        window->getClientBounds(bounds);
+
+        /* WARNING(@campbellbarton): The current warping logic fails to warp on every event,
+         * so the box needs to small enough not to let the cursor escape the window but large
+         * enough that the cursor isn't being warped every time.
+         * If this was not the case it would be less trouble to simply warp the cursor to the
+         * center of the screen on every motion, see: D16558 (alternative fix for T102346). */
+        const int32_t subregion_div = 4; /* One quarter of the region. */
+        const int32_t size[2] = {bounds.getWidth(), bounds.getHeight()};
+        const int32_t center[2] = {(bounds.m_l + bounds.m_r) / 2, (bounds.m_t + bounds.m_b) / 2};
+        /* Shrink the box to prevent the cursor escaping. */
+        bounds.m_l = center[0] - (size[0] / (subregion_div * 2));
+        bounds.m_r = center[0] + (size[0] / (subregion_div * 2));
+        bounds.m_t = center[1] - (size[1] / (subregion_div * 2));
+        bounds.m_b = center[1] + (size[1] / (subregion_div * 2));
+        bounds_margin = 0;
+        bounds_axis = GHOST_TAxisFlag(GHOST_kAxisX | GHOST_kAxisY);
+      }
+      else {
+        /* Fallback to window bounds. */
+        if (window->getCursorGrabBounds(bounds) == GHOST_kFailure) {
+          window->getClientBounds(bounds);
+        }
+        bounds_margin = 2;
+        bounds_axis = window->getCursorGrabAxis();
+      }
+
+      /* Could also clamp to screen bounds wrap with a window outside the view will
+       * fail at the moment. Use inset in case the window is at screen bounds. */
+      bounds.wrapPoint(x_new, y_new, bounds_margin, bounds_axis);
     }
-
-    /* Could also clamp to screen bounds wrap with a window outside the view will
-     * fail at the moment. Use inset in case the window is at screen bounds. */
-    bounds.wrapPoint(x_new, y_new, 2, window->getCursorGrabAxis());
 
     window->getCursorGrabAccum(x_accum, y_accum);
     if (x_new != x_screen || y_new != y_screen) {
-      /* WORKAROUND: Store the current time so that we ignore outdated mousemove events. */
+      /* WORKAROUND: Store the current time so that we ignore outdated mouse-move events. */
       last_warp_time = ::GetTickCount64();
 
       /* For more control over which timestamp to store in the event, we use `SendInput` instead of

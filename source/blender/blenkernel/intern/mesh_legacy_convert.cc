@@ -326,12 +326,13 @@ static void bm_corners_to_loops_ex(ID *id,
   }
 
   if (CustomData_has_layer(fdata, CD_TESSLOOPNORMAL)) {
-    float(*lnors)[3] = (float(*)[3])CustomData_get(ldata, loopstart, CD_NORMAL);
-    const short(*tlnors)[3] = (short(*)[3])CustomData_get(fdata, findex, CD_TESSLOOPNORMAL);
+    float(*loop_normals)[3] = (float(*)[3])CustomData_get(ldata, loopstart, CD_NORMAL);
+    const short(*tessloop_normals)[3] = (short(*)[3])CustomData_get(
+        fdata, findex, CD_TESSLOOPNORMAL);
     const int max = mf->v4 ? 4 : 3;
 
-    for (int i = 0; i < max; i++, lnors++, tlnors++) {
-      normal_short_to_float_v3(*lnors, *tlnors);
+    for (int i = 0; i < max; i++, loop_normals++, tessloop_normals++) {
+      normal_short_to_float_v3(*loop_normals, *tessloop_normals);
     }
   }
 
@@ -544,11 +545,15 @@ static void update_active_fdata_layers(Mesh &mesh, CustomData *fdata, CustomData
   }
 
   if (CustomData_has_layer(ldata, CD_PROP_BYTE_COLOR)) {
-    act = CustomData_get_named_layer(ldata, CD_PROP_BYTE_COLOR, mesh.active_color_attribute);
-    CustomData_set_layer_active(fdata, CD_MCOL, act);
+    if (mesh.active_color_attribute != NULL) {
+      act = CustomData_get_named_layer(ldata, CD_PROP_BYTE_COLOR, mesh.active_color_attribute);
+      CustomData_set_layer_active(fdata, CD_MCOL, act);
+    }
 
-    act = CustomData_get_named_layer(ldata, CD_PROP_BYTE_COLOR, mesh.default_color_attribute);
-    CustomData_set_layer_render(fdata, CD_MCOL, act);
+    if (mesh.default_color_attribute != NULL) {
+      act = CustomData_get_named_layer(ldata, CD_PROP_BYTE_COLOR, mesh.default_color_attribute);
+      CustomData_set_layer_render(fdata, CD_MCOL, act);
+    }
 
     act = CustomData_get_clone_layer(ldata, CD_PROP_BYTE_COLOR);
     CustomData_set_layer_clone(fdata, CD_MCOL, act);
@@ -838,12 +843,12 @@ void mesh_loops_to_tessdata(CustomData *fdata, /* UPBGE (not static) */
   }
 
   if (hasLoopNormal) {
-    short(*fnors)[4][3] = (short(*)[4][3])CustomData_get_layer(fdata, CD_TESSLOOPNORMAL);
-    const float(*lnors)[3] = (const float(*)[3])CustomData_get_layer(ldata, CD_NORMAL);
+    short(*face_normals)[4][3] = (short(*)[4][3])CustomData_get_layer(fdata, CD_TESSLOOPNORMAL);
+    const float(*loop_normals)[3] = (const float(*)[3])CustomData_get_layer(ldata, CD_NORMAL);
 
-    for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, fnors++) {
+    for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, face_normals++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
-        normal_float_to_short_v3((*fnors)[j], lnors[(*lidx)[j]]);
+        normal_float_to_short_v3((*face_normals)[j], loop_normals[(*lidx)[j]]);
       }
     }
   }

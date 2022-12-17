@@ -117,8 +117,8 @@ enable_testing()
 # Keep in sync with: https://wiki.blender.org/wiki/Building_Blender
 
 if(CMAKE_COMPILER_IS_GNUCC)
-  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "9.3.1")
-    message(FATAL_ERROR "The minimum supported version of GCC is 9.3.1")
+  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "11.0.0")
+    message(FATAL_ERROR "The minimum supported version of GCC is 11.0.0")
   endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   if(CMAKE_COMPILER_IS_GNUCC AND ("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "8.0"))
@@ -593,8 +593,8 @@ endif()
 
 # OpenGL
 
-option(WITH_OPENGL              "When off limits visibility of the opengl headers to just bf_gpu and gawain (temporary option for development purposes)" ON)
-option(WITH_GPU_BUILDTIME_SHADER_BUILDER  "Shader builder is a developer option enabling linting on GLSL during compilation"                                  OFF)
+option(WITH_OPENGL "When off limits visibility of the opengl headers to just bf_gpu and gawain (temporary option for development purposes)" ON)
+option(WITH_GPU_BUILDTIME_SHADER_BUILDER "Shader builder is a developer option enabling linting on GLSL during compilation" OFF)
 
 mark_as_advanced(
   WITH_OPENGL
@@ -2069,6 +2069,24 @@ endif()
 if(0)
   print_all_vars()
 endif()
+
+set(LIBDIR_STALE)
+
+if(UNIX AND NOT APPLE)
+  # Only search for the path if it's found on the system.
+  if(EXISTS "../lib/linux_centos7_x86_64")
+    set(LIBDIR_STALE "/lib/linux_centos7_x86_64/")
+  endif()
+endif()
+
+if(LIBDIR_STALE)
+  print_cached_vars_containing_value(
+    "${LIBDIR_STALE}"
+    "\nWARNING: found cached references to old library paths!\n"
+    "\nIt is *strongly* recommended to reference updated library paths!\n"
+  )
+endif()
+unset(LIBDIR_STALE)
 
 # Should be the last step of configuration.
 if(POSTCONFIGURE_SCRIPT)

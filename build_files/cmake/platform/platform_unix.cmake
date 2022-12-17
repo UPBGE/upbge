@@ -351,9 +351,9 @@ endif()
 if(WITH_USD)
   find_package_wrapper(USD)
   set_and_warn_library_found("USD" USD_FOUND WITH_USD)
- if(WITH_USD)
+  if(WITH_USD)
     add_bundled_libraries(usd/lib)
- endif()
+  endif()
 endif()
 
 if(WITH_MATERIALX)
@@ -789,7 +789,7 @@ if(WITH_GHOST_X11)
   endif()
 
   if(WITH_X11_ALPHA)
-    find_library(X11_Xrender_LIB Xrender  ${X11_LIB_SEARCH_PATH})
+    find_library(X11_Xrender_LIB Xrender ${X11_LIB_SEARCH_PATH})
     mark_as_advanced(X11_Xrender_LIB)
     if(NOT X11_Xrender_LIB)
       message(FATAL_ERROR "libXrender not found. Disable WITH_X11_ALPHA if you
@@ -1012,6 +1012,18 @@ function(configure_atomic_lib_if_needed)
 endfunction()
 
 configure_atomic_lib_if_needed()
+
+# Handle library inter-dependencies.
+# FIXME: find a better place to handle inter-library dependencies.
+# This is done near the end of the file to ensure bundled libraries are not added multiple times.
+if(WITH_USD)
+  if(NOT WITH_OPENIMAGEIO)
+    add_bundled_libraries(openimageio/lib)
+  endif()
+  if(NOT WITH_OPENVDB)
+    add_bundled_libraries(openvdb/lib)
+  endif()
+endif()
 
 if(PLATFORM_BUNDLED_LIBRARIES)
   # For the installed Python module and installed Blender executable, we set the
