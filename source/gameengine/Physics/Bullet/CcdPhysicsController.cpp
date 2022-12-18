@@ -870,7 +870,7 @@ void CcdPhysicsController::UpdateSoftBody()
 
         MVert *mverts = me->verts_for_write().data();
         MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
-        int numpolys = me->totface;
+        int numpolys = me->totpoly;
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
