@@ -848,29 +848,31 @@ void CcdPhysicsController::UpdateSoftBody()
 
       if (rasMesh) {
         // Get other mesh data
-        Mesh *me = rasMesh->GetOrigMesh();
-        // I don't see how we could do without DerivedMesh...
-        DerivedMesh *dm = CDDM_from_mesh(me);
+        //Mesh *me = rasMesh->GetOrigMesh();
+        //// I don't see how we could do without DerivedMesh...
+        //DerivedMesh *dm = CDDM_from_mesh(me);
 
-        // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-        DM_ensure_tessface(dm, me);
-
-        const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
-        const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
-        if (!index_mf_to_mpoly) {
-          index_mp_to_orig = nullptr;
-        }
-
-        MVert *mverts = dm->getVertArray(dm);
-        MFace *mface = dm->getTessFaceArray(dm);
-        int numpolys = dm->getNumTessFaces(dm);
-
-        btSoftBody::tNodeArray &nodes(sb->m_nodes);
+        //// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+        //DM_ensure_tessface(dm, me);
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
-        Object *ob = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
+        Object *ob = gameobj->GetBlenderObject();
+        Mesh *me = (Mesh *)ob->data;
+        BKE_mesh_tessface_ensure(me);
+
+        const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
+        const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
+        if (!index_mf_to_mpoly) {
+          index_mp_to_orig = nullptr;
+        }
+
+        MVert *mverts = me->verts_for_write().data();
+        MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+        int numpolys = me->totface;
+
+        btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
@@ -910,12 +912,7 @@ void CcdPhysicsController::UpdateSoftBody()
             }
           }
         }
-        DM_to_mesh(dm,
-                   me,
-                   gameobj->GetBlenderObject(),
-                   &CD_MASK_MESH,
-                   true);  // if take_ownership is true, dm is freed
-        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
   }
