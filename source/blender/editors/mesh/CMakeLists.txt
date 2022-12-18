@@ -72,7 +72,7 @@ if(WITH_GAMEENGINE)
   )
 
   list(APPEND SRC
-    mesh_navmesh.c
+    mesh_navmesh.cc
   )
 
   list(APPEND LIB

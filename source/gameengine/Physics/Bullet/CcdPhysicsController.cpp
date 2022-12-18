@@ -847,13 +847,6 @@ void CcdPhysicsController::UpdateSoftBody()
       RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
 
       if (rasMesh) {
-        // Get other mesh data
-        //Mesh *me = rasMesh->GetOrigMesh();
-        //// I don't see how we could do without DerivedMesh...
-        //DerivedMesh *dm = CDDM_from_mesh(me);
-
-        //// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-        //DM_ensure_tessface(dm, me);
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(

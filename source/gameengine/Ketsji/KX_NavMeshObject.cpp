@@ -29,6 +29,8 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
+#include "BKE_mesh.h"
+#include "BKE_mesh_legacy_convert.h"
 #include "BLI_sort.h"
 #include "DEG_depsgraph_query.h"
 #include "MEM_guardedalloc.h"
@@ -133,8 +135,7 @@ static float distPointToSegmentSq(const float point[3], const float a[3], const 
   return dx[0] * dx[0] + dx[2] * dx[2];
 }
 
-static int buildRawVertIndicesData(DerivedMesh *dm,
-                                   Mesh *me,
+static int buildRawVertIndicesData(Mesh *me,
                                    int *nverts_r,
                                    float **verts_r,
                                    int *ntris_r,
@@ -150,7 +151,7 @@ static int buildRawVertIndicesData(DerivedMesh *dm,
   int nfaces;
   MFace *faces;
 
-  nverts = dm->getNumVerts(dm);
+  nverts = me->totvert;
   if (nverts >= 0xffff) {
     printf("Converting navmesh: Error! Too many vertices. Max number of vertices %d\n", 0xffff);
     return 0;
@@ -161,7 +162,7 @@ static int buildRawVertIndicesData(DerivedMesh *dm,
   }
 
   verts = (float *)MEM_mallocN(sizeof(float[3]) * nverts, "buildRawVertIndicesData verts");
-  dm->getVertCos(dm, (float(*)[3])verts);
+  BKE_mesh_vert_coords_get(me, (float (*)[3])verts);
 
   /* flip coordinates */
   for (vi = 0; vi < nverts; vi++) {
@@ -169,14 +170,14 @@ static int buildRawVertIndicesData(DerivedMesh *dm,
   }
 
   /* calculate number of tris */
-  dm->recalcTessellation(dm, me);
-  nfaces = dm->getNumTessFaces(dm);
+  BKE_mesh_tessface_ensure(me);
+  nfaces = me->totface;
   if (nfaces == 0) {
     printf("Converting navmesh: Error! There are %i vertices, but no faces!\n", nverts);
     return 0;
   }
 
-  faces = dm->getTessFaceArray(dm);
+  faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
   ntris = nfaces;
   for (fi = 0; fi < nfaces; fi++) {
     MFace *face = &faces[fi];
@@ -206,7 +207,7 @@ static int buildRawVertIndicesData(DerivedMesh *dm,
   }
 
   /* carefully, recast data is just reference to data in derived mesh */
-  *recastData = (int *)CustomData_get_layer(&dm->polyData, CD_RECAST);
+  *recastData = (int *)CustomData_get_layer(&me->pdata, CD_RECAST);
 
   *nverts_r = nverts;
   *verts_r = verts;
@@ -508,8 +509,7 @@ fail:
   return 0;
 }
 
-static int buildNavMeshDataByDerivedMesh(DerivedMesh *dm,
-                                         Mesh *me,
+static int buildNavMeshDataByDerivedMesh(Mesh *me,
                                          int *vertsPerPoly,
                                          int *nverts,
                                          float **verts,
@@ -526,7 +526,7 @@ static int buildNavMeshDataByDerivedMesh(DerivedMesh *dm,
   int ntris = 0, *recastData = NULL;
   unsigned short *tris = NULL;
 
-  res = buildRawVertIndicesData(dm, me, nverts, verts, &ntris, &tris, trisToFacesMap, &recastData);
+  res = buildRawVertIndicesData(me, nverts, verts, &ntris, &tris, trisToFacesMap, &recastData);
   if (!res) {
     printf("Converting navmesh: Error! Can't get raw vertices and indices from mesh\n");
     goto exit;
@@ -618,16 +618,14 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
-  DerivedMesh *dm = CDDM_from_mesh(final_me);
-  DM_ensure_tessface(dm, final_me);
-  CustomData *pdata = dm->getPolyDataLayout(dm);
+  BKE_mesh_tessface_ensure(final_me);
+  CustomData *pdata = &final_me->pdata;
   int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
   if (recastData) {
     int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
     int nAllVerts = 0;
     float *allVerts = nullptr;
-    buildNavMeshDataByDerivedMesh(dm,
-                                  final_me,
+    buildNavMeshDataByDerivedMesh(final_me,
                                   &vertsPerPoly,
                                   &nAllVerts,
                                   &allVerts,
@@ -688,7 +686,6 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
               CM_Error("building NavMeshObject, can't find vertex in polygon\n");
               MEM_SAFE_FREE(allVerts);
               MEM_freeN(verticesMap);
-              dm->release(dm);
               return false;
             }
             dtri[k] = idxInPoly;
@@ -778,7 +775,6 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
     dtris = nullptr;
     ndtris = npolys;
   }
-  dm->release(dm);
 
   return true;
 }
