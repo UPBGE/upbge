@@ -398,7 +398,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const float(*v_normals)[3] = BKE_mesh_vertex_normals_ensure(final_me);
   //}
 
-  const float(*p_normals)[3] = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
+  const float(*p_normals)[3] = BKE_mesh_poly_normals_ensure(final_me);
 
   /* Extract available layers.
    * Get the active color and uv layer. */
@@ -530,13 +530,13 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     const unsigned int lpstart = mpoly.loopstart;
     const unsigned int totlp = mpoly.totloop;
+    const MT_Vector3 no(p_normals[i]);
     for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
       const MLoop &mloop = mloops[j];
       const unsigned int vertid = mloop.v;
       const MVert &mvert = mverts[vertid];
 
       const MT_Vector3 pt(mvert.co);
-      const MT_Vector3 no(p_normals[j]);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
