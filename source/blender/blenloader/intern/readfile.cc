@@ -2046,7 +2046,14 @@ static void direct_link_id_common(
     /* When actually reading a file, we do want to reset/re-generate session UUIDS.
      * In undo case, we want to re-use existing ones. */
     id->session_uuid = MAIN_ID_SESSION_UUID_UNSET;
+
+    /* Runtime IDs should never be written in .blend files (except memfiles from undo). */
+    BLI_assert((id->tag & LIB_TAG_RUNTIME) == 0);
   }
+
+  /* No-main and other types of special IDs should never be written in .blend files. */
+  BLI_assert((id->tag & (LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) ==
+             0);
 
   if ((tag & LIB_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uuid_ensure(id);
@@ -2060,7 +2067,12 @@ static void direct_link_id_common(
   id->py_instance = nullptr;
 
   /* Initialize with provided tag. */
-  id->tag = tag;
+  if (BLO_read_data_is_undo(reader)) {
+    id->tag = tag | (id->tag & LIB_TAG_KEEP_ON_UNDO);
+  }
+  else {
+    id->tag = tag;
+  }
 
   if (ID_IS_LINKED(id)) {
     id->library_weak_reference = nullptr;
@@ -3136,7 +3148,7 @@ static void read_libblock_undo_restore_identical(
   BLI_assert(id_old != nullptr);
 
   /* Some tags need to be preserved here. */
-  id_old->tag = tag | (id_old->tag & LIB_TAG_EXTRAUSER);
+  id_old->tag = tag | (id_old->tag & LIB_TAG_KEEP_ON_UNDO);
   id_old->lib = main->curlib;
   id_old->us = ID_FAKE_USERS(id_old);
   /* Do not reset id->icon_id here, memory allocated for it remains valid. */

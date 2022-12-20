@@ -809,6 +809,16 @@ enum {
    */
   LIB_TAG_NO_MAIN = 1 << 15,
   /**
+   * ID is considered as runtime, and should not be saved when writing .blend file, nor influence
+   * (in)direct status of linked data.
+   *
+   * Only meaningful for IDs belonging to regular Main database, all other cases are implicitely
+   * considered runtime-only.
+   *
+   * RESET_NEVER
+   */
+  LIB_TAG_RUNTIME = 1 << 22,
+  /**
    * Datablock does not refcount usages of other IDs.
    *
    * RESET_NEVER
@@ -847,6 +857,15 @@ enum {
    */
   LIB_TAG_LIB_OVERRIDE_NEED_RESYNC = 1 << 21,
 };
+
+/**
+ * Most of ID tags are cleared on file write (i.e. also when storing undo steps), since they
+ * either have of very short lifetime (not expected to exist accross undo steps), or are info that
+ * will be re-generated when reading undo steps.
+ *
+ * However a few of these need to be explicitely preserved accross undo steps.
+ */
+#define LIB_TAG_KEEP_ON_UNDO (LIB_TAG_EXTRAUSER | LIB_TAG_MISSING | LIB_TAG_RUNTIME)
 
 /* Tag given ID for an update in all the dependency graphs. */
 typedef enum IDRecalcFlag {
