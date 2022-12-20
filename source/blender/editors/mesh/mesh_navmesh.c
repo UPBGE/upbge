@@ -76,7 +76,6 @@ static void createVertsTrisData(
   LinkNode *oblink, *dmlink;
   DerivedMesh *dm;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
   LinkNodePair dms_pair = {NULL, NULL};
 
   int nverts, ntris, *tris;
