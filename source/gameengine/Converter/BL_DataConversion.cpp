@@ -66,6 +66,7 @@
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_mesh.h"
 #include "BKE_mesh_legacy_convert.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -372,7 +373,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
 
-
   BKE_mesh_tessface_ensure(final_me);
 
   const MVert *mverts = final_me->verts().data();
@@ -411,27 +411,25 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
-  float(*tangent)[4] = nullptr;
-  if (uvLayers > 0) {
-    if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
-      BKE_mesh_calc_loop_tangents(final_me, true, nullptr, 0);
-    }
-    tangent = (float(*)[4])CustomData_get_layer(&final_me->ldata, CD_TANGENT);
-  }
+  /* Can be reused in tangent calc */
+  float(*v_normals)[3] = nullptr;
+  float(*p_normals)[3] = nullptr;
+
   float(*loop_nor_dst)[3] = nullptr;
   float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->ldata, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
-    loop_nor_dst = static_cast<float(*)[3]>(
-        CustomData_add_layer(&final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, nullptr, final_me->totloop));
+    loop_nor_dst = static_cast<float(*)[3]>(CustomData_add_layer(
+        &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, nullptr, final_me->totloop));
     CustomData_set_layer_flag(&final_me->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
 
     const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
     const float split_angle = final_me->smoothresh;
-    short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata, CD_CUSTOMLOOPNORMAL);
+    short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata,
+                                                              CD_CUSTOMLOOPNORMAL);
 
-    const float(*v_normals)[3] = BKE_mesh_vertex_normals_ensure(final_me);
-    const float(*p_normals)[3] = BKE_mesh_poly_normals_ensure(final_me);
+    v_normals = (float(*)[3])BKE_mesh_vertex_normals_ensure(final_me);
+    p_normals = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
 
     BKE_mesh_normals_loop_split(mverts,
                                 v_normals,
@@ -449,6 +447,34 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                 nullptr,
                                 nullptr,
                                 clnor_data);
+  }
+
+  float(*tangent)[4] = nullptr;
+  if (uvLayers > 0) {
+    if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
+      short tangent_mask = 0;
+      BKE_mesh_calc_loop_tangent_ex(
+          mverts,
+          mpolys,
+          uint(final_me->totpoly),
+          mloops,
+          BKE_mesh_runtime_looptri_ensure(final_me),
+          uint(BKE_mesh_runtime_looptri_len(final_me)),
+          &final_me->ldata,
+          true,
+          nullptr,
+          0,
+          (v_normals != nullptr) ? v_normals : BKE_mesh_vertex_normals_ensure(final_me),
+          (p_normals != nullptr) ? p_normals : BKE_mesh_poly_normals_ensure(final_me),
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->ldata, CD_NORMAL)),
+          /* may be nullptr */
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vdata, CD_ORCO)),
+          /* result */
+          &final_me->ldata,
+          uint(final_me->totloop),
+          &tangent_mask);
+    }
+    tangent = (float(*)[4])CustomData_get_layer(&final_me->ldata, CD_TANGENT);
   }
 
   meshobj = new RAS_MeshObject(mesh, final_me->totvert, blenderobj, layersInfo);
