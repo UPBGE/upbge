@@ -66,7 +66,6 @@
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_mesh.h"
 #include "BKE_mesh_legacy_convert.h"
-#include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -373,13 +372,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
 
-  BKE_mesh_legacy_convert_flags_to_selection_layers(final_me);
-  BKE_mesh_legacy_convert_flags_to_hide_layers(final_me);
-  BKE_mesh_legacy_convert_mpoly_to_material_indices(final_me);
-  BKE_mesh_legacy_bevel_weight_to_layers(final_me);
-  BKE_mesh_legacy_face_set_to_generic(final_me);
-  BKE_mesh_legacy_edge_crease_to_layers(final_me);
-  BKE_mesh_legacy_attribute_flags_to_strings(final_me);
 
   BKE_mesh_tessface_ensure(final_me);
 
@@ -586,8 +578,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       mmat->GetBucket()->GetPolyMaterial()->OnConstruction();
     }
   }
-
-  //dm->release(dm);
 
   converter->RegisterGameMesh(meshobj, mesh);
   return meshobj;
