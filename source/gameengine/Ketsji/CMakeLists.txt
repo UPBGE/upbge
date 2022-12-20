@@ -196,6 +196,12 @@ set(LIB
 
 add_definitions(${GL_DEFINITIONS})
 
+if(MSVC)
+  add_definitions(
+    /DNOMINMAX
+  )
+endif()
+
 if(WITH_IMAGE_DDS)
   add_definitions(-DWITH_DDS)
 endif()
