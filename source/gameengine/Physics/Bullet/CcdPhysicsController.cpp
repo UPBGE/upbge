@@ -863,11 +863,8 @@ void CcdPhysicsController::UpdateSoftBody()
         int numpolys = dm->getNumTessFaces(dm);
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
-        Object *ob = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
 
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
