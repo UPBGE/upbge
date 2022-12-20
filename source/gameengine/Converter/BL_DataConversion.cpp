@@ -59,7 +59,6 @@
 /* This list includes only data type definitions */
 #include "BKE_armature.h"
 #include "BKE_attribute.hh"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"

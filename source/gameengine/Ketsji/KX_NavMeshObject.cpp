@@ -27,7 +27,6 @@
 
 #include "KX_NavMeshObject.h"
 
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_legacy_convert.h"
@@ -206,7 +205,7 @@ static int buildRawVertIndicesData(Mesh *me,
     }
   }
 
-  /* carefully, recast data is just reference to data in derived mesh */
+  /* carefully, recast data is just reference to data in mesh */
   *recastData = (int *)CustomData_get_layer(&me->pdata, CD_RECAST);
 
   *nverts_r = nverts;
@@ -462,7 +461,7 @@ static int buildNavMeshData(const int nverts,
   dmeshes = (unsigned short *)MEM_callocN(sizeof(unsigned short) * npolys * 4,
                                           "buildNavMeshData dmeshes");
   memset(dmeshes, 0, npolys * 4 * sizeof(unsigned short));
-  dmesh = NULL;
+  dmesh = nullptr;
   prevpolyidx = 0;
   for (i = 0; i < ndtris; i++) {
     int curpolyidx = dtrisToPolysMap[i];
@@ -471,7 +470,7 @@ static int buildNavMeshData(const int nverts,
         printf("Converting navmesh: Error! Wrong order of detailed mesh faces\n");
         goto fail;
       }
-      dmesh = dmesh == NULL ? dmeshes : dmesh + 4;
+      dmesh = dmesh == nullptr ? dmeshes : dmesh + 4;
       dmesh[2] = (unsigned short)i; /* tbase */
       dmesh[3] = 0;                 /* tnum */
       prevpolyidx = curpolyidx;
@@ -509,22 +508,22 @@ fail:
   return 0;
 }
 
-static int buildNavMeshDataByDerivedMesh(Mesh *me,
-                                         int *vertsPerPoly,
-                                         int *nverts,
-                                         float **verts,
-                                         int *ndtris,
-                                         unsigned short **dtris,
-                                         int *npolys,
-                                         unsigned short **dmeshes,
-                                         unsigned short **polys,
-                                         int **dtrisToPolysMap,
-                                         int **dtrisToTrisMap,
-                                         int **trisToFacesMap)
+static int buildNavMeshDataByMesh(Mesh *me,
+                                  int *vertsPerPoly,
+                                  int *nverts,
+                                  float **verts,
+                                  int *ndtris,
+                                  unsigned short **dtris,
+                                  int *npolys,
+                                  unsigned short **dmeshes,
+                                  unsigned short **polys,
+                                  int **dtrisToPolysMap,
+                                  int **dtrisToTrisMap,
+                                  int **trisToFacesMap)
 {
   int res;
-  int ntris = 0, *recastData = NULL;
-  unsigned short *tris = NULL;
+  int ntris = 0, *recastData = nullptr;
+  unsigned short *tris = nullptr;
 
   res = buildRawVertIndicesData(me, nverts, verts, &ntris, &tris, trisToFacesMap, &recastData);
   if (!res) {
@@ -625,18 +624,18 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
     int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
     int nAllVerts = 0;
     float *allVerts = nullptr;
-    buildNavMeshDataByDerivedMesh(final_me,
-                                  &vertsPerPoly,
-                                  &nAllVerts,
-                                  &allVerts,
-                                  &ndtris,
-                                  &dtris,
-                                  &npolys,
-                                  &dmeshes,
-                                  &polys,
-                                  &dtrisToPolysMap,
-                                  &dtrisToTrisMap,
-                                  &trisToFacesMap);
+    buildNavMeshDataByMesh(final_me,
+                           &vertsPerPoly,
+                           &nAllVerts,
+                           &allVerts,
+                           &ndtris,
+                           &dtris,
+                           &npolys,
+                           &dmeshes,
+                           &polys,
+                           &dtrisToPolysMap,
+                           &dtrisToTrisMap,
+                           &trisToFacesMap);
 
     MEM_SAFE_FREE(dtrisToPolysMap);
     MEM_SAFE_FREE(dtrisToTrisMap);

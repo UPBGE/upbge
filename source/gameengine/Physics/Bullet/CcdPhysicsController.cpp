@@ -25,7 +25,6 @@
 
 #include "CcdPhysicsController.h"
 
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_legacy_convert.h"

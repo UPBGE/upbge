@@ -40,8 +40,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_layer.h"
@@ -74,10 +72,10 @@ static void createVertsTrisData(
   MFace *mface;
   float co[3], wco[3];
   Object *ob;
-  Mesh *me = NULL;
-  LinkNode *oblink, *dmlink;
+  Mesh *me = nullptr;
+  LinkNode *oblink, *meshlink;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  LinkNodePair dms_pair = {NULL, NULL};
+  LinkNodePair meshes_pair = {nullptr, nullptr};
 
   int nverts, ntris, *tris;
   float *verts;
@@ -91,7 +89,7 @@ static void createVertsTrisData(
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
     me = (Mesh *)ob_eval->data;
     BKE_mesh_tessface_ensure(me);
-    BLI_linklist_append(&dms_pair, me);
+    BLI_linklist_append(&meshes_pair, me);
 
     nverts += me->totvert;
     nfaces = me->totface;
@@ -105,7 +103,7 @@ static void createVertsTrisData(
         ntris += 1;
     }
   }
-  LinkNode *dms = dms_pair.list;
+  LinkNode *meshes = meshes_pair.list;
 
   /* create data */
   verts = (float *)MEM_mallocN(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
@@ -113,10 +111,10 @@ static void createVertsTrisData(
 
   basenverts = 0;
   tri = tris;
-  for (oblink = obs, dmlink = dms; oblink && dmlink;
-       oblink = oblink->next, dmlink = dmlink->next) {
+  for (oblink = obs, meshlink = meshes; oblink && meshlink;
+       oblink = oblink->next, meshlink = meshlink->next) {
     ob = (Object *)oblink->link;
-    me = (Mesh *)dmlink->link;
+    me = (Mesh *)meshlink->link;
 
     curnverts = me->totvert;
     mvert = me->verts_for_write().data();
@@ -156,7 +154,7 @@ static void createVertsTrisData(
     basenverts += curnverts;
   }
 
-  BLI_linklist_free(dms, NULL);
+  BLI_linklist_free(meshes, nullptr);
 
   *nverts_r = nverts;
   *verts_r = verts;
@@ -242,7 +240,7 @@ static bool buildNavMesh(const RecastData *recastParams,
   }
 
   recast_destroyHeightfield(solid);
-  solid = NULL;
+  solid = nullptr;
 
   if (!recast_erodeWalkableArea(walkableRadius, chf)) {
     recast_destroyCompactHeightfield(chf);
@@ -345,7 +343,7 @@ static Object *createRepresentation(bContext *C,
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit;
-  int createob = base == NULL;
+  int createob = base == nullptr;
   int nverts, nmeshes, nvp;
   unsigned short *verts, *polys;
   unsigned int *meshes;
@@ -377,7 +375,7 @@ static Object *createRepresentation(bContext *C,
 
   /* create verts for polygon mesh */
   verts = recast_polyMeshGetVerts(pmesh, &nverts);
-  recast_polyMeshGetBoundbox(pmesh, bmin, NULL);
+  recast_polyMeshGetBoundbox(pmesh, bmin, nullptr);
   recast_polyMeshGetCell(pmesh, &cs, &ch);
 
   for (i = 0; i < nverts; i++) {
@@ -386,19 +384,19 @@ static Object *createRepresentation(bContext *C,
     co[1] = bmin[1] + v[1] * ch;
     co[2] = bmin[2] + v[2] * cs;
     SWAP(float, co[1], co[2]);
-    BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
+    BM_vert_create(em->bm, co, nullptr, BM_CREATE_NOP);
   }
 
   /* create custom data layer to save polygon idx */
   CustomData_add_layer_named(
-      &em->bm->pdata, CD_RECAST, CD_SET_DEFAULT, NULL, 0, "createRepresentation recastData");
+      &em->bm->pdata, CD_RECAST, CD_SET_DEFAULT, nullptr, 0, "createRepresentation recastData");
   CustomData_bmesh_init_pool(&em->bm->pdata, 0, BM_FACE);
 
   /* create verts and faces for detailed mesh */
   meshes = recast_polyMeshDetailGetMeshes(dmesh, &nmeshes);
-  polys = recast_polyMeshGetPolys(pmesh, NULL, &nvp);
-  dverts = recast_polyMeshDetailGetVerts(dmesh, NULL);
-  tris = recast_polyMeshDetailGetTris(dmesh, NULL);
+  polys = recast_polyMeshGetPolys(pmesh, nullptr, &nvp);
+  dverts = recast_polyMeshDetailGetVerts(dmesh, nullptr);
+  tris = recast_polyMeshDetailGetTris(dmesh, nullptr);
 
   for (i = 0; i < nmeshes; i++) {
     int uniquevbase = em->bm->totvert;
@@ -419,7 +417,7 @@ static Object *createRepresentation(bContext *C,
     for (j = nv; j < ndv; j++) {
       copy_v3_v3(co, &dverts[3 * (vbase + j)]);
       SWAP(float, co[1], co[2]);
-      BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
+      BM_vert_create(em->bm, co, nullptr, BM_CREATE_NOP);
     }
 
     /* need to rebuild entirely because array size changes */
@@ -441,8 +439,8 @@ static Object *createRepresentation(bContext *C,
                                         BM_vert_at_index(em->bm, face[0]),
                                         BM_vert_at_index(em->bm, face[2]),
                                         BM_vert_at_index(em->bm, face[1]),
-                                        NULL,
-                                        NULL,
+                                        nullptr,
+                                        nullptr,
                                         BM_CREATE_NOP);
 
       /* set navigation polygon idx to the custom layer */
@@ -475,8 +473,8 @@ static int navmesh_create_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  LinkNode *obs = NULL;
-  Base *navmeshBase = NULL;
+  LinkNode *obs = nullptr;
+  Base *navmeshBase = nullptr;
 
   CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
     if (base->object->type == OB_MESH) {
@@ -493,16 +491,16 @@ static int navmesh_create_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   if (obs) {
-    struct recast_polyMesh *pmesh = NULL;
-    struct recast_polyMeshDetail *dmesh = NULL;
+    struct recast_polyMesh *pmesh = nullptr;
+    struct recast_polyMeshDetail *dmesh = nullptr;
     bool ok;
 
     int nverts = 0, ntris = 0;
-    int *tris = NULL;
-    float *verts = NULL;
+    int *tris = nullptr;
+    float *verts = nullptr;
 
     createVertsTrisData(C, obs, &nverts, &verts, &ntris, &tris);
-    BLI_linklist_free(obs, NULL);
+    BLI_linklist_free(obs, nullptr);
     if ((ok = buildNavMesh(
              &scene->gm.recastData, nverts, verts, ntris, tris, &pmesh, &dmesh, op->reports))) {
       createRepresentation(C, pmesh, dmesh, navmeshBase);
