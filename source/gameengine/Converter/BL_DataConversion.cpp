@@ -500,7 +500,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   for (unsigned short i = 0; i < totmat; ++i) {
     Material *ma = nullptr;
     if (blenderobj) {
-      ma = BKE_object_material_get(blenderobj, i + 1);
+      ma = BKE_object_material_get(ob_eval, i + 1);
     }
     else {
       ma = final_me->mat ? final_me->mat[i] : nullptr;
