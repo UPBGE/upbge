@@ -106,6 +106,8 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_diagonal_pass.glsl
   shaders/compositor_glare_simple_star_horizontal_pass.glsl
   shaders/compositor_glare_simple_star_vertical_pass.glsl
+  shaders/compositor_glare_streaks_accumulate.glsl
+  shaders/compositor_glare_streaks_filter.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
@@ -119,6 +121,7 @@ set(GLSL_SRC
   shaders/compositor_set_alpha.glsl
   shaders/compositor_split_viewer.glsl
   shaders/compositor_symmetric_blur.glsl
+  shaders/compositor_symmetric_blur_variable_size.glsl
   shaders/compositor_symmetric_separable_blur.glsl
   shaders/compositor_tone_map_photoreceptor.glsl
   shaders/compositor_tone_map_simple.glsl
@@ -206,6 +209,7 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/compositor_set_alpha_info.hh
   shaders/infos/compositor_split_viewer_info.hh
   shaders/infos/compositor_symmetric_blur_info.hh
+  shaders/infos/compositor_symmetric_blur_variable_size_info.hh
   shaders/infos/compositor_symmetric_separable_blur_info.hh
   shaders/infos/compositor_tone_map_photoreceptor_info.hh
   shaders/infos/compositor_tone_map_simple_info.hh

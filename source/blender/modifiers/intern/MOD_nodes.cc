@@ -1282,31 +1282,44 @@ static void modifyGeometry(ModifierData *md,
   bool use_orig_index_verts = false;
   bool use_orig_index_edges = false;
   bool use_orig_index_polys = false;
-  if (geometry_set.has_mesh()) {
-    const Mesh &mesh = *geometry_set.get_mesh_for_read();
-    use_orig_index_verts = CustomData_has_layer(&mesh.vdata, CD_ORIGINDEX);
-    use_orig_index_edges = CustomData_has_layer(&mesh.edata, CD_ORIGINDEX);
-    use_orig_index_polys = CustomData_has_layer(&mesh.pdata, CD_ORIGINDEX);
+  if (const Mesh *mesh = geometry_set.get_mesh_for_read()) {
+    use_orig_index_verts = CustomData_has_layer(&mesh->vdata, CD_ORIGINDEX);
+    use_orig_index_edges = CustomData_has_layer(&mesh->edata, CD_ORIGINDEX);
+    use_orig_index_polys = CustomData_has_layer(&mesh->pdata, CD_ORIGINDEX);
   }
 
   geometry_set = compute_geometry(
       tree, *lf_graph_info, *output_node, std::move(geometry_set), nmd, ctx);
 
-  if (geometry_set.has_mesh()) {
-    /* Add #CD_ORIGINDEX layers if they don't exist already. This is required because the
-     * #eModifierTypeFlag_SupportsMapping flag is set. If the layers did not exist before, it is
-     * assumed that the output mesh does not have a mapping to the original mesh. */
-    Mesh &mesh = *geometry_set.get_mesh_for_write();
-    if (use_orig_index_verts) {
-      CustomData_add_layer(&mesh.vdata, CD_ORIGINDEX, CD_SET_DEFAULT, nullptr, mesh.totvert);
-    }
-    if (use_orig_index_edges) {
-      CustomData_add_layer(&mesh.edata, CD_ORIGINDEX, CD_SET_DEFAULT, nullptr, mesh.totedge);
-    }
-    if (use_orig_index_polys) {
-      CustomData_add_layer(&mesh.pdata, CD_ORIGINDEX, CD_SET_DEFAULT, nullptr, mesh.totpoly);
+  if (use_orig_index_verts || use_orig_index_edges || use_orig_index_polys) {
+    if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
+      /* Add #CD_ORIGINDEX layers if they don't exist already. This is required because the
+       * #eModifierTypeFlag_SupportsMapping flag is set. If the layers did not exist before, it is
+       * assumed that the output mesh does not have a mapping to the original mesh. */
+      if (use_orig_index_verts) {
+        CustomData_add_layer(&mesh->vdata, CD_ORIGINDEX, CD_SET_DEFAULT, nullptr, mesh->totvert);
+      }
+      if (use_orig_index_edges) {
+        CustomData_add_layer(&mesh->edata, CD_ORIGINDEX, CD_SET_DEFAULT, nullptr, mesh->totedge);
+      }
+      if (use_orig_index_polys) {
+        CustomData_add_layer(&mesh->pdata, CD_ORIGINDEX, CD_SET_DEFAULT, nullptr, mesh->totpoly);
+      }
     }
   }
+}
+
+static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+{
+  GeometrySet geometry_set = GeometrySet::create_with_mesh(mesh, GeometryOwnershipType::Editable);
+
+  modifyGeometry(md, ctx, geometry_set);
+
+  Mesh *new_mesh = geometry_set.get_component_for_write<MeshComponent>().release();
+  if (new_mesh == nullptr) {
+    return BKE_mesh_new_nomain(0, 0, 0, 0, 0);
+  }
+  return new_mesh;
 }
 
 static void modifyGeometrySet(ModifierData *md,
@@ -1869,7 +1882,7 @@ ModifierTypeInfo modifierType_Nodes = {
     /* deformMatrices */ nullptr,
     /* deformVertsEM */ nullptr,
     /* deformMatricesEM */ nullptr,
-    /* modifyMesh */ nullptr,
+    /* modifyMesh */ modifyMesh,
     /* modifyGeometrySet */ modifyGeometrySet,
 
     /* initData */ initData,
