@@ -371,7 +371,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
-  BKE_mesh_legacy_attribute_flags_to_strings(final_me);
 
   DerivedMesh *dm = CDDM_from_mesh(final_me);
   DM_ensure_tessface(dm, final_me);
