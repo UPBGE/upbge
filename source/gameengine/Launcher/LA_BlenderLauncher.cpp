@@ -26,11 +26,7 @@
 
 #include "LA_BlenderLauncher.h"
 
-// avoid c++ conflict with 'new'
-#define new _new
 #include "BKE_screen.h"
-#undef new
-
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
 #include "WM_api.h"
