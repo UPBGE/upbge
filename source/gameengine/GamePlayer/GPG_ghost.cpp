@@ -45,6 +45,7 @@
 #include "BKE_brush.h"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
+#include "BKE_cpp_types.h"
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_icons.h"
@@ -834,9 +835,10 @@ int main(int argc,
   BKE_blender_globals_init(); /* blender.c */
 
   MEM_CacheLimiter_set_disabled(true);
-  BKE_cachefiles_init();
-  BKE_idtype_init();
 
+  BKE_cpp_types_init();
+  BKE_idtype_init();
+  BKE_cachefiles_init();
   BKE_modifier_init();
   BKE_gpencil_modifier_init();
   BKE_shaderfx_init();
@@ -847,6 +849,7 @@ int main(int argc,
   RE_texture_rng_init();
 
   BKE_callback_global_init();
+
 
   /* After parsing #ARG_PASS_ENVIRONMENT such as `--env-*`,
    * since they impact `BKE_appdir` behavior. */
