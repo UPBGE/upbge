@@ -334,7 +334,8 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
     if (!target->overlay_texture) {
       eGPUTextureFormat format = col ? GPU_RGBA8 : GPU_R8;
-      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
+                               GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
       target->overlay_texture = GPU_texture_create_2d_ex(
           "paint_cursor_overlay", size, size, 1, format, usage, nullptr);
       GPU_texture_update(target->overlay_texture, GPU_DATA_UBYTE, buffer);
@@ -363,7 +364,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 static void load_tex_cursor_task_cb(void *__restrict userdata,
                                     const int j,
-                                    const TaskParallelTLS *__restrict UNUSED(tls))
+                                    const TaskParallelTLS *__restrict /*tls*/)
 {
   LoadTexData *data = static_cast<LoadTexData *>(userdata);
   Brush *br = data->br;
@@ -453,7 +454,8 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     BLI_task_parallel_range(0, size, &data, load_tex_cursor_task_cb, &settings);
 
     if (!cursor_snap.overlay_texture) {
-      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
+                               GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
       cursor_snap.overlay_texture = GPU_texture_create_2d_ex(
           "cursor_snap_overaly", size, size, 1, GPU_R8, usage, nullptr);
       GPU_texture_update(cursor_snap.overlay_texture, GPU_DATA_UBYTE, buffer);
@@ -1900,7 +1902,7 @@ static void paint_cursor_restore_drawing_state(void)
   GPU_line_smooth(false);
 }
 
-static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
+static void paint_draw_cursor(bContext *C, int x, int y, void * /*unused*/)
 {
   PaintCursorContext pcontext;
   if (!paint_cursor_context_init(C, x, y, &pcontext)) {

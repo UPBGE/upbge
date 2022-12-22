@@ -107,6 +107,8 @@
 #include "GHOST_C-api.h"
 #include "GHOST_Path-api.h"
 
+#include "GPU_context.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -442,6 +444,17 @@ static void wm_window_match_do(bContext *C,
 /** \name Preferences Initialization & Versioning
  * \{ */
 
+static void wm_gpu_backend_override_from_userdef(void)
+{
+  /* Check if GPU backend is already set from the command line arguments. The command line
+   * arguments have higher priority than user preferences. */
+  if (GPU_backend_type_selection_is_overridden()) {
+    return;
+  }
+
+  GPU_backend_type_selection_set_override(U.gpu_backend);
+}
+
 /**
  * In case #UserDef was read, re-initialize values that depend on it.
  */
@@ -475,6 +488,9 @@ static void wm_init_userdef(Main *bmain)
   WM_init_input_devices();
 
   BLO_sanitize_experimental_features_userpref_blend(&U);
+
+  wm_gpu_backend_override_from_userdef();
+  GPU_backend_type_selection_detect();
 }
 
 /* return codes */
@@ -1789,7 +1805,7 @@ static bool wm_file_write(bContext *C,
   ED_assets_pre_save(bmain);
 
   /* Enforce full override check/generation on file save. */
-  BKE_lib_override_library_main_operations_create(bmain, true);
+  BKE_lib_override_library_main_operations_create(bmain, true, NULL);
 
   /* NOTE: Ideally we would call `WM_redraw_windows` here to remove any open menus.
    * But we can crash if saving from a script, see T92704 & T97627.

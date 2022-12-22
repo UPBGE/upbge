@@ -2369,6 +2369,8 @@ bNodeLink *nodeAddLink(
 {
   BLI_assert(fromnode);
   BLI_assert(tonode);
+  BLI_assert(ntree->all_nodes().contains(fromnode));
+  BLI_assert(ntree->all_nodes().contains(tonode));
 
   bNodeLink *link = nullptr;
   if (fromsock->in_out == SOCK_OUT && tosock->in_out == SOCK_IN) {
@@ -3388,16 +3390,16 @@ bNodeSocket *ntreeInsertSocketInterface(bNodeTree *ntree,
 }
 
 bNodeSocket *ntreeAddSocketInterfaceFromSocket(bNodeTree *ntree,
-                                               bNode *from_node,
-                                               bNodeSocket *from_sock)
+                                               const bNode *from_node,
+                                               const bNodeSocket *from_sock)
 {
   return ntreeAddSocketInterfaceFromSocketWithName(
       ntree, from_node, from_sock, from_sock->idname, from_sock->name);
 }
 
 bNodeSocket *ntreeAddSocketInterfaceFromSocketWithName(bNodeTree *ntree,
-                                                       bNode *from_node,
-                                                       bNodeSocket *from_sock,
+                                                       const bNode *from_node,
+                                                       const bNodeSocket *from_sock,
                                                        const char *idname,
                                                        const char *name)
 {
@@ -3413,8 +3415,8 @@ bNodeSocket *ntreeAddSocketInterfaceFromSocketWithName(bNodeTree *ntree,
 
 bNodeSocket *ntreeInsertSocketInterfaceFromSocket(bNodeTree *ntree,
                                                   bNodeSocket *next_sock,
-                                                  bNode *from_node,
-                                                  bNodeSocket *from_sock)
+                                                  const bNode *from_node,
+                                                  const bNodeSocket *from_sock)
 {
   bNodeSocket *iosock = ntreeInsertSocketInterface(
       ntree,
