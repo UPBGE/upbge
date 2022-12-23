@@ -622,7 +622,7 @@ static int findFreeNavPolyIndex(BMEditMesh *em)
   return freeIdx;
 }
 
-static int navmesh_face_add_exec(bContext *C, wmOperator *UNUSED(op))
+static int navmesh_face_add_exec(bContext *C, wmOperator */*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -686,7 +686,7 @@ static bool navmesh_obmode_poll(bContext *C)
   return false;
 }
 
-static int navmesh_reset_exec(bContext *C, wmOperator *UNUSED(op))
+static int navmesh_reset_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_active_context(C);
   Mesh *me = (Mesh *)ob->data;
@@ -716,7 +716,7 @@ void MESH_OT_navmesh_reset(struct wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int navmesh_clear_exec(bContext *C, wmOperator *UNUSED(op))
+static int navmesh_clear_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_active_context(C);
   Mesh *me = (Mesh *)ob->data;
