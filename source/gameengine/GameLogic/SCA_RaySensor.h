@@ -76,9 +76,9 @@ class SCA_RaySensor : public SCA_ISensor {
   virtual void Init();
 
   /// \see KX_RayCast
-  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
+  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void */*data*/);
   /// \see KX_RayCast
-  bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
+  bool NeedRayCast(KX_ClientObjectInfo *client, void */*data*/);
 
   virtual void Replace_IScene(SCA_IScene *val)
   {

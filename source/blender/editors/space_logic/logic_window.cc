@@ -97,7 +97,7 @@
 /* proto */
 static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisflag);
 
-static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
+static void do_logic_buts(bContext *C, void */*arg*/, int event)
 {
   Main *bmain = CTX_data_main(C);
   bSensor *sens;
@@ -684,7 +684,7 @@ static void get_armature_bone_constraint(Object *ob,
   /* didn't find any */
 }
 
-static void do_sensor_menu(bContext *C, void *UNUSED(arg), int event)
+static void do_sensor_menu(bContext *C, void */*arg*/, int event)
 {
   SpaceLogic *slogic = CTX_wm_space_logic(C);
   ID **idar;
@@ -718,7 +718,7 @@ static void do_sensor_menu(bContext *C, void *UNUSED(arg), int event)
     MEM_freeN(idar);
 }
 
-static uiBlock *sensor_menu(bContext *C, ARegion *region, void *UNUSED(arg))
+static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
 {
   uiBlock *block;
   int yco = 0;
@@ -791,7 +791,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void *UNUSED(arg))
   return block;
 }
 
-static void do_controller_menu(bContext *C, void *UNUSED(arg), int event)
+static void do_controller_menu(bContext *C, void */*arg*/, int event)
 {
   SpaceLogic *slogic = CTX_wm_space_logic(C);
   ID **idar;
@@ -825,7 +825,7 @@ static void do_controller_menu(bContext *C, void *UNUSED(arg), int event)
     MEM_freeN(idar);
 }
 
-static uiBlock *controller_menu(bContext *C, ARegion *region, void *UNUSED(arg))
+static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
 {
   uiBlock *block;
   int yco = 0;
@@ -898,7 +898,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void *UNUSED(arg))
   return block;
 }
 
-static void do_actuator_menu(bContext *C, void *UNUSED(arg), int event)
+static void do_actuator_menu(bContext *C, void */*arg*/, int event)
 {
   SpaceLogic *slogic = CTX_wm_space_logic(C);
   ID **idar;
@@ -932,7 +932,7 @@ static void do_actuator_menu(bContext *C, void *UNUSED(arg), int event)
     MEM_freeN(idar);
 }
 
-static uiBlock *actuator_menu(bContext *C, ARegion *region, void *UNUSED(arg))
+static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
 {
   uiBlock *block;
   int xco = 0;
@@ -1005,7 +1005,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void *UNUSED(arg))
   return block;
 }
 
-static void check_controller_state_mask(bContext *UNUSED(C), void *arg1_but, void *arg2_mask)
+static void check_controller_state_mask(bContext */*C*/, void *arg1_but, void *arg2_mask)
 {
   unsigned int *cont_mask = (unsigned int *)arg2_mask;
   uiBut *but = (uiBut *)arg1_but;
@@ -1592,7 +1592,7 @@ static void draw_controller_python(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_controller_state(uiLayout *UNUSED(layout), PointerRNA *UNUSED(ptr))
+static void draw_controller_state(uiLayout */*layout*/, PointerRNA */*ptr*/)
 {
 }
 

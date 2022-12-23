@@ -112,9 +112,9 @@ class SCA_ConstraintActuator : public SCA_IActuator {
     KX_ACT_CONSTRAINT_DOROTFH = 2048
   };
   /// \see KX_RayCast
-  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
+  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void */*data*/);
   /// \see KX_RayCast
-  bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
+  bool NeedRayCast(KX_ClientObjectInfo *client, void */*data*/);
 
   SCA_ConstraintActuator(SCA_IObject *gameobj,
                          int posDamptime,

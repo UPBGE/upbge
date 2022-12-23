@@ -3693,11 +3693,11 @@ static void widget_progressbar(uiBut *but,
 }
 
 static void widget_link(uiBut *but,
-                        uiWidgetColors *UNUSED(wcol),
+                        uiWidgetColors */*wcol*/,
                         rcti *rect,
-                        const uiWidgetStateInfo *UNUSED(state),
-                        int UNUSED(roundboxalign),
-                        const float UNUSED(zoom))
+                        const uiWidgetStateInfo */*state*/,
+                        int /*roundboxalign*/,
+                        const float /*zoom*/)
 {
   if (but->flag & UI_SELECT) {
     rcti rectlink;

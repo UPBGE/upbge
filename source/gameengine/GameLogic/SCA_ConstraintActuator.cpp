@@ -112,7 +112,7 @@ SCA_ConstraintActuator::~SCA_ConstraintActuator()
 
 bool SCA_ConstraintActuator::RayHit(KX_ClientObjectInfo *client,
                                     KX_RayCast *result,
-                                    void *UNUSED(data))
+                                    void */*data*/)
 {
 
   m_hitObject = client->m_gameobject;
@@ -146,7 +146,7 @@ bool SCA_ConstraintActuator::RayHit(KX_ClientObjectInfo *client,
 /* This function is used to pre-filter the object before casting the ray on them.
  * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool SCA_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
+bool SCA_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void */*data*/)
 {
   if (client->m_type > KX_ClientObjectInfo::ACTOR) {
     // Unknown type of object, skip it.

@@ -89,7 +89,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
 
 /* ******************** default callbacks for logic space ***************** */
 
-static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
+static SpaceLink *logic_new(const ScrArea *sa, const Scene */*scene*/)
 {
   ARegion *region;
   SpaceLogic *slogic;
@@ -149,7 +149,7 @@ static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
 }
 
 /* not spacelink itself */
-static void logic_free(SpaceLink *UNUSED(sl))
+static void logic_free(SpaceLink */*sl*/)
 {
   //	Spacelogic *slogic= (SpaceLogic *) sl;
 
@@ -158,7 +158,7 @@ static void logic_free(SpaceLink *UNUSED(sl))
 }
 
 /* spacetype; init callback */
-static void logic_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
+static void logic_init(struct wmWindowManager */*wm*/, ScrArea */*sa*/)
 {
 }
 
@@ -175,11 +175,11 @@ static void logic_operatortypes()
   WM_operatortype_append(LOGIC_OT_links_cut);
 }
 
-static void logic_keymap(struct wmKeyConfig *UNUSED(keyconf))
+static void logic_keymap(struct wmKeyConfig */*keyconf*/)
 {
 }
 
-static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))
+static void logic_refresh(const bContext */*C*/, ScrArea */*sa*/)
 {
   //	SpaceLogic *slogic= CTX_wm_space_logic(C);
   //	Object *obedit= CTX_data_edit_object(C);
@@ -214,9 +214,9 @@ static void logic_listener(const wmRegionListenerParams *params)
   }
 }
 
-static int logic_context(const bContext *UNUSED(C),
-                         const char *UNUSED(member),
-                         bContextDataResult *UNUSED(result))
+static int logic_context(const bContext */*C*/,
+                         const char */*member*/,
+                         bContextDataResult */*result*/)
 {
   //	SpaceLogic *slogic= CTX_wm_space_logic(C);
   return 0;
@@ -277,7 +277,7 @@ static void logic_buttons_region_draw(const bContext *C, ARegion *region)
 /************************* header region **************************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_header_region_init(wmWindowManager *UNUSED(wm), ARegion *region)
+static void logic_header_region_init(wmWindowManager */*wm*/, ARegion *region)
 {
   ED_region_header_init(region);
 }
@@ -289,7 +289,7 @@ static void logic_header_region_draw(const bContext *C, ARegion *region)
 
 /**************************** spacetype *****************************/
 
-static void logic_id_remap(ScrArea *UNUSED(area),
+static void logic_id_remap(ScrArea */*area*/,
                             SpaceLink *slink,
                             const struct IDRemapper *mappings)
 {

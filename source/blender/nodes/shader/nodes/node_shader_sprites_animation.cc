@@ -54,7 +54,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static int gpu_shader_sprites_animation(GPUMaterial *mat,
                                         bNode *node,
-                                        bNodeExecData *UNUSED(execdata),
+                                        bNodeExecData */*execdata*/,
                                         GPUNodeStack *in,
                                         GPUNodeStack *out)
 {

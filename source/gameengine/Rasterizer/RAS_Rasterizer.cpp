@@ -960,7 +960,7 @@ bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client,
   }
 }
 
-bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo *UNUSED(info), void *UNUSED(data))
+bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo */*info*/, void */*data*/)
 {
   return true;
 }

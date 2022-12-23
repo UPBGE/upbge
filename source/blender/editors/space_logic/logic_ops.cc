@@ -290,7 +290,7 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sensor_remove_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int sensor_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_sensor_invoke_properties(C, op)) {
     return sensor_remove_exec(C, op);
@@ -403,7 +403,7 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int controller_remove_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int controller_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_controller_invoke_properties(C, op)) {
     return controller_remove_exec(C, op);
@@ -538,7 +538,7 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int actuator_remove_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int actuator_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_actuator_invoke_properties(C, op)) {
     return actuator_remove_exec(C, op);
@@ -652,7 +652,7 @@ static int sensor_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sensor_move_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int sensor_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_sensor_invoke_properties(C, op)) {
     return sensor_move_exec(C, op);
@@ -699,7 +699,7 @@ static int controller_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int controller_move_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int controller_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_controller_invoke_properties(C, op)) {
     return controller_move_exec(C, op);
@@ -746,7 +746,7 @@ static int actuator_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int actuator_move_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int actuator_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_actuator_invoke_properties(C, op)) {
     return actuator_move_exec(C, op);
@@ -809,7 +809,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 
 /* ********** flip a region alignment ********************* */
 
-static int logic_region_flip_exec(bContext *C, wmOperator *UNUSED(op))
+static int logic_region_flip_exec(bContext *C, wmOperator */*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
   ARegion *region = logic_has_buttons_region(sa);
@@ -850,7 +850,7 @@ static void LOGIC_OT_region_flip(wmOperatorType *ot)
 }
 
 /* Custom object operators */
-static int python_class_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int python_class_new_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   /* Better for user feedback. */
   return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X);
@@ -956,7 +956,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
   RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
-static int custom_object_remove_exec(bContext *C, wmOperator *UNUSED(op))
+static int custom_object_remove_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = CTX_data_active_object(C);
 
