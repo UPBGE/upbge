@@ -361,7 +361,7 @@ static void object_free_data(ID *id)
   MEM_SAFE_FREE(ob->lightgroup);
 }
 
-static void library_foreach_sensorsObjectLooper(bSensor *UNUSED(sensor),
+static void library_foreach_sensorsObjectLooper(bSensor */*sensor*/,
                                                 ID **id_pointer,
                                                 void *user_data,
                                                 int cb_flag)
@@ -370,7 +370,7 @@ static void library_foreach_sensorsObjectLooper(bSensor *UNUSED(sensor),
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
 }
 
-static void library_foreach_controllersObjectLooper(bController *UNUSED(controller),
+static void library_foreach_controllersObjectLooper(bController */*controller*/,
                                                     ID **id_pointer,
                                                     void *user_data,
                                                     int cb_flag)
@@ -379,7 +379,7 @@ static void library_foreach_controllersObjectLooper(bController *UNUSED(controll
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
 }
 
-static void library_foreach_actuatorsObjectLooper(bActuator *UNUSED(actuator),
+static void library_foreach_actuatorsObjectLooper(bActuator */*actuator*/,
                                                   ID **id_pointer,
                                                   void *user_data,
                                                   int cb_flag)
@@ -388,7 +388,7 @@ static void library_foreach_actuatorsObjectLooper(bActuator *UNUSED(actuator),
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
 }
 
-static void library_foreach_proxiesObjectLooper(PythonProxy *UNUSED(proxy),
+static void library_foreach_proxiesObjectLooper(PythonProxy */*proxy*/,
                                                 ID **id_pointer,
                                                 void *user_data,
                                                 int cb_flag)
@@ -3199,7 +3199,7 @@ struct Object *BKE_object_lod_meshob_get(Object *ob)
 //	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
 //}
 
-BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int UNUSED(flag))
+BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int /*flag*/)
 {
   BulletSoftBody *bsbn;
 
@@ -3335,7 +3335,7 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
   }
 }
 
-static void copy_object_lod(Object *obn, const Object *ob, const int UNUSED(flag))
+static void copy_object_lod(Object *obn, const Object *ob, const int /*flag*/)
 {
   BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
   obn->currentlod = (LodLevel *)obn->lodlevels.first;

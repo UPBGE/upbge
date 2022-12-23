@@ -101,9 +101,9 @@ class SCA_MouseFocusSensor : public SCA_MouseSensor {
   };
 
   /// \see KX_RayCast
-  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
+  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void */*data*/);
   /// \see KX_RayCast
-  bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
+  bool NeedRayCast(KX_ClientObjectInfo *client, void */*data*/);
 
   const MT_Vector3 &RaySource() const;
   const MT_Vector3 &RayTarget() const;

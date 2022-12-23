@@ -211,7 +211,7 @@ bool GPG_Canvas::GetFullScreen()
   return (m_window->getState() == GHOST_kWindowStateFullScreen);
 }
 
-void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
+void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool /*screen*/)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   if (system && m_window) {

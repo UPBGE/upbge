@@ -335,7 +335,7 @@ void BL_Converter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
   m_threadinfo.m_mutex.Unlock();
 }
 
-static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
+static void async_convert(TaskPool *pool, void *ptr, int /*threadid*/)
 {
   KX_Scene *new_scene = nullptr;
   KX_LibLoadStatus *status = (KX_LibLoadStatus *)ptr;

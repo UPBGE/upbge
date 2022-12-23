@@ -162,7 +162,7 @@ bool SCA_MouseFocusSensor::Evaluate()
 
 bool SCA_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info,
                                   KX_RayCast *result,
-                                  void *UNUSED(data))
+                                  void */*data*/)
 {
   KX_GameObject *hitKXObj = client_info->m_gameobject;
 
@@ -212,7 +212,7 @@ bool SCA_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info,
 /* this function is used to pre-filter the object before casting the ray on them.
  * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool SCA_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
+bool SCA_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void */*data*/)
 {
   KX_GameObject *hitKXObj = client->m_gameobject;
 

@@ -131,9 +131,9 @@ void RAS_ICanvas::AddScreenshot(
   m_screenshots.push_back(screenshot);
 }
 
-void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool),
+void save_screenshot_thread_func(TaskPool *__restrict (pool),
                                  void *taskdata,
-                                 int UNUSED(threadid))
+                                 int /*(threadid)*/)
 {
   ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
 

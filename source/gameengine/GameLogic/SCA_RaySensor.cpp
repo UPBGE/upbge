@@ -96,7 +96,7 @@ bool SCA_RaySensor::IsPositiveTrigger()
   return result;
 }
 
-bool SCA_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data))
+bool SCA_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void */*data*/)
 {
 
   KX_GameObject *hitKXObj = client->m_gameobject;
@@ -144,7 +144,7 @@ bool SCA_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void
 /* this function is used to pre-filter the object before casting the ray on them.
  * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool SCA_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
+bool SCA_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void */*data*/)
 {
   KX_GameObject *hitKXObj = client->m_gameobject;
 

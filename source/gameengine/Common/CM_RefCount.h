@@ -44,7 +44,7 @@ template<class T> class CM_RefCount {
   {
   }
 
-  CM_RefCount(const CM_RefCount &UNUSED(other))
+  CM_RefCount(const CM_RefCount &/*other*/)
   {
     m_refCount = 1;
   }

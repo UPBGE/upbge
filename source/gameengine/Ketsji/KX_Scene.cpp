@@ -1024,7 +1024,7 @@ struct ConvertBlenderObjectsListTaskData {
   Main *bmain;
 };
 
-static void convert_blender_objects_list_thread_func(TaskPool *__restrict UNUSED(pool),
+static void convert_blender_objects_list_thread_func(TaskPool *__restrict pool,
                                                      void *taskdata)
 {
   ConvertBlenderObjectsListTaskData *task = static_cast<ConvertBlenderObjectsListTaskData *>(
@@ -1127,7 +1127,7 @@ struct ConvertBlenderCollectionTaskData {
   Main *bmain;
 };
 
-static void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool),
+static void convert_blender_collection_thread_func(TaskPool *__restrict pool,
                                                    void *taskdata)
 {
   ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(

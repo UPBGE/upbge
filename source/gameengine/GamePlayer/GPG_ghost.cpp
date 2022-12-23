@@ -733,7 +733,7 @@ static int GetShadingTypeRuntime(bContext *C)
 
 int main(int argc,
 #ifdef WIN32
-         char **UNUSED(argv_c)
+         char **argv_c
 #else
          char **argv
 #endif

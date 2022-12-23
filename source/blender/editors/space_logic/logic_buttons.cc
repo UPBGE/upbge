@@ -50,7 +50,7 @@
 #include "interface_intern.hh"
 #include "logic_intern.hh"
 
-static int logic_properties_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+static int logic_properties_toggle_exec(bContext *C, wmOperator */*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
   ARegion *region = logic_has_buttons_region(sa);
