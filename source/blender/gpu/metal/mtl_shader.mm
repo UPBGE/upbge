@@ -1285,7 +1285,7 @@ bool MTLShader::has_transform_feedback_varying(std::string str)
           tf_output_name_list_.end());
 }
 
-+/*****************UPBGE****************/
+/*****************UPBGE****************/
 char *MTLShader::shader_validate()
 {
   return nullptr;
