@@ -251,6 +251,10 @@ class MTLTexture : public Texture {
   /* Remove once no longer required -- will just return 0 for now in MTL path. */
   uint gl_bindcode_get() const override;
 
+  /* UPBGE */
+  void gl_bindcode_set(int bindcode) override;
+  /*********/
+
   bool texture_is_baked();
   const char *get_name()
   {
