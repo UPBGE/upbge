@@ -721,18 +721,9 @@ class VIEW3D_HT_header(Header):
                 curves = obj.data
 
                 row = layout.row(align=True)
-
-                # Combine the "use selection" toggle with the "set domain" operators
-                # to allow turning selection off directly.
                 domain = curves.selection_domain
-                if domain == 'POINT':
-                    row.prop(curves, "use_sculpt_selection", text="", icon='CURVE_BEZCIRCLE')
-                else:
-                    row.operator("curves.set_selection_domain", text="", icon='CURVE_BEZCIRCLE').domain = 'POINT'
-                if domain == 'CURVE':
-                    row.prop(curves, "use_sculpt_selection", text="", icon='CURVE_PATH')
-                else:
-                    row.operator("curves.set_selection_domain", text="", icon='CURVE_PATH').domain = 'CURVE'
+                row.operator("curves.set_selection_domain", text="", icon='CURVE_BEZCIRCLE', depress=(domain == 'POINT')).domain = 'POINT'
+                row.operator("curves.set_selection_domain", text="", icon='CURVE_PATH', depress=(domain == 'CURVE')).domain = 'CURVE'
 
         # Grease Pencil
         if obj and obj.type == 'GPENCIL' and context.gpencil_data:
@@ -6766,15 +6757,15 @@ class VIEW3D_PT_overlay_sculpt(Panel):
         overlay = view.overlay
 
         row = layout.row(align=True)
-        row.prop(sculpt, "show_mask", text="")
+        row.prop(overlay, "sculpt_show_mask", text="")
         sub = row.row()
-        sub.active = sculpt.show_mask
+        sub.active = overlay.sculpt_show_mask
         sub.prop(overlay, "sculpt_mode_mask_opacity", text="Mask")
 
         row = layout.row(align=True)
-        row.prop(sculpt, "show_face_sets", text="")
+        row.prop(overlay, "sculpt_show_face_sets", text="")
         sub = row.row()
-        sub.active = sculpt.show_face_sets
+        sub.active = overlay.sculpt_show_face_sets
         row.prop(overlay, "sculpt_mode_face_sets_opacity", text="Face Sets")
 
 
