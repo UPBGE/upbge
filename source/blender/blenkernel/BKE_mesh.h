@@ -1130,6 +1130,20 @@ inline blender::Span<blender::float3> Mesh::vertex_normals() const
           this->totvert};
 }
 
+/* UPBGE: KEEP THIS EVEN AFTER DerivedMesh removal!!!!!!! */
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
+                                        const int *index_mp_to_orig,
+                                        const int i) ATTR_NONNULL(1);
+
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
+                                        const int *index_mp_to_orig,
+                                        const int i)
+{
+  const int j = index_mf_to_mpoly[i];
+  return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
+}
+/**********************************************************/
+
 #endif
 
 /** \} */

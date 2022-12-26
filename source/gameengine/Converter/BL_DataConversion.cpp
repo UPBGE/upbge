@@ -59,13 +59,13 @@
 /* This list includes only data type definitions */
 #include "BKE_armature.h"
 #include "BKE_attribute.hh"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_mesh.h"
 #include "BKE_mesh_legacy_convert.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -372,76 +372,108 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
 
-  DerivedMesh *dm = CDDM_from_mesh(final_me);
-  DM_ensure_tessface(dm, final_me);
+  BKE_mesh_tessface_ensure(final_me);
 
-  const MVert *mverts = dm->getVertArray(dm);
-  const int totverts = dm->getNumVerts(dm);
+  const MVert *mverts = final_me->verts().data();
+  const int totverts = final_me->verts().size();
 
-  const MFace *mfaces = dm->getTessFaceArray(dm);
-  const MPoly *mpolys = (MPoly *)dm->getPolyArray(dm);
-  const MLoop *mloops = (MLoop *)dm->getLoopArray(dm);
-  const MEdge *medges = (MEdge *)dm->getEdgeArray(dm);
-  const unsigned int numpolys = dm->getNumPolys(dm);
-  const int totfaces = dm->getNumTessFaces(dm);
-  const int *mfaceToMpoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
-
-  if (CustomData_get_layer_index(&dm->loopData, CD_NORMAL) == -1) {
-    dm->calcLoopNormals(dm, (final_me->flag & ME_AUTOSMOOTH), final_me->smoothresh);
-  }
-
-  const float(*normals)[3] = (float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
+  const MFace *mfaces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
+  const MPoly *mpolys = final_me->polys().data();
+  const MLoop *mloops = final_me->loops().data();
+  const MEdge *medges = final_me->edges().data();
+  const unsigned int numpolys = final_me->totpoly;
+  const int totfaces = final_me->totface;
+  const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata, CD_ORIGINDEX);
 
   /* Extract available layers.
    * Get the active color and uv layer. */
-  const short activeUv = CustomData_get_active_layer(&dm->loopData, CD_MLOOPUV);
-  const short activeColor = CustomData_get_active_layer(&dm->loopData, CD_PROP_BYTE_COLOR);
+  const short activeUv = CustomData_get_active_layer(&final_me->ldata, CD_MLOOPUV);
+  const short activeColor = CustomData_get_active_layer(&final_me->ldata, CD_PROP_BYTE_COLOR);
 
   RAS_MeshObject::LayersInfo layersInfo;
   layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
   layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
-  const unsigned short uvLayers = CustomData_number_of_layers(&dm->loopData, CD_MLOOPUV);
-  const unsigned short colorLayers = CustomData_number_of_layers(&dm->loopData,
-                                                                 CD_PROP_BYTE_COLOR);
+  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->ldata, CD_MLOOPUV);
+  const unsigned short colorLayers = CustomData_number_of_layers(&final_me->ldata, CD_PROP_BYTE_COLOR);
 
   // Extract UV loops.
   for (unsigned short i = 0; i < uvLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPUV, i);
-    MLoopUV *uv = (MLoopUV *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, i);
+    const std::string name = CustomData_get_layer_name(&final_me->ldata, CD_MLOOPUV, i);
+    MLoopUV *uv = (MLoopUV *)CustomData_get_layer_n(&final_me->ldata, CD_MLOOPUV, i);
     layersInfo.layers.push_back({uv, nullptr, i, name});
   }
   // Extract color loops.
   for (unsigned short i = 0; i < colorLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&dm->loopData, CD_PROP_BYTE_COLOR, i);
-    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_PROP_BYTE_COLOR, i);
+    const std::string name = CustomData_get_layer_name(&final_me->ldata, CD_PROP_BYTE_COLOR, i);
+    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&final_me->ldata, CD_PROP_BYTE_COLOR, i);
     layersInfo.layers.push_back({nullptr, col, i, name});
+  }
+
+  /* Can be reused in tangent calc */
+  float(*v_normals)[3] = nullptr;
+  float(*p_normals)[3] = nullptr;
+
+  float(*loop_nor_dst)[3] = nullptr;
+  float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->ldata, CD_NORMAL);
+  const bool do_loop_nors = (loop_normals == nullptr);
+  if (do_loop_nors) {
+    loop_nor_dst = static_cast<float(*)[3]>(CustomData_add_layer(
+        &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, nullptr, final_me->totloop));
+    CustomData_set_layer_flag(&final_me->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
+
+    const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
+    const float split_angle = final_me->smoothresh;
+    short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata,
+                                                              CD_CUSTOMLOOPNORMAL);
+
+    v_normals = (float(*)[3])BKE_mesh_vertex_normals_ensure(final_me);
+    p_normals = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
+
+    BKE_mesh_normals_loop_split(mverts,
+                                v_normals,
+                                final_me->totvert,
+                                medges,
+                                final_me->totedge,
+                                mloops,
+                                loop_nor_dst,
+                                final_me->totloop,
+                                mpolys,
+                                p_normals,
+                                final_me->totpoly,
+                                use_split_nors,
+                                split_angle,
+                                nullptr,
+                                nullptr,
+                                clnor_data);
   }
 
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
-    if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
+    if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
+      short tangent_mask = 0;
       BKE_mesh_calc_loop_tangent_ex(
           mverts,
           mpolys,
-          numpolys,
+          uint(final_me->totpoly),
           mloops,
-          dm->getLoopTriArray(dm),
-          dm->getNumLoopTri(dm),
-          &dm->loopData,
+          BKE_mesh_runtime_looptri_ensure(final_me),
+          uint(BKE_mesh_runtime_looptri_len(final_me)),
+          &final_me->ldata,
           true,
           nullptr,
           0,
-          (const float(*)[3])CustomData_get_layer(&dm->vertData, CD_NORMAL),
-          (const float(*)[3])CustomData_get_layer(&dm->polyData, CD_NORMAL),
-          normals,
-          (const float(*)[3])dm->getVertDataArray(dm, CD_ORCO), /* may be nullptr */
+          (v_normals != nullptr) ? v_normals : BKE_mesh_vertex_normals_ensure(final_me),
+          (p_normals != nullptr) ? p_normals : BKE_mesh_poly_normals_ensure(final_me),
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->ldata, CD_NORMAL)),
+          /* may be nullptr */
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vdata, CD_ORCO)),
           /* result */
-          &dm->loopData,
-          dm->getNumLoops(dm),
-          &dm->tangent_mask);
+          &final_me->ldata,
+          uint(final_me->totloop),
+          &tangent_mask);
     }
-    tangent = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
+    tangent = (float(*)[4])CustomData_get_layer(&final_me->ldata, CD_TANGENT);
   }
 
   meshobj = new RAS_MeshObject(mesh, final_me->totvert, blenderobj, layersInfo);
@@ -468,7 +500,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   for (unsigned short i = 0; i < totmat; ++i) {
     Material *ma = nullptr;
     if (blenderobj) {
-      ma = BKE_object_material_get(blenderobj, i + 1);
+      ma = BKE_object_material_get(ob_eval, i + 1);
     }
     else {
       ma = final_me->mat ? final_me->mat[i] : nullptr;
@@ -521,7 +553,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const MVert &mvert = mverts[vertid];
 
       const MT_Vector3 pt(mvert.co);
-      const MT_Vector3 no(normals[j]);
+      const MT_Vector3 no(do_loop_nors ? loop_nor_dst[j] : loop_normals[j]);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
@@ -571,8 +603,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       mmat->GetBucket()->GetPolyMaterial()->OnConstruction();
     }
   }
-
-  dm->release(dm);
 
   converter->RegisterGameMesh(meshobj, mesh);
   return meshobj;

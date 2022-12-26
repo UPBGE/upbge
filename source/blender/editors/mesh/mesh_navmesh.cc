@@ -40,14 +40,13 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_legacy_convert.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -73,10 +72,10 @@ static void createVertsTrisData(
   MFace *mface;
   float co[3], wco[3];
   Object *ob;
-  LinkNode *oblink, *dmlink;
-  DerivedMesh *dm;
+  Mesh *me = nullptr;
+  LinkNode *oblink, *meshlink;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  LinkNodePair dms_pair = {NULL, NULL};
+  LinkNodePair meshes_pair = {nullptr, nullptr};
 
   int nverts, ntris, *tris;
   float *verts;
@@ -88,38 +87,37 @@ static void createVertsTrisData(
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-    Mesh *me = (Mesh *)ob_eval->data;
-    dm = CDDM_from_mesh(me);
-    DM_ensure_tessface(dm, me);
-    BLI_linklist_append(&dms_pair, dm);
+    me = (Mesh *)ob_eval->data;
+    BKE_mesh_tessface_ensure(me);
+    BLI_linklist_append(&meshes_pair, me);
 
-    nverts += dm->getNumVerts(dm);
-    nfaces = dm->getNumTessFaces(dm);
+    nverts += me->totvert;
+    nfaces = me->totface;
     ntris += nfaces;
 
     /* resolve quad faces */
-    mface = dm->getTessFaceArray(dm);
+    mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
     for (i = 0; i < nfaces; i++) {
       MFace *mf = &mface[i];
       if (mf->v4)
         ntris += 1;
     }
   }
-  LinkNode *dms = dms_pair.list;
+  LinkNode *meshes = meshes_pair.list;
 
   /* create data */
-  verts = MEM_mallocN(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
-  tris = MEM_mallocN(sizeof(int) * 3 * ntris, "createVertsTrisData faces");
+  verts = (float *)MEM_mallocN(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
+  tris = (int *)MEM_mallocN(sizeof(int) * 3 * ntris, "createVertsTrisData faces");
 
   basenverts = 0;
   tri = tris;
-  for (oblink = obs, dmlink = dms; oblink && dmlink;
-       oblink = oblink->next, dmlink = dmlink->next) {
+  for (oblink = obs, meshlink = meshes; oblink && meshlink;
+       oblink = oblink->next, meshlink = meshlink->next) {
     ob = (Object *)oblink->link;
-    dm = (DerivedMesh *)dmlink->link;
+    me = (Mesh *)meshlink->link;
 
-    curnverts = dm->getNumVerts(dm);
-    mvert = dm->getVertArray(dm);
+    curnverts = me->totvert;
+    mvert = me->verts_for_write().data();
 
     /* copy verts */
     for (i = 0; i < curnverts; i++) {
@@ -134,8 +132,8 @@ static void createVertsTrisData(
     }
 
     /* create tris */
-    curnfaces = dm->getNumTessFaces(dm);
-    mface = dm->getTessFaceArray(dm);
+    curnfaces = me->totface;
+    mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
 
     for (i = 0; i < curnfaces; i++) {
       MFace *mf = &mface[i];
@@ -156,13 +154,7 @@ static void createVertsTrisData(
     basenverts += curnverts;
   }
 
-  /* release derived mesh */
-  for (dmlink = dms; dmlink; dmlink = dmlink->next) {
-    dm = (DerivedMesh *)dmlink->link;
-    dm->release(dm);
-  }
-
-  BLI_linklist_free(dms, NULL);
+  BLI_linklist_free(meshes, nullptr);
 
   *nverts_r = nverts;
   *verts_r = verts;
@@ -223,7 +215,7 @@ static bool buildNavMesh(const RecastData *recastParams,
   }
 
   /* Allocate array that can hold triangle flags */
-  triflags = MEM_callocN(sizeof(unsigned char) * ntris, "buildNavMesh triflags");
+  triflags = (unsigned char *)MEM_callocN(sizeof(unsigned char) * ntris, "buildNavMesh triflags");
 
   /* Find triangles which are walkable based on their slope and rasterize them */
   recast_markWalkableTriangles(
@@ -248,7 +240,7 @@ static bool buildNavMesh(const RecastData *recastParams,
   }
 
   recast_destroyHeightfield(solid);
-  solid = NULL;
+  solid = nullptr;
 
   if (!recast_erodeWalkableArea(walkableRadius, chf)) {
     recast_destroyCompactHeightfield(chf);
@@ -351,7 +343,7 @@ static Object *createRepresentation(bContext *C,
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit;
-  int createob = base == NULL;
+  int createob = base == nullptr;
   int nverts, nmeshes, nvp;
   unsigned short *verts, *polys;
   unsigned int *meshes;
@@ -383,7 +375,7 @@ static Object *createRepresentation(bContext *C,
 
   /* create verts for polygon mesh */
   verts = recast_polyMeshGetVerts(pmesh, &nverts);
-  recast_polyMeshGetBoundbox(pmesh, bmin, NULL);
+  recast_polyMeshGetBoundbox(pmesh, bmin, nullptr);
   recast_polyMeshGetCell(pmesh, &cs, &ch);
 
   for (i = 0; i < nverts; i++) {
@@ -392,19 +384,19 @@ static Object *createRepresentation(bContext *C,
     co[1] = bmin[1] + v[1] * ch;
     co[2] = bmin[2] + v[2] * cs;
     SWAP(float, co[1], co[2]);
-    BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
+    BM_vert_create(em->bm, co, nullptr, BM_CREATE_NOP);
   }
 
   /* create custom data layer to save polygon idx */
   CustomData_add_layer_named(
-      &em->bm->pdata, CD_RECAST, CD_SET_DEFAULT, NULL, 0, "createRepresentation recastData");
+      &em->bm->pdata, CD_RECAST, CD_SET_DEFAULT, nullptr, 0, "createRepresentation recastData");
   CustomData_bmesh_init_pool(&em->bm->pdata, 0, BM_FACE);
 
   /* create verts and faces for detailed mesh */
   meshes = recast_polyMeshDetailGetMeshes(dmesh, &nmeshes);
-  polys = recast_polyMeshGetPolys(pmesh, NULL, &nvp);
-  dverts = recast_polyMeshDetailGetVerts(dmesh, NULL);
-  tris = recast_polyMeshDetailGetTris(dmesh, NULL);
+  polys = recast_polyMeshGetPolys(pmesh, nullptr, &nvp);
+  dverts = recast_polyMeshDetailGetVerts(dmesh, nullptr);
+  tris = recast_polyMeshDetailGetTris(dmesh, nullptr);
 
   for (i = 0; i < nmeshes; i++) {
     int uniquevbase = em->bm->totvert;
@@ -425,7 +417,7 @@ static Object *createRepresentation(bContext *C,
     for (j = nv; j < ndv; j++) {
       copy_v3_v3(co, &dverts[3 * (vbase + j)]);
       SWAP(float, co[1], co[2]);
-      BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
+      BM_vert_create(em->bm, co, nullptr, BM_CREATE_NOP);
     }
 
     /* need to rebuild entirely because array size changes */
@@ -447,8 +439,8 @@ static Object *createRepresentation(bContext *C,
                                         BM_vert_at_index(em->bm, face[0]),
                                         BM_vert_at_index(em->bm, face[2]),
                                         BM_vert_at_index(em->bm, face[1]),
-                                        NULL,
-                                        NULL,
+                                        nullptr,
+                                        nullptr,
                                         BM_CREATE_NOP);
 
       /* set navigation polygon idx to the custom layer */
@@ -472,7 +464,7 @@ static Object *createRepresentation(bContext *C,
     obedit->body_type = OB_BODY_TYPE_NAVMESH;
   }
 
-  BKE_mesh_ensure_navmesh(obedit->data);
+  BKE_mesh_ensure_navmesh((Mesh *)obedit->data);
 
   return obedit;
 }
@@ -481,8 +473,8 @@ static int navmesh_create_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  LinkNode *obs = NULL;
-  Base *navmeshBase = NULL;
+  LinkNode *obs = nullptr;
+  Base *navmeshBase = nullptr;
 
   CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
     if (base->object->type == OB_MESH) {
@@ -499,16 +491,16 @@ static int navmesh_create_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   if (obs) {
-    struct recast_polyMesh *pmesh = NULL;
-    struct recast_polyMeshDetail *dmesh = NULL;
+    struct recast_polyMesh *pmesh = nullptr;
+    struct recast_polyMeshDetail *dmesh = nullptr;
     bool ok;
 
     int nverts = 0, ntris = 0;
-    int *tris = NULL;
-    float *verts = NULL;
+    int *tris = nullptr;
+    float *verts = nullptr;
 
     createVertsTrisData(C, obs, &nverts, &verts, &ntris, &tris);
-    BLI_linklist_free(obs, NULL);
+    BLI_linklist_free(obs, nullptr);
     if ((ok = buildNavMesh(
              &scene->gm.recastData, nverts, verts, ntris, tris, &pmesh, &dmesh, op->reports))) {
       createRepresentation(C, pmesh, dmesh, navmeshBase);
@@ -602,7 +594,7 @@ static int findFreeNavPolyIndex(BMEditMesh *em)
 {
   /* construct vector of indices */
   int numfaces = em->bm->totface;
-  int *indices = MEM_callocN(sizeof(int) * numfaces, "findFreeNavPolyIndex(indices)");
+  int *indices = (int *)MEM_callocN(sizeof(int) * numfaces, "findFreeNavPolyIndex(indices)");
   BMFace *ef;
   BMIter iter;
   int i, idx = em->bm->totface - 1, freeIdx = 1;
@@ -630,7 +622,7 @@ static int findFreeNavPolyIndex(BMEditMesh *em)
   return freeIdx;
 }
 
-static int navmesh_face_add_exec(bContext *C, wmOperator *UNUSED(op))
+static int navmesh_face_add_exec(bContext *C, wmOperator */*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -679,7 +671,7 @@ static bool navmesh_obmode_data_poll(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
   if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
-    Mesh *me = ob->data;
+    Mesh *me = (Mesh *)ob->data;
     return CustomData_has_layer(&me->pdata, CD_RECAST);
   }
   return false;
@@ -694,10 +686,10 @@ static bool navmesh_obmode_poll(bContext *C)
   return false;
 }
 
-static int navmesh_reset_exec(bContext *C, wmOperator *UNUSED(op))
+static int navmesh_reset_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_active_context(C);
-  Mesh *me = ob->data;
+  Mesh *me = (Mesh *)ob->data;
 
   CustomData_free_layers(&me->pdata, CD_RECAST, me->totpoly);
 
@@ -724,10 +716,10 @@ void MESH_OT_navmesh_reset(struct wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int navmesh_clear_exec(bContext *C, wmOperator *UNUSED(op))
+static int navmesh_clear_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_active_context(C);
-  Mesh *me = ob->data;
+  Mesh *me = (Mesh *)ob->data;
 
   CustomData_free_layers(&me->pdata, CD_RECAST, me->totpoly);
   ob->gameflag &= ~OB_NAVMESH;
