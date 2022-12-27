@@ -2052,8 +2052,10 @@ static void direct_link_id_common(
   }
 
   /* No-main and other types of special IDs should never be written in .blend files. */
-  BLI_assert((id->tag & (LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) ==
-             0);
+  /* NOTE: `NO_MAIN` is commented for now as some code paths may still generate embedded IDs with
+   * this tag, see T103389. Related to T88555. */
+  BLI_assert(
+      (id->tag & (/*LIB_TAG_NO_MAIN |*/ LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) == 0);
 
   if ((tag & LIB_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uuid_ensure(id);
@@ -3953,6 +3955,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       BKE_lib_override_library_main_validate(bfd->main, fd->reports->reports);
       BKE_lib_override_library_main_update(bfd->main);
 
+      /* FIXME Temporary 'fix' to a problem in how temp ID are copied in
+       * `BKE_lib_override_library_main_update`, see T103062.
+       * Proper fix involves first addressing T90610. */
+      BKE_main_collections_parent_relations_rebuild(bfd->main);
+
       fd->reports->duration.lib_overrides = PIL_check_seconds_timer() -
                                             fd->reports->duration.lib_overrides;
     }
@@ -4574,6 +4581,11 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   BKE_main_free(main_newid);
 
   BKE_main_id_tag_all(mainvar, LIB_TAG_NEW, false);
+
+  /* FIXME Temporary 'fix' to a problem in how temp ID are copied in
+   * `BKE_lib_override_library_main_update`, see T103062.
+   * Proper fix involves first addressing T90610. */
+  BKE_main_collections_parent_relations_rebuild(mainvar);
 
   /* Make all relative paths, relative to the open blend file. */
   fix_relpaths_library(BKE_main_blendfile_path(mainvar), mainvar);

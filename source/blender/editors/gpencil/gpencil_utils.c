@@ -1730,6 +1730,56 @@ static bool gpencil_brush_cursor_poll(bContext *C)
   return false;
 }
 
+float ED_gpencil_cursor_radius(bContext *C, int x, int y)
+{
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
+  ARegion *region = CTX_wm_region(C);
+  Brush *brush = brush = scene->toolsettings->gp_paint->paint.brush;
+  bGPdata *gpd = ED_gpencil_data_get_active(C);
+
+  /* Show brush size. */
+  tGPspoint point2D;
+  float p1[3];
+  float p2[3];
+  float distance;
+  float radius = 2.0f;
+
+  if (ELEM(NULL, gpd, brush)) {
+    return radius;
+  }
+
+  /* Strokes in screen space or world space? */
+  if ((gpd->flag & GP_DATA_STROKE_KEEPTHICKNESS) != 0) {
+    /* In screen space the cursor radius matches the brush size. */
+    radius = (float)brush->size * 0.5f;
+  }
+  else {
+    /* To calculate the brush size in world space, we have to establish the zoom level.
+     * For this we take two 2D screen coordinates with a fixed offset,
+     * convert them to 3D coordinates and measure the offset distance in 3D.
+     * A small distance means a high zoom level. */
+    point2D.m_xy[0] = (float)x;
+    point2D.m_xy[1] = (float)y;
+    gpencil_stroke_convertcoords_tpoint(scene, region, ob, &point2D, NULL, p1);
+    point2D.m_xy[0] = (float)(x + 64);
+    gpencil_stroke_convertcoords_tpoint(scene, region, ob, &point2D, NULL, p2);
+    /* Clip extreme zoom level (and avoid division by zero). */
+    distance = MAX2(len_v3v3(p1, p2), 0.001f);
+
+    /* Handle layer thickness change. */
+    float brush_size = (float)brush->size;
+    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
+    if (gpl != NULL) {
+      brush_size = MAX2(1.0f, brush_size + gpl->line_change);
+    }
+
+    /* Convert the 3D offset distance to a brush radius. */
+    radius = (1 / distance) * 2.0f * gpd->pixfactor * (brush_size / 64);
+  }
+  return radius;
+}
+
 /**
  * Helper callback for drawing the cursor itself.
  */
@@ -1751,7 +1801,6 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
   float color[3] = {1.0f, 1.0f, 1.0f};
   float darkcolor[3];
   float radius = 3.0f;
-  bool fixed_radius = true;
 
   const int mval_i[2] = {x, y};
   /* Check if cursor is in drawing region and has valid data-block. */
@@ -1798,58 +1847,22 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
           ((brush->gpencil_settings->flag & GP_BRUSH_STABILIZE_MOUSE_TEMP) == 0) &&
           (brush->gpencil_tool == GPAINT_TOOL_DRAW)) {
 
-        /* Check user setting for cursor size. */
-        fixed_radius = ((brush->gpencil_settings->flag & GP_BRUSH_SHOW_DRAW_SIZE) == 0);
-
         const bool is_vertex_stroke =
             (GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush) &&
              (brush->gpencil_settings->brush_draw_mode != GP_BRUSH_MODE_MATERIAL)) ||
             (!GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush) &&
              (brush->gpencil_settings->brush_draw_mode == GP_BRUSH_MODE_VERTEXCOLOR));
 
-        if (fixed_radius) {
-          /* Show fixed radius. */
-          radius = 2.0f;
-          copy_v3_v3(color, is_vertex_stroke ? brush->rgb : gp_style->stroke_rgba);
+        /* Strokes in screen space or world space? */
+        if ((gpd->flag & GP_DATA_STROKE_KEEPTHICKNESS) != 0) {
+          /* In screen space the cursor radius matches the brush size. */
+          radius = (float)brush->size * 0.5f;
         }
         else {
-          /* Show brush size. */
-          tGPspoint point2D;
-          float p1[3];
-          float p2[3];
-          float distance;
-
-          /* Strokes in screen space or world space? */
-          if ((gpd->flag & GP_DATA_STROKE_KEEPTHICKNESS) != 0) {
-            /* In screen space the cursor radius matches the brush size. */
-            radius = (float)brush->size * 0.5f;
-          }
-          else {
-            /* To calculate the brush size in world space, we have to establish the zoom level.
-             * For this we take two 2D screen coordinates with a fixed offset,
-             * convert them to 3D coordinates and measure the offset distance in 3D.
-             * A small distance means a high zoom level. */
-            point2D.m_xy[0] = (float)x;
-            point2D.m_xy[1] = (float)y;
-            gpencil_stroke_convertcoords_tpoint(scene, region, ob, &point2D, NULL, p1);
-            point2D.m_xy[0] = (float)(x + 64);
-            gpencil_stroke_convertcoords_tpoint(scene, region, ob, &point2D, NULL, p2);
-            /* Clip extreme zoom level (and avoid division by zero). */
-            distance = MAX2(len_v3v3(p1, p2), 0.001f);
-
-            /* Handle layer thickness change. */
-            float brush_size = (float)brush->size;
-            bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-            if (gpl != NULL) {
-              brush_size = MAX2(1.0f, brush_size + gpl->line_change);
-            }
-
-            /* Convert the 3D offset distance to a brush radius. */
-            radius = (1 / distance) * 2.0f * gpd->pixfactor * (brush_size / 64);
-          }
-
-          copy_v3_v3(color, is_vertex_stroke ? brush->rgb : gp_style->stroke_rgba);
+          radius = ED_gpencil_cursor_radius(C, x, y);
         }
+
+        copy_v3_v3(color, is_vertex_stroke ? brush->rgb : gp_style->stroke_rgba);
       }
       else {
         /* Only Tint tool must show big cursor. */
@@ -1929,15 +1942,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
 
   /* Inner Ring: Color from UI panel */
   immUniformColor4f(color[0], color[1], color[2], 0.8f);
-  if ((gp_style) && GPENCIL_PAINT_MODE(gpd) && (fixed_radius) &&
-      ((brush->gpencil_settings->flag & GP_BRUSH_STABILIZE_MOUSE) == 0) &&
-      ((brush->gpencil_settings->flag & GP_BRUSH_STABILIZE_MOUSE_TEMP) == 0) &&
-      (brush->gpencil_tool == GPAINT_TOOL_DRAW)) {
-    imm_draw_circle_fill_2d(pos, x, y, radius, 40);
-  }
-  else {
-    imm_draw_circle_wire_2d(pos, x, y, radius, 40);
-  }
+  imm_draw_circle_wire_2d(pos, x, y, radius, 40);
 
   /* Outer Ring: Dark color for contrast on light backgrounds (e.g. gray on white) */
   mul_v3_v3fl(darkcolor, color, 0.40f);

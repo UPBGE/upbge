@@ -69,11 +69,8 @@ class GreasePencilDisplayPanel:
         ob = context.active_object
         brush = context.tool_settings.gpencil_paint.brush
         if ob and ob.type == 'GPENCIL' and brush:
-            if context.mode == 'PAINT_GPENCIL':
-                return brush.gpencil_tool != 'ERASE'
-            else:
-                # GP Sculpt, Vertex and Weight Paint always have Brush Tip panel.
-                return True
+            return True
+
         return False
 
     def draw_header(self, context):
@@ -118,9 +115,6 @@ class GreasePencilDisplayPanel:
                 row.prop(settings, "show_brush", text="Display Cursor")
 
             if brush.gpencil_tool == 'DRAW':
-                row = layout.row(align=True)
-                row.active = settings.show_brush
-                row.prop(gp_settings, "show_brush_size", text="Show Brush Size")
                 row = layout.row(align=True)
                 row.active = settings.show_brush
                 row.prop(gp_settings, "show_lasso", text="Show Fill Color While Drawing")
