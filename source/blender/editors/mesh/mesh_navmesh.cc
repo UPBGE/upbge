@@ -117,7 +117,7 @@ static void createVertsTrisData(
     me = (Mesh *)meshlink->link;
 
     curnverts = me->totvert;
-    mvert = me->verts_for_write().data();
+    mvert = (MVert *)me->verts().data();
 
     /* copy verts */
     for (i = 0; i < curnverts; i++) {
