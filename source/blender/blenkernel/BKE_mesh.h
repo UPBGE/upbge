@@ -22,7 +22,6 @@ struct BMeshCreateParams;
 struct BMeshFromMeshParams;
 struct BMeshToMeshParams;
 struct BoundBox;
-struct Curve;  // UPBGE
 struct CustomData;
 struct CustomData_MeshMasks;
 struct Depsgraph;
@@ -207,21 +206,6 @@ void BKE_mesh_orco_ensure(struct Object *ob, struct Mesh *mesh);
 
 struct Mesh *BKE_mesh_from_object(struct Object *ob);
 void BKE_mesh_assign_object(struct Main *bmain, struct Object *ob, struct Mesh *me);
-
-/* UPBGE (not static) */
-int mesh_nurbs_displist_to_mdata(const struct Curve *cu,
-                                 const struct ListBase *dispbase,
-                                 struct MVert **r_allvert,
-                                 int *r_totvert,
-                                 struct MEdge **r_alledge,
-                                 int *r_totedge,
-                                 struct MLoop **r_allloop,
-                                 struct MPoly **r_allpoly,
-                                 struct MLoopUV **r_alluv,
-                                 int *r_totloop,
-                                 int *r_totpoly);
-/**********************/
-
 void BKE_mesh_to_curve_nurblist(const struct Mesh *me,
                                 struct ListBase *nurblist,
                                 int edge_users_test);
@@ -308,8 +292,6 @@ void BKE_mesh_nomain_to_meshkey(struct Mesh *mesh_src, struct Mesh *mesh_dst, st
 bool BKE_mesh_minmax(const struct Mesh *me, float r_min[3], float r_max[3]);
 void BKE_mesh_transform(struct Mesh *me, const float mat[4][4], bool do_keys);
 void BKE_mesh_translate(struct Mesh *me, const float offset[3], bool do_keys);
-
-void BKE_mesh_ensure_navmesh(struct Mesh *me);
 
 void BKE_mesh_tessface_clear(struct Mesh *mesh);
 
@@ -1061,6 +1043,22 @@ BLI_INLINE MDeformVert *BKE_mesh_deform_verts_for_write(Mesh *mesh)
       &mesh->vdata, CD_MDEFORMVERT, CD_SET_DEFAULT, NULL, mesh->totvert);
 }
 
+/* UPBGE: KEEP THIS EVEN AFTER DerivedMesh removal!!!!!!! */
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
+                                        const int *index_mp_to_orig,
+                                        const int i) ATTR_NONNULL(1);
+
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
+                                        const int *index_mp_to_orig,
+                                        const int i)
+{
+  const int j = index_mf_to_mpoly[i];
+  return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
+}
+
+void BKE_mesh_ensure_navmesh(struct Mesh *me);
+/**********************************************************/
+
 #ifdef __cplusplus
 }
 #endif
@@ -1129,20 +1127,6 @@ inline blender::Span<blender::float3> Mesh::vertex_normals() const
   return {reinterpret_cast<const blender::float3 *>(BKE_mesh_vertex_normals_ensure(this)),
           this->totvert};
 }
-
-/* UPBGE: KEEP THIS EVEN AFTER DerivedMesh removal!!!!!!! */
-BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
-                                        const int *index_mp_to_orig,
-                                        const int i) ATTR_NONNULL(1);
-
-BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
-                                        const int *index_mp_to_orig,
-                                        const int i)
-{
-  const int j = index_mf_to_mpoly[i];
-  return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
-}
-/**********************************************************/
 
 #endif
 

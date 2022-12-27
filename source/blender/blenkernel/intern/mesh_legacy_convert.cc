@@ -774,7 +774,7 @@ void BKE_mesh_do_versions_convert_mfaces_to_mpolys(Mesh *mesh)
  * \note when mface is not null, mface[face_index].v4
  * is used to test quads, else, loopindices[face_index][3] is used.
  */
-void mesh_loops_to_tessdata(CustomData *fdata, /* UPBGE (not static) */
+static void mesh_loops_to_tessdata(CustomData *fdata,
                                    CustomData *ldata,
                                    MFace *mface,
                                    const int *polyindices,
@@ -1202,78 +1202,6 @@ void BKE_mesh_tessface_ensure(struct Mesh *mesh)
     BKE_mesh_tessface_calc(mesh);
   }
 }
-
-
-/* UPBGE */
-
-#ifndef NDEBUG
-bool CustomData_from_bmeshpoly_test(CustomData *fdata, CustomData *ldata, bool fallback)
-{
-  int a_num = 0, b_num = 0;
-#  define LAYER_CMP(l_a, t_a, l_b, t_b) \
-    ((a_num += CustomData_number_of_layers(l_a, t_a)) == \
-     (b_num += CustomData_number_of_layers(l_b, t_b)))
-
-  if (!LAYER_CMP(ldata, CD_MLOOPUV, fdata, CD_MTFACE)) {
-    return false;
-  }
-  if (!LAYER_CMP(ldata, CD_PROP_BYTE_COLOR, fdata, CD_MCOL)) {
-    return false;
-  }
-  if (!LAYER_CMP(ldata, CD_PREVIEW_MLOOPCOL, fdata, CD_PREVIEW_MCOL)) {
-    return false;
-  }
-  if (!LAYER_CMP(ldata, CD_ORIGSPACE_MLOOP, fdata, CD_ORIGSPACE)) {
-    return false;
-  }
-  if (!LAYER_CMP(ldata, CD_NORMAL, fdata, CD_TESSLOOPNORMAL)) {
-    return false;
-  }
-  if (!LAYER_CMP(ldata, CD_TANGENT, fdata, CD_TANGENT)) {
-    return false;
-  }
-
-#  undef LAYER_CMP
-
-  /* if no layers are on either CustomData's,
-   * then there was nothing to do... */
-  return a_num ? true : fallback;
-}
-#endif
-
-void CustomData_from_bmeshpoly(Mesh *me, CustomData *fdata, CustomData *ldata, int total)
-{
-  /* avoid accumulating extra layers */
-  BLI_assert(!CustomData_from_bmeshpoly_test(fdata, ldata, false));
-
-  for (int i = 0; i < ldata->totlayer; i++) {
-    if (ldata->layers[i].type == CD_MLOOPUV) {
-      CustomData_add_layer_named(fdata, CD_MTFACE, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
-    }
-    if (ldata->layers[i].type == CD_PROP_BYTE_COLOR) {
-      CustomData_add_layer_named(fdata, CD_MCOL, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
-    }
-    else if (ldata->layers[i].type == CD_PREVIEW_MLOOPCOL) {
-      CustomData_add_layer_named(
-          fdata, CD_PREVIEW_MCOL, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
-    }
-    else if (ldata->layers[i].type == CD_ORIGSPACE_MLOOP) {
-      CustomData_add_layer_named(
-          fdata, CD_ORIGSPACE, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
-    }
-    else if (ldata->layers[i].type == CD_NORMAL) {
-      CustomData_add_layer_named(
-          fdata, CD_TESSLOOPNORMAL, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
-    }
-    else if (ldata->layers[i].type == CD_TANGENT) {
-      CustomData_add_layer_named(fdata, CD_TANGENT, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
-    }
-  }
-
-  update_active_fdata_layers_C((void *)me, fdata, ldata);
-}
-
-/* End of UPBGE */
 
 /** \} */
 
@@ -1764,26 +1692,5 @@ void BKE_mesh_legacy_attribute_strings_to_flags(Mesh *mesh)
     }
   }
 }
-
-/* UPBGE */
-void update_active_fdata_layers_C(void *mesh, CustomData* fdata, CustomData* ldata)
-{
-  Mesh *me = (Mesh *)mesh;
-  update_active_fdata_layers(*me, fdata, ldata);
-}
-
-int mesh_tessface_calc_C(void* mesh,
-  struct CustomData* fdata,
-  struct CustomData* ldata,
-  struct CustomData* pdata,
-  struct MVert* mvert,
-  int totface,
-  int totloop,
-  int totpoly)
-{
-  Mesh *me = (Mesh *)mesh;
-  return mesh_tessface_calc(*me, fdata, ldata, pdata, mvert, totface, totloop, totpoly);
-}
-/**********/
 
 /** \} */

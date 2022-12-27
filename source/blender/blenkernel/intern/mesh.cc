@@ -50,7 +50,7 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
-#include "BKE_mesh_legacy_convert.h" // UPBGE
+#include "BKE_mesh_legacy_convert.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
@@ -1626,21 +1626,6 @@ void BKE_mesh_translate(Mesh *me, const float offset[3], const bool do_keys)
   BKE_mesh_tag_coords_changed_uniformly(me);
 }
 
-void BKE_mesh_ensure_navmesh(Mesh *me)
-{
-  if (!CustomData_has_layer(&me->pdata, CD_RECAST)) {
-    int i;
-    int polys_len = me->totpoly;
-    int *recastData;
-    recastData = (int *)MEM_malloc_arrayN(polys_len, sizeof(int), __func__);
-    for (i = 0; i < polys_len; i++) {
-      recastData[i] = i + 1;
-    }
-    CustomData_add_layer_named(
-        &me->pdata, CD_RECAST, CD_ASSIGN, recastData, polys_len, "recastData");
-  }
-}
-
 void BKE_mesh_tessface_clear(Mesh *mesh)
 {
   mesh_tessface_clear_intern(mesh, true);
@@ -1901,3 +1886,19 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
   }
 }
 
+/****************UPBGE****************/
+void BKE_mesh_ensure_navmesh(Mesh *me)
+{
+  if (!CustomData_has_layer(&me->pdata, CD_RECAST)) {
+    int i;
+    int polys_len = me->totpoly;
+    int *recastData;
+    recastData = (int *)MEM_malloc_arrayN(polys_len, sizeof(int), __func__);
+    for (i = 0; i < polys_len; i++) {
+      recastData[i] = i + 1;
+    }
+    CustomData_add_layer_named(
+        &me->pdata, CD_RECAST, CD_ASSIGN, recastData, polys_len, "recastData");
+  }
+}
+/************************************/
