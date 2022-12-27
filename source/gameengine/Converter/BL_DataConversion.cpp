@@ -366,7 +366,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     }
   }
 
-  // Get DerivedMesh data
+  // Get Mesh data
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
@@ -653,15 +653,12 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
     return;
   }
 
-  DerivedMesh *dm = nullptr;
-
   PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
 
   PHY_IPhysicsEnvironment *phyenv = kxscene->GetPhysicsEnvironment();
   phyenv->ConvertObject(converter,
                         gameobj,
                         meshobj,
-                        dm,
                         kxscene,
                         motionstate,
                         activeLayerBitInfo,

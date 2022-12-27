@@ -68,7 +68,6 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   };
 
   static CcdShapeConstructionInfo *FindMesh(class RAS_MeshObject *mesh,
-                                            struct DerivedMesh *dm,
                                             bool polytope);
 
   CcdShapeConstructionInfo()
@@ -136,7 +135,6 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
 
   bool SetMesh(class KX_Scene *kxscene,
                class RAS_MeshObject *mesh,
-               struct DerivedMesh *dm,
                bool polytope);
 
   RAS_MeshObject *GetMesh(void)

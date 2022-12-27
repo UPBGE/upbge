@@ -2757,7 +2757,6 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                                           KX_GameObject *gameobj,
                                           RAS_MeshObject *meshobj,
-                                          DerivedMesh *dm,
                                           KX_Scene *kxscene,
                                           PHY_IMotionState *motionstate,
                                           int activeLayerBitInfo,
@@ -3019,7 +3018,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       break;
     }
     case OB_BOUND_CONVEX_HULL: {
-      shapeInfo->SetMesh(kxscene, meshobj, dm, true);
+      shapeInfo->SetMesh(kxscene, meshobj, true);
       bm = shapeInfo->CreateBulletShape(ci.m_margin);
       break;
     }
@@ -3035,14 +3034,14 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     case OB_BOUND_TRIANGLE_MESH: {
       // mesh shapes can be shared, check first if we already have a shape on that mesh
       class CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(
-          meshobj, dm, false);
+          meshobj, false);
       if (sharedShapeInfo != nullptr) {
         shapeInfo->Release();
         shapeInfo = sharedShapeInfo;
         shapeInfo->AddRef();
       }
       else {
-        shapeInfo->SetMesh(kxscene, meshobj, dm, false);
+        shapeInfo->SetMesh(kxscene, meshobj, false);
       }
 
       // Soft bodies can benefit from welding, don't do it on non-soft bodies

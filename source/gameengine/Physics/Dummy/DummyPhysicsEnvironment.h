@@ -148,7 +148,6 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual void ConvertObject(BL_SceneConverter *converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
-                             DerivedMesh *dm,
                              KX_Scene *kxscene,
                              PHY_IMotionState *motionstate,
                              int activeLayerBitInfo,

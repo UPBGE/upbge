@@ -1845,8 +1845,8 @@ bool CcdPhysicsController::IsPhysicsSuspended()
  *
  * when setting the mesh, the following vars get priority
  * 1) from_meshobj - creates the phys mesh from RAS_MeshObject
- * 2) from_gameobj - creates the phys mesh from the DerivedMesh where possible, else the
- * RAS_MeshObject 3) this - update the phys mesh from DerivedMesh or RAS_MeshObject
+ * 2) from_gameobj - creates the phys mesh from the Mesh where possible, else the
+ * RAS_MeshObject 3) this - update the phys mesh from Mesh or RAS_MeshObject
  *
  * Most of the logic behind this is in m_shapeInfo->UpdateMesh(...)
  */
@@ -1978,10 +1978,9 @@ void DefaultMotionState::CalculateWorldTransformations()
 std::map<RAS_MeshObject *, CcdShapeConstructionInfo *> CcdShapeConstructionInfo::m_meshShapeMap;
 
 CcdShapeConstructionInfo *CcdShapeConstructionInfo::FindMesh(RAS_MeshObject *mesh,
-                                                             struct DerivedMesh *dm,
                                                              bool polytope)
 {
-  if (polytope || dm)
+  if (polytope)
     // not yet supported
     return nullptr;
 
@@ -2015,7 +2014,6 @@ void CcdShapeConstructionInfo::ProcessReplica()
 
 bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
                                        RAS_MeshObject *meshobj,
-                                       DerivedMesh *dm,
                                        bool polytope)
 {
   int numpolys, numverts;
@@ -2309,7 +2307,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   m_meshObject = meshobj;
 
   // sharing only on static mesh at present, if you change that, you must also change in FindMesh
-  if (!polytope && !dm) {
+  if (!polytope) {
     // triangle shape can be shared, store the mesh object in the map
     m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
   }

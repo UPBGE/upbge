@@ -46,7 +46,6 @@ class RAS_MeshObject;
 class PHY_IPhysicsController;
 
 class RAS_MeshObject;
-struct DerivedMesh;
 class KX_GameObject;
 class KX_Scene;
 class BL_SceneConverter;
@@ -275,7 +274,6 @@ class PHY_IPhysicsEnvironment {
   virtual void ConvertObject(BL_SceneConverter *converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
-                             DerivedMesh *dm,
                              KX_Scene *kxscene,
                              PHY_IMotionState *motionstate,
                              int activeLayerBitInfo,
