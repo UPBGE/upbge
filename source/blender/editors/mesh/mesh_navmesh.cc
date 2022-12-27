@@ -67,7 +67,6 @@
 static void createVertsTrisData(
     bContext *C, LinkNode *obs, int *nverts_r, float **verts_r, int *ntris_r, int **tris_r)
 {
-  MVert *mvert;
   int nfaces = 0, *tri, i, curnverts, basenverts, curnfaces;
   MFace *mface;
   float co[3], wco[3];
@@ -117,11 +116,11 @@ static void createVertsTrisData(
     me = (Mesh *)meshlink->link;
 
     curnverts = me->totvert;
-    mvert = (MVert *)me->verts().data();
+    const MVert *mvert = me->verts().data();
 
     /* copy verts */
     for (i = 0; i < curnverts; i++) {
-      MVert *v = &mvert[i];
+      const MVert *v = &mvert[i];
 
       copy_v3_v3(co, v->co);
       mul_v3_m4v3(wco, ob->object_to_world, co);
