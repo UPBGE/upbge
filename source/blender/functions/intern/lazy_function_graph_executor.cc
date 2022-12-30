@@ -245,8 +245,11 @@ class Executor {
    * A separate linear allocator for every thread. We could potentially reuse some memory, but that
    * doesn't seem worth it yet.
    */
-  threading::EnumerableThreadSpecific<LinearAllocator<>> local_allocators_;
-  LinearAllocator<> *main_local_allocator_ = nullptr;
+  struct ThreadLocalData {
+    LinearAllocator<> allocator;
+  };
+  std::unique_ptr<threading::EnumerableThreadSpecific<ThreadLocalData>> thread_locals_;
+  LinearAllocator<> main_allocator_;
   /**
    * Set to false when the first execution ends.
    */
@@ -259,7 +262,6 @@ class Executor {
   {
     /* The indices are necessary, because they are used as keys in #node_states_. */
     BLI_assert(self_.graph_.node_indices_are_valid());
-    main_local_allocator_ = &local_allocators_.local();
   }
 
   ~Executor()
@@ -338,16 +340,25 @@ class Executor {
     Span<const Node *> nodes = self_.graph_.nodes();
     node_states_.reinitialize(nodes.size());
 
-    /* Construct all node states in parallel. */
-    threading::parallel_for(nodes.index_range(), 256, [&](const IndexRange range) {
-      LinearAllocator<> &allocator = local_allocators_.local();
+    auto construct_node_range = [&](const IndexRange range, LinearAllocator<> &allocator) {
       for (const int i : range) {
         const Node &node = *nodes[i];
         NodeState &node_state = *allocator.construct<NodeState>().release();
         node_states_[i] = &node_state;
         this->construct_initial_node_state(allocator, node, node_state);
       }
-    });
+    };
+    if (nodes.size() <= 256) {
+      construct_node_range(nodes.index_range(), main_allocator_);
+    }
+    else {
+      this->ensure_thread_locals();
+      /* Construct all node states in parallel. */
+      threading::parallel_for(nodes.index_range(), 256, [&](const IndexRange range) {
+        LinearAllocator<> &allocator = this->get_main_or_local_allocator();
+        construct_node_range(range, allocator);
+      });
+    }
   }
 
   void construct_initial_node_state(LinearAllocator<> &allocator,
@@ -762,8 +773,10 @@ class Executor {
           input_state.was_ready_for_execution = true;
           continue;
         }
-        if (input_state.usage == ValueUsage::Used) {
-          return;
+        if (!fn.allow_missing_requested_inputs()) {
+          if (input_state.usage == ValueUsage::Used) {
+            return;
+          }
         }
       }
 
@@ -1031,7 +1044,10 @@ class Executor {
 
     if (input_state.usage == ValueUsage::Used) {
       node_state.missing_required_inputs -= 1;
-      if (node_state.missing_required_inputs == 0) {
+      if (node_state.missing_required_inputs == 0 ||
+          (locked_node.node.is_function() && static_cast<const FunctionNode &>(locked_node.node)
+                                                 .function()
+                                                 .allow_missing_requested_inputs())) {
         this->schedule_node(locked_node, current_task);
       }
     }
@@ -1062,8 +1078,21 @@ class Executor {
     if (BLI_system_thread_count() <= 1) {
       return false;
     }
+    this->ensure_thread_locals();
     task_pool_.store(BLI_task_pool_create(this, TASK_PRIORITY_HIGH));
     return true;
+  }
+
+  void ensure_thread_locals()
+  {
+#ifdef FN_LAZY_FUNCTION_DEBUG_THREADS
+    if (current_main_thread_ != std::this_thread::get_id()) {
+      BLI_assert_unreachable();
+    }
+#endif
+    if (!thread_locals_) {
+      thread_locals_ = std::make_unique<threading::EnumerableThreadSpecific<ThreadLocalData>>();
+    }
   }
 
   /**
@@ -1104,9 +1133,9 @@ class Executor {
   LinearAllocator<> &get_main_or_local_allocator()
   {
     if (this->use_multi_threading()) {
-      return local_allocators_.local();
+      return thread_locals_->local().allocator;
     }
-    return *main_local_allocator_;
+    return main_allocator_;
   }
 };
 
@@ -1248,6 +1277,9 @@ GraphExecutor::GraphExecutor(const Graph &graph,
       logger_(logger),
       side_effect_provider_(side_effect_provider)
 {
+  /* The graph executor can handle partial execution when there are still missing inputs. */
+  allow_missing_requested_inputs_ = true;
+
   for (const OutputSocket *socket : graph_inputs_) {
     BLI_assert(socket->node().is_dummy());
     inputs_.append({"In", socket->type(), ValueUsage::Maybe});

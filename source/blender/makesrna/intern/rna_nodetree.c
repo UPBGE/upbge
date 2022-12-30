@@ -1659,7 +1659,9 @@ char *rna_Node_ImageUser_path(const PointerRNA *ptr)
   return NULL;
 }
 
-static bool rna_Node_poll(bNodeType *ntype, bNodeTree *ntree, const char **UNUSED(r_disabled_hint))
+static bool rna_Node_poll(const bNodeType *ntype,
+                          const bNodeTree *ntree,
+                          const char **UNUSED(r_disabled_hint))
 {
   extern FunctionRNA rna_Node_poll_func;
 
@@ -1684,8 +1686,8 @@ static bool rna_Node_poll(bNodeType *ntype, bNodeTree *ntree, const char **UNUSE
   return visible;
 }
 
-static bool rna_Node_poll_instance(bNode *node,
-                                   bNodeTree *ntree,
+static bool rna_Node_poll_instance(const bNode *node,
+                                   const bNodeTree *ntree,
                                    const char **UNUSED(disabled_info))
 {
   extern FunctionRNA rna_Node_poll_instance_func;
@@ -1696,7 +1698,7 @@ static bool rna_Node_poll_instance(bNode *node,
   void *ret;
   bool visible;
 
-  RNA_pointer_create(NULL, node->typeinfo->rna_ext.srna, node, &ptr); /* dummy */
+  RNA_pointer_create(NULL, node->typeinfo->rna_ext.srna, (bNode *)node, &ptr); /* dummy */
   func = &rna_Node_poll_instance_func; /* RNA_struct_find_function(&ptr, "poll_instance"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -1711,8 +1713,8 @@ static bool rna_Node_poll_instance(bNode *node,
   return visible;
 }
 
-static bool rna_Node_poll_instance_default(bNode *node,
-                                           bNodeTree *ntree,
+static bool rna_Node_poll_instance_default(const bNode *node,
+                                           const bNodeTree *ntree,
                                            const char **disabled_info)
 {
   /* use the basic poll function */
@@ -2890,7 +2892,7 @@ static void rna_NodeSocket_hide_set(PointerRNA *ptr, bool value)
   bNodeSocket *sock = (bNodeSocket *)ptr->data;
 
   /* don't hide linked sockets */
-  if (sock->flag & SOCK_IN_USE) {
+  if (sock->flag & SOCK_IS_LINKED) {
     return;
   }
 
@@ -11055,7 +11057,7 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, NULL);
 
   prop = RNA_def_property(srna, "is_linked", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", SOCK_IN_USE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SOCK_IS_LINKED);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Linked", "True if the socket is connected");
 

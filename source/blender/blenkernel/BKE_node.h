@@ -299,12 +299,14 @@ typedef struct bNodeType {
    *                         when it's not just a dummy, that is, if it actually wants to access
    *                         the returned disabled-hint (null-check needed!).
    */
-  bool (*poll)(struct bNodeType *ntype, struct bNodeTree *nodetree, const char **r_disabled_hint);
+  bool (*poll)(const struct bNodeType *ntype,
+               const struct bNodeTree *nodetree,
+               const char **r_disabled_hint);
   /** Can this node be added to a node tree?
    * \param r_disabled_hint: See `poll()`.
    */
-  bool (*poll_instance)(struct bNode *node,
-                        struct bNodeTree *nodetree,
+  bool (*poll_instance)(const struct bNode *node,
+                        const struct bNodeTree *nodetree,
                         const char **r_disabled_hint);
 
   /* optional handling of link insertion */
@@ -711,6 +713,8 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
 
 bNode *node_copy(bNodeTree *dst_tree, const bNode &src_node, int flag, bool use_unique);
 
+void node_free_node(bNodeTree *tree, bNode *node);
+
 }  // namespace blender::bke
 
 #endif
@@ -841,7 +845,6 @@ struct bNode *nodeGetActivePaintCanvas(struct bNodeTree *ntree);
  */
 bool nodeSupportsActiveFlag(const struct bNode *node, int sub_active);
 
-int nodeSocketIsHidden(const struct bNodeSocket *sock);
 void nodeSetSocketAvailability(struct bNodeTree *ntree,
                                struct bNodeSocket *sock,
                                bool is_available);
@@ -863,20 +866,6 @@ bool nodeDeclarationEnsureOnOutdatedNode(struct bNodeTree *ntree, struct bNode *
  * and sockets are up to date already.
  */
 void nodeSocketDeclarationsUpdate(struct bNode *node);
-
-/**
- * Node Clipboard.
- */
-void BKE_node_clipboard_clear(void);
-void BKE_node_clipboard_free(void);
-/**
- * Return false when one or more ID's are lost.
- */
-bool BKE_node_clipboard_validate(void);
-void BKE_node_clipboard_add_node(struct bNode *node);
-void BKE_node_clipboard_add_link(struct bNodeLink *link);
-const struct ListBase *BKE_node_clipboard_get_nodes(void);
-const struct ListBase *BKE_node_clipboard_get_links(void);
 
 /**
  * Node Instance Hash.

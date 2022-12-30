@@ -394,7 +394,7 @@ CLANG_FORMAT_VERSION="10.0"
 CLANG_FORMAT_VERSION_MIN="6.0"
 CLANG_FORMAT_VERSION_MEX="14.0"
 
-PYTHON_VERSION="3.10.8"
+PYTHON_VERSION="3.10.9"
 PYTHON_VERSION_SHORT="3.10"
 PYTHON_VERSION_MIN="3.10"
 PYTHON_VERSION_MEX="3.12"
@@ -434,7 +434,7 @@ PYTHON_ZSTANDARD_VERSION_MIN="0.15.2"
 PYTHON_ZSTANDARD_VERSION_MEX="0.20.0"
 PYTHON_ZSTANDARD_NAME="zstandard"
 
-PYTHON_NUMPY_VERSION="1.22.0"
+PYTHON_NUMPY_VERSION="1.23.5"
 PYTHON_NUMPY_VERSION_MIN="1.14"
 PYTHON_NUMPY_VERSION_MEX="2.0"
 PYTHON_NUMPY_NAME="numpy"
@@ -462,8 +462,8 @@ PYTHON_MODULES_PIP=(
 )
 
 
-BOOST_VERSION="1.78.0"
-BOOST_VERSION_SHORT="1.78"
+BOOST_VERSION="1.80.0"
+BOOST_VERSION_SHORT="1.80"
 BOOST_VERSION_MIN="1.49"
 BOOST_VERSION_MEX="2.0"
 BOOST_FORCE_BUILD=false
@@ -479,8 +479,8 @@ TBB_FORCE_BUILD=false
 TBB_FORCE_REBUILD=false
 TBB_SKIP=false
 
-OCIO_VERSION="2.1.1"
-OCIO_VERSION_SHORT="2.1"
+OCIO_VERSION="2.2.0"
+OCIO_VERSION_SHORT="2.2"
 OCIO_VERSION_MIN="2.0"
 OCIO_VERSION_MEX="3.0"
 OCIO_FORCE_BUILD=false
@@ -505,10 +505,10 @@ OPENEXR_FORCE_REBUILD=false
 OPENEXR_SKIP=false
 _with_built_openexr=false
 
-OIIO_VERSION="2.3.20.0"
-OIIO_VERSION_SHORT="2.3"
-OIIO_VERSION_MIN="2.1.12"
-OIIO_VERSION_MEX="2.4.0"
+OIIO_VERSION="2.4.6.0"
+OIIO_VERSION_SHORT="2.4"
+OIIO_VERSION_MIN="2.2.0"
+OIIO_VERSION_MEX="2.5.0"
 OIIO_FORCE_BUILD=false
 OIIO_FORCE_REBUILD=false
 OIIO_SKIP=false
@@ -523,8 +523,8 @@ LLVM_FORCE_REBUILD=false
 LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
-OSL_VERSION="1.12.6.2"
-OSL_VERSION_SHORT="1.12"
+OSL_VERSION="1.13.0.2"
+OSL_VERSION_SHORT="1.13"
 OSL_VERSION_MIN="1.11"
 OSL_VERSION_MEX="2.0"
 OSL_FORCE_BUILD=false
@@ -532,9 +532,9 @@ OSL_FORCE_REBUILD=false
 OSL_SKIP=false
 
 # OpenSubdiv needs to be compiled for now
-OSD_VERSION="3.4.4"
-OSD_VERSION_SHORT="3.4"
-OSD_VERSION_MIN="3.4"
+OSD_VERSION="3.5.0"
+OSD_VERSION_SHORT="3.5"
+OSD_VERSION_MIN="3.5"
 OSD_VERSION_MEX="4.0"
 OSD_FORCE_BUILD=false
 OSD_FORCE_REBUILD=false
@@ -543,10 +543,10 @@ OSD_SKIP=false
 # OpenVDB needs to be compiled for now
 OPENVDB_BLOSC_VERSION="1.21.1"
 
-OPENVDB_VERSION="9.0.0"
-OPENVDB_VERSION_SHORT="9.0"
-OPENVDB_VERSION_MIN="9.0"
-OPENVDB_VERSION_MEX="9.1"
+OPENVDB_VERSION="10.0.0"
+OPENVDB_VERSION_SHORT="10.0"
+OPENVDB_VERSION_MIN="10.0"
+OPENVDB_VERSION_MEX="11.0"
 OPENVDB_FORCE_BUILD=false
 OPENVDB_FORCE_REBUILD=false
 OPENVDB_SKIP=false
@@ -560,8 +560,8 @@ ALEMBIC_FORCE_BUILD=false
 ALEMBIC_FORCE_REBUILD=false
 ALEMBIC_SKIP=false
 
-USD_VERSION="22.03"
-USD_VERSION_SHORT="22.03"
+USD_VERSION="22.11"
+USD_VERSION_SHORT="22.11"
 USD_VERSION_MIN="20.05"
 USD_VERSION_MEX="23.00"
 USD_FORCE_BUILD=false
@@ -1138,17 +1138,11 @@ _LLVM_SOURCE_ROOT="https://github.com/llvm/llvm-project/releases/download/llvmor
 LLVM_SOURCE=( "$_LLVM_SOURCE_ROOT/llvm-$LLVM_VERSION.src.tar.xz" )
 LLVM_CLANG_SOURCE=( "$_LLVM_SOURCE_ROOT/clang-$LLVM_VERSION.src.tar.xz" "$_LLVM_SOURCE_ROOT/cfe-$LLVM_VERSION.src.tar.xz" )
 
-OSL_USE_REPO=false
+OSL_USE_REPO=true
 OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage/archive/v$OSL_VERSION.tar.gz" )
-#~ OSL_SOURCE_REPO=( "https://github.com/imageworks/OpenShadingLanguage.git" )
-#~ OSL_SOURCE_REPO_BRANCH="master"
-#~ OSL_SOURCE_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
-#~ OSL_SOURCE=( "https://github.com/Nazg-Gul/OpenShadingLanguage/archive/Release-1.5.11.tar.gz" )
-#~ OSL_SOURCE_REPO=( "https://github.com/mont29/OpenShadingLanguage.git" )
-#~ OSL_SOURCE_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
-#~ OSL_SOURCE_REPO=( "https://github.com/Nazg-Gul/OpenShadingLanguage.git" )
-#~ OSL_SOURCE_REPO_UID="7d40ff5fe8e47b030042afb92d0e955f5aa96f48"
-#~ OSL_SOURCE_REPO_BRANCH="blender-fixes"
+OSL_SOURCE_REPO=( "https://github.com/AcademySoftwareFoundation/OpenShadingLanguage.git" )
+OSL_SOURCE_REPO_BRANCH="main"
+OSL_SOURCE_REPO_UID="1a7670600c8b08c2443a78d03c8c27e9a1149140"
 
 OSD_USE_REPO=false
 # Script foo to make the version string compliant with the archive name:
@@ -2969,6 +2963,9 @@ compile_OPENVDB() {
     fi
     if [ -d $INST/tbb ]; then
       cmake_d="$cmake_d -D TBB_ROOT=$INST/tbb"
+      # Work around until we use oneTBB, otherwise OpenVDB forcefully
+      # uses oneTBB if it can find it on the system.
+      cmake_d="$cmake_d -D Tbb_INCLUDE_DIR=$INST/tbb/include"
     fi
 
     if [ "$_with_built_imath" = true ]; then

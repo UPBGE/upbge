@@ -351,7 +351,7 @@ static void node_update_basis(const bContext &C,
 
   int buty;
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
-    if (nodeSocketIsHidden(socket)) {
+    if (!socket->is_visible()) {
       continue;
     }
 
@@ -474,7 +474,7 @@ static void node_update_basis(const bContext &C,
 
   /* Input sockets. */
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    if (nodeSocketIsHidden(socket)) {
+    if (!socket->is_visible()) {
       continue;
     }
 
@@ -567,12 +567,12 @@ static void node_update_hidden(bNode &node, uiBlock &block)
 
   /* Calculate minimal radius. */
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    if (!nodeSocketIsHidden(socket)) {
+    if (socket->is_visible()) {
       totin++;
     }
   }
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
-    if (!nodeSocketIsHidden(socket)) {
+    if (socket->is_visible()) {
       totout++;
     }
   }
@@ -593,7 +593,7 @@ static void node_update_hidden(bNode &node, uiBlock &block)
   float drad = rad;
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
-    if (!nodeSocketIsHidden(socket)) {
+    if (socket->is_visible()) {
       /* Round the socket location to stop it from jiggling. */
       socket->runtime->locx = round(node.runtime->totr.xmax - hiddenrad + sinf(rad) * hiddenrad);
       socket->runtime->locy = round(node.runtime->totr.ymin + hiddenrad + cosf(rad) * hiddenrad);
@@ -605,7 +605,7 @@ static void node_update_hidden(bNode &node, uiBlock &block)
   rad = drad = -float(M_PI) / (1.0f + float(totin));
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    if (!nodeSocketIsHidden(socket)) {
+    if (socket->is_visible()) {
       /* Round the socket location to stop it from jiggling. */
       socket->runtime->locx = round(node.runtime->totr.xmin + hiddenrad + sinf(rad) * hiddenrad);
       socket->runtime->locy = round(node.runtime->totr.ymin + hiddenrad + cosf(rad) * hiddenrad);
@@ -810,23 +810,23 @@ static void create_inspection_string_for_generic_value(const bNodeSocket &socket
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_OB);
     return;
   }
-  else if (value_type.is<Material *>()) {
+  if (value_type.is<Material *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_MA);
     return;
   }
-  else if (value_type.is<Tex *>()) {
+  if (value_type.is<Tex *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_TE);
     return;
   }
-  else if (value_type.is<Image *>()) {
+  if (value_type.is<Image *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_IM);
     return;
   }
-  else if (value_type.is<Collection *>()) {
+  if (value_type.is<Collection *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_GR);
     return;
   }
-  else if (value_type.is<std::string>()) {
+  if (value_type.is<std::string>()) {
     ss << *static_cast<const std::string *>(buffer) << TIP_(" (String)");
     return;
   }
@@ -991,7 +991,7 @@ static void create_inspection_string_for_geometry_info(const geo_log::GeometryIn
 
   /* If the geometry declaration is null, as is the case for input to group output,
    * or it is an output socket don't show supported types. */
-  if (socket_decl == nullptr || socket_decl->in_out() == SOCK_OUT) {
+  if (socket_decl == nullptr || socket_decl->in_out == SOCK_OUT) {
     return;
   }
 
@@ -1078,7 +1078,7 @@ static bool node_socket_has_tooltip(const bNodeTree &ntree, const bNodeSocket &s
 
   if (socket.runtime->declaration != nullptr) {
     const nodes::SocketDeclaration &socket_decl = *socket.runtime->declaration;
-    return !socket_decl.description().is_empty();
+    return !socket_decl.description.empty();
   }
 
   return false;
@@ -1100,7 +1100,7 @@ static char *node_socket_get_tooltip(const bContext *C,
   std::stringstream output;
   if (socket->runtime->declaration != nullptr) {
     const blender::nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
-    blender::StringRef description = socket_decl.description();
+    blender::StringRef description = socket_decl.description;
     if (!description.is_empty()) {
       output << TIP_(description.data());
     }
@@ -1117,7 +1117,9 @@ static char *node_socket_get_tooltip(const bContext *C,
       output << *socket_inspection_str;
     }
     else {
-      output << TIP_("The socket value has not been computed yet");
+      output << TIP_(
+          "Unknown socket value. Either the socket was not used or its value was not logged "
+          "during the last evaluation");
     }
   }
 
@@ -1429,7 +1431,7 @@ static void node_draw_sockets(const View2D &v2d,
   /* Socket inputs. */
   short selected_input_len = 0;
   LISTBASE_FOREACH (bNodeSocket *, sock, &node.inputs) {
-    if (nodeSocketIsHidden(sock)) {
+    if (!sock->is_visible()) {
       continue;
     }
     if (select_all || (sock->flag & SELECT)) {
@@ -1462,7 +1464,7 @@ static void node_draw_sockets(const View2D &v2d,
   short selected_output_len = 0;
   if (draw_outputs) {
     LISTBASE_FOREACH (bNodeSocket *, sock, &node.outputs) {
-      if (nodeSocketIsHidden(sock)) {
+      if (!sock->is_visible()) {
         continue;
       }
       if (select_all || (sock->flag & SELECT)) {
@@ -1500,7 +1502,7 @@ static void node_draw_sockets(const View2D &v2d,
     if (selected_input_len) {
       /* Socket inputs. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node.inputs) {
-        if (nodeSocketIsHidden(sock)) {
+        if (!sock->is_visible()) {
           continue;
         }
         /* Don't draw multi-input sockets here since they are drawn in a different batch. */
@@ -1530,7 +1532,7 @@ static void node_draw_sockets(const View2D &v2d,
     if (selected_output_len) {
       /* Socket outputs. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node.outputs) {
-        if (nodeSocketIsHidden(sock)) {
+        if (!sock->is_visible()) {
           continue;
         }
         if (select_all || (sock->flag & SELECT)) {
@@ -1564,7 +1566,7 @@ static void node_draw_sockets(const View2D &v2d,
   /* Draw multi-input sockets after the others because they are drawn with `UI_draw_roundbox`
    * rather than with `GL_POINT`. */
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    if (nodeSocketIsHidden(socket)) {
+    if (!socket->is_visible()) {
       continue;
     }
     if (!(socket->flag & SOCK_MULTI_INPUT)) {
@@ -1738,7 +1740,7 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
   if (node.type == NODE_GROUP_OUTPUT) {
     return tree_log->run_time_sum;
   }
-  else if (node.is_frame()) {
+  if (node.is_frame()) {
     /* Could be cached in the future if this recursive code turns out to be slow. */
     std::chrono::nanoseconds run_time{0};
     bool found_node = false;
@@ -2643,9 +2645,9 @@ static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
   }
   /* Count temporary links going into this socket. */
   if (snode.runtime->linkdrag) {
-    for (const bNodeLink *link : snode.runtime->linkdrag->links) {
-      if (link->tosock && (link->tosock->flag & SOCK_MULTI_INPUT)) {
-        int &count = counts.lookup_or_add(link->tosock, 0);
+    for (const bNodeLink &link : snode.runtime->linkdrag->links) {
+      if (link.tosock && (link.tosock->flag & SOCK_MULTI_INPUT)) {
+        int &count = counts.lookup_or_add(link.tosock, 0);
         count++;
       }
     }
@@ -3275,8 +3277,8 @@ void node_draw_space(const bContext &C, ARegion &region)
     GPU_blend(GPU_BLEND_ALPHA);
     GPU_line_smooth(true);
     if (snode.runtime->linkdrag) {
-      for (const bNodeLink *link : snode.runtime->linkdrag->links) {
-        node_draw_link_dragged(C, v2d, snode, *link);
+      for (const bNodeLink &link : snode.runtime->linkdrag->links) {
+        node_draw_link_dragged(C, v2d, snode, link);
       }
     }
     GPU_line_smooth(false);
