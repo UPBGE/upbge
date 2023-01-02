@@ -337,6 +337,9 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
   const int tot_polygons = obj_mesh_data.tot_polygons();
   const int tot_deform_groups = obj_mesh_data.tot_deform_groups();
   threading::EnumerableThreadSpecific<Vector<float>> group_weights;
+  const bke::AttributeAccessor attributes = obj_mesh_data.get_mesh()->attributes();
+  const VArray<int> material_indices = attributes.lookup_or_default<int>(
+      "material_index", ATTR_DOMAIN_FACE, 0);
 
   obj_parallel_chunked_output(fh, tot_polygons, [&](FormatHandler &buf, int idx) {
     /* Polygon order for writing into the file is not necessarily the same
@@ -372,10 +375,6 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
       }
     }
 
-    const bke::AttributeAccessor attributes = obj_mesh_data.get_mesh()->attributes();
-    const VArray<int> material_indices = attributes.lookup_or_default<int>(
-        "material_index", ATTR_DOMAIN_FACE, 0);
-
     /* Write material name and material group if different from previous. */
     if (export_params_.export_materials && obj_mesh_data.tot_materials() > 0) {
       const int16_t prev_mat = idx == 0 ? NEGATIVE_INIT : std::max(0, material_indices[prev_i]);
@@ -392,7 +391,7 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
           if (export_params_.export_material_groups) {
             std::string object_name = obj_mesh_data.get_object_name();
             spaces_to_underscores(object_name);
-            fh.write_obj_group(object_name + "_" + mat_name);
+            buf.write_obj_group(object_name + "_" + mat_name);
           }
           buf.write_obj_usemtl(mat_name);
         }

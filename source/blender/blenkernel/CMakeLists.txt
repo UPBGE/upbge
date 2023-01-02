@@ -258,6 +258,7 @@ set(SRC
   intern/pbvh_uv_islands.cc
   intern/pointcache.c
   intern/pointcloud.cc
+  intern/pose_backup.cc
   intern/preferences.c
   intern/property.c
   intern/python_proxy.c

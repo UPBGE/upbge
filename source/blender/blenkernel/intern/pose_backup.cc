@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup edarmature
+ * \ingroup bke
  */
 
-#include "ED_armature.h"
+#include "BKE_pose_backup.h"
 
 #include <cstring>
 
@@ -38,6 +38,14 @@ struct PoseBackup {
   ListBase /* PoseChannelBackup* */ backups;
 };
 
+/**
+ * Create a backup of the pose, for only those bones that are animated in the
+ * given Action. If `selected_bone_names` is not empty, the set of bones to back
+ * up is intersected with these bone names such that only the selected subset is
+ * backed up.
+ *
+ * The returned pointer is owned by the caller.
+ */
 static PoseBackup *pose_backup_create(const Object *ob,
                                       const bAction *action,
                                       const BoneNameSet &selected_bone_names)
@@ -86,24 +94,24 @@ static PoseBackup *pose_backup_create(const Object *ob,
   return pose_backup;
 }
 
-PoseBackup *ED_pose_backup_create_all_bones(const Object *ob, const bAction *action)
+PoseBackup *BKE_pose_backup_create_all_bones(const Object *ob, const bAction *action)
 {
   return pose_backup_create(ob, action, BoneNameSet());
 }
 
-PoseBackup *ED_pose_backup_create_selected_bones(const Object *ob, const bAction *action)
+PoseBackup *BKE_pose_backup_create_selected_bones(const Object *ob, const bAction *action)
 {
   const bArmature *armature = static_cast<const bArmature *>(ob->data);
   const BoneNameSet selected_bone_names = BKE_armature_find_selected_bone_names(armature);
   return pose_backup_create(ob, action, selected_bone_names);
 }
 
-bool ED_pose_backup_is_selection_relevant(const struct PoseBackup *pose_backup)
+bool BKE_pose_backup_is_selection_relevant(const struct PoseBackup *pose_backup)
 {
   return pose_backup->is_bone_selection_relevant;
 }
 
-void ED_pose_backup_restore(const PoseBackup *pbd)
+void BKE_pose_backup_restore(const PoseBackup *pbd)
 {
   LISTBASE_FOREACH (PoseChannelBackup *, chan_bak, &pbd->backups) {
     memcpy(chan_bak->pchan, &chan_bak->olddata, sizeof(chan_bak->olddata));
@@ -117,7 +125,7 @@ void ED_pose_backup_restore(const PoseBackup *pbd)
   }
 }
 
-void ED_pose_backup_free(PoseBackup *pbd)
+void BKE_pose_backup_free(PoseBackup *pbd)
 {
   LISTBASE_FOREACH_MUTABLE (PoseChannelBackup *, chan_bak, &pbd->backups) {
     if (chan_bak->oldprops) {
@@ -126,4 +134,30 @@ void ED_pose_backup_free(PoseBackup *pbd)
     BLI_freelinkN(&pbd->backups, chan_bak);
   }
   MEM_freeN(pbd);
+}
+
+void BKE_pose_backup_create_on_object(Object *ob, const bAction *action)
+{
+  BKE_pose_backup_clear(ob);
+  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(ob, action);
+  ob->runtime.pose_backup = pose_backup;
+}
+
+bool BKE_pose_backup_restore_on_object(struct Object *ob)
+{
+  if (ob->runtime.pose_backup == nullptr) {
+    return false;
+  }
+  BKE_pose_backup_restore(ob->runtime.pose_backup);
+  return true;
+}
+
+void BKE_pose_backup_clear(Object *ob)
+{
+  if (ob->runtime.pose_backup == nullptr) {
+    return;
+  }
+
+  BKE_pose_backup_free(ob->runtime.pose_backup);
+  ob->runtime.pose_backup = nullptr;
 }

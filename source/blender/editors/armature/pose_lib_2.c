@@ -24,6 +24,7 @@
 #include "BKE_context.h"
 #include "BKE_lib_id.h"
 #include "BKE_object.h"
+#include "BKE_pose_backup.h"
 #include "BKE_report.h"
 
 #include "DEG_depsgraph.h"
@@ -37,7 +38,6 @@
 
 #include "UI_interface.h"
 
-#include "ED_armature.h"
 #include "ED_asset.h"
 #include "ED_keyframing.h"
 #include "ED_screen.h"
@@ -83,10 +83,12 @@ typedef struct PoseBlendData {
   char headerstr[UI_MAX_DRAW_STR];
 } PoseBlendData;
 
+static void poselib_blend_flip_pose(bContext *C, wmOperator *op);
+
 /* Makes a copy of the current pose for restoration purposes - doesn't do constraints currently */
 static void poselib_backup_posecopy(PoseBlendData *pbd)
 {
-  pbd->pose_backup = ED_pose_backup_create_selected_bones(pbd->ob, pbd->act);
+  pbd->pose_backup = BKE_pose_backup_create_selected_bones(pbd->ob, pbd->act);
 
   if (pbd->state == POSE_BLEND_INIT) {
     /* Ready for blending now. */
@@ -125,7 +127,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
       continue;
     }
 
-    if (ED_pose_backup_is_selection_relevant(pbd->pose_backup) &&
+    if (BKE_pose_backup_is_selection_relevant(pbd->pose_backup) &&
         !PBONE_SELECTED(armature, pchan->bone)) {
       continue;
     }
@@ -152,7 +154,7 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
   }
   pbd->needs_redraw = false;
 
-  ED_pose_backup_restore(pbd->pose_backup);
+  BKE_pose_backup_restore(pbd->pose_backup);
 
   /* The pose needs updating, whether it's for restoring the original pose or for showing the
    * result of the blend. */
@@ -178,7 +180,7 @@ static void poselib_blend_set_factor(PoseBlendData *pbd, const float new_factor)
 }
 
 /* Return operator return value. */
-static int poselib_blend_handle_event(bContext *UNUSED(C), wmOperator *op, const wmEvent *event)
+static int poselib_blend_handle_event(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PoseBlendData *pbd = op->customdata;
 
@@ -225,7 +227,9 @@ static int poselib_blend_handle_event(bContext *UNUSED(C), wmOperator *op, const
       pbd->needs_redraw = true;
       break;
 
-      /* TODO(Sybren): use better UI for slider. */
+    case EVT_FKEY:
+      poselib_blend_flip_pose(C, op);
+      break;
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -274,6 +278,30 @@ static bAction *flip_pose(bContext *C, Object *ob, bAction *action)
 
   WM_set_locked_interface(wm, interface_was_locked);
   return action_copy;
+}
+
+/* Flip the target pose the interactive blend operator is currently using. */
+static void poselib_blend_flip_pose(bContext *C, wmOperator *op)
+{
+  PoseBlendData *pbd = op->customdata;
+  bAction *old_action = pbd->act;
+  bAction *new_action = flip_pose(C, pbd->ob, old_action);
+
+  /* Before flipping over to the other side, this side needs to be restored. */
+  BKE_pose_backup_restore(pbd->pose_backup);
+  BKE_pose_backup_free(pbd->pose_backup);
+  pbd->pose_backup = NULL;
+
+  if (pbd->free_action) {
+    BKE_id_free(NULL, old_action);
+  }
+
+  pbd->free_action = true;
+  pbd->act = new_action;
+  pbd->needs_redraw = true;
+
+  /* Refresh the pose backup to use the flipped bones. */
+  poselib_backup_posecopy(pbd);
 }
 
 /* Return true on success, false if the context isn't suitable. */
@@ -381,7 +409,7 @@ static void poselib_blend_cleanup(bContext *C, wmOperator *op)
       BKE_report(op->reports, RPT_ERROR, "Internal pose library error, canceling operator");
       ATTR_FALLTHROUGH;
     case POSE_BLEND_CANCEL:
-      ED_pose_backup_restore(pbd->pose_backup);
+      BKE_pose_backup_restore(pbd->pose_backup);
       break;
   }
 
@@ -406,7 +434,7 @@ static void poselib_blend_free(wmOperator *op)
   poselib_tempload_exit(pbd);
 
   /* Free temp data for operator */
-  ED_pose_backup_free(pbd->pose_backup);
+  BKE_pose_backup_free(pbd->pose_backup);
   pbd->pose_backup = NULL;
 
   MEM_SAFE_FREE(op->customdata);
@@ -461,7 +489,11 @@ static int poselib_blend_modal(bContext *C, wmOperator *op, const wmEvent *event
       strcpy(tab_string, TIP_("[Tab] - Show blended pose"));
     }
 
-    BLI_snprintf(status_string, sizeof(status_string), "%s | %s", tab_string, slider_string);
+    BLI_snprintf(status_string,
+                 sizeof(status_string),
+                 "[F] - Flip pose | %s | %s",
+                 tab_string,
+                 slider_string);
     ED_workspace_status_text(C, status_string);
 
     poselib_blend_apply(C, op);
