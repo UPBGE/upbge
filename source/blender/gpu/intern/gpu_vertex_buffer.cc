@@ -25,6 +25,7 @@
 namespace blender::gpu {
 
 size_t VertBuf::memory_usage = 0;
+GPUVertBufStreamStatus VertBuf::stream_flag = GPU_VERTBUF_DATA_STREAMED_NONE;
 
 VertBuf::VertBuf()
 {
@@ -318,6 +319,16 @@ uint GPU_vertbuf_get_vertex_len(const GPUVertBuf *verts)
 GPUVertBufStatus GPU_vertbuf_get_status(const GPUVertBuf *verts)
 {
   return unwrap(verts)->flag;
+}
+
+GPUVertBufStreamStatus GPU_vertbuf_get_stream_status(GPUVertBuf *verts)
+{
+  return unwrap(verts)->stream_flag;
+}
+
+void GPU_vertbuf_reset_stream_status(GPUVertBuf *verts)
+{
+  unwrap(verts)->stream_flag = (GPUVertBufStreamStatus)0;
 }
 
 void GPU_vertbuf_tag_dirty(GPUVertBuf *verts)

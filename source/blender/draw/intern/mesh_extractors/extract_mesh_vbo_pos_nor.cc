@@ -40,7 +40,14 @@ static void extract_pos_nor_init(const MeshRenderData *mr,
     GPU_vertformat_attr_add(&format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertformat_alias_add(&format, "vnor");
   }
-  GPU_vertbuf_init_with_format(vbo, &format);
+
+  if ((GPU_vertbuf_get_stream_status(vbo) & GPU_VERTBUF_DATA_STREAMED) == 0) {
+    GPU_vertbuf_init_with_format(vbo, &format);
+  }
+  else {
+    GPU_vertbuf_init_with_format_ex(vbo, &format, GPU_USAGE_STREAM);
+  }
+
   GPU_vertbuf_data_alloc(vbo, mr->loop_len + mr->loop_loose_len);
 
   /* Pack normals per vert, reduce amount of computation. */
@@ -173,11 +180,12 @@ static void extract_pos_nor_iter_lvert_mesh(const MeshRenderData *mr,
 
 static void extract_pos_nor_finish(const MeshRenderData * /*mr*/,
                                    MeshBatchCache * /*cache*/,
-                                   void * /*buf*/,
+                                   void * buf,
                                    void *_data)
 {
   MeshExtract_PosNor_Data *data = static_cast<MeshExtract_PosNor_Data *>(_data);
   MEM_freeN(data->normals);
+  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
 }
 
 static GPUVertFormat *get_normals_format()

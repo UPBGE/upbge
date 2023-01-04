@@ -61,7 +61,7 @@ void GLVertBuf::duplicate_data(VertBuf *dst_)
 
     glGenBuffers(1, &dst->vbo_id_);
     glBindBuffer(GL_COPY_WRITE_BUFFER, dst->vbo_id_);
-    glBufferData(GL_COPY_WRITE_BUFFER, dst->vbo_size_, nullptr, to_gl(dst->usage_));
+    glBufferData(GL_COPY_WRITE_BUFFER, dst->vbo_size_, nullptr, to_gl(src->usage_));
 
     glBindBuffer(GL_COPY_READ_BUFFER, src->vbo_id_);
 
@@ -80,6 +80,38 @@ void GLVertBuf::upload_data()
   this->bind();
 }
 
+static void updateVertexBufferObject(GLuint vboid, void *data, int byteSize, int shift)
+{
+  // locking VBO
+  //glBindBuffer(GL_ARRAY_BUFFER, vboid);
+
+  // getting VBO's address
+  //glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+
+  GLbitfield flag = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_FLUSH_EXPLICIT_BIT;
+  void *vbo = glMapBufferRange(GL_ARRAY_BUFFER, shift, byteSize, flag);
+
+  if (!vbo) {
+    //std::cout << "Error: cannot get VBO" << std::endl;
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return;
+  }
+
+  //GLbitfield flag = GL_MAP_WRITE_BIT;
+  //glBufferStorage(GL_ARRAY_BUFFER, byteSize, data, flag);
+
+  // updating data
+  memcpy((char *)vbo + shift, data, byteSize);
+
+  glFlushMappedBufferRange(GL_ARRAY_BUFFER, 0, 0);
+  glUnmapBuffer(GL_ARRAY_BUFFER);
+  vbo = 0;
+
+  // unlocking VBO
+  //glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 void GLVertBuf::bind()
 {
   BLI_assert(GLContext::get() != nullptr);
@@ -96,7 +128,8 @@ void GLVertBuf::bind()
     glBufferData(GL_ARRAY_BUFFER, vbo_size_, nullptr, to_gl(usage_));
     /* Do not transfer data from host to device when buffer is device only. */
     if (usage_ != GPU_USAGE_DEVICE_ONLY) {
-      glBufferSubData(GL_ARRAY_BUFFER, 0, vbo_size_, data);
+      //glBufferSubData(GL_ARRAY_BUFFER, 0, vbo_size_, data);
+      updateVertexBufferObject(vbo_id_, data, vbo_size_, 0);
     }
     memory_usage += vbo_size_;
 
@@ -105,6 +138,7 @@ void GLVertBuf::bind()
     }
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
+    stream_flag |= GPU_VERTBUF_DATA_STREAMED;
   }
 }
 
@@ -161,7 +195,8 @@ bool GLVertBuf::is_active() const
 
 void GLVertBuf::update_sub(uint start, uint len, const void *data)
 {
-  glBufferSubData(GL_ARRAY_BUFFER, start, len, data);
+  //glBufferSubData(GL_ARRAY_BUFFER, start, len, data);
+  updateVertexBufferObject(vbo_id_, (void *)data, len, start);
 }
 
 }  // namespace blender::gpu

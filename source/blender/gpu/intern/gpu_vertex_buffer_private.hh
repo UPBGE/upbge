@@ -28,6 +28,7 @@ class VertBuf {
   uint vertex_alloc = 0;
   /** Status flag. */
   GPUVertBufStatus flag = GPU_VERTBUF_INVALID;
+  static GPUVertBufStreamStatus stream_flag;
   /** NULL indicates data in VRAM (unmapped) */
   uchar *data = nullptr;
 
