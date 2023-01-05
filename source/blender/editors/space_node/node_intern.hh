@@ -155,10 +155,7 @@ void node_socket_color_get(const bContext &C,
 
 void node_draw_space(const bContext &C, ARegion &region);
 
-void node_socket_add_tooltip(const bNodeTree &ntree,
-                             const bNode &node,
-                             const bNodeSocket &sock,
-                             uiLayout &layout);
+void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
 
 /**
  * Sort nodes by selection: unselected nodes first, then selected,
@@ -314,12 +311,9 @@ bool composite_node_editable(bContext *C);
 bool node_has_hidden_sockets(bNode *node);
 void node_set_hidden_sockets(SpaceNode *snode, bNode *node, int set);
 int node_render_changed_exec(bContext *, wmOperator *);
-/** Type is #SOCK_IN and/or #SOCK_OUT. */
-bool node_find_indicated_socket(SpaceNode &snode,
-                                bNode **nodep,
-                                bNodeSocket **sockp,
-                                const float2 &cursor,
-                                eNodeSocketInOut in_out);
+bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
+                                        const float2 &cursor,
+                                        eNodeSocketInOut in_out);
 float node_link_dim_factor(const View2D &v2d, const bNodeLink &link);
 bool node_link_is_hidden_or_dimmed(const View2D &v2d, const bNodeLink &link);
 
