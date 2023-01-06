@@ -41,7 +41,8 @@ static void extract_pos_nor_init(const MeshRenderData *mr,
     GPU_vertformat_alias_add(&format, "vnor");
   }
 
-  if (mr->loop_len + mr->loop_loose_len > 1024 && !mr->vbo_static) { /* UPBGE expermimental */
+  if (mr->loop_len + mr->loop_loose_len > MIN_RANGE_LEN &&
+      !mr->vbo_static) { /* UPBGE expermimental */
     GPU_vertbuf_init_with_format_ex(vbo, &format, GPU_USAGE_STREAM);
   }
   else {
