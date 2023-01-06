@@ -186,6 +186,8 @@ void BL_ActionManager::SuspendActionVboPipeline()
         ob->is_playing_action = 0; // will restore static vbo at next extract mesh for arm child
         /* Tag the depsgraph when armature action finished to play to restore a GL_STATIC_DRAW vbo for arm child */
         m_obj->GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
+
+        // Something doesn't work properly still
       }
     }
   }
