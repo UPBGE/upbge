@@ -26,7 +26,7 @@ static void extract_lnor_init(const MeshRenderData *mr,
     GPU_vertformat_attr_add(&format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertformat_alias_add(&format, "lnor");
   }
-  if (mr->loop_len + mr->loop_loose_len > 1024) {
+  if (mr->loop_len + mr->loop_loose_len > 1024 && !mr->vbo_static) { /* UPBGE expermimental */
     GPU_vertbuf_init_with_format_ex(vbo, &format, GPU_USAGE_STREAM);
   }
   else {

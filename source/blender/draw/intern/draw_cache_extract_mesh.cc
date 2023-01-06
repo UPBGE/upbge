@@ -565,7 +565,8 @@ void mesh_buffer_cache_create_requested(struct TaskGraph *task_graph,
                                         const bool do_uvedit,
                                         const Scene *scene,
                                         const ToolSettings *ts,
-                                        const bool use_hide)
+                                        const bool use_hide,
+                                        bool vbo_static)
 {
   /* For each mesh where batches needs to be updated a sub-graph will be added to the task_graph.
    * This sub-graph starts with an extract_render_data_node. This fills/converts the required
@@ -688,6 +689,7 @@ void mesh_buffer_cache_create_requested(struct TaskGraph *task_graph,
   mr->use_hide = use_hide;
   mr->use_subsurf_fdots = mr->me && mr->me->runtime->subsurf_face_dot_tags != nullptr;
   mr->use_final_mesh = do_final;
+  mr->vbo_static = vbo_static; /* UPBGE */
 
 #ifdef DEBUG_TIME
   double rdata_end = PIL_check_seconds_timer();

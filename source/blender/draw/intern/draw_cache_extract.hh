@@ -320,7 +320,8 @@ void mesh_buffer_cache_create_requested(TaskGraph *task_graph,
                                         bool do_uvedit,
                                         const Scene *scene,
                                         const ToolSettings *ts,
-                                        bool use_hide);
+                                        bool use_hide,
+                                        bool vbo_static);
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache *cache,
                                                MeshBufferCache *mbc,

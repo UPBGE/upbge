@@ -1355,16 +1355,22 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
     ts = scene->toolsettings;
   }
 
+  /* UPBGE */
+  bool vbo_static = true;
   if (BKE_modifiers_is_deformed_by_armature(ob)) {
     Object *armature = ob->parent;
     if (armature) {
       if (armature->pose) {
         if (armature->pose->was_recalc == 1) {
-          printf("pose recalc \n");
+          //printf("pose recalc \n");
+          vbo_static = false;
+          armature->pose->was_recalc = 0;
         }
       }
     }
   }
+  /*******/
+
   MeshBatchCache *cache = mesh_batch_cache_get(me);
   bool cd_uv_update = false;
 
@@ -1894,7 +1900,8 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                                       true,
                                                       scene,
                                                       ts,
-                                                      true);
+                                                      true,
+                                                      vbo_static);
   }
 
   if (do_cage) {
@@ -1911,7 +1918,8 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                                       false,
                                                       scene,
                                                       ts,
-                                                      true);
+                                                      true,
+                                                      vbo_static);
   }
 
   if (do_subdivision) {
@@ -1948,7 +1956,8 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                                     false,
                                                     scene,
                                                     ts,
-                                                    use_hide);
+                                                    use_hide,
+                                                    vbo_static);
 
   /* Ensure that all requested batches have finished.
    * Ideally we want to remove this sync, but there are cases where this doesn't work.
