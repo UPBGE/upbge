@@ -11,8 +11,8 @@ namespace blender::nodes::node_geo_edge_split_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Mesh")).supported_type(GEO_COMPONENT_TYPE_MESH);
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().supports_field();
-  b.add_output<decl::Geometry>(N_("Mesh"));
+  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().field_on_all();
+  b.add_output<decl::Geometry>(N_("Mesh")).propagate_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -33,7 +33,8 @@ static void node_geo_exec(GeoNodeExecParams params)
         return;
       }
 
-      geometry::split_edges(*geometry_set.get_mesh_for_write(), mask);
+      geometry::split_edges(
+          *geometry_set.get_mesh_for_write(), mask, params.get_output_propagation_info("Mesh"));
     }
   });
 

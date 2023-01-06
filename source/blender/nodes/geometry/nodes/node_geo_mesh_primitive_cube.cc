@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1000)
       .description(N_("Number of vertices for the Z side of the shape"));
   b.add_output<decl::Geometry>(N_("Mesh"));
-  b.add_output<decl::Vector>(N_("UV Map")).field_source();
+  b.add_output<decl::Vector>(N_("UV Map")).field_on_all();
 }
 
 static Mesh *create_cuboid_mesh(const float3 &size,
@@ -107,10 +107,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  StrongAnonymousAttributeID uv_map_id;
-  if (params.output_is_required("UV Map")) {
-    uv_map_id = StrongAnonymousAttributeID("uv_map");
-  }
+  AutoAnonymousAttributeID uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+      "UV Map");
 
   Mesh *mesh = create_cube_mesh(size, verts_x, verts_y, verts_z, uv_map_id.get());
 

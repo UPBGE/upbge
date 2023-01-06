@@ -839,7 +839,9 @@ static Mesh *mesh_new_from_evaluated_curve_type_object(const Object *evaluated_o
     return BKE_mesh_copy_for_eval(mesh, false);
   }
   if (const Curves *curves = get_evaluated_curves_from_object(evaluated_object)) {
-    return blender::bke::curve_to_wire_mesh(blender::bke::CurvesGeometry::wrap(curves->geometry));
+    const blender::bke::AnonymousAttributePropagationInfo propagation_info;
+    return blender::bke::curve_to_wire_mesh(blender::bke::CurvesGeometry::wrap(curves->geometry),
+                                            propagation_info);
   }
   return nullptr;
 }
@@ -1062,7 +1064,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
    * everything is only allowed to reference original data-blocks.
    *
    * Note that user-count updates has to be done *after* mesh has been transferred to Main database
-   * (since doing refcounting on non-Main IDs is forbidden). */
+   * (since doing reference-counting on non-Main IDs is forbidden). */
   BKE_library_foreach_ID_link(
       nullptr, &mesh->id, foreach_libblock_make_original_callback, nullptr, IDWALK_NOP);
 

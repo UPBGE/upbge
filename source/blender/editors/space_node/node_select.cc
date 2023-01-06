@@ -175,14 +175,9 @@ static bool is_position_over_node_or_socket(SpaceNode &snode, const float2 &mous
   if (node_under_mouse_tweak(*snode.edittree, mouse)) {
     return true;
   }
-
-  bNode *node;
-  bNodeSocket *sock;
-  if (node_find_indicated_socket(
-          snode, &node, &sock, mouse, (eNodeSocketInOut)(SOCK_IN | SOCK_OUT))) {
+  if (node_find_indicated_socket(snode, mouse, SOCK_IN | SOCK_OUT)) {
     return true;
   }
-
   return false;
 }
 
@@ -267,7 +262,7 @@ void node_deselect_all_input_sockets(bNodeTree &node_tree, const bool deselect_n
       socket->flag &= ~SELECT;
     }
 
-    /* if no selected sockets remain, also deselect the node */
+    /* If no selected sockets remain, also deselect the node. */
     if (deselect_nodes) {
       LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
         if (socket->flag & SELECT) {
@@ -532,26 +527,27 @@ static bool node_mouse_select(bContext *C,
   const Object *ob = CTX_data_active_object(C);
   const Scene *scene = CTX_data_scene(C);
   const wmWindowManager *wm = CTX_wm_manager(C);
-  bNode *node;
+  bNode *node = nullptr;
   bNodeSocket *sock = nullptr;
-  bNodeSocket *tsock;
 
-  /* always do socket_select when extending selection. */
+  /* Always do socket_select when extending selection. */
   const bool socket_select = (params->sel_op == SEL_OP_XOR) ||
                              RNA_boolean_get(op->ptr, "socket_select");
   bool changed = false;
   bool found = false;
   bool node_was_selected = false;
 
-  /* get mouse coordinates in view2d space */
+  /* Get mouse coordinates in view2d space. */
   float2 cursor;
   UI_view2d_region_to_view(&region.v2d, mval.x, mval.y, &cursor.x, &cursor.y);
 
-  /* first do socket selection, these generally overlap with nodes. */
+  /* First do socket selection, these generally overlap with nodes. */
   if (socket_select) {
     /* NOTE: unlike nodes #SelectPick_Params isn't fully supported. */
     const bool extend = (params->sel_op == SEL_OP_XOR);
-    if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_IN)) {
+    sock = node_find_indicated_socket(snode, cursor, SOCK_IN);
+    if (sock) {
+      node = &sock->owner_node();
       found = true;
       node_was_selected = node->flag & SELECT;
 
@@ -560,48 +556,50 @@ static bool node_mouse_select(bContext *C,
       node_socket_toggle(node, *sock, true);
       changed = true;
     }
-    else if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_OUT)) {
-      found = true;
-      node_was_selected = node->flag & SELECT;
+    if (!changed) {
+      sock = node_find_indicated_socket(snode, cursor, SOCK_OUT);
+      if (sock) {
+        node = &sock->owner_node();
+        found = true;
+        node_was_selected = node->flag & SELECT;
 
-      if (sock->flag & SELECT) {
-        if (extend) {
-          node_socket_deselect(node, *sock, true);
-          changed = true;
+        if (sock->flag & SELECT) {
+          if (extend) {
+            node_socket_deselect(node, *sock, true);
+            changed = true;
+          }
         }
-      }
-      else {
-        /* Only allow one selected output per node, for sensible linking.
-         * Allow selecting outputs from different nodes though, if extend is true. */
-        if (node) {
-          for (tsock = (bNodeSocket *)node->outputs.first; tsock; tsock = tsock->next) {
+        else {
+          /* Only allow one selected output per node, for sensible linking.
+           * Allow selecting outputs from different nodes though, if extend is true. */
+          for (bNodeSocket *tsock : node->output_sockets()) {
             if (tsock == sock) {
               continue;
             }
             node_socket_deselect(node, *tsock, true);
             changed = true;
           }
-        }
-        if (!extend) {
-          for (bNode *tnode : node_tree.all_nodes()) {
-            if (tnode == node) {
-              continue;
-            }
-            for (tsock = (bNodeSocket *)tnode->outputs.first; tsock; tsock = tsock->next) {
-              node_socket_deselect(tnode, *tsock, true);
-              changed = true;
+          if (!extend) {
+            for (bNode *tnode : node_tree.all_nodes()) {
+              if (tnode == node) {
+                continue;
+              }
+              for (bNodeSocket *tsock : tnode->output_sockets()) {
+                node_socket_deselect(tnode, *tsock, true);
+                changed = true;
+              }
             }
           }
+          node_socket_select(node, *sock);
+          changed = true;
         }
-        node_socket_select(node, *sock);
-        changed = true;
       }
     }
   }
 
   if (!sock) {
 
-    /* find the closest visible node */
+    /* Find the closest visible node. */
     node = node_under_mouse_select(node_tree, cursor);
     found = (node != nullptr);
     node_was_selected = node && (node->flag & SELECT);
@@ -619,28 +617,25 @@ static bool node_mouse_select(bContext *C,
 
     if (found) {
       switch (params->sel_op) {
-        case SEL_OP_ADD: {
+        case SEL_OP_ADD:
           nodeSetSelected(node, true);
           break;
-        }
-        case SEL_OP_SUB: {
+        case SEL_OP_SUB:
           nodeSetSelected(node, false);
           break;
-        }
         case SEL_OP_XOR: {
           /* Check active so clicking on an inactive node activates it. */
           bool is_selected = (node->flag & NODE_SELECT) && (node->flag & NODE_ACTIVE);
           nodeSetSelected(node, !is_selected);
           break;
         }
-        case SEL_OP_SET: {
+        case SEL_OP_SET:
           nodeSetSelected(node, true);
           break;
-        }
-        case SEL_OP_AND: {
-          BLI_assert_unreachable(); /* Doesn't make sense for picking. */
+        case SEL_OP_AND:
+          /* Doesn't make sense for picking. */
+          BLI_assert_unreachable();
           break;
-        }
       }
 
       changed = true;
@@ -683,20 +678,20 @@ static bool node_mouse_select(bContext *C,
 
 static int node_select_exec(bContext *C, wmOperator *op)
 {
-  /* get settings from RNA properties for operator */
+  /* Get settings from RNA properties for operator. */
   int2 mval;
   RNA_int_get_array(op->ptr, "location", mval);
 
   SelectPick_Params params = {};
   ED_select_pick_params_from_operator(op->ptr, &params);
 
-  /* perform the select */
+  /* Perform the selection. */
   const bool changed = node_mouse_select(C, op, mval, &params);
 
   if (changed) {
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
   }
-  /* Nothing selected, just passthrough. */
+  /* Nothing selected, just pass through. */
   return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
 }
 
@@ -964,10 +959,9 @@ static bool do_lasso_select_node(bContext *C,
     changed = true;
   }
 
-  /* get rectangle from operator */
+  /* Get rectangle from operator. */
   BLI_lasso_boundbox(&rect, mcoords, mcoords_len);
 
-  /* do actual selection */
   for (bNode *node : node_tree.all_nodes()) {
     if (select && (node->flag & NODE_SELECT)) {
       continue;
@@ -1391,7 +1385,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
       but, nullptr, node_find_update_fn, op->type, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
-  /* fake button, it holds space for search items */
+  /* Fake button holds space for search items. */
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,

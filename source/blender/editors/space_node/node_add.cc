@@ -699,8 +699,7 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
   }
 
   /* When adding new image file via drag-drop we need to load imbuf in order
-   * to get proper image source.
-   */
+   * to get proper image source. */
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_RELOAD);
     WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
@@ -717,7 +716,7 @@ static int node_add_file_invoke(bContext *C, wmOperator *op, const wmEvent *even
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  /* convert mouse coordinates to v2d space */
+  /* Convert mouse coordinates to `v2d` space. */
   UI_view2d_region_to_view(&region->v2d,
                            event->mval[0],
                            event->mval[1],
@@ -845,28 +844,28 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (RNA_struct_property_is_set(op->ptr, "name")) {
-    RNA_string_get(op->ptr, "name", treename_buf);
-    treename = treename_buf;
-  }
-  else {
-    treename = DATA_("NodeTree");
-  }
-
   if (!ntreeTypeFind(idname)) {
     BKE_reportf(op->reports, RPT_ERROR, "Node tree type %s undefined", idname);
     return OPERATOR_CANCELLED;
   }
 
+  if (RNA_struct_property_is_set(op->ptr, "name")) {
+    RNA_string_get(op->ptr, "name", treename_buf);
+    treename = treename_buf;
+  }
+  else {
+    const bNodeTreeType *type = ntreeTypeFind(idname);
+    treename = type->ui_name;
+  }
+
   ntree = ntreeAddTree(bmain, treename, idname);
 
-  /* hook into UI */
+  /* Hook into UI. */
   UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   if (prop) {
-    /* RNA_property_pointer_set increases the user count,
-     * fixed here as the editor is the initial user.
-     */
+    /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
+     * user. */
     id_us_min(&ntree->id);
 
     RNA_id_pointer_create(&ntree->id, &idptr);

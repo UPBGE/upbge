@@ -67,7 +67,7 @@ set(SRC
   intern/anim_path.c
   intern/anim_sys.c
   intern/anim_visualization.c
-  intern/anonymous_attribute.cc
+  intern/anonymous_attribute_id.cc
   intern/appdir.c
   intern/armature.c
   intern/armature_deform.c
@@ -233,6 +233,7 @@ set(SRC
   intern/nla.c
   intern/node.cc
   intern/node_runtime.cc
+  intern/node_tree_anonymous_attributes.cc
   intern/node_tree_field_inferencing.cc
   intern/node_tree_update.cc
   intern/object.cc
@@ -322,8 +323,7 @@ set(SRC
   BKE_anim_path.h
   BKE_anim_visualization.h
   BKE_animsys.h
-  BKE_anonymous_attribute.h
-  BKE_anonymous_attribute.hh
+  BKE_anonymous_attribute_id.hh
   BKE_appdir.h
   BKE_armature.h
   BKE_armature.hh
@@ -460,6 +460,7 @@ set(SRC
   BKE_pbvh_pixels.hh
   BKE_pointcache.h
   BKE_pointcloud.h
+  BKE_pose_backup.h
   BKE_preferences.h
   BKE_property.h
   BKE_python_proxy.h

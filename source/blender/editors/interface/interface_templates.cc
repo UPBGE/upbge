@@ -3184,7 +3184,7 @@ void uiTemplatePreview(uiLayout *layout,
   if (!ui_preview) {
     ui_preview = MEM_cnew<uiPreview>(__func__);
     BLI_strncpy(ui_preview->preview_id, preview_id, sizeof(ui_preview->preview_id));
-    ui_preview->height = (short)(UI_UNIT_Y * 7.6f);
+    ui_preview->height = short(UI_UNIT_Y * 7.6f);
     BLI_addtail(&region->ui_previews, ui_preview);
   }
 
@@ -3226,7 +3226,7 @@ void uiTemplatePreview(uiLayout *layout,
                 0,
                 0,
                 UI_UNIT_X * 10,
-                (short)(UI_UNIT_Y * 0.3f),
+                short(UI_UNIT_Y * 0.3f),
                 &ui_preview->height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 50.0f,
@@ -4029,7 +4029,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
                 0,
                 0,
                 UI_UNIT_X * 10,
-                (short)(UI_UNIT_Y * 0.3f),
+                short(UI_UNIT_Y * 0.3f),
                 &hist->height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 20.0f,
@@ -4091,7 +4091,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
                 0,
                 0,
                 UI_UNIT_X * 10,
-                (short)(UI_UNIT_Y * 0.3f),
+                short(UI_UNIT_Y * 0.3f),
                 &scopes->wavefrm_height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 20.0f,
@@ -4153,7 +4153,7 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
                 0,
                 0,
                 UI_UNIT_X * 10,
-                (short)(UI_UNIT_Y * 0.3f),
+                short(UI_UNIT_Y * 0.3f),
                 &scopes->vecscope_height,
                 UI_UNIT_Y,
                 UI_UNIT_Y * 20.0f,

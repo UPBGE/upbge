@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(7)
       .description(N_("Number of subdivisions on top of the basic icosahedron"));
   b.add_output<decl::Geometry>(N_("Mesh"));
-  b.add_output<decl::Vector>(N_("UV Map")).field_source();
+  b.add_output<decl::Vector>(N_("UV Map")).field_on_all();
 }
 
 static Mesh *create_ico_sphere_mesh(const int subdivisions,
@@ -77,10 +77,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int subdivisions = std::min(params.extract_input<int>("Subdivisions"), 10);
   const float radius = params.extract_input<float>("Radius");
 
-  StrongAnonymousAttributeID uv_map_id;
-  if (params.output_is_required("UV Map")) {
-    uv_map_id = StrongAnonymousAttributeID("uv_map");
-  }
+  AutoAnonymousAttributeID uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+      "UV Map");
 
   Mesh *mesh = create_ico_sphere_mesh(subdivisions, radius, uv_map_id.get());
   params.set_output("Mesh", GeometrySet::create_with_mesh(mesh));

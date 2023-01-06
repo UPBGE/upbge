@@ -118,14 +118,18 @@ enable_testing()
 
 if(CMAKE_COMPILER_IS_GNUCC)
   if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "11.0.0")
-    message(FATAL_ERROR "The minimum supported version of GCC is 11.0.0")
+    message(FATAL_ERROR "The minimum supported version of GCC is 11.0.0, found ${CMAKE_C_COMPILER_VERSION}")
   endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   if(CMAKE_COMPILER_IS_GNUCC AND ("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "8.0"))
-    message(FATAL_ERROR "The minimum supported version of CLANG is 8.0")
+    message(FATAL_ERROR "The minimum supported version of CLANG is 8.0, found ${CMAKE_C_COMPILER_VERSION}")
   endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES MSVC)
   if(MSVC_VERSION VERSION_LESS "1928")
+    # MSVC_VERSION is an internal version number, it doesn't map to something
+    # the end user would recognize as a version. Because of this, for MSVC we do
+    # not show the found number. When using our make.bat the actual VS version
+    # will be displayed on the console before starting the build, anyway.
     message(FATAL_ERROR "The minimum supported version of MSVC is 2019 (16.9.16)")
   endif()
 endif()
@@ -518,12 +522,14 @@ endif()
 if(NOT APPLE)
   option(WITH_CYCLES_DEVICE_ONEAPI "Enable Cycles oneAPI compute support" OFF)
   option(WITH_CYCLES_ONEAPI_BINARIES "Enable Ahead-Of-Time compilation for Cycles oneAPI device" OFF)
+  option(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION "Switch target of oneAPI implementation from SYCL devices to Host Task (single thread on CPU). This option is only for debugging purposes." OFF)
 
   # https://www.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html
   # acm-g10 is the target for the first Intel Arc Alchemist GPUs.
   set(CYCLES_ONEAPI_SPIR64_GEN_DEVICES "acm-g10" CACHE STRING "oneAPI Intel GPU architectures to build binaries for")
   set(CYCLES_ONEAPI_SYCL_TARGETS spir64 spir64_gen CACHE STRING "oneAPI targets to build AOT binaries for")
 
+  mark_as_advanced(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
   mark_as_advanced(CYCLES_ONEAPI_SPIR64_GEN_DEVICES)
   mark_as_advanced(CYCLES_ONEAPI_SYCL_TARGETS)
 endif()
@@ -879,27 +885,17 @@ endif()
 # enable boost for cycles, audaspace or i18n
 # otherwise if the user disabled
 
-set_and_warn_dependency(WITH_BOOST WITH_CYCLES         OFF)
 set_and_warn_dependency(WITH_BOOST WITH_INTERNATIONAL  OFF)
 set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
-set_and_warn_dependency(WITH_BOOST WITH_OPENCOLORIO    OFF)
 set_and_warn_dependency(WITH_BOOST WITH_QUADRIFLOW     OFF)
 set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
-set_and_warn_dependency(WITH_BOOST WITH_ALEMBIC        OFF)
 if(WITH_CYCLES)
+  set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL   OFF)
   set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_OSL   OFF)
-endif()
-set_and_warn_dependency(WITH_PUGIXML WITH_OPENIMAGEIO  OFF)
-
-if(WITH_BOOST AND NOT (WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_INTERNATIONAL OR
-  WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_USD OR WITH_ALEMBIC OR WITH_GAMEENGINE))
-  message(STATUS "No dependencies need 'WITH_BOOST' forcing WITH_BOOST=OFF")
-  set(WITH_BOOST OFF)
 endif()
 
 set_and_warn_dependency(WITH_TBB WITH_CYCLES            OFF)
 set_and_warn_dependency(WITH_TBB WITH_USD               OFF)
-set_and_warn_dependency(WITH_TBB WITH_OPENIMAGEDENOISE  OFF)
 set_and_warn_dependency(WITH_TBB WITH_OPENVDB           OFF)
 set_and_warn_dependency(WITH_TBB WITH_MOD_FLUID         OFF)
 
@@ -908,13 +904,9 @@ set_and_warn_dependency(WITH_OPENVDB WITH_NANOVDB       OFF)
 
 # OpenVDB and OpenColorIO uses 'half' type from OpenEXR
 set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_OPENVDB OFF)
-set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_OPENCOLORIO  OFF)
 
 # Haru needs `TIFFFaxBlackCodes` & `TIFFFaxWhiteCodes` symbols from TIFF.
 set_and_warn_dependency(WITH_IMAGE_TIFF WITH_HARU       OFF)
-
-# USD needs OpenSubDiv, since that is used by the Cycles Hydra render delegate.
-set_and_warn_dependency(WITH_OPENSUBDIV WITH_USD        OFF)
 
 # auto enable openimageio for cycles
 if(WITH_CYCLES)
@@ -927,17 +919,6 @@ if(WITH_CYCLES)
   endif()
 else()
   set(WITH_CYCLES_OSL OFF)
-endif()
-
-# auto enable openimageio linking dependencies
-if(WITH_OPENIMAGEIO)
-  set(WITH_IMAGE_OPENEXR ON)
-  set(WITH_IMAGE_TIFF ON)
-endif()
-
-# auto enable alembic linking dependencies
-if(WITH_ALEMBIC)
-  set(WITH_IMAGE_OPENEXR ON)
 endif()
 
 # don't store paths to libs for portable distribution
@@ -1143,14 +1124,6 @@ if(WITH_CYCLES)
       "Configure OIIO or disable WITH_CYCLES"
     )
   endif()
-  if(NOT WITH_BOOST)
-    message(
-      FATAL_ERROR
-      "Cycles requires WITH_BOOST, the library may not have been found. "
-      "Configure BOOST or disable WITH_CYCLES"
-    )
-  endif()
-
   if(WITH_CYCLES_OSL)
     if(NOT WITH_LLVM)
       message(
@@ -2069,24 +2042,6 @@ endif()
 if(0)
   print_all_vars()
 endif()
-
-set(LIBDIR_STALE)
-
-if(UNIX AND NOT APPLE)
-  # Only search for the path if it's found on the system.
-  if(EXISTS "../lib/linux_centos7_x86_64")
-    set(LIBDIR_STALE "/lib/linux_centos7_x86_64/")
-  endif()
-endif()
-
-if(LIBDIR_STALE)
-  print_cached_vars_containing_value(
-    "${LIBDIR_STALE}"
-    "\nWARNING: found cached references to old library paths!\n"
-    "\nIt is *strongly* recommended to reference updated library paths!\n"
-  )
-endif()
-unset(LIBDIR_STALE)
 
 # Should be the last step of configuration.
 if(POSTCONFIGURE_SCRIPT)

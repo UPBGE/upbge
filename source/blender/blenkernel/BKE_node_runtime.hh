@@ -7,6 +7,7 @@
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_multi_value_map.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -24,6 +25,10 @@ namespace blender::nodes {
 struct FieldInferencingInterface;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
+namespace anonymous_attribute_lifetime {
+struct RelationsInNode;
+}
+namespace aal = anonymous_attribute_lifetime;
 }  // namespace blender::nodes
 
 namespace blender {
@@ -106,6 +111,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
+  /** Information about usage of anonymous attributes within the group. */
+  std::unique_ptr<nodes::aal::RelationsInNode> anonymous_attribute_relations;
 
   /**
    * For geometry nodes, a lazy function graph with some additional info is cached. This is used to
@@ -169,7 +176,10 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
   float locx = 0;
   float locy = 0;
 
-  /* Runtime-only cache of the number of input links, for multi-input sockets. */
+  /**
+   * Runtime-only cache of the number of input links, for multi-input sockets,
+   * including dragged node links that aren't actually in the tree.
+   */
   short total_inputs = 0;
 
   /** Only valid when #topology_cache_is_dirty is false. */
@@ -327,7 +337,11 @@ inline bool topology_cache_is_available(const bNodeSocket &socket)
 namespace node_field_inferencing {
 bool update_field_inferencing(const bNodeTree &tree);
 }
-
+namespace anonymous_attribute_inferencing {
+Array<const nodes::aal::RelationsInNode *> get_relations_by_node(const bNodeTree &tree,
+                                                                 ResourceScope &scope);
+bool update_anonymous_attribute_relations(bNodeTree &tree);
+}  // namespace anonymous_attribute_inferencing
 }  // namespace blender::bke
 
 /* -------------------------------------------------------------------- */
@@ -652,6 +666,11 @@ inline bool bNodeLink::is_available() const
   return this->fromsock->is_available() && this->tosock->is_available();
 }
 
+inline bool bNodeLink::is_used() const
+{
+  return !this->is_muted() && this->is_available();
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -668,6 +687,20 @@ inline int bNodeSocket::index_in_tree() const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->index_in_all_sockets;
+}
+
+inline int bNodeSocket::index_in_all_inputs() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  BLI_assert(this->is_input());
+  return this->runtime->index_in_inout_sockets;
+}
+
+inline int bNodeSocket::index_in_all_outputs() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  BLI_assert(this->is_output());
+  return this->runtime->index_in_inout_sockets;
 }
 
 inline bool bNodeSocket::is_hidden() const

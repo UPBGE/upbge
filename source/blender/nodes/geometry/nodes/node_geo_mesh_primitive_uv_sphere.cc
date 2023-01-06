@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_DISTANCE)
       .description(N_("Distance from the generated points to the origin"));
   b.add_output<decl::Geometry>(N_("Mesh"));
-  b.add_output<decl::Vector>(N_("UV Map")).field_source();
+  b.add_output<decl::Vector>(N_("UV Map")).field_on_all();
 }
 
 static int sphere_vert_total(const int segments, const int rings)
@@ -362,10 +362,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const float radius = params.extract_input<float>("Radius");
 
-  StrongAnonymousAttributeID uv_map_id;
-  if (params.output_is_required("UV Map")) {
-    uv_map_id = StrongAnonymousAttributeID("uv_map");
-  }
+  AutoAnonymousAttributeID uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+      "UV Map");
 
   Mesh *mesh = create_uv_sphere_mesh(radius, segments_num, rings_num, uv_map_id.get());
   params.set_output("Mesh", GeometrySet::create_with_mesh(mesh));

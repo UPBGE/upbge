@@ -997,9 +997,11 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
 
   void set_all(Span<float> src) override
   {
-    for (const int64_t index : src.index_range()) {
-      this->set(index, src[index]);
-    }
+    threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
+      for (const int64_t i : range) {
+        this->set(i, src[i]);
+      }
+    });
   }
 
   void materialize(IndexMask mask, MutableSpan<float> r_span) const override
@@ -1007,14 +1009,16 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
     if (dverts_ == nullptr) {
       return r_span.fill_indices(mask, 0.0f);
     }
-    for (const int64_t index : mask) {
-      if (const MDeformWeight *weight = this->find_weight_at_index(index)) {
-        r_span[index] = weight->weight;
+    threading::parallel_for(mask.index_range(), 4096, [&](const IndexRange range) {
+      for (const int64_t i : mask.slice(range)) {
+        if (const MDeformWeight *weight = this->find_weight_at_index(i)) {
+          r_span[i] = weight->weight;
+        }
+        else {
+          r_span[i] = 0.0f;
+        }
       }
-      else {
-        r_span[index] = 0.0f;
-      }
-    }
+    });
   }
 
   void materialize_to_uninitialized(IndexMask mask, MutableSpan<float> r_span) const override
@@ -1051,7 +1055,7 @@ class VertexGroupsAttributeProvider final : public DynamicAttributesProvider {
   GAttributeReader try_get_for_read(const void *owner,
                                     const AttributeIDRef &attribute_id) const final
   {
-    if (!attribute_id.is_named()) {
+    if (attribute_id.is_anonymous()) {
       return {};
     }
     const Mesh *mesh = static_cast<const Mesh *>(owner);
@@ -1075,7 +1079,7 @@ class VertexGroupsAttributeProvider final : public DynamicAttributesProvider {
 
   GAttributeWriter try_get_for_write(void *owner, const AttributeIDRef &attribute_id) const final
   {
-    if (!attribute_id.is_named()) {
+    if (attribute_id.is_anonymous()) {
       return {};
     }
     Mesh *mesh = static_cast<Mesh *>(owner);
@@ -1096,7 +1100,7 @@ class VertexGroupsAttributeProvider final : public DynamicAttributesProvider {
 
   bool try_delete(void *owner, const AttributeIDRef &attribute_id) const final
   {
-    if (!attribute_id.is_named()) {
+    if (attribute_id.is_anonymous()) {
       return false;
     }
     Mesh *mesh = static_cast<Mesh *>(owner);
@@ -1117,15 +1121,18 @@ class VertexGroupsAttributeProvider final : public DynamicAttributesProvider {
       return true;
     }
 
-    for (MDeformVert &dvert : mesh->deform_verts_for_write()) {
-      MDeformWeight *weight = BKE_defvert_find_index(&dvert, index);
-      BKE_defvert_remove_group(&dvert, weight);
-      for (MDeformWeight &weight : MutableSpan(dvert.dw, dvert.totweight)) {
-        if (weight.def_nr > index) {
-          weight.def_nr--;
+    MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
+    threading::parallel_for(dverts.index_range(), 1024, [&](IndexRange range) {
+      for (MDeformVert &dvert : dverts.slice(range)) {
+        MDeformWeight *weight = BKE_defvert_find_index(&dvert, index);
+        BKE_defvert_remove_group(&dvert, weight);
+        for (MDeformWeight &weight : MutableSpan(dvert.dw, dvert.totweight)) {
+          if (weight.def_nr > index) {
+            weight.def_nr--;
+          }
         }
       }
-    }
+    });
     return true;
   }
 

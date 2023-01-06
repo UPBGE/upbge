@@ -24,16 +24,16 @@ NODE_STORAGE_FUNCS(NodeGeometryExtrudeMesh)
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type(GEO_COMPONENT_TYPE_MESH);
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).supports_field().hide_value();
+  b.add_input<decl::Bool>(N_("Selection")).default_value(true).field_on_all().hide_value();
   b.add_input<decl::Vector>(N_("Offset"))
       .subtype(PROP_TRANSLATION)
-      .implicit_field(implicit_field_inputs::normal)
+      .implicit_field_on_all(implicit_field_inputs::normal)
       .hide_value();
-  b.add_input<decl::Float>(N_("Offset Scale")).default_value(1.0f).supports_field();
+  b.add_input<decl::Float>(N_("Offset Scale")).default_value(1.0f).field_on_all();
   b.add_input<decl::Bool>(N_("Individual")).default_value(true);
-  b.add_output<decl::Geometry>("Mesh");
-  b.add_output<decl::Bool>(N_("Top")).field_source();
-  b.add_output<decl::Bool>(N_("Side")).field_source();
+  b.add_output<decl::Geometry>("Mesh").propagate_all();
+  b.add_output<decl::Bool>(N_("Top")).field_on_all();
+  b.add_output<decl::Bool>(N_("Side")).field_on_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -61,8 +61,8 @@ static void node_update(bNodeTree *ntree, bNode *node)
 }
 
 struct AttributeOutputs {
-  StrongAnonymousAttributeID top_id;
-  StrongAnonymousAttributeID side_id;
+  AutoAnonymousAttributeID top_id;
+  AutoAnonymousAttributeID side_id;
 };
 
 static void save_selection_as_attribute(Mesh &mesh,
@@ -1334,12 +1334,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float3> final_offset{std::move(multiply_op)};
 
   AttributeOutputs attribute_outputs;
-  if (params.output_is_required("Top")) {
-    attribute_outputs.top_id = StrongAnonymousAttributeID("Top");
-  }
-  if (params.output_is_required("Side")) {
-    attribute_outputs.side_id = StrongAnonymousAttributeID("Side");
-  }
+  attribute_outputs.top_id = params.get_output_anonymous_attribute_id_if_needed("Top");
+  attribute_outputs.side_id = params.get_output_anonymous_attribute_id_if_needed("Side");
 
   const bool extrude_individual = mode == GEO_NODE_EXTRUDE_MESH_FACES &&
                                   params.extract_input<bool>("Individual");
