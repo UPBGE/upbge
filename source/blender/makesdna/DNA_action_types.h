@@ -501,7 +501,6 @@ typedef struct bPose {
 
   /** Settings for visualization of bone animation. */
   bAnimVizSettings avs;
-  int was_recalc, _pad1[3]; /* UPBGE tmp */
 } bPose;
 
 /* Pose->flag */

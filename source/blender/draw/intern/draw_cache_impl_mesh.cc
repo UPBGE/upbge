@@ -1358,13 +1358,11 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
   /* UPBGE */
   bool vbo_static = true;
   if (BKE_modifiers_is_deformed_by_armature(ob)) {
-    Object *armature = ob->parent;
-    if (armature) {
-      if (armature->pose) {
-        if (armature->pose->was_recalc == 1) {
-          //printf("pose recalc \n");
+    Object *arm_ob = ob->parent;
+    if (arm_ob) {
+      if (arm_ob->pose) {
+        if (arm_ob->is_playing_action == 1) {
           vbo_static = false;
-          armature->pose->was_recalc = 0;
         }
       }
     }

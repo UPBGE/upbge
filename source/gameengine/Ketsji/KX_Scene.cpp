@@ -2409,6 +2409,10 @@ void KX_Scene::UpdateAnimations(double curtime)
       gameobj->UpdateActionManager(curtime, true);
     }
   }
+  for (KX_GameObject *gameobj : m_animatedlist) {
+    gameobj->SuspendActionVboPipeline();
+  }
+
 
   // BLI_task_pool_work_and_wait(m_animationPool);
 }

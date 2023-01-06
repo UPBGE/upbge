@@ -109,6 +109,8 @@ class BL_ActionManager {
    */
   bool IsActionDone(short layer);
 
+  void SuspendActionVboPipeline();
+
   void Suspend();
   void Resume();
   bool IsSuspended() const;

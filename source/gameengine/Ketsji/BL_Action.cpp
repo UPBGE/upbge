@@ -422,6 +422,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
       scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
     }
 
+    ob->is_playing_action = 1;
+
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
     if (m_layer_weight >= 0)
