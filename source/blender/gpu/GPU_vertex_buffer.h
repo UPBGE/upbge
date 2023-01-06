@@ -26,14 +26,6 @@ typedef enum {
 
 ENUM_OPERATORS(GPUVertBufStatus, GPU_VERTBUF_DATA_UPLOADED)
 
-typedef enum {
-  /** Initial state. */
-  GPU_VERTBUF_DATA_STREAMED_NONE = 0,
-  GPU_VERTBUF_DATA_STREAMED = (1 << 0),
-} GPUVertBufStreamStatus;
-
-ENUM_OPERATORS(GPUVertBufStreamStatus, GPU_VERTBUF_DATA_STREAMED)
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -176,7 +168,6 @@ const GPUVertFormat *GPU_vertbuf_get_format(const GPUVertBuf *verts);
 uint GPU_vertbuf_get_vertex_alloc(const GPUVertBuf *verts);
 uint GPU_vertbuf_get_vertex_len(const GPUVertBuf *verts);
 GPUVertBufStatus GPU_vertbuf_get_status(const GPUVertBuf *verts);
-GPUVertBufStreamStatus GPU_vertbuf_get_stream_status(GPUVertBuf *verts);
 void GPU_vertbuf_reset_stream_status(GPUVertBuf *verts);
 void GPU_vertbuf_tag_dirty(GPUVertBuf *verts);
 

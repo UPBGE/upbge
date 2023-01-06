@@ -1354,6 +1354,17 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
   if (scene) {
     ts = scene->toolsettings;
   }
+
+  if (BKE_modifiers_is_deformed_by_armature(ob)) {
+    Object *armature = ob->parent;
+    if (armature) {
+      if (armature->pose) {
+        if (armature->pose->flag & POSE_RECALC) {
+          printf("pose recalc \n");
+        }
+      }
+    }
+  }
   MeshBatchCache *cache = mesh_batch_cache_get(me);
   bool cd_uv_update = false;
 

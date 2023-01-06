@@ -138,7 +138,6 @@ void GLVertBuf::bind()
     }
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
-    stream_flag |= GPU_VERTBUF_DATA_STREAMED;
   }
 }
 

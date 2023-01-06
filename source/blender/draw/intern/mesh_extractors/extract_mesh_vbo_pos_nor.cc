@@ -41,11 +41,11 @@ static void extract_pos_nor_init(const MeshRenderData *mr,
     GPU_vertformat_alias_add(&format, "vnor");
   }
 
-  if ((GPU_vertbuf_get_stream_status(vbo) & GPU_VERTBUF_DATA_STREAMED) == 0) {
-    GPU_vertbuf_init_with_format(vbo, &format);
+  if (mr->loop_len + mr->loop_loose_len > 1024) {
+    GPU_vertbuf_init_with_format_ex(vbo, &format, GPU_USAGE_STREAM);
   }
   else {
-    GPU_vertbuf_init_with_format_ex(vbo, &format, GPU_USAGE_STREAM);
+    GPU_vertbuf_init_with_format(vbo, &format);
   }
 
   GPU_vertbuf_data_alloc(vbo, mr->loop_len + mr->loop_loose_len);
