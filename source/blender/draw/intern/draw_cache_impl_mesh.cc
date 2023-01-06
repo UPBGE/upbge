@@ -1359,7 +1359,7 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
     Object *armature = ob->parent;
     if (armature) {
       if (armature->pose) {
-        if (armature->pose->flag & POSE_RECALC) {
+        if (armature->pose->was_recalc == 1) {
           printf("pose recalc \n");
         }
       }

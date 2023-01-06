@@ -821,6 +821,8 @@ void BKE_pose_eval_init(struct Depsgraph *depsgraph, Scene *UNUSED(scene), Objec
   /* world_to_object is needed for solvers. */
   invert_m4_m4(object->world_to_object, object->object_to_world);
 
+  pose->was_recalc = 1;
+
   /* clear flags */
   for (bPoseChannel *pchan = pose->chanbase.first; pchan != NULL; pchan = pchan->next) {
     pchan->flag &= ~(POSE_DONE | POSE_CHAIN | POSE_IKTREE | POSE_IKSPLINE);
