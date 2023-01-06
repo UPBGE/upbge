@@ -108,8 +108,9 @@ class BL_ActionManager {
    * Check if an action has finished playing
    */
   bool IsActionDone(short layer);
+  bool IsActionPlaying(float curtime, short layer);
 
-  void SuspendActionVboPipeline();
+  void SuspendActionVboPipeline(float curtime);
 
   void Suspend();
   void Resume();

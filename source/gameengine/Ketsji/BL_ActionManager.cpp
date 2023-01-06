@@ -29,6 +29,7 @@
 #include "BL_Action.h"
 #include "KX_GameObject.h"
 
+#include "BKE_modifier.h"
 #include "DNA_object_types.h"
 #include "DNA_ID.h"
 
@@ -155,6 +156,13 @@ bool BL_ActionManager::IsActionDone(short layer)
   return action ? action->IsDone() : true;
 }
 
+bool BL_ActionManager::IsActionPlaying(float curtime, short layer)
+{
+  BL_Action *action = GetAction(layer);
+
+  return action ? action->IsPlaying(curtime) : false;
+}
+
 void BL_ActionManager::Suspend()
 {
   m_suspended = true;
@@ -177,16 +185,15 @@ void BL_ActionManager::Update(float curtime, bool applyToObject)
   }
 }
 
-void BL_ActionManager::SuspendActionVboPipeline()
+void BL_ActionManager::SuspendActionVboPipeline(float curtime)
 {
   for (const auto &pair : m_layers) {
-    if (IsActionDone(pair.first)) {
+    if (!IsActionPlaying(curtime, pair.first)) {
       Object *ob = m_obj->GetBlenderObject();
       if (ob && ob->type == OB_ARMATURE && ob->is_playing_action) {
         ob->is_playing_action = 0; // will restore static vbo at next extract mesh for arm child
         /* Tag the depsgraph when armature action finished to play to restore a GL_STATIC_DRAW vbo for arm child */
         m_obj->GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
-
         // Something doesn't work properly still
       }
     }

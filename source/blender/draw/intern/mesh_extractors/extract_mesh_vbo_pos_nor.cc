@@ -181,12 +181,11 @@ static void extract_pos_nor_iter_lvert_mesh(const MeshRenderData *mr,
 
 static void extract_pos_nor_finish(const MeshRenderData * /*mr*/,
                                    MeshBatchCache * /*cache*/,
-                                   void * buf,
+                                   void * /*buf*/,
                                    void *_data)
 {
   MeshExtract_PosNor_Data *data = static_cast<MeshExtract_PosNor_Data *>(_data);
   MEM_freeN(data->normals);
-  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
 }
 
 static GPUVertFormat *get_normals_format()

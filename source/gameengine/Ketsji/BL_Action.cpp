@@ -344,6 +344,11 @@ static bool ActionMatchesName(bAction *action, char *name, eActionType type)
   return false;
 }
 
+bool BL_Action::IsPlaying(float curtime)
+{
+  return !(((m_done || m_prevUpdate == curtime) && m_appliedToObject));
+}
+
 void BL_Action::Update(float curtime, bool applyToObject)
 {
   /* Don't bother if we're done with the animation and if the animation was already applied to the

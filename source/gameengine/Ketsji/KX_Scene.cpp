@@ -2410,7 +2410,7 @@ void KX_Scene::UpdateAnimations(double curtime)
     }
   }
   for (KX_GameObject *gameobj : m_animatedlist) {
-    gameobj->SuspendActionVboPipeline();
+    gameobj->SuspendActionVboPipeline(curtime);
   }
 
 

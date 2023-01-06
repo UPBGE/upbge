@@ -883,9 +883,9 @@ bool KX_GameObject::IsActionsSuspended()
   return GetActionManager()->IsSuspended();
 }
 
-void KX_GameObject::SuspendActionVboPipeline()
+void KX_GameObject::SuspendActionVboPipeline(float curtime)
 {
-  GetActionManager()->SuspendActionVboPipeline();
+  GetActionManager()->SuspendActionVboPipeline(curtime);
 }
 
 void KX_GameObject::UpdateActionManager(float curtime, bool applyToObject)

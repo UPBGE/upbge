@@ -103,6 +103,9 @@ class BL_Action {
    * Whether or not the action is still playing
    */
   bool IsDone();
+
+  bool IsPlaying(float curtime);
+
   /**
    * Update the action's frame, etc.
    * \param curtime The current time used to compute the action's' frame.
