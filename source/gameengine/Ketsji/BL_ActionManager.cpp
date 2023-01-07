@@ -29,8 +29,6 @@
 #include "BL_Action.h"
 #include "KX_GameObject.h"
 
-#include "BKE_modifier.h"
-#include "DNA_object_types.h"
 #include "DNA_ID.h"
 
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))

@@ -168,7 +168,6 @@ const GPUVertFormat *GPU_vertbuf_get_format(const GPUVertBuf *verts);
 uint GPU_vertbuf_get_vertex_alloc(const GPUVertBuf *verts);
 uint GPU_vertbuf_get_vertex_len(const GPUVertBuf *verts);
 GPUVertBufStatus GPU_vertbuf_get_status(const GPUVertBuf *verts);
-void GPU_vertbuf_reset_stream_status(GPUVertBuf *verts);
 void GPU_vertbuf_tag_dirty(GPUVertBuf *verts);
 
 /**

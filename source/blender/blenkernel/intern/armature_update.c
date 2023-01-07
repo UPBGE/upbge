@@ -950,7 +950,6 @@ void BKE_pose_bone_done(struct Depsgraph *depsgraph, struct Object *object, int 
       mat4_to_dquat(&pchan->runtime.deform_dual_quat, pchan->bone->arm_mat, pchan->chan_mat);
     }
   }
-
   pose_channel_flush_to_orig_if_needed(depsgraph, object, pchan);
   if (DEG_is_active(depsgraph)) {
     bPoseChannel *pchan_orig = pchan->orig_pchan;

@@ -61,7 +61,7 @@ void GLVertBuf::duplicate_data(VertBuf *dst_)
 
     glGenBuffers(1, &dst->vbo_id_);
     glBindBuffer(GL_COPY_WRITE_BUFFER, dst->vbo_id_);
-    glBufferData(GL_COPY_WRITE_BUFFER, dst->vbo_size_, nullptr, to_gl(src->usage_));
+    glBufferData(GL_COPY_WRITE_BUFFER, dst->vbo_size_, nullptr, to_gl(dst->usage_));
 
     glBindBuffer(GL_COPY_READ_BUFFER, src->vbo_id_);
 
@@ -181,8 +181,7 @@ bool GLVertBuf::is_active() const
 
 void GLVertBuf::update_sub(uint start, uint len, const void *data)
 {
-  //glBufferSubData(GL_ARRAY_BUFFER, start, len, data);
-  updateVertexBufferObject(vbo_id_, (void *)data, len, start);
+  glBufferSubData(GL_ARRAY_BUFFER, start, len, data);
 }
 
 }  // namespace blender::gpu
