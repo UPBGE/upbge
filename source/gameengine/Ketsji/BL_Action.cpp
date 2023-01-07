@@ -344,9 +344,13 @@ static bool ActionMatchesName(bAction *action, char *name, eActionType type)
   return false;
 }
 
-bool BL_Action::IsPlaying(float curtime)
+void BL_Action::TagPlayingArmature()
 {
-  return !(((m_done || m_prevUpdate == curtime) && m_appliedToObject));
+  bool armature_playing = m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE &&
+                          m_appliedToObject;
+  if (armature_playing) {
+    m_obj->GetBlenderObject()->is_playing_action = 1;
+  }
 }
 
 void BL_Action::Update(float curtime, bool applyToObject)
@@ -426,8 +430,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
     else {
       scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
     }
-
-    ob->is_playing_action = 1;
 
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 

@@ -104,7 +104,7 @@ class BL_Action {
    */
   bool IsDone();
 
-  bool IsPlaying(float curtime);
+  void TagPlayingArmature();
 
   /**
    * Update the action's frame, etc.

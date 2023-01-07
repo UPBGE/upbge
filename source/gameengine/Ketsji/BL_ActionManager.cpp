@@ -156,13 +156,6 @@ bool BL_ActionManager::IsActionDone(short layer)
   return action ? action->IsDone() : true;
 }
 
-bool BL_ActionManager::IsActionPlaying(float curtime, short layer)
-{
-  BL_Action *action = GetAction(layer);
-
-  return action ? action->IsPlaying(curtime) : false;
-}
-
 void BL_ActionManager::Suspend()
 {
   m_suspended = true;
@@ -185,17 +178,18 @@ void BL_ActionManager::Update(float curtime, bool applyToObject)
   }
 }
 
-void BL_ActionManager::SuspendActionVboPipeline(float curtime)
+void BL_ActionManager::UpdateArmatureActionVboPipeline()
 {
   for (const auto &pair : m_layers) {
-    if (!IsActionPlaying(curtime, pair.first)) {
-      Object *ob = m_obj->GetBlenderObject();
-      if (ob && ob->type == OB_ARMATURE && ob->is_playing_action) {
-        ob->is_playing_action = 0; // will restore static vbo at next extract mesh for arm child
-        /* Tag the depsgraph when armature action finished to play to restore a GL_STATIC_DRAW vbo for arm child */
-        m_obj->GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
-        // Something doesn't work properly still
-      }
+    pair.second->TagPlayingArmature();
+  }
+
+  if (m_layers.size() == 0) { // to check because should be per action
+    Object *ob = m_obj->GetBlenderObject();
+    if (ob && ob->type == OB_ARMATURE && ob->is_playing_action == 1) {
+      ob->is_playing_action = 0; // will restore static vbo at next extract mesh for arm child
+      /* Tag the depsgraph when armature action finished to play to restore a GL_STATIC_DRAW vbo for arm child */
+      m_obj->GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
     }
   }
 }
