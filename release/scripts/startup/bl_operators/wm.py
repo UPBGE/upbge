@@ -2557,7 +2557,7 @@ class WM_OT_batch_rename(Operator):
             ('COLLECTION', "Collections", ""),
             ('MATERIAL', "Materials", ""),
             None,
-            # Enum identifiers are compared with 'object.type'.
+            # Enum identifiers are compared with `object.type`.
             # Follow order in "Add" menu.
             ('MESH', "Meshes", ""),
             ('CURVE', "Curves", ""),
