@@ -82,14 +82,8 @@ void GLVertBuf::upload_data()
 
 static void updateVertexBufferObject(GLuint vboid, void *data, int byteSize, int shift)
 {
-  // locking VBO
-  //glBindBuffer(GL_ARRAY_BUFFER, vboid);
-
   // getting VBO's address
-  //glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-
-  GLbitfield flag = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_FLUSH_EXPLICIT_BIT;
-  void *vbo = glMapBufferRange(GL_ARRAY_BUFFER, shift, byteSize, flag);
+  void *vbo = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 
   if (!vbo) {
     //std::cout << "Error: cannot get VBO" << std::endl;
@@ -98,18 +92,11 @@ static void updateVertexBufferObject(GLuint vboid, void *data, int byteSize, int
     return;
   }
 
-  //GLbitfield flag = GL_MAP_WRITE_BIT;
-  //glBufferStorage(GL_ARRAY_BUFFER, byteSize, data, flag);
-
   // updating data
   memcpy((char *)vbo + shift, data, byteSize);
 
-  glFlushMappedBufferRange(GL_ARRAY_BUFFER, 0, 0);
   glUnmapBuffer(GL_ARRAY_BUFFER);
   vbo = 0;
-
-  // unlocking VBO
-  //glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void GLVertBuf::bind()
