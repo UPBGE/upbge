@@ -1947,7 +1947,9 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
    * based on the mode the correct one will be updated. Other option is to look into using
    * drw_batch_cache_generate_requested_delayed. */
   //BLI_task_graph_work_and_wait(task_graph);
-  GPU_finish();
+  //GPU_finish();
+  /* Removed sync here and used drw_batch_cache_generate_requested_delayed in DRW_render_object_iter
+   * which seems to prevent vertex paint bug (youle) UPBGE */
 
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);
