@@ -2124,7 +2124,7 @@ void DRW_render_object_iter(
       }
       callback(vedata, ob, engine, depsgraph);
       if (!DST.dupli_source) {
-        drw_batch_cache_generate_requested_delayed(ob); /* UPBGE: See draw_cache_impl_mesh bottom */
+        drw_batch_cache_generate_requested(ob);
       }
     }
   }
