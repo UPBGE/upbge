@@ -43,6 +43,7 @@
 
 #include "PHY_IMotionState.h"
 #include "PHY_ICharacter.h"
+#include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "KX_Mesh.h"
@@ -2107,6 +2108,25 @@ PHY_CollisionTestResult CcdPhysicsEnvironment::CheckCollision(PHY_IPhysicsContro
 	btBroadphaseProxy *proxy0 = col0->getBroadphaseHandle();
 	btBroadphaseProxy *proxy1 = col1->getBroadphaseHandle();
 
+	bool sensor0_added = false;
+	if (!proxy0) {
+		KX_ClientObjectInfo *info = (KX_ClientObjectInfo *)ctrl0->GetNewClientInfo();
+		if (info->isSensor()) {
+			AddSensor(ctrl0);
+			proxy0 = col0->getBroadphaseHandle();
+			sensor0_added = true;
+		}
+	}
+	bool sensor1_added = false;
+	if (!proxy1) {
+		KX_ClientObjectInfo *info = (KX_ClientObjectInfo *)ctrl1->GetNewClientInfo();
+		if (info->isSensor()) {
+			AddSensor(ctrl1);
+			proxy1 = col1->getBroadphaseHandle();
+			sensor1_added = true;
+		}
+	}
+
 	btBroadphasePair *pair = m_dynamicsWorld->getPairCache()->findPair(proxy0, proxy1);
 
 	if (!pair) {
@@ -2124,6 +2144,12 @@ PHY_CollisionTestResult CcdPhysicsEnvironment::CheckCollision(PHY_IPhysicsContro
 		result.collData = new CcdCollData(manifold);
 	}
 
+	if (sensor0_added) {
+		RemoveSensor(ctrl0);
+	}
+	if (sensor1_added) {
+		RemoveSensor(ctrl1);
+	}
 	return result;
 }
 
