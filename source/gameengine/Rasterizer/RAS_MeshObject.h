@@ -49,7 +49,6 @@
 class RAS_Polygon;
 class RAS_IVertex;
 struct Mesh;
-struct MLoopUV;
 struct MLoopCol;
 struct Object;
 
