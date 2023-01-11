@@ -64,7 +64,7 @@ class RAS_MeshObject {
    * attribute's names in shader and names of the mesh layers here.
    */
   struct Layer {
-    MLoopUV *uv;
+    const float (*luvs)[2];
     MLoopCol *color;
     /// The index of the color or uv layer in the vertices.
     unsigned short index;

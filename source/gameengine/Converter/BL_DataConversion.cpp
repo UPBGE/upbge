@@ -269,9 +269,9 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
 
       rgba[index] = con.val;
     }
-    else if (layer.uv) {
-      const MLoopUV &uv = layer.uv[loop];
-      uvs[index].setValue(uv.uv);
+    else if (layer.luvs) {
+      const float *uv = &layer.luvs[loop][0];
+      uvs[index].setValue(uv);
     }
   }
 
@@ -374,8 +374,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   BKE_mesh_tessface_ensure(final_me);
 
-  const MVert *mverts = final_me->verts().data();
-  const int totverts = final_me->verts().size();
+  const float(*positions)[3] = BKE_mesh_vert_positions(final_me);
+  const int totverts = final_me->totvert;
 
   const MFace *mfaces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
   const MPoly *mpolys = final_me->polys().data();
@@ -399,8 +399,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   // Extract UV loops.
   for (unsigned short i = 0; i < uvLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&final_me->ldata, CD_MLOOPUV, i);
-    MLoopUV *uv = (MLoopUV *)CustomData_get_layer_n(&final_me->ldata, CD_MLOOPUV, i);
+    const std::string name = CustomData_get_layer_name(&final_me->ldata, CD_PROP_FLOAT2, i);
+    const float(*uv)[2] = (const float(*)[2])CustomData_get_layer_n(&final_me->ldata, CD_PROP_FLOAT2, i);
     layersInfo.layers.push_back({uv, nullptr, i, name});
   }
   // Extract color loops.
@@ -424,13 +424,13 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
     const float split_angle = final_me->smoothresh;
-    short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata,
-                                                              CD_CUSTOMLOOPNORMAL);
+    const bool *sharp_edges = (const bool *)(CustomData_get_layer_named(&final_me->edata, CD_PROP_BOOL, "sharp_edge"));
+    short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata, CD_CUSTOMLOOPNORMAL);
 
     v_normals = (float(*)[3])BKE_mesh_vertex_normals_ensure(final_me);
     p_normals = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
 
-    BKE_mesh_normals_loop_split(mverts,
+    BKE_mesh_normals_loop_split(positions,
                                 v_normals,
                                 final_me->totvert,
                                 medges,
@@ -443,6 +443,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                 final_me->totpoly,
                                 use_split_nors,
                                 split_angle,
+                                sharp_edges,
                                 nullptr,
                                 nullptr,
                                 clnor_data);
@@ -453,7 +454,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
       short tangent_mask = 0;
       BKE_mesh_calc_loop_tangent_ex(
-          mverts,
+          positions,
           mpolys,
           uint(final_me->totpoly),
           mloops,
@@ -550,9 +551,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
       const MLoop &mloop = mloops[j];
       const unsigned int vertid = mloop.v;
-      const MVert &mvert = mverts[vertid];
+      const float *vp = &positions[vertid][0];
 
-      const MT_Vector3 pt(mvert.co);
+      const MT_Vector3 pt(vp);
       const MT_Vector3 no(do_loop_nors ? loop_nor_dst[j] : loop_normals[j]);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];

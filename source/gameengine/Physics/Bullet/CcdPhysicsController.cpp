@@ -860,7 +860,7 @@ void CcdPhysicsController::UpdateSoftBody()
           index_mp_to_orig = nullptr;
         }
 
-        MVert *mverts = me->verts_for_write().data();
+        float(*positions)[3] = BKE_mesh_vert_positions_for_write(me);
         MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
         int numpolys = me->totface;
 
@@ -875,9 +875,9 @@ void CcdPhysicsController::UpdateSoftBody()
 
           // only add polygons that have the collisionflag set
           if (poly) {
-            MVert *v1 = &mverts[mf->v1];
-            MVert *v2 = &mverts[mf->v2];
-            MVert *v3 = &mverts[mf->v3];
+            float *v1 = &positions[mf->v1][0];
+            float *v2 = &positions[mf->v2][0];
+            float *v3 = &positions[mf->v3][0];
 
             int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
             int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
@@ -888,18 +888,18 @@ void CcdPhysicsController::UpdateSoftBody()
             MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
 
             // Do we need object_to_world? maybe
-            copy_v3_v3(v1->co, p1.getValue());
-            copy_v3_v3(v2->co, p2.getValue());
-            copy_v3_v3(v3->co, p3.getValue());
+            copy_v3_v3(v1, p1.getValue());
+            copy_v3_v3(v2, p2.getValue());
+            copy_v3_v3(v3, p3.getValue());
 
             if (mf->v4) {
-              MVert *v4 = &mverts[mf->v4];
+              float *v4 = &positions[mf->v4][0];
 
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
               MT_Vector3 p4 = ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com);
 
-              copy_v3_v3(v4->co, p4.getValue());
+              copy_v3_v3(v4, p4.getValue());
 
             }
           }
@@ -2041,7 +2041,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   /* No need to call again ensure_tessface as it was called in BL_DataConversion */
 
-  const MVert *mvert = me->verts().data();
+  const float(*positions)[3] = BKE_mesh_vert_positions(me);
   MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
   numpolys = me->totpoly;
   numverts = me->totvert;
@@ -2109,28 +2109,28 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
       // only add polygons that have the collisionflag set
       if (poly->IsCollider()) {
         if (vert_tag_array[mf->v1]) {
-          const float *vtx = mvert[mf->v1].co;
+          const float *vtx = &positions[mf->v1][0];
           vert_tag_array[mf->v1] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
         }
         if (vert_tag_array[mf->v2]) {
-          const float *vtx = mvert[mf->v2].co;
+          const float *vtx = &positions[mf->v2][0];
           vert_tag_array[mf->v2] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
         }
         if (vert_tag_array[mf->v3]) {
-          const float *vtx = mvert[mf->v3].co;
+          const float *vtx = &positions[mf->v3][0];
           vert_tag_array[mf->v3] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
         }
         if (mf->v4 && vert_tag_array[mf->v4]) {
-          const float *vtx = mvert[mf->v4].co;
+          const float *vtx = &positions[mf->v4][0];
           vert_tag_array[mf->v4] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
@@ -2207,9 +2207,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
       // only add polygons that have the collisionflag set
       if (poly && poly->IsCollider()) {
-        MVert *v1 = (MVert *)&mvert[mf->v1];
-        MVert *v2 = (MVert *)&mvert[mf->v2];
-        MVert *v3 = (MVert *)&mvert[mf->v3];
+        const float *v1 = &positions[mf->v1][0];
+        const float *v2 = &positions[mf->v2][0];
+        const float *v3 = &positions[mf->v3][0];
 
         // the face indices
         tri_pt[0] = vert_remap_array[mf->v1];
@@ -2233,25 +2233,25 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
         // the vertex location
         if (vert_tag_array[mf->v1]) { /* *** v1 *** */
           vert_tag_array[mf->v1] = false;
-          *bt++ = v1->co[0];
-          *bt++ = v1->co[1];
-          *bt++ = v1->co[2];
+          *bt++ = v1[0];
+          *bt++ = v1[1];
+          *bt++ = v1[2];
         }
         if (vert_tag_array[mf->v2]) { /* *** v2 *** */
           vert_tag_array[mf->v2] = false;
-          *bt++ = v2->co[0];
-          *bt++ = v2->co[1];
-          *bt++ = v2->co[2];
+          *bt++ = v2[0];
+          *bt++ = v2[1];
+          *bt++ = v2[2];
         }
         if (vert_tag_array[mf->v3]) { /* *** v3 *** */
           vert_tag_array[mf->v3] = false;
-          *bt++ = v3->co[0];
-          *bt++ = v3->co[1];
-          *bt++ = v3->co[2];
+          *bt++ = v3[0];
+          *bt++ = v3[1];
+          *bt++ = v3[2];
         }
 
         if (mf->v4) {
-          MVert *v4 = (MVert *)&mvert[mf->v4];
+          const float *v4 = &positions[mf->v4][0];
 
           tri_pt[0] = vert_remap_array[mf->v1];
           tri_pt[1] = vert_remap_array[mf->v3];
@@ -2274,9 +2274,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
           // the vertex location
           if (vert_tag_array[mf->v4]) {  // *** v4 ***
             vert_tag_array[mf->v4] = false;
-            *bt++ = v4->co[0];
-            *bt++ = v4->co[1];
-            *bt++ = v4->co[2];
+            *bt++ = v4[0];
+            *bt++ = v4[1];
+            *bt++ = v4[2];
           }
         }
       }
@@ -2390,8 +2390,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
      * Mesh Update
      *
      * */
-
-    const MVert *mvert = me->verts().data();
+    const float(*positions)[3] = BKE_mesh_vert_positions(me);
     MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
     numpolys = me->totface;
     numverts = me->totvert;
@@ -2404,7 +2403,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     }
 
     MFace *mf;
-    MVert *mv;
 
     if (CustomData_has_layer(&me->fdata, CD_MTFACE)) {
       MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
@@ -2474,10 +2472,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
             v_orig = (*(&mf->v1 + (*fv_pt)));
 
             if (vert_tag_array[v_orig]) {
-              mv = (MVert *)mvert + v_orig;
-              *bt++ = mv->co[0];
-              *bt++ = mv->co[1];
-              *bt++ = mv->co[2];
+              /*WARNIND: What I dod here?*/
+              //mv = (MVert *)mvert + v_orig;
+              const float *mv = &positions[v_orig][0];
+              *bt++ = mv[0];
+              *bt++ = mv[1];
+              *bt++ = mv[2];
 
               vert_tag_array[v_orig] = false;
             }
@@ -2508,10 +2508,11 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
       m_triFaceUVcoArray.clear();
 
-      for (mv = (MVert *)mvert, i = 0; i < numverts; mv++, i++) {
-        *bt++ = mv->co[0];
-        *bt++ = mv->co[1];
-        *bt++ = mv->co[2];
+      for (i = 0; i < numverts; i++) {
+        const float *mv = &positions[i][0];
+        *bt++ = mv[0];
+        *bt++ = mv[1];
+        *bt++ = mv[2];
       }
 
       for (mf = mface, i = 0; i < numpolys; mf++, i++) {

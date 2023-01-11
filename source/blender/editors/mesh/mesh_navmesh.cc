@@ -116,13 +116,13 @@ static void createVertsTrisData(
     me = (Mesh *)meshlink->link;
 
     curnverts = me->totvert;
-    const MVert *mvert = me->verts().data();
+    const float (*positions)[3] = BKE_mesh_vert_positions(me);
 
     /* copy verts */
     for (i = 0; i < curnverts; i++) {
-      const MVert *v = &mvert[i];
+      const float *v = &positions[i][0];
 
-      copy_v3_v3(co, v->co);
+      copy_v3_v3(co, v);
       mul_v3_m4v3(wco, ob->object_to_world, co);
 
       verts[3 * (basenverts + i) + 0] = wco[0];
