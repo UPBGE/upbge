@@ -17,6 +17,7 @@
 
 #include "PIL_time.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_customdata.h"
@@ -1412,7 +1413,7 @@ struct LineartEdgeNeighbor {
 };
 
 struct VertData {
-  const MVert *mvert;
+  const float (*positions)[3];
   LineartVert *v_arr;
   double (*model_view)[4];
   double (*model_view_proj)[4];
@@ -1423,10 +1424,9 @@ static void lineart_mvert_transform_task(void *__restrict userdata,
                                          const TaskParallelTLS *__restrict /*tls*/)
 {
   VertData *vert_task_data = (VertData *)userdata;
-  const MVert *m_v = &vert_task_data->mvert[i];
   double co[4];
   LineartVert *v = &vert_task_data->v_arr[i];
-  copy_v3db_v3fl(co, m_v->co);
+  copy_v3db_v3fl(co, vert_task_data->positions[i]);
   mul_v3_m4v3_db(v->gloc, vert_task_data->model_view, co);
   mul_v4_m4v3_db(v->fbcoord, vert_task_data->model_view_proj, co);
   v->index = i;
@@ -1478,6 +1478,7 @@ struct EdgeFeatData {
   blender::Span<MLoop> loops;
   blender::Span<MPoly> polys;
   LineartTriangle *tri_array;
+  blender::VArray<bool> sharp_edges;
   LineartVert *v_array;
   float crease_threshold;
   bool use_auto_smooth;
@@ -1683,9 +1684,8 @@ static void lineart_identify_mlooptri_feature_edges(void *__restrict userdata,
       e_feat_data->edges.data(), e_feat_data->loops.data(), &mlooptri[i / 3], real_edges);
 
   if (real_edges[i % 3] >= 0) {
-    const MEdge *medge = &e_feat_data->edges[real_edges[i % 3]];
-
-    if (ld->conf.use_crease && ld->conf.sharp_as_crease && (medge->flag & ME_SHARP)) {
+    if (ld->conf.use_crease && ld->conf.sharp_as_crease &&
+        e_feat_data->sharp_edges[real_edges[i % 3]]) {
       edge_flag_result |= LRT_EDGE_FLAG_CREASE;
     }
 
@@ -1785,7 +1785,7 @@ static void lineart_triangle_adjacent_assign(LineartTriangle *tri,
 
 struct TriData {
   LineartObjectInfo *ob_info;
-  blender::Span<MVert> verts;
+  blender::Span<blender::float3> positions;
   blender::Span<MLoop> loops;
   const MLoopTri *mlooptri;
   const int *material_indices;
@@ -1801,7 +1801,7 @@ static void lineart_load_tri_task(void *__restrict userdata,
 {
   TriData *tri_task_data = (TriData *)userdata;
   LineartObjectInfo *ob_info = tri_task_data->ob_info;
-  const blender::Span<MVert> verts = tri_task_data->verts;
+  const blender::Span<blender::float3> positions = tri_task_data->positions;
   const blender::Span<MLoop> loops = tri_task_data->loops;
   const MLoopTri *mlooptri = &tri_task_data->mlooptri[i];
   const int *material_indices = tri_task_data->material_indices;
@@ -1839,7 +1839,7 @@ static void lineart_load_tri_task(void *__restrict userdata,
 
   double gn[3];
   float no[3];
-  normal_tri_v3(no, verts[v1].co, verts[v2].co, verts[v3].co);
+  normal_tri_v3(no, positions[v1], positions[v2], positions[v3]);
   copy_v3db_v3fl(gn, no);
   mul_v3_mat3_m4v3_db(tri->gn, ob_info->normal, gn);
   normalize_v3_db(tri->gn);
@@ -1878,7 +1878,7 @@ static void lineart_edge_neighbor_init_task(void *__restrict userdata,
   adj_e->v1 = mloop[looptri->tri[i % 3]].v;
   adj_e->v2 = mloop[looptri->tri[(i + 1) % 3]].v;
   if (adj_e->v1 > adj_e->v2) {
-   std::swap( adj_e->v1, adj_e->v2);
+    std::swap(adj_e->v1, adj_e->v2);
   }
   edge_nabr->e = -1;
 
@@ -2026,7 +2026,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   vert_settings.min_iter_per_thread = 4000;
 
   VertData vert_data;
-  vert_data.mvert = BKE_mesh_verts(me);
+  vert_data.positions = BKE_mesh_vert_positions(me);
   vert_data.v_arr = la_v_arr;
   vert_data.model_view = ob_info->model_view;
   vert_data.model_view_proj = ob_info->model_view_proj;
@@ -2043,8 +2043,8 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
 
   TriData tri_data;
   tri_data.ob_info = ob_info;
+  tri_data.positions = me->vert_positions();
   tri_data.mlooptri = mlooptri;
-  tri_data.verts = me->verts();
   tri_data.loops = me->loops();
   tri_data.material_indices = material_indices;
   tri_data.vert_arr = la_v_arr;
@@ -2069,6 +2069,10 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   edge_feat_settings.userdata_chunk_size = sizeof(EdgeFeatReduceData);
   edge_feat_settings.func_reduce = feat_data_sum_reduce;
 
+  const bke::AttributeAccessor attributes = me->attributes();
+  const VArray<bool> sharp_edges = attributes.lookup_or_default<bool>(
+      "sharp_edge", ATTR_DOMAIN_EDGE, false);
+
   EdgeFeatData edge_feat_data = {nullptr};
   edge_feat_data.ld = la_data;
   edge_feat_data.me = me;
@@ -2078,6 +2082,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   edge_feat_data.edges = me->edges();
   edge_feat_data.polys = me->polys();
   edge_feat_data.loops = me->loops();
+  edge_feat_data.sharp_edges = sharp_edges;
   edge_feat_data.edge_nabr = lineart_build_edge_neighbor(me, total_edges);
   edge_feat_data.tri_array = la_tri_arr;
   edge_feat_data.v_array = la_v_arr;
@@ -3267,7 +3272,7 @@ static void lineart_add_isec_thread(LineartIsecThread *th,
   isec_single->tri1 = tri1;
   isec_single->tri2 = tri2;
   if (tri1->target_reference > tri2->target_reference) {
-   std::swap( isec_single->tri1, isec_single->tri2);
+    std::swap(isec_single->tri1, isec_single->tri2);
   }
   th->current++;
 }

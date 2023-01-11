@@ -20,6 +20,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_customdata.h"
 #include "BKE_data_transfer.h"
 #include "BKE_deform.h"
@@ -67,7 +68,7 @@ void BKE_object_data_transfer_dttypes_to_cdmask(const int dtdata_types,
       r_data_masks->vmask |= CD_MASK_MDEFORMVERT; /* Exception for vgroups :/ */
     }
     else if (cddata_type == CD_FAKE_UV) {
-      r_data_masks->lmask |= CD_MASK_MLOOPUV;
+      r_data_masks->lmask |= CD_MASK_PROP_FLOAT2;
     }
     else if (cddata_type == CD_FAKE_LNOR) {
       r_data_masks->lmask |= CD_MASK_NORMAL | CD_MASK_CUSTOMLOOPNORMAL;
@@ -257,7 +258,7 @@ static void data_transfer_dtdata_type_preprocess(Mesh *me_src,
   if (dtdata_type == DT_TYPE_LNOR) {
     /* Compute custom normals into regular loop normals, which will be used for the transfer. */
 
-    const MVert *verts_dst = BKE_mesh_verts(me_dst);
+    const float(*positions_dst)[3] = BKE_mesh_vert_positions(me_dst);
     const int num_verts_dst = me_dst->totvert;
     const MEdge *edges_dst = BKE_mesh_edges(me_dst);
     const int num_edges_dst = me_dst->totedge;
@@ -287,7 +288,9 @@ static void data_transfer_dtdata_type_preprocess(Mesh *me_src,
       CustomData_set_layer_flag(ldata_dst, CD_NORMAL, CD_FLAG_TEMPORARY);
     }
     if (dirty_nors_dst || do_loop_nors_dst) {
-      BKE_mesh_normals_loop_split(verts_dst,
+      const bool *sharp_edges = static_cast<const bool *>(
+          CustomData_get_layer_named(&me_dst->edata, CD_PROP_BOOL, "sharp_edge"));
+      BKE_mesh_normals_loop_split(positions_dst,
                                   BKE_mesh_vertex_normals_ensure(me_dst),
                                   num_verts_dst,
                                   edges_dst,
@@ -300,6 +303,7 @@ static void data_transfer_dtdata_type_preprocess(Mesh *me_src,
                                   num_polys_dst,
                                   use_split_nors_dst,
                                   split_angle_dst,
+                                  sharp_edges,
                                   nullptr,
                                   nullptr,
                                   custom_nors_dst);
@@ -314,13 +318,14 @@ static void data_transfer_dtdata_type_postprocess(Object * /*ob_src*/,
                                                   const int dtdata_type,
                                                   const bool changed)
 {
+  using namespace blender;
   if (dtdata_type == DT_TYPE_LNOR) {
     if (!changed) {
       return;
     }
 
     /* Bake edited destination loop normals into custom normals again. */
-    const MVert *verts_dst = BKE_mesh_verts(me_dst);
+    const float(*positions_dst)[3] = BKE_mesh_vert_positions(me_dst);
     const int num_verts_dst = me_dst->totvert;
     MEdge *edges_dst = BKE_mesh_edges_for_write(me_dst);
     const int num_edges_dst = me_dst->totedge;
@@ -341,8 +346,12 @@ static void data_transfer_dtdata_type_postprocess(Object * /*ob_src*/,
           ldata_dst, CD_CUSTOMLOOPNORMAL, CD_SET_DEFAULT, nullptr, num_loops_dst));
     }
 
+    bke::MutableAttributeAccessor attributes = me_dst->attributes_for_write();
+    bke::SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
+        "sharp_edge", ATTR_DOMAIN_EDGE);
+
     /* Note loop_nors_dst contains our custom normals as transferred from source... */
-    BKE_mesh_normals_loop_custom_set(verts_dst,
+    BKE_mesh_normals_loop_custom_set(positions_dst,
                                      BKE_mesh_vertex_normals_ensure(me_dst),
                                      num_verts_dst,
                                      edges_dst,
@@ -353,7 +362,9 @@ static void data_transfer_dtdata_type_postprocess(Object * /*ob_src*/,
                                      polys_dst,
                                      poly_nors_dst,
                                      num_polys_dst,
+                                     sharp_edges.span.data(),
                                      custom_nors_dst);
+    sharp_edges.finish();
   }
 }
 
@@ -932,7 +943,7 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
     }
     if (cddata_type == CD_FAKE_SHAPEKEY) {
       /* TODO: leaving shape-keys aside for now, quite specific case,
-       * since we can't access them from #MVert :/ */
+       * since we can't access them from mesh vertices :/ */
       return false;
     }
   }
@@ -961,11 +972,11 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
       }
       return true;
     }
-    if (r_map && ELEM(cddata_type, CD_FAKE_SHARP, CD_FAKE_SEAM)) {
+    if (r_map && cddata_type == CD_FAKE_SEAM) {
       const size_t elem_size = sizeof(*((MEdge *)nullptr));
       const size_t data_size = sizeof(((MEdge *)nullptr)->flag);
       const size_t data_offset = offsetof(MEdge, flag);
-      const uint64_t data_flag = (cddata_type == CD_FAKE_SHARP) ? ME_SHARP : ME_SEAM;
+      const uint64_t data_flag = ME_SEAM;
 
       data_transfer_layersmapping_add_item(r_map,
                                            cddata_type,
@@ -984,12 +995,28 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
                                            interp_data);
       return true;
     }
-
+    if (r_map && cddata_type == CD_FAKE_SHARP) {
+      if (!CustomData_get_layer_named(&me_dst->edata, CD_PROP_BOOL, "sharp_edge")) {
+        CustomData_add_layer_named(
+            &me_dst->edata, CD_PROP_BOOL, CD_SET_DEFAULT, nullptr, me_dst->totedge, "sharp_edge");
+      }
+      data_transfer_layersmapping_add_item_cd(
+          r_map,
+          CD_PROP_BOOL,
+          mix_mode,
+          mix_factor,
+          mix_weights,
+          CustomData_get_layer_named(&me_src->edata, CD_PROP_BOOL, "sharp_edge"),
+          CustomData_get_layer_named(&me_dst->edata, CD_PROP_BOOL, "sharp_edge"),
+          interp,
+          interp_data);
+      return true;
+    }
     return false;
   }
   else if (elem_type == ME_LOOP) {
     if (cddata_type == CD_FAKE_UV) {
-      cddata_type = CD_MLOOPUV;
+      cddata_type = CD_PROP_FLOAT2;
     }
     else if (cddata_type == CD_FAKE_LNOR) {
       /* Pre-process should have generated it,
@@ -1028,7 +1055,7 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
   }
   else if (elem_type == ME_POLY) {
     if (cddata_type == CD_FAKE_UV) {
-      cddata_type = CD_MLOOPUV;
+      cddata_type = CD_PROP_FLOAT2;
     }
 
     if (!(cddata_type & CD_FAKE)) {
@@ -1314,7 +1341,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
     }
 
     BKE_mesh_remap_find_best_match_from_mesh(
-        BKE_mesh_verts(me_dst), me_dst->totvert, me_src, space_transform);
+        BKE_mesh_vert_positions(me_dst), me_dst->totvert, me_src, space_transform);
   }
 
   /* Check all possible data types.
@@ -1342,7 +1369,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
     }
 
     if (DT_DATATYPE_IS_VERT(dtdata_type)) {
-      MVert *verts_dst = BKE_mesh_verts_for_write(me_dst);
+      float(*positions_dst)[3] = BKE_mesh_vert_positions_for_write(me_dst);
       const int num_verts_dst = me_dst->totvert;
 
       if (!geom_map_init[VDATA]) {
@@ -1381,7 +1408,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                             space_transform,
                                             max_distance,
                                             ray_radius,
-                                            verts_dst,
+                                            positions_dst,
                                             num_verts_dst,
                                             dirty_nors_dst,
                                             me_src,
@@ -1426,7 +1453,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
       }
     }
     if (DT_DATATYPE_IS_EDGE(dtdata_type)) {
-      const MVert *verts_dst = BKE_mesh_verts_for_write(me_dst);
+      const float(*positions_dst)[3] = BKE_mesh_vert_positions_for_write(me_dst);
       const int num_verts_dst = me_dst->totvert;
       const MEdge *edges_dst = BKE_mesh_edges(me_dst);
       const int num_edges_dst = me_dst->totedge;
@@ -1460,7 +1487,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                             space_transform,
                                             max_distance,
                                             ray_radius,
-                                            verts_dst,
+                                            positions_dst,
                                             num_verts_dst,
                                             edges_dst,
                                             num_edges_dst,
@@ -1507,7 +1534,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
       }
     }
     if (DT_DATATYPE_IS_LOOP(dtdata_type)) {
-      const MVert *verts_dst = BKE_mesh_verts(me_dst);
+      const float(*positions_dst)[3] = BKE_mesh_vert_positions(me_dst);
       const int num_verts_dst = me_dst->totvert;
       const MEdge *edges_dst = BKE_mesh_edges(me_dst);
       const int num_edges_dst = me_dst->totedge;
@@ -1549,7 +1576,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                             max_distance,
                                             ray_radius,
                                             me_dst,
-                                            verts_dst,
+                                            positions_dst,
                                             num_verts_dst,
                                             edges_dst,
                                             num_edges_dst,
@@ -1604,7 +1631,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
       }
     }
     if (DT_DATATYPE_IS_POLY(dtdata_type)) {
-      const MVert *verts_dst = BKE_mesh_verts(me_dst);
+      const float(*positions_dst)[3] = BKE_mesh_vert_positions(me_dst);
       const int num_verts_dst = me_dst->totvert;
       const MPoly *polys_dst = BKE_mesh_polys(me_dst);
       const int num_polys_dst = me_dst->totpoly;
@@ -1641,7 +1668,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                             max_distance,
                                             ray_radius,
                                             me_dst,
-                                            verts_dst,
+                                            positions_dst,
                                             loops_dst,
                                             polys_dst,
                                             num_polys_dst,

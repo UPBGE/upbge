@@ -420,7 +420,7 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
   if (wm->is_interface_locked) {
     return;
   }
-  /* Combine data-masks so one window doesn't disable UV's in another T26448. */
+  /* Combine data-masks so one window doesn't disable UVs in another T26448. */
   CustomData_MeshMasks win_combine_v3d_datamask = {0};
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     const Scene *scene = WM_window_get_active_scene(win);
@@ -4426,7 +4426,7 @@ static void wm_event_get_keymap_from_toolsystem_ex(wmWindowManager *wm,
 
   if (is_gizmo_visible && !is_gizmo_highlight) {
     if (keymap_id_list_len == 2) {
-     std::swap(keymap_id_list[0], keymap_id_list[1]);
+      std::swap(keymap_id_list[0], keymap_id_list[1]);
     }
   }
 

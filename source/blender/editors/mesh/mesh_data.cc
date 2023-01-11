@@ -36,6 +36,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "BLT_translation.h"
+
 #include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_paint.h"
@@ -48,6 +50,8 @@
 #include "mesh_intern.h" /* own include */
 
 using blender::Array;
+using blender::float2;
+using blender::float3;
 using blender::MutableSpan;
 using blender::Span;
 
@@ -117,7 +121,7 @@ static void delete_customdata_layer(Mesh *me, CustomDataLayer *layer)
   int layer_index, tot, n;
 
   char htype = BM_FACE;
-  if (ELEM(type, CD_PROP_BYTE_COLOR, CD_MLOOPUV)) {
+  if (ELEM(type, CD_PROP_BYTE_COLOR, CD_PROP_FLOAT2)) {
     htype = BM_LOOP;
   }
   else if (ELEM(type, CD_PROP_COLOR)) {
@@ -185,18 +189,18 @@ static void mesh_uv_reset_bmface(BMFace *f, const int cd_loop_uv_offset)
   int i;
 
   BM_ITER_ELEM_INDEX (l, &liter, f, BM_LOOPS_OF_FACE, i) {
-    fuv[i] = ((MLoopUV *)BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset))->uv;
+    fuv[i] = ((float *)BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset));
   }
 
   mesh_uv_reset_array(fuv.data(), f->len);
 }
 
-static void mesh_uv_reset_mface(const MPoly *mp, MLoopUV *mloopuv)
+static void mesh_uv_reset_mface(const MPoly *mp, float2 *mloopuv)
 {
   Array<float *, BM_DEFAULT_NGON_STACK_SIZE> fuv(mp->totloop);
 
   for (int i = 0; i < mp->totloop; i++) {
-    fuv[i] = mloopuv[mp->loopstart + i].uv;
+    fuv[i] = mloopuv[mp->loopstart + i];
   }
 
   mesh_uv_reset_array(fuv.data(), mp->totloop);
@@ -208,7 +212,8 @@ void ED_mesh_uv_loop_reset_ex(Mesh *me, const int layernum)
 
   if (em) {
     /* Collect BMesh UVs */
-    const int cd_loop_uv_offset = CustomData_get_n_offset(&em->bm->ldata, CD_MLOOPUV, layernum);
+    const int cd_loop_uv_offset = CustomData_get_n_offset(
+        &em->bm->ldata, CD_PROP_FLOAT2, layernum);
 
     BMFace *efa;
     BMIter iter;
@@ -225,8 +230,9 @@ void ED_mesh_uv_loop_reset_ex(Mesh *me, const int layernum)
   }
   else {
     /* Collect Mesh UVs */
-    BLI_assert(CustomData_has_layer(&me->ldata, CD_MLOOPUV));
-    MLoopUV *mloopuv = (MLoopUV *)CustomData_get_layer_n(&me->ldata, CD_MLOOPUV, layernum);
+    BLI_assert(CustomData_has_layer(&me->ldata, CD_PROP_FLOAT2));
+    float2 *mloopuv = static_cast<float2 *>(
+        CustomData_get_layer_n(&me->ldata, CD_PROP_FLOAT2, layernum));
 
     const MPoly *polys = BKE_mesh_polys(me);
     for (int i = 0; i < me->totpoly; i++) {
@@ -241,7 +247,7 @@ void ED_mesh_uv_loop_reset(bContext *C, Mesh *me)
 {
   /* could be ldata or pdata */
   CustomData *ldata = GET_CD_DATA(me, ldata);
-  const int layernum = CustomData_get_active_layer(ldata, CD_MLOOPUV);
+  const int layernum = CustomData_get_active_layer(ldata, CD_PROP_FLOAT2);
   ED_mesh_uv_loop_reset_ex(me, layernum);
 
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);
@@ -255,53 +261,60 @@ int ED_mesh_uv_add(
   BMEditMesh *em;
   int layernum_dst;
 
+  if (!name) {
+    name = DATA_("UVMap");
+  }
+
+  char unique_name[MAX_CUSTOMDATA_LAYER_NAME];
+  BKE_id_attribute_calc_unique_name(&me->id, name, unique_name);
   bool is_init = false;
 
   if (me->edit_mesh) {
     em = me->edit_mesh;
 
-    layernum_dst = CustomData_number_of_layers(&em->bm->ldata, CD_MLOOPUV);
+    layernum_dst = CustomData_number_of_layers(&em->bm->ldata, CD_PROP_FLOAT2);
     if (layernum_dst >= MAX_MTFACE) {
       BKE_reportf(reports, RPT_WARNING, "Cannot add more than %i UV maps", MAX_MTFACE);
       return -1;
     }
 
-    /* CD_MLOOPUV */
-    BM_data_layer_add_named(em->bm, &em->bm->ldata, CD_MLOOPUV, name);
+    BM_data_layer_add_named(em->bm, &em->bm->ldata, CD_PROP_FLOAT2, unique_name);
+    BM_uv_map_ensure_select_and_pin_attrs(em->bm);
     /* copy data from active UV */
     if (layernum_dst && do_init) {
-      const int layernum_src = CustomData_get_active_layer(&em->bm->ldata, CD_MLOOPUV);
-      BM_data_layer_copy(em->bm, &em->bm->ldata, CD_MLOOPUV, layernum_src, layernum_dst);
+      const int layernum_src = CustomData_get_active_layer(&em->bm->ldata, CD_PROP_FLOAT2);
+      BM_data_layer_copy(em->bm, &em->bm->ldata, CD_PROP_FLOAT2, layernum_src, layernum_dst);
 
       is_init = true;
     }
     if (active_set || layernum_dst == 0) {
-      CustomData_set_layer_active(&em->bm->ldata, CD_MLOOPUV, layernum_dst);
+      CustomData_set_layer_active(&em->bm->ldata, CD_PROP_FLOAT2, layernum_dst);
     }
   }
   else {
-    layernum_dst = CustomData_number_of_layers(&me->ldata, CD_MLOOPUV);
+    layernum_dst = CustomData_number_of_layers(&me->ldata, CD_PROP_FLOAT2);
     if (layernum_dst >= MAX_MTFACE) {
       BKE_reportf(reports, RPT_WARNING, "Cannot add more than %i UV maps", MAX_MTFACE);
       return -1;
     }
 
-    if (CustomData_has_layer(&me->ldata, CD_MLOOPUV) && do_init) {
+    if (CustomData_has_layer(&me->ldata, CD_PROP_FLOAT2) && do_init) {
       CustomData_add_layer_named(&me->ldata,
-                                 CD_MLOOPUV,
+                                 CD_PROP_FLOAT2,
                                  CD_DUPLICATE,
-                                 CustomData_get_layer(&me->ldata, CD_MLOOPUV),
+                                 CustomData_get_layer(&me->ldata, CD_PROP_FLOAT2),
                                  me->totloop,
-                                 name);
+                                 unique_name);
+
       is_init = true;
     }
     else {
       CustomData_add_layer_named(
-          &me->ldata, CD_MLOOPUV, CD_SET_DEFAULT, nullptr, me->totloop, name);
+          &me->ldata, CD_PROP_FLOAT2, CD_SET_DEFAULT, nullptr, me->totloop, unique_name);
     }
 
     if (active_set || layernum_dst == 0) {
-      CustomData_set_layer_active(&me->ldata, CD_MLOOPUV, layernum_dst);
+      CustomData_set_layer_active(&me->ldata, CD_PROP_FLOAT2, layernum_dst);
     }
   }
 
@@ -316,6 +329,72 @@ int ED_mesh_uv_add(
   return layernum_dst;
 }
 
+static const bool *mesh_loop_boolean_custom_data_get_by_name(const Mesh &mesh, const char *name)
+{
+  return static_cast<const bool *>(CustomData_get_layer_named(&mesh.ldata, CD_PROP_BOOL, name));
+}
+
+const bool *ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, const int uv_index)
+{
+  using namespace blender::bke;
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  const char *uv_name = CustomData_get_layer_name(&mesh->ldata, CD_PROP_FLOAT2, uv_index);
+  return mesh_loop_boolean_custom_data_get_by_name(
+      *mesh, BKE_uv_map_vert_select_name_get(uv_name, buffer));
+}
+/* UV map edge selections are stored on face corners (loops) and not on edges
+ * because we need selections per face edge, even when the edge is split in UV space. */
+const bool *ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, const int uv_index)
+{
+  using namespace blender::bke;
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  const char *uv_name = CustomData_get_layer_name(&mesh->ldata, CD_PROP_FLOAT2, uv_index);
+  return mesh_loop_boolean_custom_data_get_by_name(
+      *mesh, BKE_uv_map_edge_select_name_get(uv_name, buffer));
+}
+
+const bool *ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, const int uv_index)
+{
+  using namespace blender::bke;
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  const char *uv_name = CustomData_get_layer_name(&mesh->ldata, CD_PROP_FLOAT2, uv_index);
+  return mesh_loop_boolean_custom_data_get_by_name(*mesh,
+                                                   BKE_uv_map_pin_name_get(uv_name, buffer));
+}
+
+static bool *ensure_corner_boolean_attribute(Mesh &mesh, const blender::StringRefNull name)
+{
+  bool *data = static_cast<bool *>(CustomData_duplicate_referenced_layer_named(
+      &mesh.ldata, CD_PROP_BOOL, name.c_str(), mesh.totloop));
+  if (!data) {
+    data = static_cast<bool *>(CustomData_add_layer_named(
+        &mesh.ldata, CD_PROP_BOOL, CD_SET_DEFAULT, nullptr, mesh.totpoly, name.c_str()));
+  }
+  return data;
+}
+
+bool *ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh, const int uv_index)
+{
+  using namespace blender::bke;
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  const char *uv_name = CustomData_get_layer_name(&mesh->ldata, CD_PROP_FLOAT2, uv_index);
+  return ensure_corner_boolean_attribute(*mesh, BKE_uv_map_vert_select_name_get(uv_name, buffer));
+}
+bool *ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh, const int uv_index)
+{
+  using namespace blender::bke;
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  const char *uv_name = CustomData_get_layer_name(&mesh->ldata, CD_PROP_FLOAT2, uv_index);
+  return ensure_corner_boolean_attribute(*mesh, BKE_uv_map_edge_select_name_get(uv_name, buffer));
+}
+bool *ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, const int uv_index)
+{
+  using namespace blender::bke;
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  const char *uv_name = CustomData_get_layer_name(&mesh->ldata, CD_PROP_FLOAT2, uv_index);
+  return ensure_corner_boolean_attribute(*mesh, BKE_uv_map_pin_name_get(uv_name, buffer));
+}
+
 void ED_mesh_uv_ensure(Mesh *me, const char *name)
 {
   BMEditMesh *em;
@@ -324,13 +403,13 @@ void ED_mesh_uv_ensure(Mesh *me, const char *name)
   if (me->edit_mesh) {
     em = me->edit_mesh;
 
-    layernum_dst = CustomData_number_of_layers(&em->bm->ldata, CD_MLOOPUV);
+    layernum_dst = CustomData_number_of_layers(&em->bm->ldata, CD_PROP_FLOAT2);
     if (layernum_dst == 0) {
       ED_mesh_uv_add(me, name, true, true, nullptr);
     }
   }
   else {
-    layernum_dst = CustomData_number_of_layers(&me->ldata, CD_MLOOPUV);
+    layernum_dst = CustomData_number_of_layers(&me->ldata, CD_PROP_FLOAT2);
     if (layernum_dst == 0) {
       ED_mesh_uv_add(me, name, true, true, nullptr);
     }
@@ -343,7 +422,7 @@ bool ED_mesh_uv_remove_index(Mesh *me, const int n)
   CustomDataLayer *cdlu;
   int index;
 
-  index = CustomData_get_layer_index_n(ldata, CD_MLOOPUV, n);
+  index = CustomData_get_layer_index_n(ldata, CD_PROP_FLOAT2, n);
   cdlu = (index == -1) ? nullptr : &ldata->layers[index];
 
   if (!cdlu) {
@@ -360,7 +439,7 @@ bool ED_mesh_uv_remove_index(Mesh *me, const int n)
 bool ED_mesh_uv_remove_active(Mesh *me)
 {
   CustomData *ldata = GET_CD_DATA(me, ldata);
-  const int n = CustomData_get_active_layer(ldata, CD_MLOOPUV);
+  const int n = CustomData_get_active_layer(ldata, CD_PROP_FLOAT2);
 
   if (n != -1) {
     return ED_mesh_uv_remove_index(me, n);
@@ -370,7 +449,7 @@ bool ED_mesh_uv_remove_active(Mesh *me)
 bool ED_mesh_uv_remove_named(Mesh *me, const char *name)
 {
   CustomData *ldata = GET_CD_DATA(me, ldata);
-  const int n = CustomData_get_named_layer(ldata, CD_MLOOPUV, name);
+  const int n = CustomData_get_named_layer(ldata, CD_PROP_FLOAT2, name);
   if (n != -1) {
     return ED_mesh_uv_remove_index(me, n);
   }
@@ -507,7 +586,7 @@ static bool uv_texture_remove_poll(bContext *C)
   Object *ob = ED_object_context(C);
   Mesh *me = static_cast<Mesh *>(ob->data);
   CustomData *ldata = GET_CD_DATA(me, ldata);
-  const int active = CustomData_get_active_layer(ldata, CD_MLOOPUV);
+  const int active = CustomData_get_active_layer(ldata, CD_PROP_FLOAT2);
   if (active != -1) {
     return true;
   }
@@ -548,12 +627,14 @@ void MESH_OT_uv_texture_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int mesh_uv_texture_remove_exec(bContext *C, wmOperator * /*op*/)
+static int mesh_uv_texture_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_context(C);
   Mesh *me = static_cast<Mesh *>(ob->data);
 
-  if (!ED_mesh_uv_remove_active(me)) {
+  CustomData *ldata = GET_CD_DATA(me, ldata);
+  const char *name = CustomData_get_active_layer_name(ldata, CD_PROP_FLOAT2);
+  if (!BKE_id_attribute_remove(&me->id, name, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -762,6 +843,7 @@ void MESH_OT_customdata_skin_clear(wmOperatorType *ot)
 /* Clear custom loop normals */
 static int mesh_customdata_custom_splitnormals_add_exec(bContext *C, wmOperator * /*op*/)
 {
+  using namespace blender;
   Mesh *me = ED_mesh_context(C);
   if (BKE_mesh_has_custom_loop_normals(me)) {
     return OPERATOR_CANCELLED;
@@ -781,18 +863,20 @@ static int mesh_customdata_custom_splitnormals_add_exec(bContext *C, wmOperator 
     /* Tag edges as sharp according to smooth threshold if needed,
      * to preserve auto-smooth shading. */
     if (me->flag & ME_AUTOSMOOTH) {
-      MutableSpan<MEdge> edges = me->edges_for_write();
       const Span<MPoly> polys = me->polys();
       const Span<MLoop> loops = me->loops();
-
-      BKE_edges_sharp_from_angle_set(edges.data(),
-                                     edges.size(),
+      bke::MutableAttributeAccessor attributes = me->attributes_for_write();
+      bke::SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
+          "sharp_edge", ATTR_DOMAIN_EDGE);
+      BKE_edges_sharp_from_angle_set(me->totedge,
                                      loops.data(),
                                      loops.size(),
                                      polys.data(),
                                      BKE_mesh_poly_normals_ensure(me),
                                      polys.size(),
-                                     me->smoothresh);
+                                     me->smoothresh,
+                                     sharp_edges.span.data());
+      sharp_edges.finish();
     }
 
     CustomData_add_layer(&me->ldata, CD_CUSTOMLOOPNORMAL, CD_SET_DEFAULT, nullptr, me->totloop);
@@ -1129,8 +1213,9 @@ static void mesh_add_verts(Mesh *mesh, int len)
   CustomData_copy(&mesh->vdata, &vdata, CD_MASK_MESH.vmask, CD_SET_DEFAULT, totvert);
   CustomData_copy_data(&mesh->vdata, &vdata, 0, 0, mesh->totvert);
 
-  if (!CustomData_has_layer(&vdata, CD_MVERT)) {
-    CustomData_add_layer(&vdata, CD_MVERT, CD_SET_DEFAULT, nullptr, totvert);
+  if (!CustomData_get_layer_named(&vdata, CD_PROP_FLOAT3, "position")) {
+    CustomData_add_layer_named(
+        &vdata, CD_PROP_FLOAT3, CD_SET_DEFAULT, nullptr, totvert, "position");
   }
 
   CustomData_free(&mesh->vdata, mesh->totvert);
@@ -1450,36 +1535,34 @@ Mesh *ED_mesh_context(bContext *C)
 void ED_mesh_split_faces(Mesh *mesh)
 {
   using namespace blender;
-  Array<MEdge> edges(mesh->edges());
   const Span<MPoly> polys = mesh->polys();
   const Span<MLoop> loops = mesh->loops();
   const float split_angle = (mesh->flag & ME_AUTOSMOOTH) != 0 ? mesh->smoothresh : float(M_PI);
-  BKE_edges_sharp_from_angle_set(edges.data(),
-                                 edges.size(),
+
+  Array<bool> sharp_edges(mesh->totedge, false);
+  BKE_edges_sharp_from_angle_set(mesh->totedge,
                                  loops.data(),
                                  loops.size(),
                                  polys.data(),
                                  BKE_mesh_poly_normals_ensure(mesh),
                                  polys.size(),
-                                 split_angle);
+                                 split_angle,
+                                 sharp_edges.data());
 
   threading::parallel_for(polys.index_range(), 1024, [&](const IndexRange range) {
     for (const int poly_i : range) {
       const MPoly &poly = polys[poly_i];
       if (!(poly.flag & ME_SMOOTH)) {
         for (const MLoop &loop : loops.slice(poly.loopstart, poly.totloop)) {
-          edges[loop.e].flag |= ME_SHARP;
+          sharp_edges[loop.e] = true;
         }
       }
     }
   });
 
   Vector<int64_t> split_indices;
-  const IndexMask split_mask = index_mask_ops::find_indices_based_on_predicate(
-      edges.index_range(), 4096, split_indices, [&](const int64_t i) {
-        return edges[i].flag & ME_SHARP;
-      });
-
+  const IndexMask split_mask = index_mask_ops::find_indices_from_virtual_array(
+      sharp_edges.index_range(), VArray<bool>::ForSpan(sharp_edges), 4096, split_indices);
   if (split_mask.is_empty()) {
     return;
   }
