@@ -387,14 +387,14 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   /* Extract available layers.
    * Get the active color and uv layer. */
-  const short activeUv = CustomData_get_active_layer(&final_me->ldata, CD_MLOOPUV);
+  const short activeUv = CustomData_get_active_layer(&final_me->ldata, CD_PROP_FLOAT2);
   const short activeColor = CustomData_get_active_layer(&final_me->ldata, CD_PROP_BYTE_COLOR);
 
   RAS_MeshObject::LayersInfo layersInfo;
   layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
   layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
-  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->ldata, CD_MLOOPUV);
+  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->ldata, CD_PROP_FLOAT2);
   const unsigned short colorLayers = CustomData_number_of_layers(&final_me->ldata, CD_PROP_BYTE_COLOR);
 
   // Extract UV loops.
