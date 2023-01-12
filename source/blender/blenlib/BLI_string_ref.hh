@@ -604,24 +604,12 @@ inline std::string operator+(StringRef a, StringRef b)
  * Ideally, we only use StringRef in our code to avoid this problem altogether. */
 constexpr bool operator==(StringRef a, StringRef b)
 {
-  if (a.size() != b.size()) {
-    return false;
-  }
-  if (a.data() == b.data()) {
-    /* This also avoids passing null to the call below when both are null,
-     * which would results in an ASAN warning. */
-    return true;
-  }
-  if (!a.data() || !b.data()) {
-    /* Account for a single value being null, resulting in an ASAN warning. */
-    return false;
-  }
-  return STREQLEN(a.data(), b.data(), size_t(a.size()));
+  return std::string_view(a) == std::string_view(b);
 }
 
 constexpr bool operator!=(StringRef a, StringRef b)
 {
-  return !(a == b);
+  return std::string_view(a) != std::string_view(b);
 }
 
 constexpr bool operator<(StringRef a, StringRef b)

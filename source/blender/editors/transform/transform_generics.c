@@ -811,8 +811,14 @@ void applyTransObjects(TransInfo *t)
 
 static void transdata_restore_basic(TransDataBasic *td_basic)
 {
-  /* TransData for crease has no loc */
-  if (td_basic->loc) {
+  if (td_basic->val) {
+    *td_basic->val = td_basic->ival;
+  }
+
+  /* TODO(mano-wii): Only use 3D or larger vectors in `td->loc`.
+   * If `loc` and `val` point to the same address, it may indicate that `loc` is not 3D which is
+   * not safe for `copy_v3_v3`. */
+  if (td_basic->loc && td_basic->val != td_basic->loc) {
     copy_v3_v3(td_basic->loc, td_basic->iloc);
   }
 }
@@ -820,10 +826,6 @@ static void transdata_restore_basic(TransDataBasic *td_basic)
 static void restoreElement(TransData *td)
 {
   transdata_restore_basic((TransDataBasic *)td);
-
-  if (td->val && td->val != td->loc) {
-    *td->val = td->ival;
-  }
 
   if (td->ext && (td->flag & TD_NO_EXT) == 0) {
     if (td->ext->rot) {
