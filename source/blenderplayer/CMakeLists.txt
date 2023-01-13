@@ -208,11 +208,13 @@ endif()
 if(APPLE)
 
   set(PLAYER_TARGETDIR_VER Blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
+  set(PLAYER_TARGETDIR_LIB Blenderplayer.app/Contents/Resources/lib)
+  set(PLAYER_TARGETDIR_TEXT Blenderplayer.app/Contents/Resources/text)
 
   # Skip relinking on cpack / install
   set_target_properties(blenderplayer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
 
-  set(BLENDERPLAYER_TEXT_FILES
+  set(PLAYER_TEXT_FILES
     ${CMAKE_SOURCE_DIR}/release/text/copyright.txt
     # generate this file
     # ${CMAKE_SOURCE_DIR}/release/text/readme.html
@@ -251,6 +253,7 @@ if(APPLE)
       PATTERN ".gitignore" EXCLUDE
       PATTERN ".arcconfig" EXCLUDE
       PATTERN "__pycache__" EXCLUDE
+      PATTERN "site" EXCLUDE
       PATTERN "${ADDON_EXCLUDE_CONDITIONAL}" EXCLUDE
       PATTERN "${FREESTYLE_EXCLUDE_CONDITIONAL}" EXCLUDE
     )
@@ -259,7 +262,7 @@ if(APPLE)
     unset(FREESTYLE_EXCLUDE_CONDITIONAL)
   endif()
 
-  # localization
+  # fonts
   install(
     DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/fonts
     DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
@@ -331,16 +334,19 @@ if(APPLE)
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
   # Give the bundle actual creation/modification date
-  execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
-                  ${EXECUTABLE_OUTPUT_PATH}/Blenderplayer.app)
+  #
+  # Note that the directory might not yet exist, which happens when CMAKE is first run.
+  if(NOT EXISTS ${EXECUTABLE_OUTPUT_PATH}/Blenderplayer.app)
+    file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/Blenderplayer.app)
+  endif()
+  execute_process(
+    COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE} ${EXECUTABLE_OUTPUT_PATH}/Blenderplayer.app
+  )
 
   install(
     TARGETS blenderplayer
     DESTINATION "."
   )
-
-  # install release and app files
-  set(BLENDERPLAYER_TEXT_FILES_DESTINATION Blenderplayer.app/Contents/Resources/text)
 
   install(
     FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
@@ -352,21 +358,10 @@ if(APPLE)
     Blenderplayer.app/Contents/
   )
 
-  if(WITH_OPENMP AND OPENMP_CUSTOM)
+  if(PLATFORM_BUNDLED_LIBRARIES AND PLAYER_TARGETDIR_LIB)
     install(
-      FILES ${LIBDIR}/openmp/lib/libomp.dylib
-      DESTINATION Blenderplayer.app/Contents/Resources/lib
-    )
-    install(
-      FILES ${LIBDIR}/openmp/lib/libomp.dylib
-      DESTINATION Blenderplayer.app/Contents/Resources/${BLENDER_VERSION}/lib
-    )
-  endif()
-
-  if(WITH_LLVM AND NOT LLVM_STATIC)
-    install(
-      FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
-      DESTINATION Blenderplayer.app/Contents/MacOS
+      FILES ${PLATFORM_BUNDLED_LIBRARIES}
+      DESTINATION ${PLAYER_TARGETDIR_LIB}
     )
   endif()
 
@@ -374,13 +369,14 @@ if(APPLE)
   if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
     # Copy the python libs into the install directory
     install_dir(
-      ${PYTHON_LIBPATH}
+      ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
       ${PLAYER_TARGETDIR_VER}/python/lib
     )
 
-    install(DIRECTORY ${LIBDIR}/python/bin
-      DESTINATION ${PLAYER_TARGETDIR_VER}/python
-      USE_SOURCE_PERMISSIONS
+    # Install Python executable.
+    install(
+      PROGRAMS ${PYTHON_EXECUTABLE}
+      DESTINATION ${PLAYER_TARGETDIR_VER}/python/bin
     )
 
     # Needed for distutils/pip
@@ -393,56 +389,73 @@ if(APPLE)
     unset(_py_inc_suffix)
   endif()
 
+  if(WITH_DRACO)
+    install(
+      PROGRAMS $<TARGET_FILE:extern_draco>
+      DESTINATION ${PLAYER_TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+    )
+  endif()
+
   # -----------------------------------------------------------------------------
   # Generic Install, for all targets
 
-  if(DEFINED BLENDERPLAYER_TEXT_FILES_DESTINATION)
+  if(DEFINED PLAYER_TARGETDIR_TEXT)
 
-    install(
-      CODE
-      "
-      file(READ \"${CMAKE_SOURCE_DIR}/release/text/readme.html\" DATA_SRC)
-      string(REGEX REPLACE \"BLENDER_VERSION\" \"${BLENDER_VERSION}\" DATA_DST \"\${DATA_SRC}\")
-      file(WRITE \"${CMAKE_BINARY_DIR}/release/text/readme.html\" \"\${DATA_DST}\")
-      unset(DATA_SRC)
-      unset(DATA_DST)
-      "
+    configure_file(
+      ${CMAKE_SOURCE_DIR}/release/text/readme.html
+      ${CMAKE_BINARY_DIR}/release/text/readme.html
+      @ONLY
     )
-    list(APPEND BLENDERPLAYER_TEXT_FILES
+    list(APPEND PLAYER_TEXT_FILES
       ${CMAKE_BINARY_DIR}/release/text/readme.html
     )
 
     install(
-      FILES ${BLENDERPLAYER_TEXT_FILES}
-      DESTINATION "${BLENDERPLAYER_TEXT_FILES_DESTINATION}"
+      FILES ${PLAYER_TEXT_FILES}
+      DESTINATION "${PLAYER_TARGETDIR_TEXT}"
     )
 
-   install(
-     DIRECTORY
-     ${CMAKE_SOURCE_DIR}/release/license
-     DESTINATION "${BLENDERPLAYER_TEXT_FILES_DESTINATION}"
-   )
+    install(
+      DIRECTORY ${CMAKE_SOURCE_DIR}/release/license
+      DESTINATION "${PLAYER_TARGETDIR_TEXT}"
+  )
   endif()
 
   # install more files specified elsewhere
   delayed_do_install(${PLAYER_TARGETDIR_VER})
 
-  unset(BLENDERPLAYER_TEXT_FILES)
-  unset(BLENDERPLAYER_TEXT_FILES_DESTINATION)
+  unset(PLAYER_TEXT_FILES)
+  unset(PLAYER_TARGETDIR_TEXT)
 
   # -----------------------------------------------------------------------------
   # Studio Lights
   install(
-    DIRECTORY
-    ${CMAKE_SOURCE_DIR}/release/datafiles/studiolights
+    DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/studiolights
     DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
   )
 endif()
 
-add_dependencies(blenderplayer makesdna)
+# -----------------------------------------------------------------------------
+# Setup link libraries
 
+add_dependencies(blenderplayer makesdna)
 target_link_libraries(blenderplayer ${LIB})
 unset(LIB)
 
 setup_platform_linker_flags(blenderplayer)
 setup_platform_linker_libs(blenderplayer)
+
+if(DEFINED PLATFORM_SYMBOLS_MAP)
+  set_target_properties(blenderplayer PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
+endif()
+
+blender_target_include_dirs(blenderplayer ${INC})
+
+# Always install MaterialX files regardless if Blender itself uses them, the
+# bundled Python module still needs it.
+if(WITH_MATERIALX AND LIBDIR AND PLAYER_TARGETDIR_LIB)
+  install(
+    DIRECTORY ${LIBDIR}/materialx/libraries
+    DESTINATION "${PLAYER_TARGETDIR_LIB}/materialx"
+  )
+endif()
