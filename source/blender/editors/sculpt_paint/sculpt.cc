@@ -259,6 +259,11 @@ float SCULPT_vertex_mask_get(SculptSession *ss, PBVHVertRef vertex)
     }
     case PBVH_GRIDS: {
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
+
+      if (key->mask_offset == -1) {
+        return 0.0f;
+      }
+
       const int grid_index = vertex.i / key->grid_area;
       const int vertex_index = vertex.i - grid_index * key->grid_area;
       CCGElem *elem = BKE_pbvh_get_grids(ss->pbvh)[grid_index];
@@ -6220,9 +6225,12 @@ bool SCULPT_vertex_is_occluded(SculptSession *ss, PBVHVertRef vertex, bool origi
   copy_v3_v3(co, SCULPT_vertex_co_get(ss, vertex));
   float mouse[2];
 
-  ED_view3d_project_float_v2_m4(ss->cache->vc->region, co, mouse, ss->cache->projection_mat);
+  ViewContext *vc = ss->cache ? ss->cache->vc : &ss->filter_cache->vc;
 
-  int depth = SCULPT_raycast_init(ss->cache->vc, mouse, ray_end, ray_start, ray_normal, original);
+  ED_view3d_project_float_v2_m4(
+      vc->region, co, mouse, ss->cache ? ss->cache->projection_mat : ss->filter_cache->viewmat);
+
+  int depth = SCULPT_raycast_init(vc, mouse, ray_end, ray_start, ray_normal, original);
 
   negate_v3(ray_normal);
 

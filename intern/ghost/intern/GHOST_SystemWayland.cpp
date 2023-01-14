@@ -1662,31 +1662,39 @@ static int ghost_wl_display_event_pump_from_thread(struct wl_display *wl_display
   server_mutex->lock();
   int err = 0;
   if (wl_display_prepare_read(wl_display) == 0) {
+    bool wait_on_fd = false;
     /* Use #GWL_IOR_NO_RETRY to ensure #SIGINT will break us out of our wait. */
     if (file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, 0) > 0) {
       err = wl_display_read_events(wl_display);
     }
     else {
       wl_display_cancel_read(wl_display);
+      /* Without this, the thread will loop continuously, 100% CPU. */
+      wait_on_fd = true;
+    }
+
+    server_mutex->unlock();
+
+    if (wait_on_fd) {
+      /* Important this runs after unlocking. */
+      file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX);
     }
   }
   else {
-    int state;
-    do {
-      server_mutex->unlock();
-      /* Wait for input (unlocked, so as not to block other threads). */
-      state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX);
+    server_mutex->unlock();
+
+    /* Wait for input (unlocked, so as not to block other threads). */
+    int state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX);
+    /* Re-check `state` with a lock held, needed to avoid holding the lock. */
+    if (state > 0) {
       server_mutex->lock();
-      /* Re-check `state` with a lock held, needed to avoid holding the lock. */
+      state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, 0);
       if (state > 0) {
-        state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, 0);
-        if (state > 0) {
-          err = wl_display_dispatch_pending(wl_display);
-        }
+        err = wl_display_dispatch_pending(wl_display);
       }
-    } while (state > 0);
+      server_mutex->unlock();
+    }
   }
-  server_mutex->unlock();
 
   return err;
 }
