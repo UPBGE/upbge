@@ -537,6 +537,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     /* Try to get evaluated mesh poly material index */
     /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
+    /* There is still an issue with boolean exact solver with polygon material indice */
     int mat_nr = GetPolygonMaterialIndex(final_me, i);
 
     const ConvertedMaterial &mat = convertedMats[mat_nr];
