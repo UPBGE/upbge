@@ -1483,7 +1483,7 @@ void DRW_draw_callbacks_post_scene(void)
     /* XXX: Or should we use a proper draw/overlay engine for this case? */
     if (do_annotations) {
       GPU_depth_test(GPU_DEPTH_NONE);
-      /* XXX: as scene->gpd is not copied for COW yet */
+      /* XXX: as `scene->gpd` is not copied for COW yet. */
       ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, true);
       GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
     }
@@ -2060,7 +2060,7 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
                                                        size[0],
                                                        size[1],
                                                        view_layer->name,
-                                                       /* RR_ALL_VIEWS */ NULL);
+                                                       /*RR_ALL_VIEWS*/ NULL);
   RenderLayer *render_layer = render_result->layers.first;
   for (RenderView *render_view = render_result->views.first; render_view != NULL;
        render_view = render_view->next) {
