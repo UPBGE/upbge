@@ -59,6 +59,7 @@ BL_Action::BL_Action(class KX_GameObject *gameobj)
       m_ipo_flags(0),
       m_done(true),
       m_appliedToObject(true),
+      m_requestIpo(false),
       m_calc_localtime(true),
       m_prevUpdate(-1.0f)
 {
@@ -195,6 +196,7 @@ bool BL_Action::Play(const std::string &name,
 
   m_done = false;
   m_appliedToObject = false;
+  m_requestIpo = false;
 
   m_prevUpdate = -1.0f;
 
@@ -405,6 +407,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
   for (SG_Controller *cont : m_sg_contr_list) {
     cont->SetSimulatedTime(m_localframe);  // update spatial controllers
     cont->Update(m_localframe);
+    m_requestIpo = true;
   }
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
@@ -622,5 +625,16 @@ void BL_Action::Update(float curtime, bool applyToObject)
   // If the action is done we can remove its scene graph IPO controller.
   if (m_done) {
     ClearControllerList();
+  }
+}
+
+/* To sync m_obj and children in SceneGraph after potential m_obj transform update in SG_Controller actions */
+/* (In KX_IpoController.cpp, NodeSetLocalPosition can be called for example, but NodeUpdateGS
+ * causes an issue, then update is done here) */
+void BL_Action::UpdateIPOs()
+{
+  if (m_requestIpo) {
+    m_obj->GetSGNode()->UpdateWorldData(0.0);
+    m_requestIpo = false;
   }
 }
