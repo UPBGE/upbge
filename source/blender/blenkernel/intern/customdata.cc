@@ -5285,7 +5285,6 @@ const blender::CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
     default:
       return nullptr;
   }
-  return nullptr;
 }
 
 eCustomDataType cpp_type_to_custom_data_type(const blender::CPPType &type)

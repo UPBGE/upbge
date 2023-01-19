@@ -416,6 +416,26 @@ mark_as_advanced(WITH_SYSTEM_GLOG)
 # Freestyle
 option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
 
+# Libraries.
+if(UNIX AND NOT APPLE)
+  # Optionally build without pre-compiled libraries.
+  # NOTE: this could be supported on all platforms however in practice UNIX is the only platform
+  # that has good support for detecting installed libraries.
+  option(WITH_LIBS_PRECOMPILED "\
+Detect and link against pre-compiled libraries (typically found under \"../lib/\"). \
+Disabling this option will use the system libraries although cached paths \
+that point to pre-compiled libraries will be left as-is."
+    ON
+  )
+  mark_as_advanced(WITH_LIBS_PRECOMPILED)
+
+  option(WITH_STATIC_LIBS "Try to link with static libraries, as much as possible, to make blender more portable across distributions" OFF)
+  if(WITH_STATIC_LIBS)
+    option(WITH_BOOST_ICU "Boost uses ICU library (required for linking with static Boost built with libicu)." OFF)
+    mark_as_advanced(WITH_BOOST_ICU)
+  endif()
+endif()
+
 # Misc
 if(WIN32 OR APPLE)
   option(WITH_INPUT_IME "Enable Input Method Editor (IME) for complex Asian character input" ON)
@@ -423,11 +443,6 @@ endif()
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ON)
 if(UNIX AND NOT APPLE)
   option(WITH_INSTALL_PORTABLE "Install redistributable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
-  option(WITH_STATIC_LIBS "Try to link with static libraries, as much as possible, to make blender more portable across distributions" OFF)
-  if(WITH_STATIC_LIBS)
-    option(WITH_BOOST_ICU "Boost uses ICU library (required for linking with static Boost built with libicu)." OFF)
-    mark_as_advanced(WITH_BOOST_ICU)
-  endif()
 endif()
 
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
@@ -1043,6 +1058,8 @@ set(PLATFORM_LINKLIBS "")
 # - CMAKE_EXE_LINKER_FLAGS_DEBUG
 set(PLATFORM_LINKFLAGS "")
 set(PLATFORM_LINKFLAGS_DEBUG "")
+set(PLATFORM_LINKFLAGS_RELEASE "")
+set(PLATFORM_LINKFLAGS_EXECUTABLE "")
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
   if(WITH_COMPILER_ASAN)
@@ -1312,12 +1329,14 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure Bullet
 
-if(WITH_BULLET AND WITH_SYSTEM_BULLET)
-  find_package(Bullet)
-  set_and_warn_library_found("Bullet" BULLET_FOUND WITH_BULLET)
-else()
-  set(BULLET_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/bullet2/src")
-  # set(BULLET_LIBRARIES "")
+if(WITH_BULLET)
+  if(WITH_SYSTEM_BULLET)
+    find_package(Bullet)
+    set_and_warn_library_found("Bullet" BULLET_FOUND WITH_BULLET)
+  else()
+    set(BULLET_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/bullet2/src")
+    set(BULLET_LIBRARIES "extern_bullet")
+  endif()
 endif()
 
 
