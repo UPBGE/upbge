@@ -769,7 +769,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* We need the changes to be flushed before each draw loop! */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  UpdateParents(0.0);
+  //UpdateParents(0.0);
 
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
