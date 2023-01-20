@@ -76,14 +76,17 @@ struct CurvePoint : public CurveSegment {
  * [0, range_size) can be iterated over an arbitrary amount of times in between.
  */
 class IndexRangeCyclic {
-  /* Index to the start and end of the iterated range.
+  /**
+   * Index to the start and end of the iterated range.
    */
   int start_ = 0;
   int end_ = 0;
-  /* Size of the underlying iterable range.
+  /**
+   * Size of the underlying iterable range.
    */
   int range_size_ = 0;
-  /* Number of times the range end is passed when the range is iterated.
+  /**
+   * Number of times the range end is passed when the range is iterated.
    */
   int cycles_ = 0;
 
@@ -519,18 +522,22 @@ void fill_points(const CurvesGeometry &curves,
 }
 
 /**
- * Copy only the attributes on the curve domain, but not the offsets or any point attributes,
- * meant for operations that change the number of points but not the number of curves.
+ * Create new curves with the same number of curves as the input, but no points. Copy all curve
+ * domain attributes to the new curves, except the offsets encoding the size of each curve.
+ *
+ * Used for operations that change the number of points but not the number of curves, allowing
+ * creation of the new offsets directly inside the new array.
+ *
  * \warning The returned curves have invalid offsets!
  */
 bke::CurvesGeometry copy_only_curve_domain(const bke::CurvesGeometry &src_curves);
 
 /**
- * Copy the size of every curve in #curve_ranges to the corresponding index in #counts.
+ * Copy the number of points in every curve in #curve_ranges to the corresponding index in #sizes.
  */
-void fill_curve_counts(const bke::CurvesGeometry &curves,
-                       Span<IndexRange> curve_ranges,
-                       MutableSpan<int> counts);
+void copy_curve_sizes(const bke::CurvesGeometry &curves,
+                      Span<IndexRange> curve_ranges,
+                      MutableSpan<int> sizes);
 
 IndexMask indices_for_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,

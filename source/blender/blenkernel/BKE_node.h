@@ -360,7 +360,7 @@ typedef struct bNodeType {
   ExtensionRNA rna_ext;
 } bNodeType;
 
-/* nodetype->nclass, for add-menu and themes */
+/** #bNodeType.nclass (for add-menu and themes). */
 #define NODE_CLASS_INPUT 0
 #define NODE_CLASS_OUTPUT 1
 #define NODE_CLASS_OP_COLOR 3
@@ -1513,7 +1513,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define GEO_NODE_INPUT_SHORTEST_EDGE_PATHS 1168
 #define GEO_NODE_EDGE_PATHS_TO_CURVES 1169
 #define GEO_NODE_EDGE_PATHS_TO_SELECTION 1170
-#define GEO_NODE_MESH_FACE_SET_BOUNDARIES 1171
+#define GEO_NODE_MESH_FACE_GROUP_BOUNDARIES 1171
 #define GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME 1172
 #define GEO_NODE_SELF_OBJECT 1173
 #define GEO_NODE_SAMPLE_INDEX 1174

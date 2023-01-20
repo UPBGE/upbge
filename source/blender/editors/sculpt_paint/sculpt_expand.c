@@ -133,10 +133,8 @@ static bool sculpt_expand_is_vert_in_active_component(SculptSession *ss,
                                                       ExpandCache *expand_cache,
                                                       const PBVHVertRef v)
 {
-  int v_i = BKE_pbvh_vertex_to_index(ss->pbvh, v);
-
   for (int i = 0; i < EXPAND_SYMM_AREAS; i++) {
-    if (ss->vertex_info.connected_component[v_i] == expand_cache->active_connected_components[i]) {
+    if (SCULPT_vertex_island_get(ss, v) == expand_cache->active_connected_islands[i]) {
       return true;
     }
   }
@@ -256,7 +254,7 @@ static bool sculpt_expand_state_get(SculptSession *ss,
  */
 static bool sculpt_expand_face_state_get(SculptSession *ss, ExpandCache *expand_cache, const int f)
 {
-  if (expand_cache->original_face_sets[f] <= 0) {
+  if (ss->hide_poly && ss->hide_poly[f]) {
     return false;
   }
 
@@ -388,6 +386,22 @@ static BLI_bitmap *sculpt_expand_boundary_from_enabled(SculptSession *ss,
   }
 
   return boundary_verts;
+}
+
+static void sculpt_expand_check_topology_islands(Object *ob)
+{
+  SculptSession *ss = ob->sculpt;
+
+  ss->expand_cache->check_islands = ELEM(ss->expand_cache->falloff_type,
+                                         SCULPT_EXPAND_FALLOFF_GEODESIC,
+                                         SCULPT_EXPAND_FALLOFF_TOPOLOGY,
+                                         SCULPT_EXPAND_FALLOFF_TOPOLOGY_DIAGONALS,
+                                         SCULPT_EXPAND_FALLOFF_BOUNDARY_TOPOLOGY,
+                                         SCULPT_EXPAND_FALLOFF_NORMALS);
+
+  if (ss->expand_cache->check_islands) {
+    SCULPT_topology_islands_ensure(ob);
+  }
 }
 
 /* Functions implementing different algorithms for initializing falloff values. */
@@ -1250,6 +1264,11 @@ static void sculpt_expand_mask_update_task_cb(void *__restrict userdata,
     const float initial_mask = *vd.mask;
     const bool enabled = sculpt_expand_state_get(ss, expand_cache, vd.vertex);
 
+    if (expand_cache->check_islands &&
+        !sculpt_expand_is_vert_in_active_component(ss, expand_cache, vd.vertex)) {
+      continue;
+    }
+
     float new_mask;
 
     if (enabled) {
@@ -1609,7 +1628,7 @@ static void sculpt_expand_find_active_connected_components_from_vert(
 {
   SculptSession *ss = ob->sculpt;
   for (int i = 0; i < EXPAND_SYMM_AREAS; i++) {
-    expand_cache->active_connected_components[i] = EXPAND_ACTIVE_COMPONENT_NONE;
+    expand_cache->active_connected_islands[i] = EXPAND_ACTIVE_COMPONENT_NONE;
   }
 
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
@@ -1621,10 +1640,8 @@ static void sculpt_expand_find_active_connected_components_from_vert(
     const PBVHVertRef symm_vertex = sculpt_expand_get_vertex_index_for_symmetry_pass(
         ob, symm_it, initial_vertex);
 
-    int symm_vertex_i = BKE_pbvh_vertex_to_index(ss->pbvh, symm_vertex);
-
-    expand_cache->active_connected_components[(int)symm_it] =
-        ss->vertex_info.connected_component[symm_vertex_i];
+    expand_cache->active_connected_islands[(int)symm_it] = SCULPT_vertex_island_get(
+        ss, symm_vertex);
   }
 }
 
@@ -1704,8 +1721,8 @@ static void sculpt_expand_move_propagation_origin(bContext *C,
 static void sculpt_expand_ensure_sculptsession_data(Object *ob)
 {
   SculptSession *ss = ob->sculpt;
+  SCULPT_topology_islands_ensure(ob);
   SCULPT_vertex_random_access_ensure(ss);
-  SCULPT_connected_components_ensure(ob);
   SCULPT_boundary_info_ensure(ob);
   if (!ss->tex_pool) {
     ss->tex_pool = BKE_image_pool_new();
@@ -1842,6 +1859,9 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
         return OPERATOR_FINISHED;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC: {
+        expand_cache->falloff_gradient = SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC;
+        sculpt_expand_check_topology_islands(ob);
+
         sculpt_expand_falloff_factors_from_vertex_and_symm_create(
             expand_cache,
             sd,
@@ -1851,6 +1871,9 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
         break;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY: {
+        expand_cache->falloff_gradient = SCULPT_EXPAND_FALLOFF_TOPOLOGY;
+        sculpt_expand_check_topology_islands(ob);
+
         sculpt_expand_falloff_factors_from_vertex_and_symm_create(
             expand_cache,
             sd,
@@ -1860,6 +1883,9 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
         break;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS: {
+        expand_cache->falloff_gradient = SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS;
+        sculpt_expand_check_topology_islands(ob);
+
         sculpt_expand_falloff_factors_from_vertex_and_symm_create(
             expand_cache,
             sd,
@@ -1869,6 +1895,7 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
         break;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_SPHERICAL: {
+        expand_cache->check_islands = false;
         sculpt_expand_falloff_factors_from_vertex_and_symm_create(
             expand_cache,
             sd,
@@ -2213,6 +2240,8 @@ static int sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *even
   sculpt_expand_falloff_factors_from_vertex_and_symm_create(
       ss->expand_cache, sd, ob, ss->expand_cache->initial_active_vertex, falloff_type);
 
+  sculpt_expand_check_topology_islands(ob);
+
   /* Initial mesh data update, resets all target data in the sculpt mesh. */
   sculpt_expand_update_for_vertex(C, ob, ss->expand_cache->initial_active_vertex);
 
@@ -2301,7 +2330,7 @@ void SCULPT_OT_expand(wmOperatorType *ot)
   ot->cancel = sculpt_expand_cancel;
   ot->poll = SCULPT_mode_poll;
 
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   static EnumPropertyItem prop_sculpt_expand_falloff_type_items[] = {
       {SCULPT_EXPAND_FALLOFF_GEODESIC, "GEODESIC", 0, "Geodesic", ""},

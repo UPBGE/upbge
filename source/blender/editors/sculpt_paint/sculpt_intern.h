@@ -410,6 +410,7 @@ typedef struct AutomaskingSettings {
   /* Flags from eAutomasking_flag. */
   int flags;
   int initial_face_set;
+  int initial_island_nr;
 
   float cavity_factor;
   int cavity_blur_steps;
@@ -743,11 +744,11 @@ typedef struct ExpandCache {
    * initial position of Expand. */
   float original_mouse_move[2];
 
-  /* Active components checks. */
-  /* Indexed by symmetry pass index, contains the connected component ID found in
-   * SculptSession->vertex_info.connected_component. Other connected components not found in this
+  /* Active island checks. */
+  /* Indexed by symmetry pass index, contains the connected island ID for that
+   * symmetry pass. Other connected island IDs not found in this
    * array will be ignored by Expand. */
-  int active_connected_components[EXPAND_SYMM_AREAS];
+  int active_connected_islands[EXPAND_SYMM_AREAS];
 
   /* Snapping. */
   /* GSet containing all Face Sets IDs that Expand will use to snap the new data. */
@@ -817,6 +818,8 @@ typedef struct ExpandCache {
   float *original_mask;
   int *original_face_sets;
   float (*original_colors)[4];
+
+  bool check_islands;
 } ExpandCache;
 /** \} */
 
@@ -1023,8 +1026,6 @@ void SCULPT_fake_neighbors_free(struct Object *ob);
 void SCULPT_boundary_info_ensure(Object *object);
 /* Boundary Info needs to be initialized in order to use this function. */
 bool SCULPT_vertex_is_boundary(const SculptSession *ss, PBVHVertRef vertex);
-
-void SCULPT_connected_components_ensure(Object *ob);
 
 /** \} */
 
@@ -1940,6 +1941,27 @@ void SCULPT_stroke_id_next(struct Object *ob);
 bool SCULPT_tool_can_reuse_automask(int sculpt_tool);
 
 void SCULPT_ensure_valid_pivot(const struct Object *ob, struct Scene *scene);
+
+/* -------------------------------------------------------------------- */
+/** \name Topology island API
+ * \{
+ * Each mesh island shell gets its own integer
+ * key; these are temporary and internally limited to 8 bits.
+ * Uses the `ss->topology_island_key` attribute.
+ */
+
+/* Ensures vertex island keys exist and are valid. */
+void SCULPT_topology_islands_ensure(struct Object *ob);
+
+/* Mark vertex island keys as invalid.  Call when adding or hiding
+ * geometry.
+ */
+void SCULPT_topology_islands_invalidate(SculptSession *ss);
+
+/* Get vertex island key.*/
+int SCULPT_vertex_island_get(SculptSession *ss, PBVHVertRef vertex);
+
+/** \} */
 
 #ifdef __cplusplus
 }

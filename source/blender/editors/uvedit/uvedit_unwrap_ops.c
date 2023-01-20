@@ -281,6 +281,13 @@ void ED_uvedit_get_aspect(Object *ob, float *r_aspx, float *r_aspy)
   ED_uvedit_get_aspect_from_material(ob, efa->mat_nr, r_aspx, r_aspy);
 }
 
+float ED_uvedit_get_aspect_y(Object *ob)
+{
+  float aspect[2];
+  ED_uvedit_get_aspect(ob, &aspect[0], &aspect[1]);
+  return aspect[0] / aspect[1];
+}
+
 static bool uvedit_is_face_affected(const Scene *scene,
                                     BMFace *efa,
                                     const UnwrapOptions *options,
@@ -588,10 +595,10 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   /* Modifier initialization data, will  control what type of subdivision will happen. */
   SubsurfModifierData smd = {{NULL}};
 
-  /* holds a map to editfaces for every subsurfed MFace.
+  /* Holds a map to edit-faces for every subdivision-surface polygon.
    * These will be used to get hidden/ selected flags etc. */
   BMFace **faceMap;
-  /* similar to the above, we need a way to map edges to their original ones */
+  /* Similar to the above, we need a way to map edges to their original ones. */
   BMEdge **edgeMap;
 
   const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
@@ -1548,9 +1555,7 @@ static void shrink_loop_uv_by_aspect_ratio(BMFace *efa,
 static void correct_uv_aspect(Object *ob, BMEditMesh *em)
 {
   const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
-  float aspx, aspy;
-  ED_uvedit_get_aspect(ob, &aspx, &aspy);
-  const float aspect_y = aspx / aspy;
+  const float aspect_y = ED_uvedit_get_aspect_y(ob);
   if (aspect_y == 1.0f) {
     /* Scaling by 1.0 has no effect. */
     return;

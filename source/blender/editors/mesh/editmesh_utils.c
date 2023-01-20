@@ -887,7 +887,7 @@ static void bm_uv_build_islands(UvElementMap *element_map,
   MEM_SAFE_FREE(map);
 }
 
-/* return true if `loop` has UV co-ordinates which match `luv_a` and `luv_b` */
+/** Return true if `loop` has UV co-ordinates which match `luv_a` and `luv_b`. */
 static bool loop_uv_match(BMLoop *loop,
                           const float luv_a[2],
                           const float luv_b[2],
@@ -912,6 +912,7 @@ static bool loop_uv_match(BMLoop *loop,
  * \param edge: Search for `needle` in all loops connected to `edge` (recursively).
  * \param luv_anchor: The UV of the anchor (vertex that's being stepped around).
  * \param luv_fan: The UV of the outer edge, this changes as the fan is stepped over.
+ * \param needle: Search for this loop, also defines the vertex at the center of the face-fan.
  * \param visited: A set of edges to prevent recursing down the same edge multiple times.
  * \param cd_loop_uv_offset: The UV layer.
  * \return true if there are edges that fan between them that are seam-free.
