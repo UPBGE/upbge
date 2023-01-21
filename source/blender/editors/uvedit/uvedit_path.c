@@ -562,8 +562,8 @@ static int uv_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEve
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, NULL, &objects_len);
 
   float co[2];
 
@@ -709,6 +709,7 @@ static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 
   BMElem *ele_src, *ele_dst;
 
+  /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (uv_selectmode & UV_SELECT_FACE) {
     if (index < 0 || index >= bm->totface) {
       return OPERATOR_CANCELLED;
@@ -736,6 +737,7 @@ static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
   }
+  /* NOLINTEND: bugprone-assignment-in-if-condition */
 
   /* Always use the active object, not `obedit` as the active defines the UV display. */
   const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
@@ -796,8 +798,8 @@ static int uv_shortest_path_select_exec(bContext *C, wmOperator *op)
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, NULL, &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
