@@ -569,10 +569,16 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
   /* Concatenate msl_shader_defines to provide functionality mapping
    * from GLSL to MSL. Also include additional GPU defines for
    * optional high-level feature support. */
-  const std::string msl_defines_string =
+  std::string msl_defines_string =
       "#define GPU_ARB_texture_cube_map_array 1\n\
-    #define GPU_ARB_shader_draw_parameters 1\n\
-    #define GPU_ARB_texture_gather 1\n";
+      #define GPU_ARB_shader_draw_parameters 1\n";
+
+  /* NOTE(Metal): textureGather appears to not function correctly on non-Apple-silicon GPUs.
+   * Manifests as selection outlines not showing up (T103412). Disable texture gather if
+   * not suitable for use. */
+  if (MTLBackend::get_capabilities().supports_texture_gather) {
+    msl_defines_string += "#define GPU_ARB_texture_gather 1\n";
+  }
 
   shd_builder_->glsl_vertex_source_ = msl_defines_string + shd_builder_->glsl_vertex_source_;
   if (!msl_iface.uses_transform_feedback) {
@@ -1049,12 +1055,10 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
 #endif
 
   /* Set MSL source NSString's. Required by Metal API. */
-  NSString *msl_final_vert = [NSString stringWithCString:ss_vertex.str().c_str()
-                                                encoding:[NSString defaultCStringEncoding]];
+  NSString *msl_final_vert = [NSString stringWithUTF8String:ss_vertex.str().c_str()];
   NSString *msl_final_frag = (msl_iface.uses_transform_feedback) ?
                                  (@"") :
-                                 ([NSString stringWithCString:ss_fragment.str().c_str()
-                                                     encoding:[NSString defaultCStringEncoding]]);
+                                 ([NSString stringWithUTF8String:ss_fragment.str().c_str()]);
 
   this->shader_source_from_msl(msl_final_vert, msl_final_frag);
   shader_debug_printf("[METAL] BSL Converted into MSL\n");

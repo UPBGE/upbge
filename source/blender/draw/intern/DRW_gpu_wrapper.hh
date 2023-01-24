@@ -866,7 +866,8 @@ class Texture : NonCopyable {
     /* TODO(@fclem): In the future, we need to check if mip_count did not change.
      * For now it's ok as we always define all MIP level. */
     if (tx_) {
-      int3 size = this->size();
+      int3 size(0);
+      GPU_texture_get_mipmap_size(tx_, 0, size);
       if (size != int3(w, h, d) || GPU_texture_format(tx_) != format ||
           GPU_texture_cube(tx_) != cubemap || GPU_texture_array(tx_) != layered) {
         free();
@@ -1082,6 +1083,16 @@ class Framebuffer : NonCopyable {
       fb_ = GPU_framebuffer_create(name_);
     }
     GPU_framebuffer_default_size(fb_, UNPACK2(target_size));
+  }
+
+  void bind()
+  {
+    GPU_framebuffer_bind(fb_);
+  }
+
+  void clear_depth(float depth)
+  {
+    GPU_framebuffer_clear_depth(fb_, depth);
   }
 
   Framebuffer &operator=(Framebuffer &&a)
