@@ -126,9 +126,7 @@
 #include "LA_PlayerLauncher.h"
 #include "LA_SystemCommandLine.h"
 
-extern "C" {
- void UV_clipboard_free(void);
-}
+void UV_clipboard_free(void);
 
 #ifdef __APPLE__
 extern "C" int GHOST_HACK_getFirstFile(char buf[]);

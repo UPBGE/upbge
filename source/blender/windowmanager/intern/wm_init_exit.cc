@@ -389,10 +389,10 @@ bool WM_init_game(bContext *C)
   if (!scene) {
     /* XXX, this should not be needed. */
     Main *bmain = CTX_data_main(C);
-    scene = bmain->scenes.first;
+    scene = (Scene *)bmain->scenes.first;
   }
 
-  win = wm->windows.first;
+  win = (wmWindow *)wm->windows.first;
 
   /* first to get a valid window */
   if (win)
@@ -413,7 +413,7 @@ bool WM_init_game(bContext *C)
       WM_operator_name_call(C, "SCREEN_OT_region_quadview", WM_OP_EXEC_DEFAULT, NULL, NULL);
 
     /* toolbox, properties panel and header are hidden */
-    for (arhide = sa->regionbase.first; arhide; arhide = arhide->next) {
+    for (arhide = (ARegion *)sa->regionbase.first; arhide; arhide = arhide->next) {
       if (arhide->regiontype != RGN_TYPE_WINDOW) {
         if (!(arhide->flag & RGN_FLAG_HIDDEN)) {
           ED_region_toggle_hidden(C, arhide);
@@ -434,7 +434,7 @@ bool WM_init_game(bContext *C)
       ar->winy = ar->winrct.ymax + 1;
     }
     else {
-      GHOST_RectangleHandle rect = GHOST_GetClientBounds(win->ghostwin);
+      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
       ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
       ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
       ar->winx = ar->winrct.xmax + 1;
@@ -459,7 +459,7 @@ bool WM_init_game(bContext *C)
     /* Records time since last report was added */
     wm->reports.reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.02);
 
-    rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
+    rti = (ReportTimerInfo *)MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
     wm->reports.reporttimer->customdata = rti;
 
     return false;

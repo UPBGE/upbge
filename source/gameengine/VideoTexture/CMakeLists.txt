@@ -15,6 +15,7 @@ set(INC
   ../../blender/blenkernel
   ../../blender/blenlib
   ../../blender/blentranslation
+  ../../blender/bmesh
   ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern

@@ -44,6 +44,7 @@ set(INC
   ../../blender/blenlib
   ../../blender/blenloader
   ../../blender/blentranslation
+  ../../blender/bmesh
   ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
