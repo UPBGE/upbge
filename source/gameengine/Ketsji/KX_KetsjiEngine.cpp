@@ -1199,7 +1199,6 @@ void KX_KetsjiEngine::RenderDebugProperties()
   // Use nullptrfor no scene.
   RAS_DebugDraw &debugDraw = m_rasterizer->GetDebugDraw();
 
-/*
   if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
     // Title for profiling("Profile")
     // Adds the constant x indent (0 for now) to the title x margin
@@ -1211,7 +1210,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
     // Add the title indent afterwards
     ycoord += title_y_bottom_margin;
   }
-*/
+
   // Framerate display
   if (m_flags & SHOW_FRAMERATE) {
     debugDraw.RenderText2D("Frametime :", MT_Vector2(xcoord + const_xindent, ycoord), white);
