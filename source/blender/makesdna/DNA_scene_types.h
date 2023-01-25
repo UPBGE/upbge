@@ -1004,6 +1004,7 @@ enum {
 // #define GAME_USE_UI_ANTI_FLICKER (1 << 20) /* deprecated */
 #define GAME_USE_VIEWPORT_RENDER (1 << 21)
 #define GAME_PYTHON_CONSOLE (1 << 22)
+#define GAME_HIGHDPI_PROFILE (1 << 23)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */

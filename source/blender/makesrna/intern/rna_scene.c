@@ -6071,6 +6071,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "Show Framerate and Profile",
                            "Show framerate and profiling information while the game runs");
 
+  prop = RNA_def_property(srna, "use_high_dpi_profile", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_HIGHDPI_PROFILE);
+  RNA_def_property_ui_text(prop,
+                           "Show Profile and Debug Properties in bigger size for High Dpi Screens",
+                           "Double scale of profile and debug properties for high dpi screens");
+
   prop = RNA_def_property(srna, "show_physics_visualization", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_PHYSICS);
   RNA_def_property_ui_text(prop,

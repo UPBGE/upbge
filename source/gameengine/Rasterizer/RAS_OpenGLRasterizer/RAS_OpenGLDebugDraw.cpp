@@ -229,8 +229,13 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
 
     if (!debugDraw->m_texts2D.empty()) {
-
-      BLF_size(blf_mono_font, 11);
+      // check for high dpi flag
+      if ((KX_GetActiveScene()->GetBlenderScene()->gm.flag & GAME_HIGHDPI_PROFILE)) {
+        BLF_size(blf_mono_font, 22);
+      }
+      else {
+        BLF_size(blf_mono_font, 11);
+      }
 
       BLF_enable(blf_mono_font, BLF_SHADOW);
 
