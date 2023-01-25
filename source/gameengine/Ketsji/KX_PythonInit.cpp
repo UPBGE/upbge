@@ -54,6 +54,7 @@
 #  include "BKE_main.h"
 #  include "BLI_blenlib.h"
 #  include "BLI_utildefines.h"
+#  include "CLG_log.h"
 #  include "DNA_ID.h"
 #  include "DNA_scene_types.h"
 #  include "GPU_material.h"
@@ -2079,6 +2080,14 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
     PyPreConfig preconfig;
     PyStatus status;
 
+    /* To narrow down reports where the systems Python is inexplicably used, see: T98131. */
+    CLOG_INFO(
+        BPY_LOG_INTERFACE,
+        2,
+        "Initializing %s support for the systems Python environment such as 'PYTHONPATH' and "
+        "the user-site directory.",
+        BPY_python_get_use_system_env() ? "*with*" : "*without*");
+
     if (BPY_python_get_use_system_env()) {
       PyPreConfig_InitPythonConfig(&preconfig);
     }
@@ -2127,8 +2136,8 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
      * While harmless, it's noisy. */
     config.pathconfig_warnings = 0;
 
-    /* When using the system's Python, allow the site-directory as well. */
-    config.user_site_directory = BPY_python_get_use_system_env();
+    /* See: 72c012ab4a3d2a7f7f59334f4912402338c82e3c */
+    // config.user_site_directory = BPY_python_get_use_system_env();
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
@@ -2310,6 +2319,14 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
     PyPreConfig preconfig;
     PyStatus status;
 
+    /* To narrow down reports where the systems Python is inexplicably used, see: T98131. */
+    CLOG_INFO(
+        BPY_LOG_INTERFACE,
+        2,
+        "Initializing %s support for the systems Python environment such as 'PYTHONPATH' and "
+        "the user-site directory.",
+        BPY_python_get_use_system_env() ? "*with*" : "*without*");
+
     backupPySysObjects();
 
     if (BPY_python_get_use_system_env()) {
@@ -2361,8 +2378,8 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
      * While harmless, it's noisy. */
     config.pathconfig_warnings = 0;
 
-    /* When using the system's Python, allow the site-directory as well. */
-    config.user_site_directory = BPY_python_get_use_system_env();
+    /* See: 72c012ab4a3d2a7f7f59334f4912402338c82e3c */
+    //config.user_site_directory = BPY_python_get_use_system_env();
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;

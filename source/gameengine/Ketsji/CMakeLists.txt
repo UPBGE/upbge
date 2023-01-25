@@ -61,6 +61,7 @@ set(INC
   ../../blender/render/
   ../../blender/render/intern/
   ../../blender/windowmanager
+  ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/guardedalloc
 )
