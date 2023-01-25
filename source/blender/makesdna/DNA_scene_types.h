@@ -902,8 +902,9 @@ typedef struct GameData {
   struct GameFraming framing;
   short playerflag, xplay, yplay, freqplay;
   short depth, attrib, rt1, rt2;
-  short aasamples, samples_per_frame, _pad4;
+  short aasamples, samples_per_frame;
 
+  short profileSize;
   short logLevel;
 
   /* stereo */
@@ -1004,7 +1005,6 @@ enum {
 // #define GAME_USE_UI_ANTI_FLICKER (1 << 20) /* deprecated */
 #define GAME_USE_VIEWPORT_RENDER (1 << 21)
 #define GAME_PYTHON_CONSOLE (1 << 22)
-#define GAME_HIGHDPI_PROFILE (1 << 23)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */
@@ -1013,6 +1013,11 @@ enum {
 
 /* GameData.lodflag */
 #define SCE_LOD_USE_HYST (1 << 0)
+
+/* GameData.profileSize */
+#define GAME_PROFILE_SIZE_NORMAL 0
+#define GAME_PROFILE_SIZE_BIG    1
+#define GAME_PROFILE_SIZE_BIGGER 2
 
 /* GameData.logLevel */
 #define GAME_LOG_LEVEL_NOTSET 0

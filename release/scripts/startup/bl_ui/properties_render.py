@@ -108,11 +108,13 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         flow = layout.column_flow()
         flow.prop(gs, "show_debug_properties", text="Debug Properties")
         flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
-        flow.prop(gs, "use_high_dpi_profile", text="High DPI screen")
         flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
         flow.prop(gs, "use_deprecation_warnings")
         flow.prop(gs, "show_mouse", text="Mouse Cursor")
         flow.prop(gs, "use_undo", text="Undo at exit")
+
+        row = layout.row()
+        row.prop(gs, "profile_size", text="Profile Size")
 
         row = layout.row()
         row.prop(gs, "log_level", text="Log Level")

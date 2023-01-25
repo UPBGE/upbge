@@ -13,6 +13,8 @@
 #include "GPU_capabilities.h"
 #include "GPU_debug.h"
 
+#include "DEG_depsgraph_query.h"
+
 #include "draw_debug.h"
 #include "draw_debug.hh"
 #include "draw_manager.h"
@@ -868,7 +870,27 @@ static void drw_debug_draw_text_bge(void)
   GPU_matrix_reset();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
-  BLF_size(blf_mono_font, 11);
+  int font_size = 11;
+  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+  if (scene) {
+    short profile_size = scene->gm.profileSize;
+    switch (profile_size) {
+      case 0: // don't change default font size
+        break;
+      case 1: {
+        font_size = 16.5;
+        break;
+      }
+      case 2: {
+        font_size = 22;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  BLF_size(blf_mono_font, font_size);
 
   BLF_enable(blf_mono_font, BLF_SHADOW);
 
