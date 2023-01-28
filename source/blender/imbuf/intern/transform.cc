@@ -8,10 +8,13 @@
 #include <array>
 #include <type_traits>
 
+#include "BLI_float4x4.hh"
 #include "BLI_math.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
+#include "BLI_task.hh"
+#include "BLI_vector.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -39,12 +42,16 @@ struct TransformUserData {
   double2 add_y;
 
   struct {
-    int num;
-    double2 offset_x;
-    double2 offset_y;
-    double2 add_x;
-    double2 add_y;
+    /**
+     * Contains per sub-sample a delta to be added to the uv of the source image buffer.
+     */
+    Vector<double2, 9> delta_uvs;
   } subsampling;
+
+  struct {
+    IndexRange x_range;
+    IndexRange y_range;
+  } destination_region;
 
   /**
    * \brief Cropping region in source image pixel space.
@@ -54,12 +61,15 @@ struct TransformUserData {
   /**
    * \brief Initialize the start_uv, add_x and add_y fields based on the given transform matrix.
    */
-  void init(const float transform_matrix[4][4], const int num_subsamples)
+  void init(const float transform_matrix[4][4],
+            const int num_subsamples,
+            const bool do_crop_destination_region)
   {
     init_start_uv(transform_matrix);
     init_add_x(transform_matrix);
     init_add_y(transform_matrix);
     init_subsampling(num_subsamples);
+    init_destination_region(transform_matrix, do_crop_destination_region);
   }
 
  private:
@@ -96,11 +106,52 @@ struct TransformUserData {
 
   void init_subsampling(const int num_subsamples)
   {
-    subsampling.num = max_ii(num_subsamples, 1);
-    subsampling.add_x = add_x / (subsampling.num);
-    subsampling.add_y = add_y / (subsampling.num);
-    subsampling.offset_x = -add_x * 0.5 + subsampling.add_x * 0.5;
-    subsampling.offset_y = -add_y * 0.5 + subsampling.add_y * 0.5;
+    double2 subsample_add_x = add_x / num_subsamples;
+    double2 subsample_add_y = add_y / num_subsamples;
+    double2 offset_x = -add_x * 0.5 + subsample_add_x * 0.5;
+    double2 offset_y = -add_y * 0.5 + subsample_add_y * 0.5;
+
+    for (int y : IndexRange(0, num_subsamples)) {
+      for (int x : IndexRange(0, num_subsamples)) {
+        double2 delta_uv = -offset_x - offset_y;
+        delta_uv += x * subsample_add_x;
+        delta_uv += y * subsample_add_y;
+        subsampling.delta_uvs.append(delta_uv);
+      }
+    }
+  }
+
+  void init_destination_region(const float4x4 &transform_matrix,
+                               const bool do_crop_destination_region)
+  {
+    if (!do_crop_destination_region) {
+      destination_region.x_range = IndexRange(dst->x);
+      destination_region.y_range = IndexRange(dst->y);
+      return;
+    }
+
+    /* Transform the src_crop to the destination buffer with a margin.*/
+    const int2 margin(2);
+    rcti rect;
+    BLI_rcti_init_minmax(&rect);
+    float4x4 inverse = transform_matrix.inverted();
+    for (const int2 &src_coords : {
+             int2(src_crop.xmin, src_crop.ymin),
+             int2(src_crop.xmax, src_crop.ymin),
+             int2(src_crop.xmin, src_crop.ymax),
+             int2(src_crop.xmax, src_crop.ymax),
+         }) {
+      float3 dst_co = inverse * float3(src_coords.x, src_coords.y, 0.0f);
+      BLI_rcti_do_minmax_v(&rect, int2(dst_co) + margin);
+      BLI_rcti_do_minmax_v(&rect, int2(dst_co) - margin);
+    }
+
+    /* Clamp rect to fit inside the image buffer.*/
+    rcti dest_rect;
+    BLI_rcti_init(&dest_rect, 0, dst->x, 0, dst->y);
+    BLI_rcti_isect(&rect, &dest_rect, &rect);
+    destination_region.x_range = IndexRange(rect.xmin, BLI_rcti_size_x(&rect));
+    destination_region.y_range = IndexRange(rect.ymin, BLI_rcti_size_y(&rect));
   }
 };
 
@@ -118,7 +169,7 @@ class BaseDiscard {
   /**
    * \brief Should the source pixel at the given uv coordinate be discarded.
    */
-  virtual bool should_discard(const TransformUserData &user_data, const double2 uv) = 0;
+  virtual bool should_discard(const TransformUserData &user_data, const double2 &uv) = 0;
 };
 
 /**
@@ -131,7 +182,7 @@ class CropSource : public BaseDiscard {
    *
    * Uses user_data.src_crop to determine if the uv coordinate should be skipped.
    */
-  bool should_discard(const TransformUserData &user_data, const double2 uv) override
+  bool should_discard(const TransformUserData &user_data, const double2 &uv) override
   {
     return uv.x < user_data.src_crop.xmin || uv.x >= user_data.src_crop.xmax ||
            uv.y < user_data.src_crop.ymin || uv.y >= user_data.src_crop.ymax;
@@ -148,7 +199,7 @@ class NoDiscard : public BaseDiscard {
    *
    * Will never discard any pixels.
    */
-  bool should_discard(const TransformUserData & /*user_data*/, const double2 /*uv*/) override
+  bool should_discard(const TransformUserData & /*user_data*/, const double2 & /*uv*/) override
   {
     return false;
   }
@@ -227,7 +278,7 @@ class BaseUVWrapping {
   /**
    * \brief modify the given uv coordinate.
    */
-  double2 modify_uv(const ImBuf *source_buffer, double2 uv)
+  double2 modify_uv(const ImBuf *source_buffer, const double2 &uv)
   {
     return double2(modify_u(source_buffer, uv.x), modify_v(source_buffer, uv.y));
   }
@@ -340,7 +391,7 @@ class Sampler {
   static const int ChannelLen = NumChannels;
   using SampleType = Pixel<StorageType, NumChannels>;
 
-  void sample(const ImBuf *source, const double2 uv, SampleType &r_sample)
+  void sample(const ImBuf *source, const double2 &uv, SampleType &r_sample)
   {
     if constexpr (Filter == IMB_FILTER_BILINEAR && std::is_same_v<StorageType, float> &&
                   NumChannels == 4) {
@@ -380,7 +431,7 @@ class Sampler {
     }
     else if constexpr (Filter == IMB_FILTER_NEAREST && std::is_same_v<StorageType, float>) {
       const double2 wrapped_uv = uv_wrapper.modify_uv(source, uv);
-      sample_nearest_float(source, UNPACK2(wrapped_uv), r_sample);
+      sample_nearest_float(source, wrapped_uv, r_sample);
     }
     else {
       /* Unsupported sampler. */
@@ -389,16 +440,13 @@ class Sampler {
   }
 
  private:
-  void sample_nearest_float(const ImBuf *source,
-                            const double u,
-                            const double v,
-                            SampleType &r_sample)
+  void sample_nearest_float(const ImBuf *source, const double2 &uv, SampleType &r_sample)
   {
     BLI_STATIC_ASSERT(std::is_same_v<StorageType, float>);
 
     /* ImBuf in must have a valid rect or rect_float, assume this is already checked */
-    int x1 = int(u);
-    int y1 = int(v);
+    int x1 = int(uv.x);
+    int y1 = int(uv.y);
 
     /* Break when sample outside image is requested. */
     if (x1 < 0 || x1 >= source->x || y1 < 0 || y1 >= source->y) {
@@ -526,7 +574,7 @@ class ScanlineProcessor {
    */
   void process(const TransformUserData *user_data, int scanline)
   {
-    if (user_data->subsampling.num > 1) {
+    if (user_data->subsampling.delta_uvs.size() > 1) {
       process_with_subsampling(user_data, scanline);
     }
     else {
@@ -537,22 +585,14 @@ class ScanlineProcessor {
  private:
   void process_one_sample_per_pixel(const TransformUserData *user_data, int scanline)
   {
-    const int width = user_data->dst->x;
-    double2 uv = user_data->start_uv + user_data->add_y * scanline;
+    double2 uv = user_data->start_uv +
+                 user_data->destination_region.x_range.first() * user_data->add_x +
+                 user_data->add_y * scanline;
 
-    output.init_pixel_pointer(user_data->dst, int2(0, scanline));
-    int xi = 0;
-    while (xi < width) {
-      const bool discard_pixel = discarder.should_discard(*user_data, uv);
-      if (!discard_pixel) {
-        break;
-      }
-      uv += user_data->add_x;
-      output.increase_pixel_pointer();
-      xi += 1;
-    }
-
-    for (; xi < width; xi++) {
+    output.init_pixel_pointer(user_data->dst,
+                              int2(user_data->destination_region.x_range.first(), scanline));
+    for (int xi : user_data->destination_region.x_range) {
+      UNUSED_VARS(xi);
       if (!discarder.should_discard(*user_data, uv)) {
         typename Sampler::SampleType sample;
         sampler.sample(user_data->src, uv, sample);
@@ -566,55 +606,31 @@ class ScanlineProcessor {
 
   void process_with_subsampling(const TransformUserData *user_data, int scanline)
   {
-    const int width = user_data->dst->x;
-    double2 uv = user_data->start_uv + user_data->add_y * scanline;
+    double2 uv = user_data->start_uv +
+                 user_data->destination_region.x_range.first() * user_data->add_x +
+                 user_data->add_y * scanline;
 
-    output.init_pixel_pointer(user_data->dst, int2(0, scanline));
-    int xi = 0;
-    /*
-     * Skip leading pixels that would be fully discarded.
-     *
-     * NOTE: This could be improved by intersection between an ray and the image bounds.
-     */
-    while (xi < width) {
-      const bool discard_pixel = discarder.should_discard(*user_data, uv) &&
-                                 discarder.should_discard(*user_data, uv + user_data->add_x) &&
-                                 discarder.should_discard(*user_data, uv + user_data->add_y) &&
-                                 discarder.should_discard(
-                                     *user_data, uv + user_data->add_x + user_data->add_y);
-      if (!discard_pixel) {
-        break;
-      }
-      uv += user_data->add_x;
-      output.increase_pixel_pointer();
-      xi += 1;
-    }
-
-    for (; xi < width; xi++) {
+    output.init_pixel_pointer(user_data->dst,
+                              int2(user_data->destination_region.x_range.first(), scanline));
+    for (int xi : user_data->destination_region.x_range) {
+      UNUSED_VARS(xi);
       typename Sampler::SampleType sample;
       sample.clear();
       int num_subsamples_added = 0;
 
-      double2 subsample_uv_y = uv + user_data->subsampling.offset_y;
-      for (int subsample_yi : IndexRange(user_data->subsampling.num)) {
-        UNUSED_VARS(subsample_yi);
-        double2 subsample_uv = subsample_uv_y + user_data->subsampling.offset_x;
-        for (int subsample_xi : IndexRange(user_data->subsampling.num)) {
-          UNUSED_VARS(subsample_xi);
-          if (!discarder.should_discard(*user_data, subsample_uv)) {
-            typename Sampler::SampleType sub_sample;
-            sampler.sample(user_data->src, subsample_uv, sub_sample);
-            sample.add_subsample(sub_sample, num_subsamples_added);
-            num_subsamples_added += 1;
-          }
-          subsample_uv += user_data->subsampling.add_x;
+      for (const double2 &delta_uv : user_data->subsampling.delta_uvs) {
+        const double2 subsample_uv = uv + delta_uv;
+        if (!discarder.should_discard(*user_data, subsample_uv)) {
+          typename Sampler::SampleType sub_sample;
+          sampler.sample(user_data->src, subsample_uv, sub_sample);
+          sample.add_subsample(sub_sample, num_subsamples_added);
+          num_subsamples_added += 1;
         }
-        subsample_uv_y += user_data->subsampling.add_y;
       }
 
       if (num_subsamples_added != 0) {
-        float mix_weight = float(num_subsamples_added) /
-                           (user_data->subsampling.num * user_data->subsampling.num);
+        const float mix_weight = float(num_subsamples_added) /
+                                 user_data->subsampling.delta_uvs.size();
         channel_converter.mix_and_store(sample, output, mix_weight);
       }
       uv += user_data->add_x;
@@ -698,7 +714,11 @@ static void transform_threaded(TransformUserData *user_data, const eIMBTransform
   }
 
   if (scanline_func != nullptr) {
-    IMB_processor_apply_threaded_scanlines(user_data->dst->y, scanline_func, user_data);
+    threading::parallel_for(user_data->destination_region.y_range, 8, [&](IndexRange range) {
+      for (int scanline : range) {
+        scanline_func(user_data, scanline);
+      }
+    });
   }
 }
 
@@ -726,7 +746,7 @@ void IMB_transform(const struct ImBuf *src,
   if (mode == IMB_TRANSFORM_MODE_CROP_SRC) {
     user_data.src_crop = *src_crop;
   }
-  user_data.init(transform_matrix, num_subsamples);
+  user_data.init(transform_matrix, num_subsamples, ELEM(mode, IMB_TRANSFORM_MODE_CROP_SRC));
 
   if (filter == IMB_FILTER_NEAREST) {
     transform_threaded<IMB_FILTER_NEAREST>(&user_data, mode);

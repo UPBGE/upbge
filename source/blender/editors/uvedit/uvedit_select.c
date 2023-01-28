@@ -87,9 +87,11 @@ typedef enum {
   UV_SSIM_FACE,
   UV_SSIM_LENGTH_UV,
   UV_SSIM_LENGTH_3D,
-  UV_SSIM_SIDES,
-  UV_SSIM_PIN,
   UV_SSIM_MATERIAL,
+  UV_SSIM_OBJECT,
+  UV_SSIM_PIN,
+  UV_SSIM_SIDES,
+  UV_SSIM_WINDING,
 } eUVSelectSimilar;
 
 /* -------------------------------------------------------------------- */
@@ -1784,7 +1786,6 @@ static void uv_select_linked_multi(Scene *scene,
     BMFace *efa;
     BMLoop *l;
     BMIter iter, liter;
-    UvVertMap *vmap;
     UvMapVert *vlist, *iterv, *startv;
     int i, stacksize = 0, *stack;
     uint a;
@@ -1805,8 +1806,7 @@ static void uv_select_linked_multi(Scene *scene,
      *
      * Better solve this by having a delimit option for select-linked operator,
      * keeping island-select working as is. */
-    vmap = BM_uv_vert_map_create(em->bm, !uv_sync_select, false);
-
+    UvVertMap *vmap = BM_uv_vert_map_create(em->bm, !uv_sync_select);
     if (vmap == NULL) {
       continue;
     }
@@ -3302,11 +3302,10 @@ static void uv_select_flush_from_tag_face(const Scene *scene, Object *obedit, co
   if ((ts->uv_flag & UV_SYNC_SELECTION) == 0 &&
       ELEM(ts->uv_sticky, SI_STICKY_VERTEX, SI_STICKY_LOC)) {
 
-    struct UvVertMap *vmap;
     uint efa_index;
 
     BM_mesh_elem_table_ensure(em->bm, BM_FACE);
-    vmap = BM_uv_vert_map_create(em->bm, false, false);
+    struct UvVertMap *vmap = BM_uv_vert_map_create(em->bm, false);
     if (vmap == NULL) {
       return;
     }
@@ -3392,11 +3391,10 @@ static void uv_select_flush_from_tag_loop(const Scene *scene, Object *obedit, co
     }
   }
   else if ((ts->uv_flag & UV_SYNC_SELECTION) == 0 && ts->uv_sticky == SI_STICKY_LOC) {
-    struct UvVertMap *vmap;
     uint efa_index;
 
     BM_mesh_elem_table_ensure(em->bm, BM_FACE);
-    vmap = BM_uv_vert_map_create(em->bm, false, false);
+    struct UvVertMap *vmap = BM_uv_vert_map_create(em->bm, false);
     if (vmap == NULL) {
       return;
     }
@@ -3447,13 +3445,12 @@ static void uv_select_flush_from_loop_edge_flag(const Scene *scene, BMEditMesh *
   if ((ts->uv_flag & UV_SYNC_SELECTION) == 0 &&
       ELEM(ts->uv_sticky, SI_STICKY_LOC, SI_STICKY_VERTEX)) {
     /* Use UV edge selection to identify which verts must to be selected */
-    struct UvVertMap *vmap;
     uint efa_index;
     /* Clear UV vert flags */
     bm_clear_uv_vert_selection(scene, em->bm, offsets);
 
     BM_mesh_elem_table_ensure(em->bm, BM_FACE);
-    vmap = BM_uv_vert_map_create(em->bm, false, false);
+    struct UvVertMap *vmap = BM_uv_vert_map_create(em->bm, false);
     if (vmap == NULL) {
       return;
     }
@@ -4633,6 +4630,7 @@ static float get_uv_edge_needle(const eUVSelectSimilar type,
 
 static float get_uv_face_needle(const eUVSelectSimilar type,
                                 BMFace *face,
+                                int ob_index,
                                 const float ob_m3[3][3],
                                 const BMUVOffsets offsets)
 {
@@ -4646,6 +4644,8 @@ static float get_uv_face_needle(const eUVSelectSimilar type,
       return BM_face_calc_area_with_mat3(face, ob_m3);
     case UV_SSIM_SIDES:
       return face->len;
+    case UV_SSIM_OBJECT:
+      return ob_index;
     case UV_SSIM_PIN: {
       BMLoop *l;
       BMIter liter;
@@ -4657,6 +4657,8 @@ static float get_uv_face_needle(const eUVSelectSimilar type,
     } break;
     case UV_SSIM_MATERIAL:
       return face->mat_nr;
+    case UV_SSIM_WINDING:
+      return signum_i(BM_face_calc_area_uv_signed(face, offsets.uv));
     default:
       BLI_assert_unreachable();
       return false;
@@ -4966,7 +4968,7 @@ static int uv_select_similar_face_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      float needle = get_uv_face_needle(type, face, ob_m3, offsets);
+      float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
       if (tree_1d) {
         BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
       }
@@ -5000,7 +5002,7 @@ static int uv_select_similar_face_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      float needle = get_uv_face_needle(type, face, ob_m3, offsets);
+      float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
 
       bool select = ED_select_similar_compare_float_tree(tree_1d, needle, threshold, compare);
       if (select) {
@@ -5180,8 +5182,10 @@ static EnumPropertyItem prop_edge_similar_types[] = {
 static EnumPropertyItem prop_face_similar_types[] = {
     {UV_SSIM_AREA_UV, "AREA", 0, "Area", ""},
     {UV_SSIM_AREA_3D, "AREA_3D", 0, "Area 3D", ""},
-    {UV_SSIM_SIDES, "SIDES", 0, "Polygon Sides", ""},
     {UV_SSIM_MATERIAL, "MATERIAL", 0, "Material", ""},
+    {UV_SSIM_OBJECT, "OBJECT", 0, "Object", ""},
+    {UV_SSIM_SIDES, "SIDES", 0, "Polygon Sides", ""},
+    {UV_SSIM_WINDING, "WINDING", 0, "Winding", ""},
     {0}};
 
 static EnumPropertyItem prop_island_similar_types[] = {
