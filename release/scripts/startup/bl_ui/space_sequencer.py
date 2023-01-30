@@ -946,6 +946,7 @@ class SEQUENCER_MT_strip(Menu):
 
         if strip and strip.type == 'SCENE':
             layout.operator("sequencer.delete", text="Delete Strip & Data").delete_data = True
+            layout.operator("sequencer.scene_frame_range_update")
 
         if has_sequencer:
             if strip:
@@ -1068,6 +1069,7 @@ class SEQUENCER_MT_context_menu(Menu):
         strip = context.active_sequence_strip
         if strip and strip.type == 'SCENE':
             layout.operator("sequencer.delete", text="Delete Strip & Data").delete_data = True
+            layout.operator("sequencer.scene_frame_range_update")
 
         layout.separator()
 
@@ -1577,7 +1579,7 @@ class SEQUENCER_PT_effect_text_style(SequencerButtonsPanel, Panel):
         subsub.prop(strip, "shadow_color", text="")
         row.prop_decorator(strip, "shadow_color")
 
-        row = layout.row(align=True, heading="Box")
+        row = layout.row(align=True, heading="Box", heading_ctxt=i18n_contexts.id_sequence)
         row.use_property_decorate = False
         sub = row.row(align=True)
         sub.prop(strip, "use_box", text="")
@@ -1994,7 +1996,7 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
 
             split = col.split(factor=0.4)
             split.alignment = 'RIGHT'
-            split.label(text="Pan")
+            split.label(text="Pan", heading_ctxt=i18n_contexts.id_sound)
             split.prop(strip, "pan", text="")
             split.enabled = pan_enabled
 
