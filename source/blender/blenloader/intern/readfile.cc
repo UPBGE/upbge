@@ -2702,7 +2702,6 @@ static void lib_link_workspace_layout_restore(IDNameLib_Map *id_map,
           case SPACE_IMASEL:
           case SPACE_SOUND:
           case SPACE_TIME:
-          case SPACE_LOGIC:
           case SPACE_CONSOLE:
           case SPACE_USERPREF:
           case SPACE_TOPBAR:
