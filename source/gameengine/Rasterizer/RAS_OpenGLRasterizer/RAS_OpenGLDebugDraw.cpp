@@ -229,7 +229,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
 
     if (!debugDraw->m_texts2D.empty()) {
-
+      GPU_face_culling(GPU_CULL_NONE);
       BLF_size(blf_mono_font, 11);
 
       BLF_enable(blf_mono_font, BLF_SHADOW);
@@ -251,7 +251,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       }
       BLF_disable(blf_mono_font, BLF_SHADOW);
       GPU_depth_test(GPU_DEPTH_ALWAYS);
-      GPU_face_culling(GPU_CULL_NONE);
     }
   }
 }
