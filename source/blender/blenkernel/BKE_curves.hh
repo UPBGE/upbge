@@ -128,17 +128,6 @@ class CurvesGeometry : public ::CurvesGeometry {
   CurvesGeometry &operator=(CurvesGeometry &&other);
   ~CurvesGeometry();
 
-  static CurvesGeometry &wrap(::CurvesGeometry &dna_struct)
-  {
-    CurvesGeometry *geometry = reinterpret_cast<CurvesGeometry *>(&dna_struct);
-    return *geometry;
-  }
-  static const CurvesGeometry &wrap(const ::CurvesGeometry &dna_struct)
-  {
-    const CurvesGeometry *geometry = reinterpret_cast<const CurvesGeometry *>(&dna_struct);
-    return *geometry;
-  }
-
   /* --------------------------------------------------------------------
    * Accessors.
    */
@@ -407,6 +396,8 @@ class CurvesGeometry : public ::CurvesGeometry {
     return this->adapt_domain(GVArray(varray), from, to).typed<T>();
   }
 };
+
+static_assert(sizeof(blender::bke::CurvesGeometry) == sizeof(::CurvesGeometry));
 
 /**
  * Used to propagate deformation data through modifier evaluation so that sculpt tools can work on
@@ -692,7 +683,7 @@ int calculate_evaluated_num(int points_num, bool cyclic, int resolution);
 void interpolate_to_evaluated(GSpan src, bool cyclic, int resolution, GMutableSpan dst);
 
 /**
- * Evaluate the Catmull Rom curve. The placement of each segment in the #dst span is desribed by
+ * Evaluate the Catmull Rom curve. The placement of each segment in the #dst span is described by
  * #evaluated_offsets.
  */
 void interpolate_to_evaluated(const GSpan src,
@@ -966,3 +957,12 @@ struct CurvesSurfaceTransforms {
 };
 
 }  // namespace blender::bke
+
+inline blender::bke::CurvesGeometry &CurvesGeometry::wrap()
+{
+  return *reinterpret_cast<blender::bke::CurvesGeometry *>(this);
+}
+inline const blender::bke::CurvesGeometry &CurvesGeometry::wrap() const
+{
+  return *reinterpret_cast<const blender::bke::CurvesGeometry *>(this);
+}
