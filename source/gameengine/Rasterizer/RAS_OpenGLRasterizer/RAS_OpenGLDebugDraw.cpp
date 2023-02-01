@@ -229,6 +229,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
 
     if (!debugDraw->m_texts2D.empty()) {
+      GPU_face_culling(GPU_CULL_NONE);
       short profile_size = KX_GetActiveScene()->GetBlenderScene()->gm.profileSize;
       int fontSize = 11;
       switch (profile_size) {
@@ -267,7 +268,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       }
       BLF_disable(blf_mono_font, BLF_SHADOW);
       GPU_depth_test(GPU_DEPTH_ALWAYS);
-      GPU_face_culling(GPU_CULL_NONE);
     }
   }
 }

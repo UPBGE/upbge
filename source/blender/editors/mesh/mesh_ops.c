@@ -193,6 +193,7 @@ void ED_operatortypes_mesh(void)
   WM_operatortype_append(MESH_OT_average_normals);
   WM_operatortype_append(MESH_OT_smooth_normals);
   WM_operatortype_append(MESH_OT_mod_weighted_strength);
+  WM_operatortype_append(MESH_OT_flip_quad_tessellation);
 
 #ifdef WITH_GAMEENGINE
   WM_operatortype_append(MESH_OT_navmesh_make);
@@ -201,6 +202,7 @@ void ED_operatortypes_mesh(void)
   WM_operatortype_append(MESH_OT_navmesh_reset);
   WM_operatortype_append(MESH_OT_navmesh_clear);
 #endif
+
 }
 
 #if 0 /* UNUSED, remove? */

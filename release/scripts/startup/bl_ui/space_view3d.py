@@ -2067,40 +2067,6 @@ class VIEW3D_MT_select_sculpt_curves(Menu):
         layout.operator("sculpt_curves.select_grow", text="Grow")
 
 
-class VIEW3D_MT_angle_control(Menu):
-    bl_label = "Angle Control"
-
-    @classmethod
-    def poll(cls, context):
-        settings = UnifiedPaintPanel.paint_settings(context)
-        if not settings:
-            return False
-
-        brush = settings.brush
-        tex_slot = brush.texture_slot
-
-        return tex_slot.has_texture_angle and tex_slot.has_texture_angle_source
-
-    def draw(self, context):
-        layout = self.layout
-
-        settings = UnifiedPaintPanel.paint_settings(context)
-        brush = settings.brush
-
-        sculpt = (context.sculpt_object is not None)
-
-        tex_slot = brush.texture_slot
-
-        layout.prop(tex_slot, "use_rake", text="Rake")
-
-        if brush.brush_capabilities.has_random_texture_angle and tex_slot.has_random_texture_angle:
-            if sculpt:
-                if brush.sculpt_capabilities.has_random_texture_angle:
-                    layout.prop(tex_slot, "use_random", text="Random")
-            else:
-                layout.prop(tex_slot, "use_random", text="Random")
-
-
 class VIEW3D_MT_mesh_add(Menu):
     bl_idname = "VIEW3D_MT_mesh_add"
     bl_label = "Mesh"
@@ -2280,6 +2246,7 @@ class VIEW3D_MT_camera_add(Menu):
 class VIEW3D_MT_volume_add(Menu):
     bl_idname = "VIEW3D_MT_volume_add"
     bl_label = "Volume"
+    bl_translation_context = i18n_contexts.id_id
 
     def draw(self, _context):
         layout = self.layout
@@ -4333,7 +4300,10 @@ class VIEW3D_MT_edit_mesh_faces_data(Menu):
 
         layout.separator()
 
+        layout.operator("mesh.flip_quad_tessellation")
+
         if with_freestyle:
+            layout.separator()
             layout.operator("mesh.mark_freestyle_face").clear = False
             layout.operator("mesh.mark_freestyle_face", text="Clear Freestyle Face").clear = True
 
@@ -6349,7 +6319,7 @@ class VIEW3D_PT_overlay_guides(Panel):
             (view.region_3d.is_orthographic_side_view and not view.region_3d.is_perspective)
         )
         row_el.active = grid_active
-        row.prop(overlay, "show_floor", text="Floor")
+        row.prop(overlay, "show_floor", text="Floor", text_ctxt=i18n_contexts.editor_view3d)
 
         if overlay.show_floor or overlay.show_ortho_grid:
             sub = col.row(align=True)
@@ -8066,7 +8036,6 @@ classes = (
     VIEW3D_MT_select_paint_mask_vertex,
     VIEW3D_MT_select_edit_curves,
     VIEW3D_MT_select_sculpt_curves,
-    VIEW3D_MT_angle_control,
     VIEW3D_MT_mesh_add,
     VIEW3D_MT_curve_add,
     VIEW3D_MT_surface_add,
