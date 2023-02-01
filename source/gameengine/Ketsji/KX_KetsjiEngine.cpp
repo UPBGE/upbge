@@ -1165,6 +1165,9 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderDebugProperties()
 {
+
+  short profile_size = KX_GetActiveScene()->GetBlenderScene()->gm.profileSize;
+
   std::string debugtxt;
   int title_xmargin = -7;
   int title_y_top_margin = 4;
@@ -1177,6 +1180,30 @@ void KX_KetsjiEngine::RenderDebugProperties()
   int ycoord = 17;  // to 'mimic' behavior
 
   int profile_indent = 72;
+
+  switch (profile_size) {
+    case 0: // Change nothing to default values
+      break;
+    case 1:
+      title_y_top_margin = 0.5;
+      title_y_bottom_margin = -0.5;
+      const_ysize = 21;
+      xcoord = 18;
+      ycoord = 25.5;
+      profile_indent = 108;
+      break;
+    case 2: {
+      title_y_top_margin = -3;
+      title_y_bottom_margin = -3;
+      const_ysize = 32;
+      xcoord = 24;
+      ycoord = 34;
+      profile_indent = 172;
+      break;
+    }
+    default:
+      break;
+  }
 
   float tottime = m_logger.GetAverage();
   if (tottime < 1e-6f) {

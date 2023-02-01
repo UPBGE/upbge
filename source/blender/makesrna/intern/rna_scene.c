@@ -5775,6 +5775,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       {GAME_LOG_LEVEL_CRITICAL, "CRITICAL", 0, "Critical", "Print critical level messages"},
       {0, NULL, 0, NULL, NULL}};
 
+  static const EnumPropertyItem profile_sizes[] = {
+      {GAME_PROFILE_SIZE_NORMAL, "NORMAL", 0, "Normal Size", "Normal Profile Size"},
+      {GAME_PROFILE_SIZE_BIG, "BIG", 0, "Big Size", "Big Profile Size"},
+      {GAME_PROFILE_SIZE_BIGGER, "BIGGER", 0, "Bigger Size", "Bigger Profile Size"},
+      {0, NULL, 0, NULL, NULL}};
+
   srna = RNA_def_struct(brna, "SceneGameData", NULL);
   RNA_def_struct_sdna(srna, "GameData");
   RNA_def_struct_nested(brna, srna, "Scene");
@@ -5829,6 +5835,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "logLevel");
   RNA_def_property_enum_items(prop, log_levels);
   RNA_def_property_ui_text(prop, "Log Level", "Log level for the root logger");
+
+  prop = RNA_def_property(srna, "profile_size", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "profileSize");
+  RNA_def_property_enum_items(prop, profile_sizes);
+  RNA_def_property_ui_text(prop, "Profile Size", "Set profile size according to your monitor resolution and size");
 
   /* Do we need it here ? (since we already have it in World */
   prop = RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);

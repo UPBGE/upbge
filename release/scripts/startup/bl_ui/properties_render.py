@@ -114,6 +114,9 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         flow.prop(gs, "use_undo", text="Undo at exit")
 
         row = layout.row()
+        row.prop(gs, "profile_size", text="Profile Size")
+
+        row = layout.row()
         row.prop(gs, "log_level", text="Log Level")
 
 class RENDER_PT_color_management(RenderButtonsPanel, Panel):

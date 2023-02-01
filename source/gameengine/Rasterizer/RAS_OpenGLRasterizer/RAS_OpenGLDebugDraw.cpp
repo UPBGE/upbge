@@ -230,7 +230,24 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     if (!debugDraw->m_texts2D.empty()) {
       GPU_face_culling(GPU_CULL_NONE);
-      BLF_size(blf_mono_font, 11);
+      short profile_size = KX_GetActiveScene()->GetBlenderScene()->gm.profileSize;
+      int fontSize = 11;
+      switch (profile_size) {
+        case 0: // Don't change defaut size
+          break;
+        case 1: {
+          fontSize = 16.5;
+          break;
+        }
+        case 2: {
+          fontSize = 22;
+          break;
+        }
+        default:
+          break;
+      }
+
+      BLF_size(blf_mono_font, fontSize);
 
       BLF_enable(blf_mono_font, BLF_SHADOW);
 
