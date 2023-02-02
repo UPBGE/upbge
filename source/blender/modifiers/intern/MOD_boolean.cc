@@ -426,9 +426,7 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
 
   meshes.append(mesh);
   obmats.append((float4x4 *)&ctx->object->object_to_world);
-  /* UPBGE: Attempt to fix crash at conversion when an object with a material
-   * intersects with an object with no material */
-  material_remaps.append(/*{}*/ {0});
+  material_remaps.append({});
 
   const BooleanModifierMaterialMode material_mode = BooleanModifierMaterialMode(
       bmd->material_mode);
