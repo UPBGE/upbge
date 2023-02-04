@@ -1678,12 +1678,12 @@ static void template_ID_tabs(const bContext *C,
                                                0.0f,
                                                0.0f,
                                                "");
-    UI_but_funcN_set(&tab->but, template_ID_set_property_exec_fn, MEM_dupallocN(template_id), id);
-    UI_but_drag_set_id(&tab->but, id);
-    tab->but.custom_data = (void *)id;
+    UI_but_funcN_set(tab, template_ID_set_property_exec_fn, MEM_dupallocN(template_id), id);
+    UI_but_drag_set_id(tab, id);
+    tab->custom_data = (void *)id;
     tab->menu = mt;
 
-    UI_but_drawflag_enable(&tab->but, but_align);
+    UI_but_drawflag_enable(tab, but_align);
   }
 
   BLI_freelistN(&ordered);
@@ -5640,7 +5640,7 @@ void uiTemplateColorPicker(uiLayout *layout,
           hsv_but->gradient_type = UI_GRAD_HV;
           break;
       }
-      but = &hsv_but->but;
+      but = hsv_but;
       break;
 
     /* user default */
@@ -5786,7 +5786,7 @@ void uiTemplateColorPicker(uiLayout *layout,
         break;
     }
 
-    hsv_but->but.custom_data = cpicker;
+    hsv_but->custom_data = cpicker;
   }
 }
 
@@ -6377,7 +6377,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                                                                             nullptr);
 
       but_progress->progress = progress;
-      UI_but_func_tooltip_set(&but_progress->but, progress_tooltip_func, tip_arg, MEM_freeN);
+      UI_but_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_freeN);
     }
 
     if (!wm->is_interface_locked) {
