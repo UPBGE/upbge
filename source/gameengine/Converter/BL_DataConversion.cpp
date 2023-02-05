@@ -105,6 +105,9 @@
 
 #include <boost/format.hpp>
 
+using namespace blender;
+using namespace blender::bke;
+
 /* The reverse table. In order to not confuse ourselves, we
  * immediately convert all events that come in to KX codes. */
 static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = {
@@ -334,14 +337,16 @@ static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
   return bucket;
 }
 
-static int GetPolygonMaterialIndex(const Mesh *me, int polyid)
+static int GetPolygonMaterialIndex(const VArray<int> mat_indices, const Mesh *me, int polyid)
 {
-  using namespace blender;
-  using namespace blender::bke;
-  const AttributeAccessor attributes = me->attributes();
-  const VArray<int> material_indices = attributes.lookup_or_default<int>(
-      "material_index", ATTR_DOMAIN_FACE, 0);
-  return material_indices[polyid];
+  int r = mat_indices[polyid];
+
+  /* Random attempt to fix issue related to boolean exact solver
+   * https://github.com/UPBGE/upbge/issues/1789 */
+  if (r > me->totcol - 1) {
+    r = 0;
+  }
+  return r;
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
@@ -532,13 +537,17 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
   std::vector<unsigned int> vertices(totverts, -1);
 
+  const AttributeAccessor attributes = final_me->attributes();
+  const VArray<int> material_indices = attributes.lookup_or_default<int>(
+      "material_index", ATTR_DOMAIN_FACE, 0);
+
   for (unsigned int i = 0; i < numpolys; ++i) {
     const MPoly &mpoly = mpolys[i];
 
     /* Try to get evaluated mesh poly material index */
     /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
     /* There is still an issue with boolean exact solver with polygon material indice */
-    int mat_nr = GetPolygonMaterialIndex(final_me, i);
+    int mat_nr = GetPolygonMaterialIndex(material_indices, final_me, i);
 
     const ConvertedMaterial &mat = convertedMats[mat_nr];
 
