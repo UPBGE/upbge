@@ -334,7 +334,6 @@ static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
   return bucket;
 }
 
-/* Try to get right poly material index for corner case: https://github.com/UPBGE/upbge/issues/1789 */
 static int GetPolygonMaterialIndex(const Mesh *me, int polyid)
 {
   using namespace blender;
@@ -342,15 +341,7 @@ static int GetPolygonMaterialIndex(const Mesh *me, int polyid)
   const AttributeAccessor attributes = me->attributes();
   const VArray<int> material_indices = attributes.lookup_or_default<int>(
       "material_index", ATTR_DOMAIN_FACE, 0);
-  if (material_indices.is_single()) {
-    return material_indices.get_internal_single();
-  }
-  const VArraySpan<int> indices_span(material_indices);
-  if (indices_span.contains(polyid)) {
-    return material_indices[polyid];
-  }
-  /* For default material */
-  return 0;
+  return material_indices[polyid];
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
@@ -510,7 +501,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   for (unsigned short i = 0; i < totmat; ++i) {
     Material *ma = nullptr;
     if (blenderobj) {
-      ma = BKE_object_material_get_eval(ob_eval, i + 1);
+      ma = BKE_object_material_get(ob_eval, i + 1);
     }
     else {
       ma = final_me->mat ? final_me->mat[i] : nullptr;
