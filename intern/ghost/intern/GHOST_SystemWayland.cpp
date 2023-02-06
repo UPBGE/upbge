@@ -82,6 +82,8 @@
 #include "CLG_log.h"
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
+#  include "GHOST_TimerTask.h"
+
 #  include <pthread.h>
 #endif
 
@@ -768,7 +770,12 @@ struct GWL_Seat {
     int32_t rate = 0;
     /** Time (milliseconds) after which to start repeating keys. */
     int32_t delay = 0;
-    /** Timer for key repeats. */
+    /**
+     * Timer for key repeats.
+     *
+     * \note For as long as #USE_EVENT_BACKGROUND_THREAD is defined, any access to this
+     * (including null checks, must lock `timer_mutex` first.
+     */
     GHOST_ITimerTask *timer = nullptr;
   } key_repeat;
 
@@ -830,6 +837,42 @@ static bool gwl_seat_key_depressed_suppress_warning(const GWL_Seat *seat)
 #endif
 
   return suppress_warning;
+}
+
+/**
+ * \note Caller must lock `timer_mutex`.
+ */
+static void gwl_seat_key_repeat_timer_add(GWL_Seat *seat,
+                                          GHOST_TimerProcPtr key_repeat_fn,
+                                          GHOST_TUserDataPtr payload,
+                                          const bool use_delay)
+{
+  GHOST_SystemWayland *system = seat->system;
+  const uint64_t time_step = 1000 / seat->key_repeat.rate;
+  const uint64_t time_start = use_delay ? seat->key_repeat.delay : time_step;
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  GHOST_TimerTask *timer = new GHOST_TimerTask(
+      system->getMilliSeconds() + time_start, time_step, key_repeat_fn, payload);
+  seat->key_repeat.timer = timer;
+  system->ghost_timer_manager()->addTimer(timer);
+#else
+  seat->key_repeat.timer = system->installTimer(time_start, time_step, key_repeat_fn, payload);
+#endif
+}
+
+/**
+ * \note The caller must lock `timer_mutex`.
+ */
+static void gwl_seat_key_repeat_timer_remove(GWL_Seat *seat)
+{
+  GHOST_SystemWayland *system = seat->system;
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  system->ghost_timer_manager()->removeTimer(
+      static_cast<GHOST_TimerTask *>(seat->key_repeat.timer));
+#else
+  system->removeTimer(seat->key_repeat.timer);
+#endif
+  seat->key_repeat.timer = nullptr;
 }
 
 /** \} */
@@ -906,6 +949,16 @@ struct GWL_Display {
   /** Guard against multiple threads accessing `events_pending` at once. */
   std::mutex events_pending_mutex;
 
+  /**
+   * A separate timer queue, needed so the WAYLAND thread can lock access.
+   * Using the system's #GHOST_Sysem::getTimerManager is not thread safe because
+   * access to the timer outside of WAYLAND specific logic will not lock.
+   *
+   * Needed because #GHOST_System::dispatchEvents fires timers
+   * outside of WAYLAND (without locking the `timer_mutex`).
+   */
+  GHOST_TimerManager *ghost_timer_manager;
+
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 };
 
@@ -922,6 +975,9 @@ static void gwl_display_destroy(GWL_Display *display)
     ghost_wl_display_lock_without_input(display->wl_display, display->system->server_mutex);
     display->events_pthread_is_active = false;
   }
+
+  delete display->ghost_timer_manager;
+  display->ghost_timer_manager = nullptr;
 #endif
 
   /* For typical WAYLAND use this will always be set.
@@ -3718,9 +3774,14 @@ static void keyboard_handle_leave(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->keyboard.wl_surface_window = nullptr;
 
-  /* Losing focus must stop repeating text. */
-  if (seat->key_repeat.timer) {
-    keyboard_handle_key_repeat_cancel(seat);
+  {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+    std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
+#endif
+    /* Losing focus must stop repeating text. */
+    if (seat->key_repeat.timer) {
+      keyboard_handle_key_repeat_cancel(seat);
+    }
   }
 
 #ifdef USE_GNOME_KEYBOARD_SUPPRESS_WARNING
@@ -3780,36 +3841,32 @@ static xkb_keysym_t xkb_state_key_get_one_sym_without_modifiers(
   return sym;
 }
 
+/**
+ * \note Caller must lock `timer_mutex`.
+ */
 static void keyboard_handle_key_repeat_cancel(GWL_Seat *seat)
 {
-#ifdef USE_EVENT_BACKGROUND_THREAD
-  std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
-#endif
   GHOST_ASSERT(seat->key_repeat.timer != nullptr, "Caller much check for timer");
   delete static_cast<GWL_KeyRepeatPlayload *>(seat->key_repeat.timer->getUserData());
-  seat->system->removeTimer(seat->key_repeat.timer);
-  seat->key_repeat.timer = nullptr;
+
+  gwl_seat_key_repeat_timer_remove(seat);
 }
 
 /**
  * Restart the key-repeat timer.
  * \param use_delay: When false, use the interval
  * (prevents pause when the setting changes while the key is held).
+ *
+ * \note Caller must lock `timer_mutex`.
  */
 static void keyboard_handle_key_repeat_reset(GWL_Seat *seat, const bool use_delay)
 {
-#ifdef USE_EVENT_BACKGROUND_THREAD
-  std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
-#endif
   GHOST_ASSERT(seat->key_repeat.timer != nullptr, "Caller much check for timer");
-  GHOST_SystemWayland *system = seat->system;
-  GHOST_ITimerTask *timer = seat->key_repeat.timer;
-  GHOST_TimerProcPtr key_repeat_fn = timer->getTimerProc();
+  GHOST_TimerProcPtr key_repeat_fn = seat->key_repeat.timer->getTimerProc();
   GHOST_TUserDataPtr payload = seat->key_repeat.timer->getUserData();
-  seat->system->removeTimer(seat->key_repeat.timer);
-  const uint64_t time_step = 1000 / seat->key_repeat.rate;
-  const uint64_t time_start = use_delay ? seat->key_repeat.delay : time_step;
-  seat->key_repeat.timer = system->installTimer(time_start, time_step, key_repeat_fn, payload);
+
+  gwl_seat_key_repeat_timer_remove(seat);
+  gwl_seat_key_repeat_timer_add(seat, key_repeat_fn, payload, use_delay);
 }
 
 static void keyboard_handle_key(void *data,
@@ -3847,6 +3904,11 @@ static void keyboard_handle_key(void *data,
       etype = GHOST_kEventKeyDown;
       break;
   }
+
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  /* Any access to `seat->key_repeat.timer` must lock. */
+  std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
+#endif
 
   struct GWL_KeyRepeatPlayload *key_repeat_payload = nullptr;
 
@@ -3886,23 +3948,14 @@ static void keyboard_handle_key(void *data,
         break;
       }
       case RESET: {
-#ifdef USE_EVENT_BACKGROUND_THREAD
-        std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
-#endif
         /* The payload will be added again. */
-        seat->system->removeTimer(seat->key_repeat.timer);
-        seat->key_repeat.timer = nullptr;
+        gwl_seat_key_repeat_timer_remove(seat);
         break;
       }
       case CANCEL: {
-#ifdef USE_EVENT_BACKGROUND_THREAD
-        std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
-#endif
         delete key_repeat_payload;
         key_repeat_payload = nullptr;
-
-        seat->system->removeTimer(seat->key_repeat.timer);
-        seat->key_repeat.timer = nullptr;
+        gwl_seat_key_repeat_timer_remove(seat);
         break;
       }
     }
@@ -3956,8 +4009,8 @@ static void keyboard_handle_key(void *data,
                                                            utf8_buf));
       }
     };
-    seat->key_repeat.timer = seat->system->installTimer(
-        seat->key_repeat.delay, 1000 / seat->key_repeat.rate, key_repeat_fn, key_repeat_payload);
+
+    gwl_seat_key_repeat_timer_add(seat, key_repeat_fn, key_repeat_payload, true);
   }
 }
 
@@ -3982,8 +4035,13 @@ static void keyboard_handle_modifiers(void *data,
 
   /* A modifier changed so reset the timer,
    * see comment in #keyboard_handle_key regarding this behavior. */
-  if (seat->key_repeat.timer) {
-    keyboard_handle_key_repeat_reset(seat, true);
+  {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+    std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
+#endif
+    if (seat->key_repeat.timer) {
+      keyboard_handle_key_repeat_reset(seat, true);
+    }
   }
 
 #ifdef USE_GNOME_KEYBOARD_SUPPRESS_WARNING
@@ -4002,9 +4060,14 @@ static void keyboard_repeat_handle_info(void *data,
   seat->key_repeat.rate = rate;
   seat->key_repeat.delay = delay;
 
-  /* Unlikely possible this setting changes while repeating. */
-  if (seat->key_repeat.timer) {
-    keyboard_handle_key_repeat_reset(seat, false);
+  {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+    std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
+#endif
+    /* Unlikely possible this setting changes while repeating. */
+    if (seat->key_repeat.timer) {
+      keyboard_handle_key_repeat_reset(seat, false);
+    }
   }
 }
 
@@ -4275,8 +4338,14 @@ static void gwl_seat_capability_keyboard_disable(GWL_Seat *seat)
   if (!seat->wl_keyboard) {
     return;
   }
-  if (seat->key_repeat.timer) {
-    keyboard_handle_key_repeat_cancel(seat);
+
+  {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+    std::lock_guard lock_timer_guard{*seat->system->timer_mutex};
+#endif
+    if (seat->key_repeat.timer) {
+      keyboard_handle_key_repeat_cancel(seat);
+    }
   }
   wl_keyboard_destroy(seat->wl_keyboard);
   seat->wl_keyboard = nullptr;
@@ -5411,6 +5480,8 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
   gwl_display_event_thread_create(display_);
+
+  display_->ghost_timer_manager = new GHOST_TimerManager();
 #endif
 }
 
@@ -5491,10 +5562,16 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 
   {
+    const uint64_t now = getMilliSeconds();
 #ifdef USE_EVENT_BACKGROUND_THREAD
-    std::lock_guard lock_timer_guard{*display_->system->timer_mutex};
+    {
+      std::lock_guard lock_timer_guard{*display_->system->timer_mutex};
+      if (ghost_timer_manager()->fireTimers(now)) {
+        any_processed = true;
+      }
+    }
 #endif
-    if (getTimerManager()->fireTimers(getMilliSeconds())) {
+    if (getTimerManager()->fireTimers(now)) {
       any_processed = true;
     }
   }
@@ -6716,6 +6793,13 @@ struct wl_shm *GHOST_SystemWayland::wl_shm() const
 {
   return display_->wl_shm;
 }
+
+#ifdef USE_EVENT_BACKGROUND_THREAD
+GHOST_TimerManager *GHOST_SystemWayland::ghost_timer_manager()
+{
+  return display_->ghost_timer_manager;
+}
+#endif
 
 /** \} */
 

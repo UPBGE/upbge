@@ -252,9 +252,9 @@ set(SRC
   intern/particle_child.c
   intern/particle_distribute.c
   intern/particle_system.c
-  intern/pbvh.c
+  intern/pbvh.cc
   intern/pbvh_colors.cc
-  intern/pbvh_bmesh.c
+  intern/pbvh_bmesh.cc
   intern/pbvh_pixels.cc
   intern/pbvh_uv_islands.cc
   intern/pointcache.c
@@ -516,7 +516,7 @@ set(SRC
   intern/multires_reshape.hh
   intern/multires_unsubdivide.h
   intern/ocean_intern.h
-  intern/pbvh_intern.h
+  intern/pbvh_intern.hh
   intern/pbvh_uv_islands.hh
   intern/subdiv_converter.h
   intern/subdiv_inline.h
