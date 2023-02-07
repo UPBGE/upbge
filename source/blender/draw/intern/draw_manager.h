@@ -581,6 +581,13 @@ typedef struct DRWDebugBox2D {
   float xsize;
   float ysize;
 } DRWDebugBox2D;
+
+typedef struct DRWDebugBge {
+  DRWDebugLine *lines;
+  DRWDebugBox2D *boxes;
+  DRWDebugText2D *texts;
+} DRWDebugBge;
+
 /* End of UPBGE */
 
 /* ------------- DRAW MANAGER ------------ */
@@ -688,14 +695,7 @@ typedef struct DRWManager {
 
   DRWDebugModule *debug;
 
-  /* UPBGE */
-  struct {
-    /* TODO(fclem) optimize: use chunks. */
-    DRWDebugLine *lines;
-    DRWDebugBox2D *boxes;
-    DRWDebugText2D *texts;
-  } debug_bge;
-  /* UPBGE */
+  DRWDebugBge debug_bge;
 
 } DRWManager;
 
