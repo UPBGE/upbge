@@ -534,9 +534,8 @@ static bool subdiv_mesh_topology_info(const SubdivForeachContext *foreach_contex
       subdiv_context->coarse_mesh, num_vertices, num_edges, 0, num_loops, num_polygons, mask);
   subdiv_mesh_ctx_cache_custom_data_layers(subdiv_context);
   subdiv_mesh_prepare_accumulator(subdiv_context, num_vertices);
-  MEM_SAFE_FREE(subdiv_context->subdiv_mesh->runtime->subsurf_face_dot_tags);
-  subdiv_context->subdiv_mesh->runtime->subsurf_face_dot_tags = BLI_BITMAP_NEW(num_vertices,
-                                                                               __func__);
+  subdiv_context->subdiv_mesh->runtime->subsurf_face_dot_tags.clear();
+  subdiv_context->subdiv_mesh->runtime->subsurf_face_dot_tags.resize(num_vertices);
   return true;
 }
 
@@ -598,7 +597,7 @@ static void evaluate_vertex_and_apply_displacement_copy(const SubdivMeshContext 
   /* Evaluate undeformed texture coordinate. */
   subdiv_vertex_orco_evaluate(ctx, ptex_face_index, u, v, subdiv_vertex_index);
   /* Remove face-dot flag. This can happen if there is more than one subsurf modifier. */
-  BLI_BITMAP_DISABLE(ctx->subdiv_mesh->runtime->subsurf_face_dot_tags, subdiv_vertex_index);
+  ctx->subdiv_mesh->runtime->subsurf_face_dot_tags[subdiv_vertex_index].reset();
 }
 
 static void evaluate_vertex_and_apply_displacement_interpolate(
@@ -752,7 +751,7 @@ static void subdiv_mesh_tag_center_vertex(const MPoly *coarse_poly,
                                           Mesh *subdiv_mesh)
 {
   if (subdiv_mesh_is_center_vertex(coarse_poly, u, v)) {
-    BLI_BITMAP_ENABLE(subdiv_mesh->runtime->subsurf_face_dot_tags, subdiv_vertex_index);
+    subdiv_mesh->runtime->subsurf_face_dot_tags[subdiv_vertex_index].set();
   }
 }
 
@@ -786,10 +785,10 @@ static void subdiv_mesh_vertex_inner(const SubdivForeachContext *foreach_context
 
 static void subdiv_copy_edge_data(SubdivMeshContext *ctx,
                                   MEdge *subdiv_edge,
-                                  const MEdge *coarse_edge)
+                                  const int coarse_edge_index)
 {
   const int subdiv_edge_index = subdiv_edge - ctx->subdiv_edges;
-  if (coarse_edge == nullptr) {
+  if (coarse_edge_index == ORIGINDEX_NONE) {
     subdiv_edge->flag = 0;
     if (!ctx->settings->use_optimal_display) {
       subdiv_edge->flag |= ME_EDGEDRAW;
@@ -799,7 +798,6 @@ static void subdiv_copy_edge_data(SubdivMeshContext *ctx,
     }
     return;
   }
-  const int coarse_edge_index = coarse_edge - ctx->coarse_edges;
   CustomData_copy_data(
       &ctx->coarse_mesh->edata, &ctx->subdiv_mesh->edata, coarse_edge_index, subdiv_edge_index, 1);
   subdiv_edge->flag |= ME_EDGEDRAW;
@@ -816,12 +814,7 @@ static void subdiv_mesh_edge(const SubdivForeachContext *foreach_context,
   SubdivMeshContext *ctx = static_cast<SubdivMeshContext *>(foreach_context->user_data);
   MEdge *subdiv_medge = ctx->subdiv_edges;
   MEdge *subdiv_edge = &subdiv_medge[subdiv_edge_index];
-  const MEdge *coarse_edge = nullptr;
-  if (coarse_edge_index != ORIGINDEX_NONE) {
-    const MEdge *coarse_medge = ctx->coarse_edges;
-    coarse_edge = &coarse_medge[coarse_edge_index];
-  }
-  subdiv_copy_edge_data(ctx, subdiv_edge, coarse_edge);
+  subdiv_copy_edge_data(ctx, subdiv_edge, coarse_edge_index);
   subdiv_edge->v1 = subdiv_v1;
   subdiv_edge->v2 = subdiv_v2;
 }
