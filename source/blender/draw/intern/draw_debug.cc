@@ -913,9 +913,9 @@ static void drw_debug_draw_text_bge(void)
 
 void drw_debug_draw_bge(void)
 {
-  drw_debug_draw_lines_bge();
+  /*drw_debug_draw_lines_bge();
   drw_debug_draw_boxes_bge();
-  drw_debug_draw_text_bge();
+  drw_debug_draw_text_bge();*/
 }
 
 /**********End of UPBGE*************/
