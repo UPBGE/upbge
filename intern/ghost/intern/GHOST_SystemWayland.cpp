@@ -957,7 +957,7 @@ struct GWL_Display {
    * Needed because #GHOST_System::dispatchEvents fires timers
    * outside of WAYLAND (without locking the `timer_mutex`).
    */
-  GHOST_TimerManager *ghost_timer_manager;
+  GHOST_TimerManager *ghost_timer_manager = nullptr;
 
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 };
