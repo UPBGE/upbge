@@ -5,12 +5,12 @@
 [submodule "release/scripts/addons_contrib"]
 	path = release/scripts/addons_contrib
 	url = https://projects.blender.org/blender/blender-addons-contrib
-	branch = master
+	branch = main
 [submodule "release/datafiles/locale"]
 	path = release/datafiles/locale
 	url = https://projects.blender.org/blender/blender-translations.git
-	branch = master
+	branch = main
 [submodule "source/tools"]
 	path = source/tools
 	url = https://projects.blender.org/blender/blender-dev-tools.git
-	branch = master
+	branch = main
