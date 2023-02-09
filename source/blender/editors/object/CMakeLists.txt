@@ -45,7 +45,7 @@ set(SRC
   object_gpencil_modifier.c
   object_hook.c
   object_lod.c
-  object_modes.c
+  object_modes.cc
   object_modifier.cc
   object_ops.c
   object_random.c
