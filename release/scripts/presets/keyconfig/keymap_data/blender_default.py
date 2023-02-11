@@ -3499,7 +3499,8 @@ def km_animation_channels(params):
         # Selection.
         *_template_items_select_actions(params, "anim.channels_select_all"),
         ("anim.channels_select_box", {"type": 'B', "value": 'PRESS'}, None),
-        ("anim.channels_select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, None),
+        ("anim.channels_select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, 
+         {"properties": [("extend", False)]}),
         ("anim.channels_select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True},
          {"properties": [("extend", True)]}),
         ("anim.channels_select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "ctrl": True},
@@ -5648,6 +5649,7 @@ def km_curves(params):
         ("curves.disable_selection", {"type": 'ONE', "value": 'PRESS', "alt": True}, None),
         ("curves.disable_selection", {"type": 'TWO', "value": 'PRESS', "alt": True}, None),
         *_template_items_select_actions(params, "curves.select_all"),
+        ("curves.select_linked", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
     ])
 
     return keymap

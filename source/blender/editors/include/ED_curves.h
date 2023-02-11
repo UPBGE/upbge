@@ -90,6 +90,11 @@ void fill_selection_true(GMutableSpan span);
 bool has_anything_selected(const bke::CurvesGeometry &curves);
 
 /**
+ * Return true if any element in the span is selected, on either domain with either type.
+ */
+bool has_anything_selected(GSpan selection);
+
+/**
  * Find curves that have any point selected (a selection factor greater than zero),
  * or curves that have their own selection factor greater than zero.
  */
@@ -123,10 +128,12 @@ void select_all(bke::CurvesGeometry &curves, const eAttrDomain selection_domain,
  * \param amount: The amount of points to select from the front or back.
  * \param end_points: If true, select the last point(s), if false, select the first point(s).
  */
-void select_ends(bke::CurvesGeometry &curves,
-                 const eAttrDomain selection_domain,
-                 int amount,
-                 bool end_points);
+void select_ends(bke::CurvesGeometry &curves, int amount, bool end_points);
+
+/**
+ * Select the points of all curves that have at least one point selected.
+ */
+void select_linked(bke::CurvesGeometry &curves);
 
 /**
  * Select random points or curves.
@@ -141,22 +148,41 @@ void select_random(bke::CurvesGeometry &curves,
                    float probability);
 
 /**
- * Select point or curve under the cursor.
+ * Select point or curve at a (screen-space) point.
  */
 bool select_pick(const ViewContext &vc,
                  bke::CurvesGeometry &curves,
                  const eAttrDomain selection_domain,
                  const SelectPick_Params &params,
-                 const int2 mval);
+                 const int2 coord);
 
 /**
- * Select points or curves in a (screenspace) rectangle.
+ * Select points or curves in a (screen-space) rectangle.
  */
 bool select_box(const ViewContext &vc,
                 bke::CurvesGeometry &curves,
                 const eAttrDomain selection_domain,
-                const rcti& rect,
+                const rcti &rect,
                 const eSelectOp sel_op);
+
+/**
+ * Select points or curves in a (screen-space) poly shape.
+ */
+bool select_lasso(const ViewContext &vc,
+                  bke::CurvesGeometry &curves,
+                  eAttrDomain selection_domain,
+                  Span<int2> coords,
+                  eSelectOp sel_op);
+
+/**
+ * Select points or curves in a (screen-space) circle.
+ */
+bool select_circle(const ViewContext &vc,
+                   bke::CurvesGeometry &curves,
+                   eAttrDomain selection_domain,
+                   int2 coord,
+                   float radius,
+                   eSelectOp sel_op);
 /** \} */
 
 }  // namespace blender::ed::curves
