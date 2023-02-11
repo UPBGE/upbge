@@ -5,7 +5,7 @@
 	ignore = all
 [submodule "release/scripts/addons_contrib"]
 	path = release/scripts/addons_contrib
-	url = https://projects.blender.org/blender/blender-addons-contrib
+	url = https://projects.blender.org/blender/blender-addons-contrib.git
 	branch = main
 	ignore = all
 [submodule "release/datafiles/locale"]
