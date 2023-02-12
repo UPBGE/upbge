@@ -738,7 +738,7 @@ struct EdgeQueueContext {
 
 /* Only tagged edges are in the queue. */
 #ifdef USE_EDGEQUEUE_TAG
-#  define EDGE_QUEUE_TEST(e) (BM_elem_flag_test((CHECK_TYPE_INLINE(e, BMEdge *), e), BM_ELEM_TAG))
+#  define EDGE_QUEUE_TEST(e) BM_elem_flag_test((CHECK_TYPE_INLINE(e, BMEdge *), e), BM_ELEM_TAG)
 #  define EDGE_QUEUE_ENABLE(e) \
     BM_elem_flag_enable((CHECK_TYPE_INLINE(e, BMEdge *), e), BM_ELEM_TAG)
 #  define EDGE_QUEUE_DISABLE(e) \
@@ -1417,7 +1417,7 @@ static void pbvh_bmesh_collapse_edge(PBVH *pbvh,
     normalize_v3(v_conn->no);
 
     /* Update bounding boxes attached to the connected vertex.
-     * Note that we can often get-away without this but causes T48779. */
+     * Note that we can often get-away without this but causes #48779. */
     BM_LOOPS_OF_VERT_ITER_BEGIN (l, v_conn) {
       PBVHNode *f_node = pbvh_bmesh_node_from_face(pbvh, l->f);
       f_node->flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_UpdateBB;

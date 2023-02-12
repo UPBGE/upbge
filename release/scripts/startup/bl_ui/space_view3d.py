@@ -161,6 +161,8 @@ class VIEW3D_HT_tool_header(Header):
             sub.prop(context.object.data, "use_mirror_y", text="Y", toggle=True)
             sub.prop(context.object.data, "use_mirror_z", text="Z", toggle=True)
 
+            layout.prop(context.object.data, "use_sculpt_collision", icon='MOD_PHYSICS', icon_only=True, toggle=True)
+
         # Expand panels from the side-bar as popovers.
         popover_kw = {"space_type": 'VIEW_3D', "region_type": 'UI', "category": "Tool"}
 
@@ -890,7 +892,7 @@ class VIEW3D_HT_header(Header):
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
 
         # While exposing `shading.show_xray(_wireframe)` is correct.
-        # this hides the key shortcut from users: T70433.
+        # this hides the key shortcut from users: #70433.
         if has_pose_mode:
             draw_depressed = overlay.show_xray_bone
         elif shading.type == 'WIREFRAME':
@@ -2268,7 +2270,7 @@ class VIEW3D_MT_add(Menu):
         # NOTE: don't use 'EXEC_SCREEN' or operators won't get the `v3d` context.
 
         # NOTE: was `EXEC_AREA`, but this context does not have the `rv3d`, which prevents
-        #       "align_view" to work on first call (see T32719).
+        #       "align_view" to work on first call (see #32719).
         layout.operator_context = 'EXEC_REGION_WIN'
 
         # layout.operator_menu_enum("object.mesh_add", "type", text="Mesh", icon='OUTLINER_OB_MESH')
@@ -5401,7 +5403,7 @@ class VIEW3D_MT_shading_ex_pie(Menu):
         pie.prop_enum(view.shading, "type", value='WIREFRAME')
         pie.prop_enum(view.shading, "type", value='SOLID')
 
-        # Note this duplicates "view3d.toggle_xray" logic, so we can see the active item: T58661.
+        # Note this duplicates "view3d.toggle_xray" logic, so we can see the active item: #58661.
         if context.pose_object:
             pie.prop(view.overlay, "show_xray_bone", icon='XRAY')
         else:
@@ -6732,13 +6734,12 @@ class VIEW3D_PT_overlay_sculpt(Panel):
     def poll(cls, context):
         return (
             context.mode == 'SCULPT' and
-            (context.sculpt_object and context.tool_settings.sculpt)
+            context.sculpt_object
         )
 
     def draw(self, context):
         layout = self.layout
         tool_settings = context.tool_settings
-        sculpt = tool_settings.sculpt
 
         view = context.space_data
         overlay = view.overlay

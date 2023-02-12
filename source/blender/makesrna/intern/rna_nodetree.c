@@ -9645,6 +9645,14 @@ static void def_geo_distribute_points_on_faces(StructRNA *srna)
   RNA_def_property_enum_default(prop, GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM);
   RNA_def_property_ui_text(prop, "Distribution Method", "Method to use for scattering points");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "use_legacy_normal", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "custom2", 1);
+  RNA_def_property_ui_text(prop,
+                           "Legacy Normal",
+                           "Output the normal and rotation values that have been output "
+                           "before the node started taking smooth normals into account");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
 static void def_geo_curve_spline_type(StructRNA *srna)
@@ -10782,7 +10790,8 @@ static void def_geo_string_to_curves(StructRNA *srna)
   RNA_def_property_enum_sdna(prop, NULL, "overflow");
   RNA_def_property_enum_items(prop, rna_node_geometry_string_to_curves_overflow_items);
   RNA_def_property_enum_default(prop, GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW);
-  RNA_def_property_ui_text(prop, "Textbox Overflow", "Handle the text behavior when it doesn't fit in the text boxes");
+  RNA_def_property_ui_text(
+      prop, "Textbox Overflow", "Handle the text behavior when it doesn't fit in the text boxes");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 
   prop = RNA_def_property(srna, "align_x", PROP_ENUM, PROP_NONE);
@@ -11208,6 +11217,14 @@ static void rna_def_node_socket_interface(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Hide Value", "Hide the socket input value even when the socket is not connected");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketInterface_update");
+
+  prop = RNA_def_property(srna, "hide_in_modifier", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SOCK_HIDE_IN_MODIFIER);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Hide in Modifier",
+                           "Don't show the input value in the geometry nodes modifier interface");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketInterface_update");
 
   prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);
