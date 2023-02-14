@@ -58,58 +58,58 @@ void RAS_Shader::RAS_Uniform::Apply(RAS_Shader *shader)
   }
 
   GPUShader *gpushader = shader->GetGPUShader();
-  /*switch (m_type) {
+  switch (m_type) {
     case UNI_FLOAT: {
       float *f = (float *)m_data;
-      GPU_shader_uniform_vector(gpushader, m_loc, 1, m_count, (float *)f);
+      GPU_shader_uniform_float_ex(gpushader, m_loc, 1, m_count, (float *)f);
       break;
     }
     case UNI_INT: {
       int *f = (int *)m_data;
-      GPU_shader_uniform_vector_int(gpushader, m_loc, 1, m_count, (int *)f);
+      GPU_shader_uniform_int_ex(gpushader, m_loc, 1, m_count, (int *)f);
       break;
     }
     case UNI_FLOAT2: {
       float *f = (float *)m_data;
-      GPU_shader_uniform_vector(gpushader, m_loc, 2, m_count, (float *)f);
+      GPU_shader_uniform_float_ex(gpushader, m_loc, 2, m_count, (float *)f);
       break;
     }
     case UNI_FLOAT3: {
       float *f = (float *)m_data;
-      GPU_shader_uniform_vector(gpushader, m_loc, 3, m_count, (float *)f);
+      GPU_shader_uniform_float_ex(gpushader, m_loc, 3, m_count, (float *)f);
       break;
     }
     case UNI_FLOAT4: {
       float *f = (float *)m_data;
-      GPU_shader_uniform_vector(gpushader, m_loc, 4, m_count, (float *)f);
+      GPU_shader_uniform_float_ex(gpushader, m_loc, 4, m_count, (float *)f);
       break;
     }
     case UNI_INT2: {
       int *f = (int *)m_data;
-      GPU_shader_uniform_vector_int(gpushader, m_loc, 2, m_count, (int *)f);
+      GPU_shader_uniform_int_ex(gpushader, m_loc, 2, m_count, (int *)f);
       break;
     }
     case UNI_INT3: {
       int *f = (int *)m_data;
-      GPU_shader_uniform_vector_int(gpushader, m_loc, 3, m_count, (int *)f);
+      GPU_shader_uniform_int_ex(gpushader, m_loc, 3, m_count, (int *)f);
       break;
     }
     case UNI_INT4: {
       int *f = (int *)m_data;
-      GPU_shader_uniform_vector_int(gpushader, m_loc, 4, m_count, (int *)f);
+      GPU_shader_uniform_int_ex(gpushader, m_loc, 4, m_count, (int *)f);
       break;
     }
     case UNI_MAT4: {
       float *f = (float *)m_data;
-      GPU_shader_uniform_vector(gpushader, m_loc, 16, m_count, (float *)f);
+      GPU_shader_uniform_float_ex(gpushader, m_loc, 16, m_count, (float *)f);
       break;
     }
     case UNI_MAT3: {
       float *f = (float *)m_data;
-      GPU_shader_uniform_vector(gpushader, m_loc, 9, m_count, (float *)f);
+      GPU_shader_uniform_float_ex(gpushader, m_loc, 9, m_count, (float *)f);
       break;
     }
-  }*/
+  }
   m_dirty = false;
 #endif
 }
@@ -474,36 +474,36 @@ void RAS_Shader::SetUniform(int uniform, const MT_Vector2 &vec)
 {
   float value[2];
   vec.getValue(value);
-  //GPU_shader_uniform_vector(m_shader, uniform, 2, 1, value);
+  GPU_shader_uniform_float_ex(m_shader, uniform, 2, 1, value);
 }
 
 void RAS_Shader::SetUniform(int uniform, const MT_Vector3 &vec)
 {
   float value[3];
   vec.getValue(value);
-  //GPU_shader_uniform_vector(m_shader, uniform, 3, 1, value);
+  GPU_shader_uniform_float_ex(m_shader, uniform, 3, 1, value);
 }
 
 void RAS_Shader::SetUniform(int uniform, const MT_Vector4 &vec)
 {
   float value[4];
   vec.getValue(value);
-  //GPU_shader_uniform_vector(m_shader, uniform, 4, 1, value);
+  GPU_shader_uniform_float_ex(m_shader, uniform, 4, 1, value);
 }
 
 void RAS_Shader::SetUniform(int uniform, const unsigned int &val)
 {
-  //GPU_shader_uniform_int(m_shader, uniform, val);
+  GPU_shader_uniform_int_ex(m_shader, uniform, 1, 1, (int *)&val);
 }
 
 void RAS_Shader::SetUniform(int uniform, const int val)
 {
-  //GPU_shader_uniform_int(m_shader, uniform, val);
+  GPU_shader_uniform_int_ex(m_shader, uniform, 1, 1, (int *)&val);
 }
 
 void RAS_Shader::SetUniform(int uniform, const float &val)
 {
-  //GPU_shader_uniform_float(m_shader, uniform, val);
+  GPU_shader_uniform_float_ex(m_shader, uniform, 1, 1, (float *)&val);
 }
 
 void RAS_Shader::SetUniform(int uniform, const MT_Matrix4x4 &vec, bool transpose)
@@ -511,7 +511,7 @@ void RAS_Shader::SetUniform(int uniform, const MT_Matrix4x4 &vec, bool transpose
   float value[16];
   // note: getValue gives back column major as needed by OpenGL
   vec.getValue(value);
-  //GPU_shader_uniform_vector(m_shader, uniform, 16, 1, value);
+  GPU_shader_uniform_float_ex(m_shader, uniform, 16, 1, value);
 }
 
 void RAS_Shader::SetUniform(int uniform, const MT_Matrix3x3 &vec, bool transpose)
@@ -526,13 +526,13 @@ void RAS_Shader::SetUniform(int uniform, const MT_Matrix3x3 &vec, bool transpose
   value[6] = (float)vec[0][2];
   value[7] = (float)vec[1][2];
   value[8] = (float)vec[2][2];
-  //GPU_shader_uniform_vector(m_shader, uniform, 9, 1, value);
+  GPU_shader_uniform_float_ex(m_shader, uniform, 9, 1, value);
 }
 
 void RAS_Shader::SetUniform(int uniform, const float *val, int len)
 {
   if (len >= 2 && len <= 4) {
-    //GPU_shader_uniform_vector(m_shader, uniform, len, 1, (float *)val);
+    GPU_shader_uniform_float_ex(m_shader, uniform, len, 1, (float *)val);
   }
   else {
     BLI_assert(0);
@@ -542,7 +542,7 @@ void RAS_Shader::SetUniform(int uniform, const float *val, int len)
 void RAS_Shader::SetUniform(int uniform, const int *val, int len)
 {
   if (len >= 2 && len <= 4) {
-    //GPU_shader_uniform_vector_int(m_shader, uniform, len, 1, (int *)val);
+    GPU_shader_uniform_int_ex(m_shader, uniform, len, 1, (int *)val);
   }
   else {
     BLI_assert(0);
