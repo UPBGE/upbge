@@ -7,9 +7,9 @@ void main()
   vec3 world_pos = point_object_to_world(pos);
   gl_Position = point_world_to_ndc(world_pos);
 
-  finalColor = mix(colorWire, colorVertexSelect, selection);
+  finalColor = vec4(selection);
+  finalColor.a *= opacity;
 
-  gl_PointSize = sizeVertex * 2.0;
-
-  view_clipping_distances(world_pos);
+  /* Convert to screen position [0..sizeVp]. */
+  edgePos = edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport.xy;
 }
