@@ -842,13 +842,13 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   int color_loc = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_COLOR);
   int rect_tex_loc = GPU_shader_get_uniform(shader, "rect_icon");
   int rect_geo_loc = GPU_shader_get_uniform(shader, "rect_geom");
-  int texture_bind_loc = GPU_shader_get_texture_binding(shader, "image");
+  int texture_bind_loc = GPU_shader_get_sampler_binding(shader, "image");
 
   GPU_texture_bind(texture, texture_bind_loc);
 
-  GPU_shader_uniform_vector(shader, rect_tex_loc, 4, 1, rectt);
-  GPU_shader_uniform_vector(shader, rect_geo_loc, 4, 1, rectg);
-  GPU_shader_uniform_vector(shader, color_loc, 4, 1, (const float[4]){1, 1, 1, 1});
+  GPU_shader_uniform_float_ex(shader, rect_tex_loc, 4, 1, rectt);
+  GPU_shader_uniform_float_ex(shader, rect_geo_loc, 4, 1, rectg);
+  GPU_shader_uniform_float_ex(shader, color_loc, 4, 1, (const float[4]){1, 1, 1, 1});
 
   GPUBatch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);

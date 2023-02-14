@@ -71,6 +71,10 @@ class Shader {
     return name;
   };
 
+  static bool srgb_uniform_dirty_get();
+  static void set_srgb_uniform(GPUShader *shader);
+  static void set_framebuffer_srgb_target(int use_srgb_to_linear);
+
   /* UPBGE */
   virtual char *shader_validate() = 0;
   virtual void shader_bind_attributes(int *locations, const char **names, int len) = 0;

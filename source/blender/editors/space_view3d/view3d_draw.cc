@@ -585,7 +585,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
         alpha = ca->passepartalpha;
       }
 
-      immUniformColor4f(0.0f, 0.0f, 0.0f, alpha);
+      immUniformThemeColorAlpha(TH_CAMERA_PASSEPARTOUT, alpha);
 
       if (x1i > 0.0f) {
         immRectf(shdr_pos, 0.0f, winy, x1i, 0.0f);
@@ -1104,8 +1104,8 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
   immUnbindProgram();
 
   /* -- draw rotation center -- */
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_FIXED_SIZE_VARYING_COLOR);
-  GPU_point_size(5.0f);
+  immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
+  immUniform1f("size", 7.0f);
   immBegin(GPU_PRIM_POINTS, 1);
   immAttr4ubv(col, color);
   immVertex3fv(pos, o);
