@@ -1,11 +1,13 @@
 
 /* Display a linear image texture into sRGB space */
 
-uniform sampler2D image;
+#ifndef USE_GPU_SHADER_CREATE_INFO
+uniform sampler2D image_texture;
 
 in vec2 texCoord_interp;
 
 out vec4 fragColor;
+#endif
 
 float linearrgb_to_srgb(float c)
 {
@@ -27,7 +29,7 @@ void linearrgb_to_srgb(vec4 col_from, out vec4 col_to)
 
 void main()
 {
-  fragColor = texture(image, texCoord_interp.st);
+  fragColor = texture(image_texture, texCoord_interp.st);
 
   linearrgb_to_srgb(fragColor, fragColor);
 }

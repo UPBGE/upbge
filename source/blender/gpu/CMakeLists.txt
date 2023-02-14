@@ -640,6 +640,7 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_2D_diag_stripes_info.hh
   shaders/infos/gpu_shader_2D_image_desaturate_color_info.hh
   shaders/infos/gpu_shader_2D_image_info.hh
+  shaders/infos/gpu_shader_2D_image_linear_to_srgb_info.hh #UPBGE
   shaders/infos/gpu_shader_2D_image_multi_rect_color_info.hh
   shaders/infos/gpu_shader_2D_image_overlays_merge_info.hh
   shaders/infos/gpu_shader_2D_image_overlays_stereo_merge_info.hh
