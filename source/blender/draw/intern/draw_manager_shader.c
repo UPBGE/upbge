@@ -180,38 +180,6 @@ static void drw_deferred_shader_compilation_free(void *custom_data)
  */
 static void drw_deferred_queue_append(GPUMaterial *mat, bool is_optimization_job)
 {
-<<<<<<< HEAD
-  if (ELEM(GPU_material_status(mat), GPU_MAT_SUCCESS, GPU_MAT_FAILED)) {
-    return;
-  }
-
-  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
-
-  /* Do not defer the compilation if we are rendering for image.
-   * deferred rendering is only possible when `evil_C` is available */
-  if (DST.draw_ctx.evil_C == NULL || DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || scene->flag & SCE_INTERACTIVE || scene->flag & SCE_IS_BLENDERPLAYER) {
-    deferred = false;
-  }
-
-  if (!deferred) {
-    DRW_deferred_shader_remove(mat);
-    /* Shaders could already be compiling. Have to wait for compilation to finish. */
-    while (GPU_material_status(mat) == GPU_MAT_QUEUED) {
-      PIL_sleep_ms(20);
-    }
-    if (GPU_material_status(mat) == GPU_MAT_CREATED) {
-      GPU_material_compile(mat);
-    }
-    return;
-  }
-
-  /* Don't add material to the queue twice. */
-  if (GPU_material_status(mat) == GPU_MAT_QUEUED) {
-    return;
-  }
-
-=======
->>>>>>> b/main
   const bool use_main_context = GPU_use_main_context_workaround();
   const bool job_own_context = !use_main_context;
 
