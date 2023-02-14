@@ -3936,7 +3936,7 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, Scene *scene, bool d
     else {
       immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
     }
-    immUniform1i("image", 0);
+    immUniform1i("image_texture", 0);
   }
   GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
   float mat[4][4];
