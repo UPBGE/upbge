@@ -89,6 +89,7 @@ class OBJECT_PT_transform_game(ObjectButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(ob, "override_game_transform_priority", text="Override logic transform priority")
+        col.prop(ob, "override_game_depsgraph", text="Override Depsgraph")
 
 
 class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):

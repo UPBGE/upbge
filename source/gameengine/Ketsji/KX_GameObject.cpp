@@ -252,6 +252,14 @@ void KX_GameObject::ForceIgnoreParentTx()
 
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
+  Object *ob_orig = GetBlenderObject();
+
+  bool skip_depsgraph = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_DEPSGRAPH;
+  if (skip_depsgraph){
+    // Ignore all depsgraph updates and skip this object
+    return;
+  }
+
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   bool staticObject = true;
@@ -278,8 +286,6 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-
-  Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
   /* Don't tag non overlay collection objects in overlay collection render pass */
@@ -336,13 +342,19 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
 void KX_GameObject::TagForTransformUpdateEvaluated()
 {
+  Object *ob_orig = GetBlenderObject();
+
+  bool skip_depsgraph = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_DEPSGRAPH;
+  if (skip_depsgraph){
+    // Ignore all depsgraph updates and skip this object
+    return;
+  }
+
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-
-  Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 

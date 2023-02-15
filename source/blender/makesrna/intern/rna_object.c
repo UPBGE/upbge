@@ -4382,6 +4382,11 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Override game transform priority",
                            "Override logic transform with depsgraph autotransform");
+  prop = RNA_def_property(srna, "override_game_depsgraph", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "transflag", OB_TRANSFLAG_OVERRIDE_DEPSGRAPH);
+  RNA_def_property_ui_text(prop,
+                           "Ignore Depsgraph",
+                           "Ignore all transformations and depsgraph updates for this object.");
   /* End of UPBGE */
 
   /* Parent_inverse. */
