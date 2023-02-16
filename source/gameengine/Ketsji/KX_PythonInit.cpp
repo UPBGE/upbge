@@ -215,7 +215,7 @@ static PyObject *gPyExpandPath(PyObject *, PyObject *args)
 
   BLI_strncpy(expanded, filename, FILE_MAX);
   BLI_path_abs(expanded, KX_GetMainPath().c_str());
-  return PyC_UnicodeFromByte(expanded);
+  return PyC_UnicodeFromBytes(expanded);
 }
 
 PyDoc_STRVAR(gPyStartGame_doc,
@@ -521,7 +521,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 
   while ((dirp = readdir(dp)) != nullptr) {
     if (BLI_path_extension_check_n(dirp->d_name, ".blend")) {
-      value = PyC_UnicodeFromByte(dirp->d_name);
+      value = PyC_UnicodeFromBytes(dirp->d_name);
       PyList_Append(list, value);
       Py_DECREF(value);
     }
@@ -1896,7 +1896,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
   BLI_path_normalize(
       KX_GetMainPath().c_str(),
       expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
-  item = PyC_UnicodeFromByte(expanded);
+  item = PyC_UnicodeFromBytes(expanded);
 
   if (PySequence_Index(sys_path, item) == -1) {
     PyErr_Clear(); /* PySequence_Index sets a ValueError */
