@@ -522,7 +522,8 @@ class _draw_tool_settings_context_mode:
 
         if curves_tool == 'COMB':
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_falloff")
+            layout.popover("VIEW3D_PT_tools_brush_falloff", text="Brush Falloff")
+            layout.popover("VIEW3D_PT_curves_sculpt_parameter_falloff", text="Curve Falloff")
         elif curves_tool == 'ADD':
             layout.prop(brush, "falloff_shape", expand=True)
             layout.prop(brush.curves_sculpt_settings, "add_amount")
@@ -2116,6 +2117,7 @@ class VIEW3D_MT_curve_add(Menu):
         layout.separator()
 
         layout.operator("object.curves_empty_hair_add", text="Empty Hair", icon='CURVES_DATA')
+        layout.operator("object.quick_fur", text="Fur", icon='CURVES_DATA')
 
         experimental = context.preferences.experimental
         if experimental.use_new_curves_tools:
@@ -3894,6 +3896,7 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_normals")
         layout.menu("VIEW3D_MT_edit_mesh_shading")
         layout.menu("VIEW3D_MT_edit_mesh_weights")
+        layout.operator("mesh.attribute_set")
         layout.operator_menu_enum("mesh.sort_elements", "type", text="Sort Elements...")
 
         layout.separator()
@@ -5335,6 +5338,7 @@ class VIEW3D_MT_edit_curves(Menu):
 
         layout.menu("VIEW3D_MT_transform")
         layout.separator()
+        layout.operator("curves.delete")
 
 
 class VIEW3D_MT_object_mode_pie(Menu):
@@ -6745,15 +6749,15 @@ class VIEW3D_PT_overlay_sculpt(Panel):
         overlay = view.overlay
 
         row = layout.row(align=True)
-        row.prop(overlay, "sculpt_show_mask", text="")
+        row.prop(overlay, "show_sculpt_mask", text="")
         sub = row.row()
-        sub.active = overlay.sculpt_show_mask
+        sub.active = overlay.show_sculpt_mask
         sub.prop(overlay, "sculpt_mode_mask_opacity", text="Mask")
 
         row = layout.row(align=True)
-        row.prop(overlay, "sculpt_show_face_sets", text="")
+        row.prop(overlay, "show_sculpt_face_sets", text="")
         sub = row.row()
-        sub.active = overlay.sculpt_show_face_sets
+        sub.active = overlay.show_sculpt_face_sets
         row.prop(overlay, "sculpt_mode_face_sets_opacity", text="Face Sets")
 
 
@@ -6782,9 +6786,9 @@ class VIEW3D_PT_overlay_sculpt_curves(Panel):
 
         row = layout.row(align=True)
         row.active = overlay.show_overlays
-        row.prop(overlay, "sculpt_curves_cage", text="")
+        row.prop(overlay, "show_sculpt_curves_cage", text="")
         subrow = row.row(align=True)
-        subrow.active = overlay.sculpt_curves_cage
+        subrow.active = overlay.show_sculpt_curves_cage
         subrow.prop(overlay, "sculpt_curves_cage_opacity", text="Cage Opacity")
 
 
@@ -7968,6 +7972,28 @@ class VIEW3D_PT_curves_sculpt_add_shape(Panel):
         col.prop(brush.curves_sculpt_settings, "points_per_curve", text="Points")
 
 
+class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
+    # Only for popover, these are dummy values.
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'WINDOW'
+    bl_label = "Curves Sculpt Parameter Falloff"
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = UnifiedPaintPanel.paint_settings(context)
+        brush = settings.brush
+
+        layout.template_curve_mapping(brush.curves_sculpt_settings, "curve_parameter_falloff")
+        row = layout.row(align=True)
+        row.operator("brush.sculpt_curves_falloff_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
+        row.operator("brush.sculpt_curves_falloff_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
+        row.operator("brush.sculpt_curves_falloff_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
+        row.operator("brush.sculpt_curves_falloff_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
+        row.operator("brush.sculpt_curves_falloff_preset", icon='LINCURVE', text="").shape = 'LINE'
+        row.operator("brush.sculpt_curves_falloff_preset", icon='NOCURVE', text="").shape = 'MAX'
+
+
 class VIEW3D_PT_curves_sculpt_grow_shrink_scaling(Panel):
     # Only for popover, these are dummy values.
     bl_space_type = 'VIEW_3D'
@@ -8246,6 +8272,7 @@ classes = (
     TOPBAR_PT_gpencil_vertexcolor,
     TOPBAR_PT_annotation_layers,
     VIEW3D_PT_curves_sculpt_add_shape,
+    VIEW3D_PT_curves_sculpt_parameter_falloff,
     VIEW3D_PT_curves_sculpt_grow_shrink_scaling,
     VIEW3D_PT_viewport_debug,
 )

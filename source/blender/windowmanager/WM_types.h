@@ -1075,7 +1075,7 @@ typedef struct wmDragAsset {
   const char *path;
   int id_type;
   struct AssetMetaData *metadata;
-  int import_type; /* eFileAssetImportType */
+  int import_method; /* eAssetImportType */
 
   /* FIXME: This is temporary evil solution to get scene/view-layer/etc in the copy callback of the
    * #wmDropBox.

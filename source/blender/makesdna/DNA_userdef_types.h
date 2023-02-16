@@ -578,6 +578,9 @@ typedef struct bUserAssetLibrary {
 
   char name[64];   /* MAX_NAME */
   char path[1024]; /* FILE_MAX */
+
+  short import_method; /* eAssetImportMethod */
+  char _pad0[6];
 } bUserAssetLibrary;
 
 typedef struct SolidLight {
@@ -781,8 +784,10 @@ typedef struct UserDef {
 
   char keyconfigstr[64];
 
+  /** Index of the asset library being edited in the Preferences UI. */
+  short active_asset_library;
+
   short undosteps;
-  char _pad1[2];
   int undomemory;
   float gpu_viewport_quality DNA_DEPRECATED;
   short gp_manhattandist, gp_euclideandist, gp_eraser;

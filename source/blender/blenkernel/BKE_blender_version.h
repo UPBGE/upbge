@@ -17,9 +17,9 @@ extern "C" {
  */
 
 /* Blender major and minor version. */
-#define BLENDER_VERSION 305
+#define BLENDER_VERSION 306
 
-#define UPBGE_VERSION 35
+#define UPBGE_VERSION 36
 
 /* Blender patch version for bugfix releases. */
 #define BLENDER_VERSION_PATCH 0
@@ -30,9 +30,11 @@ extern "C" {
 /** alpha/beta/rc/release, docs use this. */
 #define UPBGE_VERSION_CYCLE alpha
 
+/* TODO proper version bump. */
+
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 9
+#define BLENDER_FILE_SUBVERSION 0
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION

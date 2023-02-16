@@ -75,11 +75,11 @@ static PyObject *bpy_script_paths(PyObject *UNUSED(self))
   const char *path;
 
   path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, NULL);
-  item = PyC_UnicodeFromByte(path ? path : "");
+  item = PyC_UnicodeFromBytes(path ? path : "");
   BLI_assert(item != NULL);
   PyTuple_SET_ITEM(ret, 0, item);
   path = BKE_appdir_folder_id(BLENDER_USER_SCRIPTS, NULL);
-  item = PyC_UnicodeFromByte(path ? path : "");
+  item = PyC_UnicodeFromBytes(path ? path : "");
   BLI_assert(item != NULL);
   PyTuple_SET_ITEM(ret, 1, item);
 
@@ -91,7 +91,7 @@ static bool bpy_blend_foreach_path_cb(BPathForeachPathData *bpath_data,
                                       const char *path_src)
 {
   PyObject *py_list = bpath_data->user_data;
-  PyList_APPEND(py_list, PyC_UnicodeFromByte(path_src));
+  PyList_APPEND(py_list, PyC_UnicodeFromBytes(path_src));
   return false; /* Never edits the path. */
 }
 
@@ -239,7 +239,7 @@ static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObj
    * but best leave it up to the script author to create */
   path = BKE_appdir_folder_id_user_notest(type.value_found, subdir);
 
-  return PyC_UnicodeFromByte(path ? path : "");
+  return PyC_UnicodeFromBytes(path ? path : "");
 }
 
 PyDoc_STRVAR(bpy_system_resource_doc,
@@ -280,7 +280,7 @@ static PyObject *bpy_system_resource(PyObject *UNUSED(self), PyObject *args, PyO
 
   path = BKE_appdir_folder_id(type.value_found, subdir);
 
-  return PyC_UnicodeFromByte(path ? path : "");
+  return PyC_UnicodeFromBytes(path ? path : "");
 }
 
 PyDoc_STRVAR(
@@ -327,7 +327,7 @@ static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObj
 
   path = BKE_appdir_resource_path_id_with_version(type.value_found, false, (major * 100) + minor);
 
-  return PyC_UnicodeFromByte(path ? path : "");
+  return PyC_UnicodeFromBytes(path ? path : "");
 }
 
 /* This is only exposed for tests, see: `tests/python/bl_pyapi_bpy_driver_secure_eval.py`. */
