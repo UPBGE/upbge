@@ -79,10 +79,10 @@ typedef struct Collection {
   unsigned int layer DNA_DEPRECATED;
   float instance_offset[3];
 
-  uint8_t flag;
+  uint16_t flag;
   int8_t color_tag;
 
-  char _pad0[2];
+  char _pad0;
 
   uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags; /* #eCollectionLineArt_Flags */
