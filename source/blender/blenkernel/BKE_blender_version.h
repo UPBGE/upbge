@@ -30,8 +30,6 @@ extern "C" {
 /** alpha/beta/rc/release, docs use this. */
 #define UPBGE_VERSION_CYCLE alpha
 
-/* TODO proper version bump. */
-
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
 #define BLENDER_FILE_SUBVERSION 0
