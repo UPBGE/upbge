@@ -982,12 +982,17 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition, "getScreenPosition()\n")
   vect[0] = (win[0] - viewport[0]) / viewport[2];
   vect[1] = (win[1] - viewport[1]) / viewport[3];
 
-  vect[1] = 1.0f - vect[1];  // to follow Blender window coordinate system (Top-Down)
+  //vect[1] = 1.0f - vect[1];  // to follow Blender window coordinate system (Top-Down)
+
+  /* Check if the object is behind the camera */
+  /* To avoid having screenpos "twice", one in front of cam, the other
+   * behind cam. Fix from Raphael */
+  bool behind_cam = win[2] > 1.0;
 
   PyObject *ret = PyTuple_New(2);
   if (ret) {
-    PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(vect[0]));
-    PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(vect[1]));
+    PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(behind_cam ? FLT_MAX : vect[0]));
+    PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(behind_cam ? FLT_MAX : vect[1]));
     return ret;
   }
 
