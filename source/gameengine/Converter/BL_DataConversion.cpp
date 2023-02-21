@@ -1385,6 +1385,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   std::vector<Object *> lod_objects = lod_level_object_list(
       BKE_view_layer_default_view(blenderscene));
 
+  bool converting_during_runtime = single_object != nullptr;
+  bool converting_instance_col_at_runtime = single_object && single_object->instance_collection && converter->FindGameObject(single_object) == nullptr;
+
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
   // in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -1428,8 +1431,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     BKE_view_layer_synced_ensure(blenderscene, BKE_view_layer_default_view(blenderscene));
 
-    bool converting_during_runtime = single_object != nullptr;
-
     KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
         blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
 
@@ -1441,8 +1442,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       /* macro calls object conversion funcs */
       BL_CONVERTBLENDEROBJECT_SINGLE;
 
-      if (gameobj->IsDupliGroup() &&
-          !single_object) {  // Don't bother with groups during single object conversion
+      if (gameobj->IsDupliGroup()) {  // Don't bother with groups during single object conversion
         grouplist.insert(blenderobject->instance_collection);
       }
 
@@ -1473,8 +1473,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           if (converter->FindGameObject(blenderobject) == nullptr) {
             groupobj.insert(blenderobject);
-            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
-                blenderobject, kxscene, rendertools, converter, libloading, false);
+            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(blenderobject,
+                                                                      kxscene,
+                                                                      rendertools,
+                                                                      converter,
+                                                                      libloading,
+                                                                      converting_during_runtime);
 
             bool isInActiveLayer = false;
             if (gameobj) {
@@ -1516,7 +1520,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   for (pcit = vec_parent_child.begin(); !(pcit == vec_parent_child.end()); ++pcit) {
 
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       /* Don't bother with object children during single object conversion */
       std::cout << "Warning: Object's children are not converted during runtime" << std::endl;
       break;
@@ -1601,7 +1605,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   // find 'root' parents (object that has not parents in SceneGraph)
   for (KX_GameObject *gameobj : sumolist) {
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (gameobj->GetBlenderObject() != single_object) {
         continue;
       }
@@ -1623,7 +1627,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     for (KX_GameObject *gameobj : sumolist) {
       Object *blenderobject = gameobj->GetBlenderObject();
 
-      if (single_object) {
+      if (single_object && !converting_instance_col_at_runtime) {
         if (blenderobject != single_object) {
           continue;
         }
@@ -1645,7 +1649,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   for (KX_GameObject *gameobj : sumolist) {
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
     struct Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobject != single_object) {
         continue;
       }
@@ -1700,7 +1704,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   if (obssimulation) {
     for (KX_GameObject *gameobj : objectlist) {
       struct Object *blenderobject = gameobj->GetBlenderObject();
-      if (single_object) {
+      if (single_object && !converting_instance_col_at_runtime) {
         if (blenderobject != single_object) {
           continue;
         }
@@ -1714,7 +1718,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // process navigation mesh objects
   for (KX_GameObject *gameobj : objectlist) {
     struct Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobject != single_object) {
         continue;
       }
@@ -1729,7 +1733,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
   for (KX_GameObject *gameobj : inactivelist) {
     struct Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobject != single_object) {
         continue;
       }
@@ -1743,7 +1747,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // convert logic bricks, sensors, controllers and actuators
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
       }
@@ -1762,7 +1766,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
       }
@@ -1774,7 +1778,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
       }
@@ -1796,7 +1800,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // apply the initial state to controllers, only on the active objects as this registers the
   // sensors
   for (KX_GameObject *gameobj : objectlist) {
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (gameobj->GetBlenderObject() != single_object) {
         continue;
       }
@@ -1807,7 +1811,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // Convert the python components of each object.
   for (KX_GameObject *gameobj : sumolist) {
     Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
       }
@@ -1817,7 +1821,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   for (KX_GameObject *gameobj : objectlist) {
     Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object) {
+    if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
       }
@@ -1852,12 +1856,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
        * can lead to a crash */
       gameobj->SetVisible(false, false);
 
-      if (single_object && (gameobj->GetBlenderObject() == single_object)) {
-        std::cout << "Warning: Groupobj conversion is not supported during runtime " << std::endl;
-      }
-
       /* Don't bother with groups during single object conversion */
-      if (!single_object) {
+      if (!single_object || converting_instance_col_at_runtime) {
         kxscene->DupliGroupRecurse(gameobj, 0);
       }
     }
