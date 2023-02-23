@@ -289,6 +289,11 @@ void SCA_AddObjectActuator::InstantAddObject()
           m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
     }
 
+    /* Can happen when trying to Duplicate an instance_collection */
+    if (replica == nullptr) {
+      return;
+    }
+
     replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
     replica->setAngularVelocity(MT_Vector3(m_angular_velocity), m_localAngvFlag);
 

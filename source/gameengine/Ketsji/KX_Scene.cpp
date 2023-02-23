@@ -1392,6 +1392,10 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
 {
   Object *ob = gameobj->GetBlenderObject();
   if (ob) {
+    if (ob->instance_collection) {
+      std::cout << "Warning: Full duplication of an instance collection is not supported: " << ob->id.name + 2 << std::endl;
+      return nullptr;
+    }
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetBlenderScene();
@@ -3246,6 +3250,11 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   bool dupli = duplicate == 1;
   KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) :
                                     AddDuplicaObject(ob, reference, time);
+
+  /* Can happen when trying to Duplicate an instance_collection */
+  if (replica == nullptr) {
+    Py_RETURN_NONE;
+  }
 
   // release here because AddReplicaObject AddRef's
   // the object is added to the scene so we don't want python to own a reference
