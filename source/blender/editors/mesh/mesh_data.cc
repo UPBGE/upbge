@@ -208,8 +208,8 @@ void ED_mesh_uv_loop_reset_ex(Mesh *me, const int layernum)
     float2 *mloopuv = static_cast<float2 *>(
         CustomData_get_layer_n_for_write(&me->ldata, CD_PROP_FLOAT2, layernum, me->totloop));
 
-    const MPoly *polys = BKE_mesh_polys(me);
-    for (int i = 0; i < me->totpoly; i++) {
+    const blender::Span<MPoly> polys = me->polys();
+    for (const int i : polys.index_range()) {
       mesh_uv_reset_mface(&polys[i], mloopuv);
     }
   }
@@ -397,13 +397,6 @@ int ED_mesh_color_add(
   /* If no name is supplied, provide a backwards compatible default. */
   if (!name) {
     name = "Col";
-  }
-
-  if (const CustomDataLayer *layer = BKE_id_attribute_find(
-          &me->id, me->active_color_attribute, CD_PROP_BYTE_COLOR, ATTR_DOMAIN_CORNER)) {
-    int dummy;
-    const CustomData *data = mesh_customdata_get_type(me, BM_LOOP, &dummy);
-    return CustomData_get_named_layer(data, CD_PROP_BYTE_COLOR, layer->name);
   }
 
   CustomDataLayer *layer = BKE_id_attribute_new(
