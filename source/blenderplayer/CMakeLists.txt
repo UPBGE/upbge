@@ -247,7 +247,7 @@ if(APPLE)
     endif()
 
     install(
-      DIRECTORY ${CMAKE_SOURCE_DIR}/release/scripts
+      DIRECTORY ${CMAKE_SOURCE_DIR}/scripts
       DESTINATION ${PLAYER_TARGETDIR_VER}
       PATTERN ".git" EXCLUDE
       PATTERN ".gitignore" EXCLUDE
