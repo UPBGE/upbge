@@ -1865,11 +1865,14 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
   else {
-    /* If we are converting an instance collection at runtime, don't loop through
-     * all objects in active layer to avoid creating again previously created
-     * dupligroups */
-    KX_GameObject *gameobj = converter->FindGameObject(single_object);
-    gameobj->SetVisible(false, false);
-    kxscene->DupliGroupRecurse(gameobj, 0);
+    /* If we are converting instance collections during runtime only */
+    if (single_object) {
+      /* If we are converting an instance collection at runtime, don't loop through
+       * all objects in active layer to avoid creating again previously created
+       * dupligroups */
+      KX_GameObject *gameobj = converter->FindGameObject(single_object);
+      gameobj->SetVisible(false, false);
+      kxscene->DupliGroupRecurse(gameobj, 0);
+    }
   }
 }
