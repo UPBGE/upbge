@@ -1845,21 +1845,31 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // that are in active layers. Note that duplicating group
   // has the effect of adding objects at the end of objectlist.
   // Only loop through the first part of the list.
-  int objcount = objectlist->GetCount();
-  for (unsigned int i = 0; i < objcount; ++i) {
-    KX_GameObject *gameobj = objectlist->GetValue(i);
-    if (gameobj->IsDupliGroup()) {
-      /* In 2.8+, hide blenderobjects->instance_collection,
-       * they are not meant to be displayed, they only contain
-       * instances which are meant to be displayed */
-      /* BTW, i'm wondering if adding logic bricks on instance_collections
-       * can lead to a crash */
-      gameobj->SetVisible(false, false);
+  if (!converting_instance_col_at_runtime) {
+    int objcount = objectlist->GetCount();
+    for (unsigned int i = 0; i < objcount; ++i) {
+      KX_GameObject *gameobj = objectlist->GetValue(i);
+      if (gameobj->IsDupliGroup()) {
+        /* In 2.8+, hide blenderobjects->instance_collection,
+         * they are not meant to be displayed, they only contain
+         * instances which are meant to be displayed */
+        /* BTW, i'm wondering if adding logic bricks on instance_collections
+         * can lead to a crash */
+        gameobj->SetVisible(false, false);
 
-      /* Don't bother with groups during single object conversion */
-      if (!single_object || converting_instance_col_at_runtime) {
-        kxscene->DupliGroupRecurse(gameobj, 0);
+        /* Don't bother with groups during single object conversion */
+        if (!single_object) {
+          kxscene->DupliGroupRecurse(gameobj, 0);
+        }
       }
     }
+  }
+  else {
+    /* If we are converting an instance collection at runtime, don't loop through
+     * all objects in active layer to avoid creating again previously created
+     * dupligroups */
+    KX_GameObject *gameobj = converter->FindGameObject(single_object);
+    gameobj->SetVisible(false, false);
+    kxscene->DupliGroupRecurse(gameobj, 0);
   }
 }
