@@ -1871,8 +1871,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
        * all objects in active layer to avoid creating again previously created
        * dupligroups */
       KX_GameObject *gameobj = converter->FindGameObject(single_object);
-      gameobj->SetVisible(false, false);
-      kxscene->DupliGroupRecurse(gameobj, 0);
+      /* If instance collection is in an Active layer */
+      if (gameobj->GetLayer() == 1) {
+        gameobj->SetVisible(false, false);
+        kxscene->DupliGroupRecurse(gameobj, 0);
+      }
     }
   }
 }
