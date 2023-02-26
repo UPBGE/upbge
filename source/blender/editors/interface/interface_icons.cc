@@ -912,20 +912,20 @@ void UI_icons_reload_internal_textures()
       icongltex.invw = 1.0f / b32buf->x;
       icongltex.invh = 1.0f / b32buf->y;
 
-      icongltex.tex[0] = GPU_texture_create_2d_ex(
+      icongltex.tex[0] = GPU_texture_create_2d(
           "icons", b32buf->x, b32buf->y, 2, GPU_RGBA8, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
       GPU_texture_update_mipmap(icongltex.tex[0], 0, GPU_DATA_UBYTE, b32buf->rect);
       GPU_texture_update_mipmap(icongltex.tex[0], 1, GPU_DATA_UBYTE, b16buf->rect);
     }
 
     if (need_icons_with_border && icongltex.tex[1] == nullptr) {
-      icongltex.tex[1] = GPU_texture_create_2d_ex("icons_border",
-                                                  b32buf_border->x,
-                                                  b32buf_border->y,
-                                                  2,
-                                                  GPU_RGBA8,
-                                                  GPU_TEXTURE_USAGE_SHADER_READ,
-                                                  nullptr);
+      icongltex.tex[1] = GPU_texture_create_2d("icons_border",
+                                               b32buf_border->x,
+                                               b32buf_border->y,
+                                               2,
+                                               GPU_RGBA8,
+                                               GPU_TEXTURE_USAGE_SHADER_READ,
+                                               nullptr);
       GPU_texture_update_mipmap(icongltex.tex[1], 0, GPU_DATA_UBYTE, b32buf_border->rect);
       GPU_texture_update_mipmap(icongltex.tex[1], 1, GPU_DATA_UBYTE, b16buf_border->rect);
     }
@@ -1626,7 +1626,7 @@ static void icon_draw_cache_texture_flush_ex(GPUTexture *texture,
   GPU_uniformbuf_bind(ubo, data_binding);
 
   const int img_binding = GPU_shader_get_sampler_binding(shader, "image");
-  GPU_texture_bind_ex(texture, GPU_SAMPLER_ICON, img_binding, false);
+  GPU_texture_bind_ex(texture, GPU_SAMPLER_ICON, img_binding);
 
   GPUBatch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);
@@ -1818,7 +1818,7 @@ static void icon_draw_texture(float x,
   GPU_shader_uniform_float_ex(shader, rect_geom_loc, 4, 1, geom_color);
   GPU_shader_uniform_1f(shader, "text_width", text_width);
 
-  GPU_texture_bind_ex(texture, GPU_SAMPLER_ICON, img_binding, false);
+  GPU_texture_bind_ex(texture, GPU_SAMPLER_ICON, img_binding);
 
   GPUBatch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);

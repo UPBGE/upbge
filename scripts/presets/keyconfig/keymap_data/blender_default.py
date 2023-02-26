@@ -1819,6 +1819,7 @@ def km_graph_editor(params):
         ("graph.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         ("graph.paste", {"type": 'V', "value": 'PRESS', "shift": True, "ctrl": True},
          {"properties": [("flipped", True)]}),
+        op_menu("GRAPH_MT_slider", {"type": 'D', "value": 'PRESS'}),
         ("graph.previewrange_set", {"type": 'P', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("graph.view_all", {"type": 'HOME', "value": 'PRESS'}, None),
         ("graph.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
@@ -5657,6 +5658,8 @@ def km_curves(params):
         ("curves.delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("curves.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("curves.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
+        *_template_items_proportional_editing(
+            params, connected=True, toggle_data_path='tool_settings.use_proportional_edit'),
     ])
 
     return keymap

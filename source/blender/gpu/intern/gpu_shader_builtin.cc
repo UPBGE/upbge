@@ -7,6 +7,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "GPU_capabilities.h"
 #include "GPU_shader.h"
 
 /* Cache of built-in shaders (each is created on first use). */
@@ -84,7 +85,8 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
     case GPU_SHADER_2D_NODELINK_INST:
       return "gpu_shader_2D_nodelink_inst";
     case GPU_SHADER_GPENCIL_STROKE:
-      return "gpu_shader_gpencil_stroke";
+      return GPU_geometry_shader_support() ? "gpu_shader_gpencil_stroke_geom" :
+                                             "gpu_shader_gpencil_stroke_nogeom";
     case GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB: /* UPBGE */
       return "gpu_shader_2D_image_linear_to_srgb";
     default:

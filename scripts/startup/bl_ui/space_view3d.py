@@ -1067,10 +1067,10 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         elif context.mode == 'EDIT_CURVE':
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
 
-        layout.separator()
-
-        layout.operator("transform.translate", text="Move Texture Space").texture_space = True
-        layout.operator("transform.resize", text="Scale Texture Space").texture_space = True
+        if context.mode != 'EDIT_CURVES':
+            layout.separator()
+            layout.operator("transform.translate", text="Move Texture Space").texture_space = True
+            layout.operator("transform.resize", text="Scale Texture Space").texture_space = True
 
 
 # Object-specific extensions to Transform menu
@@ -6237,6 +6237,7 @@ class VIEW3D_PT_shading_compositor(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Compositor"
     bl_parent_id = 'VIEW3D_PT_shading'
+    bl_order = 10
 
     @classmethod
     def poll(cls, context):

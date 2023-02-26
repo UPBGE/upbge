@@ -85,7 +85,7 @@ void RAS_2DFilterFrameBuffer::MipmapTexture()
     GPU_apply_state();
     GPU_texture_filter_mode(texture, true);
     GPU_texture_mipmap_mode(texture, true, false);
-    GPU_texture_generate_mipmap(texture);
+    GPU_texture_update_mipmap_chain(texture);
     GPU_texture_unbind(texture);
   }
 }
