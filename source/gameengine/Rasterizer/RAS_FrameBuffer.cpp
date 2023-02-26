@@ -33,9 +33,10 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                  RAS_Rasterizer::FrameBufferType fbtype)
     : m_frameBuffer(nullptr), m_frameBufferType(fbtype)
 {
-  m_colorAttachment = GPU_texture_create_2d("color_tex", width, height, 1, GPU_RGBA16F, nullptr);
+  m_colorAttachment = GPU_texture_create_2d(
+      "color_tex", width, height, 1, GPU_RGBA16F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
   m_depthAttachment = GPU_texture_create_2d(
-      "depth_tex", width, height, 1, GPU_DEPTH24_STENCIL8, nullptr);
+      "depth_tex", width, height, 1, GPU_DEPTH24_STENCIL8, GPU_TEXTURE_USAGE_GENERAL, nullptr);
   m_frameBuffer = GPU_framebuffer_create("game_fb");
   GPU_framebuffer_texture_attach(m_frameBuffer, m_colorAttachment, 0, 0);
   GPU_framebuffer_texture_attach(m_frameBuffer, m_depthAttachment, 0, 0);

@@ -756,7 +756,7 @@ void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)
 {
   GPUTexture *tex = GPU_framebuffer_color_texture(fb);
   GPU_texture_mipmap_mode(tex, true, false);
-  GPU_texture_generate_mipmap(tex);
+  GPU_texture_update_mipmap_chain(tex);
 }
 
 void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)

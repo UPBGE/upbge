@@ -75,11 +75,12 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
 
   /* TODO could be shared for all viewports. */
   if (txl->smaa_search_tx == NULL) {
+    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     txl->smaa_search_tx = GPU_texture_create_2d(
-        "smaa_search", SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, 1, GPU_R8, NULL);
+        "smaa_search", SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, 1, GPU_R8, usage, NULL);
     GPU_texture_update(txl->smaa_search_tx, GPU_DATA_UBYTE, searchTexBytes);
     txl->smaa_area_tx = GPU_texture_create_2d(
-        "smaa_area", AREATEX_WIDTH, AREATEX_HEIGHT, 1, GPU_RG8, NULL);
+        "smaa_area", AREATEX_WIDTH, AREATEX_HEIGHT, 1, GPU_RG8, usage, NULL);
     GPU_texture_update(txl->smaa_area_tx, GPU_DATA_UBYTE, areaTexBytes);
 
     GPU_texture_filter_mode(txl->smaa_search_tx, true);
