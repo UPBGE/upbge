@@ -373,9 +373,15 @@ void KX_GameObject::ReplicateBlenderObject()
                                    scene,
                                    BKE_view_layer_camera_find(scene, view_layer),
                                    newob);  // add replica where is the active camera
-    newob->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                         BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
-    newob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+
+    /* Avoid to make instance_collections "containers" visibled
+     * when replicating as we want only the instances created in DupliGroupRecuse
+     * to be visibled */
+    if (!ob->instance_collection) {
+      newob->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                           BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
+      newob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+    }
 
     /* This will call BKE_main_collection_sync_remap at frame end. */
     GetScene()->TagForCollectionRemap();
