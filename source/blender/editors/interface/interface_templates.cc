@@ -2338,7 +2338,7 @@ void uiTemplateModifiers(uiLayout * /*layout*/, bContext *C)
 /* -------------------------------------------------------------------- */
 /** \name Constraints Template
  *
- *  Template for building the panel layout for the active object or bone's constraints.
+ * Template for building the panel layout for the active object or bone's constraints.
  * \{ */
 
 /** For building the panel UI for constraints. */

@@ -223,11 +223,13 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
   }
 
   /* Initialize samplers. */
-  for (uint i = 0; i < GPU_SAMPLER_MAX; i++) {
+  for (uint i = 0; i < GPU_SAMPLER_ICON; i++) {
     MTLSamplerState state;
     state.state = static_cast<eGPUSamplerState>(i);
     sampler_state_cache_[i] = this->generate_sampler_from_state(state);
   }
+  /* Special sampler for icons. */
+  sampler_state_cache_[GPU_SAMPLER_ICON] = this->generate_icon_sampler();
 }
 
 MTLContext::~MTLContext()
@@ -1525,7 +1527,7 @@ void MTLContext::ensure_texture_bindings(
     int compute_arg_buffer_bind_index = -1;
 
     /* Argument buffers are used for samplers, when the limit of 16 is exceeded.
-     * NOTE: Compute uses vertex argument for arg buffer bind index.*/
+     * NOTE: Compute uses vertex argument for arg buffer bind index. */
     bool use_argument_buffer_for_samplers = shader_interface->uses_argument_buffer_for_samplers();
     compute_arg_buffer_bind_index = shader_interface->get_argument_buffer_bind_index(
         ShaderStage::COMPUTE);
@@ -2025,7 +2027,6 @@ id<MTLSamplerState> MTLContext::get_sampler_from_state(MTLSamplerState sampler_s
 
 id<MTLSamplerState> MTLContext::generate_sampler_from_state(MTLSamplerState sampler_state)
 {
-  /* Check if sampler already exists for given state. */
   MTLSamplerDescriptor *descriptor = [[MTLSamplerDescriptor alloc] init];
   descriptor.normalizedCoordinates = true;
 
@@ -2066,6 +2067,21 @@ id<MTLSamplerState> MTLContext::generate_sampler_from_state(MTLSamplerState samp
   BLI_assert(state != nil);
   [descriptor autorelease];
   return state;
+}
+
+id<MTLSamplerState> MTLContext::generate_icon_sampler()
+{
+  MTLSamplerDescriptor *descriptor = [[MTLSamplerDescriptor alloc] init];
+  descriptor.minFilter = MTLSamplerMinMagFilterLinear;
+  descriptor.magFilter = MTLSamplerMinMagFilterLinear;
+  descriptor.mipFilter = MTLSamplerMipFilterNearest;
+  descriptor.lodMinClamp = 0;
+  descriptor.lodMaxClamp = 1;
+
+  id<MTLSamplerState> icon_state = [this->device newSamplerStateWithDescriptor:descriptor];
+  BLI_assert(icon_state != nil);
+  [descriptor autorelease];
+  return icon_state;
 }
 
 id<MTLSamplerState> MTLContext::get_default_sampler_state()

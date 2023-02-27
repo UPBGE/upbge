@@ -681,7 +681,7 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   }
 
   /* TODO we might need to move the actual pipeline construction to a later stage as the graphics
-   * pipeline requires more data before it can be constructed.*/
+   * pipeline requires more data before it can be constructed. */
   bool result;
   if (is_graphics_shader()) {
     BLI_assert((fragment_module_ != VK_NULL_HANDLE && info->tf_type_ == GPU_SHADER_TFB_NONE) ||
@@ -905,9 +905,9 @@ bool VKShader::finalize_descriptor_set_layouts(VkDevice vk_device,
   VK_ALLOCATION_CALLBACKS
 
   /* Currently we create a single descriptor set. The goal would be to create one descriptor set
-   * for Frequency::PASS/BATCH. This isn't possible as areas expect that the binding location is
-   * static and predictable (eevee-next) or the binding location can be mapped to a single number
-   * (python). */
+   * for #Frequency::PASS/BATCH. This isn't possible as areas expect that the binding location is
+   * static and predictable (EEVEE-NEXT) or the binding location can be mapped to a single number
+   * (Python). */
   Vector<ShaderCreateInfo::Resource> all_resources;
   all_resources.extend(info.pass_resources_);
   all_resources.extend(info.batch_resources_);

@@ -1160,7 +1160,7 @@ static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
 
 static void rna_Mesh_vertex_color_active_set(PointerRNA *ptr,
                                              const PointerRNA value,
-                                             ReportList *reports)
+                                             ReportList *UNUSED(reports))
 {
   Mesh *mesh = (Mesh *)ptr->data;
   CustomDataLayer *layer = (CustomDataLayer *)value.data;
@@ -1233,14 +1233,19 @@ static bool rna_mesh_color_active_get(PointerRNA *ptr)
 
 static void rna_mesh_color_active_render_set(PointerRNA *ptr, bool value)
 {
+  if (value == false) {
+    return;
+  }
   Mesh *mesh = (Mesh *)ptr->owner_id;
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-
   BKE_id_attributes_default_color_set(&mesh->id, layer->name);
 }
 
 static void rna_mesh_color_active_set(PointerRNA *ptr, bool value)
 {
+  if (value == false) {
+    return;
+  }
   Mesh *mesh = (Mesh *)ptr->owner_id;
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
 
@@ -1267,7 +1272,7 @@ static PointerRNA rna_Mesh_sculpt_vertex_color_active_get(PointerRNA *ptr)
 
 static void rna_Mesh_sculpt_vertex_color_active_set(PointerRNA *ptr,
                                                     const PointerRNA value,
-                                                    ReportList *reports)
+                                                    ReportList *UNUSED(reports))
 {
   Mesh *mesh = (Mesh *)ptr->data;
   CustomDataLayer *layer = (CustomDataLayer *)value.data;
@@ -2070,7 +2075,7 @@ static bool get_uv_index_and_layer(const PointerRNA *ptr,
     }
   }
   /* This can happen if the Customdata arrays were re-allocated between obtaining the
-   * python object and accessing it.*/
+   * Python object and accessing it. */
   return false;
 }
 

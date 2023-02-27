@@ -14,9 +14,9 @@ namespace blender::gpu {
 class VKBuffer;
 class VKTexture;
 
-/** Command buffer to keep track of the life-time of a command buffer.*/
+/** Command buffer to keep track of the life-time of a command buffer. */
 class VKCommandBuffer : NonCopyable, NonMovable {
-  /** None owning handle to the command buffer and device. Handle is owned by `GHOST_ContextVK`.*/
+  /** None owning handle to the command buffer and device. Handle is owned by `GHOST_ContextVK`. */
   VkDevice vk_device_ = VK_NULL_HANDLE;
   VkCommandBuffer vk_command_buffer_ = VK_NULL_HANDLE;
   VkQueue vk_queue_ = VK_NULL_HANDLE;
@@ -34,7 +34,7 @@ class VKCommandBuffer : NonCopyable, NonMovable {
             const VkPipelineLayout vk_pipeline_layout,
             VkPipelineBindPoint bind_point);
   void dispatch(int groups_x_len, int groups_y_len, int groups_z_len);
-  /* Copy the contents of a texture mip level to the dst buffer.*/
+  /** Copy the contents of a texture MIP level to the dst buffer. */
   void copy(VKBuffer &dst_buffer, VKTexture &src_texture, Span<VkBufferImageCopy> regions);
   void pipeline_barrier(VkPipelineStageFlags source_stages,
                         VkPipelineStageFlags destination_stages);
