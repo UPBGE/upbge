@@ -84,6 +84,7 @@ KX_GameObject::KX_GameObject()
     : SCA_IObject(),
       m_isReplica(false),            // eevee
       m_visibleAtGameStart(false),   // eevee
+      m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
       m_layer(0),
       m_lodManager(nullptr),
@@ -244,13 +245,34 @@ void KX_GameObject::SyncTransformWithDepsgraph()
   }
 }
 
+void KX_GameObject::ForceIgnoreParentTx()
+{
+  m_forceIgnoreParentTx = true;
+}
+
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
-  if (is_last_render_pass) {
-    GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-    copy_m4_m4(m_prevobject_to_world, object_to_world);
+  bool staticObject = true;
+  if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+    staticObject = false;
+    /* Wait the end of all render passes (main + custom viewports)
+     * to clear dirty render because we want the objects to
+     * be tagged for transform update for each render pass.
+     */
+    bool multiple_render_passes = KX_GetActiveEngine()->GetRenderingCameras().size() > 1;
+    if (multiple_render_passes && !is_last_render_pass) {
+      // wait
+    }
+    else if (multiple_render_passes && is_last_render_pass) {
+      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      copy_m4_m4(m_prevobject_to_world, object_to_world);  // This is used for ImageRender but could be changed...
+    }
+    else {
+      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      copy_m4_m4(m_prevobject_to_world, object_to_world);
+    }
   }
 
   bContext *C = KX_GetActiveEngine()->GetContext();
@@ -277,13 +299,15 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
           ob_orig, ob_orig->object_to_world, false, ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
-    std::vector<KX_GameObject *> children = GetChildren();
-    if (children.size() > 0) {
-      std::vector<Object *> childrenObjects;
-      for (KX_GameObject *go : children) {
-        Object *child = go->GetBlenderObject();
-        if (child) {
-          childrenObjects.push_back(child);
+    if (!staticObject || m_forceIgnoreParentTx) {
+      std::vector<KX_GameObject *> children = GetChildren();
+      if (children.size() > 0) {
+        std::vector<Object *> childrenObjects;
+        for (KX_GameObject *go : children) {
+          Object *child = go->GetBlenderObject();
+          if (child) {
+            childrenObjects.push_back(child);
+          }
         }
         GetScene()->IgnoreParentTxBGE(bmain, depsgraph, ob_orig, childrenObjects);
       }
@@ -291,12 +315,12 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
     if (applyTransformToOrig) {
       /* NORMAL CASE */
-      if (ob_orig->type != OB_MBALL) {
+      if (!staticObject && ob_orig->type != OB_MBALL) {
         DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
       }
       /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at
        * ge exit) */
-      else if (ob_orig->type == OB_MBALL) {
+      else if (!staticObject && ob_orig->type == OB_MBALL) {
         if (!BKE_mball_is_basis(ob_orig)) {
           DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
         }
@@ -306,6 +330,8 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
       }
     }
   }
+
+  m_forceIgnoreParentTx = false;
 }
 
 void KX_GameObject::TagForTransformUpdateEvaluated()

@@ -108,6 +108,7 @@ class KX_GameObject : public SCA_IObject {
   float m_prevobject_to_world[4][4];
   bool m_isReplica;
   bool m_visibleAtGameStart;
+  bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
   /* END OF EEVEE INTEGRATION */
 
@@ -162,6 +163,7 @@ class KX_GameObject : public SCA_IObject {
   void RestoreLogicAndActions(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob);
   bool IsReplica();
+  void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   float *GetPrevObjectMatToWorld();
