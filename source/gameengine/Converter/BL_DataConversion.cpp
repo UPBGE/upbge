@@ -432,7 +432,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     const bool *sharp_edges = (const bool *)(CustomData_get_layer_named(&final_me->edata, CD_PROP_BOOL, "sharp_edge"));
     short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata, CD_CUSTOMLOOPNORMAL);
 
-    v_normals = (float(*)[3])BKE_mesh_vertex_normals_ensure(final_me);
+    v_normals = (float(*)[3])BKE_mesh_vert_normals_ensure(final_me);
     p_normals = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
 
     BKE_mesh_normals_loop_split(positions,
@@ -469,7 +469,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           true,
           nullptr,
           0,
-          (v_normals != nullptr) ? v_normals : BKE_mesh_vertex_normals_ensure(final_me),
+          (v_normals != nullptr) ? v_normals : BKE_mesh_vert_normals_ensure(final_me),
           (p_normals != nullptr) ? p_normals : BKE_mesh_poly_normals_ensure(final_me),
           static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->ldata, CD_NORMAL)),
           /* may be nullptr */
