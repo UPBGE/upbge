@@ -714,6 +714,17 @@ bool KX_Scene::CameraIsInactive(KX_Camera *cam)
   return true;
 }
 
+static std::vector<KX_GameObject*> GetTaggedForTransformObjectList(EXP_ListValue<KX_GameObject> *objlist)
+{
+  std::vector<KX_GameObject *> tagged_list = {};
+  for (KX_GameObject *gob : objlist) {
+    if (gob->GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+      tagged_list.push_back(gob);
+    }
+  }
+  return tagged_list;
+}
+
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
@@ -755,7 +766,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   /* Notify the depsgraph if object transform changed in the scene
    * for next drawing loop. */
-  for (KX_GameObject *gameobj : GetObjectList()) {
+  std::vector<KX_GameObject *> tagged_list = GetTaggedForTransformObjectList(GetObjectList());
+  for (KX_GameObject *gameobj : tagged_list) {
     gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
 
@@ -772,7 +784,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   //UpdateParents(0.0);
 
   /* Update evaluated object object_to_world according to SceneGraph. */
-  for (KX_GameObject *gameobj : GetObjectList()) {
+  for (KX_GameObject *gameobj : tagged_list) {
     gameobj->TagForTransformUpdateEvaluated();
   }
 

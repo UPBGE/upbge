@@ -433,8 +433,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, &animEvalContext);
 
-    m_obj->ForceIgnoreParentTx();
-
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
       IncrementBlending(curtime);
@@ -521,7 +519,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
 
-          m_obj->ForceIgnoreParentTx();
           actionIsUpdated = true;
           break;
           /* HERE we can add other constraint action types,
