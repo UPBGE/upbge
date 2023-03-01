@@ -261,15 +261,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
      * to clear dirty render because we want the objects to
      * be tagged for transform update for each render pass.
      */
-    bool multiple_render_passes = KX_GetActiveEngine()->GetRenderingCameras().size() > 1;
-    if (multiple_render_passes && !is_last_render_pass) {
-      // wait
-    }
-    else if (multiple_render_passes && is_last_render_pass) {
-      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      copy_m4_m4(m_prevobject_to_world, object_to_world);  // This is used for ImageRender but could be changed...
-    }
-    else {
+    if (is_last_render_pass) {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
       copy_m4_m4(m_prevobject_to_world, object_to_world);
     }
