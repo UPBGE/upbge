@@ -243,13 +243,9 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
 
     /* In this first loop, we assign each WeightedNormalDataAggregateItem
      * to its smooth fan of loops (aka lnor space). */
-    int mp_index;
-    int item_index;
-    for (mp_index = 0, item_index = 0; mp_index < polys.size(); mp_index++) {
-      int ml_index = polys[mp_index].loopstart;
-      const int ml_end_index = ml_index + polys[mp_index].totloop;
-
-      for (; ml_index < ml_end_index; ml_index++) {
+    int item_index = 0;
+    for (const int i : polys.index_range()) {
+      for (const int ml_index : blender::IndexRange(polys[i].loopstart, polys[i].totloop)) {
         if (BLI_BITMAP_TEST(done_loops, ml_index)) {
           /* Smooth fan of this loop has already been processed, skip it. */
           continue;
@@ -292,7 +288,7 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
 
   switch (mode) {
     case MOD_WEIGHTEDNORMAL_MODE_FACE:
-      for (int i = 0; i < polys.size(); i++) {
+      for (const int i : polys.index_range()) {
         const int mp_index = mode_pair[i].index;
         const float mp_val = mode_pair[i].val;
 
@@ -312,7 +308,7 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
       break;
     case MOD_WEIGHTEDNORMAL_MODE_ANGLE:
     case MOD_WEIGHTEDNORMAL_MODE_FACE_ANGLE:
-      for (int i = 0; i < loops.size(); i++) {
+      for (const int i : loops.index_range()) {
         const int ml_index = mode_pair[i].index;
         const float ml_val = mode_pair[i].val;
 
@@ -461,8 +457,8 @@ static void wn_face_area(WeightedNormalModifierData *wnmd, WeightedNormalData *w
 
   ModePair *f_area = face_area;
   for (const int i : polys.index_range()) {
-    f_area->val = BKE_mesh_calc_poly_area(&polys[i], &loops[polys[i].loopstart], positions);
-    f_area->index = i;
+    f_area[i].val = BKE_mesh_calc_poly_area(&polys[i], &loops[polys[i].loopstart], positions);
+    f_area[i].index = i;
   }
 
   qsort(face_area, polys.size(), sizeof(*face_area), modepair_cmp_by_val_inverse);
