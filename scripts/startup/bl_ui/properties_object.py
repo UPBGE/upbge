@@ -352,7 +352,7 @@ class OBJECT_PT_lineart(ObjectButtonsPanel, Panel):
 
 
 class OBJECT_PT_motion_paths(MotionPathButtonsPanel, Panel):
-    #bl_label = "Object Motion Paths"
+    # bl_label = "Object Motion Paths"
     bl_context = "object"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -371,7 +371,7 @@ class OBJECT_PT_motion_paths(MotionPathButtonsPanel, Panel):
 
 
 class OBJECT_PT_motion_paths_display(MotionPathButtonsPanel_display, Panel):
-    #bl_label = "Object Motion Paths"
+    # bl_label = "Object Motion Paths"
     bl_context = "object"
     bl_parent_id = "OBJECT_PT_motion_paths"
     bl_options = {'DEFAULT_CLOSED'}
