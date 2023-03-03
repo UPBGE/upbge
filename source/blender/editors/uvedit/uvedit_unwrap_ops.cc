@@ -671,7 +671,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
 
   /* Prepare and feed faces to the solver */
   for (const int i : subsurf_polys.index_range()) {
-    const MPoly *poly = &subsurf_polys[i];
+    const MPoly &poly = subsurf_polys[i];
     ParamKey key, vkeys[4];
     bool pin[4], select[4];
     const float *co[4];
@@ -690,10 +690,10 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
       }
     }
 
-    const MLoop *mloop = &subsurf_loops[poly->loopstart];
+    const MLoop *mloop = &subsurf_loops[poly.loopstart];
 
     /* We will not check for v4 here. Sub-surface faces always have 4 vertices. */
-    BLI_assert(poly->totloop == 4);
+    BLI_assert(poly.totloop == 4);
     key = (ParamKey)i;
     vkeys[0] = (ParamKey)mloop[0].v;
     vkeys[1] = (ParamKey)mloop[1].v;
@@ -2821,7 +2821,7 @@ static void uv_map_mirror(BMFace *efa,
  * \note Even though `atan2(a+bi, c+di)` is now (multiply) defined for all
  * complex inputs, we will only evaluate it with `b==0` and `d==0`.
  */
-struct uv_face_branch {
+struct UV_FaceBranch {
   BMFace *efa;
   float branch;
 };
@@ -2852,11 +2852,11 @@ static float uv_sphere_project(const Scene *scene,
   }
 
   /* Similar to #BM_mesh_calc_face_groups with added connectivity information. */
-  blender::Vector<uv_face_branch> stack;
+  blender::Vector<UV_FaceBranch> stack;
   stack.append({efa_init, branch_init});
 
   while (stack.size()) {
-    uv_face_branch face_branch = stack.pop_last();
+    UV_FaceBranch face_branch = stack.pop_last();
     BMFace *efa = face_branch.efa;
 
     if (use_seams) {
@@ -3030,12 +3030,12 @@ static float uv_cylinder_project(const Scene *scene,
 
   /* Similar to BM_mesh_calc_face_groups with added connectivity information. */
 
-  blender::Vector<uv_face_branch> stack;
+  blender::Vector<UV_FaceBranch> stack;
 
   stack.append({efa_init, branch_init});
 
   while (stack.size()) {
-    uv_face_branch face_branch = stack.pop_last();
+    UV_FaceBranch face_branch = stack.pop_last();
     BMFace *efa = face_branch.efa;
 
     if (use_seams) {
