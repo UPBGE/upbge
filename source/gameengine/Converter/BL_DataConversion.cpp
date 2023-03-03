@@ -382,11 +382,10 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const float(*positions)[3] = BKE_mesh_vert_positions(final_me);
   const int totverts = final_me->totvert;
 
-  const MFace *mfaces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
-  const MPoly *mpolys = final_me->polys().data();
-  const MLoop *mloops = final_me->loops().data();
-  const MEdge *medges = final_me->edges().data();
-  const unsigned int numpolys = final_me->totpoly;
+  const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
+  const MPoly *polys = final_me->polys().data();
+  const MLoop *loops = final_me->loops().data();
+  const MEdge *edges = final_me->edges().data();
   const int totfaces = final_me->totface;
   const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata, CD_ORIGINDEX);
 
@@ -438,14 +437,14 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     BKE_mesh_normals_loop_split(positions,
                                 v_normals,
                                 final_me->totvert,
-                                medges,
-                                final_me->totedge,
-                                mloops,
+                                edges,
+                                final_me->edges().size(),
+                                loops,
                                 loop_nor_dst,
-                                final_me->totloop,
-                                mpolys,
+                                final_me->loops().size(),
+                                polys,
                                 p_normals,
-                                final_me->totpoly,
+                                final_me->polys().size(),
                                 use_split_nors,
                                 split_angle,
                                 sharp_edges,
@@ -460,9 +459,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       short tangent_mask = 0;
       BKE_mesh_calc_loop_tangent_ex(
           positions,
-          mpolys,
-          uint(final_me->totpoly),
-          mloops,
+          polys,
+          uint(final_me->polys().size()),
+          loops,
           BKE_mesh_runtime_looptri_ensure(final_me),
           uint(BKE_mesh_runtime_looptri_len(final_me)),
           &final_me->ldata,
@@ -528,7 +527,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                         bucket->IsWire()};
   }
 
-  std::vector<std::vector<unsigned int>> mpolyToMface(numpolys);
+  std::vector<std::vector<unsigned int>> mpolyToMface(final_me->polys().size());
   // Generate a list of all mfaces wrapped by a mpoly.
   for (unsigned int i = 0; i < totfaces; ++i) {
     mpolyToMface[mfaceToMpoly[i]].push_back(i);
@@ -541,8 +540,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const VArray<int> material_indices = attributes.lookup_or_default<int>(
       "material_index", ATTR_DOMAIN_FACE, 0);
 
-  for (unsigned int i = 0; i < numpolys; ++i) {
-    const MPoly &mpoly = mpolys[i];
+  for (const unsigned int i : final_me->polys().index_range()) {
+    const MPoly &poly = polys[i];
 
     /* Try to get evaluated mesh poly material index */
     /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
@@ -554,13 +553,13 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
     // Mark face as flat, so vertices are split.
-    const bool flat = (mpoly.flag & ME_SMOOTH) == 0;
+    const bool flat = (poly.flag & ME_SMOOTH) == 0;
 
-    const unsigned int lpstart = mpoly.loopstart;
-    const unsigned int totlp = mpoly.totloop;
+    const unsigned int lpstart = poly.loopstart;
+    const unsigned int totlp = poly.totloop;
     for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
-      const MLoop &mloop = mloops[j];
-      const unsigned int vertid = mloop.v;
+      const MLoop &loop = loops[j];
+      const unsigned int vertid = loop.v;
       const float *vp = &positions[vertid][0];
 
       const MT_Vector3 pt(vp);
@@ -578,22 +577,22 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     // Convert to edges of material is rendering wire.
     if (mat.wire && mat.visible) {
       for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
-        const MLoop &mloop = mloops[j];
-        const MEdge &edge = medges[mloop.e];
+        const MLoop &loop = loops[j];
+        const MEdge &edge = edges[loop.e];
         meshobj->AddLine(meshmat, vertices[edge.v1], vertices[edge.v2]);
       }
     }
 
     // Convert all faces (triangles of quad).
     for (unsigned int j : mpolyToMface[i]) {
-      const MFace &mface = mfaces[j];
-      const unsigned short nverts = (mface.v4) ? 4 : 3;
+      const MFace &face = faces[j];
+      const unsigned short nverts = (face.v4) ? 4 : 3;
       unsigned int indices[4];
-      indices[0] = vertices[mface.v1];
-      indices[1] = vertices[mface.v2];
-      indices[2] = vertices[mface.v3];
-      if (mface.v4) {
-        indices[3] = vertices[mface.v4];
+      indices[0] = vertices[face.v1];
+      indices[1] = vertices[face.v2];
+      indices[2] = vertices[face.v3];
+      if (face.v4) {
+        indices[3] = vertices[face.v4];
       }
 
       meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside);
