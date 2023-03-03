@@ -1911,7 +1911,7 @@ static int game_property_new_exec(bContext *C, wmOperator *op)
   BLI_uniquename(
       &ob->prop, prop, DATA_("Property"), '.', offsetof(bProperty, name), sizeof(prop->name));
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1935,7 +1935,7 @@ void OBJECT_OT_game_property_new(wmOperatorType *ot)
                GPROP_FLOAT,
                "Type",
                "Type of game property to add");
-  RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the game property to add");
+  RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the game property to add");
 }
 
 static int game_property_remove_exec(bContext *C, wmOperator *op)
@@ -1947,13 +1947,13 @@ static int game_property_remove_exec(bContext *C, wmOperator *op)
   if (!ob)
     return OPERATOR_CANCELLED;
 
-  prop = BLI_findlink(&ob->prop, index);
+  prop = (bProperty *)BLI_findlink(&ob->prop, index);
 
   if (prop) {
     BLI_remlink(&ob->prop, prop);
     BKE_bproperty_free(prop);
 
-    WM_event_add_notifier(C, NC_LOGIC, NULL);
+    WM_event_add_notifier(C, NC_LOGIC, nullptr);
     return OPERATOR_FINISHED;
   }
   else {
@@ -1985,16 +1985,16 @@ static int game_property_move(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bProperty *prop;
-  bProperty *otherprop = NULL;
+  bProperty *otherprop = nullptr;
   const int index = RNA_int_get(op->ptr, "index");
   const int dir = RNA_enum_get(op->ptr, "direction");
 
-  if (ob == NULL)
+  if (ob == nullptr)
     return OPERATOR_CANCELLED;
 
-  prop = BLI_findlink(&ob->prop, index);
+  prop = (bProperty *)BLI_findlink(&ob->prop, index);
   /* invalid index */
-  if (prop == NULL)
+  if (prop == nullptr)
     return OPERATOR_CANCELLED;
 
   if (dir == GAME_PROPERTY_MOVE_UP) {
@@ -2010,7 +2010,7 @@ static int game_property_move(bContext *C, wmOperator *op)
   if (prop && otherprop) {
     BLI_listbase_swaplinks(&ob->prop, prop, otherprop);
 
-    WM_event_add_notifier(C, NC_LOGIC, NULL);
+    WM_event_add_notifier(C, NC_LOGIC, nullptr);
     return OPERATOR_FINISHED;
   }
   else {
@@ -2023,7 +2023,7 @@ void OBJECT_OT_game_property_move(wmOperatorType *ot)
   static const EnumPropertyItem direction_property_move[] = {
       {GAME_PROPERTY_MOVE_UP, "UP", 0, "Up", ""},
       {GAME_PROPERTY_MOVE_DOWN, "DOWN", 0, "Down", ""},
-      {0, NULL, 0, NULL, NULL}};
+      {0, nullptr, 0, nullptr, nullptr}};
   PropertyRNA *prop;
 
   /* identifiers */
@@ -2061,23 +2061,23 @@ static const EnumPropertyItem game_properties_copy_operations[] = {
     {COPY_PROPERTIES_REPLACE, "REPLACE", 0, "Replace Properties", ""},
     {COPY_PROPERTIES_MERGE, "MERGE", 0, "Merge Properties", ""},
     {COPY_PROPERTIES_COPY, "COPY", 0, "Copy a Property", ""},
-    {0, NULL, 0, NULL, NULL}};
+    {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem *gameprops_itemf(bContext *C,
-                                               PointerRNA *UNUSED(ptr),
-                                               PropertyRNA *UNUSED(prop),
+                                               PointerRNA */*ptr*/,
+                                               PropertyRNA */*prop*/,
                                                bool *r_free)
 {
   Object *ob = ED_object_active_context(C);
   EnumPropertyItem tmp = {0, "", 0, "", ""};
-  EnumPropertyItem *item = NULL;
+  EnumPropertyItem *item = nullptr;
   bProperty *prop;
   int a, totitem = 0;
 
   if (!ob)
     return DummyRNA_NULL_items;
 
-  for (a = 1, prop = ob->prop.first; prop; prop = prop->next, a++) {
+  for (a = 1, prop = (bProperty *)ob->prop.first; prop; prop = prop->next, a++) {
     tmp.value = a;
     tmp.identifier = prop->name;
     tmp.name = prop->name;
@@ -2098,7 +2098,7 @@ static int game_property_copy_exec(bContext *C, wmOperator *op)
   int propid = RNA_enum_get(op->ptr, "property");
 
   if (propid > 0) { /* copy */
-    prop = BLI_findlink(&ob->prop, propid - 1);
+    prop = (bProperty *)BLI_findlink(&ob->prop, propid - 1);
 
     if (prop) {
       CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
@@ -2117,7 +2117,7 @@ static int game_property_copy_exec(bContext *C, wmOperator *op)
         }
         else {
           /* merge - the default when calling with no argument */
-          for (prop = ob->prop.first; prop; prop = prop->next) {
+          for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
             BKE_bproperty_object_set(ob_iter, prop);
           }
         }
@@ -2148,19 +2148,19 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
   prop = RNA_def_enum(
       ot->srna, "property", DummyRNA_NULL_items, 0, "Property", "Properties to copy");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_ENUM_NO_TRANSLATE);
+  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_ENUM_NO_TRANSLATE));
   RNA_def_enum_funcs(prop, gameprops_itemf);
   ot->prop = prop;
 }
 
-static int game_property_clear_exec(bContext *C, wmOperator *UNUSED(op))
+static int game_property_clear_exec(bContext *C, wmOperator */*op*/)
 {
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     BKE_bproperty_free_list(&ob_iter->prop);
   }
   CTX_DATA_END;
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
   return OPERATOR_FINISHED;
 }
 void OBJECT_OT_game_property_clear(wmOperatorType *ot)
@@ -2180,7 +2180,7 @@ void OBJECT_OT_game_property_clear(wmOperatorType *ot)
 
 /************************ Copy Logic Bricks ***********************/
 
-static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
+static int logicbricks_copy_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_active_context(C);
 
@@ -2216,7 +2216,7 @@ static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
   }
   CTX_DATA_END;
 
-  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2236,7 +2236,7 @@ void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
+static int game_physics_copy_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_active_context(C);
 

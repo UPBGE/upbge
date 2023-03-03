@@ -6,10 +6,6 @@
  * \ingroup pymathutils
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Can cast different mathutils types to this, use for generic functions. */
 
 #include "BLI_compiler_attrs.h"
