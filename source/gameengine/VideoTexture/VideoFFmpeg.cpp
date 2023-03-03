@@ -24,11 +24,12 @@
 #  include "Exception.h"
 #  include "PIL_time.h"
 
+
 extern "C" {
 #  include "libswscale/swscale.h"
 #  include <libavcodec/avcodec.h>
 #  include <libavutil/imgutils.h>
-#  include <libavformat/version.h>
+#  include <libswscale/swscale.h>
 }
 
 // default framerate
@@ -236,7 +237,7 @@ int VideoFFmpeg::openStream(const char *filename,
   avcodec_parameters_to_context(pCodecCtx, video_stream->codecpar);
   pCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
 
-  if (pCodec->capabilities & AV_CODEC_CAP_AUTO_THREADS) {
+  if (pCodec->capabilities & AV_CODEC_CAP_OTHER_THREADS) {
     pCodecCtx->thread_count = 0;
   }
   else {
