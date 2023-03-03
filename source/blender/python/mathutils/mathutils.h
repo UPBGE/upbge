@@ -14,6 +14,10 @@ extern "C" {
 
 #include "BLI_compiler_attrs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct DynStr;
 
 extern char BaseMathObject_is_wrapped_doc[];

@@ -45,9 +45,6 @@
 
 #include "CCGSubSurf.h"
 
-/* assumes MLoop's are laid out 4 for each poly, in order */
-#define USE_LOOP_LAYOUT_FAST
-
 static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                                          int drawInteriorEdges,
                                          int useSubsurfUv,
@@ -574,8 +571,12 @@ static void ss_sync_ccg_from_derivedmesh(CCGSubSurf *ss,
 
     crease = useFlatSubdiv ? creaseFactor : (creases ? creases[i] * creaseFactor : 0.0f);
 
-    ccgSubSurf_syncEdge(
-        ss, POINTER_FROM_INT(i), POINTER_FROM_UINT(edge->v1), POINTER_FROM_UINT(edge->v2), crease, &e);
+    ccgSubSurf_syncEdge(ss,
+                        POINTER_FROM_INT(i),
+                        POINTER_FROM_UINT(edge->v1),
+                        POINTER_FROM_UINT(edge->v2),
+                        crease,
+                        &e);
 
     ((int *)ccgSubSurf_getEdgeUserData(ss, e))[1] = (index) ? *index++ : i;
   }
