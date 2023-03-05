@@ -861,13 +861,13 @@ void CcdPhysicsController::UpdateSoftBody()
         }
 
         float(*positions)[3] = BKE_mesh_vert_positions_for_write(me);
-        MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+        const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
         int numpolys = me->totface;
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
         for (int p2 = 0; p2 < numpolys; p2++) {
-          MFace *mf = &mface[p2];
+          const MFace *face = &faces[p2];
           const int origi = index_mf_to_mpoly ?
                                 DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
                                 p2;
@@ -875,9 +875,9 @@ void CcdPhysicsController::UpdateSoftBody()
 
           // only add polygons that have the collisionflag set
           if (poly) {
-            float *v1 = &positions[mf->v1][0];
-            float *v2 = &positions[mf->v2][0];
-            float *v3 = &positions[mf->v3][0];
+            float *v1 = &positions[face->v1][0];
+            float *v2 = &positions[face->v2][0];
+            float *v3 = &positions[face->v3][0];
 
             int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
             int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
@@ -892,8 +892,8 @@ void CcdPhysicsController::UpdateSoftBody()
             copy_v3_v3(v2, p2.getValue());
             copy_v3_v3(v3, p3.getValue());
 
-            if (mf->v4) {
-              float *v4 = &positions[mf->v4][0];
+            if (face->v4) {
+              float *v4 = &positions[face->v4][0];
 
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
@@ -2016,7 +2016,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
                                        RAS_MeshObject *meshobj,
                                        bool polytope)
 {
-  int numpolys, numverts;
+  int numverts;
 
   // assume no shape information
   // no support for dynamic change of shape yet
@@ -2042,10 +2042,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   /* No need to call again ensure_tessface as it was called in BL_DataConversion */
 
   const float(*positions)[3] = BKE_mesh_vert_positions(me);
-  MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
-  numpolys = me->totpoly;
+  const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
   numverts = me->totvert;
-  MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
+  const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
 
   /* double lookup */
   const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
@@ -2062,8 +2061,8 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   if (polytope) {
     // Tag verts we're using
-    for (int p2 = 0; p2 < numpolys; p2++) {
-      MFace *mf = &mface[p2];
+    for (const int p2 : me->polys().index_range()) {
+      const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
                             p2;
@@ -2071,20 +2070,20 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
       // only add polygons that have the collision flag set
       if (poly && poly->IsCollider()) {
-        if (!vert_tag_array[mf->v1]) {
-          vert_tag_array[mf->v1] = true;
+        if (!vert_tag_array[face->v1]) {
+          vert_tag_array[face->v1] = true;
           tot_bt_verts++;
         }
-        if (!vert_tag_array[mf->v2]) {
-          vert_tag_array[mf->v2] = true;
+        if (!vert_tag_array[face->v2]) {
+          vert_tag_array[face->v2] = true;
           tot_bt_verts++;
         }
-        if (!vert_tag_array[mf->v3]) {
-          vert_tag_array[mf->v3] = true;
+        if (!vert_tag_array[face->v3]) {
+          vert_tag_array[face->v3] = true;
           tot_bt_verts++;
         }
-        if (mf->v4 && !vert_tag_array[mf->v4]) {
-          vert_tag_array[mf->v4] = true;
+        if (face->v4 && !vert_tag_array[face->v4]) {
+          vert_tag_array[face->v4] = true;
           tot_bt_verts++;
         }
       }
@@ -2099,8 +2098,8 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
     btScalar *bt = &m_vertexArray[0];
 
-    for (int p2 = 0; p2 < numpolys; p2++) {
-      MFace *mf = &mface[p2];
+    for (const int p2 : me->polys().index_range()) {
+      const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
                             p2;
@@ -2108,30 +2107,30 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
       // only add polygons that have the collisionflag set
       if (poly->IsCollider()) {
-        if (vert_tag_array[mf->v1]) {
-          const float *vtx = &positions[mf->v1][0];
-          vert_tag_array[mf->v1] = false;
+        if (vert_tag_array[face->v1]) {
+          const float *vtx = &positions[face->v1][0];
+          vert_tag_array[face->v1] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
         }
-        if (vert_tag_array[mf->v2]) {
-          const float *vtx = &positions[mf->v2][0];
-          vert_tag_array[mf->v2] = false;
+        if (vert_tag_array[face->v2]) {
+          const float *vtx = &positions[face->v2][0];
+          vert_tag_array[face->v2] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
         }
-        if (vert_tag_array[mf->v3]) {
-          const float *vtx = &positions[mf->v3][0];
-          vert_tag_array[mf->v3] = false;
+        if (vert_tag_array[face->v3]) {
+          const float *vtx = &positions[face->v3][0];
+          vert_tag_array[face->v3] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
         }
-        if (mf->v4 && vert_tag_array[mf->v4]) {
-          const float *vtx = &positions[mf->v4][0];
-          vert_tag_array[mf->v4] = false;
+        if (face->v4 && vert_tag_array[face->v4]) {
+          const float *vtx = &positions[face->v4][0];
+          vert_tag_array[face->v4] = false;
           *bt++ = vtx[0];
           *bt++ = vtx[1];
           *bt++ = vtx[2];
@@ -2144,8 +2143,8 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     std::vector<int> vert_remap_array(numverts, 0);
 
     // Tag verts we're using
-    for (int p2 = 0; p2 < numpolys; p2++) {
-      MFace *mf = &mface[p2];
+    for (const int p2 : me->polys().index_range()) {
+      const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
                             p2;
@@ -2153,27 +2152,27 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
       // only add polygons that have the collision flag set
       if (poly && poly->IsCollider()) {
-        if (!vert_tag_array[mf->v1]) {
-          vert_tag_array[mf->v1] = true;
-          vert_remap_array[mf->v1] = tot_bt_verts;
+        if (!vert_tag_array[face->v1]) {
+          vert_tag_array[face->v1] = true;
+          vert_remap_array[face->v1] = tot_bt_verts;
           tot_bt_verts++;
         }
-        if (!vert_tag_array[mf->v2]) {
-          vert_tag_array[mf->v2] = true;
-          vert_remap_array[mf->v2] = tot_bt_verts;
+        if (!vert_tag_array[face->v2]) {
+          vert_tag_array[face->v2] = true;
+          vert_remap_array[face->v2] = tot_bt_verts;
           tot_bt_verts++;
         }
-        if (!vert_tag_array[mf->v3]) {
-          vert_tag_array[mf->v3] = true;
-          vert_remap_array[mf->v3] = tot_bt_verts;
+        if (!vert_tag_array[face->v3]) {
+          vert_tag_array[face->v3] = true;
+          vert_remap_array[face->v3] = tot_bt_verts;
           tot_bt_verts++;
         }
-        if (mf->v4 && !vert_tag_array[mf->v4]) {
-          vert_tag_array[mf->v4] = true;
-          vert_remap_array[mf->v4] = tot_bt_verts;
+        if (face->v4 && !vert_tag_array[face->v4]) {
+          vert_tag_array[face->v4] = true;
+          vert_remap_array[face->v4] = tot_bt_verts;
           tot_bt_verts++;
         }
-        tot_bt_tris += (mf->v4 ? 2 : 1); /* a quad or a tri */
+        tot_bt_tris += (face->v4 ? 2 : 1); /* a quad or a tri */
       }
     }
 
@@ -2190,16 +2189,16 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     int *tri_pt = &m_triFaceArray[0];
 
     UVco *uv_pt = nullptr;
-    if (tface) {
+    if (tfaces) {
       m_triFaceUVcoArray.resize(tot_bt_tris * 3);
       uv_pt = &m_triFaceUVcoArray[0];
     }
     else
       m_triFaceUVcoArray.clear();
 
-    for (int p2 = 0; p2 < numpolys; p2++) {
-      MFace *mf = &mface[p2];
-      MTFace *tf = (tface) ? &tface[p2] : nullptr;
+    for (const int p2 : me->polys().index_range()) {
+      const MFace *face = &faces[p2];
+      const MTFace *tface = (tfaces) ? &tfaces[p2] : nullptr;
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
                             p2;
@@ -2207,22 +2206,22 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
       // only add polygons that have the collisionflag set
       if (poly && poly->IsCollider()) {
-        const float *v1 = &positions[mf->v1][0];
-        const float *v2 = &positions[mf->v2][0];
-        const float *v3 = &positions[mf->v3][0];
+        const float *v1 = &positions[face->v1][0];
+        const float *v2 = &positions[face->v2][0];
+        const float *v3 = &positions[face->v3][0];
 
         // the face indices
-        tri_pt[0] = vert_remap_array[mf->v1];
-        tri_pt[1] = vert_remap_array[mf->v2];
-        tri_pt[2] = vert_remap_array[mf->v3];
+        tri_pt[0] = vert_remap_array[face->v1];
+        tri_pt[1] = vert_remap_array[face->v2];
+        tri_pt[2] = vert_remap_array[face->v3];
         tri_pt = tri_pt + 3;
-        if (tf) {
-          uv_pt[0].uv[0] = tf->uv[0][0];
-          uv_pt[0].uv[1] = tf->uv[0][1];
-          uv_pt[1].uv[0] = tf->uv[1][0];
-          uv_pt[1].uv[1] = tf->uv[1][1];
-          uv_pt[2].uv[0] = tf->uv[2][0];
-          uv_pt[2].uv[1] = tf->uv[2][1];
+        if (tface) {
+          uv_pt[0].uv[0] = tface->uv[0][0];
+          uv_pt[0].uv[1] = tface->uv[0][1];
+          uv_pt[1].uv[0] = tface->uv[1][0];
+          uv_pt[1].uv[1] = tface->uv[1][1];
+          uv_pt[2].uv[0] = tface->uv[2][0];
+          uv_pt[2].uv[1] = tface->uv[2][1];
           uv_pt += 3;
         }
 
@@ -2231,39 +2230,39 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
         poly_index_pt++;
 
         // the vertex location
-        if (vert_tag_array[mf->v1]) { /* *** v1 *** */
-          vert_tag_array[mf->v1] = false;
+        if (vert_tag_array[face->v1]) { /* *** v1 *** */
+          vert_tag_array[face->v1] = false;
           *bt++ = v1[0];
           *bt++ = v1[1];
           *bt++ = v1[2];
         }
-        if (vert_tag_array[mf->v2]) { /* *** v2 *** */
-          vert_tag_array[mf->v2] = false;
+        if (vert_tag_array[face->v2]) { /* *** v2 *** */
+          vert_tag_array[face->v2] = false;
           *bt++ = v2[0];
           *bt++ = v2[1];
           *bt++ = v2[2];
         }
-        if (vert_tag_array[mf->v3]) { /* *** v3 *** */
-          vert_tag_array[mf->v3] = false;
+        if (vert_tag_array[face->v3]) { /* *** v3 *** */
+          vert_tag_array[face->v3] = false;
           *bt++ = v3[0];
           *bt++ = v3[1];
           *bt++ = v3[2];
         }
 
-        if (mf->v4) {
-          const float *v4 = &positions[mf->v4][0];
+        if (face->v4) {
+          const float *v4 = &positions[face->v4][0];
 
-          tri_pt[0] = vert_remap_array[mf->v1];
-          tri_pt[1] = vert_remap_array[mf->v3];
-          tri_pt[2] = vert_remap_array[mf->v4];
+          tri_pt[0] = vert_remap_array[face->v1];
+          tri_pt[1] = vert_remap_array[face->v3];
+          tri_pt[2] = vert_remap_array[face->v4];
           tri_pt = tri_pt + 3;
-          if (tf) {
-            uv_pt[0].uv[0] = tf->uv[0][0];
-            uv_pt[0].uv[1] = tf->uv[0][1];
-            uv_pt[1].uv[0] = tf->uv[2][0];
-            uv_pt[1].uv[1] = tf->uv[2][1];
-            uv_pt[2].uv[0] = tf->uv[3][0];
-            uv_pt[2].uv[1] = tf->uv[3][1];
+          if (tface) {
+            uv_pt[0].uv[0] = tface->uv[0][0];
+            uv_pt[0].uv[1] = tface->uv[0][1];
+            uv_pt[1].uv[0] = tface->uv[2][0];
+            uv_pt[1].uv[1] = tface->uv[2][1];
+            uv_pt[2].uv[0] = tface->uv[3][0];
+            uv_pt[2].uv[1] = tface->uv[3][1];
             uv_pt += 3;
           }
 
@@ -2272,8 +2271,8 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
           poly_index_pt++;
 
           // the vertex location
-          if (vert_tag_array[mf->v4]) {  // *** v4 ***
-            vert_tag_array[mf->v4] = false;
+          if (vert_tag_array[face->v4]) {  // *** v4 ***
+            vert_tag_array[face->v4] = false;
             *bt++ = v4[0];
             *bt++ = v4[1];
             *bt++ = v4[2];

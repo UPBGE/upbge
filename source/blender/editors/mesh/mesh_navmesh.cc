@@ -68,7 +68,6 @@ static void createVertsTrisData(
     bContext *C, LinkNode *obs, int *nverts_r, float **verts_r, int *ntris_r, int **tris_r)
 {
   int nfaces = 0, *tri, i, curnverts, basenverts, curnfaces;
-  MFace *mface;
   float co[3], wco[3];
   Object *ob;
   Mesh *me = nullptr;
@@ -95,11 +94,12 @@ static void createVertsTrisData(
     ntris += nfaces;
 
     /* resolve quad faces */
-    mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
     for (i = 0; i < nfaces; i++) {
-      MFace *mf = &mface[i];
-      if (mf->v4)
+      const MFace *face = &faces[i];
+      if (face->v4) {
         ntris += 1;
+      }
     }
   }
   LinkNode *meshes = meshes_pair.list;
@@ -132,20 +132,20 @@ static void createVertsTrisData(
 
     /* create tris */
     curnfaces = me->totface;
-    mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
 
     for (i = 0; i < curnfaces; i++) {
-      MFace *mf = &mface[i];
+      const MFace *face = &faces[i];
 
-      tri[0] = basenverts + mf->v1;
-      tri[1] = basenverts + mf->v3;
-      tri[2] = basenverts + mf->v2;
+      tri[0] = basenverts + face->v1;
+      tri[1] = basenverts + face->v3;
+      tri[2] = basenverts + face->v2;
       tri += 3;
 
-      if (mf->v4) {
-        tri[0] = basenverts + mf->v1;
-        tri[1] = basenverts + mf->v4;
-        tri[2] = basenverts + mf->v3;
+      if (face->v4) {
+        tri[0] = basenverts + face->v1;
+        tri[1] = basenverts + face->v4;
+        tri[2] = basenverts + face->v3;
         tri += 3;
       }
     }
