@@ -883,7 +883,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   samples_per_frame = max_ii(samples_per_frame, 1);
 
   for (short i = 0; i < samples_per_frame; i++) {
-    GPU_clear_depth(1.0f);
+    GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
     DRW_game_render_loop(
         C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
   }

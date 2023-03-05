@@ -762,10 +762,11 @@ void KX_KetsjiEngine::Render()
 
   for (FrameRenderData &frameData : frameDataList) {
     // Use the framing bar color set in the Blender scenes
-    GPU_clear_color(
-        framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f);
+    const float clear_col[4] = {
+        framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f};
+    GPU_framebuffer_clear_color(GPU_framebuffer_active_get(), clear_col);
     GPU_depth_mask(true);
-    GPU_clear_depth(1.0f);
+    GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
 
     // for each scene, call the proceed functions
     for (unsigned short i = 0, size = frameData.m_sceneDataList.size(); i < size; ++i) {
@@ -1019,7 +1020,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
    * if it's not the first render pass. */
   if (pass > 0) {
     GPU_depth_mask(true);
-    GPU_clear_depth(1.0f);
+    GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
   }
 
   m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE /*cameraFrameData.m_eye*/);

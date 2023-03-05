@@ -280,8 +280,8 @@ void RAS_Rasterizer::Exit()
 
   // Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
-  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-  GPU_clear_depth(1.0f);
+  const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), clear_col, 1.0f);
 
   DRW_view_set_active(NULL);
 }
