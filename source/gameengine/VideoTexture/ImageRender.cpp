@@ -113,19 +113,16 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
       viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_apply_state();
 
-  GPU_framebuffer_texture_attach(
-      m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
-  GPU_framebuffer_texture_attach(
-      m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
+  GPUAttachment config[] = {
+      GPU_ATTACHMENT_TEXTURE(GPU_viewport_depth_texture(m_camera->GetGPUViewport())),
+      GPU_ATTACHMENT_TEXTURE(GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0))};
+
+  GPU_framebuffer_config_array(m_targetfb, config, sizeof(config) / sizeof(GPUAttachment));
+
   GPU_framebuffer_bind(m_targetfb);
 
   // get image from viewport (or FBO)
   ImageViewport::calcViewport(texId, ts, format);
-
-  GPU_framebuffer_texture_detach(m_targetfb,
-                                 GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
-  GPU_framebuffer_texture_detach(m_targetfb,
-                                 GPU_viewport_depth_texture(m_camera->GetGPUViewport()));
 
   GPU_framebuffer_restore();
 }
