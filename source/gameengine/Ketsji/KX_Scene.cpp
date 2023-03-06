@@ -891,14 +891,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
-  /* Detach Defaults attachments from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
-  /* And replace it with color and depth textures from viewport */
-  GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
-  GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), GPU_viewport_depth_texture(m_currentGPUViewport), 0, 0);
+  GPUAttachment config[] = {
+      GPU_ATTACHMENT_TEXTURE(GPU_viewport_depth_texture(m_currentGPUViewport)),
+      GPU_ATTACHMENT_TEXTURE(GPU_viewport_color_texture(m_currentGPUViewport, 0))};
+
+  GPU_framebuffer_config_array(
+      input->GetFrameBuffer(), config, sizeof(config) / sizeof(GPUAttachment));
 
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
@@ -914,15 +912,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
                            CTX_wm_view3d(C),
                            CTX_data_scene(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);
-
-  /* Detach viewport textures from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                 GPU_viewport_color_texture(m_currentGPUViewport, 0));
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                 GPU_viewport_depth_texture(m_currentGPUViewport));
-  /* And restore defaults attachments */
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
   GPU_framebuffer_restore();
 
