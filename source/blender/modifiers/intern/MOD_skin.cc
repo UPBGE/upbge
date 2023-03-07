@@ -16,14 +16,14 @@
  *
  * The main missing features in this code compared to the paper are:
  *
- * + No mesh evolution. The paper suggests iteratively subsurfing the
+ * - No mesh evolution. The paper suggests iteratively subdivision-surfacing the
  *   skin output and adapting the output to better conform with the
  *   spheres of influence surrounding each vertex.
  *
- * + No mesh fairing. The paper suggests re-aligning output edges to
+ * - No mesh fairing. The paper suggests re-aligning output edges to
  *   follow principal mesh curvatures.
  *
- * + No auxiliary balls. These would serve to influence mesh
+ * - No auxiliary balls. These would serve to influence mesh
  *   evolution, which as noted above is not implemented.
  *
  * The code also adds some features not present in the paper:
@@ -236,6 +236,8 @@ static bool quad_crosses_symmetry_plane(BMVert *quad[4], const SkinModifierData 
   return false;
 }
 
+#ifdef WITH_BULLET
+
 /* Returns true if the frame is filled by precisely two faces (and
  * outputs those faces to fill_faces), otherwise returns false. */
 static bool skin_frame_find_contained_faces(const Frame *frame, BMFace *fill_faces[2])
@@ -254,6 +256,8 @@ static bool skin_frame_find_contained_faces(const Frame *frame, BMFace *fill_fac
 
   return false;
 }
+
+#endif
 
 /* Returns true if hull is successfully built, false otherwise */
 static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
@@ -370,7 +374,7 @@ static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
 
   return true;
 #else
-  UNUSED_VARS(so, frames, totframe, skin_frame_find_contained_faces);
+  UNUSED_VARS(so, frames, totframe);
   return false;
 #endif
 }

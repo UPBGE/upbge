@@ -2837,7 +2837,9 @@ class VIEW3D_MT_object_parent(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.operator("object.parent_no_inverse_set")
+        layout.operator("object.parent_no_inverse_set").keep_transform = False
+        props = layout.operator("object.parent_no_inverse_set", text="Make Parent without Inverse (Keep Transform)")
+        props.keep_transform = True
         layout.operator_context = operator_context_default
 
         layout.separator()
@@ -6401,6 +6403,9 @@ class VIEW3D_PT_overlay_object(Panel):
 
         sub = split.column(align=True)
         sub.prop(overlay, "show_extras", text="Extras")
+        subsub = sub.column()
+        subsub.active = overlay.show_extras
+        subsub.prop(overlay, "show_light_colors")
         sub.prop(overlay, "show_relationship_lines")
         sub.prop(overlay, "show_outline_selected")
 

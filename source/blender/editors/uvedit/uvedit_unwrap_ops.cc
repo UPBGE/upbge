@@ -594,7 +594,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
                                                      Object *ob,
                                                      BMEditMesh *em,
                                                      const UnwrapOptions *options,
-                                                     UnwrapResultInfo *result_info)
+                                                     int *r_count_failed = nullptr)
 {
   /* pointers to modifier data for unwrap control */
   SubsurfModifierData *smd_real;
@@ -666,8 +666,8 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
                      nullptr;
   }
 
-  /* Prepare and feed faces to the solver */
-  for (const int i : subsurf_polys.index_range()) {
+  /* Prepare and feed faces to the solver. */
+  for (const int64_t i : subsurf_polys.index_range()) {
     const MPoly &poly = subsurf_polys[i];
     ParamKey key, vkeys[4];
     bool pin[4], select[4];
@@ -717,8 +717,8 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     blender::geometry::uv_parametrizer_face_add(handle, key, 4, vkeys, co, uv, pin, select);
   }
 
-  /* these are calculated from original mesh too */
-  for (const int i : subsurf_edges.index_range()) {
+  /* These are calculated from original mesh too. */
+  for (const int64_t i : subsurf_edges.index_range()) {
     if ((edgeMap[i] != nullptr) && BM_elem_flag_test(edgeMap[i], BM_ELEM_SEAM)) {
       const MEdge *edge = &subsurf_edges[i];
       ParamKey vkeys[2];
@@ -728,11 +728,8 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     }
   }
 
-  blender::geometry::uv_parametrizer_construct_end(handle,
-                                                   options->fill_holes,
-                                                   options->topology_from_uvs,
-                                                   result_info ? &result_info->count_failed :
-                                                                 nullptr);
+  blender::geometry::uv_parametrizer_construct_end(
+      handle, options->fill_holes, options->topology_from_uvs, r_count_failed);
 
   /* cleanup */
   MEM_freeN(faceMap);
@@ -1792,7 +1789,8 @@ static void uv_map_clip_correct(const Scene *scene,
 static void uvedit_unwrap(const Scene *scene,
                           Object *obedit,
                           const UnwrapOptions *options,
-                          UnwrapResultInfo *result_info)
+                          int *r_count_changed,
+                          int *r_count_failed)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
@@ -1804,19 +1802,15 @@ static void uvedit_unwrap(const Scene *scene,
 
   ParamHandle *handle;
   if (use_subsurf) {
-    handle = construct_param_handle_subsurfed(scene, obedit, em, options, result_info);
+    handle = construct_param_handle_subsurfed(scene, obedit, em, options, r_count_failed);
   }
   else {
-    handle = construct_param_handle(
-        scene, obedit, em->bm, options, result_info ? &result_info->count_failed : nullptr);
+    handle = construct_param_handle(scene, obedit, em->bm, options, r_count_failed);
   }
 
   blender::geometry::uv_parametrizer_lscm_begin(
       handle, false, scene->toolsettings->unwrapper == 0);
-  blender::geometry::uv_parametrizer_lscm_solve(
-      handle,
-      result_info ? &result_info->count_changed : nullptr,
-      result_info ? &result_info->count_failed : nullptr);
+  blender::geometry::uv_parametrizer_lscm_solve(handle, r_count_changed, r_count_failed);
   blender::geometry::uv_parametrizer_lscm_end(handle);
 
   blender::geometry::uv_parametrizer_average(handle, true, false, false);
@@ -1830,11 +1824,12 @@ static void uvedit_unwrap_multi(const Scene *scene,
                                 Object **objects,
                                 const int objects_len,
                                 const UnwrapOptions *options,
-                                UnwrapResultInfo *result_info)
+                                int *r_count_changed = nullptr,
+                                int *r_count_failed = nullptr)
 {
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
-    uvedit_unwrap(scene, obedit, options, result_info);
+    uvedit_unwrap(scene, obedit, options, r_count_changed, r_count_failed);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, obedit->data);
   }
@@ -1997,7 +1992,12 @@ static int unwrap_exec(bContext *C, wmOperator *op)
   UnwrapResultInfo result_info{};
   result_info.count_changed = 0;
   result_info.count_failed = 0;
-  uvedit_unwrap_multi(scene, objects, objects_len, &options, &result_info);
+  uvedit_unwrap_multi(scene,
+                      objects,
+                      objects_len,
+                      &options,
+                      &result_info.count_changed,
+                      &result_info.count_failed);
 
   UVPackIsland_Params pack_island_params{};
   pack_island_params.rotate = true;

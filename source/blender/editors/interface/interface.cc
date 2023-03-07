@@ -4121,7 +4121,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
     case UI_BTYPE_KEY_EVENT: {
       const char *str;
       if (but->flag & UI_SELECT) {
-        str = "Press a key";
+        str = IFACE_("Press a key");
       }
       else {
         UI_GET_BUT_VALUE_INIT(but, value);
@@ -4154,7 +4154,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
           (void)str; /* UNUSED */
         }
         else {
-          BLI_strncpy(but->drawstr, "Press a key", UI_MAX_DRAW_STR);
+          BLI_strncpy(but->drawstr, IFACE_("Press a key"), UI_MAX_DRAW_STR);
         }
       }
       else {
