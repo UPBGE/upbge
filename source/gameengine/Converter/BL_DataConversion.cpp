@@ -428,7 +428,10 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
     const float split_angle = final_me->smoothresh;
-    const bool *sharp_edges = (const bool *)(CustomData_get_layer_named(&final_me->edata, CD_PROP_BOOL, "sharp_edge"));
+    const bool *sharp_edges = static_cast<const bool *>(
+        CustomData_get_layer_named(&final_me->edata, CD_PROP_BOOL, "sharp_edge"));
+    const bool *sharp_faces = static_cast<const bool *>(
+        CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
     short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata, CD_CUSTOMLOOPNORMAL);
 
     v_normals = (float(*)[3])BKE_mesh_vert_normals_ensure(final_me);
@@ -448,6 +451,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                 use_split_nors,
                                 split_angle,
                                 sharp_edges,
+                                sharp_faces,
                                 nullptr,
                                 nullptr,
                                 clnor_data);
@@ -464,6 +468,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           loops,
           BKE_mesh_runtime_looptri_ensure(final_me),
           uint(BKE_mesh_runtime_looptri_len(final_me)),
+          static_cast<const bool *>(
+              CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face")),
           &final_me->ldata,
           true,
           nullptr,
@@ -540,6 +546,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const VArray<int> material_indices = attributes.lookup_or_default<int>(
       "material_index", ATTR_DOMAIN_FACE, 0);
 
+  const bool *sharp_faces = static_cast<const bool *>(
+      CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
+
   for (const unsigned int i : final_me->polys().index_range()) {
     const MPoly &poly = polys[i];
 
@@ -553,7 +562,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
     // Mark face as flat, so vertices are split.
-    const bool flat = (poly.flag & ME_SMOOTH) == 0;
+    const bool flat = (sharp_faces && sharp_faces[i]);
 
     const unsigned int lpstart = poly.loopstart;
     const unsigned int totlp = poly.totloop;
@@ -927,7 +936,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     case OB_LIGHTPROBE:
     case OB_MBALL:
     case OB_SURF:
-    case OB_GPENCIL:
+    case OB_GPENCIL_LEGACY:
     case OB_SPEAKER: {
 #ifdef WITH_PYTHON
       gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);

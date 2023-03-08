@@ -295,7 +295,7 @@ static void logic_id_remap(ScrArea */*area*/,
 {
   SpaceLogic *slog = (SpaceLogic *)slink;
 
-  if (!BKE_id_remapper_has_mapping_for(mappings, FILTER_ID_GD)) {
+  if (!BKE_id_remapper_has_mapping_for(mappings, FILTER_ID_GD_LEGACY)) {
     return;
   }
 
