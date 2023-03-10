@@ -6339,6 +6339,7 @@ def km_sculpt_expand_modal(_params):
     ])
     return keymap
 
+
 def km_sculpt_mesh_filter_modal_map(_params):
     items = []
     keymap = (

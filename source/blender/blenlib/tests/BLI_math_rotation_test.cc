@@ -304,7 +304,7 @@ TEST(math_rotation, RotateDirectionAroundAxis)
 
 TEST(math_rotation, AxisAngleConstructors)
 {
-  AxisAngle a({0.0f, 0.0f, 2.0f}, M_PI_2);
+  AxisAngle a({0.0f, 0.0f, 1.0f}, M_PI_2);
   EXPECT_V3_NEAR(a.axis(), float3(0, 0, 1), 1e-4);
   EXPECT_NEAR(float(a.angle()), M_PI_2, 1e-4);
   EXPECT_NEAR(sin(a.angle()), 1.0f, 1e-4);
@@ -315,6 +315,10 @@ TEST(math_rotation, AxisAngleConstructors)
   EXPECT_NEAR(float(b.angle()), M_PI_2, 1e-4);
   EXPECT_NEAR(b.angle().sin(), 1.0f, 1e-4);
   EXPECT_NEAR(b.angle().cos(), 0.0f, 1e-4);
+
+  AxisAngle axis_angle_basis = AxisAngle(AxisSigned::Y_NEG, M_PI);
+  EXPECT_EQ(axis_angle_basis.axis(), float3(0.0f, -1.0f, 0.0f));
+  EXPECT_EQ(axis_angle_basis.angle(), M_PI);
 
   AxisAngle c({1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
   EXPECT_V3_NEAR(c.axis(), float3(0, 0, 1), 1e-4);
