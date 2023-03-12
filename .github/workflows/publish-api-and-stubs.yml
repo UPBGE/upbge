@@ -58,13 +58,13 @@ jobs:
         path: "blender-addons"
 
     - name: Checkout addons-contrib
-      run: git clone --depth=1 git://git.blender.org/blender-addons-contrib.git
+      run: git clone --depth=1 https://projects.blender.org/blender/blender-addons-contrib.git
 
     - name: Checkout translations
-      run: git clone --depth=1 git://git.blender.org/blender-translations.git
+      run: git clone --depth=1 https://projects.blender.org/blender/blender-translations.git
 
     - name: Checkout dev-tools
-      run: git clone --depth=1 git://git.blender.org/blender-dev-tools.git
+      run: git clone --depth=1 https://projects.blender.org/blender/blender-dev-tools.git
 
     - name: Update Submodules
       run: git -C upbge submodule update --init --recursive --remote
