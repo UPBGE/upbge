@@ -26,7 +26,7 @@
 #include "CcdPhysicsController.h"
 
 #include "BKE_context.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"

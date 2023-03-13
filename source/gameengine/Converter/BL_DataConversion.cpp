@@ -63,7 +63,7 @@
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h" /* give_current_material */
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"
@@ -418,11 +418,11 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   float(*v_normals)[3] = nullptr;
   float(*p_normals)[3] = nullptr;
 
-  float(*loop_nor_dst)[3] = nullptr;
+  blender::float3 *loop_nors_dst = nullptr;
   float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->ldata, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
-    loop_nor_dst = static_cast<float(*)[3]>(CustomData_add_layer(
+    loop_nors_dst = static_cast<blender::float3 *>(CustomData_add_layer(
         &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, nullptr, final_me->totloop));
     CustomData_set_layer_flag(&final_me->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
 
@@ -437,24 +437,20 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     v_normals = (float(*)[3])BKE_mesh_vert_normals_ensure(final_me);
     p_normals = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
 
-    BKE_mesh_normals_loop_split(positions,
-                                v_normals,
-                                final_me->totvert,
-                                edges,
-                                final_me->edges().size(),
-                                loops,
-                                loop_nor_dst,
-                                final_me->loops().size(),
-                                polys,
-                                p_normals,
-                                final_me->polys().size(),
-                                use_split_nors,
-                                split_angle,
-                                sharp_edges,
-                                sharp_faces,
-                                nullptr,
-                                nullptr,
-                                clnor_data);
+    blender::bke::mesh::normals_calc_loop(final_me->vert_positions(),
+                                          final_me->edges(),
+                                          final_me->polys(),
+                                          final_me->loops(),
+                                          {},
+                                          {reinterpret_cast<blender::float3 *>(v_normals), final_me->totvert},
+                                          {reinterpret_cast<blender::float3 *>(p_normals), final_me->polys().size()},
+                                          sharp_edges,
+                                          sharp_faces,
+                                          use_split_nors,
+                                          split_angle,
+                                          clnor_data,
+                                          nullptr,
+                                          {loop_nors_dst, final_me->loops().size()});
   }
 
   float(*tangent)[4] = nullptr;
@@ -572,7 +568,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const float *vp = &positions[vertid][0];
 
       const MT_Vector3 pt(vp);
-      const MT_Vector3 no(do_loop_nors ? loop_nor_dst[j] : loop_normals[j]);
+      const MT_Vector3 no(do_loop_nors ? MT_Vector3(loop_nors_dst[j].x, loop_nors_dst[j].y, loop_nors_dst[j].z) :
+                         MT_Vector3(loop_normals[j][0], loop_normals[j][1], loop_normals[j][2]));
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
