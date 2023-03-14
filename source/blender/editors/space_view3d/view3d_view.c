@@ -1493,13 +1493,19 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 #ifdef WITH_GAMEENGINE
   Scene *startscene = CTX_data_scene(C);
   Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   ScrArea /* *sa, */ /* UNUSED */ *prevsa = CTX_wm_area(C);
   ARegion *ar, *prevar = CTX_wm_region(C);
   wmWindow *prevwin = CTX_wm_window(C);
   RegionView3D *rv3d;
   rcti cam_frame;
 
-  UNUSED_VARS(op);
+  /* Don't allow to start from other window than main blender window -
+   * Blenderplayer will also only use main blender window */
+  if (CTX_wm_window(C) != (wmWindow *)wm->windows.first) {
+    BKE_report(op->reports, RPT_ERROR, "Game engine must be started from main blender/upbge window");
+    return OPERATOR_CANCELLED;
+  }
 
   /* Redraw 1 time before context switch (switch to view3d)
    * to avoid embedded button flickering when we start embedded
@@ -1516,7 +1522,6 @@ static int game_engine_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
 
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
   if (WM_xr_session_exists(&wm->xr)) {
     if (WM_xr_session_is_ready(&wm->xr)) {
       startscene->flag |= SCE_IS_GAME_XR_SESSION;
