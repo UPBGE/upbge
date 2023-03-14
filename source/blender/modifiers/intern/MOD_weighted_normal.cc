@@ -365,7 +365,7 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
       /* NOTE: in theory, we could avoid this extra allocation & copying...
        * But think we can live with it for now,
        * and it makes code simpler & cleaner. */
-      blender::Array<blender::float3> vert_normals;
+      blender::Array<blender::float3> vert_normals(verts_num, float3(0));
 
       for (int ml_index = 0; ml_index < loops.size(); ml_index++) {
         const int mv_index = loops[ml_index].v;
@@ -568,8 +568,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
    * it helps when generating clnor spaces and default normals. */
   const bool has_clnors = clnors != nullptr;
   if (!clnors) {
-    clnors = static_cast<short(*)[2]>(CustomData_add_layer(
-        &result->ldata, CD_CUSTOMLOOPNORMAL, CD_SET_DEFAULT, nullptr, loops.size()));
+    clnors = static_cast<short(*)[2]>(
+        CustomData_add_layer(&result->ldata, CD_CUSTOMLOOPNORMAL, CD_SET_DEFAULT, loops.size()));
   }
 
   const MDeformVert *dvert;
