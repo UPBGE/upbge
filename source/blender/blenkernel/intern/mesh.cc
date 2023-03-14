@@ -1912,8 +1912,8 @@ void BKE_mesh_ensure_navmesh(Mesh *me)
     for (i = 0; i < polys_len; i++) {
       recastData[i] = i + 1;
     }
-    CustomData_add_layer_named(
-        &me->pdata, CD_RECAST, CD_ASSIGN, recastData, polys_len, "recastData");
+    CustomData_add_layer_named_with_data(
+        &me->pdata, CD_RECAST, recastData, polys_len, "recastData");
   }
 }
 /************************************/

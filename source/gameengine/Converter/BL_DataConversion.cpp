@@ -423,7 +423,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
     loop_nors_dst = static_cast<blender::float3 *>(CustomData_add_layer(
-        &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, nullptr, final_me->totloop));
+        &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, final_me->totloop));
     CustomData_set_layer_flag(&final_me->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
 
     const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
