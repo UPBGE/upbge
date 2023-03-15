@@ -30,8 +30,6 @@
  *  \ingroup player
  */
 
-#include <boost/algorithm/string.hpp>
-
 #ifdef __linux__
 #  ifdef __alpha__
 #    include <signal.h>
@@ -153,6 +151,28 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
+
+/* Previously, boost::split was used but the boost include was causing issues that I didn't managed
+ * to solve, and it was also causing Visual studio text highlighting problems in gpg_ghost.cpp,
+ * then I choosed to workaround without using boost. The following func has been found on a random
+ * blog on the net */
+static void custom_split_string(std::vector<std::string> &parts,
+                                std::string fullstring,
+                                char *separator)
+{
+  int startIndex = 0, endIndex = 0;
+  for (int i = 0; i <= fullstring.size(); i++) {
+
+    // If we reached the end of the word or the end of the input.
+    if (fullstring[i] == *separator || i == fullstring.size()) {
+      endIndex = i;
+      std::string temp;
+      temp.append(fullstring, startIndex, endIndex - startIndex);
+      parts.push_back(temp);
+      startIndex = endIndex + 1;
+    }
+  }
+}
 
 static void mem_error_cb(const char *errorStr)
 {
@@ -1638,15 +1658,15 @@ int main(int argc,
                 std::string path = titlename;
                 std::vector<std::string> parts;
 #ifndef WIN32
-                boost::split(parts, path, boost::is_any_of("/"));
+                custom_split_string(parts, path, (char *)("/"));
 #else   // WIN32
-                boost::split(parts, path, boost::is_any_of("\\"));
+                custom_split_string(parts, path, (char *)("\\"));
 #endif  // WIN32
                 std::string title;
                 if (parts.size()) {
                   title = parts[parts.size() - 1];
                   std::vector<std::string> sublastparts;
-                  boost::split(sublastparts, title, boost::is_any_of("."));
+                  custom_split_string(sublastparts, title, (char *)("."));
                   if (sublastparts.size() > 1) {
                     title = sublastparts[0];
                   }
