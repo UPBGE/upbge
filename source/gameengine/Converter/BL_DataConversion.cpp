@@ -414,10 +414,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
-  /* Can be reused in tangent calc */
-  float(*v_normals)[3] = nullptr;
-  float(*p_normals)[3] = nullptr;
-
   blender::float3 *loop_nors_dst = nullptr;
   float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->ldata, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
@@ -434,16 +430,13 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
     short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata, CD_CUSTOMLOOPNORMAL);
 
-    v_normals = (float(*)[3])BKE_mesh_vert_normals_ensure(final_me);
-    p_normals = (float(*)[3])BKE_mesh_poly_normals_ensure(final_me);
-
     blender::bke::mesh::normals_calc_loop(final_me->vert_positions(),
                                           final_me->edges(),
                                           final_me->polys(),
                                           final_me->loops(),
                                           {},
-                                          {reinterpret_cast<blender::float3 *>(v_normals), final_me->totvert},
-                                          {reinterpret_cast<blender::float3 *>(p_normals), final_me->polys().size()},
+                                          final_me->vert_normals(),
+                                          final_me->poly_normals(),
                                           sharp_edges,
                                           sharp_faces,
                                           use_split_nors,
@@ -470,8 +463,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           true,
           nullptr,
           0,
-          (v_normals != nullptr) ? v_normals : BKE_mesh_vert_normals_ensure(final_me),
-          (p_normals != nullptr) ? p_normals : BKE_mesh_poly_normals_ensure(final_me),
+          reinterpret_cast<const float(*)[3]>(final_me->vert_normals().data()),
+          reinterpret_cast<const float(*)[3]>(final_me->poly_normals().data()),
           static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->ldata, CD_NORMAL)),
           /* may be nullptr */
           static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vdata, CD_ORCO)),
