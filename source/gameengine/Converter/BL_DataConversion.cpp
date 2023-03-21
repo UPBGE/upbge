@@ -384,7 +384,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
   const MPoly *polys = final_me->polys().data();
-  const MLoop *loops = final_me->loops().data();
   const MEdge *edges = final_me->edges().data();
   const int totfaces = final_me->totface;
   const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata, CD_ORIGINDEX);
@@ -433,7 +432,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     blender::bke::mesh::normals_calc_loop(final_me->vert_positions(),
                                           final_me->edges(),
                                           final_me->polys(),
-                                          final_me->loops(),
+                                          final_me->corner_verts(),
+                                          final_me->corner_edges(),
                                           {},
                                           final_me->vert_normals(),
                                           final_me->poly_normals(),
@@ -443,7 +443,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                           split_angle,
                                           clnor_data,
                                           nullptr,
-                                          {loop_nors_dst, final_me->loops().size()});
+                                          {loop_nors_dst, final_me->corner_verts().size()});
   }
 
   float(*tangent)[4] = nullptr;
@@ -454,7 +454,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           positions,
           polys,
           uint(final_me->polys().size()),
-          loops,
+          final_me->corner_verts().data(),
           BKE_mesh_runtime_looptri_ensure(final_me),
           uint(BKE_mesh_runtime_looptri_len(final_me)),
           static_cast<const bool *>(
@@ -538,6 +538,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const bool *sharp_faces = static_cast<const bool *>(
       CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
 
+  const blender::Span<int> corner_verts = final_me->corner_verts();
+  const blender::Span<int> corner_edges = final_me->corner_edges();
+
   for (const unsigned int i : final_me->polys().index_range()) {
     const MPoly &poly = polys[i];
 
@@ -555,29 +558,26 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     const unsigned int lpstart = poly.loopstart;
     const unsigned int totlp = poly.totloop;
-    for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
-      const MLoop &loop = loops[j];
-      const unsigned int vertid = loop.v;
-      const float *vp = &positions[vertid][0];
+    for (const unsigned int vert_i : corner_verts.slice(lpstart, totlp)) {
+      const float *vp = &positions[vert_i][0];
 
       const MT_Vector3 pt(vp);
-      const MT_Vector3 no(do_loop_nors ? MT_Vector3(loop_nors_dst[j].x, loop_nors_dst[j].y, loop_nors_dst[j].z) :
-                         MT_Vector3(loop_normals[j][0], loop_normals[j][1], loop_normals[j][2]));
-      const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+      const MT_Vector3 no(do_loop_nors ? MT_Vector3(loop_nors_dst[vert_i].x, loop_nors_dst[vert_i].y, loop_nors_dst[vert_i].z) :
+                         MT_Vector3(loop_normals[vert_i][0], loop_normals[vert_i][1], loop_normals[vert_i][2]));
+      const MT_Vector4 tan = tangent ? MT_Vector4(tangent[vert_i]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
 
-      BL_GetUvRgba(layersInfo.layers, j, uvs, rgba, uvLayers, colorLayers);
+      BL_GetUvRgba(layersInfo.layers, vert_i, uvs, rgba, uvLayers, colorLayers);
 
       // Add tracked vertices by the mpoly.
-      vertices[vertid] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vertid);
+      vertices[vert_i] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vert_i);
     }
 
     // Convert to edges of material is rendering wire.
     if (mat.wire && mat.visible) {
-      for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
-        const MLoop &loop = loops[j];
-        const MEdge &edge = edges[loop.e];
+      for (const unsigned int edge_i : corner_edges.slice(lpstart, totlp)) {
+        const MEdge &edge = edges[edge_i];
         meshobj->AddLine(meshmat, vertices[edge.v1], vertices[edge.v2]);
       }
     }
