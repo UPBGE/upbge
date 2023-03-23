@@ -274,8 +274,6 @@ PyMethodDef KX_BlenderMaterial::Methods[] = {
 
 PyAttributeDef KX_BlenderMaterial::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("textures", KX_BlenderMaterial, pyattr_get_textures),
-    EXP_PYATTRIBUTE_RO_FUNCTION(
-        "blenderMaterial", KX_BlenderMaterial, pyattr_get_blender_material),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -353,18 +351,6 @@ PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v,
                               kx_blender_material_get_textures_item_name_cb,
                               nullptr))
       ->NewProxy(true);
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_blender_material(EXP_PyObjectPlus *self_v,
-                                                          const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-  Material *ma = self->GetBlenderMaterial();
-  if (ma) {
-    PyObject *py_blender_mat = pyrna_id_CreatePyObject(&ma->id);
-    return py_blender_mat;
-  }
-  Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")

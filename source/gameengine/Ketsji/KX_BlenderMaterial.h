@@ -56,9 +56,6 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   static PyObject *pyattr_get_textures(EXP_PyObjectPlus *self_v,
                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 
-  static PyObject *pyattr_get_blender_material(EXP_PyObjectPlus *self_v,
-                                               const EXP_PYATTRIBUTE_DEF *attrdef);
-
   EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
   EXP_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
 

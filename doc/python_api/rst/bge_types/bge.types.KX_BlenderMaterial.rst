@@ -15,9 +15,3 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :type: List of :class:`~bge.types.BL_Texture`
 
-   .. attribute:: blenderMaterial
-
-      :class:`~bpy.types.Material` corresponding to this KX_BlenderMaterial (read only).
-
-      :type: :class:`~bpy.types.Material`
-
