@@ -54,6 +54,7 @@ endif()
 
 set(INC_SYS
   ${Epoxy_INCLUDE_DIRS}
+  ${IMATH_INCLUDE_DIR}
 )
 
 set(SRC
@@ -205,6 +206,7 @@ set(VULKAN_SRC
   vulkan/vk_command_buffer.cc
   vulkan/vk_common.cc
   vulkan/vk_context.cc
+  vulkan/vk_data_conversion.cc
   vulkan/vk_debug.cc
   vulkan/vk_descriptor_pools.cc
   vulkan/vk_descriptor_set.cc
@@ -218,6 +220,7 @@ set(VULKAN_SRC
   vulkan/vk_pixel_buffer.cc
   vulkan/vk_push_constants.cc
   vulkan/vk_query.cc
+  vulkan/vk_resource_tracker.cc
   vulkan/vk_shader.cc
   vulkan/vk_shader_interface.cc
   vulkan/vk_shader_log.cc
@@ -233,6 +236,7 @@ set(VULKAN_SRC
   vulkan/vk_command_buffer.hh
   vulkan/vk_common.hh
   vulkan/vk_context.hh
+  vulkan/vk_data_conversion.hh
   vulkan/vk_descriptor_pools.hh
   vulkan/vk_descriptor_set.hh
   vulkan/vk_drawlist.hh
@@ -245,6 +249,7 @@ set(VULKAN_SRC
   vulkan/vk_pixel_buffer.hh
   vulkan/vk_push_constants.hh
   vulkan/vk_query.hh
+  vulkan/vk_resource_tracker.hh
   vulkan/vk_shader.hh
   vulkan/vk_shader_interface.hh
   vulkan/vk_shader_log.hh
