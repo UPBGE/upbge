@@ -599,27 +599,6 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "use_taa_reprojection")
 
-class RENDER_PT_eevee_sampling_smaa(RenderButtonsPanel, Panel):
-    bl_label = "SMAA"
-    bl_parent_id = "RENDER_PT_eevee_sampling"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
-
-    def draw_header(self, context):
-        scene = context.scene
-        props = scene.eevee
-        self.layout.prop(props, "use_eevee_smaa", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        props = scene.eevee
-
-        layout.active = props.use_eevee_smaa
-        col = layout.column(align=True)
-        col.prop(props, "smaa_quality", text="Quality")
-        row = layout.row()
-        row.prop(props, "smaa_predication_scale", text="SMAA Scale")
-
 
 class RENDER_PT_eevee_next_sampling(RenderButtonsPanel, Panel):
     bl_label = "Sampling"
@@ -999,7 +978,6 @@ classes = (
     RENDER_PT_game_resolution, # UPBGE
     RENDER_PT_game_debug, # UPBGE
     RENDER_PT_eevee_sampling,
-    RENDER_PT_eevee_sampling_smaa, # UPBGE
     RENDER_PT_eevee_next_sampling,
     RENDER_PT_eevee_ambient_occlusion,
     RENDER_PT_eevee_bloom,

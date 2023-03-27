@@ -364,10 +364,6 @@ static void eevee_draw_scene(void *vedata)
     GPU_framebuffer_blit(fbl->double_buffer_depth_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
   }
 
-  /* UPBGE */
-  EEVEE_antialiasing_draw_pass(vedata);
-  /* End of UPBGE */
-
   EEVEE_renderpasses_draw_debug(vedata);
 
   stl->g_data->view_updated = false;

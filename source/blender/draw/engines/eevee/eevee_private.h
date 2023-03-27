@@ -289,12 +289,6 @@ typedef struct EEVEE_PassList {
   struct DRWPass *lookdev_glossy_pass;
   struct DRWPass *lookdev_diffuse_pass;
   struct DRWPass *renderpass_pass;
-
-  /* UPBGE */
-  struct DRWPass *smaa_edge_ps;
-  struct DRWPass *smaa_weight_ps;
-  struct DRWPass *smaa_resolve_ps;
-  /* End of UPBGE */
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -358,12 +352,6 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *double_buffer_depth_fb;
   struct GPUFrameBuffer *taa_history_fb;
   struct GPUFrameBuffer *taa_history_color_fb;
-
-  /* UPBGE */
-  struct GPUFrameBuffer *smaa_fb;
-  struct GPUFrameBuffer *smaa_edge_fb;
-  struct GPUFrameBuffer *smaa_weight_fb;
-  /* End of UPBGE */
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
@@ -413,13 +401,6 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *color; /* R16_G16_B16 */
   struct GPUTexture *color_double_buffer;
   struct GPUTexture *depth_double_buffer;
-
-  /* UPBGE */
-  struct GPUTexture *history_buffer_tx;
-  struct GPUTexture *depth_buffer_tx;
-  struct GPUTexture *smaa_search_tx;
-  struct GPUTexture *smaa_area_tx;
-  /* End of UPBGE */
 } EEVEE_TextureList;
 
 typedef struct EEVEE_StorageList {
@@ -696,7 +677,7 @@ typedef enum EEVEE_EffectsFlag {
   EFFECT_VELOCITY_BUFFER = (1 << 12),     /* Not really an effect but a feature */
   EFFECT_TAA_REPROJECT = (1 << 13),       /* should be mutually exclusive with EFFECT_TAA */
   EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
-  EFFECT_SMAA = (1 << 15),                /* UPBGE */
+  //EFFECT_SMAA = (1 << 15),                /* UPBGE - Removed as it is in compositor */
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -1069,11 +1050,6 @@ typedef struct EEVEE_PrivateData {
 
   int render_timesteps;
   int render_sample_count_per_timestep;
-
-  /* UPBGE */
-  struct GPUTexture *smaa_edge_tx;
-  struct GPUTexture *smaa_weight_tx;
-  /* End of UPBGE */
 } EEVEE_PrivateData; /* Transient data */
 
 /* eevee_data.c */
@@ -1674,14 +1650,6 @@ static const float cubefacemat[6][4][4] = {
 
 /* UPBGE */
 EEVEE_Data *EEVEE_engine_data_get(void);
-
-GPUShader *eevee_shader_antialiasing_get(int stage,
-                                         int smaa_quality,
-                                         float smaa_predication_scale,
-                                         bool recompile);
-int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);
-void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata);
-void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
 /* End of UPBGE */
 
 #ifdef __cplusplus

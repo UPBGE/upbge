@@ -159,10 +159,6 @@ static struct {
     bNodeTree *ntree;
     bNodeSocketValueRGBA *color_socket;
   } world;
-
-  /* UPBGE */
-  struct GPUShader *smaa_sh[3];
-  /* End of UPBGE */
 } e_data = {nullptr}; /* Engine data */
 
 extern "C" char datatoc_engine_eevee_legacy_shared_h[];
@@ -208,108 +204,6 @@ extern "C" char datatoc_volumetric_lib_glsl[];
 extern "C" char datatoc_volumetric_vert_glsl[];
 extern "C" char datatoc_world_vert_glsl[];
 
-/* UPBGE */
-extern "C" char datatoc_common_smaa_lib_glsl[];
-extern "C" char datatoc_effect_smaa_frag_glsl[];
-extern "C" char datatoc_effect_smaa_vert_glsl[];
-
-static void free_smaa_shaders()
-{
-  for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
-    struct GPUShader **sh_array = &e_data.smaa_sh[0];
-    DRW_SHADER_FREE_SAFE(sh_array[j]);
-    sh_array[j] = nullptr;
-  }
-}
-
-GPUShader *eevee_shader_antialiasing_get(int stage,
-                                         int smaa_quality,
-                                         float smaa_predication_scale,
-                                         bool recompile)
-{
-  BLI_assert(stage < 3);
-
-  if (recompile) {
-    free_smaa_shaders();
-  }
-
-  if (!e_data.smaa_sh[stage]) {
-    char stage_define[32];
-    char smaa_quality_define[32];
-    char smaa_predication_scale_define[64];
-    BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
-    switch (smaa_quality) {
-      case 0: {
-        BLI_snprintf(
-            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
-        break;
-      }
-      case 1: {
-        BLI_snprintf(
-            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
-        break;
-      }
-      case 2: {
-        BLI_snprintf(
-            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
-        break;
-      }
-      case 3: {
-        BLI_snprintf(
-            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
-        break;
-      }
-      default:
-        break;
-    }
-
-    BLI_snprintf(smaa_predication_scale_define,
-                 sizeof(smaa_predication_scale_define),
-                 "#define SMAA_PREDICATION_SCALE %.8f\n",
-                 smaa_predication_scale);
-
-    DynStr *vert = BLI_dynstr_new();
-    BLI_dynstr_append(vert, "#define SMAA_INCLUDE_VS 1\n");
-    BLI_dynstr_append(vert, "#define SMAA_INCLUDE_PS 0\n");
-    BLI_dynstr_append(vert, "uniform vec4 viewportMetrics;\n");
-    BLI_dynstr_append(vert, datatoc_common_smaa_lib_glsl);
-    BLI_dynstr_append(vert, datatoc_effect_smaa_vert_glsl);
-
-    char *v_str = BLI_dynstr_get_cstring(vert);
-    BLI_dynstr_free(vert);
-
-    DynStr *frag = BLI_dynstr_new();
-    BLI_dynstr_append(frag, "#define SMAA_INCLUDE_VS 0\n");
-    BLI_dynstr_append(frag, "#define SMAA_INCLUDE_PS 1\n");
-    BLI_dynstr_append(frag, "uniform vec4 viewportMetrics;\n");
-    BLI_dynstr_append(frag, datatoc_common_smaa_lib_glsl);
-    BLI_dynstr_append(frag, datatoc_effect_smaa_frag_glsl);
-
-    char *f_str = BLI_dynstr_get_cstring(frag);
-    BLI_dynstr_free(frag);
-
-    DynStr *defs = BLI_dynstr_new();
-    BLI_dynstr_append(defs, "#define SMAA_GLSL_3\n");
-    BLI_dynstr_append(defs, "#define SMAA_RT_METRICS viewportMetrics\n");
-    BLI_dynstr_append(defs, "#define SMAA_NO_DISCARD\n");
-    BLI_dynstr_append(defs, smaa_quality_define);
-    BLI_dynstr_append(defs, "#define SMAA_PREDICATION 1\n");
-    BLI_dynstr_append(defs, smaa_predication_scale_define);
-    BLI_dynstr_append(defs, stage_define);
-
-    char *d_str = BLI_dynstr_get_cstring(defs);
-    BLI_dynstr_free(defs);
-
-    e_data.smaa_sh[stage] = DRW_shader_create(v_str, nullptr, f_str, d_str);
-
-    MEM_freeN(v_str);
-    MEM_freeN(f_str);
-    MEM_freeN(d_str);
-  }
-  return e_data.smaa_sh[stage];
-}
-
-/* End of UPBGE */
 /* *********** FUNCTIONS *********** */
 
 static void eevee_shader_library_ensure()
@@ -1660,8 +1554,4 @@ void EEVEE_shaders_free(void)
     MEM_freeN(e_data.world.ntree);
     e_data.world.ntree = nullptr;
   }
-
-  /* UPBGE */
-  free_smaa_shaders();
-  /* End of UPBGE */
 }

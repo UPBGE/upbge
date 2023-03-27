@@ -92,10 +92,6 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   effects->enabled_effects |= EEVEE_occlusion_init(sldata, vedata);
   effects->enabled_effects |= EEVEE_screen_raytrace_init(sldata, vedata);
 
-  /* UPBGE */
-  effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
-  /* End of UPBGE */
-
   /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
    * taa_current_sample. (See #66811) */
   EEVEE_temporal_sampling_update_matrices(vedata);
@@ -231,10 +227,6 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_EffectsInfo *effects = stl->effects;
   DRWState downsample_write = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS;
   DRWShadingGroup *grp;
-
-  /* UPBGE */
-  EEVEE_antialiasing_cache_init(vedata);
-  /* End of UPBGE */
 
   /* Intel gpu seems to have problem rendering to only depth format.
    * Use color texture instead. */
