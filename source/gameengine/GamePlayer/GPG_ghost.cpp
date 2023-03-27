@@ -1730,6 +1730,8 @@ int main(int argc,
 
               UI_theme_init_default();
               UI_init();
+              /* To have blf_monofont_render available for generated textures checkerboard */
+              UI_reinit_font();
 
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
