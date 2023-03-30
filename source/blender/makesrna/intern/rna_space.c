@@ -264,7 +264,9 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 #endif
-/* expose as ui_mode */
+
+/* Expose as `ui_mode`. */
+
 const EnumPropertyItem rna_enum_space_action_mode_items[] = {
     SACT_ITEM_DOPESHEET,
     SACT_ITEM_TIMELINE,
@@ -3010,9 +3012,7 @@ static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
   return r_ptr;
 }
 
-static void rna_FileBrowser_FSMenu_end(CollectionPropertyIterator *UNUSED(iter))
-{
-}
+static void rna_FileBrowser_FSMenu_end(CollectionPropertyIterator *UNUSED(iter)) {}
 
 static void rna_FileBrowser_FSMenuSystem_data_begin(CollectionPropertyIterator *iter,
                                                     PointerRNA *UNUSED(ptr))

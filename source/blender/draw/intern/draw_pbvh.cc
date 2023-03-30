@@ -124,9 +124,7 @@ struct PBVHBatch {
     struct cmp {
       Vector<PBVHVbo> &master_vbos;
 
-      cmp(Vector<PBVHVbo> &_master_vbos) : master_vbos(_master_vbos)
-      {
-      }
+      cmp(Vector<PBVHVbo> &_master_vbos) : master_vbos(_master_vbos) {}
 
       bool operator()(const int &a, const int &b)
       {
@@ -905,7 +903,9 @@ struct PBVHBatches {
 
     if (need_aliases) {
       CustomData *cdata = get_cdata(domain, args);
-      int layer_i = cdata ? CustomData_get_named_layer_index(cdata, type, name.c_str()) : -1;
+      int layer_i = cdata ? CustomData_get_named_layer_index(
+                                cdata, eCustomDataType(type), name.c_str()) :
+                            -1;
       CustomDataLayer *layer = layer_i != -1 ? cdata->layers + layer_i : nullptr;
 
       if (layer) {
@@ -926,8 +926,8 @@ struct PBVHBatches {
               break;
           }
 
-          const char *active_name = CustomData_get_active_layer_name(cdata, type);
-          const char *render_name = CustomData_get_render_layer_name(cdata, type);
+          const char *active_name = CustomData_get_active_layer_name(cdata, eCustomDataType(type));
+          const char *render_name = CustomData_get_render_layer_name(cdata, eCustomDataType(type));
 
           is_active = active_name && STREQ(layer->name, active_name);
           is_render = render_name && STREQ(layer->name, render_name);

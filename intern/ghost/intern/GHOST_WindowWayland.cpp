@@ -87,6 +87,29 @@ static void gwl_xdg_decor_window_destroy(WGL_XDG_Decor_Window *decor)
 /** \name Internal #GWL_Window
  * \{ */
 
+#ifdef USE_EVENT_BACKGROUND_THREAD
+
+enum eGWL_PendingWindowActions {
+  /**
+   * The state of the window frame has changed, apply the state from #GWL_Window::frame_pending.
+   */
+  PENDING_WINDOW_FRAME_CONFIGURE = 0,
+  /** The EGL buffer must be resized to match #GWL_WindowFrame::size. */
+  PENDING_EGL_WINDOW_RESIZE,
+#  ifdef GHOST_OPENGL_ALPHA
+  /** Draw an opaque region behind the window. */
+  PENDING_OPAQUE_SET,
+#  endif
+  /**
+   * The DPI for a monitor has changed or the monitors (outputs)
+   * this window is visible on may have changed. Recalculate the windows scale.
+   */
+  PENDING_OUTPUT_SCALE_UPDATE,
+};
+#  define PENDING_NUM (PENDING_OUTPUT_SCALE_UPDATE + 1)
+
+#endif /* USE_EVENT_BACKGROUND_THREAD */
+
 struct GWL_WindowFrame {
   int32_t size[2] = {0, 0};
   bool is_maximised = false;
@@ -114,7 +137,7 @@ struct GWL_Window {
    */
   wl_fixed_t scale_fractional = 0;
 
-  /** A temporary token used for the window to be notified of of it's activation. */
+  /** A temporary token used for the window to be notified of it's activation. */
   struct xdg_activation_token_v1 *xdg_activation_token = nullptr;
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
@@ -148,7 +171,7 @@ struct GWL_Window {
    * These pending actions can't be performed when WAYLAND handlers are running from a thread.
    * Postpone their execution until the main thread can handle them.
    */
-  std::atomic<bool> pending_actions[3];
+  std::atomic<bool> pending_actions[PENDING_NUM];
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 };
 
@@ -365,25 +388,6 @@ static void gwl_window_frame_pending_size_set(GWL_Window *win)
 static void gwl_window_frame_update_from_pending(GWL_Window *win);
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-
-enum eGWL_PendingWindowActions {
-  /**
-   * The state of the window frame has changed, apply the state from #GWL_Window::frame_pending.
-   */
-  PENDING_WINDOW_FRAME_CONFIGURE = 0,
-  /** The EGL buffer must be resized to match #GWL_WindowFrame::size. */
-  PENDING_EGL_WINDOW_RESIZE,
-#  ifdef GHOST_OPENGL_ALPHA
-  /** Draw an opaque region behind the window. */
-  PENDING_OPAQUE_SET,
-#  endif
-  /**
-   * The DPI for a monitor has changed or the monitors (outputs)
-   * this window is visible on may have changed. Recalculate the windows scale.
-   */
-  PENDING_OUTPUT_SCALE_UPDATE,
-};
-#  define PENDING_NUM (PENDING_OUTPUT_SCALE_UPDATE + 1)
 
 static void gwl_window_pending_actions_tag(GWL_Window *win, enum eGWL_PendingWindowActions type)
 {
@@ -1188,9 +1192,25 @@ uint16_t GHOST_WindowWayland::getDPIHint()
   /* No need to lock `server_mutex`
    * (`outputs_changed_update_scale` never changes values in a non-main thread). */
 
+  const wl_fixed_t scale_fractional = window_->scale_fractional;
+  GHOST_ASSERT(wl_fixed_from_int(window_->scale) >= scale_fractional,
+               "Fractional scale should always be less than the fixed scale.");
+
   /* Using the physical DPI will cause wrong scaling of the UI
    * use a multiplier for the default DPI as a workaround. */
-  return wl_fixed_to_int(window_->scale_fractional * base_dpi);
+  if (wl_fixed_from_int(window_->scale) == scale_fractional || window_->scale <= 1) {
+    /* No fractional scaling. */
+    return window_->scale * base_dpi;
+  }
+  const int scale_ceil = window_->scale;
+  const int scale_floor = scale_ceil - 1;
+  const wl_fixed_t scale_fractional_final = wl_fixed_to_int(
+      scale_fractional *
+      /* Compensate for the buffer being rendered at `window_->scale`,
+       * then scaled down fractionally. */
+      (wl_fixed_from_int(1) + ((wl_fixed_from_int(scale_ceil) - scale_fractional) / scale_floor)));
+
+  return wl_fixed_to_int(scale_fractional_final * base_dpi);
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorVisibility(bool visible)

@@ -72,7 +72,7 @@ class UVPackIsland_Params {
 
 class PackIsland {
  public:
-  /** Bounding rectangle of input. Will be calculated automatically in a future update. */
+  /** Calculated automatically. */
   rctf bounds_rect;
   /** Aspect ratio, required for rotation. */
   float aspect_y;
@@ -88,6 +88,7 @@ class PackIsland {
   void finalize_geometry(const UVPackIsland_Params &params, MemArena *arena, Heap *heap);
 
  private:
+  void calculate_pivot(); /* Choose a pivot based on triangles. */
   blender::Vector<float2> triangle_vertices_;
   friend class Occupancy;
 };
