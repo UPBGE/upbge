@@ -2061,7 +2061,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   if (polytope) {
     // Tag verts we're using
-    for (const int p2 : me->polys().index_range()) {
+    for (int p2 = 0; p2 < me->totface; p2++) {
       const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
@@ -2098,7 +2098,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
     btScalar *bt = &m_vertexArray[0];
 
-    for (const int p2 : me->polys().index_range()) {
+     for (int p2 = 0; p2 < me->totface; p2++) {
       const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
@@ -2143,7 +2143,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     std::vector<int> vert_remap_array(numverts, 0);
 
     // Tag verts we're using
-    for (const int p2 : me->polys().index_range()) {
+    for (int p2 = 0; p2 < me->totface; p2++) {
       const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
@@ -2196,7 +2196,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     else
       m_triFaceUVcoArray.clear();
 
-    for (const int p2 : me->polys().index_range()) {
+     for (int p2 = 0; p2 < me->totface; p2++) {
       const MFace *face = &faces[p2];
       const MTFace *tface = (tfaces) ? &tfaces[p2] : nullptr;
       const int origi = index_mf_to_mpoly ?
