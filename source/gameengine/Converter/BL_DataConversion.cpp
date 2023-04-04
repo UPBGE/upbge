@@ -383,7 +383,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const int totverts = final_me->totvert;
 
   const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
-  const MPoly *polys = final_me->polys().data();
   const MEdge *edges = final_me->edges().data();
   const int totfaces = final_me->totface;
   const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata, CD_ORIGINDEX);
@@ -450,13 +449,13 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   if (uvLayers > 0) {
     if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
       short tangent_mask = 0;
+      const blender::Span<MLoopTri> looptris = final_me->looptris();
       BKE_mesh_calc_loop_tangent_ex(
           positions,
-          polys,
-          uint(final_me->polys().size()),
+          final_me->polys(),
           final_me->corner_verts().data(),
-          BKE_mesh_runtime_looptri_ensure(final_me),
-          uint(BKE_mesh_runtime_looptri_len(final_me)),
+          looptris.data(),
+          uint(looptris.size()),
           static_cast<const bool *>(
               CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face")),
           &final_me->ldata,
@@ -541,9 +540,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const blender::Span<int> corner_verts = final_me->corner_verts();
   const blender::Span<int> corner_edges = final_me->corner_edges();
 
-  for (const unsigned int i : final_me->polys().index_range()) {
-    const MPoly &poly = polys[i];
+  const OffsetIndices polys = final_me->polys();
 
+  for (const unsigned int i : polys.index_range()) {
     /* Try to get evaluated mesh poly material index */
     /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
     /* There is still an issue with boolean exact solver with polygon material indice */
@@ -556,9 +555,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     // Mark face as flat, so vertices are split.
     const bool flat = (sharp_faces && sharp_faces[i]);
 
-    const unsigned int lpstart = poly.loopstart;
-    const unsigned int totlp = poly.totloop;
-    for (const unsigned int vert_i : corner_verts.slice(lpstart, totlp)) {
+    for (const unsigned int vert_i : corner_verts.slice(polys[i])) {
       const float *vp = &positions[vert_i][0];
 
       const MT_Vector3 pt(vp);
@@ -576,7 +573,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     // Convert to edges of material is rendering wire.
     if (mat.wire && mat.visible) {
-      for (const unsigned int edge_i : corner_edges.slice(lpstart, totlp)) {
+      for (const unsigned int edge_i : corner_edges.slice(polys[i])) {
         const MEdge &edge = edges[edge_i];
         meshobj->AddLine(meshmat, vertices[edge.v1], vertices[edge.v2]);
       }
