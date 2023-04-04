@@ -59,6 +59,10 @@ if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
 
+if(WITH_RENDERDOC)
+  add_definitions(-DWITH_RENDERDOC)
+endif()
+
 if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()
@@ -1317,10 +1321,7 @@ elseif(WIN32)
   endif()
 
   if(PLATFORM_BUNDLED_LIBRARIES)
-    install(
-      FILES ${PLATFORM_BUNDLED_LIBRARIES}
-      DESTINATION ${TARGETDIR_EXE}
-    )
+    windows_process_platform_bundled_libraries("${PLATFORM_BUNDLED_LIBRARIES}")
   endif()
 
   # Custom game icon for windows deployment

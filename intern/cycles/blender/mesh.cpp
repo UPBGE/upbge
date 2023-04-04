@@ -246,22 +246,25 @@ static void fill_generic_attribute(BL::Mesh &b_mesh,
         if (polys_num == 0) {
           return;
         }
-        const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
+        const int *poly_offsets = static_cast<const int *>(b_mesh.polygons[0].ptr.data);
         for (int i = 0; i < polys_num; i++) {
-          const MPoly &b_poly = polys[i];
-          for (int j = 0; j < b_poly.totloop; j++) {
-            *data = get_value_at_index(b_poly.loopstart + j);
+          const int poly_start = poly_offsets[i];
+          const int poly_size = poly_offsets[i + 1] - poly_start;
+          for (int j = 0; j < poly_size; j++) {
+            *data = get_value_at_index(poly_start + j);
             data++;
           }
         }
       }
       else {
-        for (BL::MeshLoopTriangle &t : b_mesh.loop_triangles) {
-          const int index = t.index() * 3;
-          BL::Array<int, 3> loops = t.loops();
-          data[index] = get_value_at_index(loops[0]);
-          data[index + 1] = get_value_at_index(loops[1]);
-          data[index + 2] = get_value_at_index(loops[2]);
+        const int tris_num = b_mesh.loop_triangles.length();
+        const MLoopTri *looptris = static_cast<const MLoopTri *>(
+            b_mesh.loop_triangles[0].ptr.data);
+        for (int i = 0; i < tris_num; i++) {
+          const MLoopTri &tri = looptris[i];
+          data[i * 3 + 0] = get_value_at_index(tri.tri[0]);
+          data[i * 3 + 1] = get_value_at_index(tri.tri[1]);
+          data[i * 3 + 2] = get_value_at_index(tri.tri[2]);
         }
       }
       break;
@@ -315,8 +318,11 @@ static void fill_generic_attribute(BL::Mesh &b_mesh,
         }
       }
       else {
-        for (BL::MeshLoopTriangle &t : b_mesh.loop_triangles) {
-          data[t.index()] = get_value_at_index(t.polygon_index());
+        const int tris_num = b_mesh.loop_triangles.length();
+        const MLoopTri *looptris = static_cast<const MLoopTri *>(
+            b_mesh.loop_triangles[0].ptr.data);
+        for (int i = 0; i < tris_num; i++) {
+          data[i] = get_value_at_index(looptris[i].poly);
         }
       }
       break;
@@ -533,6 +539,9 @@ static void attr_create_generic(Scene *scene,
 static void attr_create_uv_map(Scene *scene, Mesh *mesh, BL::Mesh &b_mesh)
 {
   if (!b_mesh.uv_layers.empty()) {
+    const int tris_num = b_mesh.loop_triangles.length();
+    const MLoopTri *looptris = static_cast<const MLoopTri *>(b_mesh.loop_triangles[0].ptr.data);
+
     for (BL::MeshUVLoopLayer &l : b_mesh.uv_layers) {
       const bool active_render = l.active_render();
       AttributeStandard uv_std = (active_render) ? ATTR_STD_UV : ATTR_STD_NONE;
@@ -560,14 +569,13 @@ static void attr_create_uv_map(Scene *scene, Mesh *mesh, BL::Mesh &b_mesh)
           uv_attr = mesh->attributes.add(uv_name, TypeFloat2, ATTR_ELEMENT_CORNER);
         }
 
+        const float(*b_uv_map)[2] = static_cast<const float(*)[2]>(l.uv[0].ptr.data);
         float2 *fdata = uv_attr->data_float2();
-
-        for (BL::MeshLoopTriangle &t : b_mesh.loop_triangles) {
-          int3 li = get_int3(t.loops());
-          fdata[0] = get_float2(l.data[li[0]].uv());
-          fdata[1] = get_float2(l.data[li[1]].uv());
-          fdata[2] = get_float2(l.data[li[2]].uv());
-          fdata += 3;
+        for (int i = 0; i < tris_num; i++) {
+          const MLoopTri &tri = looptris[i];
+          fdata[i * 3 + 0] = make_float2(b_uv_map[tri.tri[0]][0], b_uv_map[tri.tri[0]][1]);
+          fdata[i * 3 + 1] = make_float2(b_uv_map[tri.tri[1]][0], b_uv_map[tri.tri[1]][1]);
+          fdata[i * 3 + 2] = make_float2(b_uv_map[tri.tri[2]][0], b_uv_map[tri.tri[2]][1]);
         }
       }
 
@@ -600,7 +608,7 @@ static void attr_create_subd_uv_map(Scene *scene, Mesh *mesh, BL::Mesh &b_mesh, 
   if (polys_num == 0) {
     return;
   }
-  const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
+  const int *poly_offsets = static_cast<const int *>(b_mesh.polygons[0].ptr.data);
 
   if (!b_mesh.uv_layers.empty()) {
     BL::Mesh::uv_layers_iterator l;
@@ -636,9 +644,10 @@ static void attr_create_subd_uv_map(Scene *scene, Mesh *mesh, BL::Mesh &b_mesh, 
         float2 *fdata = uv_attr->data_float2();
 
         for (int i = 0; i < polys_num; i++) {
-          const MPoly &b_poly = polys[i];
-          for (int j = 0; j < b_poly.totloop; j++) {
-            *(fdata++) = get_float2(l->data[b_poly.loopstart + j].uv());
+          const int poly_start = poly_offsets[i];
+          const int poly_size = poly_offsets[i + 1] - poly_start;
+          for (int j = 0; j < poly_size; j++) {
+            *(fdata++) = get_float2(l->data[poly_start + j].uv());
           }
         }
       }
@@ -910,10 +919,9 @@ static void attr_create_random_per_island(Scene *scene,
   else {
     const int polys_num = b_mesh.polygons.length();
     if (polys_num != 0) {
-      const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
+      const int *poly_offsets = static_cast<const int *>(b_mesh.polygons[0].ptr.data);
       for (int i = 0; i < polys_num; i++) {
-        const MPoly &b_poly = polys[i];
-        const int vert = corner_verts[b_poly.loopstart];
+        const int vert = corner_verts[poly_offsets[i]];
         data[i] = hash_uint_to_float(vertices_sets.find(vert));
       }
     }
@@ -1000,10 +1008,11 @@ static void create_mesh(Scene *scene,
     numtris = numfaces;
   }
   else {
-    const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
+    const int *poly_offsets = static_cast<const int *>(b_mesh.polygons[0].ptr.data);
     for (int i = 0; i < polys_num; i++) {
-      const MPoly &b_poly = polys[i];
-      numngons += (b_poly.totloop == 4) ? 0 : 1;
+      const int poly_start = poly_offsets[i];
+      const int poly_size = poly_offsets[i + 1] - poly_start;
+      numngons += (poly_size == 4) ? 0 : 1;
     }
   }
 
@@ -1132,14 +1141,16 @@ static void create_mesh(Scene *scene,
 
     std::copy(corner_verts, corner_verts + numcorners, subd_face_corners);
 
-    const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
+    const int *poly_offsets = static_cast<const int *>(b_mesh.polygons[0].ptr.data);
     int ptex_offset = 0;
     for (int i = 0; i < numfaces; i++) {
-      const MPoly &b_poly = polys[i];
-      subd_start_corner[i] = b_poly.loopstart;
-      subd_num_corners[i] = b_poly.totloop;
+      const int poly_start = poly_offsets[i];
+      const int poly_size = poly_offsets[i + 1] - poly_start;
+
+      subd_start_corner[i] = poly_start;
+      subd_num_corners[i] = poly_size;
       subd_ptex_offset[i] = ptex_offset;
-      const int num_ptex = (b_poly.totloop == 4) ? 1 : b_poly.totloop;
+      const int num_ptex = (poly_size == 4) ? 1 : poly_size;
       ptex_offset += num_ptex;
     }
 
