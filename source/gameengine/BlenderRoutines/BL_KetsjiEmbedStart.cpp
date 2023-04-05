@@ -47,7 +47,7 @@
 #include "wm_window.h"
 
 #include "CM_Message.h"
-#include "GHOST_ISystem.h"
+#include "GHOST_ISystem.hh"
 #include "KX_Globals.h"
 #include "LA_BlenderLauncher.h"
 

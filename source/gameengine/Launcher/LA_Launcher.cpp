@@ -42,7 +42,7 @@
 #include "DEV_InputDevice.h"
 #include "DEV_Joystick.h"
 #include "GHOST_C-api.h"
-#include "GHOST_ISystem.h"
+#include "GHOST_ISystem.hh"
 #include "GPG_Canvas.h"
 #include "KX_Globals.h"
 #include "KX_NetworkMessageManager.h"

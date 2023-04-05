@@ -37,7 +37,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_scene_types.h"
-#include "GHOST_IWindow.h"
+#include "GHOST_IWindow.hh"
 #include "MEM_guardedalloc.h"
 #include "WM_api.h"
 #include "wm_window.h"

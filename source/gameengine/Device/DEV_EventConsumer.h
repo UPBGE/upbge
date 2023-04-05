@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "GHOST_IEventConsumer.h"
+#include "GHOST_IEventConsumer.hh"
 
 class DEV_InputDevice;
 class GHOST_ISystem;

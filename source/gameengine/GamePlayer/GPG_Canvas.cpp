@@ -36,7 +36,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_space_types.h"
-#include "GHOST_ISystem.h"
+#include "GHOST_ISystem.hh"
 #include "GPU_framebuffer.h"
 #include "MEM_guardedalloc.h"
 

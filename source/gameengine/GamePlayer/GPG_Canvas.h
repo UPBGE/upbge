@@ -35,7 +35,7 @@
 #  pragma warning(disable : 4786)
 #endif  // WIN32
 
-#include "GHOST_IWindow.h"
+#include "GHOST_IWindow.hh"
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
