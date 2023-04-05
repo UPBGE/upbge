@@ -1494,7 +1494,7 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Select Random";
-  ot->description = "Set select on random visible objects";
+  ot->description = "Select or deselect random visible objects";
   ot->idname = "OBJECT_OT_select_random";
 
   /* api callbacks */
