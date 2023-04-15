@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
 /** \file
  * \ingroup bke
  */
@@ -187,7 +189,6 @@ struct PBVH {
 
   /* flag are verts/faces deformed */
   bool deformed;
-  bool respect_hide;
 
   /* Dynamic topology */
   float bm_max_edge_len;
@@ -282,7 +283,7 @@ bool pbvh_bmesh_node_nearest_to_ray(PBVHNode *node,
                                     float *dist_sq,
                                     bool use_original);
 
-void pbvh_bmesh_normals_update(PBVHNode **nodes, int totnode);
+void pbvh_bmesh_normals_update(blender::Span<PBVHNode *> nodes);
 
 /* pbvh_pixels.hh */
 

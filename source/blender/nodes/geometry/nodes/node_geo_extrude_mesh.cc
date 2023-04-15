@@ -94,25 +94,46 @@ static void expand_mesh(Mesh &mesh,
                         const int poly_expand,
                         const int loop_expand)
 {
+  /* Remove types that aren't supported for interpolation in this node. */
   if (vert_expand != 0) {
+    CustomData_free_layers(&mesh.vdata, CD_ORCO, mesh.totvert);
+    CustomData_free_layers(&mesh.vdata, CD_BWEIGHT, mesh.totvert);
+    CustomData_free_layers(&mesh.vdata, CD_SHAPEKEY, mesh.totvert);
+    CustomData_free_layers(&mesh.vdata, CD_CLOTH_ORCO, mesh.totvert);
+    CustomData_free_layers(&mesh.vdata, CD_MVERT_SKIN, mesh.totvert);
     const int old_verts_num = mesh.totvert;
     mesh.totvert += vert_expand;
     CustomData_realloc(&mesh.vdata, old_verts_num, mesh.totvert);
   }
   if (edge_expand != 0) {
+    CustomData_free_layers(&mesh.edata, CD_BWEIGHT, mesh.totedge);
+    CustomData_free_layers(&mesh.edata, CD_FREESTYLE_EDGE, mesh.totedge);
     const int old_edges_num = mesh.totedge;
     mesh.totedge += edge_expand;
     CustomData_realloc(&mesh.edata, old_edges_num, mesh.totedge);
   }
   if (poly_expand != 0) {
+    CustomData_free_layers(&mesh.pdata, CD_FACEMAP, mesh.totpoly);
+    CustomData_free_layers(&mesh.pdata, CD_FREESTYLE_FACE, mesh.totpoly);
     const int old_polys_num = mesh.totpoly;
     mesh.totpoly += poly_expand;
     CustomData_realloc(&mesh.pdata, old_polys_num, mesh.totpoly);
-    mesh.poly_offset_indices = static_cast<int *>(
-        MEM_reallocN(mesh.poly_offset_indices, sizeof(int) * (mesh.totpoly + 1)));
-    mesh.poly_offsets_for_write().last() = mesh.totloop + loop_expand;
+    implicit_sharing::resize_trivial_array(&mesh.poly_offset_indices,
+                                           &mesh.runtime->poly_offsets_sharing_info,
+                                           old_polys_num == 0 ? 0 : (old_polys_num + 1),
+                                           mesh.totpoly + 1);
+    /* Set common values for convenience. */
+    mesh.poly_offset_indices[0] = 0;
+    mesh.poly_offset_indices[mesh.totpoly] = mesh.totloop + loop_expand;
   }
   if (loop_expand != 0) {
+    CustomData_free_layers(&mesh.ldata, CD_NORMAL, mesh.totloop);
+    CustomData_free_layers(&mesh.ldata, CD_MDISPS, mesh.totloop);
+    CustomData_free_layers(&mesh.ldata, CD_TANGENT, mesh.totloop);
+    CustomData_free_layers(&mesh.ldata, CD_PAINT_MASK, mesh.totloop);
+    CustomData_free_layers(&mesh.ldata, CD_MLOOPTANGENT, mesh.totloop);
+    CustomData_free_layers(&mesh.ldata, CD_GRID_PAINT_MASK, mesh.totloop);
+    CustomData_free_layers(&mesh.ldata, CD_CUSTOMLOOPNORMAL, mesh.totloop);
     const int old_loops_num = mesh.totloop;
     mesh.totloop += loop_expand;
     CustomData_realloc(&mesh.ldata, old_loops_num, mesh.totloop);

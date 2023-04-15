@@ -48,7 +48,7 @@
 #include "DRW_engine.h"
 #include "DRW_select_buffer.h"
 
-#include "ED_gpencil.h"
+#include "ED_gpencil_legacy.h"
 #include "ED_info.h"
 #include "ED_keyframing.h"
 #include "ED_screen.h"
@@ -1886,7 +1886,12 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
 
   if (own_ofs) {
     /* bind */
-    ofs = GPU_offscreen_create(sizex, sizey, true, GPU_RGBA8, err_out);
+    ofs = GPU_offscreen_create(sizex,
+                               sizey,
+                               true,
+                               GPU_RGBA8,
+                               GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
+                               err_out);
     if (ofs == nullptr) {
       DRW_opengl_context_disable();
       return nullptr;

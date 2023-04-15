@@ -2007,16 +2007,7 @@ static void direct_link_id_common(
     /* When actually reading a file, we do want to reset/re-generate session UUIDS.
      * In undo case, we want to re-use existing ones. */
     id->session_uuid = MAIN_ID_SESSION_UUID_UNSET;
-
-    /* Runtime IDs should never be written in .blend files (except memfiles from undo). */
-    BLI_assert((id->tag & LIB_TAG_RUNTIME) == 0);
   }
-
-  /* No-main and other types of special IDs should never be written in .blend files. */
-  /* NOTE: `NO_MAIN` is commented for now as some code paths may still generate embedded IDs with
-   * this tag, see #103389. Related to #88555. */
-  BLI_assert(
-      (id->tag & (/*LIB_TAG_NO_MAIN |*/ LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) == 0);
 
   if ((tag & LIB_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uuid_ensure(id);
@@ -2267,7 +2258,7 @@ static int lib_link_main_data_restore_cb(LibraryIDLinkCallbackData *cb_data)
 {
   const int cb_flag = cb_data->cb_flag;
   ID **id_pointer = cb_data->id_pointer;
-  if (cb_flag & IDWALK_CB_EMBEDDED || *id_pointer == nullptr) {
+  if (cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING) || *id_pointer == nullptr) {
     return IDWALK_RET_NOP;
   }
 
