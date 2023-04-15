@@ -84,7 +84,7 @@
 #include "DRW_engine.h"
 #include "ED_asset.h"
 #include "ED_datafiles.h"
-#include "ED_gpencil.h"
+#include "ED_gpencil_legacy.h"
 #include "ED_keyframes_edit.h"
 #include "ED_keyframing.h"
 #include "ED_node.h"
