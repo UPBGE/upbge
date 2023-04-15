@@ -771,7 +771,7 @@ macro(remove_cc_flag_unsigned_char)
      (CMAKE_C_COMPILER_ID MATCHES "Intel"))
     remove_cc_flag("-funsigned-char")
   elseif(MSVC)
-    remove_cc_flag("/J")
+    #remove_cc_flag("/J")
   else()
     message(WARNING
       "Compiler '${CMAKE_C_COMPILER_ID}' failed to disable 'unsigned char' flag."
