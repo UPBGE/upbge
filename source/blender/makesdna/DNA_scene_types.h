@@ -2154,6 +2154,7 @@ typedef struct Scene {
 
   struct PreviewImage *preview;
 
+  /** ViewLayer, defined in DNA_layer_types.h */
   ListBase view_layers;
   /** Not an actual data-block, but memory owned by scene. */
   struct Collection *master_collection;
