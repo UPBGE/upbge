@@ -383,7 +383,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const int totverts = final_me->totvert;
 
   const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
-  const MEdge *edges = final_me->edges().data();
   const int totfaces = final_me->totface;
   const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata, CD_ORIGINDEX);
 
@@ -539,6 +538,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   const blender::Span<int> corner_verts = final_me->corner_verts();
   const blender::Span<int> corner_edges = final_me->corner_edges();
+  const Span<int2> edges = final_me->edges();
 
   const OffsetIndices polys = final_me->polys();
 
@@ -574,8 +574,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     // Convert to edges of material is rendering wire.
     if (mat.wire && mat.visible) {
       for (const unsigned int edge_i : corner_edges.slice(polys[i])) {
-        const MEdge &edge = edges[edge_i];
-        meshobj->AddLine(meshmat, vertices[edge.v1], vertices[edge.v2]);
+        const int2 &edge = edges[edge_i];
+        meshobj->AddLine(meshmat, vertices[edge[0]], vertices[edge[1]]);
       }
     }
 
