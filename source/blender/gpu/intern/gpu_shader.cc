@@ -776,6 +776,8 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
   }
 }
 
+/** \} */
+
 }  // namespace blender::gpu
 
 /********************UPBGE*****************************/
@@ -803,7 +805,3 @@ int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
   return unwrap(shader)->shader_get_uniform_location_old(name);
 }
 /**********************End of UPBGE*******************************/
-
-/** \} */
-
-}  // namespace blender::gpu
