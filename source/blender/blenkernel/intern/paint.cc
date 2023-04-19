@@ -130,7 +130,7 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
   /* NOTE: We do not care about potential internal references to self here, Palette has none. */
   /* NOTE: We do not swap IDProperties, as dealing with potential ID pointers in those would be
    *       fairly delicate. */
-  BKE_lib_id_swap(nullptr, id_new, id_old);
+  BKE_lib_id_swap(nullptr, id_new, id_old, false, 0);
   std::swap(id_new->properties, id_old->properties);
 }
 
@@ -1897,7 +1897,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
       /* In vertex/weight paint, force maps to be rebuilt. */
       BKE_sculptsession_free_vwpaint_data(ob_eval->sculpt);
     }
-    else {
+    else if (ss->pbvh) {
       Vector<PBVHNode *> nodes = blender::bke::pbvh::search_gather(ss->pbvh, nullptr, nullptr);
 
       for (PBVHNode *node : nodes) {

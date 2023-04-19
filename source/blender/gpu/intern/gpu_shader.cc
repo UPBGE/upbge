@@ -500,6 +500,8 @@ const char *GPU_shader_get_name(GPUShader *shader)
   return unwrap(shader)->name_get();
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Shader cache warming
  * \{ */
@@ -736,6 +738,8 @@ void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, cons
 
 /** \} */
 
+namespace blender::gpu {
+
 /* -------------------------------------------------------------------- */
 /** \name sRGB Rendering Workaround
  *
@@ -746,8 +750,6 @@ void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, cons
  * For this reason we have a uniform to switch the transform on and off depending on the current
  * frame-buffer color-space.
  * \{ */
-
-namespace blender::gpu {
 
 static int g_shader_builtin_srgb_transform = 0;
 static bool g_shader_builtin_srgb_is_dirty = false;
@@ -803,3 +805,5 @@ int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
 /**********************End of UPBGE*******************************/
 
 /** \} */
+
+}  // namespace blender::gpu

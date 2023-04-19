@@ -114,6 +114,16 @@ void WM_exit(struct bContext *C) ATTR_NORETURN;
 void WM_main(struct bContext *C) ATTR_NORETURN;
 
 bool WM_init_game(struct bContext *C);
+
+/**
+ * Show the splash screen as needed on startup.
+ *
+ * The splash may not show depending on a file being loaded and user preferences.
+ */
+void WM_init_splash_on_startup(struct bContext *C);
+/**
+ * Show the splash screen.
+ */
 void WM_init_splash(struct bContext *C);
 
 void WM_init_opengl(void);
