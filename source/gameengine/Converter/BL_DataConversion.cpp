@@ -530,7 +530,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   std::vector<unsigned int> vertices(totverts, -1);
 
   const AttributeAccessor attributes = final_me->attributes();
-  const VArray<int> material_indices = attributes.lookup_or_default<int>(
+  const VArray<int> material_indices = *attributes.lookup_or_default<int>(
       "material_index", ATTR_DOMAIN_FACE, 0);
 
   const bool *sharp_faces = static_cast<const bool *>(
