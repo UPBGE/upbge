@@ -114,19 +114,63 @@ void BLI_path_sequence_encode(
 
 void BLI_path_normalize(const char *relabase, char *path)
 {
+  const char *path_orig = path;
+  int path_len;
+
   ptrdiff_t a;
   char *start, *eind;
   if (relabase) {
     BLI_path_abs(path, relabase);
+    path_len = strlen(path);
   }
   else {
+    path_len = strlen(path);
+
     if (path[0] == '/' && path[1] == '/') {
       if (path[2] == '\0') {
         return; /* Path is `//` - can't clean it. */
       }
       path = path + 2; /* Leave the initial `//` untouched. */
+      path_len -= 2;
+
+      /* Strip leading slashes, as they will interfere with the absolute/relative check
+       * (besides being redundant). */
+      int i = 0;
+      while (path[i] == SEP) {
+        i++;
+      }
+
+      if (i != 0) {
+        memmove(path, path + i, (path_len - i) + 1);
+        path_len -= i;
+      }
+    }
+    BLI_assert(path_len == strlen(path));
+  }
+
+#ifdef WIN32
+  /* Skip to the first slash of the drive or UNC path,
+   * so additional slashes are treated as doubles. */
+  if (path_len >= 2) {
+    int path_unc_len = BLI_path_unc_prefix_len(path);
+    if (path_unc_len) {
+      path_unc_len -= 1;
+      BLI_assert(path_unc_len > 0 && path[path_unc_len] == SEP);
+      path += path_unc_len;
+      path_len -= path_unc_len;
+    }
+    else if (isalpha(path[0]) && path[1] == ':') {
+      path += 2;
+      path_len -= 2;
+    }
+    if (path[0] == '\0') {
+      return;
     }
   }
+#endif /* WIN32 */
+
+  /* Works on WIN32 as well, because the drive component is skipped. */
+  const bool is_relative = path[0] != SEP;
 
   /* NOTE(@ideasman42):
    *   `memmove(start, eind, strlen(eind) + 1);`
@@ -135,58 +179,83 @@ void BLI_path_normalize(const char *relabase, char *path)
    * except `strcpy` should not be used because there is overlap,
    * so use `memmove` 's slightly more obscure syntax. */
 
-#ifdef WIN32
+  /* Inline replacement:
+   * - `/./` -> `/`.
+   * - `//` -> `/`.
+   * Performed until no more replacements can be made. */
+  if (path_len > 1) {
+    for (int i = path_len - 1; i > 0; i--) {
+      /* Calculate the redundant slash span (if any). */
+      if (path[i] == SEP) {
+        const int i_end = i;
+        do {
+          /* Stepping over elements assumes 'i' references a separator. */
+          BLI_assert(path[i] == SEP);
+          if (path[i - 1] == SEP) {
+            i -= 1; /* Found `//`, replace with `/`. */
+          }
+          else if (i >= 2 && path[i - 1] == '.' && path[i - 2] == SEP) {
+            i -= 2; /* Found `/./`, replace with `/`. */
+          }
+          else {
+            break;
+          }
 
-  while ((start = strstr(path, "\\.\\"))) {
-    eind = start + strlen("\\.\\") - 1;
-    memmove(start, eind, strlen(eind) + 1);
-  }
+        } while (i > 0);
 
-  /* Remove two consecutive backslashes, but skip the UNC prefix,
-   * which needs to be preserved. */
-  while ((start = strstr(path + BLI_path_unc_prefix_len(path), "\\\\"))) {
-    eind = start + strlen("\\\\") - 1;
-    memmove(start, eind, strlen(eind) + 1);
-  }
-
-  while ((start = strstr(path, "\\..\\"))) {
-    eind = start + strlen("\\..\\") - 1;
-    a = start - path - 1;
-    while (a > 0) {
-      if (path[a] == '\\') {
-        break;
+        if (i < i_end) {
+          memmove(path + i, path + i_end, (path_len - i_end) + 1);
+          path_len -= i_end - i;
+          BLI_assert(strlen(path) == path_len);
+        }
       }
-      a--;
-    }
-    if (a < 0) {
-      break;
-    }
-    else {
-      memmove(path + a, eind, strlen(eind) + 1);
     }
   }
 
-#else
-
-  while ((start = strstr(path, "/./"))) {
-    eind = start + (3 - 1) /* `strlen("/./") - 1` */;
-    memmove(start, eind, strlen(eind) + 1);
+  /* Remove redundant `./` prefix, while it could be kept, it confuses the loop below. */
+  if (is_relative) {
+    if ((path_len > 2) && (path[0] == '.') && (path[1] == SEP)) {
+      memmove(path, path + 2, (path_len - 2) + 1);
+      path_len -= 2;
+    }
   }
 
-  while ((start = strstr(path, "//"))) {
-    eind = start + (2 - 1) /* `strlen("//") - 1` */;
-    memmove(start, eind, strlen(eind) + 1);
-  }
+  const ptrdiff_t a_start = is_relative ? 0 : 1;
+  start = path;
+  while ((start = strstr(start, SEP_STR ".."))) {
+    if (!ELEM(start[3], SEP, '\0')) {
+      start += 3;
+      continue;
+    }
 
-  while ((start = strstr(path, "/../"))) {
-    a = start - path - 1;
-    if (a > 0) {
+    a = (start - path) - 1;
+    if (a >= a_start) {
       /* `<prefix>/<parent>/../<postfix> => <prefix>/<postfix>`. */
-      eind = start + (4 - 1) /* `strlen("/../") - 1` */; /* Strip "/.." and keep last "/". */
-      while (a > 0 && path[a] != '/') {                  /* Find start of `<parent>`. */
+      eind = start + (4 - 1) /* `strlen("/../") - 1` */; /* Strip "/.." and keep the char after. */
+      while (a > 0 && path[a] != SEP) {                  /* Find start of `<parent>`. */
         a--;
       }
-      memmove(path + a, eind, strlen(eind) + 1);
+
+      if (is_relative && (a == 0) && *eind) {
+        /* When the path does not start with a slash, don't copy the first `/` to the destination
+         * as it will make a relative path into an absolute path. */
+        eind += 1;
+      }
+      const size_t eind_len = path_len - (eind - path);
+      BLI_assert(eind_len == strlen(eind));
+
+      /* Only remove the parent if it's not also a `..`. */
+      if (is_relative && STRPREFIX(path + ((path[a] == SEP) ? a + 1 : a), ".." SEP_STR)) {
+        start += 3 /* `strlen("/..")` */;
+      }
+      else {
+        start = path + a;
+        BLI_assert(start < eind);
+        memmove(start, eind, eind_len + 1);
+        path_len -= (eind - start);
+        BLI_assert(strlen(path) == path_len);
+        BLI_assert(!is_relative || (path[0] != SEP));
+      }
     }
     else {
       /* Support for odd paths: eg `/../home/me` --> `/home/me`
@@ -198,11 +267,22 @@ void BLI_path_normalize(const char *relabase, char *path)
        * which meant that the `/../home/me` example actually became `home/me`.
        * Using offset of 3 gives behavior consistent with the aforementioned
        * Python routine. */
-      memmove(path, path + 3, strlen(path + 3) + 1);
+      eind = start + 3;
+      const size_t eind_len = path_len - (eind - path);
+      memmove(start, eind, eind_len + 1);
+      path_len -= 3;
+      BLI_assert(strlen(path) == path_len);
+      BLI_assert(!is_relative || (path[0] != SEP));
     }
   }
 
-#endif
+  if (is_relative && path_len == 0 && (path == path_orig)) {
+    path[0] = '.';
+    path[1] = '\0';
+    path_len += 1;
+  }
+
+  BLI_assert(strlen(path) == path_len);
 }
 
 void BLI_path_normalize_dir(const char *relabase, char *dir, size_t dir_maxlen)
