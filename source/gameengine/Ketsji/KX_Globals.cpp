@@ -49,7 +49,7 @@ void KX_SetMainPath(const std::string &path)
 {
   char cpath[FILE_MAX];
   BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
-  BLI_path_normalize(nullptr, cpath);
+  BLI_path_normalize(cpath);
   g_mainPath = std::string(cpath);
 }
 
@@ -57,7 +57,7 @@ void KX_SetOrigPath(const std::string &path)
 {
   char cpath[FILE_MAX];
   BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
-  BLI_path_normalize(nullptr, cpath);
+  BLI_path_normalize(cpath);
   g_origPath = std::string(cpath);
 }
 

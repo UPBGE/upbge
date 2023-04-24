@@ -1893,9 +1893,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
   BLI_path_abs(expanded,
                KX_GetMainPath().c_str()); /* filename from lib->filename is (always?) absolute, so
                                              this may not be needed but it wont hurt */
-  BLI_path_normalize(
-      KX_GetMainPath().c_str(),
-      expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
+  BLI_path_normalize(expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
   item = PyC_UnicodeFromBytes(expanded);
 
   if (PySequence_Index(sys_path, item) == -1) {
