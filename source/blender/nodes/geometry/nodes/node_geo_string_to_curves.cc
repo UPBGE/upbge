@@ -28,18 +28,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>(N_("String"));
   b.add_input<decl::Float>(N_("Size")).default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Character Spacing"))
-      .default_value(1.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Word Spacing"))
-      .default_value(1.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Line Spacing"))
-      .default_value(1.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
+  b.add_input<decl::Float>(N_("Character Spacing")).default_value(1.0f).min(0.0f);
+  b.add_input<decl::Float>(N_("Word Spacing")).default_value(1.0f).min(0.0f);
+  b.add_input<decl::Float>(N_("Line Spacing")).default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>(N_("Text Box Width"))
       .default_value(0.0f)
       .min(0.0f)
@@ -348,9 +339,6 @@ static void create_attributes(GeoNodeExecParams &params,
         *line_id, ATTR_DOMAIN_INSTANCE);
     line_attribute.span.copy_from(layout.line_numbers);
     line_attribute.finish();
-    params.set_output("Line",
-                      AnonymousAttributeFieldInput::Create<int>(std::move(line_id),
-                                                                params.attribute_producer_name()));
   }
 
   if (AnonymousAttributeIDPtr pivot_id = params.get_output_anonymous_attribute_id_if_needed(
@@ -363,9 +351,6 @@ static void create_attributes(GeoNodeExecParams &params,
     }
 
     pivot_attribute.finish();
-    params.set_output("Pivot Point",
-                      AnonymousAttributeFieldInput::Create<float3>(
-                          std::move(pivot_id), params.attribute_producer_name()));
   }
 }
 
