@@ -426,7 +426,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     const bool *sharp_faces = static_cast<const bool *>(
         CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
     short2 *clnors = static_cast<short2 *>(CustomData_get_layer_for_write(
-        &mesh->ldata, CD_CUSTOMLOOPNORMAL, final_me->corner_verts().size()));
+        &final_me->ldata, CD_CUSTOMLOOPNORMAL, final_me->totloop));
 
     bke::mesh::normals_calc_loop(final_me->vert_positions(),
                                  final_me->edges(),
