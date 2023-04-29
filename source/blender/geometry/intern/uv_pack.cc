@@ -295,6 +295,7 @@ void PackIsland::place_(const float scale, const uv_phi phi)
 UVPackIsland_Params::UVPackIsland_Params()
 {
   rotate = false;
+  scale_to_fit = true;
   only_selected_uvs = false;
   only_selected_faces = false;
   use_seams = false;
@@ -883,7 +884,8 @@ static void pack_island_xatlas(const Span<UVAABBIsland *> island_indices,
   float max_u = 0.0f;
   float max_v = 0.0f;
 
-  int scan_line = 0;
+  int scan_line = 0;      /* Current "scan_line" of occupancy bitmap. */
+  int traced_islands = 0; /* Which islands are currently traced in `occupancy`. */
   int i = 0;
 
   /* The following `while` loop is setting up a three-way race:
@@ -893,6 +895,14 @@ static void pack_island_xatlas(const Span<UVAABBIsland *> island_indices,
    */
 
   while (i < island_indices.size()) {
+
+    while (traced_islands < i) {
+      /* Trace an island that's been solved. (Greedy.) */
+      const int64_t island_index = island_indices[traced_islands]->index;
+      occupancy.trace_island(islands[island_index], r_phis[island_index], scale, margin, true);
+      traced_islands++;
+    }
+
     PackIsland *island = islands[island_indices[i]->index];
     uv_phi phi;
 
@@ -929,17 +939,12 @@ static void pack_island_xatlas(const Span<UVAABBIsland *> island_indices,
       /* Enlarge search parameters. */
       scan_line = 0;
       occupancy.increase_scale();
-
-      /* Redraw already placed islands. (Greedy.) */
-      for (int j = 0; j < i; j++) {
-        occupancy.trace_island(islands[island_indices[j]->index], r_phis[j], scale, margin, true);
-      }
+      traced_islands = 0; /* Will trigger a re-trace of previously solved islands. */
       continue;
     }
 
     /* Place island. */
     r_phis[island_indices[i]->index] = phi;
-    occupancy.trace_island(island, phi, scale, margin, true);
     i++; /* Next island. */
 
     /* Update top-right corner. */
@@ -1283,9 +1288,8 @@ class OverlapMerger {
     return result;
   }
 
-  static void pack_islands_overlap(const Span<PackIsland *> &islands,
-                                   const UVPackIsland_Params &params,
-                                   float r_scale[2])
+  static float pack_islands_overlap(const Span<PackIsland *> &islands,
+                                    const UVPackIsland_Params &params)
   {
 
     /* Building the binary-tree of merges is complicated to do in a single pass if we proceed in
@@ -1316,7 +1320,7 @@ class OverlapMerger {
     /* Recursively call pack_islands with `merge_overlap = false`. */
     UVPackIsland_Params sub_params(params);
     sub_params.merge_overlap = false;
-    pack_islands(sub_islands, sub_params, r_scale);
+    const float result = pack_islands(sub_islands, sub_params);
 
     /* Must loop backwards! */
     for (int64_t i = merge_trace.size() - 3; i >= 0; i -= 3) {
@@ -1331,6 +1335,8 @@ class OverlapMerger {
       sub_b->pre_rotate_ = merge->pre_rotate_;
       delete merge;
     }
+
+    return result;
   }
 };
 
@@ -1347,31 +1353,25 @@ static void finalize_geometry(const Span<PackIsland *> &islands, const UVPackIsl
   BLI_memarena_free(arena);
 }
 
-void pack_islands(const Span<PackIsland *> &islands,
-                  const UVPackIsland_Params &params,
-                  float r_scale[2])
+float pack_islands(const Span<PackIsland *> &islands, const UVPackIsland_Params &params)
 {
   BLI_assert(0.0f <= params.margin);
   BLI_assert(0.0f <= params.target_aspect_y);
 
   if (islands.size() == 0) {
-    r_scale[0] = 1.0f;
-    r_scale[1] = 1.0f;
-    return; /* Nothing to do, just create a safe default. */
+    return 1.0f; /* Nothing to do, just create a safe default. */
   }
 
   if (params.merge_overlap) {
-    return OverlapMerger::pack_islands_overlap(islands, params, r_scale);
+    return OverlapMerger::pack_islands_overlap(islands, params);
   }
 
   finalize_geometry(islands, params);
 
-  if (params.margin_method == ED_UVPACK_MARGIN_FRACTION && params.margin > 0.0f) {
+  if (params.margin_method == ED_UVPACK_MARGIN_FRACTION && params.margin > 0.0f &&
+      params.scale_to_fit) {
     /* Uses a line search on scale. ~10x slower than other method. */
-    const float scale = pack_islands_margin_fraction(islands, params.margin, params);
-    r_scale[0] = scale;
-    r_scale[1] = scale;
-    return;
+    return pack_islands_margin_fraction(islands, params.margin, params);
   }
 
   float margin = params.margin;
@@ -1395,8 +1395,7 @@ void pack_islands(const Span<PackIsland *> &islands,
   for (const int64_t i : islands.index_range()) {
     islands[i]->place_(scale, phis[i]);
   }
-  r_scale[0] = 1.0f / max_uv;
-  r_scale[1] = r_scale[0];
+  return params.scale_to_fit ? 1.0f / max_uv : 1.0f;
 }
 
 /** \} */
