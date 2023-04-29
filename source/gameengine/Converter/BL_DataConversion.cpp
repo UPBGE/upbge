@@ -411,11 +411,11 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
-  blender::float3 *loop_nors_dst = nullptr;
+  float3 *loop_nors_dst = nullptr;
   float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->ldata, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
-    loop_nors_dst = static_cast<blender::float3 *>(CustomData_add_layer(
+    loop_nors_dst = static_cast<float3 *>(CustomData_add_layer(
         &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, final_me->totloop));
     CustomData_set_layer_flag(&final_me->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
 
@@ -425,30 +425,31 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         CustomData_get_layer_named(&final_me->edata, CD_PROP_BOOL, "sharp_edge"));
     const bool *sharp_faces = static_cast<const bool *>(
         CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
-    short(*clnor_data)[2] = (short(*)[2])CustomData_get_layer(&final_me->ldata, CD_CUSTOMLOOPNORMAL);
+    short2 *clnors = static_cast<short2 *>(CustomData_get_layer_for_write(
+        &mesh->ldata, CD_CUSTOMLOOPNORMAL, final_me->corner_verts().size()));
 
-    blender::bke::mesh::normals_calc_loop(final_me->vert_positions(),
-                                          final_me->edges(),
-                                          final_me->polys(),
-                                          final_me->corner_verts(),
-                                          final_me->corner_edges(),
-                                          {},
-                                          final_me->vert_normals(),
-                                          final_me->poly_normals(),
-                                          sharp_edges,
-                                          sharp_faces,
-                                          use_split_nors,
-                                          split_angle,
-                                          clnor_data,
-                                          nullptr,
-                                          {loop_nors_dst, final_me->corner_verts().size()});
+    bke::mesh::normals_calc_loop(final_me->vert_positions(),
+                                 final_me->edges(),
+                                 final_me->polys(),
+                                 final_me->corner_verts(),
+                                 final_me->corner_edges(),
+                                 {},
+                                 final_me->vert_normals(),
+                                 final_me->poly_normals(),
+                                 sharp_edges,
+                                 sharp_faces,
+                                 use_split_nors,
+                                 split_angle,
+                                 clnors,
+                                 nullptr,
+                                 {loop_nors_dst, final_me->corner_verts().size()});
   }
 
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
     if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
       short tangent_mask = 0;
-      const blender::Span<MLoopTri> looptris = final_me->looptris();
+      const Span<MLoopTri> looptris = final_me->looptris();
       BKE_mesh_calc_loop_tangent_ex(
           positions,
           final_me->polys(),
@@ -536,8 +537,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const bool *sharp_faces = static_cast<const bool *>(
       CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
 
-  const blender::Span<int> corner_verts = final_me->corner_verts();
-  const blender::Span<int> corner_edges = final_me->corner_edges();
+  const Span<int> corner_verts = final_me->corner_verts();
+  const Span<int> corner_edges = final_me->corner_edges();
   const Span<int2> edges = final_me->edges();
 
   const OffsetIndices polys = final_me->polys();
