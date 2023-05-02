@@ -1829,7 +1829,7 @@ static bool rna_GameObjectSettings_components_override_apply(
     PointerRNA *UNUSED(ptr_item_storage),
     IDOverrideLibraryPropertyOperation *opop)
 {
-  BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_INSERT_AFTER &&
+  BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on components collection");
 
   Object *ob_dst = (Object *)ptr_dst->owner_id;

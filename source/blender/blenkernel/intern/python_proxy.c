@@ -493,7 +493,7 @@ static bool load_class(PythonProxy *pp,
     Py_XDECREF(item); \
     PyDict_DelItemString(sys_modules, "bge"); \
     PyDict_DelItemString(sys_modules, "bge.types"); \
-    BLI_split_dir_part(maggie->filepath, path, sizeof(path)); \
+    BLI_path_split_dir_part(maggie->filepath, path, sizeof(path)); \
     pypath = PyC_UnicodeFromBytes(path); \
     index = PySequence_Index(sys_path, pypath); \
     /* Safely remove the value by finding their index. */ \
@@ -502,7 +502,7 @@ static bool load_class(PythonProxy *pp,
     } \
     Py_DECREF(pypath); \
     for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) { \
-      BLI_split_dir_part(lib->filepath, path, sizeof(path)); \
+      BLI_path_split_dir_part(lib->filepath, path, sizeof(path)); \
       pypath = PyC_UnicodeFromBytes(path); \
       index = PySequence_Index(sys_path, pypath); \
       /* Safely remove the value by finding their index. */ \
@@ -529,13 +529,13 @@ static bool load_class(PythonProxy *pp,
   /* Add to sys.path the path to all the used library to follow game engine sys.path management.
    * These path are remove later in FINISH. */
   for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) {
-    BLI_split_dir_part(lib->filepath, path, sizeof(path));
+    BLI_path_split_file_part(lib->filepath, path, sizeof(path));
     pypath = PyC_UnicodeFromBytes(path);
     PyList_Insert(sys_path, 0, pypath);
     Py_DECREF(pypath);
   }
   /* Add default path */
-  BLI_split_dir_part(maggie->filepath, path, sizeof(path));
+  BLI_path_split_dir_part(maggie->filepath, path, sizeof(path));
   pypath = PyC_UnicodeFromBytes(path);
   PyList_Insert(sys_path, 0, pypath);
   Py_DECREF(pypath);
