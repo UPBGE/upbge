@@ -253,7 +253,8 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object, const Pa
         return false;
       }
       if ((part->childtype == 0) &&
-          (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED) == 0) {
+          (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED) == 0)
+      {
         return false;
       }
     }
@@ -833,6 +834,7 @@ static bool id_type_can_have_drawdata(const short id_type)
     case ID_WO:
     case ID_SCE:
     case ID_TE:
+    case ID_MSK:
       return true;
 
     /* no DrawData */
@@ -1263,7 +1265,8 @@ static bool is_compositor_enabled(void)
   }
 
   if (DST.draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
-      DST.draw_ctx.rv3d->persp != RV3D_CAMOB) {
+      DST.draw_ctx.rv3d->persp != RV3D_CAMOB)
+  {
     return false;
   }
 
@@ -1590,7 +1593,8 @@ void DRW_draw_callbacks_post_scene(void)
 
       /* XR callbacks (controllers, custom draw functions) for session surface. */
       if (((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) ||
-          ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0)) {
+          ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0))
+      {
         GPU_depth_test(GPU_DEPTH_NONE);
         GPU_apply_state();
 
@@ -1984,7 +1988,8 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
   RenderResult *render_result = RE_engine_get_result(engine);
   RenderLayer *render_layer = RE_GetRenderLayer(render_result, view_layer->name);
   for (RenderView *render_view = render_result->views.first; render_view != NULL;
-       render_view = render_view->next) {
+       render_view = render_view->next)
+  {
     RE_SetActiveRenderView(render, render_view->name);
     DRW_view_reset();
     DST.buffer_finish_called = false;
@@ -2065,7 +2070,8 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
                                                        /*RR_ALL_VIEWS*/ NULL);
   RenderLayer *render_layer = render_result->layers.first;
   for (RenderView *render_view = render_result->views.first; render_view != NULL;
-       render_view = render_view->next) {
+       render_view = render_view->next)
+  {
     RE_SetActiveRenderView(render, render_view->name);
     DRW_view_reset();
     engine_type->draw_engine->render_to_image(data, engine, render_layer, &render_rect);
@@ -2374,7 +2380,8 @@ static void draw_select_framebuffer_depth_only_setup(const int size[2])
 
   if ((g_select_buffer.texture_depth != NULL) &&
       ((GPU_texture_width(g_select_buffer.texture_depth) != size[0]) ||
-       (GPU_texture_height(g_select_buffer.texture_depth) != size[1]))) {
+       (GPU_texture_height(g_select_buffer.texture_depth) != size[1])))
+  {
     GPU_texture_free(g_select_buffer.texture_depth);
     g_select_buffer.texture_depth = NULL;
   }

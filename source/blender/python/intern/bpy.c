@@ -135,7 +135,8 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
                                         PyC_ParseBool,
                                         &packed,
                                         PyC_ParseBool,
-                                        &local)) {
+                                        &local))
+  {
     return NULL;
   }
 
@@ -189,7 +190,8 @@ static PyObject *bpy_flip_name(PyObject *UNUSED(self), PyObject *args, PyObject 
       0,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
-          args, kw, &_parser, &name_src, &name_src_len, PyC_ParseBool, &strip_digits)) {
+          args, kw, &_parser, &name_src, &name_src_len, PyC_ParseBool, &strip_digits))
+  {
     return NULL;
   }
 
@@ -321,7 +323,8 @@ static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObj
       0,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
-          args, kw, &_parser, PyC_ParseStringEnum, &type, &major, &minor)) {
+          args, kw, &_parser, PyC_ParseStringEnum, &type, &major, &minor))
+  {
     return NULL;
   }
 
@@ -367,7 +370,8 @@ static PyObject *bpy_driver_secure_code_test(PyObject *UNUSED(self), PyObject *a
                                         &PyDict_Type,
                                         &py_namespace,
                                         PyC_ParseBool,
-                                        &verbose)) {
+                                        &verbose))
+  {
     return NULL;
   }
   return PyBool_FromLong(BPY_driver_secure_bytecode_test(py_code, py_namespace, verbose));

@@ -670,7 +670,7 @@ static bool rna_Object_parent_override_apply(Main *bmain,
                                              IDOverrideLibraryPropertyOperation *opop)
 {
   BLI_assert(len_dst == len_src && (!ptr_storage || len_dst == len_storage) && len_dst == 0);
-  BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_REPLACE &&
+  BLI_assert(opop->operation == LIBOVERRIDE_OP_REPLACE &&
              "Unsupported RNA override operation on object parent pointer");
   UNUSED_VARS_NDEBUG(ptr_storage, len_dst, len_src, len_storage, opop);
 
@@ -2032,7 +2032,7 @@ bool rna_Object_constraints_override_apply(Main *bmain,
                                            PointerRNA *UNUSED(ptr_item_storage),
                                            IDOverrideLibraryPropertyOperation *opop)
 {
-  BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_INSERT_AFTER &&
+  BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on constraints collection");
 
   Object *ob_dst = (Object *)ptr_dst->owner_id;
@@ -2087,8 +2087,8 @@ static void rna_Object_modifier_remove(Object *object,
                                        PointerRNA *md_ptr)
 {
   ModifierData *md = md_ptr->data;
-  if (ED_object_modifier_remove(reports, CTX_data_main(C), CTX_data_scene(C), object, md) ==
-      false) {
+  if (ED_object_modifier_remove(reports, CTX_data_main(C), CTX_data_scene(C), object, md) == false)
+  {
     /* error is already set */
     return;
   }
@@ -2160,7 +2160,7 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
                                          PointerRNA *UNUSED(ptr_item_storage),
                                          IDOverrideLibraryPropertyOperation *opop)
 {
-  BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_INSERT_AFTER &&
+  BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on modifiers collection");
 
   Object *ob_dst = (Object *)ptr_dst->owner_id;
@@ -2276,7 +2276,7 @@ bool rna_Object_greasepencil_modifiers_override_apply(Main *bmain,
                                                       PointerRNA *UNUSED(ptr_item_storage),
                                                       IDOverrideLibraryPropertyOperation *opop)
 {
-  BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_INSERT_AFTER &&
+  BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on modifiers collection");
 
   Object *ob_dst = (Object *)ptr_dst->owner_id;
