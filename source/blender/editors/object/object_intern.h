@@ -346,6 +346,11 @@ void OBJECT_OT_collection_objects_select(struct wmOperatorType *ot);
 void OBJECT_OT_bake_image(wmOperatorType *ot);
 void OBJECT_OT_bake(wmOperatorType *ot);
 
+/* object_bake_simulation.cc */
+
+void OBJECT_OT_simulation_nodes_cache_bake(wmOperatorType *ot);
+void OBJECT_OT_simulation_nodes_cache_delete(wmOperatorType *ot);
+
 /* object_lod.c */
 void OBJECT_OT_lod_add(struct wmOperatorType *ot);
 void OBJECT_OT_lod_remove(struct wmOperatorType *ot);
