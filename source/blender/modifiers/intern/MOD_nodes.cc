@@ -75,9 +75,9 @@
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
-#include "MOD_modifiertypes.h"
+#include "MOD_modifiertypes.hh"
 #include "MOD_nodes.h"
-#include "MOD_ui_common.h"
+#include "MOD_ui_common.hh"
 
 #include "ED_object.h"
 #include "ED_screen.h"
@@ -1198,6 +1198,10 @@ static void prepare_simulation_states_for_evaluation(const NodesModifierData &nm
         }
       }
     }
+  }
+
+  if (nmd_orig.simulation_cache == nullptr) {
+    return;
   }
 
   /* Load read-only states to give nodes access to cached data. */
