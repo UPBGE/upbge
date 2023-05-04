@@ -455,6 +455,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           final_me->polys(),
           final_me->corner_verts().data(),
           looptris.data(),
+          final_me->looptri_polys().data(),
           uint(looptris.size()),
           static_cast<const bool *>(
               CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face")),
