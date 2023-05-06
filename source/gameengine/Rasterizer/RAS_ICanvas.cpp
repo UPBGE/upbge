@@ -172,7 +172,7 @@ void RAS_ICanvas::SaveScreeshot(const Screenshot &screenshot)
   BLI_strncpy(task->path, screenshot.path.c_str(), FILE_MAX);
   BLI_path_frame(task->path, sizeof(task->path), m_frame, 0);
   m_frame++;
-  BKE_image_path_ensure_ext_from_imtype(task->path, task->im_format->imtype);
+  BKE_image_path_ext_from_imtype_ensure(task->path, sizeof(task->path), task->im_format->imtype);
 
   BLI_task_pool_push(m_taskpool,
                      (TaskRunFunction)save_screenshot_thread_func,
