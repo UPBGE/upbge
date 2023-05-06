@@ -191,7 +191,6 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, char colorsp
   ImBuf *ibuf = nullptr;
   if (is_float) {
     ibuf = load_pixels<float>(in, width, height, channels, ctx.flags, use_all_planes);
-    ibuf->channels = 4;
   }
   else {
     ibuf = load_pixels<uchar>(in, width, height, channels, ctx.flags, use_all_planes);
@@ -225,6 +224,9 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, char colorsp
       ibuf->flags |= spec.extra_attribs.empty() ? 0 : IB_metadata;
 
       for (const auto &attrib : spec.extra_attribs) {
+        if (attrib.name().find("ICCProfile") != string::npos) {
+          continue;
+        }
         IMB_metadata_set_field(ibuf->metadata, attrib.name().c_str(), attrib.get_string().c_str());
       }
     }

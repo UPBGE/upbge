@@ -1513,18 +1513,18 @@ static void rna_ImageFormatSettings_color_management_set(PointerRNA *ptr, int va
 
 static int rna_SceneRender_file_ext_length(PointerRNA *ptr)
 {
-  RenderData *rd = (RenderData *)ptr->data;
-  char ext[8];
-  ext[0] = '\0';
-  BKE_image_path_ensure_ext_from_imformat(ext, &rd->im_format);
-  return strlen(ext);
+  const RenderData *rd = (RenderData *)ptr->data;
+  const char *ext_array[BKE_IMAGE_PATH_EXT_MAX];
+  int ext_num = BKE_image_path_ext_from_imformat(&rd->im_format, ext_array);
+  return ext_num ? strlen(ext_array[0]) : 0;
 }
 
-static void rna_SceneRender_file_ext_get(PointerRNA *ptr, char *str)
+static void rna_SceneRender_file_ext_get(PointerRNA *ptr, char *value)
 {
-  RenderData *rd = (RenderData *)ptr->data;
-  str[0] = '\0';
-  BKE_image_path_ensure_ext_from_imformat(str, &rd->im_format);
+  const RenderData *rd = (RenderData *)ptr->data;
+  const char *ext_array[BKE_IMAGE_PATH_EXT_MAX];
+  int ext_num = BKE_image_path_ext_from_imformat(&rd->im_format, ext_array);
+  strcpy(value, ext_num ? ext_array[0] : "");
 }
 
 #  ifdef WITH_FFMPEG
@@ -2590,7 +2590,7 @@ void rna_ViewLayer_active_lightgroup_index_set(PointerRNA *ptr, int value)
 static void rna_ViewLayerLightgroup_name_get(PointerRNA *ptr, char *value)
 {
   ViewLayerLightgroup *lightgroup = (ViewLayerLightgroup *)ptr->data;
-  BLI_strncpy(value, lightgroup->name, sizeof(lightgroup->name));
+  strcpy(value, lightgroup->name);
 }
 
 static int rna_ViewLayerLightgroup_name_length(PointerRNA *ptr)
