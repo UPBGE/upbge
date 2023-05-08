@@ -26,6 +26,10 @@ if(HAVE_FEENABLEEXCEPT)
   add_definitions(-DHAVE_FEENABLEEXCEPT)
 endif()
 
+if(WITH_STRSIZE_DEBUG)
+  add_definitions(-DWITH_STRSIZE_DEBUG)
+endif()
+
 if(WITH_TBB)
   # Force TBB libraries to be in front of MKL (part of `OpenImageDenoise`), so
   # that it is initialized before MKL and static library initialization order issues are avoided.
