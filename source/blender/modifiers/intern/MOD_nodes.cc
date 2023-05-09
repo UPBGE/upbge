@@ -1323,9 +1323,9 @@ static GeometrySet compute_geometry(const bNodeTree &btree,
     param_outputs[i] = {type, buffer};
   }
 
-  lf::Context lf_context;
-  lf_context.storage = graph_executor.init_storage(allocator);
-  lf_context.user_data = &user_data;
+  nodes::GeoNodesLFLocalUserData local_user_data(user_data);
+
+  lf::Context lf_context(graph_executor.init_storage(allocator), &user_data, &local_user_data);
   lf::BasicParams lf_params{graph_executor,
                             param_inputs,
                             param_outputs,
@@ -1754,7 +1754,7 @@ static void draw_property_for_socket(const bContext &C,
   BLI_str_escape(socket_id_esc, socket.identifier, sizeof(socket_id_esc));
 
   char rna_path[sizeof(socket_id_esc) + 4];
-  BLI_snprintf(rna_path, ARRAY_SIZE(rna_path), "[\"%s\"]", socket_id_esc);
+  SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
   uiLayout *row = uiLayoutRow(layout, true);
   uiLayoutSetPropDecorate(row, true);

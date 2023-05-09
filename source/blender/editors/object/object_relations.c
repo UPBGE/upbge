@@ -481,7 +481,7 @@ void ED_object_parent(Object *ob, Object *par, const int type, const char *subst
   ob->parent = par;
   ob->partype &= ~PARTYPE;
   ob->partype |= type;
-  BLI_strncpy(ob->parsubstr, substr, sizeof(ob->parsubstr));
+  STRNCPY(ob->parsubstr, substr);
 }
 
 EnumPropertyItem prop_make_parent_types[] = {
@@ -599,7 +599,7 @@ bool ED_object_parent_set(ReportList *reports,
 
   /* Handle types. */
   if (pchan) {
-    BLI_strncpy(ob->parsubstr, pchan->name, sizeof(ob->parsubstr));
+    STRNCPY(ob->parsubstr, pchan->name);
   }
   else {
     ob->parsubstr[0] = 0;
