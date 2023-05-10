@@ -80,6 +80,18 @@ if(WITH_TBB)
   endif()
 endif()
 
+if(WITH_USD)
+  # USD links libMaterialX, when using pre-compiled libraries
+  # ensures `usd_ms` can find `MaterialXRender` and friends.
+  #
+  # NOTE: This is _only_ needed when linking blender before the install target runs.
+  # Once MATERIALX libraries have been copied into `TARGETDIR_LIB` then Blender will link.
+  # Don't rely on this though as failing on a fresh build is no good and the library
+  # files could get outdated too.
+  if(DEFINED LIBDIR)
+    link_directories(${LIBDIR}/materialx/lib)
+  endif()
+endif()
 
 if(WITH_PYTHON)
   list(APPEND INC ../blender/python)
@@ -1221,9 +1233,20 @@ elseif(WIN32)
 
   endif()
 
-  # Filenames change slightly between FFMPEG versions check both 5.0 and fallback to 4.4
+  # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
-  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-59.dll")
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avcodec-60.dll
+        ${LIBDIR}/ffmpeg/lib/avformat-60.dll
+        ${LIBDIR}/ffmpeg/lib/avdevice-60.dll
+        ${LIBDIR}/ffmpeg/lib/avutil-58.dll
+        ${LIBDIR}/ffmpeg/lib/swscale-7.dll
+        ${LIBDIR}/ffmpeg/lib/swresample-4.dll
+      ALL
+    )
+  else()
     windows_install_shared_manifest(
       FILES
         ${LIBDIR}/ffmpeg/lib/avcodec-59.dll
@@ -1232,17 +1255,6 @@ elseif(WIN32)
         ${LIBDIR}/ffmpeg/lib/avutil-57.dll
         ${LIBDIR}/ffmpeg/lib/swscale-6.dll
         ${LIBDIR}/ffmpeg/lib/swresample-4.dll
-      ALL
-    )
-  else()
-    windows_install_shared_manifest(
-      FILES
-        ${LIBDIR}/ffmpeg/lib/avcodec-58.dll
-        ${LIBDIR}/ffmpeg/lib/avformat-58.dll
-        ${LIBDIR}/ffmpeg/lib/avdevice-58.dll
-        ${LIBDIR}/ffmpeg/lib/avutil-56.dll
-        ${LIBDIR}/ffmpeg/lib/swscale-5.dll
-        ${LIBDIR}/ffmpeg/lib/swresample-3.dll
       ALL
     )
   endif()
