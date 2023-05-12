@@ -94,50 +94,50 @@ static const int openGLBlendFuncEnums[] = {
 
 RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 {
-  glGenVertexArrays(1, &m_vao);
-  // Generate the VBO and IBO for screen overlay plane.
-  glGenBuffers(1, &m_vbo);
-  glGenBuffers(1, &m_ibo);
+  //glGenVertexArrays(1, &m_vao);
+  //// Generate the VBO and IBO for screen overlay plane.
+  //glGenBuffers(1, &m_vbo);
+  //glGenBuffers(1, &m_ibo);
 
-  glBindVertexArray(m_vao);
+  //glBindVertexArray(m_vao);
 
-  // Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after
-  // (2 floats, total size = 5 floats).
-  static const float vertices[] = {//   3f position   |   2f UV
-                                   -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 3.0f, -1.0f, 1.0f, 2.0f, 0.0f,
-                                   -1.0f, 3.0f,  1.0f, 0.0f, 2.0f, 3.0f, 3.0f,  1.0f, 2.0f, 2.0f};
-  // Indices for screen plane.
-  static const GLubyte indices[] = {0, 1, 2, 2, 0, 3};
+  //// Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after
+  //// (2 floats, total size = 5 floats).
+  //static const float vertices[] = {//   3f position   |   2f UV
+  //                                 -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 3.0f, -1.0f, 1.0f, 2.0f, 0.0f,
+  //                                 -1.0f, 3.0f,  1.0f, 0.0f, 2.0f, 3.0f, 3.0f,  1.0f, 2.0f, 2.0f};
+  //// Indices for screen plane.
+  //static const GLubyte indices[] = {0, 1, 2, 2, 0, 3};
 
-  // Send indices in the sreen plane IBO.
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  //// Send indices in the sreen plane IBO.
+  //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
+  //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-  // Send vertexes in the screen plane VBO.
-  glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  //// Send vertexes in the screen plane VBO.
+  //glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+  //glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-  // VAO -> vertices
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, 0);
+  //// VAO -> vertices
+  //glEnableVertexAttribArray(0);
+  //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, 0);
 
-  // VAO -> texcoords
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(
-      1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
+  //// VAO -> texcoords
+  //glEnableVertexAttribArray(1);
+  //glVertexAttribPointer(
+  //    1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
 
-  // Unbind VBO
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  //// Unbind VBO
+  //glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  // VAO -> Unbind
-  glBindVertexArray(0);
+  //// VAO -> Unbind
+  //glBindVertexArray(0);
 }
 
 RAS_OpenGLRasterizer::ScreenPlane::~ScreenPlane()
 {
-  glDeleteVertexArrays(1, &m_vao);
+  /*glDeleteVertexArrays(1, &m_vao);
   glDeleteBuffers(1, &m_vbo);
-  glDeleteBuffers(1, &m_ibo);
+  glDeleteBuffers(1, &m_ibo);*/
 }
 
 inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
