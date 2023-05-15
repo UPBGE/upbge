@@ -65,7 +65,7 @@
 #include "BKE_main_namemap.h"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
 
@@ -940,7 +940,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
     BLI_addhead(&ntree.nodes, node);
   }
   if (!new_nodes.is_empty()) {
-    nodeRebuildIDVector(&ntree);
+    blender::bke::nodeRebuildIDVector(&ntree);
   }
 }
 
@@ -1074,7 +1074,7 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     BLI_addhead(&ntree.nodes, node);
   }
   if (!new_nodes.is_empty()) {
-    nodeRebuildIDVector(&ntree);
+    blender::bke::nodeRebuildIDVector(&ntree);
   }
 }
 
@@ -4373,6 +4373,20 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+
+    /* Enable the iTaSC ITASC_TRANSLATE_ROOT_BONES flag for backward compatibility.
+     * See #104606. */
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->type != OB_ARMATURE || ob->pose == nullptr) {
+        continue;
+      }
+      bPose *pose = ob->pose;
+      if (pose->iksolver != IKSOLVER_ITASC || pose->ikparam == nullptr) {
+        continue;
+      }
+      bItasc *ikparam = (bItasc *)pose->ikparam;
+      ikparam->flag |= ITASC_TRANSLATE_ROOT_BONES;
     }
   }
 

@@ -746,7 +746,7 @@ class WM_OT_operator_pie_enum(Operator):
 
     data_path: StringProperty(
         name="Operator",
-        description="Operator name (in python as string)",
+        description="Operator name (in Python as string)",
         maxlen=1024,
     )
     prop_string: StringProperty(
@@ -1049,8 +1049,7 @@ class WM_OT_url_open(Operator):
     @staticmethod
     def _get_utm_source():
         version = bpy.app.version_string
-        formatted_version = version.replace(' ', '-').lower()
-        return f"blender-{formatted_version}"
+        return "blender-" + version.replace(" ", "-").lower()
 
     def execute(self, _context):
         import webbrowser
@@ -1381,7 +1380,7 @@ rna_custom_property_type_items = (
     ('BOOL', "Boolean", "A true or false value"),
     ('BOOL_ARRAY', "Boolean Array", "An array of true or false values"),
     ('STRING', "String", "A string value"),
-    ('PYTHON', "Python", "Edit a python value directly, for unsupported property types"),
+    ('PYTHON', "Python", "Edit a Python value directly, for unsupported property types"),
 )
 
 rna_custom_property_subtype_none_item = ('NONE', "Plain Data", "Data values without special behavior")
@@ -2849,7 +2848,7 @@ class WM_OT_batch_rename(Operator):
                     "name",
                     iface_("Material(s)"),
                 )
-            elif data_type == "ACTION_CLIP":
+            elif data_type == 'ACTION_CLIP':
                 data = (
                     (
                         # Outliner.

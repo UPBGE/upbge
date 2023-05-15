@@ -362,10 +362,6 @@
  *  \ingroup imbuf
  */
 
-/** \defgroup imbdds DDS
- *  \ingroup imbuf
- */
-
 /** \defgroup openexr OpenEXR
  *  \ingroup imbuf
  */
