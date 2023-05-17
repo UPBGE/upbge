@@ -88,8 +88,9 @@ static void asset_view_draw_item(uiList *ui_list,
 
   uiBlock *block = uiLayoutGetBlock(layout);
   const bool show_names = list_data->show_names;
-  const float size_x = UI_preview_tile_size_x();
-  const float size_y = show_names ? UI_preview_tile_size_y() : UI_preview_tile_size_y_no_label();
+  /* TODO ED_fileselect_init_layout(). Share somehow? */
+  const float size_x = (96.0f / 20.0f) * UI_UNIT_X;
+  const float size_y = (96.0f / 20.0f) * UI_UNIT_Y - (show_names ? 0 : UI_UNIT_Y);
   uiBut *but = uiDefIconTextBut(block,
                                 UI_BTYPE_PREVIEW_TILE,
                                 0,
@@ -267,14 +268,9 @@ void uiTemplateAssetView(uiLayout *layout,
     template_list_flags |= UI_TEMPLATE_LIST_NO_FILTER_OPTIONS;
   }
 
-  uiLayout *subcol = uiLayoutColumn(col, false);
-
-  uiLayoutSetScaleX(subcol, 0.8f);
-  uiLayoutSetScaleY(subcol, 0.8f);
-
   /* TODO can we have some kind of model-view API to handle referencing, filtering and lazy loading
    * (of previews) of the items? */
-  uiList *list = uiTemplateList_ex(subcol,
+  uiList *list = uiTemplateList_ex(col,
                                    C,
                                    "UI_UL_asset_view",
                                    list_id,
