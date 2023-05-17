@@ -62,7 +62,7 @@
 
 #include "MEM_guardedalloc.h"
 
-void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
+void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
 {
   /* UPBGE hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
@@ -143,9 +143,9 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       !DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
       if (ob->type == OB_MESH) {
-        Mesh *me = blo_do_versions_newlibadr(fd, lib, ob->data);
+        Mesh *me = blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->data);
         for (int i = 0; i < me->totcol; ++i) {
-          Material *ma = blo_do_versions_newlibadr(fd, lib, me->mat[i]);
+          Material *ma = blo_do_versions_newlibadr(fd, &me->id, ID_IS_LINKED(me), me->mat[i]);
           if (ma) {
             ob->friction = ma->friction;
             ob->rolling_friction = 0.0f;

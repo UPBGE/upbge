@@ -316,7 +316,7 @@ static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 static void logic_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
 {
   SpaceLogic *slogic = (SpaceLogic *)sl;
-  BLO_read_id_address(reader, parent_id->lib, &slogic->gpd);
+  BLO_read_id_address(reader, parent_id, &slogic->gpd);
 }
 
 static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
