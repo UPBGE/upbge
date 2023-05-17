@@ -1404,7 +1404,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
 
     if (sens->type == SENS_MESSAGE) {
       bMessageSensor *ms = (bMessageSensor *)sens->data;
-      BLO_read_id_address(reader, &ob->id, &ms->fromObject);
+      BLO_read_id_address(reader, ob->id.lib, &ms->fromObject);
     }
   }
 
@@ -1414,8 +1414,8 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
 
     if (cont->type == CONT_PYTHON) {
       bPythonCont *pc = (bPythonCont *)cont->data;
-      BLO_read_id_address(reader, &ob->id, &pc->text);
-      BLO_read_id_address(reader, &ob->id, &pc->module_script);
+      BLO_read_id_address(reader, ob->id.lib, &pc->text);
+      BLO_read_id_address(reader, ob->id.lib, &pc->module_script);
     }
     cont->slinks = nullptr;
     cont->totslinks = 0;
@@ -1425,7 +1425,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     switch (act->type) {
       case ACT_SOUND: {
         bSoundActuator *sa = (bSoundActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &sa->sound);
+        BLO_read_id_address(reader, ob->id.lib, &sa->sound);
         break;
       }
       case ACT_GAME:
@@ -1433,14 +1433,14 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         break;
       case ACT_CAMERA: {
         bCameraActuator *ca = (bCameraActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &ca->ob);
+        BLO_read_id_address(reader, ob->id.lib, &ca->ob);
         break;
       }
       /* leave this one, it's obsolete but necessary to read for conversion */
       case ACT_ADD_OBJECT: {
         bAddObjectActuator *eoa = (bAddObjectActuator *)act->data;
         if (eoa)
-          BLO_read_id_address(reader, &ob->id, &eoa->ob);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
         break;
       }
       case ACT_OBJECT: {
@@ -1449,7 +1449,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
           BKE_sca_init_actuator(act);
         }
         else {
-          BLO_read_id_address(reader, &ob->id, &oa->reference);
+          BLO_read_id_address(reader, ob->id.lib, &oa->reference);
         }
         break;
       }
@@ -1459,51 +1459,51 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
           BKE_sca_init_actuator(act);
         }
         else {
-          BLO_read_id_address(reader, &ob->id, &eoa->ob);
-          BLO_read_id_address(reader, &ob->id, &eoa->me);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->me);
         }
         break;
       }
       case ACT_SCENE: {
         bSceneActuator *sa = (bSceneActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &sa->camera);
-        BLO_read_id_address(reader, &ob->id, &sa->scene);
+        BLO_read_id_address(reader, ob->id.lib, &sa->camera);
+        BLO_read_id_address(reader, ob->id.lib, &sa->scene);
         break;
       }
       case ACT_COLLECTION: {
         bCollectionActuator *ca = (bCollectionActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &ca->collection);
-        BLO_read_id_address(reader, &ob->id, &ca->camera);
+        BLO_read_id_address(reader, ob->id.lib, &ca->collection);
+        BLO_read_id_address(reader, ob->id.lib, &ca->camera);
         break;
       }
       case ACT_ACTION: {
         bActionActuator *aa = (bActionActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &aa->act);
+        BLO_read_id_address(reader, ob->id.lib, &aa->act);
         break;
       }
       case ACT_SHAPEACTION: {
         bActionActuator *aa = (bActionActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &aa->act);
+        BLO_read_id_address(reader, ob->id.lib, &aa->act);
         break;
       }
       case ACT_PROPERTY: {
         bPropertyActuator *pa = (bPropertyActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &pa->ob);
+        BLO_read_id_address(reader, ob->id.lib, &pa->ob);
         break;
       }
       case ACT_MESSAGE: {
         bMessageActuator *ma = (bMessageActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &ma->toObject);
+        BLO_read_id_address(reader, ob->id.lib, &ma->toObject);
         break;
       }
       case ACT_2DFILTER: {
         bTwoDFilterActuator *_2dfa = (bTwoDFilterActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &_2dfa->text);
+        BLO_read_id_address(reader, ob->id.lib, &_2dfa->text);
         break;
       }
       case ACT_PARENT: {
         bParentActuator *parenta = (bParentActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &parenta->ob);
+        BLO_read_id_address(reader, ob->id.lib, &parenta->ob);
         break;
       }
       case ACT_STATE:
@@ -1511,14 +1511,14 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         break;
       case ACT_ARMATURE: {
         bArmatureActuator *arma = (bArmatureActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &arma->target);
-        BLO_read_id_address(reader, &ob->id, &arma->subtarget);
+        BLO_read_id_address(reader, ob->id.lib, &arma->target);
+        BLO_read_id_address(reader, ob->id.lib, &arma->subtarget);
         break;
       }
       case ACT_STEERING: {
         bSteeringActuator *steeringa = (bSteeringActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &steeringa->target);
-        BLO_read_id_address(reader, &ob->id, &steeringa->navmesh);
+        BLO_read_id_address(reader, ob->id.lib, &steeringa->target);
+        BLO_read_id_address(reader, ob->id.lib, &steeringa->navmesh);
         break;
       }
       case ACT_MOUSE:
@@ -1529,7 +1529,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
 
   LISTBASE_FOREACH (PythonProxy *, proxy, &ob->components) {
     LISTBASE_FOREACH (PythonProxyProperty *, prop, &proxy->properties) {
-#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, &ob->id, &prop->lower);
+#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
       POINTER_TYPES
 #undef PT_DEF
     }
@@ -1537,14 +1537,14 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
 
   if (ob->custom_object) {
     LISTBASE_FOREACH (PythonProxyProperty *, prop, &ob->custom_object->properties) {
-#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, &ob->id, &prop->lower);
+#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
       POINTER_TYPES
 #undef PT_DEF
     }
   }
 
   LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
-    BLO_read_id_address(reader, &ob->id, &level->source);
+    BLO_read_id_address(reader, ob->id.lib, &level->source);
     if (!level->source && level == ob->lodlevels.first) {
       level->source = ob;
     }
