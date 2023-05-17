@@ -17,9 +17,9 @@ extern "C" {
  */
 
 /* Blender major and minor version. */
-#define BLENDER_VERSION 306
+#define BLENDER_VERSION 400
 
-#define UPBGE_VERSION 36
+#define UPBGE_VERSION 40
 
 /* Blender patch version for bugfix releases. */
 #define BLENDER_VERSION_PATCH 0
@@ -32,7 +32,7 @@ extern "C" {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 10
+#define BLENDER_FILE_SUBVERSION 1
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
@@ -41,7 +41,7 @@ extern "C" {
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and show a warning if the file
  * was written with too new a version. */
-#define BLENDER_FILE_MIN_VERSION 305
+#define BLENDER_FILE_MIN_VERSION 306
 #define BLENDER_FILE_MIN_SUBVERSION 9
 
 /** User readable version string. */
