@@ -32,6 +32,7 @@
 #include "RAS_OpenGLRasterizer.h"
 
 #include <epoxy/gl.h>
+#include "GPU_context.h"
 #include "GPU_state.h"
 
 #include "CM_Message.h"
@@ -324,72 +325,74 @@ const unsigned char *RAS_OpenGLRasterizer::GetGraphicsCardVendor()
 
 void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {
-  CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));
-  CM_Message("GL_RENDERER: " << glGetString(GL_RENDERER));
-  CM_Message("GL_VERSION: " << glGetString(GL_VERSION));
-  CM_Message("GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION));
-  bool support = 0;
-  CM_Message("Supported Extensions...");
-  CM_Message(" GL_ARB_shader_objects supported?       "
-             << (epoxy_has_gl_extension("GL_ARB_shader_objects") ? "yes." : "no."));
-  CM_Message(" GL_ARB_geometry_shader4 supported?     "
-             << (epoxy_has_gl_extension("GL_ARB_geometry_shader4") ? "yes." : "no."));
+  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
+    CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));
+    CM_Message("GL_RENDERER: " << glGetString(GL_RENDERER));
+    CM_Message("GL_VERSION: " << glGetString(GL_VERSION));
+    CM_Message("GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION));
+    bool support = 0;
+    CM_Message("Supported Extensions...");
+    CM_Message(" GL_ARB_shader_objects supported?       "
+               << (epoxy_has_gl_extension("GL_ARB_shader_objects") ? "yes." : "no."));
+    CM_Message(" GL_ARB_geometry_shader4 supported?     "
+               << (epoxy_has_gl_extension("GL_ARB_geometry_shader4") ? "yes." : "no."));
 
-  support = epoxy_has_gl_extension("GL_ARB_vertex_shader");
-  CM_Message(" GL_ARB_vertex_shader supported?        " << (support ? "yes." : "no."));
-  if (support) {
-    CM_Message(" ----------Details----------");
-    int max = 0;
-    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, (GLint *)&max);
-    CM_Message("  Max uniform components." << max);
+    support = epoxy_has_gl_extension("GL_ARB_vertex_shader");
+    CM_Message(" GL_ARB_vertex_shader supported?        " << (support ? "yes." : "no."));
+    if (support) {
+      CM_Message(" ----------Details----------");
+      int max = 0;
+      glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, (GLint *)&max);
+      CM_Message("  Max uniform components." << max);
 
-    glGetIntegerv(GL_MAX_VARYING_FLOATS, (GLint *)&max);
-    CM_Message("  Max varying floats." << max);
+      glGetIntegerv(GL_MAX_VARYING_FLOATS, (GLint *)&max);
+      CM_Message("  Max varying floats." << max);
 
-    glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, (GLint *)&max);
-    CM_Message("  Max vertex texture units." << max);
+      glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, (GLint *)&max);
+      CM_Message("  Max vertex texture units." << max);
 
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, (GLint *)&max);
-    CM_Message("  Max vertex attribs." << max);
+      glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, (GLint *)&max);
+      CM_Message("  Max vertex attribs." << max);
 
-    glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, (GLint *)&max);
-    CM_Message("  Max combined texture units." << max);
-    CM_Message("");
+      glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, (GLint *)&max);
+      CM_Message("  Max combined texture units." << max);
+      CM_Message("");
+    }
+
+    support = epoxy_has_gl_extension("GL_ARB_fragment_shader");
+    CM_Message(" GL_ARB_fragment_shader supported?      " << (support ? "yes." : "no."));
+    if (support) {
+      CM_Message(" ----------Details----------");
+      int max = 0;
+      glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, (GLint *)&max);
+      CM_Message("  Max uniform components." << max);
+      CM_Message("");
+    }
+
+    support = epoxy_has_gl_extension("GL_ARB_texture_cube_map");
+    CM_Message(" GL_ARB_texture_cube_map supported?     " << (support ? "yes." : "no."));
+    if (support) {
+      CM_Message(" ----------Details----------");
+      int size = 0;
+      glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, (GLint *)&size);
+      CM_Message("  Max cubemap size." << size);
+      CM_Message("");
+    }
+
+    support = epoxy_has_gl_extension("GL_ARB_multitexture");
+    CM_Message(" GL_ARB_multitexture supported?         " << (support ? "yes." : "no."));
+    if (support) {
+      CM_Message(" ----------Details----------");
+      int units = 0;
+      glGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint *)&units);
+      CM_Message("  Max texture units available.  " << units);
+      CM_Message("");
+    }
+
+    CM_Message(" GL_ARB_texture_env_combine supported?  "
+               << (epoxy_has_gl_extension("GL_ARB_texture_env_combine") ? "yes." : "no."));
+
+    CM_Message(" GL_ARB_draw_instanced supported?  "
+               << (epoxy_has_gl_extension("GL_ARB_draw_instanced") ? "yes." : "no."));
   }
-
-  support = epoxy_has_gl_extension("GL_ARB_fragment_shader");
-  CM_Message(" GL_ARB_fragment_shader supported?      " << (support ? "yes." : "no."));
-  if (support) {
-    CM_Message(" ----------Details----------");
-    int max = 0;
-    glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, (GLint *)&max);
-    CM_Message("  Max uniform components." << max);
-    CM_Message("");
-  }
-
-  support = epoxy_has_gl_extension("GL_ARB_texture_cube_map");
-  CM_Message(" GL_ARB_texture_cube_map supported?     " << (support ? "yes." : "no."));
-  if (support) {
-    CM_Message(" ----------Details----------");
-    int size = 0;
-    glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, (GLint *)&size);
-    CM_Message("  Max cubemap size." << size);
-    CM_Message("");
-  }
-
-  support = epoxy_has_gl_extension("GL_ARB_multitexture");
-  CM_Message(" GL_ARB_multitexture supported?         " << (support ? "yes." : "no."));
-  if (support) {
-    CM_Message(" ----------Details----------");
-    int units = 0;
-    glGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint *)&units);
-    CM_Message("  Max texture units available.  " << units);
-    CM_Message("");
-  }
-
-  CM_Message(" GL_ARB_texture_env_combine supported?  "
-             << (epoxy_has_gl_extension("GL_ARB_texture_env_combine") ? "yes." : "no."));
-
-  CM_Message(" GL_ARB_draw_instanced supported?  "
-             << (epoxy_has_gl_extension("GL_ARB_draw_instanced") ? "yes." : "no."));
 }
