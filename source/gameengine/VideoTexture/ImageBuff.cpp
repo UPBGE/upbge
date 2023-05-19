@@ -126,8 +126,8 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
   tmpbuf = IMB_allocImBuf(width, height, 0, 0);
 
   // assign temporarily our buffer to the ImBuf buffer, we use the same format
-  tmpbuf->rect = (unsigned int *)img;
-  m_imbuf->rect = m_image;
+  tmpbuf->byte_buffer.data = (uint8_t *)img;
+  m_imbuf->byte_buffer.data = (uint8_t *)m_image;
   IMB_rectblend(m_imbuf,
                 m_imbuf,
                 tmpbuf,
@@ -146,8 +146,8 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
                 (IMB_BlendMode)mode,
                 false);
   // remove so that MB_freeImBuf will free our buffer
-  m_imbuf->rect = nullptr;
-  tmpbuf->rect = nullptr;
+  m_imbuf->byte_buffer.data = nullptr;
+  tmpbuf->byte_buffer.data = nullptr;
   IMB_freeImBuf(tmpbuf);
 }
 
@@ -165,8 +165,8 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
     img->m_imbuf = IMB_allocImBuf(img->m_size[0], img->m_size[1], 0, 0);
   }
   // assign temporarily our buffer to the ImBuf buffer, we use the same format
-  img->m_imbuf->rect = img->m_image;
-  m_imbuf->rect = m_image;
+  img->m_imbuf->byte_buffer.data = (uint8_t *)img->m_image;
+  m_imbuf->byte_buffer.data = (uint8_t *)m_image;
   IMB_rectblend(m_imbuf,
                 m_imbuf,
                 img->m_imbuf,
@@ -185,8 +185,8 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
                 (IMB_BlendMode)mode,
                 false);
   // remove so that MB_freeImBuf will free our buffer
-  m_imbuf->rect = nullptr;
-  img->m_imbuf->rect = nullptr;
+  m_imbuf->byte_buffer.data = nullptr;
+  img->m_imbuf->byte_buffer.data = nullptr;
 }
 
 // cast Image pointer to ImageBuff

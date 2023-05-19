@@ -149,9 +149,9 @@ void loadTexture(unsigned int texId,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    ibuf = IMB_allocFromBuffer(texture, nullptr, size[0], size[1], 4);
+    ibuf = IMB_allocFromBuffer((uint8_t *)texture, nullptr, size[0], size[1], 4);
 
-    IMB_makemipmap(ibuf, true);
+    IMB_makemipmap(ibuf, false); // There was a crash here using filter = true, trying to adapt 406cfd214aaad9c90b62ce48eda6d72d2eacb6fe
 
     for (i = 0; i < ibuf->miptot; i++) {
       ImBuf *mip = IMB_getmipmap(ibuf, i);
@@ -164,7 +164,7 @@ void loadTexture(unsigned int texId,
                    0,
                    GL_RGBA,
                    GL_UNSIGNED_BYTE,
-                   mip->rect);
+                   mip->byte_buffer.data);
     }
     IMB_freeImBuf(ibuf);
   }
@@ -425,10 +425,10 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           // scale texture if needed
           if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
             IMB_freeImBuf(m_scaledImBuf);
-            m_scaledImBuf = IMB_allocFromBuffer(texture, nullptr, orgSize[0], orgSize[1], 4);
+            m_scaledImBuf = IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
             IMB_scaleImBuf(m_scaledImBuf, size[0], size[1]);
             // use scaled image instead original
-            texture = m_scaledImBuf->rect;
+            texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
           }
           // load texture for rendering
           loadTexture(m_actTex, texture, size, m_mipmap, m_source->m_image->GetInternalFormat());

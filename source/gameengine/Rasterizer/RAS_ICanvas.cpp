@@ -139,11 +139,11 @@ void save_screenshot_thread_func(TaskPool *__restrict (pool),
 
   /* create and save imbuf */
   ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, 24, 0);
-  ibuf->rect = task->dumprect;
+  ibuf->byte_buffer.data = (uint8_t *)task->dumprect;
 
   BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
 
-  ibuf->rect = nullptr;
+  ibuf->byte_buffer.data = nullptr;
   IMB_freeImBuf(ibuf);
   // Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use
   // free() then.
