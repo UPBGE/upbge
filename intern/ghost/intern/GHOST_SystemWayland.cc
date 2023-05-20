@@ -1002,6 +1002,10 @@ static void gwl_display_destroy(GWL_Display *display)
     delete display->ghost_timer_manager;
     display->ghost_timer_manager = nullptr;
   }
+  /* Pending events may be left unhandled. */
+  for (GHOST_IEvent *event : display->events_pending) {
+    delete event;
+  }
 
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 
@@ -2304,7 +2308,7 @@ static void data_device_handle_enter(void *data,
                                      const wl_fixed_t y,
                                      struct wl_data_offer *id)
 {
-  if (!ghost_wl_surface_own(wl_surface)) {
+  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_INFO(LOG, 2, "enter (skipped)");
     return;
   }
@@ -2639,7 +2643,8 @@ static void pointer_handle_enter(void *data,
                                  const wl_fixed_t surface_x,
                                  const wl_fixed_t surface_y)
 {
-  if (!ghost_wl_surface_own(wl_surface)) {
+  /* Null when just destroyed. */
+  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_INFO(LOG, 2, "enter (skipped)");
     return;
   }
@@ -2678,12 +2683,11 @@ static void pointer_handle_leave(void *data,
 {
   /* First clear the `pointer.wl_surface`, since the window won't exist when closing the window. */
   static_cast<GWL_Seat *>(data)->pointer.wl_surface_window = nullptr;
-  if (wl_surface && ghost_wl_surface_own(wl_surface)) {
-    CLOG_INFO(LOG, 2, "leave");
-  }
-  else {
+  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_INFO(LOG, 2, "leave (skipped)");
+    return;
   }
+  CLOG_INFO(LOG, 2, "leave");
 }
 
 static void pointer_handle_motion(void *data,
@@ -3320,7 +3324,7 @@ static void tablet_tool_handle_proximity_in(void *data,
                                             struct zwp_tablet_v2 * /*tablet*/,
                                             struct wl_surface *wl_surface)
 {
-  if (!ghost_wl_surface_own(wl_surface)) {
+  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_INFO(LOG, 2, "proximity_in (skipped)");
     return;
   }
@@ -3739,7 +3743,8 @@ static void keyboard_handle_enter(void *data,
                                   struct wl_surface *wl_surface,
                                   struct wl_array *keys)
 {
-  if (!ghost_wl_surface_own(wl_surface)) {
+  /* Null when just destroyed. */
+  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_INFO(LOG, 2, "enter (skipped)");
     return;
   }
@@ -3781,7 +3786,7 @@ static void keyboard_handle_leave(void *data,
                                   const uint32_t /*serial*/,
                                   struct wl_surface *wl_surface)
 {
-  if (!(wl_surface && ghost_wl_surface_own(wl_surface))) {
+  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_INFO(LOG, 2, "leave (skipped)");
     return;
   }
@@ -5465,6 +5470,13 @@ static void *gwl_display_event_thread_fn(void *display_voidp)
       break;
     }
   }
+
+  /* Wait until the main thread cancels this thread, otherwise this thread may exit
+   * before cancel is called, causing a crash on exit. */
+  while (true) {
+    pause();
+  }
+
   return nullptr;
 }
 
@@ -6856,6 +6868,11 @@ bool ghost_wl_output_own(const struct wl_output *wl_output)
 bool ghost_wl_surface_own(const struct wl_surface *wl_surface)
 {
   return wl_proxy_get_tag((struct wl_proxy *)wl_surface) == &ghost_wl_surface_tag_id;
+}
+
+bool ghost_wl_surface_own_with_null_check(const struct wl_surface *wl_surface)
+{
+  return wl_surface && ghost_wl_surface_own(wl_surface);
 }
 
 bool ghost_wl_surface_own_cursor_pointer(const struct wl_surface *wl_surface)
