@@ -1404,7 +1404,7 @@ bool BKE_collection_object_add_notest(Main *bmain, Collection *collection, Objec
     BKE_main_collection_sync(bmain);
   }
 
-  DEG_id_tag_update(&collection->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&collection->id, ID_RECALC_GEOMETRY | ID_RECALC_HIERARCHY);
 
   return true;
 }
@@ -1472,7 +1472,7 @@ bool BKE_collection_object_remove(Main *bmain,
     BKE_main_collection_sync(bmain);
   }
 
-  DEG_id_tag_update(&collection->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&collection->id, ID_RECALC_GEOMETRY | ID_RECALC_HIERARCHY);
 
   return true;
 }
