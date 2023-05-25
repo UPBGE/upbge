@@ -38,6 +38,7 @@
 #include "BLI_string.h"
 #include "DNA_scene_types.h"
 #include "GHOST_IWindow.hh"
+#include "GPU_context.h"
 #include "MEM_guardedalloc.h"
 #include "WM_api.h"
 #include "wm_window.h"
@@ -67,6 +68,11 @@ void KX_BlenderCanvas::Init()
 
 void KX_BlenderCanvas::SwapBuffers()
 {
+  /* See wm_draw_update for "chronology" */
+  if (!m_useViewportRender) {
+    GPU_context_end_frame((GPUContext *)m_win->gpuctx);
+  }
+
   wm_window_swap_buffers(m_win);
 }
 
@@ -111,6 +117,11 @@ void KX_BlenderCanvas::BeginDraw()
   // in case of multi-window we need to ensure we are drawing to the correct
   // window always, because it may change in window event handling
   wm_window_make_drawable(m_wm, m_win);
+
+  if (!m_useViewportRender) {
+    /* See wm_draw_update for "chronology" */
+    GPU_context_begin_frame((GPUContext *)m_win->gpuctx);
+  }
 }
 
 void KX_BlenderCanvas::EndDraw()

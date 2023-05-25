@@ -44,6 +44,8 @@ class RAS_Rasterizer;
 
 class GPG_Canvas : public RAS_ICanvas {
  protected:
+  /// Our customized bge bContext
+  struct bContext *m_context;
   /// GHOST window.
   GHOST_IWindow *m_window;
   /// Width of the context.
@@ -63,7 +65,7 @@ class GPG_Canvas : public RAS_ICanvas {
   int m_nativePixelSize;
 
  public:
-  GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender);
+  GPG_Canvas(struct bContext *C, RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender);
   virtual ~GPG_Canvas();
 
   /**

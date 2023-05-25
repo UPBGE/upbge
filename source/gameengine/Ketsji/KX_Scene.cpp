@@ -51,6 +51,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "GPU_context.h"
 #include "GPU_viewport.h"
 #include "WM_api.h"
 #include "wm_draw.h"
@@ -281,13 +282,16 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
-    /* We call Render here in KX_Scene constructor because
-     * 1: It creates a depsgraph and ensure it will be activated.
-     * 2: We need to create an eevee's cache to initialize
-     * KX_BlenderMaterials and BL_Textures.
-     */
-    const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
-    RenderAfterCameraSetup(nullptr, viewport, false, true);
+    bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
+    if (!is_vulkan_backend) {
+      /* We call Render here in KX_Scene constructor because
+       * 1: It creates a depsgraph and ensure it will be activated.
+       * 2: We need to create an eevee's cache to initialize
+       * KX_BlenderMaterials and BL_Textures.
+       */
+      const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
+      RenderAfterCameraSetup(nullptr, viewport, false, true);
+    }
   }
   else {
     scene->flag |= SCE_INTERACTIVE_VIEWPORT;
@@ -902,10 +906,15 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   GPU_apply_state();
 
-  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           CTX_wm_view3d(C),
-                           CTX_data_scene(C),
-                           GetOverlayCamera() && !is_overlay_pass ? false : true);
+  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
+    DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
+                             CTX_wm_view3d(C),
+                             CTX_data_scene(C),
+                             GetOverlayCamera() && !is_overlay_pass ? false : true);
+  }
+  else {
+    //rasty->DrawFrameBuffer(canvas, f);
+  }
 
   GPU_framebuffer_restore();
 

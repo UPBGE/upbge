@@ -826,6 +826,8 @@ int main(int argc,
   sdlewInit();
 #endif
 
+  //GPU_backend_type_selection_set(GPU_BACKEND_VULKAN);
+
   BlendFileData *bfd = nullptr;
 
   /* creator.c */

@@ -31,18 +31,21 @@
 
 #include "GPG_Canvas.h"
 
+#include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 #include "GHOST_ISystem.hh"
+#include "GPU_context.h"
 #include "GPU_framebuffer.h"
 #include "MEM_guardedalloc.h"
 
 #include "KX_Globals.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender)
+GPG_Canvas::GPG_Canvas(bContext *C, RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender)
     : RAS_ICanvas(rasty), m_window(window), m_width(0), m_height(0), m_nativePixelSize(1)
 {
   if (m_window) {
@@ -52,6 +55,7 @@ GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useVie
     this->Resize(bnds.getWidth(), bnds.getHeight());
   }
 
+  m_context = C;
   m_useViewportRender = useViewportRender;
 }
 
@@ -69,6 +73,11 @@ void GPG_Canvas::EndFrame()
 
 void GPG_Canvas::BeginDraw()
 {
+  if (!m_useViewportRender) {
+    wmWindow *win = CTX_wm_window(m_context);
+    /* See wm_draw_update for "chronology" */
+    GPU_context_begin_frame((GPUContext *)win->gpuctx);
+  }
 }
 
 void GPG_Canvas::EndDraw()
@@ -148,6 +157,11 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 void GPG_Canvas::SwapBuffers()
 {
   if (m_window) {
+    if (!m_useViewportRender) { // Not needed but for readability
+      wmWindow *win = CTX_wm_window(m_context);
+      /* See wm_draw_update for "chronology" */
+      GPU_context_end_frame((GPUContext *)win->gpuctx);
+    }
     m_window->swapBuffers();
   }
 }

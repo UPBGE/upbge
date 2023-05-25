@@ -24,6 +24,7 @@
 
 #include "KX_BlenderMaterial.h"
 
+#include "GPU_context.h"
 #include "GPU_material.h"
 #include "draw_manager.h"
 #include "eevee_private.h"
@@ -63,7 +64,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
    * (m_textures list won't be available for these object)
    */
   bool using_eevee_next = is_eevee_next(scene->GetBlenderScene());
-  if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime && !using_eevee_next) {
+  bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
+  if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime && !using_eevee_next && !is_vulkan_backend) {
     if (!KX_GetActiveEngine()->UseViewportRender()) {
       EEVEE_Data *vedata = EEVEE_engine_data_get();
       EEVEE_EffectsInfo *effects = vedata->stl->effects;

@@ -3658,6 +3658,7 @@ void drw_debug_draw_bge(void)
 /*--End of UPBGE Viewport Debug Drawing--*/
 
 #include "engines/eevee/eevee_private.h"
+#include "engines/workbench/workbench_private.h"
 
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
@@ -3714,20 +3715,27 @@ void DRW_game_render_loop(bContext *C,
   drw_manager_init(&DST, viewport, NULL);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
+  bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
 
-  if (!is_eevee_next(scene)) {
-    use_drw_engine(&draw_engine_eevee_type);
+  if (!is_vulkan_backend) {
+
+    if (!is_eevee_next(scene)) {
+      use_drw_engine(&draw_engine_eevee_type);
+    }
+    else {
+      use_drw_engine(&draw_engine_eevee_next_type);
+    }
+
+    if (gpencil_engine_needed) {
+      use_drw_engine(&draw_engine_gpencil_type);
+    }
+    /* Add realtime compositor for test in custom bge loop (not tested) */
+    if (is_compositor_enabled()) {
+      use_drw_engine(&draw_engine_compositor_type);
+    }
   }
   else {
-    use_drw_engine(&draw_engine_eevee_next_type);
-  }
-
-  if (gpencil_engine_needed) {
-    use_drw_engine(&draw_engine_gpencil_type);
-  }
-  /* Add realtime compositor for test in custom bge loop (not tested) */
-  if (is_compositor_enabled()) {
-    use_drw_engine(&draw_engine_compositor_type);
+    use_drw_engine(&draw_engine_workbench);
   }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
