@@ -45,6 +45,7 @@ set(SRC
   object_facemap_ops.c
   object_gpencil_modifier.c
   object_hook.c
+  object_light_linking_ops.cc
   object_lod.c
   object_modes.cc
   object_modifier.cc

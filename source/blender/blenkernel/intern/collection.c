@@ -972,7 +972,7 @@ static bool collection_object_cyclic_check_internal(Object *object, Collection *
   if (object->instance_collection) {
     Collection *dup_collection = object->instance_collection;
     if ((dup_collection->id.tag & LIB_TAG_DOIT) == 0) {
-      /* Cycle already exists in collections, let's prevent further crappyness */
+      /* Cycle already exists in collections, let's prevent further creepiness. */
       return true;
     }
     /* flag the object to identify cyclic dependencies in further dupli collections */
@@ -1309,8 +1309,8 @@ static Collection *collection_parent_editable_find_recursive(const ViewLayer *vi
 static bool collection_object_add(
     Main *bmain, Collection *collection, Object *ob, int flag, const bool add_us)
 {
+  /* Cyclic dependency check. */
   if (ob->instance_collection) {
-    /* Cyclic dependency check. */
     if ((ob->instance_collection == collection) ||
         collection_find_child_recursive(ob->instance_collection, collection))
     {

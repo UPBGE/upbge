@@ -1044,6 +1044,14 @@ static void id_override_library_create_hierarchy_pre_process_fn(bContext *C,
     return;
   }
 
+  if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id_root_reference)) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Could not create library override from data-block '%s', as it is not overridable",
+                id_root_reference->name);
+    return;
+  }
+
   BLI_assert(do_hierarchy);
   UNUSED_VARS_NDEBUG(do_hierarchy);
 
@@ -1605,7 +1613,7 @@ void outliner_do_object_operation_ex(bContext *C,
     bool select_handled = false;
     if (tselem->flag & TSE_SELECTED) {
       if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) {
-        /* When objects selected in other scenes... dunno if that should be allowed. */
+        /* When objects selected in other scenes, don't know if that should be allowed. */
         Scene *scene_owner = (Scene *)outliner_search_back(te, ID_SCE);
         if (scene_owner && scene_act != scene_owner) {
           WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene_owner);

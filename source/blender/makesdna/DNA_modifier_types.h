@@ -143,7 +143,7 @@ typedef enum {
   eModifierFlag_Active = (1 << 2),
   /**
    * Only set on modifiers in evaluated objects. The flag indicates that the user modified inputs
-   * to the modifer which might invalidate simulation caches.
+   * to the modifier which might invalidate simulation caches.
    */
   eModifierFlag_UserModified = (1 << 3),
 } ModifierFlag;
@@ -2324,6 +2324,11 @@ typedef struct NodesModifierData {
   ModifierData modifier;
   struct bNodeTree *node_group;
   struct NodesModifierSettings settings;
+  /**
+   * Directory where baked simulation states are stored. This may be relative to the .blend file.
+   */
+  char *simulation_bake_directory;
+  void *_pad;
 
   /**
    * Contains logged information from the last evaluation.

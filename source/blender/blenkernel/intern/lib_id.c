@@ -1346,14 +1346,18 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int ori
   ID *new_id = *r_newid;
   int flag = orig_flag;
 
-  const bool is_private_id_data = (id->flag & LIB_EMBEDDED_DATA) != 0;
+  const bool is_embedded_id = (id->flag & LIB_EMBEDDED_DATA) != 0;
 
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != NULL);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_NO_ALLOCATE) == 0);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
-  /* 'Private ID' data handling. */
-  if ((bmain != NULL) && is_private_id_data) {
+  /* Embedded ID handling.
+   *
+   * NOTE: This makes copying code of embedded IDs non-reentrant (i.e. copying an embedded ID as
+   * part of another embedded ID would not work properly). This is not an issue currently, but may
+   * need to be addressed in the future. */
+  if ((bmain != NULL) && is_embedded_id) {
     flag |= LIB_ID_CREATE_NO_MAIN;
   }
 
@@ -1390,6 +1394,11 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int ori
   }
 
   new_id->flag = (new_id->flag & ~copy_idflag_mask) | (id->flag & copy_idflag_mask);
+
+  /* 'Private ID' data handling. */
+  if (is_embedded_id && (orig_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
+    new_id->tag &= ~LIB_TAG_NO_MAIN;
+  }
 
   /* We do not want any handling of user-count in code duplicating the data here, we do that all
    * at once in id_copy_libmanagement_cb() at the end. */
@@ -1948,7 +1957,7 @@ void BKE_library_make_local(Main *bmain,
   /* This is probably more of a hack than something we should do here, but...
    * Issue is, the whole copying + remapping done in complex cases above may leave pose-channels
    * of armatures in complete invalid state (more precisely, the bone pointers of the
-   * pose-channels - very crappy cross-data-blocks relationship), se we tag it to be fully
+   * pose-channels - very crappy cross-data-blocks relationship), so we tag it to be fully
    * recomputed, but this does not seems to be enough in some cases, and evaluation code ends up
    * trying to evaluate a not-yet-updated armature object's deformations.
    * Try "make all local" in 04_01_H.lighting.blend from Agent327 without this, e.g. */
