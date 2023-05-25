@@ -906,7 +906,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   GPU_apply_state();
 
-  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
+  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) { // no idea if below code can work with metal
     DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
                              CTX_wm_view3d(C),
                              CTX_data_scene(C),
