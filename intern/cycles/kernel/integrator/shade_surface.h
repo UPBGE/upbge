@@ -10,14 +10,14 @@
 #include "kernel/film/denoising_passes.h"
 #include "kernel/film/light_passes.h"
 
+#include "kernel/light/sample.h"
+
 #include "kernel/integrator/mnee.h"
 
 #include "kernel/integrator/guiding.h"
 #include "kernel/integrator/shadow_linking.h"
 #include "kernel/integrator/subsurface.h"
 #include "kernel/integrator/volume_stack.h"
-
-#include "kernel/light/sample.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -113,13 +113,15 @@ ccl_device_forceinline void integrate_surface_emission(KernelGlobals kg,
                                                        ccl_global float *ccl_restrict
                                                            render_buffer)
 {
+  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
+
 #ifdef __LIGHT_LINKING__
-  if (!light_link_object_match(kg, light_link_receiver_forward(kg, state), sd->object)) {
+  if (!light_link_object_match(kg, light_link_receiver_forward(kg, state), sd->object) &&
+      !(path_flag & PATH_RAY_CAMERA))
+  {
     return;
   }
 #endif
-
-  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
 #ifdef __SHADOW_LINKING__
   /* Indirect emission of shadow-linked emissive surfaces is done via shadow rays to dedicated
@@ -284,8 +286,8 @@ ccl_device_forceinline void integrate_surface_direct_light(KernelGlobals kg,
 
   const bool is_transmission = dot(ls.D, sd->N) < 0.0f;
 
-#ifdef __MNEE__
   int mnee_vertex_count = 0;
+#ifdef __MNEE__
   IF_KERNEL_FEATURE(MNEE)
   {
     if (ls.lamp != LAMP_NONE) {

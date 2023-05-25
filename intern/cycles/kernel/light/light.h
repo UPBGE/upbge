@@ -311,7 +311,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
 
 #ifdef __LIGHT_LINKING__
     /* Light linking. */
-    if (!light_link_light_match(kg, receiver_forward, lamp)) {
+    if (!light_link_light_match(kg, receiver_forward, lamp) && !(path_flag & PATH_RAY_CAMERA)) {
       continue;
     }
 #endif
@@ -482,25 +482,6 @@ ccl_device bool light_sample_from_intersection(KernelGlobals kg,
   }
 
   return true;
-}
-
-/* Update light sample for changed new position, for MNEE. */
-
-ccl_device_forceinline void light_update_position(KernelGlobals kg,
-                                                  ccl_private LightSample *ls,
-                                                  const float3 P)
-{
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->lamp);
-
-  if (ls->type == LIGHT_POINT) {
-    point_light_update_position(klight, ls, P);
-  }
-  else if (ls->type == LIGHT_SPOT) {
-    spot_light_update_position(klight, ls, P);
-  }
-  else if (ls->type == LIGHT_AREA) {
-    area_light_update_position(klight, ls, P);
-  }
 }
 
 CCL_NAMESPACE_END

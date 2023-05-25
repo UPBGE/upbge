@@ -25,6 +25,15 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
+void BKE_light_linking_free_if_empty(Object *object)
+{
+  if (object->light_linking->receiver_collection == nullptr &&
+      object->light_linking->blocker_collection == nullptr)
+  {
+    MEM_SAFE_FREE(object->light_linking);
+  }
+}
+
 Collection *BKE_light_linking_collection_get(const Object *object,
                                              const LightLinkingType link_type)
 {
@@ -108,12 +117,7 @@ void BKE_light_linking_collection_assign_only(struct Object *object,
       id_us_plus(&new_collection->id);
     }
 
-    /* Free if empty. */
-    if (object->light_linking->receiver_collection == nullptr &&
-        object->light_linking->blocker_collection == nullptr)
-    {
-      MEM_SAFE_FREE(object->light_linking);
-    }
+    BKE_light_linking_free_if_empty(object);
   }
 }
 
@@ -182,8 +186,11 @@ void BKE_light_linking_add_receiver_to_collection(Main *bmain,
   CollectionLightLinking *collection_light_linking = nullptr;
 
   if (id_type == ID_OB) {
-    collection_light_linking = light_linking_collection_add_object(
-        bmain, collection, reinterpret_cast<Object *>(receiver));
+    Object *object = reinterpret_cast<Object *>(receiver);
+    if (!OB_TYPE_IS_GEOMETRY(object->type)) {
+      return;
+    }
+    collection_light_linking = light_linking_collection_add_object(bmain, collection, object);
   }
   else if (id_type == ID_GR) {
     collection_light_linking = light_linking_collection_add_collection(
@@ -240,6 +247,10 @@ void BKE_light_linking_link_receiver_to_emitter(Main *bmain,
                                                 const LightLinkingType link_type,
                                                 const eCollectionLightLinkingState link_state)
 {
+  if (!OB_TYPE_IS_GEOMETRY(receiver->type)) {
+    return;
+  }
+
   Collection *collection = BKE_light_linking_collection_get(emitter, link_type);
 
   if (!collection) {
