@@ -391,8 +391,7 @@ void VKTexture::layout_ensure(VKContext &context, const VkImageLayout requested_
 /** \} */
 
 /* UPBGE */
-void VKTexture::gl_bindcode_set(int bindcode)
-{
+void VKTexture::gl_bindcode_set(int /*bindcode*/) {
 }
 /*********/
 
