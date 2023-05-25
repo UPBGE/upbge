@@ -42,7 +42,7 @@
 
 #include "KX_Globals.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
+GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender)
     : RAS_ICanvas(rasty), m_window(window), m_width(0), m_height(0), m_nativePixelSize(1)
 {
   if (m_window) {
@@ -51,6 +51,8 @@ GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
     m_nativePixelSize = window->getNativePixelSize();
     this->Resize(bnds.getWidth(), bnds.getHeight());
   }
+
+  m_useViewportRender = useViewportRender;
 }
 
 GPG_Canvas::~GPG_Canvas()

@@ -79,7 +79,7 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 
 RAS_ICanvas *LA_BlenderLauncher::CreateCanvas()
 {
-  return (new KX_BlenderCanvas(m_rasterizer, m_windowManager, m_window, m_camFrame, m_ar));
+  return (new KX_BlenderCanvas(m_rasterizer, m_windowManager, m_window, m_camFrame, m_ar, m_useViewportRender));
 }
 
 bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()

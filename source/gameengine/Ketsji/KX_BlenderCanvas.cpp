@@ -46,13 +46,15 @@
 #include "KX_KetsjiEngine.h"
 
 KX_BlenderCanvas::KX_BlenderCanvas(
-    RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar)
+    RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar, bool useViewportRender)
     : RAS_ICanvas(rasty), m_wm(wm), m_win(win), m_ar(ar)
 {
   m_frame = 1;
 
   m_viewportArea = RAS_Rect(viewport->xmin, viewport->ymin, viewport->xmax, viewport->ymax);
   m_windowArea = RAS_Rect(ar->winrct.xmin, ar->winrct.ymin, ar->winrct.xmax, ar->winrct.ymax);
+
+  m_useViewportRender = useViewportRender;
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()

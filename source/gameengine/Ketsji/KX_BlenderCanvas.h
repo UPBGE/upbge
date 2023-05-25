@@ -52,6 +52,8 @@ class KX_BlenderCanvas : public RAS_ICanvas {
  private:
   int m_viewport[4];
 
+  bool m_useViewportRender;
+
   wmWindowManager *m_wm;
   wmWindow *m_win;
   RAS_Rect m_area_rect;
@@ -63,7 +65,7 @@ class KX_BlenderCanvas : public RAS_ICanvas {
    * \param area The Blender ARegion to run the game within.
    */
   KX_BlenderCanvas(
-      RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, ARegion *ar);
+      RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, ARegion *ar, bool useViewportRender);
   virtual ~KX_BlenderCanvas();
 
   virtual void Init();

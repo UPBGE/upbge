@@ -163,5 +163,5 @@ bool LA_PlayerLauncher::EngineNextFrame()
 
 RAS_ICanvas *LA_PlayerLauncher::CreateCanvas()
 {
-  return (new GPG_Canvas(m_rasterizer, m_mainWindow));
+  return (new GPG_Canvas(m_rasterizer, m_mainWindow, m_useViewportRender));
 }
