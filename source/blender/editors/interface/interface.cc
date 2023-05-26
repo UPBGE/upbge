@@ -4964,7 +4964,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     but->rnaindex = index;
   }
   else {
-    but->rnaindex = 0;
+    but->rnaindex = -1;
   }
 
   if (icon) {

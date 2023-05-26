@@ -1837,7 +1837,8 @@ def km_graph_editor(params):
         ("graph.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         ("graph.paste", {"type": 'V', "value": 'PRESS', "shift": True, "ctrl": True},
          {"properties": [("flipped", True)]}),
-        op_menu("GRAPH_MT_slider", {"type": 'D', "value": 'PRESS'}),
+        op_menu("GRAPH_MT_key_smoothing", {"type": 'S', "value": 'PRESS', "alt": True}),
+        op_menu("GRAPH_MT_key_blending", {"type": 'D', "value": 'PRESS', "alt": True}),
         ("graph.previewrange_set", {"type": 'P', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("graph.view_all", {"type": 'HOME', "value": 'PRESS'}, None),
         ("graph.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
@@ -4602,7 +4603,6 @@ def km_pose(params):
         ("pose.breakdown", {"type": 'E', "value": 'PRESS', "shift": True}, None),
         ("pose.blend_to_neighbor", {"type": 'E', "value": 'PRESS', "shift": True, "alt": True}, None),
         op_menu("VIEW3D_MT_pose_propagate", {"type": 'P', "value": 'PRESS', "alt": True}),
-        *_template_object_hide_collection_from_number_keys(),
         *_template_items_context_menu("VIEW3D_MT_pose_context_menu", params.context_menu_event),
     ])
 

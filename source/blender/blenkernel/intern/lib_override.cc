@@ -2495,7 +2495,7 @@ static void lib_override_resync_tagging_finalize_recurse(Main *bmain,
     }
     else if (!is_in_partial_resync_hierarchy) {
       /* This ID is not tagged for resync, and is part of a loop where none of the other IDs are
-       * tagged for resync, nothing else to to. */
+       * tagged for resync, nothing else to do. */
       return;
     }
     /* This ID is not yet tagged for resync, but is part of a loop which is (partially) tagged
@@ -4207,7 +4207,7 @@ void BKE_lib_override_library_main_operations_restore(Main *bmain, int *r_report
   ID *id;
 
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    if (!(!ID_IS_LINKED(id) && ID_IS_OVERRIDE_LIBRARY_REAL(id) &&
+    if (!(!ID_IS_LINKED(id) && ID_IS_OVERRIDE_LIBRARY_REAL(id) && id->override_library->runtime &&
           (id->override_library->runtime->tag & LIBOVERRIDE_TAG_NEEDS_RESTORE) != 0))
     {
       continue;
