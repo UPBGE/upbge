@@ -43,6 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "ED_screen.h"
+#include "GPU_context.h"
 #include "WM_api.h"
 #include "wm_window.h"
 
@@ -117,8 +118,10 @@ static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
   }
   bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
 
-  if (not_eevee) {
-    return OB_RENDER;
+  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+    if (not_eevee) {
+      return OB_RENDER;
+    }
   }
   return v3d->shading.type;
 }
