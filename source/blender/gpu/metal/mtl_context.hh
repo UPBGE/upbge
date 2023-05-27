@@ -86,7 +86,7 @@ struct BufferBindingCached {
    * or an MTLBuffer. */
   bool is_bytes;
   id<MTLBuffer> metal_buffer;
-  int offset;
+  uint64_t offset;
 };
 
 /* Caching of CommandEncoder textures bindings. */
@@ -144,10 +144,10 @@ class MTLRenderPassState {
                              uint slot);
 
   /* Buffer binding (RenderCommandEncoder). */
-  void bind_vertex_buffer(id<MTLBuffer> buffer, uint buffer_offset, uint index);
-  void bind_fragment_buffer(id<MTLBuffer> buffer, uint buffer_offset, uint index);
-  void bind_vertex_bytes(void *bytes, uint length, uint index);
-  void bind_fragment_bytes(void *bytes, uint length, uint index);
+  void bind_vertex_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
+  void bind_fragment_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
+  void bind_vertex_bytes(void *bytes, uint64_t length, uint index);
+  void bind_fragment_bytes(void *bytes, uint64_t length, uint index);
 };
 
 /* Metal Context Compute Pass State -- Used to track active ComputeCommandEncoder state. */
@@ -182,10 +182,10 @@ class MTLComputeState {
                             uint slot);
   /* Buffer binding (ComputeCommandEncoder). */
   void bind_compute_buffer(id<MTLBuffer> buffer,
-                           uint buffer_offset,
+                           uint64_t buffer_offset,
                            uint index,
                            bool writeable = false);
-  void bind_compute_bytes(void *bytes, uint length, uint index);
+  void bind_compute_bytes(void *bytes, uint64_t length, uint index);
 };
 
 /* Depth Stencil State */
@@ -536,10 +536,6 @@ class MTLCommandBufferManager {
   friend class MTLContext;
 
  public:
-  /* Event to coordinate sequential execution across all "main" command buffers. */
-  static id<MTLEvent> sync_event;
-  static uint64_t event_signal_val;
-
   /* Counter for active command buffers. */
   static int num_active_cmd_bufs;
 

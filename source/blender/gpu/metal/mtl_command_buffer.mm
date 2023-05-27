@@ -17,13 +17,6 @@ using namespace blender::gpu;
 
 namespace blender::gpu {
 
-/* Global sync event used across MTLContext's.
- * This resolves flickering artifacts from command buffer
- * dependencies not being honored for work submitted between
- * different GPUContext's. */
-id<MTLEvent> MTLCommandBufferManager::sync_event = nil;
-uint64_t MTLCommandBufferManager::event_signal_val = 0;
-
 /* Counter for active command buffers. */
 int MTLCommandBufferManager::num_active_cmd_bufs = 0;
 
@@ -76,11 +69,6 @@ id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
     [active_command_buffer_ retain];
     MTLCommandBufferManager::num_active_cmd_bufs++;
 
-    /* Ensure command buffers execute in submission order across multiple MTLContext's. */
-    if (this->sync_event != nil) {
-      [active_command_buffer_ encodeWaitForEvent:this->sync_event value:this->event_signal_val];
-    }
-
     /* Ensure we begin new Scratch Buffer if we are on a new frame. */
     MTLScratchBufferManager &mem = context_.memory_manager;
     mem.ensure_increment_scratch_buffer();
@@ -108,20 +96,6 @@ bool MTLCommandBufferManager::submit(bool wait)
   context_.memory_manager.flush_active_scratch_buffer();
 
   /*** Submit Command Buffer. ***/
-  /* Strict ordering ensures command buffers are guaranteed to execute after a previous
-   * one has completed. Resolves flickering when command buffers are submitted from
-   * different MTLContext's. */
-  if (MTLCommandBufferManager::sync_event == nil) {
-    MTLCommandBufferManager::sync_event = [context_.device newEvent];
-    BLI_assert(MTLCommandBufferManager::sync_event);
-    [MTLCommandBufferManager::sync_event retain];
-  }
-  BLI_assert(MTLCommandBufferManager::sync_event != nil);
-  MTLCommandBufferManager::event_signal_val++;
-
-  [active_command_buffer_ encodeSignalEvent:MTLCommandBufferManager::sync_event
-                                      value:MTLCommandBufferManager::event_signal_val];
-
   /* Command buffer lifetime tracking. */
   /* Increment current MTLSafeFreeList reference counter to flag MTLBuffers freed within
    * the current command buffer lifetime as used.
@@ -828,7 +802,9 @@ void MTLComputeState::bind_compute_sampler(MTLSamplerBinding &sampler_binding,
   }
 }
 
-void MTLRenderPassState::bind_vertex_buffer(id<MTLBuffer> buffer, uint buffer_offset, uint index)
+void MTLRenderPassState::bind_vertex_buffer(id<MTLBuffer> buffer,
+                                            uint64_t buffer_offset,
+                                            uint index)
 {
   BLI_assert(index >= 0 && index < MTL_MAX_BUFFER_BINDINGS);
   BLI_assert(buffer_offset >= 0);
@@ -858,7 +834,9 @@ void MTLRenderPassState::bind_vertex_buffer(id<MTLBuffer> buffer, uint buffer_of
   }
 }
 
-void MTLRenderPassState::bind_fragment_buffer(id<MTLBuffer> buffer, uint buffer_offset, uint index)
+void MTLRenderPassState::bind_fragment_buffer(id<MTLBuffer> buffer,
+                                              uint64_t buffer_offset,
+                                              uint index)
 {
   BLI_assert(index >= 0 && index < MTL_MAX_BUFFER_BINDINGS);
   BLI_assert(buffer_offset >= 0);
@@ -889,7 +867,7 @@ void MTLRenderPassState::bind_fragment_buffer(id<MTLBuffer> buffer, uint buffer_
 }
 
 void MTLComputeState::bind_compute_buffer(id<MTLBuffer> buffer,
-                                          uint buffer_offset,
+                                          uint64_t buffer_offset,
                                           uint index,
                                           bool writeable)
 {
@@ -924,7 +902,7 @@ void MTLComputeState::bind_compute_buffer(id<MTLBuffer> buffer,
   }
 }
 
-void MTLRenderPassState::bind_vertex_bytes(void *bytes, uint length, uint index)
+void MTLRenderPassState::bind_vertex_bytes(void *bytes, uint64_t length, uint index)
 {
   /* Bytes always updated as source data may have changed. */
   BLI_assert(index >= 0 && index < MTL_MAX_BUFFER_BINDINGS);
@@ -949,7 +927,7 @@ void MTLRenderPassState::bind_vertex_bytes(void *bytes, uint length, uint index)
   this->cached_vertex_buffer_bindings[index].offset = -1;
 }
 
-void MTLRenderPassState::bind_fragment_bytes(void *bytes, uint length, uint index)
+void MTLRenderPassState::bind_fragment_bytes(void *bytes, uint64_t length, uint index)
 {
   /* Bytes always updated as source data may have changed. */
   BLI_assert(index >= 0 && index < MTL_MAX_BUFFER_BINDINGS);
@@ -974,7 +952,7 @@ void MTLRenderPassState::bind_fragment_bytes(void *bytes, uint length, uint inde
   this->cached_fragment_buffer_bindings[index].offset = -1;
 }
 
-void MTLComputeState::bind_compute_bytes(void *bytes, uint length, uint index)
+void MTLComputeState::bind_compute_bytes(void *bytes, uint64_t length, uint index)
 {
   /* Bytes always updated as source data may have changed. */
   BLI_assert(index >= 0 && index < MTL_MAX_BUFFER_BINDINGS);
