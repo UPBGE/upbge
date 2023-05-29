@@ -258,6 +258,7 @@ struct uiBut {
   /* RNA data */
   PointerRNA rnapoin = {};
   PropertyRNA *rnaprop = nullptr;
+  /** The index (arrays only), otherwise set to -1. */
   int rnaindex = -1;
 
   /* Operator data */
@@ -345,7 +346,8 @@ struct uiButSearch : public uiBut {
   bool results_are_suggestions = false;
 };
 
-/** Derived struct for #UI_BTYPE_DECORATOR
+/**
+ * Derived struct for #UI_BTYPE_DECORATOR
  * Decorators have own RNA data, using the normal #uiBut RNA members has many side-effects.
  */
 struct uiButDecorator : public uiBut {

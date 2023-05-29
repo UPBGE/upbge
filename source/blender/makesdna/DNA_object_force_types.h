@@ -260,10 +260,9 @@ typedef struct SoftBody {
   /** Softbody mass of *vertex*. */
   float nodemass;
   /**
-   * Along with it introduce mass painting
-   * starting to fix old bug .. nastiness that VG are indexes
-   * rather find them by name tag to find it -> jow20090613.
-   * MAX_VGROUP_NAME */
+   * Along with it introduce mass painting starting to fix old bug .. nastiness that VG are indexes
+   * rather find them by name tag to find it -> jow20090613. #MAX_VGROUP_NAME size.
+   */
   char namedVG_Mass[64];
   /** Softbody amount of gravitation to apply. */
   float grav;
@@ -288,8 +287,8 @@ typedef struct SoftBody {
   short vertgroup;
   /**
    * Starting to fix old bug .. nastiness that VG are indexes
-   * rather find them by name tag to find it -> jow20090613.
-   * MAX_VGROUP_NAME */
+   * rather find them by name tag to find it -> jow20090613. #MAX_VGROUP_NAME size.
+   */
   char namedVG_Softgoal[64];
 
   short fuzzyness;

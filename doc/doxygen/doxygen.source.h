@@ -160,9 +160,9 @@
  *   merged in docs.
  */
 
-/**
- * \defgroup gui GUI
- * \ingroup blender */
+/** \defgroup gui GUI
+ *  \ingroup blender
+ */
 
 /** \defgroup wm Window Manager
  *  \ingroup gui */
