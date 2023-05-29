@@ -631,9 +631,9 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--python-use-system-env");
   BLI_args_print_arg_doc(ba, "--addons");
 
-  printf("\n");
+  /*printf("\n");
   printf("Game Engine Specific Options:\n");
-  BLI_args_print_arg_doc(ba, "-g");
+  BLI_args_print_arg_doc(ba, "-g");*/
 
   PRINT("\n");
   PRINT("Logging Options:\n");
@@ -805,7 +805,7 @@ static char *main_args_help_as_string(bool all)
   DynStr *ds = BLI_dynstr_new();
   {
     bArgs *ba = BLI_args_create(0, NULL);
-    main_args_setup(NULL, ba, all);
+    main_args_setup(NULL, ba, all, NULL);
     BLI_args_print_fn_set(ba, help_print_ds_fn, ds);
     print_help(ba, all);
     BLI_args_destroy(ba);
