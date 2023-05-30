@@ -24,6 +24,7 @@
 #include "DNA_customdata_types.h"
 #include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -74,6 +75,8 @@
 #include "BLO_read_write.h"
 
 static CLG_LogRef LOG = {"bke.material"};
+
+static void material_clear_data(ID *id);
 
 static void material_init_data(ID *id)
 {
@@ -132,6 +135,25 @@ static void material_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const 
   /* TODO: Duplicate Engine Settings and set runtime to nullptr. */
 }
 
+/**
+ * Ensure pointers to allocated memory is cleared
+ * (the kind of data that would have to be copied).
+ *
+ * \note Keep in sync with #material_free_data.
+ */
+static void material_clear_data(ID *id)
+{
+  Material *material = (Material *)id;
+
+  BLI_listbase_clear(&material->gpumaterial);
+  material->texpaintslot = nullptr;
+  material->gp_style = nullptr;
+  material->nodetree = nullptr;
+  material->preview = nullptr;
+
+  id->icon_id = 0;
+}
+
 static void material_free_data(ID *id)
 {
   Material *material = (Material *)id;
@@ -150,8 +172,9 @@ static void material_free_data(ID *id)
 
   MEM_SAFE_FREE(material->gp_style);
 
-  BKE_icon_id_delete((ID *)material);
   BKE_previewimg_free(&material->preview);
+
+  BKE_icon_id_delete((ID *)material);
 }
 
 static void material_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -353,6 +376,10 @@ Material ***BKE_object_material_array_p(Object *ob)
     Volume *volume = static_cast<Volume *>(ob->data);
     return &(volume->mat);
   }
+  if (ob->type == OB_GREASE_PENCIL) {
+    GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+    return &(grease_pencil->material_array);
+  }
   return nullptr;
 }
 
@@ -386,6 +413,10 @@ short *BKE_object_material_len_p(Object *ob)
     Volume *volume = static_cast<Volume *>(ob->data);
     return &(volume->totcol);
   }
+  if (ob->type == OB_GREASE_PENCIL) {
+    GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+    return &(grease_pencil->material_array_size);
+  }
   return nullptr;
 }
 
@@ -409,6 +440,8 @@ Material ***BKE_id_material_array_p(ID *id)
       return &(((PointCloud *)id)->mat);
     case ID_VO:
       return &(((Volume *)id)->mat);
+    case ID_GP:
+      return &(((GreasePencil *)id)->material_array);
     default:
       break;
   }
@@ -435,6 +468,8 @@ short *BKE_id_material_len_p(ID *id)
       return &(((PointCloud *)id)->totcol);
     case ID_VO:
       return &(((Volume *)id)->totcol);
+    case ID_GP:
+      return &(((GreasePencil *)id)->material_array_size);
     default:
       break;
   }
@@ -1907,19 +1942,20 @@ static short matcopied = 0;
 
 void BKE_material_copybuf_clear(void)
 {
+  if (matcopied) {
+    BKE_material_copybuf_free();
+  }
   matcopybuf = blender::dna::shallow_zero_initialize();
   matcopied = 0;
 }
 
 void BKE_material_copybuf_free(void)
 {
+  BLI_assert(matcopybuf.id.icon_id == 0);
   if (matcopybuf.nodetree) {
-    ntreeFreeLocalTree(matcopybuf.nodetree);
     BLI_assert(!matcopybuf.nodetree->id.py_instance); /* Or call #BKE_libblock_free_data_py. */
-    MEM_freeN(matcopybuf.nodetree);
-    matcopybuf.nodetree = nullptr;
   }
-
+  material_free_data(&matcopybuf.id);
   matcopied = 0;
 }
 
@@ -1931,12 +1967,17 @@ void BKE_material_copybuf_copy(Main *bmain, Material *ma)
 
   matcopybuf = blender::dna::shallow_copy(*ma);
 
+  /* Not essential, but we never want to use any ID values from the source,
+   * this ensures that never happens. */
+  memset(&matcopybuf.id, 0, sizeof(ID));
+
+  /* Ensure dangling pointers are never copied back into a material. */
+  material_clear_data(&matcopybuf.id);
+
   if (ma->nodetree != nullptr) {
     matcopybuf.nodetree = blender::bke::ntreeCopyTree_ex(ma->nodetree, bmain, false);
   }
 
-  matcopybuf.preview = nullptr;
-  BLI_listbase_clear(&matcopybuf.gpumaterial);
   /* TODO: Duplicate Engine Settings and set runtime to nullptr. */
   matcopied = 1;
 }
@@ -1949,13 +1990,10 @@ void BKE_material_copybuf_paste(Main *bmain, Material *ma)
     return;
   }
 
-  /* Free gpu material before the ntree */
-  GPU_material_free(&ma->gpumaterial);
+  const bool has_node_tree = (ma->nodetree || matcopybuf.nodetree);
 
-  if (ma->nodetree) {
-    ntreeFreeEmbeddedTree(ma->nodetree);
-    MEM_freeN(ma->nodetree);
-  }
+  /* Handles freeing nodes and and other run-time data (previews) for e.g. */
+  material_free_data(&ma->id);
 
   id = (ma->id);
   *ma = blender::dna::shallow_copy(matcopybuf);
@@ -1963,6 +2001,13 @@ void BKE_material_copybuf_paste(Main *bmain, Material *ma)
 
   if (matcopybuf.nodetree != nullptr) {
     ma->nodetree = blender::bke::ntreeCopyTree_ex(matcopybuf.nodetree, bmain, false);
+  }
+
+  if (has_node_tree) {
+    /* Important to run this when the embedded tree if freed,
+     * otherwise the depsgraph holds a reference to the (now freed) `ma->nodetree`.
+     * Also run this when a new node-tree is set to ensure it's accounted for. */
+    DEG_relations_tag_update(bmain);
   }
 }
 

@@ -29,6 +29,7 @@
 #include "DNA_fluid_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
@@ -95,6 +96,7 @@
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
@@ -2142,7 +2144,8 @@ bool BKE_object_supports_modifiers(const Object *ob)
               OB_FONT,
               OB_LATTICE,
               OB_POINTCLOUD,
-              OB_VOLUME);
+              OB_VOLUME,
+              OB_GREASE_PENCIL);
 }
 
 bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
@@ -2645,6 +2648,8 @@ bool BKE_object_is_in_editmode(const Object *ob)
     case OB_CURVES:
       /* Curves object has no edit mode data. */
       return ob->mode == OB_MODE_EDIT;
+    case OB_GREASE_PENCIL:
+      return ob->mode == OB_MODE_EDIT;
     default:
       return false;
   }
@@ -2672,6 +2677,7 @@ bool BKE_object_data_is_in_editmode(const Object *ob, const ID *id)
     case ID_AR:
       return ((const bArmature *)id)->edbo != nullptr;
     case ID_CV:
+    case ID_GP:
       if (ob) {
         return BKE_object_is_in_editmode(ob);
       }
@@ -2725,6 +2731,10 @@ char *BKE_object_data_editmode_flush_ptr_get(struct ID *id)
     }
     case ID_CV: {
       /* Curves have no edit mode data. */
+      return nullptr;
+    }
+    case ID_GP: {
+      /* Grease Pencil has no edit mode data. */
       return nullptr;
     }
     default:
@@ -2870,6 +2880,8 @@ static const char *get_obdata_defname(int type)
       return DATA_("GPencil");
     case OB_LIGHTPROBE:
       return DATA_("LightProbe");
+    case OB_GREASE_PENCIL:
+      return DATA_("GreasePencil");
     default:
       CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
       return CTX_DATA_(BLT_I18NCONTEXT_ID_ID, "Empty");
@@ -2939,6 +2951,8 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
       return BKE_pointcloud_add_default(bmain, name);
     case OB_VOLUME:
       return BKE_volume_add(bmain, name);
+    case OB_GREASE_PENCIL:
+      return BKE_grease_pencil_add(bmain, name);
     case OB_EMPTY:
       return nullptr;
     default:
@@ -2977,6 +2991,8 @@ int BKE_object_obdata_to_type(const ID *id)
       return OB_POINTCLOUD;
     case ID_VO:
       return OB_VOLUME;
+    case ID_GP:
+      return OB_GREASE_PENCIL;
     default:
       return -1;
   }
@@ -4640,6 +4656,8 @@ const BoundBox *BKE_object_boundbox_get(Object *ob)
     case OB_VOLUME:
       bb = BKE_volume_boundbox_get(ob);
       break;
+    case OB_GREASE_PENCIL:
+      bb = BKE_grease_pencil_boundbox_get(ob);
     default:
       break;
   }
@@ -4824,7 +4842,6 @@ void BKE_object_minmax(Object *ob, float r_min[3], float r_max[3], const bool us
       changed = true;
       break;
     }
-
     case OB_POINTCLOUD: {
       const BoundBox bb = *BKE_pointcloud_boundbox_get(ob);
       BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
@@ -4833,6 +4850,12 @@ void BKE_object_minmax(Object *ob, float r_min[3], float r_max[3], const bool us
     }
     case OB_VOLUME: {
       const BoundBox bb = *BKE_volume_boundbox_get(ob);
+      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
+      changed = true;
+      break;
+    }
+    case OB_GREASE_PENCIL: {
+      const BoundBox bb = *BKE_grease_pencil_boundbox_get(ob);
       BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
       changed = true;
       break;
@@ -6012,7 +6035,8 @@ bool BKE_object_supports_material_slots(struct Object *ob)
               OB_CURVES,
               OB_POINTCLOUD,
               OB_VOLUME,
-              OB_GPENCIL_LEGACY);
+              OB_GPENCIL_LEGACY,
+              OB_GREASE_PENCIL);
 }
 
 /** \} */

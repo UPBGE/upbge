@@ -31,6 +31,7 @@ set(INC
   # For *_info.hh includes.
   ../compositor/realtime_compositor
   ../draw/engines/eevee_next
+  ../draw/engines/gpencil
   ../draw/engines/select
   ../draw/engines/workbench
   ../draw/intern
@@ -572,6 +573,7 @@ set(GLSL_SRC
 
 set(GLSL_SRC_TEST
   tests/shaders/gpu_math_test.glsl
+  tests/shaders/gpu_buffer_texture_test.glsl
   tests/shaders/gpu_compute_1d_test.glsl
   tests/shaders/gpu_compute_2d_test.glsl
   tests/shaders/gpu_compute_ibo_test.glsl
@@ -858,6 +860,7 @@ if(WITH_GTESTS)
     set(TEST_SRC
       tests/gpu_testing.cc
 
+      tests/buffer_texture_test.cc
       tests/framebuffer_test.cc
       tests/immediate_test.cc
       tests/index_buffer_test.cc

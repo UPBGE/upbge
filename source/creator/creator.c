@@ -589,7 +589,7 @@ int main(int argc,
 #ifndef WITH_PYTHON_MODULE
   if (G.background) {
     /* Using window-manager API in background-mode is a bit odd, but works fine. */
-    WM_exit(C);
+    WM_exit(C, G.is_break ? EXIT_FAILURE : EXIT_SUCCESS);
   }
   else {
     if (G.fileflags & G_FILE_AUTOPLAY) {
@@ -622,7 +622,7 @@ int main(int argc,
 #ifdef WITH_PYTHON_MODULE
 void main_python_exit(void)
 {
-  WM_exit_ex((bContext *)evil_C, true);
+  WM_exit_ex((bContext *)evil_C, true, false);
   evil_C = NULL;
 }
 #endif
