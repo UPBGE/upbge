@@ -155,6 +155,14 @@ if(WITH_GAMEENGINE_BPPLAYER)
   add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
+if(WITH_VULKAN_METAL)
+  add_definitions(-DWITH_VULKAN_METAL)
+endif()
+
+if(WITH_VULKAN_BACKEND)
+  add_definitions(-DWITH_VULKAN_BACKEND)
+endif()
+
 blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.h
