@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -19,6 +21,7 @@
 #include "../outliner_intern.hh"
 #include "common.hh"
 #include "tree_element_id_library.hh"
+#include "tree_element_id_mesh.hh"
 #include "tree_element_id_scene.hh"
 
 #include "tree_element_id.hh"
@@ -37,8 +40,9 @@ std::unique_ptr<TreeElementID> TreeElementID::createFromID(TreeElement &legacy_t
       return std::make_unique<TreeElementIDLibrary>(legacy_te, (Library &)id);
     case ID_SCE:
       return std::make_unique<TreeElementIDScene>(legacy_te, (Scene &)id);
-    case ID_OB:
     case ID_ME:
+      return std::make_unique<TreeElementIDMesh>(legacy_te, (Mesh &)id);
+    case ID_OB:
     case ID_CU_LEGACY:
     case ID_MB:
     case ID_MA:

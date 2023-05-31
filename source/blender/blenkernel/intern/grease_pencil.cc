@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2023 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -13,6 +14,7 @@
 #include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
+#include "BKE_material.h"
 #include "BKE_object.h"
 
 #include "BLI_map.hh"
@@ -407,22 +409,10 @@ bool Layer::insert_frame(int frame_number, const GreasePencilFrame &frame)
   return this->frames_for_write().add(frame_number, frame);
 }
 
-bool Layer::insert_frame(int frame_number, GreasePencilFrame &&frame)
-{
-  this->tag_frames_map_changed();
-  return this->frames_for_write().add(frame_number, frame);
-}
-
 bool Layer::overwrite_frame(int frame_number, const GreasePencilFrame &frame)
 {
   this->tag_frames_map_changed();
   return this->frames_for_write().add_overwrite(frame_number, frame);
-}
-
-bool Layer::overwrite_frame(int frame_number, GreasePencilFrame &&frame)
-{
-  this->tag_frames_map_changed();
-  return this->frames_for_write().add_overwrite(frame_number, std::move(frame));
 }
 
 Span<int> Layer::sorted_keys() const
@@ -494,13 +484,13 @@ LayerGroup::LayerGroup(const LayerGroup &other) : LayerGroup()
     switch (child->type) {
       case GP_LAYER_TREE_LEAF: {
         GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(child);
-        Layer *dup_layer = new Layer(layer->wrap());
+        Layer *dup_layer = MEM_new<Layer>(__func__, layer->wrap());
         this->add_layer(dup_layer);
         break;
       }
       case GP_LAYER_TREE_GROUP: {
         GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(child);
-        LayerGroup *dup_group = new LayerGroup(group->wrap());
+        LayerGroup *dup_group = MEM_new<LayerGroup>(__func__, group->wrap());
         this->add_group(dup_group);
         break;
       }
@@ -516,12 +506,12 @@ LayerGroup::~LayerGroup()
     switch (child->type) {
       case GP_LAYER_TREE_LEAF: {
         GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(child);
-        layer->wrap().~Layer();
+        MEM_delete(&layer->wrap());
         break;
       }
       case GP_LAYER_TREE_GROUP: {
         GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(child);
-        group->wrap().~LayerGroup();
+        MEM_delete(&group->wrap());
         break;
       }
     }
@@ -542,7 +532,7 @@ LayerGroup &LayerGroup::add_group(LayerGroup *group)
 
 LayerGroup &LayerGroup::add_group(StringRefNull name)
 {
-  LayerGroup *new_group = new LayerGroup(name);
+  LayerGroup *new_group = MEM_new<LayerGroup>(__func__, name);
   return this->add_group(new_group);
 }
 
@@ -557,7 +547,7 @@ Layer &LayerGroup::add_layer(Layer *layer)
 
 Layer &LayerGroup::add_layer(StringRefNull name)
 {
-  Layer *new_layer = new Layer(name);
+  Layer *new_layer = MEM_new<Layer>(__func__, name);
   return this->add_layer(new_layer);
 }
 
@@ -749,6 +739,56 @@ void BKE_grease_pencil_data_update(struct Depsgraph * /*depsgraph*/,
   GreasePencil *grease_pencil_eval = reinterpret_cast<GreasePencil *>(
       BKE_id_copy_ex(nullptr, &grease_pencil->id, nullptr, LIB_ID_COPY_LOCALIZE));
   BKE_object_eval_assign_data(object, &grease_pencil_eval->id, true);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Grease Pencil material functions
+ * \{ */
+
+int BKE_grease_pencil_object_material_index_get_by_name(Object *ob, const char *name)
+{
+  short *totcol = BKE_object_material_len_p(ob);
+  Material *read_ma = NULL;
+  for (short i = 0; i < *totcol; i++) {
+    read_ma = BKE_object_material_get(ob, i + 1);
+    if (STREQ(name, read_ma->id.name + 2)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+Material *BKE_grease_pencil_object_material_new(Main *bmain,
+                                                Object *ob,
+                                                const char *name,
+                                                int *r_index)
+{
+  Material *ma = BKE_gpencil_material_add(bmain, name);
+  id_us_min(&ma->id); /* no users yet */
+
+  BKE_object_material_slot_add(bmain, ob);
+  BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
+
+  if (r_index) {
+    *r_index = ob->actcol - 1;
+  }
+  return ma;
+}
+
+Material *BKE_grease_pencil_object_material_ensure_by_name(Main *bmain,
+                                                           Object *ob,
+                                                           const char *name,
+                                                           int *r_index)
+{
+  int index = BKE_grease_pencil_object_material_index_get_by_name(ob, name);
+  if (index != -1) {
+    *r_index = index;
+    return BKE_object_material_get(ob, index + 1);
+  }
+  return BKE_grease_pencil_object_material_new(bmain, ob, name, r_index);
 }
 
 /** \} */

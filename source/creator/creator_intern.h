@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -67,7 +69,12 @@ enum {
   /** Currently use for audio devices. */
   ARG_PASS_SETTINGS_FORCE = 4,
 
-  /** Actions & fall back to loading blend file. */
+  /**
+   * Actions & fall back to loading blend file.
+   *
+   * \note arguments in the final pass must use #WM_exit instead of `exit()`  environment is
+   * properly shut-down (temporary directory deleted, etc).
+   */
   ARG_PASS_FINAL = 5,
 };
 
