@@ -265,7 +265,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         wm->defaultconf = wm_backup->defaultconf;
         wm->addonconf = wm_backup->addonconf;
         wm->userconf = wm_backup->userconf;
-        wm->initialized |= WM_KEYCONFIG_IS_INIT;
+        wm->init_flag |= WM_INIT_FLAG_KEYCONFIG;
 
         wm_window_ghostwindow_embedded_ensure(wm, win);
 
