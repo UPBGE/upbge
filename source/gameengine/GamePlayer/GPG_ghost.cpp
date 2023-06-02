@@ -1017,7 +1017,6 @@ int main(int argc,
   }
 #endif
 
-  BKE_material_copybuf_clear();
   ED_render_clear_mtex_copybuf();
 
   /* Skip wm_init_exit code here
@@ -1901,7 +1900,6 @@ int main(int argc,
 
   DRW_subdiv_free();
 
-  BKE_material_copybuf_free();
   ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();
   ANIM_driver_vars_copybuf_free();
