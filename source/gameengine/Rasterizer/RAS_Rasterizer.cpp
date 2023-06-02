@@ -261,6 +261,7 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
   // SetColorMask(true, true, true, true);
   GPU_color_mask(true, true, true, true);
+  GPU_apply_state();
 
   /* Here we set RAS_FrameBuffers width and height very early in ge launching process
    * Note that if we want to resize RAS_FrameBuffers, this method must be called
@@ -275,6 +276,7 @@ void RAS_Rasterizer::Exit()
   // SetClearDepth(1.0f);
   // SetColorMask(true, true, true, true);
   GPU_color_mask(true, true, true, true);
+  GPU_apply_state();
 
   // SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -305,7 +307,9 @@ void RAS_Rasterizer::BeginFrame(double time)
 
 void RAS_Rasterizer::EndFrame()
 {
-  SetColorMask(true, true, true, true);
+  //SetColorMask(true, true, true, true);
+  GPU_color_mask(true, true, true, true);
+  GPU_apply_state();
 
   // Disable(RAS_MULTISAMPLE);
 }
