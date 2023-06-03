@@ -101,6 +101,11 @@ static bool object_materials_supported_poll_ex(bContext *C, const Object *ob);
 /** \name Local Utilities
  * \{ */
 
+static void material_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepath_maxncpy)
+{
+  BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_material.blend");
+}
+
 static bool object_array_for_shading_edit_mode_enabled_filter(const Object *ob, void *user_data)
 {
   bContext *C = static_cast<bContext *>(user_data);
@@ -2665,7 +2670,7 @@ static int texture_slot_move_exec(bContext *C, wmOperator *op)
     MTex **mtex_ar, *mtexswap;
     short act;
     int type = RNA_enum_get(op->ptr, "type");
-    struct AnimData *adt = BKE_animdata_from_id(id);
+    AnimData *adt = BKE_animdata_from_id(id);
 
     give_active_mtex(id, &mtex_ar, &act);
 
@@ -2754,7 +2759,7 @@ static int copy_material_exec(bContext *C, wmOperator *op)
 
   BKE_copybuffer_copy_tag_ID(&ma->id);
 
-  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), "copybuffer_material.blend");
+  material_copybuffer_filepath_get(filepath, sizeof(filepath));
   BKE_copybuffer_copy_end(bmain, filepath, op->reports);
 
   /* We are all done! */
@@ -2797,7 +2802,7 @@ static int paste_material_nodetree_ids_decref(LibraryIDLinkCallbackData *cb_data
 }
 
 /**
- * Re-map ID's from the clipboard to ID's in `main`, by name.
+ * Re-map ID's from the clipboard to ID's in `bmain`, by name.
  */
 static int paste_material_nodetree_ids_relink_or_clear(LibraryIDLinkCallbackData *cb_data)
 {
@@ -2838,7 +2843,8 @@ static int paste_material_exec(bContext *C, wmOperator *op)
   Main *temp_bmain = BKE_main_new();
 
   STRNCPY(temp_bmain->filepath, BKE_main_blendfile_path_from_global());
-  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), "copybuffer_material.blend");
+
+  material_copybuffer_filepath_get(filepath, sizeof(filepath));
 
   /* NOTE(@ideasman42) The node tree might reference different kinds of ID types.
    * It's not clear-cut which ID types should be included, although it's unlikely
@@ -2928,13 +2934,14 @@ static int paste_material_exec(bContext *C, wmOperator *op)
   SWAP_MEMBER(line_col);
   SWAP_MEMBER(line_priority);
   SWAP_MEMBER(vcol_alpha);
-  SWAP_MEMBER(vcol_alpha);
 
   SWAP_MEMBER(alpha_threshold);
   SWAP_MEMBER(refract_depth);
   SWAP_MEMBER(blend_method);
   SWAP_MEMBER(blend_shadow);
   SWAP_MEMBER(blend_flag);
+
+  SWAP_MEMBER(lineart);
 
 #undef SWAP_MEMBER
 
@@ -3046,7 +3053,22 @@ static void paste_mtex_copybuf(ID *id)
 
     **mtex = blender::dna::shallow_copy(mtexcopybuf);
 
-    id_us_plus((ID *)mtexcopybuf.tex);
+    /* NOTE(@ideasman42): the simple memory copy has no special handling for ID data-blocks.
+     * Ideally this would use `BKE_copybuffer_*` API's, however for common using
+     * copy-pasting between slots, the case a users expects to copy between files
+     * seems quite niche. So, do primitive ID validation. */
+
+    /* WARNING: This isn't a fool-proof solution as it's possible memory locations are reused,
+     * or that the ID was relocated in memory since it was copied.
+     * it does however guard against references to dangling pointers. */
+    if ((*mtex)->tex && (BLI_findindex(&G_MAIN->textures, (*mtex)->tex) == -1)) {
+      (*mtex)->tex = nullptr;
+    }
+    if ((*mtex)->object && (BLI_findindex(&G_MAIN->objects, (*mtex)->object) == -1)) {
+      (*mtex)->object = nullptr;
+    }
+    id_us_plus((ID *)(*mtex)->tex);
+    id_lib_extern((ID *)(*mtex)->object);
   }
 }
 

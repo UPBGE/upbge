@@ -2105,7 +2105,7 @@ static bool area_split_allowed(const ScrArea *area, const eScreenAxis dir_axis)
   return true;
 }
 
-static void area_split_draw_cb(const struct wmWindow *UNUSED(win), void *userdata)
+static void area_split_draw_cb(const wmWindow *UNUSED(win), void *userdata)
 {
   const wmOperator *op = userdata;
 
@@ -3410,7 +3410,7 @@ typedef struct sAreaJoinData {
 
 } sAreaJoinData;
 
-static void area_join_draw_cb(const struct wmWindow *UNUSED(win), void *userdata)
+static void area_join_draw_cb(const wmWindow *UNUSED(win), void *userdata)
 {
   const wmOperator *op = userdata;
 
@@ -3918,7 +3918,7 @@ static void SCREEN_OT_redo_last(wmOperatorType *ot)
 /** \name Region Quad-View Operator
  * \{ */
 
-static void view3d_localview_update_rv3d(struct RegionView3D *rv3d)
+static void view3d_localview_update_rv3d(RegionView3D *rv3d)
 {
   if (rv3d->localvd) {
     rv3d->localvd->view = rv3d->view;
@@ -5059,7 +5059,7 @@ static int fullscreen_back_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void SCREEN_OT_back_to_previous(struct wmOperatorType *ot)
+static void SCREEN_OT_back_to_previous(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Back to Previous Screen";
@@ -5124,7 +5124,7 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_userpref_show(struct wmOperatorType *ot)
+static void SCREEN_OT_userpref_show(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
@@ -5213,7 +5213,7 @@ static int drivers_editor_show_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_drivers_editor_show(struct wmOperatorType *ot)
+static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Show Drivers Editor";
@@ -5259,7 +5259,7 @@ static int info_log_show_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_info_log_show(struct wmOperatorType *ot)
+static void SCREEN_OT_info_log_show(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Show Info Log";
