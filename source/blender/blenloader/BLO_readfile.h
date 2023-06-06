@@ -66,6 +66,12 @@ typedef struct BlendFileData {
   eBlenFileType type;
 } BlendFileData;
 
+/** Data used by WM readfile code and BKE's setup_app_data to handle the complex preservation logic
+ * of WindowManager and other UI data-blocks across blendfile reading prcess. */
+typedef struct BlendFileReadWMSetupData {
+  struct wmWindowManager *old_wm; /** The existing WM when filereading process is started. */
+} BlendFileReadWMSetupData;
+
 struct BlendFileReadParams {
   uint skip_flags : 3; /* #eBLOReadSkip */
   uint is_startup : 1;
@@ -446,22 +452,6 @@ void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx);
 
 void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char *blockname);
 
-BlendFileData *blo_read_blendafterruntime(int file,
-                                          const char *name,
-                                          int datastart,
-                                          struct BlendFileReadReport *reports);
-
-/* internal function but we need to expose it */
-/**
- * Used to link a file (without UI) to the current UI.
- * Note that it assumes the old pointers in UI are still valid, so old Main is not freed.
- */
-void blo_lib_link_restore(struct Main *oldmain,
-                          struct Main *newmain,
-                          struct wmWindowManager *curwm,
-                          struct Scene *curscene,
-                          struct ViewLayer *cur_view_layer);
-
 typedef void (*BLOExpandDoitCallback)(void *fdhandle, struct Main *mainvar, void *idv);
 
 /**
@@ -511,6 +501,11 @@ struct BlendThumbnail *BLO_thumbnail_from_file(const char *filepath);
 /* datafiles (generated theme) */
 extern const struct bTheme U_theme_default;
 extern const struct UserDef U_default;
+
+BlendFileData *blo_read_blendafterruntime(int file,
+                                          const char *name,
+                                          int datastart,
+                                          struct BlendFileReadReport *reports);
 
 #ifdef __cplusplus
 }
