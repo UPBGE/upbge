@@ -3879,20 +3879,20 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
   EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
   DRW_engines_free();
 
-  memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
+  memset(&DST, 0xFF, offsetof(DRWManager, system_gpu_context));
 }
 
-void DRW_opengl_context_create_blenderplayer(void *ghost_system)
+void DRW_gpu_context_create_blenderplayer(void *ghost_system)
 {
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
 
-  DST.gl_context_mutex = BLI_ticket_mutex_alloc();
+  DST.system_gpu_context_mutex = BLI_ticket_mutex_alloc();
 
   /* This changes the active context. */
-  DST.gl_context = WM_opengl_context_create_blenderplayer(ghost_system);
-  WM_opengl_context_activate(DST.gl_context);
+  DST.system_gpu_context = WM_system_gpu_context_create_blenderplayer(ghost_system);
+  WM_system_gpu_context_activate(DST.system_gpu_context);
   /* Be sure to create gpu_context too. */
-  DST.gpu_context = GPU_context_create(0, DST.gl_context);
+  DST.blender_gpu_context = GPU_context_create(0, DST.system_gpu_context);
   /* Set default Blender OpenGL state */
   // GPU_state_init();
   /* So we activate the window's one afterwards. */

@@ -224,7 +224,7 @@ void DRW_cdlayer_attr_aliases_add(struct GPUVertFormat *format,
                                   bool is_active_layer);
 
 /* UPBGE */
-void DRW_opengl_context_create_blenderplayer(void *syshandle);
+void DRW_gpu_context_create_blenderplayer(void *syshandle);
 /* End of UPBGE */
 
 #ifdef __cplusplus

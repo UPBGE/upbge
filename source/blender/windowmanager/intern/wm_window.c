@@ -2691,7 +2691,7 @@ void WM_ghost_show_message_box(const char *title,
 
 #include "WM_message.h"
 
-void *WM_opengl_context_create_blenderplayer(void *ghost_system)
+void *WM_system_gpu_context_create_blenderplayer(void *ghost_system)
 {
   /* On Windows there is a problem creating contexts that share lists
    * from one context that is current in another thread.
@@ -2700,14 +2700,14 @@ void *WM_opengl_context_create_blenderplayer(void *ghost_system)
   BLI_assert(BLI_thread_is_main());
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
-  GHOST_GLSettings glSettings = {0};
+  GHOST_GPUSettings glSettings = {0};
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
   glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   if (G.debug & G_DEBUG_GPU) {
-    glSettings.flags |= GHOST_glDebugContext;
+    glSettings.flags |= GHOST_gpuDebugContext;
   }
   g_system = ghost_system;
-  return GHOST_CreateOpenGLContext(g_system, glSettings);
+  return GHOST_CreateGPUContext(g_system, glSettings);
 }
 
 /* Reuse wm->message_bus when we restart game or load a new .blend */

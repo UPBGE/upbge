@@ -287,10 +287,10 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
     int windowWidth = rc.right - rc.left;
     int windowHeight = rc.bottom - rc.top;
     const char *title = "";
-    GHOST_GLSettings glSettings = {0};
+    GHOST_GPUSettings glSettings = {0};
 
     if (stereoVisual) {
-      glSettings.flags |= GHOST_glStereoVisual;
+      glSettings.flags |= GHOST_gpuStereoVisual;
     }
     const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
     glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
@@ -406,11 +406,11 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
                                   const bool stereoVisual,
                                   const int alphaBackground)
 {
-  GHOST_GLSettings glSettings = {0};
+  GHOST_GPUSettings glSettings = {0};
   // Create the main window
   // std::string title ("Blender Player - GHOST");
   if (stereoVisual)
-    glSettings.flags |= GHOST_glStereoVisual;
+    glSettings.flags |= GHOST_gpuStereoVisual;
 
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
   glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
@@ -444,13 +444,13 @@ static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
                                           const int alphaBackground)
 {
   GHOST_TWindowState state = GHOST_kWindowStateNormal;
-  GHOST_GLSettings glSettings = {0};
+  GHOST_GPUSettings glSettings = {0};
 
   if (stereoVisual)
-    glSettings.flags |= GHOST_glStereoVisual;
+    glSettings.flags |= GHOST_gpuStereoVisual;
 
-  if (parentWindow != 0)
-    state = GHOST_kWindowStateEmbedded;
+  /*if (parentWindow != 0)
+    state = GHOST_kWindowStateEmbedded;*/
 
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
   glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
@@ -1729,7 +1729,7 @@ int main(int argc,
               /* We need to have first an ogl context bound and it's done
                * in wm_window_ghostwindow_blenderplayer_ensure.
                */
-              WM_init_opengl_blenderplayer(system);
+              WM_init_gpu_blenderplayer(system);
 
               UI_theme_init_default();
               UI_init();
@@ -1929,12 +1929,12 @@ int main(int argc,
 
   ED_file_exit(); /* for fsmenu */
 
-  DRW_opengl_context_enable_ex(false);
+  DRW_gpu_context_enable_ex(false);
   UI_exit();
   GPU_pass_cache_free();
   GPU_exit();
-  DRW_opengl_context_disable_ex(false);
-  DRW_opengl_context_destroy();
+  DRW_gpu_context_disable_ex(false);
+  DRW_gpu_context_destroy();
 
   if (window) {
     system->disposeWindow(window);

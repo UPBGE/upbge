@@ -832,7 +832,7 @@ void WM_script_tag_reload(void)
 }
 
 /* UPBGE */
-void WM_init_opengl_blenderplayer(void *ghost_system)
+void WM_init_gpu_blenderplayer(void *ghost_system)
 {
   /* must be called only once */
   BLI_assert(opengl_is_init == false);
@@ -840,12 +840,12 @@ void WM_init_opengl_blenderplayer(void *ghost_system)
   ////////// wm_ghost_init(NULL);
 
   /* NEEDS TO HAVE AN OGL CONTEXT BOUND FIRST!!!!!!!!!!!!!!!!!!! */
-  DRW_opengl_context_create_blenderplayer(ghost_system);
+  DRW_gpu_context_create_blenderplayer(ghost_system);
   GPU_init();
   GPU_pass_cache_init();
 #ifdef WITH_OPENSUBDIV
   BKE_subsurf_osd_init();
 #endif
-  opengl_is_init = true;
+  gpu_is_init = true;
 }
 /* End of UPBGE */
