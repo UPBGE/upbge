@@ -42,6 +42,7 @@ class AssetRepresentation {
 
   struct ExternalAsset {
     std::string name;
+    int id_type = 0;
     std::unique_ptr<AssetMetaData> metadata_ = nullptr;
   };
   union {
@@ -55,6 +56,7 @@ class AssetRepresentation {
   /** Constructs an asset representation for an external ID. The asset will not be editable. */
   AssetRepresentation(AssetIdentifier &&identifier,
                       StringRef name,
+                      int id_type,
                       std::unique_ptr<AssetMetaData> metadata,
                       const AssetLibrary &owner_asset_library);
   /**
@@ -85,6 +87,7 @@ class AssetRepresentation {
   std::unique_ptr<AssetWeakReference> make_weak_reference() const;
 
   StringRefNull get_name() const;
+  int get_id_type() const;
   AssetMetaData &get_metadata() const;
   /**
    * Get the import method to use for this asset. A different one may be used if
@@ -113,6 +116,9 @@ class AssetRepresentation {
 
 /* C-Handle */
 struct AssetRepresentation;
+
+const blender::StringRefNull AS_asset_representation_library_relative_identifier_get(
+    const AssetRepresentation *asset_handle);
 
 std::string AS_asset_representation_full_path_get(const ::AssetRepresentation *asset);
 /**

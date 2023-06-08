@@ -503,7 +503,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
                                                  edge_to_poly_map,
                                                  polys_to_select);
 
-  if (!traced_full_loop) {
+  if (!traced_full_loop && polys_to_closest_edge.size() > 1) {
     /* Trace the other way. */
     follow_face_loop(polys_to_closest_edge[1],
                      closest_edge_index,
@@ -517,7 +517,14 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   bke::SpanAttributeWriter<bool> select_poly = attributes.lookup_or_add_for_write_span<bool>(
       ".select_poly", ATTR_DOMAIN_FACE);
 
-  select_poly.span.fill_indices(polys_to_select.as_span(), select);
+  /* Toggling behavior. When one of the faces of the picked edge is already selected,
+   * it deselects the loop instead. */
+  bool any_adjacent_poly_selected = false;
+  for (const int i : polys_to_closest_edge) {
+    any_adjacent_poly_selected |= select_poly.span[i];
+  }
+  const bool select_toggle = select && !any_adjacent_poly_selected;
+  select_poly.span.fill_indices(polys_to_select.as_span(), select_toggle);
 
   select_poly.finish();
   paintface_flush_flags(C, ob, true, false);

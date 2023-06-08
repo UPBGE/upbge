@@ -2431,8 +2431,7 @@ typedef enum eSnapFlag {
   SCE_SNAP = (1 << 0),
   SCE_SNAP_ROTATE = (1 << 1),
   SCE_SNAP_PEEL_OBJECT = (1 << 2),
-  /** Project individual elements instead of whole object. */
-  /** SCE_SNAP_PROJECT = (1 << 3), DEPRECATED */
+  // SCE_SNAP_PROJECT = (1 << 3), /* DEPRECATED, see #SCE_SNAP_MODE_FACE_RAYCAST. */
   /** Was `SCE_SNAP_NO_SELF`, but self should be active. */
   SCE_SNAP_NOT_TO_ACTIVE = (1 << 4),
   SCE_SNAP_ABS_GRID = (1 << 5),
@@ -2487,6 +2486,7 @@ typedef enum eSnapMode {
 
   /* For snap individual elements. */
   SCE_SNAP_MODE_FACE_NEAREST = (1 << 8),
+  /** Project individual elements instead of whole object. */
   SCE_SNAP_MODE_FACE_RAYCAST = (1 << 9),
 
   /** #ToolSettings.snap_node_mode */
@@ -2505,7 +2505,7 @@ ENUM_OPERATORS(eSnapMode, SCE_SNAP_MODE_FACE_RAYCAST)
 
 #define SCE_SNAP_MODE_GEOM \
   (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE | \
-   SCE_SNAP_MODE_EDGE_PERPENDICULAR | SCE_SNAP_MODE_EDGE_MIDPOINT | SCE_SNAP_MODE_FACE_NEAREST)
+   SCE_SNAP_MODE_EDGE_PERPENDICULAR | SCE_SNAP_MODE_EDGE_MIDPOINT)
 
 /** #SequencerToolSettings.snap_mode */
 #define SEQ_SNAP_TO_STRIPS (1 << 0)

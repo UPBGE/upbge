@@ -217,6 +217,7 @@ set(VULKAN_SRC
   vulkan/vk_drawlist.cc
   vulkan/vk_fence.cc
   vulkan/vk_framebuffer.cc
+  vulkan/vk_image_view.cc
   vulkan/vk_immediate.cc
   vulkan/vk_index_buffer.cc
   vulkan/vk_memory.cc
@@ -252,6 +253,7 @@ set(VULKAN_SRC
   vulkan/vk_drawlist.hh
   vulkan/vk_fence.hh
   vulkan/vk_framebuffer.hh
+  vulkan/vk_image_view.hh
   vulkan/vk_immediate.hh
   vulkan/vk_index_buffer.hh
   vulkan/vk_memory.hh
