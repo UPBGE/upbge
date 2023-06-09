@@ -26,7 +26,6 @@ extern "C" {
 #endif
 
 struct ARegion;
-struct AssetHandle;
 struct GHashIterator;
 struct GPUViewport;
 struct ID;
@@ -1446,8 +1445,7 @@ bool WM_drag_is_ID_type(const struct wmDrag *drag, int idcode);
 /**
  * \note Does not store \a asset in any way, so it's fine to pass a temporary.
  */
-wmDragAsset *WM_drag_create_asset_data(const struct AssetHandle *asset,
-                                       const char *path,
+wmDragAsset *WM_drag_create_asset_data(const struct AssetRepresentation *asset,
                                        int /* #eAssetImportMethod */ import_type);
 struct wmDragAsset *WM_drag_get_asset_data(const struct wmDrag *drag, int idcode);
 struct AssetMetaData *WM_drag_get_asset_meta_data(const struct wmDrag *drag, int idcode);
@@ -1477,7 +1475,7 @@ struct wmDragAssetCatalog *WM_drag_get_asset_catalog_data(const struct wmDrag *d
 /**
  * \note Does not store \a asset in any way, so it's fine to pass a temporary.
  */
-void WM_drag_add_asset_list_item(wmDrag *drag, const struct AssetHandle *asset);
+void WM_drag_add_asset_list_item(wmDrag *drag, const struct AssetRepresentation *asset);
 const ListBase *WM_drag_asset_list_get(const wmDrag *drag);
 
 const char *WM_drag_get_item_name(struct wmDrag *drag);

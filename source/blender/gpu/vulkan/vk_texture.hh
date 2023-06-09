@@ -90,6 +90,8 @@ class VKTexture : public Texture {
    */
   bool allocate();
 
+  int layer_count();
+
   VkImageViewType vk_image_view_type() const;
 
   /* -------------------------------------------------------------------- */
