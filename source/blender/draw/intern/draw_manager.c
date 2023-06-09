@@ -3884,7 +3884,7 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
 
 void DRW_gpu_context_create_blenderplayer(void *ghost_system)
 {
-  BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
+  BLI_assert(DST.system_gpu_context == NULL); /* Ensure it's called once */
 
   DST.system_gpu_context_mutex = BLI_ticket_mutex_alloc();
 

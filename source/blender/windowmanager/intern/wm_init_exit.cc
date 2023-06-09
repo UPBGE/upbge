@@ -835,7 +835,7 @@ void WM_script_tag_reload(void)
 void WM_init_gpu_blenderplayer(void *ghost_system)
 {
   /* must be called only once */
-  BLI_assert(opengl_is_init == false);
+  BLI_assert(gpu_is_init == false);
   /* Ghost is still not init elsewhere in background mode. */
   ////////// wm_ghost_init(NULL);
 
