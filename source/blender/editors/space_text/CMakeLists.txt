@@ -28,7 +28,6 @@ set(SRC
   text_draw.cc
   text_format.cc
   text_format_glsl.cc
-  text_format_lua.cc
   text_format_osl.cc
   text_format_pov.cc
   text_format_pov_ini.cc
