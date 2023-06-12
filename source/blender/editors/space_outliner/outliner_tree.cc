@@ -554,6 +554,8 @@ static void outliner_add_id_contents(SpaceOutliner *space_outliner,
     case ID_ME:
     case ID_CU_LEGACY:
     case ID_MB:
+    case ID_TE:
+    case ID_LS:
       BLI_assert_msg(0, "ID type expected to be expanded through new tree-element design");
       break;
     case ID_OB: {
@@ -565,14 +567,6 @@ static void outliner_add_id_contents(SpaceOutliner *space_outliner,
       if (outliner_animdata_test(ma->adt)) {
         outliner_add_element(space_outliner, &te->subtree, ma, te, TSE_ANIM_DATA, 0);
       }
-      break;
-    }
-    case ID_TE: {
-      Tex *tex = (Tex *)id;
-      if (outliner_animdata_test(tex->adt)) {
-        outliner_add_element(space_outliner, &te->subtree, tex, te, TSE_ANIM_DATA, 0);
-      }
-      outliner_add_element(space_outliner, &te->subtree, tex->ima, te, TSE_SOME_ID, 0);
       break;
     }
     case ID_CA: {
@@ -675,20 +669,6 @@ static void outliner_add_id_contents(SpaceOutliner *space_outliner,
           LISTBASE_FOREACH (Bone *, bone, &arm->bonebase) {
             outliner_add_bone(space_outliner, &te->subtree, id, bone, te, &a);
           }
-        }
-      }
-      break;
-    }
-    case ID_LS: {
-      FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
-
-      if (outliner_animdata_test(linestyle->adt)) {
-        outliner_add_element(space_outliner, &te->subtree, linestyle, te, TSE_ANIM_DATA, 0);
-      }
-
-      for (int a = 0; a < MAX_MTEX; a++) {
-        if (linestyle->mtex[a]) {
-          outliner_add_element(space_outliner, &te->subtree, linestyle->mtex[a]->tex, te, 0, a);
         }
       }
       break;

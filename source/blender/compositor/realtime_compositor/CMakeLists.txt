@@ -299,5 +299,5 @@ endif()
 
 blender_add_lib(bf_realtime_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# Needed so we can use dna_type_offsets.h for defaults initialization.
-add_dependencies(bf_realtime_compositor bf_dna) #upbge linking error (maybe because with_cpu_compositor not enabled in blenderplayer)
+# Needed so we can use dna_type_offsets.h
+add_dependencies(bf_realtime_compositor bf_dna)
