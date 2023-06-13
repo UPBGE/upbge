@@ -109,6 +109,12 @@ int AbstractGridView::get_item_count_filtered() const
   return i;
 }
 
+void AbstractGridView::set_tile_size(int tile_width, int tile_height)
+{
+  style_.tile_width = tile_width;
+  style_.tile_height = tile_height;
+}
+
 GridViewStyle::GridViewStyle(int width, int height) : tile_width(width), tile_height(height) {}
 
 /* ---------------------------------------------------------------------- */
@@ -175,6 +181,9 @@ void AbstractGridViewItem::activate()
   BLI_assert_msg(get_view().is_reconstructed(),
                  "Item activation can't be done until reconstruction is completed");
 
+  if (!is_activatable_) {
+    return;
+  }
   if (is_active()) {
     return;
   }
@@ -192,7 +201,7 @@ void AbstractGridViewItem::deactivate()
   is_active_ = false;
 }
 
-const AbstractGridView &AbstractGridViewItem::get_view() const
+AbstractGridView &AbstractGridViewItem::get_view() const
 {
   if (UNLIKELY(!view_)) {
     throw std::runtime_error(
