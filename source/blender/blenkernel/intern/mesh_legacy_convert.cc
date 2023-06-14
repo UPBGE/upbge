@@ -304,6 +304,17 @@ void BKE_mesh_do_versions_cd_flag_init(Mesh *mesh)
 /** \name NGon Tessellation (NGon to MFace Conversion)
  * \{ */
 
+#define MESH_MLOOPCOL_FROM_MCOL(_mloopcol, _mcol) \
+  { \
+    MLoopCol *mloopcol__tmp = _mloopcol; \
+    const MCol *mcol__tmp = _mcol; \
+    mloopcol__tmp->r = mcol__tmp->b; \
+    mloopcol__tmp->g = mcol__tmp->g; \
+    mloopcol__tmp->b = mcol__tmp->r; \
+    mloopcol__tmp->a = mcol__tmp->a; \
+  } \
+  (void)0
+
 static void bm_corners_to_loops_ex(ID *id,
                                    CustomData *fdata,
                                    const int totface,
@@ -790,6 +801,17 @@ void BKE_mesh_do_versions_convert_mfaces_to_mpolys(Mesh *mesh)
  * #MFace is a legacy data-structure that should be avoided, use #MLoopTri instead.
  * \{ */
 
+#define MESH_MLOOPCOL_TO_MCOL(_mloopcol, _mcol) \
+  { \
+    const MLoopCol *mloopcol__tmp = _mloopcol; \
+    MCol *mcol__tmp = _mcol; \
+    mcol__tmp->b = mloopcol__tmp->r; \
+    mcol__tmp->g = mloopcol__tmp->g; \
+    mcol__tmp->r = mloopcol__tmp->b; \
+    mcol__tmp->a = mloopcol__tmp->a; \
+  } \
+  (void)0
+
 /**
  * Convert all CD layers from loop/poly to tessface data.
  *
@@ -1212,14 +1234,15 @@ static int mesh_tessface_calc(Mesh &mesh,
 
 void BKE_mesh_tessface_calc(Mesh *mesh)
 {
-  mesh->totface = mesh_tessface_calc(*mesh,
-                                     &mesh->fdata,
-                                     &mesh->ldata,
-                                     &mesh->pdata,
-                                     BKE_mesh_vert_positions_for_write(mesh),
-                                     mesh->totface,
-                                     mesh->totloop,
-                                     mesh->totpoly);
+  mesh->totface = mesh_tessface_calc(
+      *mesh,
+      &mesh->fdata,
+      &mesh->ldata,
+      &mesh->pdata,
+      reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
+      mesh->totface,
+      mesh->totloop,
+      mesh->totpoly);
 
   mesh_ensure_tessellation_customdata(mesh);
 }

@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2006 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation
 
 # UPBGE - to recover single precision comment this definition, intern/rigidbody/CMakeLists.txt one
 # and source/gameengine/Physics/Bullet/CMakeLists.txt one.

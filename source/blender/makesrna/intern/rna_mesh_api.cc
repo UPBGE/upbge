@@ -103,7 +103,7 @@ static void rna_Mesh_calc_smooth_groups(
   *r_poly_group = BKE_mesh_calc_smoothgroups(mesh->totedge,
                                              BKE_mesh_poly_offsets(mesh),
                                              mesh->totpoly,
-                                             BKE_mesh_corner_edges(mesh),
+                                             mesh->corner_edges().data(),
                                              mesh->totloop,
                                              sharp_edges,
                                              sharp_faces,
@@ -177,8 +177,8 @@ static void rna_Mesh_transform(Mesh *mesh, float mat[16], bool shape_keys)
 static void rna_Mesh_flip_normals(Mesh *mesh)
 {
   BKE_mesh_polys_flip(BKE_mesh_poly_offsets(mesh),
-                      BKE_mesh_corner_verts_for_write(mesh),
-                      BKE_mesh_corner_edges_for_write(mesh),
+                      mesh->corner_verts_for_write().data(),
+                      mesh->corner_edges_for_write().data(),
                       &mesh->ldata,
                       mesh->totpoly);
   BKE_mesh_tessface_clear(mesh);
@@ -218,7 +218,7 @@ void RNA_api_mesh(StructRNA *srna)
   RNA_def_function_ui_description(func,
                                   "Transform mesh vertices by a matrix "
                                   "(Warning: inverts normals if matrix is negative)");
-  parm = RNA_def_float_matrix(func, "matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
+  parm = RNA_def_float_matrix(func, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_boolean(func, "shape_keys", 0, "", "Transform Shape Keys");
 
@@ -249,7 +249,7 @@ void RNA_api_mesh(StructRNA *srna)
       "(split normals are also computed if not yet present)");
   parm = RNA_def_string(func,
                         "uvmap",
-                        NULL,
+                        nullptr,
                         MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX,
                         "",
                         "Name of the UV map to use for tangent space computation");
@@ -266,7 +266,7 @@ void RNA_api_mesh(StructRNA *srna)
   RNA_def_boolean(
       func, "use_bitflags", false, "", "Produce bitflags groups instead of simple numeric values");
   /* return values */
-  parm = RNA_def_int_array(func, "poly_groups", 1, NULL, 0, 0, "", "Smooth Groups", 0, 0);
+  parm = RNA_def_int_array(func, "poly_groups", 1, nullptr, 0, 0, "", "Smooth Groups", 0, 0);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
   parm = RNA_def_int(
       func, "groups", 0, 0, INT_MAX, "groups", "Total number of groups", 0, INT_MAX);
@@ -278,7 +278,7 @@ void RNA_api_mesh(StructRNA *srna)
                                   "(use zero-vectors to keep auto ones)");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   /* TODO: see how array size of 0 works, this shouldn't be used. */
-  parm = RNA_def_float_array(func, "normals", 1, NULL, -1.0f, 1.0f, "", "Normals", 0.0f, 0.0f);
+  parm = RNA_def_float_array(func, "normals", 1, nullptr, -1.0f, 1.0f, "", "Normals", 0.0f, 0.0f);
   RNA_def_property_multi_array(parm, 2, normals_array_dim);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
 
@@ -291,7 +291,7 @@ void RNA_api_mesh(StructRNA *srna)
       "(use zero-vectors to keep auto ones)");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   /* TODO: see how array size of 0 works, this shouldn't be used. */
-  parm = RNA_def_float_array(func, "normals", 1, NULL, -1.0f, 1.0f, "", "Normals", 0.0f, 0.0f);
+  parm = RNA_def_float_array(func, "normals", 1, nullptr, -1.0f, 1.0f, "", "Normals", 0.0f, 0.0f);
   RNA_def_property_multi_array(parm, 2, normals_array_dim);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
 
@@ -350,7 +350,7 @@ void RNA_api_mesh(StructRNA *srna)
 
   func = RNA_def_function(srna, "count_selected_items", "rna_Mesh_count_selected_items ");
   RNA_def_function_ui_description(func, "Return the number of selected items (vert, edge, face)");
-  parm = RNA_def_int_vector(func, "result", 3, NULL, 0, INT_MAX, "Result", NULL, 0, INT_MAX);
+  parm = RNA_def_int_vector(func, "result", 3, nullptr, 0, INT_MAX, "Result", nullptr, 0, INT_MAX);
   RNA_def_function_output(func, parm);
 }
 
