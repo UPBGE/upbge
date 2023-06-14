@@ -753,9 +753,9 @@ static void rna_Object_empty_display_type_set(PointerRNA *ptr, int value)
   BKE_object_empty_draw_type_set(ob, value);
 }
 
-static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *UNUSED(C),
+static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext */*C*/,
                                                                  PointerRNA *ptr,
-                                                                 PropertyRNA *UNUSED(prop),
+                                                                 PropertyRNA */*prop*/,
                                                                  bool *r_free)
 {
   Object *ob = (Object *)ptr->data;
@@ -1565,7 +1565,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 
       if (ob->type == OB_MESH) {
         /* could be moved into mesh UI but for now ensure mesh data layer */
-        BKE_mesh_ensure_navmesh(ob->data);
+        BKE_mesh_ensure_navmesh((Mesh *)ob->data);
       }
 
       break;
@@ -1670,7 +1670,7 @@ static void rna_GameObjectSettings_used_state_get(PointerRNA *ptr, bool *values)
   bController *cont;
 
   memset(values, 0, sizeof(bool) * OB_MAX_STATES);
-  for (cont = ob->controllers.first; cont; cont = cont->next) {
+  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
     int i;
 
     for (i = 0; i < OB_MAX_STATES; i++) {
@@ -1743,19 +1743,19 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const bool *val
 }
 
 static bool rna_GameObjectSettings_components_override_apply(
-    Main *UNUSED(bmain),
+    Main */*bmain*/,
     PointerRNA *ptr_dst,
     PointerRNA *ptr_src,
-    PointerRNA *UNUSED(ptr_storage),
-    PropertyRNA *UNUSED(prop_dst),
-    PropertyRNA *UNUSED(prop_src),
-    PropertyRNA *UNUSED(prop_storage),
-    const int UNUSED(len_dst),
-    const int UNUSED(len_src),
-    const int UNUSED(len_storage),
-    PointerRNA *UNUSED(ptr_item_dst),
-    PointerRNA *UNUSED(ptr_item_src),
-    PointerRNA *UNUSED(ptr_item_storage),
+    PointerRNA */*ptr_storage*/,
+    PropertyRNA */*prop_dst*/,
+    PropertyRNA */*prop_src*/,
+    PropertyRNA */*prop_storage*/,
+    const int /*len_dst*/,
+    const int /*len_src*/,
+    const int /*len_storage*/,
+    PointerRNA */*ptr_item_dst*/,
+    PointerRNA */*ptr_item_src*/,
+    PointerRNA */*ptr_item_storage*/,
     IDOverrideLibraryPropertyOperation *opop)
 {
   BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
@@ -1766,23 +1766,23 @@ static bool rna_GameObjectSettings_components_override_apply(
 
   PythonProxy *proxy_anchor = NULL;
   if (opop->subitem_local_name && opop->subitem_local_name[0]) {
-    proxy_anchor = BLI_findstring(
+    proxy_anchor = (PythonProxy *)BLI_findstring(
         &ob_dst->components, opop->subitem_local_name, offsetof(PythonProxy, name));
   }
   if (proxy_anchor == NULL && opop->subitem_local_index >= 0) {
-    proxy_anchor = BLI_findlink(&ob_dst->components, opop->subitem_local_index);
+    proxy_anchor = (PythonProxy *)BLI_findlink(&ob_dst->components, opop->subitem_local_index);
   }
   /* Otherwise we just insert in first position. */
 
   PythonProxy *proxy_src = NULL;
   if (opop->subitem_local_name && opop->subitem_local_name[0]) {
-    proxy_src = BLI_findstring(
+    proxy_src = (PythonProxy *)BLI_findstring(
         &ob_src->components, opop->subitem_local_name, offsetof(PythonProxy, name));
   }
   if (proxy_src == NULL && opop->subitem_local_index >= 0) {
-    proxy_src = BLI_findlink(&ob_src->components, opop->subitem_local_index);
+    proxy_src = (PythonProxy *)BLI_findlink(&ob_src->components, opop->subitem_local_index);
   }
-  proxy_src = proxy_src ? proxy_src->next : ob_src->components.first;
+  proxy_src = proxy_src ? (PythonProxy *)proxy_src->next : (PythonProxy *)ob_src->components.first;
 
   BLI_assert(proxy_src != NULL);
 
@@ -2469,8 +2469,8 @@ static char *rna_ObjectLineArt_path(const PointerRNA * /*ptr*/)
   return BLI_strdup("lineart");
 }
 
-static void rna_Object_lod_distance_update(Main *UNUSED(bmain),
-                                           Scene *UNUSED(scene),
+static void rna_Object_lod_distance_update(Main */*bmain*/,
+                                           Scene */*scene*/,
                                            PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
