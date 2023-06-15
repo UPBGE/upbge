@@ -1129,7 +1129,7 @@ static int rna_Object_active_material_editable(PointerRNA *ptr, const char ** /*
     is_editable = ob->data ? !ID_IS_LINKED(ob->data) : false;
   }
 
-  return is_editable ? PROP_EDITABLE : 0;
+  return is_editable ? int(PROP_EDITABLE) : 0;
 }
 
 static void rna_Object_active_particle_system_index_range(
@@ -1315,7 +1315,7 @@ static int rna_MaterialSlot_material_editable(PointerRNA *ptr, const char ** /*r
     is_editable = ob->data ? !ID_IS_LINKED(ob->data) : false;
   }
 
-  return is_editable ? PROP_EDITABLE : 0;
+  return is_editable ? int(PROP_EDITABLE) : 0;
 }
 
 static PointerRNA rna_MaterialSlot_material_get(PointerRNA *ptr)

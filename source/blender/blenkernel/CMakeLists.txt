@@ -395,7 +395,6 @@ set(SRC
   BKE_fluid.h
   BKE_freestyle.h
   BKE_geometry_fields.hh
-  BKE_geometry_set.h
   BKE_geometry_set.hh
   BKE_geometry_set_instances.hh
   BKE_global.h
