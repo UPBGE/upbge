@@ -3944,7 +3944,12 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
 }
 
 /* Use color management profile to draw texture to framebuffer */
-void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, Scene *scene, bool do_dithering)
+void DRW_transform_to_display(GPUViewport *viewport,
+                              GPUTexture *tex,
+                              View3D *v3d,
+                              Scene *scene,
+                              rcti *rect,
+                              bool do_dithering)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
@@ -3960,9 +3965,6 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, Scene *scene, bool d
   bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
   bool use_render_settings = v3d && (use_view_transform || use_scene_lights || use_scene_world);
 
-  GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   float dither = 0.0f;
   bool use_ocio = false;
   /* Should we apply the view transform */
@@ -4000,28 +4002,61 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, Scene *scene, bool d
     }
     //immUniform1i("image_texture", 0);
   }
-  GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
-  float mat[4][4];
-  unit_m4(mat);
-  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
-  /* Full screen triangle */
-  immBegin(GPU_PRIM_TRIS, 3);
-  immAttr2f(texco, 0.0f, 0.0f);
-  immVertex2f(pos, -1.0f, -1.0f);
-  immAttr2f(texco, 2.0f, 0.0f);
-  immVertex2f(pos, 3.0f, -1.0f);
 
-  immAttr2f(texco, 0.0f, 2.0f);
-  immVertex2f(pos, -1.0f, 3.0f);
-  immEnd();
+  const float w = (float)GPU_texture_width(tex);
+  const float h = (float)GPU_texture_height(tex);
 
+  /* We allow rects with min/max swapped, but we also need correctly assigned coordinates. */
+  rcti sanitized_rect = *rect;
+  BLI_rcti_sanitize(&sanitized_rect);
+
+  BLI_assert(w == BLI_rcti_size_x(&sanitized_rect) + 1);
+  BLI_assert(h == BLI_rcti_size_y(&sanitized_rect) + 1);
+
+  /* wmOrtho for the screen has this same offset */
+  const float halfx = GLA_PIXEL_OFS / w;
+  const float halfy = GLA_PIXEL_OFS / h;
+
+  rctf pos_rect = {
+      .xmin = sanitized_rect.xmin,
+      .ymin = sanitized_rect.ymin,
+      .xmax = sanitized_rect.xmin + w,
+      .ymax = sanitized_rect.ymin + h,
+  };
+
+  rctf uv_rect = {
+      .xmin = halfx,
+      .ymin = halfy,
+      .xmax = halfx + 1.0f,
+      .ymax = halfy + 1.0f,
+  };
+  /* Mirror the UV rect in case axis-swapped drawing is requested (by passing a rect with min and
+   * max values swapped). */
+  if (BLI_rcti_size_x(rect) < 0) {
+    SWAP(float, uv_rect.xmin, uv_rect.xmax);
+  }
+  if (BLI_rcti_size_y(rect) < 0) {
+    SWAP(float, uv_rect.ymin, uv_rect.ymax);
+  }
+
+  GPUBatch *batch = gpu_viewport_batch_get(viewport, &pos_rect, &uv_rect);
+  if (use_ocio) {
+    GPU_batch_program_set_imm_shader(batch);
+  }
+  else {
+    GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE);
+    GPU_batch_uniform_1i(batch, "overlay", true);
+    GPU_batch_uniform_1i(batch, "display_transform", true);
+  }
+
+  GPU_texture_bind(tex, 0);
+  //GPU_texture_bind(color_overlay, 1);
+  GPU_batch_draw(batch);
   GPU_texture_unbind(tex);
+  //GPU_texture_unbind(color_overlay);
 
   if (use_ocio) {
     IMB_colormanagement_finish_glsl_draw();
-  }
-  else {
-    immUnbindProgram();
   }
 }
 

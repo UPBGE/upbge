@@ -95,6 +95,12 @@ GPUTexture *GPU_viewport_depth_texture(GPUViewport *viewport);
  */
 GPUFrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport);
 
+/* UPBGE */
+struct GPUBatch *gpu_viewport_batch_get(GPUViewport *viewport, /* UPBGE - not static */
+                                        const rctf *rect_pos,
+                                        const rctf *rect_uv);
+/*********/
+
 #ifdef __cplusplus
 }
 #endif

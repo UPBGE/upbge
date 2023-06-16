@@ -39,7 +39,6 @@
 #include <boost/format.hpp>
 
 #include "DRW_render.h"
-#include "GPU_matrix.h"
 
 #include "BL_Converter.h"
 #include "BL_SceneConverter.h"
@@ -265,14 +264,6 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-
-  DRW_state_reset();
-  GPU_matrix_reset();
-  GPU_depth_test(GPU_DEPTH_ALWAYS);
-  const unsigned int width = m_canvas->GetWidth();
-  const unsigned int height = m_canvas->GetHeight();
-  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
-
   // Show profiling info
   m_logger.StartLog(tc_overhead);
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
@@ -784,16 +775,6 @@ void KX_KetsjiEngine::Render()
   }
 
   if (!UseViewportRender()) {
-    int v[4];
-    v[0] = m_canvas->GetViewportArea().GetLeft();
-    v[1] = m_canvas->GetViewportArea().GetBottom();
-    v[2] = m_canvas->GetViewportArea().GetWidth() + 1;
-    v[3] = m_canvas->GetViewportArea().GetHeight() + 1;
-    GPU_viewport(v[0], v[1], v[2], v[3]);
-    GPU_scissor_test(true);
-    GPU_scissor(v[0], v[1], v[2], v[3]);
-
-    GPU_apply_state();
     EndFrame();
   }
   else {

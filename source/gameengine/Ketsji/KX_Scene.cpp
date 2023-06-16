@@ -52,6 +52,7 @@
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "GPU_context.h"
+#include "GPU_matrix.h"
 #include "GPU_viewport.h"
 #include "WM_api.h"
 #include "wm_draw.h"
@@ -777,23 +778,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   engine->EndCountDepsgraphTime();
 
   rcti window;
-  int v[4];
   /* Custom BGE viewports*/
   if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
-    v[0] = canvas->GetViewportArea().GetLeft() + viewport.GetLeft();
-    v[1] = canvas->GetViewportArea().GetBottom() + viewport.GetBottom();
-    v[2] = viewport.GetWidth() + 1;
-    v[3] = viewport.GetHeight() + 1;
-
     window = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
   }
   /* Main cam (when it has no custom viewport), overlay cam */
   else {
-    v[0] = canvas->GetViewportArea().GetLeft();
-    v[1] = canvas->GetViewportArea().GetBottom();
-    v[2] = canvas->GetWidth() + 1;
-    v[3] = canvas->GetHeight() + 1;
-
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
@@ -900,21 +890,31 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   GPU_framebuffer_restore();
 
+  rcti winrect = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
+
+  int v[4] = {canvas->GetViewportArea().GetLeft(),
+              canvas->GetViewportArea().GetBottom(),
+              canvas->GetViewportArea().GetWidth() + 1,
+              canvas->GetViewportArea().GetHeight() + 1};
   GPU_viewport(v[0], v[1], v[2], v[3]);
   GPU_scissor_test(true);
   GPU_scissor(v[0], v[1], v[2], v[3]);
 
   GPU_apply_state();
 
-  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) { // no idea if below code can work with metal
-    DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                             CTX_wm_view3d(C),
-                             CTX_data_scene(C),
-                             GetOverlayCamera() && !is_overlay_pass ? false : true);
-  }
-  else {
-    //rasty->DrawFrameBuffer(canvas, f);
-  }
+  DRW_state_reset();
+  GPU_matrix_reset();
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
+  const unsigned int width = canvas->GetWidth();
+  const unsigned int height = canvas->GetHeight();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+
+  DRW_transform_to_display(m_currentGPUViewport,
+                           GPU_framebuffer_color_texture(f->GetFrameBuffer()),
+                           CTX_wm_view3d(C),
+                           CTX_data_scene(C),
+                           &winrect,
+                           GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   GPU_framebuffer_restore();
 

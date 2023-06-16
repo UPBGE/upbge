@@ -384,9 +384,9 @@ static GPUBatch *gpu_viewport_batch_create(const rctf *rect_pos, const rctf *rec
   return GPU_batch_create_ex(GPU_PRIM_TRI_STRIP, vbo, NULL, GPU_BATCH_OWNS_VBO);
 }
 
-static GPUBatch *gpu_viewport_batch_get(GPUViewport *viewport,
-                                        const rctf *rect_pos,
-                                        const rctf *rect_uv)
+GPUBatch *gpu_viewport_batch_get(GPUViewport *viewport, /* UPBGE - not static */
+                                 const rctf *rect_pos,
+                                 const rctf *rect_uv)
 {
   const float compare_limit = 0.0001f;
   const bool parameters_changed =
