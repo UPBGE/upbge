@@ -3991,18 +3991,6 @@ void DRW_transform_to_display(GPUViewport *viewport,
   use_ocio = IMB_colormanagement_setup_glsl_draw_from_space(
       &view_settings, display_settings, NULL, dither, false, false);
 
-  if (!use_ocio) {
-    /* View transform is already applied for offscreen, don't apply again, see: T52046 */
-    if (DST.options.is_image_render && !DST.options.is_scene_render) {
-      immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
-      immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    }
-    else {
-      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
-    }
-    //immUniform1i("image_texture", 0);
-  }
-
   const float w = (float)GPU_texture_width(tex);
   const float h = (float)GPU_texture_height(tex);
 
