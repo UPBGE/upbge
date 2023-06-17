@@ -165,37 +165,6 @@ void LA_BlenderLauncher::ExitEngine()
   wm_event_free_all(m_window);
 }
 
-void LA_BlenderLauncher::RenderEngine()
-{
-  if (m_drawLetterBox) {  // not used
-    // Clear screen to border color
-    // We do this here since we set the canvas to be within the frames. This means the engine
-    // itself is unaware of the extra space, so we clear the whole region for it.
-    //m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0],
-    //                            m_startScene->gm.framing.col[1],
-    //                            m_startScene->gm.framing.col[2]);
-    //// 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
-    //// 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
-    //m_rasterizer->SetScissor(m_ar->winrct.xmin,
-    //                         m_ar->winrct.ymin,
-    //                         BLI_rcti_size_x(&m_ar->winrct) + 1,
-    //                         BLI_rcti_size_y(&m_ar->winrct) + 1);
-    //m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
-
-    GPU_scissor_test(true);
-    GPU_scissor(m_ar->winrct.xmin,
-                m_ar->winrct.ymin,
-                BLI_rcti_size_x(&m_ar->winrct) + 1,
-                BLI_rcti_size_y(&m_ar->winrct) + 1);
-    GPU_apply_state();
-    GPU_clear_color(m_startScene->gm.framing.col[0],
-                    m_startScene->gm.framing.col[1],
-                    m_startScene->gm.framing.col[2],
-                    0.0f);
-  }
-  LA_Launcher::RenderEngine();
-}
-
 bool LA_BlenderLauncher::EngineNextFrame()
 {
   // Free all window manager events unused.
