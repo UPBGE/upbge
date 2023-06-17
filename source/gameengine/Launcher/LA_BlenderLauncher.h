@@ -52,6 +52,8 @@ class LA_BlenderLauncher : public LA_Launcher {
     Object *camera;
   } m_savedBlenderData;
 
+  virtual void RenderEngine();
+
   virtual RAS_ICanvas *CreateCanvas();
   virtual bool GetUseAlwaysExpandFraming();
   virtual void InitCamera();
