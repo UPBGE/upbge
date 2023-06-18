@@ -778,12 +778,21 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   engine->EndCountDepsgraphTime();
 
   rcti window;
+  int v[4];
   /* Custom BGE viewports*/
   if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
+    v[0] = canvas->GetViewportArea().GetLeft() + viewport.GetLeft();
+    v[1] = canvas->GetViewportArea().GetBottom() + viewport.GetBottom();
+    v[2] = viewport.GetWidth() + 1;
+    v[3] = viewport.GetHeight() + 1;
     window = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
   }
   /* Main cam (when it has no custom viewport), overlay cam */
   else {
+    v[0] = canvas->GetViewportArea().GetLeft();
+    v[1] = canvas->GetViewportArea().GetBottom();
+    v[2] = canvas->GetWidth() + 1;
+    v[3] = canvas->GetHeight() + 1;
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
@@ -892,10 +901,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   rcti winrect = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
 
-  int v[4] = {canvas->GetViewportArea().GetLeft(),
-              canvas->GetViewportArea().GetBottom(),
-              canvas->GetViewportArea().GetWidth() + 1,
-              canvas->GetViewportArea().GetHeight() + 1};
   GPU_viewport(v[0], v[1], v[2], v[3]);
   GPU_scissor_test(true);
   GPU_scissor(v[0], v[1], v[2], v[3]);
