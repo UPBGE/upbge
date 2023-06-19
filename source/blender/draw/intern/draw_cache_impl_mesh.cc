@@ -1942,8 +1942,15 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
    * An idea to improve this is to separate the Object mode from the edit mode draw caches. And
    * based on the mode the correct one will be updated. Other option is to look into using
    * drw_batch_cache_generate_requested_delayed. */
+  /* UPBGE: Even if it can create unstabilties in rare cases on some hardwares (never noticed with an intel CPU),
+   * it's worth (performances-wise) using GPU_finish() or a fence here instead of BLI_task_graph_work_and_wait(task_graph);
+   * Using a fence works even better on some hardwares. */
   //BLI_task_graph_work_and_wait(task_graph);
-  GPU_finish();
+  //GPU_finish();
+  GPUFence *fence = GPU_fence_create();
+  GPU_fence_signal(fence);
+  GPU_fence_wait(fence);
+  GPU_fence_free(fence);
 
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);
