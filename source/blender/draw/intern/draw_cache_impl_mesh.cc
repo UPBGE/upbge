@@ -1945,12 +1945,12 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
   /* UPBGE: Even if it can create unstabilties in rare cases on some hardwares (never noticed with an intel CPU),
    * it's worth (performances-wise) using GPU_finish() or a fence here instead of BLI_task_graph_work_and_wait(task_graph);
    * Using a fence works even better on some hardwares. */
-  //BLI_task_graph_work_and_wait(task_graph);
+  BLI_task_graph_work_and_wait(task_graph);
   //GPU_finish();
-  GPUFence *fence = GPU_fence_create();
-  GPU_fence_signal(fence);
-  GPU_fence_wait(fence);
-  GPU_fence_free(fence);
+  //GPUFence *fence = GPU_fence_create();
+  //GPU_fence_signal(fence);
+  //GPU_fence_wait(fence);
+  //GPU_fence_free(fence);
 
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);
