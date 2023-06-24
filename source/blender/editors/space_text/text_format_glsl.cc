@@ -35,434 +35,262 @@
 
 /* *** glsl Keywords (for format_line) *** */
 
-/* Checks the specified source string for a glsl keyword (minus boolean & 'nil').
- * This name must start at the beginning of the source string and must be
- * followed by a non-identifier (see text_check_identifier(char)) or null char.
- *
- * If a keyword is found, the length of the matching word is returned.
- * Otherwise, -1 is returned.
- *
- */
+static const char *text_format_glsl_literals_keyword_data[]{
+    /* Force single column, sorted list. */
+    /* clang-format off */
+    "attribute",
+    "break",
+    "bvec2",
+    "bvec3",
+    "bvec4",
+    "case",
+    "centroid",
+    "const",
+    "continue",
+    "default",
+    "discard",
+    "dmat2",
+    "dmat3",
+    "dmat4",
+    "do",
+    "double",
+    "dvec2",
+    "dvec3",
+    "dvec4",
+    "else",
+    "flat",
+    "float",
+    "for",
+    "goto",
+    "highp",
+    "if",
+    "in",
+    "inout",
+    "int",
+    "invariant",
+    "ivec2",
+    "ivec3",
+    "ivec4",
+    "layout",
+    "location",
+    "lowp",
+    "mat2",
+    "mat3",
+    "mat4",
+    "mediump",
+    "out",
+    "patch",
+    "precision",
+    "return",
+    "sample",
+    "sampler1D",
+    "sampler2D",
+    "sampler3D",
+    "samplerCube",
+    "sizeof",
+    "smooth",
+    "struct",
+    "subroutine",
+    "switch",
+    "uint",
+    "uniform",
+    "uvec2",
+    "uvec3",
+    "uvec4",
+    "varying",
+    "vec2",
+    "vec3",
+    "vec4",
+    "void",
+    "while",
+    /* clang-format on */
+};
+
+static const Span<const char *> text_format_glsl_literals_keyword(
+    text_format_glsl_literals_keyword_data,
+    ARRAY_SIZE(text_format_glsl_literals_keyword_data));
+
+static const char *text_format_glsl_literals_reserved_data[]{
+"abs",
+"acos",
+"all",
+"any",
+"asin",
+"atan",
+"atan2",
+"ceil",
+"clamp",
+"cos",
+"cross",
+"degrees",
+"distance",
+"dot",
+"exp",
+"exp2",
+"faceforward",
+"floor",
+"fract",
+"inversesqrt",
+"length",
+"log",
+"log2",
+"max",
+"min",
+"mix",
+"mod",
+"normalize",
+"not",
+"pow",
+"radians",
+"reflect",
+"refract",
+"round",
+"sign",
+"sin",
+"smoothstep",
+"sqrt",
+"step",
+"tan",
+"texture",
+"texture1D",
+"texture1DLod",
+"texture2D",
+"texture2DLod",
+"texture3D",
+"texture3DLod",
+"textureCube",
+"textureCubeLod",
+"trunc",
+};
+
+static const Span<const char *> text_format_glsl_literals_reserved(
+    text_format_glsl_literals_reserved_data, ARRAY_SIZE(text_format_glsl_literals_reserved_data));
+
+
+static const char *text_format_glsl_literals_specialvar_data[]{
+    /* Force single column, sorted list. */
+    /* clang-format off */
+    "ftransform",
+    "getmetatable",
+    "gl_BackColor",
+    "gl_BackMaterial",
+    "gl_ClipDistance",
+    "gl_ClipPlane",
+    "gl_ClipVertex",
+    "gl_Color",
+    "gl_Fog",
+    "gl_FogCoord",
+    "gl_FogFragCoord",
+    "gl_FragColor",
+    "gl_FragCoord",
+    "gl_FragData",
+    "gl_FragDepth",
+    "gl_FrontColor",
+    "gl_FrontFacing",
+    "gl_FrontMaterial",
+    "gl_InstanceID;",
+    "gl_Layer",
+    "gl_LightModel",
+    "gl_LightSource",
+    "gl_MaxDrawBuffers",
+    "gl_MaxLights",
+    "gl_MaxTextureCoords",
+    "gl_ModelViewMatrix",
+    "gl_ModelViewMatrixInverse",
+    "gl_ModelViewMatrixTranspose",
+    "gl_ModelViewProjectionMatrix",
+    "gl_ModelViewProjectionMatrixInverse",
+    "gl_ModelViewProjectionMatrixTranspose",
+    "gl_MultiTexCoord0",
+    "gl_MultiTexCoord1",
+    "gl_MultiTexCoord2",
+    "gl_MultiTexCoord3",
+    "gl_MultiTexCoord4",
+    "gl_MultiTexCoord5",
+    "gl_MultiTexCoord6",
+    "gl_MultiTexCoord7",
+    "gl_Normal",
+    "gl_NormalMatrix",
+    "gl_NormalScale",
+    "gl_PerVertex",
+    "gl_Point",
+    "gl_PointCoord",
+    "gl_PointSize;",
+    "gl_Position;",
+    "gl_PrimitiveID",
+    "gl_ProjectionMatrix",
+    "gl_ProjectionMatrixInverse",
+    "gl_ProjectionMatrixTranspose",
+    "gl_SampleID",
+    "gl_SampleMask",
+    "gl_SamplePosition",
+    "gl_TessLevelInner",
+    "gl_TessLevelOuter",
+    "gl_TexCoord",
+    "gl_TextureMatrix",
+    "gl_VertexID;",
+    "gl_ViewportIndex",
+    /* clang-format on */
+};
+
+static const Span<const char *> text_format_glsl_literals_specialvar(
+    text_format_glsl_literals_specialvar_data,
+    ARRAY_SIZE(text_format_glsl_literals_specialvar_data));
+
+static const char *text_format_glsl_literals_bool_data[]{
+    /* Force single column, sorted list. */
+    /* clang-format off */
+    "false",
+    "null",
+    "true",
+    /* clang-format on */
+};
+
+static const Span<const char *> text_format_glsl_literals_bool(
+    text_format_glsl_literals_bool_data,
+    ARRAY_SIZE(text_format_glsl_literals_bool_data));
 
 static int txtfmt_glsl_find_keyword(const char *string)
 {
-  int i, len;
+  const int i = text_format_string_literal_find(text_format_glsl_literals_keyword, string);
 
-  if (STR_LITERAL_STARTSWITH(string, "if", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "else", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "void", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "float", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "int", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "uniform", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "varying", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "location", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "in", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "out", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "discard", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "return", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "vec2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "vec3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "vec4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "mat3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "mat4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sampler2D", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sampler1D", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "samplerCube", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "const", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "uint", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "uvec2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "uvec3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "uvec4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "for", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "while", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "continue", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "break", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "inout", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "attribute", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "layout", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "centroid", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "flat", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "smooth", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "patch", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sample", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "do", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "switch", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "case", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "default", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "subroutine", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "double", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "invariant", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dmat2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dmat3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dmat4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "mat2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "ivec2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "ivec3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "ivec4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "bvec2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "bvec3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "bvec4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dvec2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dvec3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dvec4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "precision", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "lowp", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "highp", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "mediump", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sampler3D", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "struct", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "goto", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sizeof", len))
-    i = len;
-  else
-    i = 0;
-
-  /* If next source char is an identifier (eg. 'i' in "definate") no match */
-  if (i == 0 || text_check_identifier(string[i]))
+  /* If next source char is an identifier (eg. 'i' in "definite") no match */
+  if (i == 0 || text_check_identifier(string[i])) {
     return -1;
-  return i;
-}
-
-/* Checks the specified source string for a glsl special name/function. This
- * name must start at the beginning of the source string and must be followed
- * by a non-identifier (see text_check_identifier(char)) or null character.
- *
- * If a special name is found, the length of the matching name is returned.
- * Otherwise, -1 is returned.
- *
- */
-
-static int txtfmt_glsl_find_specialvar(const char *string)
-{
-  int i, len;
-
-  if (STR_LITERAL_STARTSWITH(string, "gl_Position;", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_VertexID;", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_InstanceID;", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_PointSize;", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ClipDistance", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_PerVertex", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "getmetatable", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ViewportIndex", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_Layer", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ViewportIndex", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_TessLevelOuter", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_TessLevelInner", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FragCoord", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FrontFacing", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_PointCoord", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_PrimitiveID", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_SampleID", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_SamplePosition", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FragColor", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FragData", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MaxDrawBuffers", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FragDepth", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_SampleMask", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ClipVertex", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FrontColor", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_BackColor", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_TexCoord", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FogFragCoord", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_Color", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_Normal", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord0", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord1", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord3", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord4", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord5", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord6", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MultiTexCoord7", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FogCoord", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_NormalMatrix", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ModelViewMatrix", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ProjectionMatrix", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ModelViewProjectionMatrix", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "ftransform", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_TextureMatrix", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MaxTextureCoords", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ModelViewMatrixInverse", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ProjectionMatrixInverse", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ModelViewProjectionMatrixInverse", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ModelViewMatrixTranspose", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ProjectionMatrixTranspose", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ModelViewProjectionMatrixTranspose", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_ClipPlane", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_LightSource", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_MaxLights", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_LightModel", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_Fog", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_FrontMaterial", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_BackMaterial", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_Point", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "gl_NormalScale", len))
-    i = len;
-  else
-    i = 0;
-
-  /* If next source char is an identifier (eg. 'i' in "definate") no match */
-  if (i == 0 || text_check_identifier(string[i]))
-    return -1;
-  return i;
-}
-
-static int txtfmt_glsl_find_bool(const char *string)
-{
-  int i, len;
-
-  if (STR_LITERAL_STARTSWITH(string, "null", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "true", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "false", len))
-    i = len;
-  else
-    i = 0;
-
-  /* If next source char is an identifier (eg. 'i' in "Nonetheless") no match */
-  if (i == 0 || text_check_identifier(string[i]))
-    return -1;
+  }
   return i;
 }
 
 static int txtfmt_glsl_find_reserved(const char *string)
 {
-  int i, len;
+  const int i = text_format_string_literal_find(text_format_glsl_literals_reserved, string);
 
-  if (STR_LITERAL_STARTSWITH(string, "min", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "max", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "abs", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dot", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "cross", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "reflect", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "refract", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "pow", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "exp", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dFdx", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "dFdy", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "log", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "cos", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sin", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "tan", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "smoothstep", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "mix", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "radians", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "degrees", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "asin", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "acos", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "atan", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "atan2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "exp2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "log2", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sqrt", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "inversesqrt", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "sign", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "floor", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "ceil", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "fract", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "mod", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "clamp", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "step", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "trunc", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "round", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "length", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "distance", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "normalize", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "faceforward", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "any", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "all", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "not", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture3DLod", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture2DLod", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture1DLod", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "textureCubeLod", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture3D", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture2D", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture1D", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "textureCube", len))
-    i = len;
-  else if (STR_LITERAL_STARTSWITH(string, "texture", len))
-    i = len;
-  else
-    i = 0;
-  /* If next source char is an identifier (eg. 'i' in "Nonetheless") no match */
-  if (i == 0 || text_check_identifier(string[i]))
+  /* If next source char is an identifier (eg. 'i' in "definite") no match */
+  if (i == 0 || text_check_identifier(string[i])) {
     return -1;
+  }
+  return i;
+}
+
+static int txtfmt_glsl_find_specialvar(const char *string)
+{
+  const int i = text_format_string_literal_find(text_format_glsl_literals_specialvar, string);
+
+  /* If next source char is an identifier (eg. 'i' in "definite") no match */
+  if (i == 0 || text_check_identifier(string[i])) {
+    return -1;
+  }
+  return i;
+}
+
+static int txtfmt_glsl_find_bool(const char *string)
+{
+  const int i = text_format_string_literal_find(text_format_glsl_literals_bool, string);
+
+  /* If next source char is an identifier (eg. 'i' in "definite") no match */
+  if (i == 0 || text_check_identifier(string[i])) {
+    return -1;
+  }
   return i;
 }
 
@@ -662,4 +490,9 @@ void ED_text_format_register_glsl(void)
   tft.ext = ext;
 
   ED_text_format_register(&tft);
+
+  BLI_assert(text_format_string_literals_check_sorted_array(text_format_glsl_literals_keyword));
+  BLI_assert(text_format_string_literals_check_sorted_array(text_format_glsl_literals_reserved));
+  BLI_assert(text_format_string_literals_check_sorted_array(text_format_glsl_literals_specialvar));
+  BLI_assert(text_format_string_literals_check_sorted_array(text_format_glsl_literals_bool));
 }
