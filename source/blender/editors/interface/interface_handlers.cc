@@ -477,6 +477,8 @@ struct uiAfterFunc {
   uiButHandleFunc func;
   void *func_arg1;
   void *func_arg2;
+  /** C++ version of #func above, without need for void pointer arguments. */
+  std::function<void(bContext &)> apply_func;
 
   uiButHandleNFunc funcN;
   void *func_argN;
@@ -758,7 +760,10 @@ static ListBase UIAfterFuncs = {nullptr, nullptr};
 
 static uiAfterFunc *ui_afterfunc_new()
 {
-  uiAfterFunc *after = MEM_cnew<uiAfterFunc>(__func__);
+  uiAfterFunc *after = MEM_new<uiAfterFunc>(__func__);
+  /* Safety asserts to check if members were 0 initialized properly. */
+  BLI_assert(after->next == nullptr && after->prev == nullptr);
+  BLI_assert(after->undostr[0] == '\0');
 
   BLI_addtail(&UIAfterFuncs, after);
 
@@ -815,8 +820,9 @@ static void popup_check(bContext *C, wmOperator *op)
  */
 static bool ui_afterfunc_check(const uiBlock *block, const uiBut *but)
 {
-  return (but->func || but->funcN || but->rename_func || but->optype || but->rnaprop ||
-          block->handle_func || (but->type == UI_BTYPE_BUT_MENU && block->butm_func) ||
+  return (but->func || but->apply_func || but->funcN || but->rename_func || but->optype ||
+          but->rnaprop || block->handle_func ||
+          (but->type == UI_BTYPE_BUT_MENU && block->butm_func) ||
           (block->handle && block->handle->popup_op));
 }
 
@@ -844,6 +850,8 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 
   after->func_arg1 = but->func_arg1;
   after->func_arg2 = but->func_arg2;
+
+  after->apply_func = but->apply_func;
 
   after->funcN = but->funcN;
   after->func_argN = (but->func_argN) ? MEM_dupallocN(but->func_argN) : nullptr;
@@ -1017,7 +1025,8 @@ static void ui_apply_but_funcs_after(bContext *C)
 
   LISTBASE_FOREACH_MUTABLE (uiAfterFunc *, afterf, &funcs) {
     uiAfterFunc after = *afterf; /* Copy to avoid memory leak on exit(). */
-    BLI_freelinkN(&funcs, afterf);
+    BLI_remlink(&funcs, afterf);
+    MEM_delete(afterf);
 
     if (after.context) {
       CTX_store_set(C, after.context);
@@ -1058,6 +1067,9 @@ static void ui_apply_but_funcs_after(bContext *C)
 
     if (after.func) {
       after.func(C, after.func_arg1, after.func_arg2);
+    }
+    if (after.apply_func) {
+      after.apply_func(*C);
     }
     if (after.funcN) {
       after.funcN(C, after.func_argN, after.func_arg2);
