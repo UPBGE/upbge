@@ -48,11 +48,13 @@ void BKE_mesh_legacy_edge_crease_from_layers(struct Mesh *mesh);
  * Copy edge creases from edges to a separate layer.
  */
 void BKE_mesh_legacy_edge_crease_to_layers(struct Mesh *mesh);
+void BKE_mesh_crease_layers_from_future(struct Mesh *mesh);
 
 /**
  * Copy bevel weights from separate layers into vertices and edges.
  */
 void BKE_mesh_legacy_bevel_weight_from_layers(struct Mesh *mesh);
+void BKE_mesh_bevel_weight_layers_from_future(struct Mesh *mesh);
 /**
  * Copy bevel weights from vertices and edges to separate layers.
  */

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.6.0 Beta (b'24ca886ac042')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: Ivan Paulos Tomé <ivan.paulos.tome@yandex.com>\n"
-"POT-Creation-Date: 2023-05-22 16:40:40\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: 2017-09-08 21:24-0300\n"
 "Last-Translator: Ivan Paulos Tomé <greylica@gmail.com>\n"
 "Language-Team: Ivan Paulos Tomé, Inês Almeida, João Brandão (ULISBOA), Paulo Martins <ivan.paulos.tome@yandex.com>\n"
@@ -7757,12 +7757,8 @@ msgid "Vorbis"
 msgstr "Vorbis"
 
 
-msgid "Samplerate"
-msgstr "Taxa de amostras"
-
-
-msgid "Audio samplerate(samples/s)"
-msgstr "Taxa de amostras de áudio (amostras por segundo)."
+msgid "Sample Rate"
+msgstr "Taxa de amostragem"
 
 
 msgctxt "Sound"
@@ -11329,22 +11325,6 @@ msgid "File path to brush icon"
 msgstr "Caminho de ficheiro para ícone de pincel."
 
 
-msgid "Image Paint Tool"
-msgstr "Ferramenta de pintura de imagem"
-
-
-msgid "Soften"
-msgstr "Atenuar"
-
-
-msgid "Clone"
-msgstr "Clonar"
-
-
-msgid "Mask"
-msgstr "Máscara"
-
-
 msgid "Jitter the position of the brush while painting"
 msgstr "Quantidade de tremulação na posição do pincel durante a pintura."
 
@@ -11455,58 +11435,6 @@ msgstr "Plano Y"
 
 msgid "Z Plane"
 msgstr "Plano Z"
-
-
-msgid "Sculpt Tool"
-msgstr "Ferramentas de escultura"
-
-
-msgid "Draw Sharp"
-msgstr "Desenhar ressaltos"
-
-
-msgid "Clay"
-msgstr "Argila"
-
-
-msgid "Clay Strips"
-msgstr "Faixas de argila"
-
-
-msgid "Blob"
-msgstr "Gotejar"
-
-
-msgid "Flatten"
-msgstr "Achatar"
-
-
-msgid "Scrape"
-msgstr "Arranhar"
-
-
-msgid "Thumb"
-msgstr "Miniatura"
-
-
-msgid "Pose"
-msgstr "Pose"
-
-
-msgid "Nudge"
-msgstr "Cutucar"
-
-
-msgid "Rotate"
-msgstr "Rotacionar"
-
-
-msgid "Boundary"
-msgstr "Extremidades"
-
-
-msgid "Cloth"
-msgstr "Tecido"
 
 
 msgid "Secondary Color"
@@ -11831,6 +11759,10 @@ msgstr "O pincel possui um atraso com relação ao rato e segue um caminho mais 
 
 msgid "Automatically adjust strength to give consistent results for different spacings"
 msgstr "Ajusta automaticamente a força para fornecer resultados consistentes para espaçamentos diferentes."
+
+
+msgid "Sculpt Tool"
+msgstr "Ferramentas de escultura"
 
 
 msgid "Grab UVs"
@@ -13577,24 +13509,12 @@ msgid "U"
 msgstr "U"
 
 
-msgid "Point in U direction (can't be changed when there are shape keys)"
-msgstr "Pontos na direção U (não pode ser alterado quando há chaves de formato)."
-
-
 msgid "V"
 msgstr "V"
 
 
-msgid "Point in V direction (can't be changed when there are shape keys)"
-msgstr "Pontos na direção V (não pode ser alterado quando há chaves de formato)."
-
-
 msgid "W"
 msgstr "W"
-
-
-msgid "Point in W direction (can't be changed when there are shape keys)"
-msgstr "Pontos na direção W (não pode ser alterado quando há chaves de formato)."
 
 
 msgid "Vertex group to apply the influence of the lattice"
@@ -13913,6 +13833,10 @@ msgid "Hair strands"
 msgstr "Vertentes de cabelo."
 
 
+msgid "Cloth"
+msgstr "Tecido"
+
+
 msgid "Roughness"
 msgstr "Rugosidade"
 
@@ -14149,20 +14073,12 @@ msgid "Vertices of the mesh"
 msgstr "Vértices da malha."
 
 
-msgid "Metaball data-block to defined blobby surfaces"
-msgstr "Blocos de dados de esferas-meta para superfícies definidas a partir de bolhas."
-
-
 msgid "Render Size"
 msgstr "Resolução de renderização"
 
 
 msgid "Polygonization resolution in rendering"
 msgstr "Resolução poligonização durante a renderização."
-
-
-msgid "Wire Size"
-msgstr "Resolução do aramado"
 
 
 msgid "Polygonization resolution in the 3D viewport"
@@ -14529,10 +14445,6 @@ msgid "Settings for using the object as a collider in physics simulation"
 msgstr "Definições para o uso do objeto como um colisor dentro da simulação física."
 
 
-msgid "Object color and alpha, used when faces have the ObColor mode enabled"
-msgstr "Cor e alfa do objeto, usado quando as faces possuem o modo de cor de objeto ativo."
-
-
 msgid "Constraints"
 msgstr "Restrições"
 
@@ -14813,6 +14725,10 @@ msgid "Index number for the \"Object Index\" render pass"
 msgstr "Número de índice para o \"Índice de objeto\" no passo de renderização."
 
 
+msgid "Pose"
+msgstr "Pose"
+
+
 msgid "Current pose for armatures"
 msgstr "Pose atual para armações."
 
@@ -15007,10 +14923,6 @@ msgstr "Y Global"
 
 msgid "Global Z"
 msgstr "Z Global"
-
-
-msgid "Effect Children"
-msgstr "Efetores para as crianças"
 
 
 msgid "Apply effectors to children"
@@ -20636,6 +20548,10 @@ msgid "Mix Factor"
 msgstr "Fator de mistura"
 
 
+msgid "Mask"
+msgstr "Máscara"
+
+
 msgid "Material slot in an object"
 msgstr "Compartimentos de material dentro de um objeto."
 
@@ -21399,10 +21315,6 @@ msgid "Vertex in a Mesh data-block"
 msgstr "Vértices em um bloco de dados de malha."
 
 
-msgid "Weight used by the Bevel modifier 'Only Vertices' option"
-msgstr "Pesos de influência usado pelo modificador chanfro com a opção \"Somente vértices\"."
-
-
 msgid "Weights for the vertex groups this vertex is member of"
 msgstr "Pesos para os grupos de vértices nos quais este vértice é membro."
 
@@ -21489,10 +21401,6 @@ msgstr "Tamanho Z"
 
 msgid "Stiffness defines how much of the element to fill"
 msgstr "A rigidez define quanto preencher do elemento."
-
-
-msgid "Metaball types"
-msgstr "Tipos de objeto esfera-meta"
 
 
 msgid "Ball"
@@ -22017,10 +21925,6 @@ msgstr "Corrige as distorções causadas pelas deformações (em geral, por osso
 
 msgid "Lambda Factor"
 msgstr "Fator Lambda"
-
-
-msgid "Smooth factor effect"
-msgstr "Fator para efeito de suavização."
 
 
 msgid "Bind current shape"
@@ -24303,10 +24207,6 @@ msgid "Y coordinate of the start position"
 msgstr "Coordenada Y da posição inicial."
 
 
-msgid "Either the starting frame (for positive speed) or ending frame (for negative speed.)"
-msgstr "Ou o fotograma inicial (para velocidade positiva) ou o fotograma final (para velocidade negativa)."
-
-
 msgid "Cyclic wave effect"
 msgstr "Efeito de onda cíclica."
 
@@ -24373,6 +24273,10 @@ msgstr "Pesos dos vincos (caso ativo)"
 
 msgid "Thickness factor"
 msgstr "Fator de espessura"
+
+
+msgid "Boundary"
+msgstr "Extremidades"
 
 
 msgid "Support face boundaries"
@@ -26391,10 +26295,6 @@ msgid "ITU 709"
 msgstr "ITU 709"
 
 
-msgid "Jpeg"
-msgstr "Jpeg"
-
-
 msgid "Combine YUVA"
 msgstr "Combinar YUVA"
 
@@ -26705,6 +26605,10 @@ msgstr "A posição X do meio da elipse."
 
 msgid "Y position of the middle of the ellipse"
 msgstr "A posição Y do meio da elipse."
+
+
+msgid "Soften"
+msgstr "Atenuar"
 
 
 msgid "Laplace"
@@ -27118,6 +27022,10 @@ msgstr "Cores para preto e branco"
 
 msgid "Render Layers"
 msgstr "Camadas de renderização"
+
+
+msgid "Rotate"
+msgstr "Rotacionar"
 
 
 msgid "Method to use to filter rotation"
@@ -34367,6 +34275,10 @@ msgid "Replace existing driver variables, instead of just appending to the end o
 msgstr "Substitui as variáveis de controlador existentes, ao invés de simplesmente anexá-las ao final da lista existente."
 
 
+msgid "Flatten"
+msgstr "Achatar"
+
+
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "Filtro de descontinuidade para Euler"
@@ -34476,6 +34388,19 @@ msgstr "Insere fotogramas chave para as curvas-f ativas no ponto de localizaçã
 
 msgid "Insert a keyframe for selected F-Curves at the cursor point"
 msgstr "Insere fotogramas chave para as curvas-f selecionadas no ponto de localização do cursor."
+
+
+msgctxt "Operator"
+msgid "Jump to Keyframe"
+msgstr "Saltar para fotograma chave"
+
+
+msgid "Jump to previous/next keyframe"
+msgstr "Salta para o fotograma chave anterior ou posterior."
+
+
+msgid "Next Keyframe"
+msgstr "Próximo fotograma chave"
 
 
 msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
@@ -38357,10 +38282,6 @@ msgid "Move a node to detach links"
 msgstr "Move um nó para desconectar as ligações."
 
 
-msgid "Insert Offset"
-msgstr "Inserir deslocamento"
-
-
 msgid "Detach Links"
 msgstr "Desconectar ligações"
 
@@ -40793,6 +40714,10 @@ msgid "If the requested brush type does not exist, create a new brush"
 msgstr "Caso o tipo de pincel requisitado não exista, criar um novo pincel."
 
 
+msgid "Clone"
+msgstr "Clonar"
+
+
 msgid "Toggle between two brushes rather than cycling"
 msgstr "Alterna entre dois pincéis ao invés de usá-los em ciclo."
 
@@ -41525,10 +41450,6 @@ msgstr "Propriedades personalizadas"
 
 msgid "Weighting factor for which keyframe is favored more"
 msgstr "Fator de pesos de influência para nos quais os fotogramas-chave são mais favorecidos."
-
-
-msgid "Next Keyframe"
-msgstr "Próximo fotograma chave"
 
 
 msgid "Frame number of keyframe immediately after the current frame"
@@ -42952,15 +42873,6 @@ msgstr "Expandir ou encolher os menus do cabeçalho"
 
 msgid "Expand or collapse the header pulldown menus"
 msgstr "Permite expandir ou encolher os menus de cabeçalho suspensos."
-
-
-msgctxt "Operator"
-msgid "Jump to Keyframe"
-msgstr "Saltar para fotograma chave"
-
-
-msgid "Jump to previous/next keyframe"
-msgstr "Salta para o fotograma chave anterior ou posterior."
 
 
 msgctxt "Operator"
@@ -45524,10 +45436,6 @@ msgstr "Empacotar ilhas"
 
 msgid "Space between islands"
 msgstr "Espaço entre ilhas."
-
-
-msgid "Rotate islands for best fit"
-msgstr "Rotaciona as ilhas para um melhor ajuste."
 
 
 msgctxt "Operator"
@@ -53218,10 +53126,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "YCbCr (Jpeg)"
-msgstr "YCbCr (Jpeg)"
-
-
 msgid "Sequence strip in the sequence editor"
 msgstr "Faixa de sequência dentro do editor de sequências."
 
@@ -59033,10 +58937,6 @@ msgid "No text or file specified in node, nothing to compile"
 msgstr "Sem texto ou ficheiro especificado no nó, nada para compilar."
 
 
-msgid "OSL query failed to open "
-msgstr "Requisição de informação OSL falhou ao abrir."
-
-
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "Script de sombreador externo deve possuir extensão .osl ou .oso, ou ser um nome de módulo."
 
@@ -59711,10 +59611,6 @@ msgstr "Data"
 
 msgid "Buffer"
 msgstr "Contingenciador"
-
-
-msgid "Sample Rate"
-msgstr "Taxa de amostragem"
 
 
 msgid "Source Clone Slot"
@@ -66557,6 +66453,10 @@ msgstr "Antigo(a)"
 
 msgid "Edge Crease"
 msgstr "Vincos de arestas"
+
+
+msgid "Rotate islands for best fit"
+msgstr "Rotaciona as ilhas para um melhor ajuste."
 
 
 msgid "AO"

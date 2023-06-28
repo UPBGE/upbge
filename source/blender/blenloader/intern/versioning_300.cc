@@ -81,7 +81,6 @@
 #include "SEQ_channels.h"
 #include "SEQ_effects.h"
 #include "SEQ_iterator.h"
-#include "SEQ_retiming.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_time.h"
 
@@ -693,25 +692,6 @@ static bool seq_speed_factor_set(Sequence *seq, void *user_data)
   else {
     seq->speed_factor = 1.0f;
   }
-  return true;
-}
-
-static bool do_versions_sequencer_init_retiming_tool_data(Sequence *seq, void *user_data)
-{
-  const Scene *scene = static_cast<const Scene *>(user_data);
-
-  if (seq->speed_factor == 1 || !SEQ_retiming_is_allowed(seq)) {
-    return true;
-  }
-
-  const int content_length = SEQ_time_strip_length_get(scene, seq);
-
-  SEQ_retiming_data_ensure(seq);
-
-  SeqRetimingHandle *handle = &seq->retiming_handles[seq->retiming_handle_num - 1];
-  handle->strip_frame_index = round_fl_to_int(content_length / seq->speed_factor);
-  seq->speed_factor = 1.0f;
-
   return true;
 }
 
@@ -1361,18 +1341,6 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 306, 6)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Editing *ed = SEQ_editing_get(scene);
-      if (ed == nullptr) {
-        continue;
-      }
-
-      SEQ_for_each_callback(
-          &scene->ed->seqbase, do_versions_sequencer_init_retiming_tool_data, scene);
-    }
-  }
-
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -1799,7 +1767,6 @@ static bool version_seq_fix_broken_sound_strips(Sequence *seq, void * /*user_dat
   }
 
   seq->speed_factor = 1.0f;
-  SEQ_retiming_data_clear(seq);
   seq->startofs = 0.0f;
   return true;
 }
@@ -4471,18 +4438,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #blo_do_versions_userdef
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
-
+  if (!MAIN_VERSION_ATLEAST(bmain, 306, 11)) {
     BKE_animdata_main_cb(bmain, version_liboverride_nla_frame_start_end, NULL);
 
     /* Store simulation bake directory in geometry nodes modifier. */
@@ -4500,5 +4456,40 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         nmd->simulation_bake_directory = BLI_strdup(bake_dir.c_str());
       }
     }
+
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          /* #107870: Movie Clip Editor hangs in "Clip" view */
+          if (sl->spacetype == SPACE_CLIP) {
+            const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                         &sl->regionbase;
+            ARegion *region_main = BKE_region_find_in_listbase_by_type(regionbase,
+                                                                       RGN_TYPE_WINDOW);
+            region_main->flag &= ~RGN_FLAG_HIDDEN;
+            ARegion *region_tools = BKE_region_find_in_listbase_by_type(regionbase,
+                                                                        RGN_TYPE_TOOLS);
+            region_tools->alignment = RGN_ALIGN_LEFT;
+            if (!(region_tools->flag & RGN_FLAG_HIDDEN_BY_USER)) {
+              region_tools->flag &= ~RGN_FLAG_HIDDEN;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - #do_versions_after_linking_300 in this file.
+   * - "versioning_userdef.c", #blo_do_versions_userdef
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
+    /* Keep this block, even when empty. */
   }
 }

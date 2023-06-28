@@ -337,7 +337,7 @@ UVPackIsland_Params::UVPackIsland_Params()
   only_selected_faces = false;
   use_seams = false;
   correct_aspect = false;
-  pin_method = ED_UVPACK_PIN_DEFAULT;
+  pin_method = ED_UVPACK_PIN_NONE;
   pin_unselected = false;
   merge_overlap = false;
   margin = 0.001f;
@@ -640,6 +640,36 @@ static void pack_gobel(const Span<UVAABBIsland *> aabbs,
     }
   }
 }
+
+static bool pack_islands_optimal_pack_table(const int table_count,
+                                            const float max_extent,
+                                            const float *optimal,
+                                            const char * /* unused_comment */,
+                                            int64_t island_count,
+                                            const float large_uv,
+                                            const Span<UVAABBIsland *> aabbs,
+                                            const UVPackIsland_Params &params,
+                                            MutableSpan<uv_phi> r_phis,
+                                            rctf *r_extent)
+{
+  if (table_count < island_count) {
+    return false;
+  }
+  rctf extent = {0.0f, large_uv * max_extent, 0.0f, large_uv * max_extent};
+  if (is_larger(extent, *r_extent, params)) {
+    return false;
+  }
+  *r_extent = extent;
+
+  for (int i = 0; i < island_count; i++) {
+    uv_phi &phi = r_phis[aabbs[i]->index];
+    phi.translation.x = optimal[i * 3 + 0] * large_uv;
+    phi.translation.y = optimal[i * 3 + 1] * large_uv;
+    phi.rotation = optimal[i * 3 + 2];
+  }
+  return true;
+}
+
 /* Attempt to find an "Optimal" packing of the islands, e.g. assuming squares or circles. */
 static void pack_islands_optimal_pack(const Span<UVAABBIsland *> aabbs,
                                       const UVPackIsland_Params &params,
@@ -652,6 +682,9 @@ static void pack_islands_optimal_pack(const Span<UVAABBIsland *> aabbs,
   if (params.target_aspect_y != 1.0f) {
     return;
   }
+  if (params.rotate_method != ED_UVPACK_ROTATION_ANY) {
+    return;
+  }
 
   float large_uv = 0.0f;
   for (const int64_t i : aabbs.index_range()) {
@@ -660,6 +693,285 @@ static void pack_islands_optimal_pack(const Span<UVAABBIsland *> aabbs,
   }
 
   int64_t island_count_patch = aabbs.size();
+
+  const float opt_11[] = {
+      /* Walter Trump, 1979. */
+      2.6238700165660708840676f,
+      2.4365065643739085565755f,
+      0.70130710554829878145f,
+      1.9596047386700836678841f,
+      1.6885655318806973568257f,
+      0.70130710554829878145f,
+      1.9364970731945949644626f,
+      3.1724566890997589752033f,
+      0.70130710554829878145f,
+      1.2722458068219282267819f,
+      2.4245322476118422727609f,
+      0.70130710554829878145f,
+      3.1724918301381124230431f,
+      1.536261617698265524723f,
+      0.70130710554829878145f,
+      3.3770999999999999907629f,
+      3.3770999999999999907629f,
+      0.0f,
+      0.5f,
+      1.5f,
+      0.0f,
+      2.5325444557069398676674f,
+      0.5f,
+      0.0f,
+      0.5f,
+      3.3770999999999999907629f,
+      0.0f,
+      1.5f,
+      0.5f,
+      0.0f,
+      0.5f,
+      0.5f,
+      0.0f,
+  };
+  pack_islands_optimal_pack_table(11,
+                                  3.8770999999999999907629f,
+                                  opt_11,
+                                  "Walter Trump, 1979",
+                                  island_count_patch,
+                                  large_uv,
+                                  aabbs,
+                                  params,
+                                  r_phis,
+                                  r_extent);
+
+  const float opt_18[] = {
+      /* Pertti Hamalainen, 1979. */
+      2.4700161985907582717914f,
+      2.4335783708246112588824f,
+      0.42403103949074028022892f,
+      1.3528594569415370862941f,
+      2.3892972847076845432923f,
+      0.42403103949074028022892f,
+      2.0585783708246108147932f,
+      1.5221405430584633577951f,
+      0.42403103949074028022892f,
+      1.7642972847076845432923f,
+      3.3007351124738324443797f,
+      0.42403103949074028022892f,
+      3.3228756555322949139963f,
+      1.5f,
+      0.0f,
+      3.3228756555322949139963f,
+      3.3228756555322949139963f,
+      0.0f,
+      0.5f,
+      1.5f,
+      0.0f,
+      2.3228756555322949139963f,
+      4.3228756555322949139963f,
+      0.0f,
+      0.5f,
+      3.3228756555322949139963f,
+      0.0f,
+      1.5f,
+      0.5f,
+      0.0f,
+      3.3228756555322949139963f,
+      0.5f,
+      0.0f,
+      3.3228756555322949139963f,
+      4.3228756555322949139963f,
+      0.0f,
+      4.3228756555322949139963f,
+      1.5f,
+      0.0f,
+      4.3228756555322949139963f,
+      3.3228756555322949139963f,
+      0.0f,
+      0.5f,
+      0.5f,
+      0.0f,
+      0.5f,
+      4.3228756555322949139963f,
+      0.0f,
+      4.3228756555322949139963f,
+      0.5f,
+      0.0f,
+      4.3228756555322949139963f,
+      4.3228756555322949139963f,
+      0.0f,
+  };
+  pack_islands_optimal_pack_table(18,
+                                  4.8228756555322949139963f,
+                                  opt_18,
+                                  "Pertti Hamalainen, 1979",
+                                  island_count_patch,
+                                  large_uv,
+                                  aabbs,
+                                  params,
+                                  r_phis,
+                                  r_extent);
+
+  const float opt_19[] = {
+      /* Robert Wainwright, 1979. */
+      2.1785113019775792508881f,
+      1.9428090415820631342569f,
+      0.78539816339744827899949f,
+      1.4714045207910317891731f,
+      2.6499158227686105959719f,
+      0.78539816339744827899949f,
+      2.9428090415820640224354f,
+      2.7071067811865479058042f,
+      0.78539816339744827899949f,
+      2.2357022603955165607204f,
+      3.4142135623730953675192f,
+      0.78539816339744827899949f,
+      1.4428090415820635783462f,
+      1.2642977396044836613243f,
+      0.78539816339744827899949f,
+      3.3856180831641271566923f,
+      1.5f,
+      0.0f,
+      0.73570226039551600560884f,
+      1.9714045207910311230393f,
+      0.78539816339744827899949f,
+      3.6213203435596432733234f,
+      3.4428090415820635783462f,
+      0.78539816339744827899949f,
+      2.9142135623730958116084f,
+      4.1499158227686105959719f,
+      0.78539816339744827899949f,
+      2.3856180831641271566923f,
+      0.5f,
+      0.0f,
+      0.5f,
+      3.3856180831641271566923f,
+      0.0f,
+      1.5f,
+      4.3856180831641271566923f,
+      0.0f,
+      4.3856180831641271566923f,
+      2.5f,
+      0.0f,
+      3.3856180831641271566923f,
+      0.5f,
+      0.0f,
+      4.3856180831641271566923f,
+      1.5f,
+      0.0f,
+      0.5f,
+      0.5f,
+      0.0f,
+      0.5f,
+      4.3856180831641271566923f,
+      0.0f,
+      4.3856180831641271566923f,
+      0.5f,
+      0.0f,
+      4.3856180831641271566923f,
+      4.3856180831641271566923f,
+      0.0f,
+  };
+  pack_islands_optimal_pack_table(19,
+                                  4.8856180831641271566923f,
+                                  opt_19,
+                                  "Robert Wainwright, 1979",
+                                  island_count_patch,
+                                  large_uv,
+                                  aabbs,
+                                  params,
+                                  r_phis,
+                                  r_extent);
+
+  const float opt_26[] = {
+      /* Erich Friedman, 1997. */
+      2.3106601717798209705279f,
+      2.8106601717798214146171f,
+      0.78539816339744827899949f,
+      1.6035533905932735088129f,
+      2.1035533905932739529021f,
+      0.78539816339744827899949f,
+      3.0177669529663684322429f,
+      2.1035533905932739529021f,
+      0.78539816339744827899949f,
+      2.3106601717798209705279f,
+      1.3964466094067264911871f,
+      0.78539816339744827899949f,
+      1.6035533905932735088129f,
+      3.5177669529663688763321f,
+      0.78539816339744827899949f,
+      0.89644660940672593607559f,
+      2.8106601717798214146171f,
+      0.78539816339744827899949f,
+      3.0177669529663684322429f,
+      3.5177669529663688763321f,
+      0.78539816339744827899949f,
+      3.7248737341529158939579f,
+      2.8106601717798214146171f,
+      0.78539816339744827899949f,
+      2.3106601717798209705279f,
+      4.2248737341529167821363f,
+      0.78539816339744827899949f,
+      0.5f,
+      1.5f,
+      0.0f,
+      1.5f,
+      0.5f,
+      0.0f,
+      3.1213203435596419410558f,
+      0.5f,
+      0.0f,
+      4.1213203435596419410558f,
+      1.5f,
+      0.0f,
+      0.5f,
+      4.1213203435596419410558f,
+      0.0f,
+      0.5f,
+      0.5f,
+      0.0f,
+      4.1213203435596419410558f,
+      4.1213203435596419410558f,
+      0.0f,
+      4.1213203435596419410558f,
+      0.5f,
+      0.0f,
+      1.5f,
+      5.1213203435596419410558f,
+      0.0f,
+      3.1213203435596419410558f,
+      5.1213203435596419410558f,
+      0.0f,
+      5.1213203435596419410558f,
+      2.5f,
+      0.0f,
+      5.1213203435596419410558f,
+      1.5f,
+      0.0f,
+      0.5f,
+      5.1213203435596419410558f,
+      0.0f,
+      4.1213203435596419410558f,
+      5.1213203435596419410558f,
+      0.0f,
+      5.1213203435596419410558f,
+      4.1213203435596419410558f,
+      0.0f,
+      5.1213203435596419410558f,
+      0.5f,
+      0.0f,
+      5.1213203435596419410558f,
+      5.1213203435596419410558f,
+      0.0f,
+  };
+  pack_islands_optimal_pack_table(26,
+                                  5.6213203435596419410558f,
+                                  opt_26,
+                                  "Erich Friedman, 1997",
+                                  island_count_patch,
+                                  large_uv,
+                                  aabbs,
+                                  params,
+                                  r_phis,
+                                  r_extent);
+
   if (island_count_patch == 37) {
     island_count_patch = 38; /* TODO, Cantrell 2002. */
   }
@@ -1466,10 +1778,10 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
   }
 
   /* If some of the islands are locked, we build a summary about them here. */
-  rctf locked_bounds;              /* AABB of islands which can't translate. */
+  rctf locked_bounds = {0.0f};     /* AABB of islands which can't translate. */
   int64_t locked_island_count = 0; /* Index of first non-locked island. */
   for (int64_t i = 0; i < islands.size(); i++) {
-    PackIsland *pack_island = islands[i];
+    PackIsland *pack_island = islands[aabbs[i]->index];
     if (pack_island->can_translate_(params)) {
       break;
     }
@@ -1482,6 +1794,12 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
     }
     float2 top_right = pack_island->pivot_ + pack_island->half_diagonal_;
     BLI_rctf_do_minmax_v(&locked_bounds, top_right);
+
+    uv_phi &phi = r_phis[aabbs[i]->index]; /* Lock in place. */
+    phi.translation = pack_island->pivot_;
+    sub_v2_v2(phi.translation, params.udim_base_offset);
+    phi.rotation = 0.0f;
+
     locked_island_count = i + 1;
   }
 
@@ -1543,6 +1861,13 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
                     params.target_aspect_y,
                     r_phis,
                     &final_extent);
+
+  /* Housekeeping. */
+  for (const int64_t i : aabbs.index_range()) {
+    UVAABBIsland *aabb = aabbs[i];
+    aabbs[i] = nullptr;
+    delete aabb;
+  }
 
   return get_aspect_scaled_extent(final_extent, params);
 }
@@ -1978,7 +2303,6 @@ bool PackIsland::can_translate_(const UVPackIsland_Params &params) const
   }
   switch (params.pin_method) {
     case ED_UVPACK_PIN_LOCK_ALL:
-    case ED_UVPACK_PIN_LOCK_TRANSLATION:
       return false;
     default:
       return true;

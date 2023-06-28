@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.6.0 Beta (b'24ca886ac042')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-22 16:40:40\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Martin Reininger <martinreininger@gmx.net>\n"
 "Language-Team: German translation team\n"
@@ -8890,12 +8890,8 @@ msgid "Vorbis"
 msgstr "Vorbis"
 
 
-msgid "Samplerate"
+msgid "Sample Rate"
 msgstr "Abtastrate"
-
-
-msgid "Audio samplerate(samples/s)"
-msgstr "Audio Sampelrate(samples/s)"
 
 
 msgctxt "Sound"
@@ -13105,14 +13101,6 @@ msgid "Gpencil Settings"
 msgstr "Wachsstift Einstellungen"
 
 
-msgid "Grease Pencil Draw Tool"
-msgstr "Wachsstift Zeichenwerkzeug"
-
-
-msgid "Erase"
-msgstr "Radieren"
-
-
 msgid "Grease Pencil Vertex Paint Tool"
 msgstr "Wachsstift-Eckpunkt Malwerkzeug"
 
@@ -13139,22 +13127,6 @@ msgstr "Pinselicon-Dateipfad"
 
 msgid "File path to brush icon"
 msgstr "Dateipfad zum Pinselicon"
-
-
-msgid "Image Paint Tool"
-msgstr "Bildmalwerkzeug"
-
-
-msgid "Soften"
-msgstr "Weichzeichnen"
-
-
-msgid "Clone"
-msgstr "Klonen"
-
-
-msgid "Mask"
-msgstr "Maske"
 
 
 msgid "Jitter the position of the brush while painting"
@@ -13259,66 +13231,6 @@ msgstr "Y-Ebene"
 
 msgid "Z Plane"
 msgstr "Z-Ebene"
-
-
-msgid "Sculpt Tool"
-msgstr "Skulpturwerkzeug"
-
-
-msgid "Draw Sharp"
-msgstr "Form"
-
-
-msgid "Clay"
-msgstr "Clay"
-
-
-msgid "Clay Strips"
-msgstr "Claystück"
-
-
-msgid "Blob"
-msgstr "Klecksen"
-
-
-msgid "Flatten"
-msgstr "Glätten"
-
-
-msgid "Scrape"
-msgstr "Kratzen"
-
-
-msgid "Elastic Deform"
-msgstr "Elastische Verformung"
-
-
-msgid "Thumb"
-msgstr "Daumen"
-
-
-msgid "Pose"
-msgstr "Pose"
-
-
-msgid "Nudge"
-msgstr "Anstoßen"
-
-
-msgid "Rotate"
-msgstr "Rotieren"
-
-
-msgid "Boundary"
-msgstr "Klang"
-
-
-msgid "Cloth"
-msgstr "Gewebe"
-
-
-msgid "Draw Face Sets"
-msgstr "Zeiche Oberflächensatz"
 
 
 msgid "Secondary Color"
@@ -13567,6 +13479,10 @@ msgstr "Weicher Strich"
 
 msgid "Use this brush in grease pencil vertex color mode"
 msgstr "Diesen Wachsstift im Eckpunktfarbmodus verwenden"
+
+
+msgid "Sculpt Tool"
+msgstr "Skulpturwerkzeug"
 
 
 msgid "Grab UVs"
@@ -15396,6 +15312,10 @@ msgid "Hair strands"
 msgstr "Haarsträhnen"
 
 
+msgid "Cloth"
+msgstr "Gewebe"
+
+
 msgid "Refraction Depth"
 msgstr "Brechungstiefe"
 
@@ -15622,10 +15542,6 @@ msgstr "Metaball-Elemente"
 
 msgid "Render Size"
 msgstr "Renderdauer"
-
-
-msgid "Wire Size"
-msgstr "Drahtgröße"
 
 
 msgid "Influence of metaball elements"
@@ -15870,10 +15786,6 @@ msgstr "Aktuelle Szene"
 
 msgid "Bounding Box"
 msgstr "Begrenzungsrahmen"
-
-
-msgid "Object color and alpha, used when faces have the ObColor mode enabled"
-msgstr "Objektfarbe und Alpha, verwenden wenn Flächen den ObColor-Modus aktiviert haben"
 
 
 msgid "Constraints"
@@ -16176,6 +16088,10 @@ msgid "Parent Vertices"
 msgstr "Partikel"
 
 
+msgid "Pose"
+msgstr "Pose"
+
+
 msgid "Current pose for armatures"
 msgstr "Aktuelle Pose für Skelette"
 
@@ -16401,10 +16317,6 @@ msgstr "Global Y"
 
 msgid "Global Z"
 msgstr "Global Z"
-
-
-msgid "Effect Children"
-msgstr "Kinder"
 
 
 msgid "Random Bending Stiffness"
@@ -18343,10 +18255,6 @@ msgstr "DWAA (verlustbehaftet)"
 
 msgid "File format to save the rendered images as"
 msgstr "Dateiformat, in dem gerenderte Bilder gespeichert werden"
-
-
-msgid "Codec settings for Jpeg2000"
-msgstr "Codec-Einstellungen für Jpeg2000"
 
 
 msgid "JP2"
@@ -20592,6 +20500,10 @@ msgid "Self Overlap"
 msgstr "Selbstüberlagerung"
 
 
+msgid "Mask"
+msgstr "Maske"
+
+
 msgid "Material slot in an object"
 msgstr "Materialsteckplatz in einem Objekt"
 
@@ -21909,10 +21821,6 @@ msgstr "Einstellungen"
 
 msgid "Lambda Factor"
 msgstr "Dämpfungsfaktor"
-
-
-msgid "Smooth factor effect"
-msgstr "Weicher Abfall"
 
 
 msgid "Length Weight"
@@ -23469,6 +23377,10 @@ msgid "Thickness factor"
 msgstr "Dickenfaktor"
 
 
+msgid "Boundary"
+msgstr "Klang"
+
+
 msgid "Offset Relative"
 msgstr "Relative Pfade"
 
@@ -24937,10 +24849,6 @@ msgid "ITU 709"
 msgstr "ITU 709"
 
 
-msgid "Jpeg"
-msgstr "JPEG"
-
-
 msgid "Combine YUVA"
 msgstr "Kombiniere YUVA"
 
@@ -25223,6 +25131,10 @@ msgstr "X-Position vom Zentrum der Ellipse"
 
 msgid "Y position of the middle of the ellipse"
 msgstr "Y-Position vom Zentrum der Ellipse"
+
+
+msgid "Soften"
+msgstr "Weichzeichnen"
 
 
 msgid "Box Sharpen"
@@ -25673,6 +25585,10 @@ msgstr "RGB zu S/W"
 
 msgid "Render Layers"
 msgstr "Render-Ebenen"
+
+
+msgid "Rotate"
+msgstr "Rotieren"
 
 
 msgid "Offset image horizontally (factor of image size)"
@@ -32382,6 +32298,10 @@ msgid "Replace Existing"
 msgstr "Ersetzen Vorhandener"
 
 
+msgid "Flatten"
+msgstr "Glätten"
+
+
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "F-Kurven Modifikator hinzufügen"
@@ -32434,6 +32354,19 @@ msgstr "Aktive Kanäle am Cursor"
 
 msgid "Selected Channels at Cursor"
 msgstr "Ausgewählte Kanäle am Cursor"
+
+
+msgctxt "Operator"
+msgid "Jump to Keyframe"
+msgstr "Zu Schlüsselbild springen"
+
+
+msgid "Jump to previous/next keyframe"
+msgstr "Zum vorherigen/nächsten Schlüsselbild springen"
+
+
+msgid "Next Keyframe"
+msgstr "Nächstes Schlüsselbild"
 
 
 msgid "By Values Over Cursor Value"
@@ -35284,10 +35217,6 @@ msgid "Detach"
 msgstr "Trennen"
 
 
-msgid "Insert Offset"
-msgstr "Versatz einfügen"
-
-
 msgid "Detach Links"
 msgstr "Verbindungen abhängen"
 
@@ -37461,6 +37390,10 @@ msgid "Create Missing"
 msgstr "Fehlendes erstellen"
 
 
+msgid "Clone"
+msgstr "Klonen"
+
+
 msgid "Change selection for all faces"
 msgstr "Auswahl für alle Flächen ändern"
 
@@ -37874,10 +37807,6 @@ msgstr "Nur Skalierung"
 
 msgid "Custom properties"
 msgstr "Benutzerdefinierte Eigenschaften"
-
-
-msgid "Next Keyframe"
-msgstr "Nächstes Schlüsselbild"
 
 
 msgid "Previous Keyframe"
@@ -38878,15 +38807,6 @@ msgstr "Zeitversatz"
 msgctxt "Operator"
 msgid "Expand/Collapse Header Menus"
 msgstr "Erweitern/Reduzieren von Headermenüs"
-
-
-msgctxt "Operator"
-msgid "Jump to Keyframe"
-msgstr "Zu Schlüsselbild springen"
-
-
-msgid "Jump to previous/next keyframe"
-msgstr "Zum vorherigen/nächsten Schlüsselbild springen"
 
 
 msgctxt "Operator"
@@ -40888,10 +40808,6 @@ msgstr "Bild einpacken"
 
 msgid "Fraction"
 msgstr "Bruch"
-
-
-msgid "Bounding box"
-msgstr "Begrenzungsrahmen"
 
 
 msgctxt "Operator"
@@ -48515,10 +48431,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "YCbCr (Jpeg)"
-msgstr "YCbCr (JPEG)"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Y-Position des Sequenzstreifens"
 
@@ -55549,10 +55461,6 @@ msgid "Buffer"
 msgstr "Puffer"
 
 
-msgid "Sample Rate"
-msgstr "Abtastrate"
-
-
 msgid "Custom (%.4g fps)"
 msgstr "Benutzerdefiniert (%.4g fps)"
 
@@ -60017,10 +59925,6 @@ msgid "ID / Index"
 msgstr "ID / Index"
 
 
-msgid " from "
-msgstr " von "
-
-
 msgid "GP_Layer"
 msgstr "WS-Ebene"
 
@@ -64204,6 +64108,10 @@ msgid "Fac"
 msgstr "Faktor"
 
 
+msgid "Bounding box"
+msgstr "Begrenzungsrahmen"
+
+
 msgid "Color Space:"
 msgstr "Farbraum:"
 
@@ -64542,10 +64450,6 @@ msgstr "Rest"
 
 msgid "Edge Crease"
 msgstr "Kantenfalte"
-
-
-msgid " node"
-msgstr " Knoten"
 
 
 msgid "Shader Editor"

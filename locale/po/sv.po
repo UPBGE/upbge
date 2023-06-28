@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.6.0 Beta (b'24ca886ac042')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-22 16:40:40\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Arvid Rudling <arvid.r@gmail.com>\n"
 "Language-Team: \n"
@@ -633,10 +633,6 @@ msgid "7.1 Surround"
 msgstr "7.1 Surround"
 
 
-msgid "Samplerate"
-msgstr "Samplingsfrekvens"
-
-
 msgid "Audio volume"
 msgstr "Ljudvolym"
 
@@ -905,14 +901,6 @@ msgid "Rate"
 msgstr "Frekvens"
 
 
-msgid "Rotate"
-msgstr "Rotera"
-
-
-msgid "Cloth"
-msgstr "Tyg"
-
-
 msgid "List of background images"
 msgstr "Lista på bakgrundsbilder"
 
@@ -1043,6 +1031,10 @@ msgstr "Diffus färg"
 
 msgid "Cube"
 msgstr "Kub"
+
+
+msgid "Cloth"
+msgstr "Tyg"
 
 
 msgid "Specular Color"
@@ -1423,6 +1415,10 @@ msgstr "Zooma"
 
 msgid "Shadow"
 msgstr "Skugga"
+
+
+msgid "Rotate"
+msgstr "Rotera"
 
 
 msgid "Convex Hull"

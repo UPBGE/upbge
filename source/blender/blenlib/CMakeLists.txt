@@ -184,6 +184,7 @@ set(SRC
   BLI_assert.h
   BLI_astar.h
   BLI_atomic_disjoint_set.hh
+  BLI_binary_search.hh
   BLI_bit_group_vector.hh
   BLI_bit_ref.hh
   BLI_bit_span.hh
@@ -320,6 +321,7 @@ set(SRC
   BLI_noise.h
   BLI_noise.hh
   BLI_offset_indices.hh
+  BLI_ordered_edge.hh
   BLI_parameter_pack_utils.hh
   BLI_path_util.h
   BLI_polyfill_2d.h

@@ -236,20 +236,13 @@ static void snap_editmesh_minmax(SnapObjectContext *sctx,
   }
 }
 
-static void snap_object_data_mesh_get(SnapObjectContext *sctx,
-                                      Object *ob_eval,
-                                      const Mesh *me_eval,
+static void snap_object_data_mesh_get(const Mesh *me_eval,
                                       bool use_hide,
                                       BVHTreeFromMesh *r_treedata)
 {
   const Span<float3> vert_positions = me_eval->vert_positions();
   const blender::OffsetIndices polys = me_eval->polys();
   const Span<int> corner_verts = me_eval->corner_verts();
-
-  if (ob_eval->type == OB_MESH) {
-    /* Any existing #SnapData_EditMesh is now invalid. */
-    sctx->editmesh_caches.remove(BKE_editmesh_from_object(ob_eval));
-  }
 
   /* The BVHTree from looptris is always required. */
   BKE_bvhtree_from_mesh_get(
@@ -539,7 +532,6 @@ struct RayCastAll_Data {
   BVHTree_RayCastCallback raycast_callback;
 
   const float (*obmat)[4];
-  const float (*timat)[3];
 
   float len_diff;
   float local_scale;
@@ -605,7 +597,7 @@ static void raycast_all_cb(void *userdata, int index, const BVHTreeRay *ray, BVH
 
     /* World-space normal. */
     copy_v3_v3(normal, hit->no);
-    mul_m3_v3((float(*)[3])data->timat, normal);
+    mul_mat3_m4_v3(data->obmat, normal);
     normalize_v3(normal);
 
     SnapObjectHitDepth *hit_item = hit_depth_create(
@@ -678,8 +670,7 @@ static void editmesh_looptri_raycast_backface_culling_cb(void *userdata,
   }
 }
 
-static bool raycastMesh(SnapObjectContext *sctx,
-                        const SnapObjectParams *params,
+static bool raycastMesh(const SnapObjectParams *params,
                         const float ray_start[3],
                         const float ray_dir[3],
                         Object *ob_eval,
@@ -747,16 +738,13 @@ static bool raycastMesh(SnapObjectContext *sctx,
   }
 
   BVHTreeFromMesh treedata;
-  snap_object_data_mesh_get(sctx, ob_eval, me_eval, use_hide, &treedata);
+  snap_object_data_mesh_get(me_eval, use_hide, &treedata);
 
   const blender::Span<int> looptri_polys = me_eval->looptri_polys();
 
   if (treedata.tree == nullptr) {
     return retval;
   }
-
-  float timat[3][3]; /* transpose inverse matrix for normals */
-  transpose_m3_m4(timat, imat);
 
   BLI_assert(treedata.raycast_callback != nullptr);
   if (r_hit_list) {
@@ -765,7 +753,6 @@ static bool raycastMesh(SnapObjectContext *sctx,
     data.bvhdata = &treedata;
     data.raycast_callback = treedata.raycast_callback;
     data.obmat = obmat;
-    data.timat = timat;
     data.len_diff = len_diff;
     data.local_scale = local_scale;
     data.ob_eval = ob_eval;
@@ -804,7 +791,7 @@ static bool raycastMesh(SnapObjectContext *sctx,
 
         if (r_no) {
           copy_v3_v3(r_no, hit.no);
-          mul_m3_v3(timat, r_no);
+          mul_mat3_m4_v3(obmat, r_no);
           normalize_v3(r_no);
         }
 
@@ -888,16 +875,12 @@ static bool raycastEditMesh(SnapObjectContext *sctx,
     return retval;
   }
 
-  float timat[3][3]; /* transpose inverse matrix for normals */
-  transpose_m3_m4(timat, imat);
-
   if (r_hit_list) {
     RayCastAll_Data data;
 
     data.bvhdata = treedata;
     data.raycast_callback = treedata->raycast_callback;
     data.obmat = obmat;
-    data.timat = timat;
     data.len_diff = len_diff;
     data.local_scale = local_scale;
     data.ob_eval = ob_eval;
@@ -941,7 +924,7 @@ static bool raycastEditMesh(SnapObjectContext *sctx,
 
         if (r_no) {
           copy_v3_v3(r_no, hit.no);
-          mul_m3_v3(timat, r_no);
+          mul_mat3_m4_v3(obmat, r_no);
           normalize_v3(r_no);
         }
 
@@ -966,7 +949,8 @@ struct RaycastObjUserData {
   /* read/write args */
   float *ray_depth;
 
-  bool use_occlusion_test;
+  uint use_occlusion_test : 1;
+  uint use_occlusion_test_edit : 1;
 };
 
 /**
@@ -983,21 +967,17 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
 {
   RaycastObjUserData *dt = static_cast<RaycastObjUserData *>(data);
   const uint ob_index = dt->ob_index++;
-  bool use_occlusion_test = dt->use_occlusion_test;
   /* read/write args */
   float *ray_depth = dt->ray_depth;
 
   bool retval = false;
   bool is_edit = false;
-  if (use_occlusion_test) {
-    if (ELEM(ob_eval->dt, OB_BOUNDBOX, OB_WIRE)) {
-      /* Do not hit objects that are in wire or bounding box
-       * display mode. */
-      return SCE_SNAP_MODE_NONE;
-    }
-  }
 
   if (ob_data == nullptr) {
+    if (dt->use_occlusion_test_edit && ELEM(ob_eval->dt, OB_BOUNDBOX, OB_WIRE)) {
+      /* Do not hit objects that are in wire or bounding box display mode. */
+      return SCE_SNAP_MODE_NONE;
+    }
     if (ob_eval->type == OB_MESH) {
       BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
       if (UNLIKELY(!em)) { /* See #mesh_for_snap doc-string. */
@@ -1025,6 +1005,10 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
       return SCE_SNAP_MODE_NONE;
     }
   }
+  else if (dt->use_occlusion_test && ELEM(ob_eval->dt, OB_BOUNDBOX, OB_WIRE)) {
+    /* Do not hit objects that are in wire or bounding box display mode. */
+    return SCE_SNAP_MODE_NONE;
+  }
   else if (GS(ob_data->name) != ID_ME) {
     return SCE_SNAP_MODE_NONE;
   }
@@ -1033,8 +1017,7 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
   }
   else {
     const Mesh *me_eval = (const Mesh *)ob_data;
-    retval = raycastMesh(sctx,
-                         params,
+    retval = raycastMesh(params,
                          dt->ray_start,
                          dt->ray_dir,
                          ob_eval,
@@ -1077,26 +1060,20 @@ static bool raycastObjects(SnapObjectContext *sctx,
                            const SnapObjectParams *params,
                            const float ray_start[3],
                            const float ray_dir[3],
+                           const bool use_occlusion_test,
+                           const bool use_occlusion_test_edit,
                            /* read/write args */
                            /* Parameters below cannot be const, because they are assigned to a
                             * non-const variable (readability-non-const-parameter). */
                            float *ray_depth /* NOLINT */)
 {
-  const View3D *v3d = sctx->runtime.v3d;
-  if (params->use_occlusion_test && v3d && XRAY_FLAG_ENABLED(v3d)) {
-    /* General testing of occlusion geometry is disabled if the snap is not intended for the edit
-     * cage. */
-    if (params->edit_mode_type == SNAP_GEOM_EDIT) {
-      return false;
-    }
-  }
-
   RaycastObjUserData data = {};
   data.ray_start = ray_start;
   data.ray_dir = ray_dir;
   data.ob_index = 0;
   data.ray_depth = ray_depth;
-  data.use_occlusion_test = params->use_occlusion_test;
+  data.use_occlusion_test = use_occlusion_test;
+  data.use_occlusion_test_edit = use_occlusion_test_edit;
 
   return iter_snap_objects(sctx, params, raycast_obj_fn, &data) != SCE_SNAP_MODE_NONE;
 }
@@ -1165,9 +1142,6 @@ static bool nearest_world_tree(SnapObjectContext * /*sctx*/,
   float imat[4][4];
   invert_m4_m4(imat, obmat);
 
-  float timat[3][3]; /* transpose inverse matrix for normals */
-  transpose_m3_m4(timat, imat);
-
   /* compute offset between init co and prev co in local space */
   float init_co_local[3], curr_co_local[3];
   float delta_local[3];
@@ -1210,7 +1184,8 @@ static bool nearest_world_tree(SnapObjectContext * /*sctx*/,
   mul_v3_m4v3(r_loc, obmat, co_local);
 
   if (r_no) {
-    mul_v3_m3v3(r_no, timat, no_local);
+    copy_v3_v3(r_no, no_local);
+    mul_mat3_m4_v3(obmat, r_no);
     normalize_v3(r_no);
   }
 
@@ -1219,7 +1194,6 @@ static bool nearest_world_tree(SnapObjectContext * /*sctx*/,
 
 static bool nearest_world_mesh(SnapObjectContext *sctx,
                                const struct SnapObjectParams *params,
-                               Object *ob_eval,
                                const Mesh *me_eval,
                                const float (*obmat)[4],
                                bool use_hide,
@@ -1231,7 +1205,7 @@ static bool nearest_world_mesh(SnapObjectContext *sctx,
                                int *r_index)
 {
   BVHTreeFromMesh treedata;
-  snap_object_data_mesh_get(sctx, ob_eval, me_eval, use_hide, &treedata);
+  snap_object_data_mesh_get(me_eval, use_hide, &treedata);
   if (treedata.tree == nullptr) {
     return false;
   }
@@ -1330,7 +1304,6 @@ static eSnapMode nearest_world_object_fn(SnapObjectContext *sctx,
     const Mesh *me_eval = (const Mesh *)ob_data;
     retval = nearest_world_mesh(sctx,
                                 params,
-                                ob_eval,
                                 me_eval,
                                 obmat,
                                 use_hide,
@@ -1876,14 +1849,9 @@ static eSnapMode snap_mesh_polygon(SnapObjectContext *sctx,
     copy_v3_v3(sctx->ret.loc, nearest.co);
     mul_m4_v3(sctx->ret.obmat, sctx->ret.loc);
 
-    {
-      float imat[4][4];
-      invert_m4_m4(imat, sctx->ret.obmat);
-
-      copy_v3_v3(sctx->ret.no, nearest.no);
-      mul_transposed_mat3_m4_v3(imat, sctx->ret.no);
-      normalize_v3(sctx->ret.no);
-    }
+    copy_v3_v3(sctx->ret.no, nearest.no);
+    mul_mat3_m4_v3(sctx->ret.obmat, sctx->ret.no);
+    normalize_v3(sctx->ret.no);
 
     sctx->ret.index = nearest.index;
     return elem;
@@ -1981,10 +1949,8 @@ static eSnapMode snap_mesh_edge_verts_mixed(SnapObjectContext *sctx,
           nearest.index = vindex[v_id];
           elem = SCE_SNAP_MODE_VERTEX;
           {
-            float imat[4][4];
-            invert_m4_m4(imat, sctx->ret.obmat);
             nearest2d.copy_vert_no(vindex[v_id], &nearest2d, sctx->ret.no);
-            mul_transposed_mat3_m4_v3(imat, sctx->ret.no);
+            mul_mat3_m4_v3(sctx->ret.obmat, sctx->ret.no);
             normalize_v3(sctx->ret.no);
           }
         }
@@ -2574,7 +2540,7 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
   }
 
   BVHTreeFromMesh treedata, treedata_dummy;
-  snap_object_data_mesh_get(sctx, ob_eval, me_eval, use_hide, &treedata);
+  snap_object_data_mesh_get(me_eval, use_hide, &treedata);
 
   BVHTree *bvhtree[2] = {nullptr};
   bvhtree[0] = BKE_bvhtree_from_mesh_get(&treedata_dummy, me_eval, BVHTREE_FROM_LOOSEEDGES, 2);
@@ -2686,11 +2652,8 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
     mul_m4_v3(obmat, r_loc);
 
     if (r_no) {
-      float imat[4][4];
-      invert_m4_m4(imat, obmat);
-
       copy_v3_v3(r_no, nearest.no);
-      mul_transposed_mat3_m4_v3(imat, r_no);
+      mul_mat3_m4_v3(obmat, r_no);
       normalize_v3(r_no);
     }
     if (r_index) {
@@ -2861,12 +2824,10 @@ static eSnapMode snapEditMesh(SnapObjectContext *sctx,
 
     copy_v3_v3(r_loc, nearest.co);
     mul_m4_v3(obmat, r_loc);
-    if (r_no) {
-      float imat[4][4];
-      invert_m4_m4(imat, obmat);
 
+    if (r_no) {
       copy_v3_v3(r_no, nearest.no);
-      mul_transposed_mat3_m4_v3(imat, r_no);
+      mul_mat3_m4_v3(obmat, r_no);
       normalize_v3(r_no);
     }
     if (r_index) {
@@ -3096,7 +3057,14 @@ bool ED_transform_snap_object_project_ray_ex(SnapObjectContext *sctx,
   sctx->ret.dist_sq = FLT_MAX;
   sctx->ret.is_edit = false;
 
-  if (raycastObjects(sctx, params, ray_start, ray_normal, ray_depth)) {
+  if (raycastObjects(sctx,
+                     params,
+                     ray_start,
+                     ray_normal,
+                     params->use_occlusion_test,
+                     params->use_occlusion_test,
+                     ray_depth))
+  {
     copy_v3_v3(r_loc, sctx->ret.loc);
     if (r_no) {
       copy_v3_v3(r_no, sctx->ret.no);
@@ -3146,7 +3114,14 @@ bool ED_transform_snap_object_project_ray_all(SnapObjectContext *sctx,
   float ray_depth_prev = ray_depth;
 #endif
 
-  if (raycastObjects(sctx, params, ray_start, ray_normal, &ray_depth)) {
+  if (raycastObjects(sctx,
+                     params,
+                     ray_start,
+                     ray_normal,
+                     params->use_occlusion_test,
+                     params->use_occlusion_test,
+                     &ray_depth))
+  {
     if (sort) {
       BLI_listbase_sort(r_hit_list, hit_depth_cmp);
     }
@@ -3254,15 +3229,19 @@ static eSnapMode transform_snap_context_project_view3d_mixed_impl(SnapObjectCont
 
   const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  if (snap_to_flag & (SCE_SNAP_MODE_FACE_RAYCAST | SCE_SNAP_MODE_FACE_NEAREST)) {
-    if (params->use_occlusion_test && XRAY_ENABLED(v3d)) {
-      /* Remove Snap to Face with Occlusion Test as they are not visible in wireframe mode. */
-      snap_to_flag &= ~(SCE_SNAP_MODE_FACE_RAYCAST | SCE_SNAP_MODE_FACE_NEAREST);
+  bool use_occlusion_test = params->use_occlusion_test;
+
+  if (use_occlusion_test && XRAY_ENABLED(v3d) && (snap_to_flag & SCE_SNAP_MODE_FACE_RAYCAST)) {
+    if (snap_to_flag != SCE_SNAP_MODE_FACE_RAYCAST) {
+      /* In theory everything is visible in X-Ray except faces. */
+      snap_to_flag &= ~SCE_SNAP_MODE_FACE_RAYCAST;
+      use_occlusion_test = false;
     }
-    else if (prev_co == nullptr || init_co == nullptr) {
-      /* No location to work with #SCE_SNAP_MODE_FACE_NEAREST. */
-      snap_to_flag &= ~SCE_SNAP_MODE_FACE_NEAREST;
-    }
+  }
+
+  if ((snap_to_flag & SCE_SNAP_MODE_FACE_NEAREST) && ELEM(nullptr, prev_co, init_co)) {
+    /* No location to work with #SCE_SNAP_MODE_FACE_NEAREST. */
+    snap_to_flag &= ~SCE_SNAP_MODE_FACE_NEAREST;
   }
 
   /* NOTE: if both face ray-cast and face nearest are enabled, first find result of nearest, then
@@ -3289,8 +3268,6 @@ static eSnapMode transform_snap_context_project_view3d_mixed_impl(SnapObjectCont
     }
   }
 
-  bool use_occlusion_test = params->use_occlusion_test && !XRAY_ENABLED(v3d);
-
   if ((snap_to_flag & SCE_SNAP_MODE_FACE_RAYCAST) || use_occlusion_test) {
     float ray_start[3], ray_normal[3];
     if (!ED_view3d_win_to_ray_clipped_ex(
@@ -3301,7 +3278,14 @@ static eSnapMode transform_snap_context_project_view3d_mixed_impl(SnapObjectCont
 
     float dummy_ray_depth = BVH_RAYCAST_DIST_MAX;
 
-    has_hit = raycastObjects(sctx, params, ray_start, ray_normal, &dummy_ray_depth);
+    has_hit = raycastObjects(sctx,
+                             params,
+                             ray_start,
+                             ray_normal,
+                             use_occlusion_test,
+                             use_occlusion_test &&
+                                 (snap_to_flag & SCE_SNAP_MODE_FACE_RAYCAST) == 0,
+                             &dummy_ray_depth);
 
     if (has_hit) {
       if (r_face_nor) {

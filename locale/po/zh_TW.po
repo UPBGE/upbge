@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.6.0 Beta (b'24ca886ac042')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-22 16:40:40\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: 2023-01-28 11:09+0800\n"
 "Last-Translator: Cheng-Chia Tseng <pswo10680@gmail.com>\n"
 "Language-Team: Chinese (Traditional) <http://weblate.slat.org/projects/blender/blender/zh_Hant/>\n"
@@ -8307,12 +8307,8 @@ msgid "Vorbis"
 msgstr "Vorbis"
 
 
-msgid "Samplerate"
+msgid "Sample Rate"
 msgstr "取樣率"
-
-
-msgid "Audio samplerate(samples/s)"
-msgstr "音訊取樣率(取樣次數/秒)"
 
 
 msgctxt "Sound"
@@ -11604,22 +11600,6 @@ msgid "File path to brush icon"
 msgstr "筆刷圖示的檔案路徑"
 
 
-msgid "Image Paint Tool"
-msgstr "影像繪製工具"
-
-
-msgid "Soften"
-msgstr "柔化"
-
-
-msgid "Clone"
-msgstr "拓製"
-
-
-msgid "Mask"
-msgstr "遮罩"
-
-
 msgid "Jitter the position of the brush while painting"
 msgstr "繪製時抖動筆刷的位置"
 
@@ -11730,62 +11710,6 @@ msgstr "Y 平面"
 
 msgid "Z Plane"
 msgstr "Z 平面"
-
-
-msgid "Sculpt Tool"
-msgstr "雕塑工具"
-
-
-msgid "Draw Sharp"
-msgstr "描繪銳利"
-
-
-msgid "Clay"
-msgstr "黏土"
-
-
-msgid "Clay Strips"
-msgstr "黏土片段"
-
-
-msgid "Blob"
-msgstr "塗抹"
-
-
-msgid "Flatten"
-msgstr "弄平"
-
-
-msgid "Scrape"
-msgstr "刮削"
-
-
-msgid "Thumb"
-msgstr "縮圖"
-
-
-msgid "Pose"
-msgstr "姿勢"
-
-
-msgid "Nudge"
-msgstr "輕推"
-
-
-msgid "Rotate"
-msgstr "旋轉"
-
-
-msgid "Boundary"
-msgstr "邊界"
-
-
-msgid "Cloth"
-msgstr "布料"
-
-
-msgid "Draw Face Sets"
-msgstr "繪製面集"
 
 
 msgid "Secondary Color"
@@ -12138,6 +12062,10 @@ msgstr "筆刷遲滯在滑鼠之後並跟隨較平滑的路徑"
 
 msgid "Automatically adjust strength to give consistent results for different spacings"
 msgstr "自動調整強度以給予不同間隔一致的結果"
+
+
+msgid "Sculpt Tool"
+msgstr "雕塑工具"
 
 
 msgid "Grab UVs"
@@ -13740,24 +13668,12 @@ msgid "U"
 msgstr "U"
 
 
-msgid "Point in U direction (can't be changed when there are shape keys)"
-msgstr "U 方向的點 (有外形鍵時無法更改)"
-
-
 msgid "V"
 msgstr "V"
 
 
-msgid "Point in V direction (can't be changed when there are shape keys)"
-msgstr "V 方向的點 (有外形鍵時無法更改)"
-
-
 msgid "W"
 msgstr "W"
-
-
-msgid "Point in W direction (can't be changed when there are shape keys)"
-msgstr "W 方向的點 (有外形鍵時無法更改)"
 
 
 msgid "Vertex group to apply the influence of the lattice"
@@ -14070,6 +13986,10 @@ msgid "Hair strands"
 msgstr "毛髮線股"
 
 
+msgid "Cloth"
+msgstr "布料"
+
+
 msgid "Roughness"
 msgstr "粗糙度"
 
@@ -14316,10 +14236,6 @@ msgstr "算繪大小"
 
 msgid "Polygonization resolution in rendering"
 msgstr "算繪時的多角化解析度"
-
-
-msgid "Wire Size"
-msgstr "線大小"
 
 
 msgid "Polygonization resolution in the 3D viewport"
@@ -14674,10 +14590,6 @@ msgid "Settings for using the object as a collider in physics simulation"
 msgstr "於物理模擬中將物體作為碰撞子的設定"
 
 
-msgid "Object color and alpha, used when faces have the ObColor mode enabled"
-msgstr "物體色彩與 alpha，當其面啟用物體色彩時可以使用"
-
-
 msgid "Constraints"
 msgstr "約束"
 
@@ -14954,6 +14866,10 @@ msgid "Indices of vertices in case of a vertex parenting relation"
 msgstr "頂點親子關係案例中的頂點索引"
 
 
+msgid "Pose"
+msgstr "姿勢"
+
+
 msgid "Current pose for armatures"
 msgstr "骨架的目前姿勢"
 
@@ -15163,10 +15079,6 @@ msgstr "全域 Y"
 
 msgid "Global Z"
 msgstr "全域 Z"
-
-
-msgid "Effect Children"
-msgstr "影響子代"
 
 
 msgid "Apply effectors to children"
@@ -19120,6 +19032,10 @@ msgid "Scale Factor for Texture"
 msgstr "紋理縮放係數"
 
 
+msgid "Mask"
+msgstr "遮罩"
+
+
 msgid "Material slot in an object"
 msgstr "物體中的材質槽"
 
@@ -19802,10 +19718,6 @@ msgid "Mesh Vertex"
 msgstr "網格頂點"
 
 
-msgid "Weight used by the Bevel modifier 'Only Vertices' option"
-msgstr "倒角修改器「僅頂點」選項使用的權重"
-
-
 msgid "Weights for the vertex groups this vertex is member of"
 msgstr "此頂點為何頂點群組成員之一的權重"
 
@@ -19848,10 +19760,6 @@ msgstr "大小 Z"
 
 msgid "Stiffness defines how much of the element to fill"
 msgstr "剛度定義元素要填補多少"
-
-
-msgid "Metaball types"
-msgstr "變幻球類型"
 
 
 msgid "Ball"
@@ -20344,10 +20252,6 @@ msgstr "設定"
 
 msgid "Lambda Factor"
 msgstr "Lambda 係數"
-
-
-msgid "Smooth factor effect"
-msgstr "平滑係數效果"
 
 
 msgid "Curve Modifier"
@@ -22250,10 +22154,6 @@ msgid "Y coordinate of the start position"
 msgstr "起始位置的 Y 座標軸"
 
 
-msgid "Either the starting frame (for positive speed) or ending frame (for negative speed.)"
-msgstr "起始幀 (正速度) 或結束幀 (負速度)"
-
-
 msgid "Cyclic wave effect"
 msgstr "循環波形效果"
 
@@ -22324,6 +22224,10 @@ msgstr "皺摺權重 (若作用中)"
 
 msgid "Thickness factor"
 msgstr "厚度係數"
+
+
+msgid "Boundary"
+msgstr "邊界"
 
 
 msgid "Support face boundaries"
@@ -24110,10 +24014,6 @@ msgid "ITU 709"
 msgstr "ITU 709"
 
 
-msgid "Jpeg"
-msgstr "Jpeg"
-
-
 msgid "Combine YUVA"
 msgstr "合成 YUVA"
 
@@ -24396,6 +24296,10 @@ msgstr "橢圓的旋轉角度"
 
 msgid "Width of the ellipse"
 msgstr "橢圓的寬"
+
+
+msgid "Soften"
+msgstr "柔化"
 
 
 msgid "Laplace"
@@ -24825,6 +24729,10 @@ msgstr "RGB 至黑白"
 
 msgid "Render Layers"
 msgstr "算繪分層"
+
+
+msgid "Rotate"
+msgstr "旋轉"
 
 
 msgid "Method to use to filter rotation"
@@ -31218,6 +31126,10 @@ msgid "Replace Existing"
 msgstr "替換既有"
 
 
+msgid "Flatten"
+msgstr "弄平"
+
+
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "非連續性尤拉過濾器"
@@ -31282,6 +31194,19 @@ msgstr "建立殘影曲線"
 
 msgid "Create snapshot (Ghosts) of selected F-Curves as background aid for active Graph Editor"
 msgstr "為所選 F 曲線建立快照 (殘影) 為背景來輔助作用中的圖表編輯器"
+
+
+msgctxt "Operator"
+msgid "Jump to Keyframe"
+msgstr "跳到鍵幀"
+
+
+msgid "Jump to previous/next keyframe"
+msgstr "跳到上一個/下一個鍵幀"
+
+
+msgid "Next Keyframe"
+msgstr "下一鍵幀"
 
 
 msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
@@ -36793,6 +36718,10 @@ msgid "If the requested brush type does not exist, create a new brush"
 msgstr "如果請求的筆刷類型不存在，便建立新的筆刷"
 
 
+msgid "Clone"
+msgstr "拓製"
+
+
 msgid "Toggle between two brushes rather than cycling"
 msgstr "在兩個筆刷之間切換，而不是循環"
 
@@ -37455,10 +37384,6 @@ msgstr "僅縮放"
 
 msgid "Custom properties"
 msgstr "自訂屬性"
-
-
-msgid "Next Keyframe"
-msgstr "下一鍵幀"
 
 
 msgid "Frame number of keyframe immediately after the current frame"
@@ -38912,15 +38837,6 @@ msgstr "框幀偏移"
 
 msgid "Move current frame forward/backward by a given number"
 msgstr "以給定的數目往前/往後移動目前的框幀"
-
-
-msgctxt "Operator"
-msgid "Jump to Keyframe"
-msgstr "跳到鍵幀"
-
-
-msgid "Jump to previous/next keyframe"
-msgstr "跳到上一個/下一個鍵幀"
 
 
 msgctxt "Operator"
@@ -41450,14 +41366,6 @@ msgstr "打包島塊"
 
 msgid "Space between islands"
 msgstr "島塊間的空間"
-
-
-msgid "Rotate islands for best fit"
-msgstr "旋轉島塊以最佳適應"
-
-
-msgid "Bounding box"
-msgstr "邊界方塊"
 
 
 msgctxt "Operator"
@@ -48043,10 +47951,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "YCbCr (Jpeg)"
-msgstr "YCbCr (Jpeg)"
-
-
 msgid "Sequence strip in the sequence editor"
 msgstr "序段編輯器中的序段片段"
 
@@ -53484,10 +53388,6 @@ msgid "No text or file specified in node, nothing to compile"
 msgstr "節點中無指定文字或檔案，無可編譯"
 
 
-msgid "OSL query failed to open "
-msgstr "OSL 查詢無法開啟"
-
-
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "外部著色器指令稿必須有 .osl 或 .oso 副檔名，或者是一個模組名稱"
 
@@ -54128,10 +54028,6 @@ msgstr "日期"
 
 msgid "Buffer"
 msgstr "緩衝"
-
-
-msgid "Sample Rate"
-msgstr "取樣率"
 
 
 msgid "Pressure Masking"
@@ -56358,14 +56254,6 @@ msgstr "內建函式"
 
 msgid "Stepped"
 msgstr "步進"
-
-
-msgid " attribute from geometry"
-msgstr " 幾何的屬性"
-
-
-msgid " from "
-msgstr " 來自 "
 
 
 msgid "Cannot pack multiview images from raw data currently..."
@@ -60312,6 +60200,10 @@ msgid "Determinator"
 msgstr "判定器"
 
 
+msgid "Bounding box"
+msgstr "邊界方塊"
+
+
 msgid "Color Space:"
 msgstr "色彩空間："
 
@@ -60462,6 +60354,10 @@ msgstr "老舊"
 
 msgid "Edge Crease"
 msgstr "邊線皺摺"
+
+
+msgid "Rotate islands for best fit"
+msgstr "旋轉島塊以最佳適應"
 
 
 msgid "Missing Data-Block"

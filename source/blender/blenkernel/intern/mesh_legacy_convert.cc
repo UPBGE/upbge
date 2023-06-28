@@ -1384,6 +1384,42 @@ void BKE_mesh_legacy_bevel_weight_from_layers(Mesh *mesh)
   }
 }
 
+void BKE_mesh_bevel_weight_layers_from_future(Mesh *mesh)
+{
+  using namespace blender;
+  using namespace blender::bke;
+  if (const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
+          "bevel_weight_vert"))
+  {
+    if (meta_data->domain == ATTR_DOMAIN_POINT && meta_data->data_type == CD_PROP_FLOAT) {
+      if (const void *data = CustomData_get_layer_named(
+              &mesh->vdata, CD_PROP_FLOAT, "bevel_weight_vert"))
+      {
+        if (void *new_data = CustomData_add_layer(
+                &mesh->vdata, CD_BWEIGHT, CD_CONSTRUCT, mesh->totvert)) {
+          memcpy(new_data, data, sizeof(float) * mesh->totvert);
+          CustomData_free_layer_named(&mesh->vdata, "bevel_weight_vert", mesh->totvert);
+        }
+      }
+    }
+  }
+  if (const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
+          "bevel_weight_edge"))
+  {
+    if (meta_data->domain == ATTR_DOMAIN_EDGE && meta_data->data_type == CD_PROP_FLOAT) {
+      if (const void *data = CustomData_get_layer_named(
+              &mesh->edata, CD_PROP_FLOAT, "bevel_weight_edge"))
+      {
+        if (void *new_data = CustomData_add_layer(
+                &mesh->edata, CD_BWEIGHT, CD_CONSTRUCT, mesh->totedge)) {
+          memcpy(new_data, data, sizeof(float) * mesh->totedge);
+          CustomData_free_layer_named(&mesh->edata, "bevel_weight_edge", mesh->totedge);
+        }
+      }
+    }
+  }
+}
+
 void BKE_mesh_legacy_bevel_weight_to_layers(Mesh *mesh)
 {
   using namespace blender;
@@ -1413,7 +1449,7 @@ void BKE_mesh_legacy_bevel_weight_to_layers(Mesh *mesh)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Edge Crease Conversion
+/** \name Crease Conversion
  * \{ */
 
 void BKE_mesh_legacy_edge_crease_from_layers(Mesh *mesh)
@@ -1439,6 +1475,9 @@ void BKE_mesh_legacy_edge_crease_from_layers(Mesh *mesh)
 void BKE_mesh_legacy_edge_crease_to_layers(Mesh *mesh)
 {
   using namespace blender;
+  if (!mesh->medge) {
+    return;
+  }
   if (CustomData_has_layer(&mesh->edata, CD_CREASE)) {
     return;
   }
@@ -1448,6 +1487,40 @@ void BKE_mesh_legacy_edge_crease_to_layers(Mesh *mesh)
         CustomData_add_layer(&mesh->edata, CD_CREASE, CD_CONSTRUCT, edges.size()));
     for (const int i : edges.index_range()) {
       creases[i] = edges[i].crease_legacy / 255.0f;
+    }
+  }
+}
+
+void BKE_mesh_crease_layers_from_future(Mesh *mesh)
+{
+  using namespace blender;
+  using namespace blender::bke;
+  if (const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
+          "crease_vert"))
+  {
+    if (meta_data->domain == ATTR_DOMAIN_POINT && meta_data->data_type == CD_PROP_FLOAT) {
+      if (const void *data = CustomData_get_layer_named(
+              &mesh->vdata, CD_PROP_FLOAT, "crease_vert")) {
+        if (void *new_data = CustomData_add_layer(
+                &mesh->vdata, CD_CREASE, CD_CONSTRUCT, mesh->totvert)) {
+          memcpy(new_data, data, sizeof(float) * mesh->totvert);
+          CustomData_free_layer_named(&mesh->vdata, "crease_vert", mesh->totvert);
+        }
+      }
+    }
+  }
+  if (const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
+          "crease_edge"))
+  {
+    if (meta_data->domain == ATTR_DOMAIN_EDGE && meta_data->data_type == CD_PROP_FLOAT) {
+      if (const void *data = CustomData_get_layer_named(
+              &mesh->edata, CD_PROP_FLOAT, "crease_edge")) {
+        if (void *new_data = CustomData_add_layer(
+                &mesh->edata, CD_CREASE, CD_CONSTRUCT, mesh->totedge)) {
+          memcpy(new_data, data, sizeof(float) * mesh->totedge);
+          CustomData_free_layer_named(&mesh->edata, "crease_edge", mesh->totedge);
+        }
+      }
     }
   }
 }

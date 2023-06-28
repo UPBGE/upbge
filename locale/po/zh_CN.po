@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.6.0 Beta (b'24ca886ac042')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-22 16:40:40\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: \n"
 "Last-Translator: DeathBlood\n"
 "Language-Team: \n"
@@ -11101,12 +11101,8 @@ msgid "Vorbis"
 msgstr "Vorbis"
 
 
-msgid "Samplerate"
+msgid "Sample Rate"
 msgstr "采样率"
-
-
-msgid "Audio samplerate(samples/s)"
-msgstr "音频采样率(每秒采样次数)"
 
 
 msgctxt "Sound"
@@ -17637,10 +17633,6 @@ msgid "Image Boundary Trimming"
 msgstr "图像边界修剪"
 
 
-msgid "Trim all edges right at the boundary of image(including overscan region)"
-msgstr "修剪图像边界上的所有边线(包括过扫描区域)"
-
-
 msgid "Use Intersection"
 msgstr "使用交集"
 
@@ -19717,20 +19709,12 @@ msgid "Gpencil Settings"
 msgstr "蜡笔设置"
 
 
-msgid "Grease Pencil Draw Tool"
-msgstr "蜡笔绘制工具"
-
-
 msgid "The brush is of type used for drawing strokes"
 msgstr "用于绘制描边笔刷的类型"
 
 
 msgid "The brush is of type used for filling areas"
 msgstr "用于填充区域笔刷的类型"
-
-
-msgid "Erase"
-msgstr "擦除"
 
 
 msgid "The brush is used for erasing strokes"
@@ -19791,22 +19775,6 @@ msgstr "笔刷图标文件路径"
 
 msgid "File path to brush icon"
 msgstr "笔刷图标的文件路径"
-
-
-msgid "Image Paint Tool"
-msgstr "图像绘制工具"
-
-
-msgid "Soften"
-msgstr "柔化"
-
-
-msgid "Clone"
-msgstr "克隆"
-
-
-msgid "Mask"
-msgstr "遮罩"
 
 
 msgid "Invert Pressure for Density"
@@ -20067,86 +20035,6 @@ msgstr "Y 平面"
 
 msgid "Z Plane"
 msgstr "Z 平面"
-
-
-msgid "Sculpt Tool"
-msgstr "雕刻工具"
-
-
-msgid "Draw Sharp"
-msgstr "绘制刻痕"
-
-
-msgid "Clay"
-msgstr "黏塑"
-
-
-msgid "Clay Strips"
-msgstr "黏条"
-
-
-msgid "Clay Thumb"
-msgstr "指推"
-
-
-msgid "Blob"
-msgstr "球体"
-
-
-msgid "Flatten"
-msgstr "平化"
-
-
-msgid "Scrape"
-msgstr "刮削"
-
-
-msgid "Multi-plane Scrape"
-msgstr "多平面刮削"
-
-
-msgid "Elastic Deform"
-msgstr "弹性变形"
-
-
-msgid "Thumb"
-msgstr "拇指"
-
-
-msgid "Pose"
-msgstr "姿态"
-
-
-msgid "Nudge"
-msgstr "推移"
-
-
-msgid "Rotate"
-msgstr "旋转"
-
-
-msgid "Slide Relax"
-msgstr "滑动松弛(拓扑)"
-
-
-msgid "Boundary"
-msgstr "边界范围"
-
-
-msgid "Cloth"
-msgstr "布料"
-
-
-msgid "Draw Face Sets"
-msgstr "绘制面组"
-
-
-msgid "Multires Displacement Eraser"
-msgstr "多精度置换橡皮擦"
-
-
-msgid "Multires Displacement Smear"
-msgstr "多精度置换涂抹"
 
 
 msgid "Secondary Color"
@@ -20827,6 +20715,10 @@ msgstr "对湿润持久使用压感"
 
 msgid "Use pressure to modulate wet persistence"
 msgstr "使用压力调制湿润持久"
+
+
+msgid "Sculpt Tool"
+msgstr "雕刻工具"
 
 
 msgid "Grab UVs"
@@ -23536,24 +23428,12 @@ msgid "U"
 msgstr "U"
 
 
-msgid "Point in U direction (can't be changed when there are shape keys)"
-msgstr "在 U 向生效 (当存在形态键时无法更改)"
-
-
 msgid "V"
 msgstr "V"
 
 
-msgid "Point in V direction (can't be changed when there are shape keys)"
-msgstr "在 V 向生效 (当存在形态键时无法更改)"
-
-
 msgid "W"
 msgstr "W"
-
-
-msgid "Point in W direction (can't be changed when there are shape keys)"
-msgstr "在W向生效 (当存在形态键时无法更改)"
 
 
 msgid "Only display and take into account the outer vertices"
@@ -24315,6 +24195,10 @@ msgid "Shader ball"
 msgstr "着色球"
 
 
+msgid "Cloth"
+msgstr "布料"
+
+
 msgid "Refraction Depth"
 msgstr "折射深度"
 
@@ -24803,10 +24687,6 @@ msgid "Vertices of the mesh"
 msgstr "网格的顶点"
 
 
-msgid "Metaball data-block to defined blobby surfaces"
-msgstr "用于定义球团曲面的融球数据块"
-
-
 msgid "Metaball elements"
 msgstr "融球元素"
 
@@ -24817,10 +24697,6 @@ msgstr "渲染尺寸"
 
 msgid "Polygonization resolution in rendering"
 msgstr "渲染过程中的多边形化精度"
-
-
-msgid "Wire Size"
-msgstr "线号"
 
 
 msgid "Polygonization resolution in the 3D viewport"
@@ -25261,10 +25137,6 @@ msgstr "物体空间坐标中的物体边界盒, 当不可用时, 所有的值�
 
 msgid "Settings for using the object as a collider in physics simulation"
 msgstr "在物理模拟中将物体用于碰撞体的设置"
-
-
-msgid "Object color and alpha, used when faces have the ObColor mode enabled"
-msgstr "物体颜色与alpha, 当面的物体颜色模式被激活时可用"
 
 
 msgid "Constraints"
@@ -25759,6 +25631,10 @@ msgid "Index number for the \"Object Index\" render pass"
 msgstr "用于物体编号渲染通道的编号数值"
 
 
+msgid "Pose"
+msgstr "姿态"
+
+
 msgid "Current pose for armatures"
 msgstr "骨架的当前姿态"
 
@@ -26165,10 +26041,6 @@ msgstr "全局 Y"
 
 msgid "Global Z"
 msgstr "全局 Z"
-
-
-msgid "Effect Children"
-msgstr "影响子粒子"
 
 
 msgid "Apply effectors to children"
@@ -27803,10 +27675,6 @@ msgstr "6.1声道环绕"
 
 msgid "Sound sample file used by this Sound data-block"
 msgstr "供声音数据块所使用的声音采样文件"
-
-
-msgid "Samplerate of the audio in Hz"
-msgstr "音频采样率(单位Hz）"
 
 
 msgid "Caching"
@@ -29829,10 +29697,6 @@ msgid "File format expects linear color space"
 msgstr "文件格式需要线性色彩空间"
 
 
-msgid "Codec settings for Jpeg2000"
-msgstr "Jpeg2000 的编码设置"
-
-
 msgid "JP2"
 msgstr "JP2"
 
@@ -29881,16 +29745,8 @@ msgid "Cinema (48)"
 msgstr "Cinema (48)"
 
 
-msgid "Use Openjpeg Cinema Preset (48fps)"
-msgstr "使用 Openjpeg Cinema 预设 (48fps)"
-
-
 msgid "Cinema"
 msgstr "Cinema"
-
-
-msgid "Use Openjpeg Cinema Preset"
-msgstr "要使用的视角预设"
 
 
 msgid "YCC"
@@ -33719,6 +33575,10 @@ msgid "Override object and collection intersection priority value"
 msgstr "重写物体和集合交叉优先级灵敏值"
 
 
+msgid "Mask"
+msgstr "遮罩"
+
+
 msgid "Material slot in an object"
 msgstr "物体上的材质槽"
 
@@ -33903,10 +33763,6 @@ msgstr "函数曲线通道上下文菜单"
 
 msgid "F-Curve Context Menu"
 msgstr "函数曲线上下文菜单"
-
-
-msgid "Slider Operators"
-msgstr "滑块操作"
 
 
 msgid "Mask Context Menu"
@@ -35101,10 +34957,6 @@ msgid "Vertex in a Mesh data-block"
 msgstr "网格数据块中的顶点"
 
 
-msgid "Weight used by the Bevel modifier 'Only Vertices' option"
-msgstr "供倒角修改器的'仅顶点'选项所使用的权重值"
-
-
 msgid "Weights for the vertex groups this vertex is member of"
 msgstr "用于此顶点所属顶点组的权重值"
 
@@ -35215,10 +35067,6 @@ msgstr "Z 尺寸"
 
 msgid "Stiffness defines how much of the element to fill"
 msgstr "刚度定义了元素的充实程度"
-
-
-msgid "Metaball types"
-msgstr "融球类型"
 
 
 msgid "Ball"
@@ -36263,10 +36111,6 @@ msgstr "校正形变导致的扭曲"
 
 msgid "Lambda Factor"
 msgstr "Lambda 系数"
-
-
-msgid "Smooth factor effect"
-msgstr "光滑系数影响量"
 
 
 msgid "Bind current shape"
@@ -38620,10 +38464,6 @@ msgid "Flat Faces"
 msgstr "平直面"
 
 
-msgid "Make faces use the minimal vertex weight assigned to their vertices(ensures new faces remain parallel to their original ones, slow, disable when not needed)"
-msgstr "让面使用顶点中最小的顶点权重(保证新的面与已有的面平行，较慢，不需要时可禁用)"
-
-
 msgid "Flip Normals"
 msgstr "翻转法线"
 
@@ -39431,10 +39271,6 @@ msgid "Y coordinate of the start position"
 msgstr "起始位置的 Y 坐标"
 
 
-msgid "Either the starting frame (for positive speed) or ending frame (for negative speed.)"
-msgstr "起始帧 (为正值时) 或结束帧 (为负值时)"
-
-
 msgid "Cyclic wave effect"
 msgstr "周期性的波浪效果"
 
@@ -39585,6 +39421,10 @@ msgstr "折痕权重 (若激活)"
 
 msgid "Thickness factor"
 msgstr "厚度系数"
+
+
+msgid "Boundary"
+msgstr "边界范围"
 
 
 msgid "Support face boundaries"
@@ -41953,10 +41793,6 @@ msgid "ITU 709"
 msgstr "ITU 709"
 
 
-msgid "Jpeg"
-msgstr "Jpeg"
-
-
 msgid "Combine YUVA"
 msgstr "合并 YUVA"
 
@@ -42419,6 +42255,10 @@ msgstr "椭圆遮罩中心点的 X 向位置"
 
 msgid "Y position of the middle of the ellipse"
 msgstr "椭圆遮罩中心点的 Y 向位置"
+
+
+msgid "Soften"
+msgstr "柔化"
 
 
 msgid "Box Sharpen"
@@ -43254,6 +43094,10 @@ msgstr "RGB -> BW"
 
 msgid "Render Layers"
 msgstr "渲染层"
+
+
+msgid "Rotate"
+msgstr "旋转"
 
 
 msgid "Method to use to filter rotation"
@@ -58011,6 +57855,10 @@ msgid "Ensure selected keyframes' handles have equal length, optionally making t
 msgstr "确保所选关键帧的控制柄具有相等的长度，可以选择使其水平、自动、自动钳制或矢量控制柄类型转换为对齐"
 
 
+msgid "Flatten"
+msgstr "平化"
+
+
 msgid "Make the values of the selected keyframes' handles the same as their respective keyframes"
 msgstr "使被选中关键帧的控制柄的数值与各自关键帧相同"
 
@@ -58156,6 +58004,19 @@ msgstr "光标位置选中的通道"
 
 msgid "Insert a keyframe for selected F-Curves at the cursor point"
 msgstr "为选中的函数曲线在游标点位置添加一个关键帧"
+
+
+msgctxt "Operator"
+msgid "Jump to Keyframe"
+msgstr "跳转到关键帧"
+
+
+msgid "Jump to previous/next keyframe"
+msgstr "跳转到上一个 / 下一个关键帧"
+
+
+msgid "Next Keyframe"
+msgstr "下一关键帧"
 
 
 msgid "By Values Over Cursor Value"
@@ -64131,10 +63992,6 @@ msgid "Move a node to detach links"
 msgstr "移动节点并取消链接"
 
 
-msgid "Insert Offset"
-msgstr "插入偏移"
-
-
 msgid "Detach Links"
 msgstr "切断关联"
 
@@ -68703,6 +68560,10 @@ msgid "If the requested brush type does not exist, create a new brush"
 msgstr "若所需的笔刷类型不存在, 则新建笔刷"
 
 
+msgid "Clone"
+msgstr "克隆"
+
+
 msgid "Toggle between two brushes rather than cycling"
 msgstr "在两个笔刷间切换, 而不是循环切换"
 
@@ -69760,10 +69621,6 @@ msgstr "自定义属性"
 
 msgid "Weighting factor for which keyframe is favored more"
 msgstr "关键帧更倾向的权重系数"
-
-
-msgid "Next Keyframe"
-msgstr "下一关键帧"
 
 
 msgid "Frame number of keyframe immediately after the current frame"
@@ -71642,15 +71499,6 @@ msgstr "显示信息日志"
 
 msgid "Show info log in a separate window"
 msgstr "在单独的窗口中显示信息日志"
-
-
-msgctxt "Operator"
-msgid "Jump to Keyframe"
-msgstr "跳转到关键帧"
-
-
-msgid "Jump to previous/next keyframe"
-msgstr "跳转到上一个 / 下一个关键帧"
 
 
 msgctxt "Operator"
@@ -76455,14 +76303,6 @@ msgstr "分数"
 
 msgid "Specify a precise fraction of final UV output"
 msgstr "指定最终UV输出的精确比例"
-
-
-msgid "Rotate islands for best fit"
-msgstr "旋转孤岛以获得最佳匹配"
-
-
-msgid "Bounding box"
-msgstr "边界框"
 
 
 msgid "Pack to"
@@ -81942,10 +81782,6 @@ msgid "Mask"
 msgstr "遮罩"
 
 
-msgid "Brush Tip"
-msgstr "笔刷提示"
-
-
 msgid "Tiling"
 msgstr "平铺"
 
@@ -86530,10 +86366,6 @@ msgstr "执行选择前到中心的距离"
 
 msgid "Tap Key Timeout"
 msgstr "击键超时"
-
-
-msgid "Pie menu button held longer than this will dismiss menu on release.(in 1/100ths of sec)"
-msgstr "长按唤出快捷键超过该时长，将在松开按键后退出饼菜单"
 
 
 msgid "Render Display Type"
@@ -91467,10 +91299,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "YCbCr (Jpeg)"
-msgstr "YCbCr (Jpeg)"
-
-
 msgid "Sequence strip in the sequence editor"
 msgstr "序列编辑器中的序列片段"
 
@@ -92218,6 +92046,10 @@ msgid "Sequence strip to load one or more images"
 msgstr "加载一个或多个图像的序列片段"
 
 
+msgid "Multiply playback speed"
+msgstr "倍速播放"
+
+
 msgid "Mask Sequence"
 msgstr "遮罩序列"
 
@@ -92353,10 +92185,6 @@ msgstr "在片段内显示音频波形"
 
 msgid "Sound data-block used by this sequence"
 msgstr "序列所使用的声音数据块"
-
-
-msgid "Multiply playback speed"
-msgstr "倍速播放"
 
 
 msgid "Playback volume of the sound"
@@ -104127,10 +103955,6 @@ msgid "No text or file specified in node, nothing to compile"
 msgstr "未在节点中指定文本或文件, 无可编译对象"
 
 
-msgid "OSL query failed to open "
-msgstr "未能打开OSL查询 "
-
-
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "外部着色器脚本扩展名须为 .osl 或 .oso, 或模块名"
 
@@ -105249,10 +105073,6 @@ msgstr "%d 无活动UV层的网格"
 
 msgid "%d duplicates found in %d mesh(es), mirror may be incomplete"
 msgstr "%d 个副本被发现位于 %d 个网格中，镜像可能不完整"
-
-
-msgid "Node has no attribute "
-msgstr "节点没有属性 "
 
 
 msgid "No camera found"
@@ -106776,10 +106596,6 @@ msgstr "片段名称"
 
 msgid "Buffer"
 msgstr "缓冲区"
-
-
-msgid "Sample Rate"
-msgstr "采样率"
 
 
 msgid "Custom (%.4g fps)"
@@ -112911,16 +112727,8 @@ msgid "Stepped"
 msgstr "阶化"
 
 
-msgid " attribute from geometry"
-msgstr " 来自几何体的属性"
-
-
 msgid "ID / Index"
 msgstr "ID/编号"
-
-
-msgid " from "
-msgstr " 从 "
 
 
 msgid "GP_Layer"
@@ -123257,6 +123065,10 @@ msgid "Determinator"
 msgstr "测定"
 
 
+msgid "Bounding box"
+msgstr "边界框"
+
+
 msgid "Color Space:"
 msgstr "色彩空间:"
 
@@ -124745,6 +124557,10 @@ msgid "Faces to consider when packing islands"
 msgstr "拼排孤岛时要考虑的面。"
 
 
+msgid "Rotate islands for best fit"
+msgstr "旋转孤岛以获得最佳匹配"
+
+
 msgid "Faces to participate in the unwrap operation"
 msgstr "参与展开操作的面"
 
@@ -124795,10 +124611,6 @@ msgstr "Z 轴上的体素数"
 
 msgid "Values larger than the threshold are inside the generated mesh"
 msgstr "大于阈值的值位于生成的网格内"
-
-
-msgid " node"
-msgstr " 节点"
 
 
 msgid "Missing Data-Block"

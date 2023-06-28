@@ -457,6 +457,29 @@ const char *BKE_paint_get_tool_prop_id_from_paintmode(ePaintMode mode)
   return nullptr;
 }
 
+const char *BKE_paint_get_tool_enum_translation_context_from_paintmode(ePaintMode mode)
+{
+  switch (mode) {
+    case PAINT_MODE_SCULPT:
+    case PAINT_MODE_GPENCIL:
+    case PAINT_MODE_TEXTURE_2D:
+    case PAINT_MODE_TEXTURE_3D:
+      return BLT_I18NCONTEXT_ID_BRUSH;
+    case PAINT_MODE_VERTEX:
+    case PAINT_MODE_WEIGHT:
+    case PAINT_MODE_SCULPT_UV:
+    case PAINT_MODE_VERTEX_GPENCIL:
+    case PAINT_MODE_SCULPT_GPENCIL:
+    case PAINT_MODE_WEIGHT_GPENCIL:
+    case PAINT_MODE_SCULPT_CURVES:
+    case PAINT_MODE_INVALID:
+      break;
+  }
+
+  /* Invalid paint mode. */
+  return BLT_I18NCONTEXT_DEFAULT;
+}
+
 Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer)
 {
   if (sce && view_layer) {
@@ -1936,6 +1959,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   }
 
   BKE_id_attributes_active_color_set(&orig_me->id, unique_name);
+  BKE_id_attributes_default_color_set(&orig_me->id, unique_name);
   DEG_id_tag_update(&orig_me->id, ID_RECALC_GEOMETRY_ALL_MODES);
   BKE_mesh_tessface_clear(orig_me);
 
@@ -1954,8 +1978,11 @@ void BKE_sculpt_update_object_for_edit(
   sculpt_update_object(depsgraph, ob_orig, ob_eval, need_pmap, is_paint_tool);
 }
 
-int *BKE_sculpt_face_sets_ensure(Mesh *mesh)
+int *BKE_sculpt_face_sets_ensure(Object *ob)
 {
+  SculptSession *ss = ob->sculpt;
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+
   using namespace blender;
   using namespace blender::bke;
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
@@ -1967,8 +1994,14 @@ int *BKE_sculpt_face_sets_ensure(Mesh *mesh)
     face_sets.finish();
   }
 
-  return static_cast<int *>(CustomData_get_layer_named_for_write(
+  int *face_sets = static_cast<int *>(CustomData_get_layer_named_for_write(
       &mesh->pdata, CD_PROP_INT32, ".sculpt_face_set", mesh->totpoly));
+
+  if (ss->pbvh && ELEM(BKE_pbvh_type(ss->pbvh), PBVH_FACES, PBVH_GRIDS)) {
+    BKE_pbvh_face_sets_set(ss->pbvh, face_sets);
+  }
+
+  return face_sets;
 }
 
 bool *BKE_sculpt_hide_poly_ensure(Mesh *mesh)

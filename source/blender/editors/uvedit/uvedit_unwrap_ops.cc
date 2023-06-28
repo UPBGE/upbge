@@ -56,6 +56,7 @@
 #include "PIL_time.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "ED_image.h"
@@ -1189,7 +1190,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
 
     bool only_selected_faces = params->only_selected_faces;
     bool only_selected_uvs = params->only_selected_uvs;
-    const bool ignore_pinned = params->pin_method == ED_UVPACK_PIN_IGNORED;
+    const bool ignore_pinned = params->pin_method == ED_UVPACK_PIN_IGNORE;
     if (ignore_pinned && params->pin_unselected) {
       only_selected_faces = false;
       only_selected_uvs = false;
@@ -1501,11 +1502,23 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
   }
 
   pack_island_params.setFromUnwrapOptions(options);
-  pack_island_params.rotate_method = eUVPackIsland_RotationMethod(
-      RNA_enum_get(op->ptr, "rotate_method"));
+  if (RNA_boolean_get(op->ptr, "rotate")) {
+    pack_island_params.rotate_method = eUVPackIsland_RotationMethod(
+        RNA_enum_get(op->ptr, "rotate_method"));
+  }
+  else {
+    pack_island_params.rotate_method = ED_UVPACK_ROTATION_NONE;
+  }
   pack_island_params.scale_to_fit = RNA_boolean_get(op->ptr, "scale");
   pack_island_params.merge_overlap = RNA_boolean_get(op->ptr, "merge_overlap");
-  pack_island_params.pin_method = eUVPackIsland_PinMethod(RNA_enum_get(op->ptr, "pin_method"));
+
+  if (RNA_boolean_get(op->ptr, "pin")) {
+    pack_island_params.pin_method = eUVPackIsland_PinMethod(RNA_enum_get(op->ptr, "pin_method"));
+  }
+  else {
+    pack_island_params.pin_method = ED_UVPACK_PIN_NONE;
+  }
+
   pack_island_params.margin_method = eUVPackIsland_MarginMethod(
       RNA_enum_get(op->ptr, "margin_method"));
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");
@@ -1561,7 +1574,6 @@ static const EnumPropertyItem pack_margin_method_items[] = {
 };
 
 static const EnumPropertyItem pack_rotate_method_items[] = {
-    {ED_UVPACK_ROTATION_NONE, "NONE", 0, "No rotation", "No rotation is applied to the islands"},
     RNA_ENUM_ITEM_SEPR,
     {ED_UVPACK_ROTATION_AXIS_ALIGNED,
      "AXIS_ALIGNED",
@@ -1578,26 +1590,59 @@ static const EnumPropertyItem pack_rotate_method_items[] = {
 };
 
 static const EnumPropertyItem pack_shape_method_items[] = {
-    {ED_UVPACK_SHAPE_CONCAVE, "CONCAVE", 0, "Exact shape (Concave)", "Uses exact geometry"},
-    {ED_UVPACK_SHAPE_CONVEX, "CONVEX", 0, "Boundary shape (Convex)", "Uses convex hull"},
+    {ED_UVPACK_SHAPE_CONCAVE, "CONCAVE", 0, "Exact Shape (Concave)", "Uses exact geometry"},
+    {ED_UVPACK_SHAPE_CONVEX, "CONVEX", 0, "Boundary Shape (Convex)", "Uses convex hull"},
     RNA_ENUM_ITEM_SEPR,
-    {ED_UVPACK_SHAPE_AABB, "AABB", 0, "Bounding box", "Uses bounding boxes"},
+    {ED_UVPACK_SHAPE_AABB, "AABB", 0, "Bounding Box", "Uses bounding boxes"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+/**
+ * \note #ED_UVPACK_PIN_NONE is exposed as a boolean "pin".
+ * \note #ED_UVPACK_PIN_IGNORE is intentionally not exposed as it is confusing from the UI level
+ * (users can simply not select these islands).
+ * The option is kept kept internally because it's used for live unwrap.
+ */
 static const EnumPropertyItem pinned_islands_method_items[] = {
-    {ED_UVPACK_PIN_DEFAULT, "DEFAULT", 0, "Default", "Pin information is not used"},
-    {ED_UVPACK_PIN_IGNORED, "IGNORED", 0, "Ignored", "Pinned islands are not packed"},
-    {ED_UVPACK_PIN_LOCK_SCALE, "SCALE", 0, "Locked scale", "Pinned islands won't rescale"},
-    {ED_UVPACK_PIN_LOCK_ROTATION, "ROTATION", 0, "Locked rotation", "Pinned islands won't rotate"},
+    {ED_UVPACK_PIN_LOCK_SCALE, "SCALE", 0, "Scale", "Pinned islands won't rescale"},
+    {ED_UVPACK_PIN_LOCK_ROTATION, "ROTATION", 0, "Rotation", "Pinned islands won't rotate"},
     {ED_UVPACK_PIN_LOCK_ROTATION_SCALE,
      "ROTATION_SCALE",
      0,
-     "Locked rotation and scale",
+     "Rotation and Scale",
      "Pinned islands will translate only"},
-    {ED_UVPACK_PIN_LOCK_ALL, "LOCKED", 0, "Locked position", "Pinned islands are locked in place"},
+    {ED_UVPACK_PIN_LOCK_ALL, "LOCKED", 0, "All", "Pinned islands are locked in place"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+  uiItemR(layout, op->ptr, "shape_method", 0, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "scale", 0, nullptr, ICON_NONE);
+  {
+    uiItemR(layout, op->ptr, "rotate", 0, nullptr, ICON_NONE);
+    uiLayout *sub = uiLayoutRow(layout, true);
+    uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "rotate"));
+    uiItemR(sub, op->ptr, "rotate_method", 0, nullptr, ICON_NONE);
+    uiItemS(layout);
+  }
+  uiItemR(layout, op->ptr, "margin_method", 0, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "margin", 0, nullptr, ICON_NONE);
+  uiItemS(layout);
+  {
+    uiItemR(layout, op->ptr, "pin", 0, nullptr, ICON_NONE);
+    uiLayout *sub = uiLayoutRow(layout, true);
+    uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "pin"));
+    uiItemR(sub, op->ptr, "pin_method", 0, IFACE_("Lock Method"), ICON_NONE);
+    uiItemS(layout);
+  }
+  uiItemR(layout, op->ptr, "merge_overlap", 0, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "udim_source", 0, nullptr, ICON_NONE);
+  uiItemS(layout);
+}
 
 void UV_OT_pack_islands(wmOperatorType *ot)
 {
@@ -1636,10 +1681,12 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 #else
   ot->invoke = WM_operator_props_popup_confirm;
 #endif
+  ot->ui = uv_pack_islands_ui;
   ot->poll = ED_operator_uvedit;
 
   /* properties */
   RNA_def_enum(ot->srna, "udim_source", pack_target, PACK_UDIM_SRC_CLOSEST, "Pack to", "");
+  RNA_def_boolean(ot->srna, "rotate", true, "Rotate", "Rotate islands to improve layout");
   RNA_def_enum(ot->srna,
                "rotate_method",
                pack_rotate_method_items,
@@ -1648,7 +1695,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
                "");
   RNA_def_boolean(ot->srna, "scale", true, "Scale", "Scale islands to fill unit square");
   RNA_def_boolean(
-      ot->srna, "merge_overlap", false, "Merge Overlapped", "Overlapping islands stick together");
+      ot->srna, "merge_overlap", false, "Merge Overlapping", "Overlapping islands stick together");
   RNA_def_enum(ot->srna,
                "margin_method",
                pack_margin_method_items,
@@ -1657,11 +1704,16 @@ void UV_OT_pack_islands(wmOperatorType *ot)
                "");
   RNA_def_float_factor(
       ot->srna, "margin", 0.001f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
+  RNA_def_boolean(ot->srna,
+                  "pin",
+                  false,
+                  "Lock Pinned Islands",
+                  "Constrain islands containing any pinned UV's");
   RNA_def_enum(ot->srna,
                "pin_method",
                pinned_islands_method_items,
-               ED_UVPACK_PIN_DEFAULT,
-               "Pinned Islands",
+               ED_UVPACK_PIN_LOCK_ALL,
+               "Pin Method",
                "");
   RNA_def_enum(ot->srna,
                "shape_method",
@@ -2379,7 +2431,7 @@ void ED_uvedit_live_unwrap(const Scene *scene, Object **objects, int objects_len
     blender::geometry::UVPackIsland_Params pack_island_params;
     pack_island_params.setFromUnwrapOptions(options);
     pack_island_params.rotate_method = ED_UVPACK_ROTATION_ANY;
-    pack_island_params.pin_method = ED_UVPACK_PIN_IGNORED;
+    pack_island_params.pin_method = ED_UVPACK_PIN_IGNORE;
     pack_island_params.margin_method = ED_UVPACK_MARGIN_SCALED;
     pack_island_params.margin = scene->toolsettings->uvcalc_margin;
 
@@ -2521,7 +2573,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
   blender::geometry::UVPackIsland_Params pack_island_params;
   pack_island_params.setFromUnwrapOptions(options);
   pack_island_params.rotate_method = ED_UVPACK_ROTATION_ANY;
-  pack_island_params.pin_method = ED_UVPACK_PIN_IGNORED;
+  pack_island_params.pin_method = ED_UVPACK_PIN_IGNORE;
   pack_island_params.margin_method = eUVPackIsland_MarginMethod(
       RNA_enum_get(op->ptr, "margin_method"));
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");

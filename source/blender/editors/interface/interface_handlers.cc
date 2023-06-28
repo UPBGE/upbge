@@ -282,7 +282,13 @@ static void ui_selectcontext_apply(bContext *C,
                                    const double value,
                                    const double value_orig);
 
-#  define IS_ALLSELECT_EVENT(event) (((event)->modifier & KM_ALT) != 0)
+/**
+ * Only respond to events which are expected to be used for multi button editing,
+ * e.g. ALT is also used for button array pasting, see #108096.
+ */
+#  define IS_ALLSELECT_EVENT(event) \
+    (((event)->modifier & KM_ALT) != 0 && \
+     (ISMOUSE((event)->type) || ELEM((event)->type, EVT_RETKEY, EVT_PADENTER)))
 
 /** just show a tinted color so users know its activated */
 #  define UI_BUT_IS_SELECT_CONTEXT UI_BUT_NODE_ACTIVE
@@ -5322,14 +5328,13 @@ static bool ui_numedit_but_NUM(uiButNumber *but,
           break;
         }
         case PROP_SCALE_LOG: {
+          const float startvalue = max_ff(float(data->startvalue), log_min);
           if (tempf < log_min) {
-            data->dragstartx -= logf(log_min / float(data->startvalue)) / fac -
-                                float(mx - data->dragstartx);
+            data->dragstartx -= logf(log_min / startvalue) / fac - float(mx - data->dragstartx);
             tempf = softmin;
           }
           else if (tempf > softmax) {
-            data->dragstartx -= logf(softmax / float(data->startvalue)) / fac -
-                                float(mx - data->dragstartx);
+            data->dragstartx -= logf(softmax / startvalue) / fac - float(mx - data->dragstartx);
             tempf = softmax;
           }
           break;
@@ -5729,9 +5734,13 @@ static int ui_do_but_NUM(
 
         double value_step;
         if (scale_type == PROP_SCALE_LOG) {
-          value_step = powf(10.0f,
-                            (roundf(log10f(data->value) + UI_PROP_SCALE_LOG_SNAP_OFFSET) - 1.0f) +
-                                log10f(number_but->step_size));
+          double precision = (roundf(log10f(data->value) + UI_PROP_SCALE_LOG_SNAP_OFFSET) - 1.0f) +
+                             log10f(number_but->step_size);
+          /* Non-finite when `data->value` is zero. */
+          if (UNLIKELY(!isfinite(precision))) {
+            precision = -FLT_MAX; /* Ignore this value. */
+          }
+          value_step = powf(10.0f, max_ff(precision, -number_but->precision));
         }
         else {
           value_step = double(number_but->step_size * UI_PRECISION_FLOAT_SCALE);

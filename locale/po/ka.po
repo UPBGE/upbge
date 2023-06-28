@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.6.0 Beta (b'24ca886ac042')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-22 16:40:40\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Tamar Mebonia <tammebonia@gmail.com>, 2023\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -11020,14 +11020,6 @@ msgid "Vorbis"
 msgstr "Vorbis"
 
 
-msgid "Samplerate"
-msgstr "სემპლირების სიხშირე"
-
-
-msgid "Audio samplerate(samples/s)"
-msgstr "აუდიოს სემპლირების სიხშირე (სემპლები/წმ)"
-
-
 msgctxt "Sound"
 msgid "Volume"
 msgstr "ხმის სიმაღლე"
@@ -17531,10 +17523,6 @@ msgid "Image Boundary Trimming"
 msgstr "გამოსახულების ზღუდის მოკვეცა"
 
 
-msgid "Trim all edges right at the boundary of image(including overscan region)"
-msgstr "შემოჭერი ყველა კიდე ზედ გამოსახულების საზღვარზე (გადასკანირების მონაკვეთის ჩათვლით)"
-
-
 msgid "Use Intersection"
 msgstr "გადაკვეთის გამოყენება"
 
@@ -19516,20 +19504,12 @@ msgid "Gpencil Settings"
 msgstr "ც-ფანქრის პარამეტრები"
 
 
-msgid "Grease Pencil Draw Tool"
-msgstr "ცვილის ფანქრის ხატვის ხელსაწყო"
-
-
 msgid "The brush is of type used for drawing strokes"
 msgstr "ფუნჯი მონასმების დასახატად გამოყენებული ტიპისაა"
 
 
 msgid "The brush is of type used for filling areas"
 msgstr "ფუნჯი არეალების შესავსებად გამოყენებული ტიპისაა"
-
-
-msgid "Erase"
-msgstr "წაშლა"
 
 
 msgid "The brush is used for erasing strokes"
@@ -19590,22 +19570,6 @@ msgstr "ფუნჯის ხატულის მისამართი"
 
 msgid "File path to brush icon"
 msgstr "ფუნჯის ხატულიანი ფაილის მისამართი"
-
-
-msgid "Image Paint Tool"
-msgstr "გამოსახულების სახატავი ხელსაწყო"
-
-
-msgid "Soften"
-msgstr "შერბილება"
-
-
-msgid "Clone"
-msgstr "კლონირება"
-
-
-msgid "Mask"
-msgstr "ნიღაბი"
 
 
 msgid "Invert Pressure for Density"
@@ -19866,86 +19830,6 @@ msgstr "Y სიბრტყე"
 
 msgid "Z Plane"
 msgstr "Z სიბრტყე"
-
-
-msgid "Sculpt Tool"
-msgstr "ძერწვის ხელსაწყო"
-
-
-msgid "Draw Sharp"
-msgstr "მკვეთრად დახატვა"
-
-
-msgid "Clay"
-msgstr "თიხა"
-
-
-msgid "Clay Strips"
-msgstr "თიხის ზოლები"
-
-
-msgid "Clay Thumb"
-msgstr "ცერი თიხაზე"
-
-
-msgid "Blob"
-msgstr "დაბუშტვა"
-
-
-msgid "Flatten"
-msgstr "გაბრტყელება"
-
-
-msgid "Scrape"
-msgstr "მოფხეკა"
-
-
-msgid "Multi-plane Scrape"
-msgstr "მრავალსიბრტყიანი მოფხეკა"
-
-
-msgid "Elastic Deform"
-msgstr "რეზინით დეფორმირება"
-
-
-msgid "Thumb"
-msgstr "ცერი"
-
-
-msgid "Pose"
-msgstr "პოზირება"
-
-
-msgid "Nudge"
-msgstr "ბიძგი"
-
-
-msgid "Rotate"
-msgstr "ბრუნვა"
-
-
-msgid "Slide Relax"
-msgstr "გაცურებით მოშვება"
-
-
-msgid "Boundary"
-msgstr "ზღვარი"
-
-
-msgid "Cloth"
-msgstr "ქსოვილი"
-
-
-msgid "Draw Face Sets"
-msgstr "წახნაგთა ნაკრებების დახატვა"
-
-
-msgid "Multires Displacement Eraser"
-msgstr "მულტირეზ. გადანაცვლების საშლელი"
-
-
-msgid "Multires Displacement Smear"
-msgstr "მულტირეზ. გადანაცვლების გათხიპნა"
 
 
 msgid "Secondary Color"
@@ -20626,6 +20510,10 @@ msgstr "ზეწოლის გამოყენება სველი ს
 
 msgid "Use pressure to modulate wet persistence"
 msgstr "ზეწოლის გამოყენება სველი სიმტკიცის მოდულაციისთვის"
+
+
+msgid "Sculpt Tool"
+msgstr "ძერწვის ხელსაწყო"
 
 
 msgid "Grab UVs"
@@ -23304,24 +23192,12 @@ msgid "U"
 msgstr "U"
 
 
-msgid "Point in U direction (can't be changed when there are shape keys)"
-msgstr "წერტილები U მიმართულებით (ვერ შეიცვლება, როცა არსებობს ფორმის სოლები)"
-
-
 msgid "V"
 msgstr "V"
 
 
-msgid "Point in V direction (can't be changed when there are shape keys)"
-msgstr "წერტილები V მიმართულებით (ვერ შეიცვლება, როცა არსებობს ფორმის სოლები)"
-
-
 msgid "W"
 msgstr "W"
-
-
-msgid "Point in W direction (can't be changed when there are shape keys)"
-msgstr "წერტილები W მიმართულებით (ვერ შეიცვლება, როცა არსებობს ფორმის სოლები)"
 
 
 msgid "Only display and take into account the outer vertices"
@@ -24083,6 +23959,10 @@ msgid "Shader ball"
 msgstr "იერფერის ბურთი"
 
 
+msgid "Cloth"
+msgstr "ქსოვილი"
+
+
 msgid "Refraction Depth"
 msgstr "გარდატეხის სიღრმე"
 
@@ -24563,10 +24443,6 @@ msgid "Vertices of the mesh"
 msgstr "მეშის წვეროები"
 
 
-msgid "Metaball data-block to defined blobby surfaces"
-msgstr "მეტაბურთის მონაცემთა ბლოკი დაბუშტული ზედაპირების გამოსაკვეთად"
-
-
 msgid "Metaball elements"
 msgstr "მეტაბურთის ელემენტები"
 
@@ -24577,10 +24453,6 @@ msgstr "რენდერის ზომა"
 
 msgid "Polygonization resolution in rendering"
 msgstr "გამრავალკუთხედების გარჩევადობა რენდერში"
-
-
-msgid "Wire Size"
-msgstr "მავთულის ზომა"
 
 
 msgid "Polygonization resolution in the 3D viewport"
@@ -25021,10 +24893,6 @@ msgstr "ობიექტის მზღუდავი კოლოფი ო
 
 msgid "Settings for using the object as a collider in physics simulation"
 msgstr "ფიზიკის სიმულაციაში ობიექტის შემჯახებლად გამოყენების პარამეტრები"
-
-
-msgid "Object color and alpha, used when faces have the ObColor mode enabled"
-msgstr "ობიექტის ფერი და ალფა, გამოყენებული, როცა წახნაგებს ObColor რეჟიმი ჩართული აქვს"
 
 
 msgid "Constraints"
@@ -25519,6 +25387,10 @@ msgid "Index number for the \"Object Index\" render pass"
 msgstr "ინდექსის ნომერი სარენდერო გავლა \"ობიექტის ინდექსი\"-სთვის "
 
 
+msgid "Pose"
+msgstr "პოზირება"
+
+
 msgid "Current pose for armatures"
 msgstr "ამჟამინდელი პოზა არმატურებისთვის"
 
@@ -25917,10 +25789,6 @@ msgstr "გლობალური Y"
 
 msgid "Global Z"
 msgstr "გლობალური Z"
-
-
-msgid "Effect Children"
-msgstr "ეფექტი შვილებზე"
 
 
 msgid "Apply effectors to children"
@@ -28501,16 +28369,8 @@ msgid "Cinema (48)"
 msgstr "კინო (48)"
 
 
-msgid "Use Openjpeg Cinema Preset (48fps)"
-msgstr "Openjpeg კინოს შაბლონის (48fps) გამოყენება"
-
-
 msgid "Cinema"
 msgstr "კინო"
-
-
-msgid "Use Openjpeg Cinema Preset"
-msgstr "Openjpeg კინოს შაბლონის გამოყენება"
 
 
 msgid "YCC"
@@ -30902,6 +30762,10 @@ msgid "Effectiveness"
 msgstr "ეფექტურობა"
 
 
+msgid "Mask"
+msgstr "ნიღაბი"
+
+
 msgid "Material slot in an object"
 msgstr "მასალის სლოტი ობიექტში"
 
@@ -31066,10 +30930,6 @@ msgstr "F-მრუდის არხის კონტექსტური �
 
 msgid "F-Curve Context Menu"
 msgstr "F-მრუდის კონტექსტური მენიუ"
-
-
-msgid "Slider Operators"
-msgstr "სლაიდერი ოპერატორები"
 
 
 msgid "Mask Context Menu"
@@ -31835,10 +31695,6 @@ msgid "Size Z"
 msgstr "ზომა Z"
 
 
-msgid "Metaball types"
-msgstr "მეტაბურთის ტიპები"
-
-
 msgid "Ball"
 msgstr "ბურთი"
 
@@ -32220,6 +32076,10 @@ msgid "Face Area"
 msgstr "წახნაგის არეალი"
 
 
+msgid "Boundary"
+msgstr "ზღვარი"
+
+
 msgid "Offset Relative"
 msgstr "შეფარდებითი აცდენა"
 
@@ -32464,6 +32324,10 @@ msgid "Adjacent Only"
 msgstr "მხოლოდ მომიჯნავე"
 
 
+msgid "Soften"
+msgstr "შერბილება"
+
+
 msgid "Laplace"
 msgstr "ლაპლასი"
 
@@ -32514,6 +32378,10 @@ msgstr "ჩამკეტი"
 
 msgid "Motion Blur"
 msgstr "გადღაბნილი მოძრაობა"
+
+
+msgid "Rotate"
+msgstr "ბრუნვა"
 
 
 msgid "Translate"
@@ -34596,6 +34464,10 @@ msgstr "გამოიყენე თაგვი 3გ სარკმელ�
 msgctxt "Operator"
 msgid "Blend to Neighbor"
 msgstr "შერწყი მეზობელთან"
+
+
+msgid "Flatten"
+msgstr "გაბრტყელება"
 
 
 msgid "Selection to Cursor Value"
@@ -36983,6 +36855,10 @@ msgstr "ფაილის გასუფთავება ყველა გ
 
 msgid "Draw curve"
 msgstr "დახატე მრუდი"
+
+
+msgid "Clone"
+msgstr "კლონირება"
 
 
 msgctxt "Operator"
@@ -39854,10 +39730,6 @@ msgstr "კლონირება"
 msgctxt "Operator"
 msgid "Mask"
 msgstr "ნიღაბი"
-
-
-msgid "Brush Tip"
-msgstr "ფუნჯის წვერი"
 
 
 msgid "Tiling"
@@ -47475,10 +47347,6 @@ msgstr "შეაფერადე გლუვად"
 
 msgid "Edge Crease"
 msgstr "წიბოს ნაკეცი"
-
-
-msgid " node"
-msgstr " კვანძი"
 
 
 msgid "Shader Editor"
