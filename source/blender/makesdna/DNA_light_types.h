@@ -135,7 +135,7 @@ enum {
   LA_SHAD_CONTACT = 1 << 19,
   LA_CUSTOM_ATTENUATION = 1 << 20,
 
-  LA_SOFT_SHADOWS (1 << 21), /* Sof shadow per light -- UPBGE */
+  LA_SOFT_SHADOWS = 1 << 21, /* Sof shadow per light -- UPBGE */
 };
 
 /** #Light::falloff_type */

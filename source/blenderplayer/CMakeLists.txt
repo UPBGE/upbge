@@ -440,7 +440,7 @@ endif()
 # Setup link libraries
 
 add_dependencies(blenderplayer makesdna)
-target_link_libraries(blenderplayer ${LIB})
+target_link_libraries(blenderplayer PRIVATE ${LIB})
 unset(LIB)
 
 setup_platform_linker_flags(blenderplayer)
