@@ -1013,7 +1013,6 @@ int main(int argc,
   }
 #endif
 
-  BKE_material_copybuf_clear();
   ED_render_clear_mtex_copybuf();
 
   /* Skip wm_init_exit code here
