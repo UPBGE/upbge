@@ -40,7 +40,6 @@ set(INC
   # For node muting stuff.
   ../nodes
 
-  ../../../intern/atomic
   ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/guardedalloc
@@ -329,6 +328,7 @@ set(METAL_SRC
 )
 
 set(LIB
+  PRIVATE bf_intern_atomic
   ${Epoxy_LIBRARIES}
 )
 
@@ -654,6 +654,7 @@ set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/eevee_next/shaders/infos/eevee_light_culling_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_material_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_motion_blur_info.hh
+  ../draw/engines/eevee_next/shaders/infos/eevee_reflection_probe_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_shadow_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_subsurface_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_velocity_info.hh

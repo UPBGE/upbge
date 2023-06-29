@@ -16,6 +16,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
+#include "DNA_scene_types.h"
+
 #include "WM_api.h"
 
 namespace blender::ed::greasepencil {
@@ -24,21 +26,27 @@ static int grease_pencil_layer_add_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
   Object *object = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   int new_layer_name_length;
   char *new_layer_name = RNA_string_get_alloc(
       op->ptr, "new_layer_name", nullptr, 0, &new_layer_name_length);
 
+  grease_pencil.add_empty_drawings(1);
+  GreasePencilFrame frame{int(grease_pencil.drawings().size() - 1), 0, BEZT_KEYTYPE_KEYFRAME};
+
   if (grease_pencil.has_active_layer()) {
     LayerGroup &active_group = grease_pencil.get_active_layer()->parent_group();
     Layer &new_layer = grease_pencil.add_layer_after(
         active_group, grease_pencil.get_active_layer_for_write(), new_layer_name);
     grease_pencil.set_active_layer(&new_layer);
+    new_layer.insert_frame(scene->r.cfra, frame);
   }
   else {
     Layer &new_layer = grease_pencil.add_layer(new_layer_name);
     grease_pencil.set_active_layer(&new_layer);
+    new_layer.insert_frame(scene->r.cfra, frame);
   }
 
   MEM_SAFE_FREE(new_layer_name);
@@ -103,7 +111,7 @@ static void GREASE_PENCIL_OT_layer_remove(wmOperatorType *ot)
 static const EnumPropertyItem prop_layer_reorder_location[] = {
     {LAYER_REORDER_ABOVE, "ABOVE", 0, "Above", ""},
     {LAYER_REORDER_BELOW, "BELOW", 0, "Below", ""},
-    {0, NULL, 0, NULL, NULL},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 static int grease_pencil_layer_reorder_exec(bContext *C, wmOperator *op)
@@ -112,17 +120,18 @@ static int grease_pencil_layer_reorder_exec(bContext *C, wmOperator *op)
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
+  if (!grease_pencil.has_active_layer()) {
+    return OPERATOR_CANCELLED;
+  }
+
   int target_layer_name_length;
   char *target_layer_name = RNA_string_get_alloc(
       op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
   const int reorder_location = RNA_enum_get(op->ptr, "location");
 
-  if (!grease_pencil.has_active_layer()) {
-    return OPERATOR_CANCELLED;
-  }
-
   Layer *target_layer = grease_pencil.find_layer_by_name(target_layer_name);
   if (!target_layer) {
+    MEM_SAFE_FREE(target_layer_name);
     return OPERATOR_CANCELLED;
   }
 
