@@ -982,7 +982,7 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition, "getScreenPosition()\n")
   vect[0] = (win[0] - viewport[0]) / viewport[2];
   vect[1] = (win[1] - viewport[1]) / viewport[3];
 
-  //vect[1] = 1.0f - vect[1];  // to follow Blender window coordinate system (Top-Down)
+  vect[1] = 1.0f - vect[1];  // to follow Blender window coordinate system (Top-Down)
 
   /* Check if the object is behind the camera */
   /* To avoid having screenpos "twice", one in front of cam, the other
