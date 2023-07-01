@@ -27,16 +27,39 @@ using namespace blender;
 /** \name Snap Object Data
  * \{ */
 
-void SnapCache_EditMesh::clear()
-{
-  for (int i = 0; i < ARRAY_SIZE(this->bvhtree); i++) {
-    if (!this->cached[i]) {
-      BLI_bvhtree_free(this->bvhtree[i]);
+struct SnapCache_EditMesh : public SnapObjectContext::SnapCache {
+  /* Loose Verts, Edges, Tris. */
+  BVHTree *bvhtree[3];
+  bool cached[3];
+
+  struct BMEditMesh *em;
+
+  /** Default callbacks to BVH nearest and ray-cast used only for tris. */
+  BVHTree_NearestPointCallback nearest_callback;
+  BVHTree_RayCastCallback raycast_callback;
+
+  bke::MeshRuntime *mesh_runtime;
+  float min[3], max[3];
+
+  void clear()
+  {
+    for (int i = 0; i < ARRAY_SIZE(this->bvhtree); i++) {
+      if (!this->cached[i]) {
+        BLI_bvhtree_free(this->bvhtree[i]);
+      }
+      this->bvhtree[i] = nullptr;
     }
-    this->bvhtree[i] = nullptr;
   }
-  free_bvhtree_from_editmesh(&this->treedata_editmesh);
-}
+
+  ~SnapCache_EditMesh()
+  {
+    this->clear();
+  }
+
+#ifdef WITH_CXX_GUARDEDALLOC
+  MEM_CXX_CLASS_ALLOC_FUNCS("SnapData_EditMesh")
+#endif
+};
 
 /**
  * Calculate the minimum and maximum coordinates of the box that encompasses this mesh.
@@ -85,31 +108,25 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
   SnapCache_EditMesh *em_cache = nullptr;
   bool init = false;
 
-  if (std::unique_ptr<SnapCache_EditMesh> *em_cache_p = sctx->editmesh_caches.lookup_ptr(em)) {
-    em_cache = em_cache_p->get();
+  if (std::unique_ptr<SnapObjectContext::SnapCache> *em_cache_p = sctx->editmesh_caches.lookup_ptr(
+          em))
+  {
+    em_cache = static_cast<SnapCache_EditMesh *>(em_cache_p->get());
     bool is_dirty = false;
     /* Check if the geometry has changed. */
-    if (em_cache->treedata_editmesh.em != em) {
+    if (em_cache->em != em) {
       is_dirty = true;
     }
     else if (em_cache->mesh_runtime) {
       if (em_cache->mesh_runtime != snap_object_data_editmesh_runtime_get(ob_eval)) {
         if (G.moving) {
           /* WORKAROUND: avoid updating while transforming. */
-          BLI_assert(!em_cache->treedata_editmesh.cached && !em_cache->cached[0] &&
-                     !em_cache->cached[1]);
+          BLI_assert(!em_cache->cached[0] && !em_cache->cached[1] && !em_cache->cached[2]);
           em_cache->mesh_runtime = snap_object_data_editmesh_runtime_get(ob_eval);
         }
         else {
           is_dirty = true;
         }
-      }
-      else if (em_cache->treedata_editmesh.tree && em_cache->treedata_editmesh.cached &&
-               !bvhcache_has_tree(em_cache->mesh_runtime->bvh_cache,
-                                  em_cache->treedata_editmesh.tree))
-      {
-        /* The tree is owned by the EditMesh and may have been freed since we last used! */
-        is_dirty = true;
       }
       else if (em_cache->bvhtree[0] && em_cache->cached[0] &&
                !bvhcache_has_tree(em_cache->mesh_runtime->bvh_cache, em_cache->bvhtree[0]))
@@ -119,6 +136,12 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
       }
       else if (em_cache->bvhtree[1] && em_cache->cached[1] &&
                !bvhcache_has_tree(em_cache->mesh_runtime->bvh_cache, em_cache->bvhtree[1]))
+      {
+        /* The tree is owned by the EditMesh and may have been freed since we last used! */
+        is_dirty = true;
+      }
+      else if (em_cache->bvhtree[2] && em_cache->cached[2] &&
+               !bvhcache_has_tree(em_cache->mesh_runtime->bvh_cache, em_cache->bvhtree[2]))
       {
         /* The tree is owned by the EditMesh and may have been freed since we last used! */
         is_dirty = true;
@@ -141,7 +164,7 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
     /* Operators only update the editmesh looptris of the original mesh. */
     BLI_assert(em == BKE_editmesh_from_object(DEG_get_original_object(ob_eval)));
 
-    em_cache->treedata_editmesh.em = em;
+    em_cache->em = em;
     em_cache->mesh_runtime = snap_object_data_editmesh_runtime_get(ob_eval);
     snap_editmesh_minmax(sctx, em->bm, em_cache->min, em_cache->max);
   }
@@ -149,14 +172,11 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
   return em_cache;
 }
 
-static BVHTreeFromEditMesh *snap_object_data_editmesh_treedata_get(SnapCache_EditMesh *em_cache,
-                                                                   SnapObjectContext *sctx,
-                                                                   BMEditMesh *em)
+static void snap_cache_tri_ensure(SnapCache_EditMesh *em_cache, SnapObjectContext *sctx)
 {
-  BVHTreeFromEditMesh *treedata = &em_cache->treedata_editmesh;
-
-  if (treedata->tree == nullptr) {
-    em = em_cache->treedata_editmesh.em;
+  if (em_cache->bvhtree[2] == nullptr) {
+    BVHTreeFromEditMesh treedata{};
+    BMEditMesh *em = em_cache->em;
 
     if (sctx->callbacks.edit_mesh.test_face_fn) {
       BMesh *bm = em->bm;
@@ -169,12 +189,12 @@ static BVHTreeFromEditMesh *snap_object_data_editmesh_treedata_get(SnapCache_Edi
           sctx->callbacks.edit_mesh.test_face_fn,
           sctx->callbacks.edit_mesh.user_data);
 
-      bvhtree_from_editmesh_looptri_ex(treedata, em, elem_mask, looptri_num_active, 0.0f, 4, 6);
+      bvhtree_from_editmesh_looptri_ex(&treedata, em, elem_mask, looptri_num_active, 0.0f, 4, 6);
     }
     else {
       /* Only cache if BVH-tree is created without a mask.
        * This helps keep a standardized BVH-tree in cache. */
-      BKE_bvhtree_from_editmesh_get(treedata,
+      BKE_bvhtree_from_editmesh_get(&treedata,
                                     em,
                                     4,
                                     BVHTREE_FROM_EM_LOOPTRI,
@@ -182,12 +202,11 @@ static BVHTreeFromEditMesh *snap_object_data_editmesh_treedata_get(SnapCache_Edi
                                     G.moving ? nullptr : &em_cache->mesh_runtime->bvh_cache,
                                     &em_cache->mesh_runtime->eval_mutex);
     }
+    em_cache->bvhtree[2] = treedata.tree;
+    em_cache->cached[2] = treedata.cached;
+    em_cache->nearest_callback = treedata.nearest_callback;
+    em_cache->raycast_callback = treedata.raycast_callback;
   }
-  if (treedata->tree == nullptr) {
-    return nullptr;
-  }
-
-  return treedata;
 }
 
 /** \} */
@@ -246,8 +265,7 @@ static void editmesh_looptri_raycast_backface_culling_cb(void *userdata,
                                                          const BVHTreeRay *ray,
                                                          BVHTreeRayHit *hit)
 {
-  const BVHTreeFromEditMesh *data = (BVHTreeFromEditMesh *)userdata;
-  BMEditMesh *em = data->em;
+  BMEditMesh *em = static_cast<BMEditMesh *>(userdata);
   const BMLoop **ltri = (const BMLoop **)em->looptris[index];
 
   const float *t0, *t1, *t2;
@@ -317,16 +335,16 @@ static bool raycastEditMesh(SnapCache_EditMesh *em_cache,
     len_diff = 0.0f;
   }
 
-  BVHTreeFromEditMesh *treedata = snap_object_data_editmesh_treedata_get(em_cache, sctx, em);
-  if (treedata == nullptr) {
+  snap_cache_tri_ensure(em_cache, sctx);
+  if (em_cache->bvhtree[2] == nullptr) {
     return retval;
   }
 
   if (sctx->ret.hit_list) {
     RayCastAll_Data data;
 
-    data.bvhdata = treedata;
-    data.raycast_callback = treedata->raycast_callback;
+    data.bvhdata = em;
+    data.raycast_callback = em_cache->raycast_callback;
     data.obmat = obmat;
     data.len_diff = len_diff;
     data.local_scale = local_scale;
@@ -334,7 +352,7 @@ static bool raycastEditMesh(SnapCache_EditMesh *em_cache,
     data.hit_list = sctx->ret.hit_list;
 
     void *hit_last_prev = data.hit_list->last;
-    BLI_bvhtree_ray_cast_all(treedata->tree,
+    BLI_bvhtree_ray_cast_all(em_cache->bvhtree[2],
                              ray_start_local,
                              ray_normal_local,
                              0.0f,
@@ -349,15 +367,15 @@ static bool raycastEditMesh(SnapCache_EditMesh *em_cache,
     hit.index = -1;
     hit.dist = local_depth;
 
-    if (BLI_bvhtree_ray_cast(treedata->tree,
+    if (BLI_bvhtree_ray_cast(em_cache->bvhtree[2],
                              ray_start_local,
                              ray_normal_local,
                              0.0f,
                              &hit,
                              sctx->runtime.params.use_backface_culling ?
                                  editmesh_looptri_raycast_backface_culling_cb :
-                                 treedata->raycast_callback,
-                             treedata) != -1)
+                                 em_cache->raycast_callback,
+                             em) != -1)
     {
       hit.dist += len_diff;
       hit.dist /= local_scale;
@@ -372,7 +390,6 @@ static bool raycastEditMesh(SnapCache_EditMesh *em_cache,
 
         sctx->ret.ray_depth_max = hit.dist;
 
-        em = em_cache->treedata_editmesh.em;
         sctx->ret.index = BM_elem_index_get(em->looptris[hit.index][0]->f);
 
         retval = true;
@@ -393,18 +410,19 @@ static bool nearest_world_editmesh(SnapCache_EditMesh *em_cache,
                                    BMEditMesh *em,
                                    const float4x4 &obmat)
 {
-  BVHTreeFromEditMesh *treedata = snap_object_data_editmesh_treedata_get(em_cache, sctx, em);
-  if (treedata == nullptr) {
+  snap_cache_tri_ensure(em_cache, sctx);
+  if (em_cache->bvhtree[2] == nullptr) {
     return false;
   }
 
-  float3 init_co = math::transform_point(obmat, float3(sctx->runtime.init_co));
-  float3 curr_co = math::transform_point(obmat, float3(sctx->runtime.curr_co));
+  float4x4 imat = math::invert(obmat);
+  float3 init_co = math::transform_point(imat, float3(sctx->runtime.init_co));
+  float3 curr_co = math::transform_point(imat, float3(sctx->runtime.curr_co));
 
   BVHTreeNearest nearest{};
   nearest.dist_sq = sctx->ret.dist_px_sq;
   if (nearest_world_tree(
-          sctx, treedata->tree, treedata->nearest_callback, init_co, curr_co, treedata, &nearest))
+          sctx, em_cache->bvhtree[2], em_cache->nearest_callback, init_co, curr_co, em, &nearest))
   {
     SnapData::register_result(sctx, ob_eval, nullptr, obmat, &nearest);
     return true;
@@ -674,8 +692,7 @@ eSnapMode snap_object_editmesh(SnapObjectContext *sctx,
     return elem;
   }
 
-  BMEditMesh *em = em_cache->treedata_editmesh.em;
-
+  BMEditMesh *em = em_cache->em;
   eSnapMode snap_mode_used = snap_to_flag & editmesh_snap_mode_supported(em->bm);
   if (snap_mode_used & (SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_POINT)) {
     elem = snapEditMesh(em_cache, sctx, ob_eval, em, obmat, snap_mode_used);
