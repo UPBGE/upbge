@@ -16,7 +16,7 @@ endif()
 set(DEFSRC
   rna_ID.c
   rna_action.c
-  rna_actuator.c
+  rna_actuator.cc
   rna_animation.c
   rna_animviz.c
   rna_armature.cc
@@ -105,7 +105,7 @@ endif()
 
 set(APISRC
   rna_action_api.c
-  rna_actuator_api.c
+  rna_actuator_api.cc
   rna_animation_api.c
   rna_armature_api.cc
   rna_camera_api.c
