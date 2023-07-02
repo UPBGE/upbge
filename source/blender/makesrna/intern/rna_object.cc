@@ -530,7 +530,7 @@ static PointerRNA rna_Object_data_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_ID, ob->data);
 }
 
-static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, struct ReportList *reports)
+static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
   Object *ob = static_cast<Object *>(ptr->data);
   ID *id = static_cast<ID *>(value.data);
@@ -645,9 +645,7 @@ static bool rna_Object_data_poll(PointerRNA *ptr, const PointerRNA value)
   return true;
 }
 
-static void rna_Object_parent_set(PointerRNA *ptr,
-                                  PointerRNA value,
-                                  struct ReportList * /*reports*/)
+static void rna_Object_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
 {
   Object *ob = static_cast<Object *>(ptr->data);
   Object *par = static_cast<Object *>(value.data);
@@ -812,7 +810,7 @@ static const EnumPropertyItem *rna_Object_instance_type_itemf(bContext * /*C*/,
 
 static void rna_Object_dup_collection_set(PointerRNA *ptr,
                                           PointerRNA value,
-                                          struct ReportList * /*reports*/)
+                                          ReportList * /*reports*/)
 {
   Object *ob = static_cast<Object *>(ptr->data);
   Collection *grp = static_cast<Collection *>(value.data);
@@ -890,7 +888,7 @@ static PointerRNA rna_Object_active_vertex_group_get(PointerRNA *ptr)
 
 static void rna_Object_active_vertex_group_set(PointerRNA *ptr,
                                                PointerRNA value,
-                                               struct ReportList *reports)
+                                               ReportList *reports)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (!BKE_object_supports_vertex_groups(ob)) {
@@ -1101,7 +1099,7 @@ static PointerRNA rna_Object_active_material_get(PointerRNA *ptr)
 
 static void rna_Object_active_material_set(PointerRNA *ptr,
                                            PointerRNA value,
-                                           struct ReportList * /*reports*/)
+                                           ReportList * /*reports*/)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
 
@@ -1335,7 +1333,7 @@ static PointerRNA rna_MaterialSlot_material_get(PointerRNA *ptr)
 
 static void rna_MaterialSlot_material_set(PointerRNA *ptr,
                                           PointerRNA value,
-                                          struct ReportList * /*reports*/)
+                                          ReportList * /*reports*/)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   int index = rna_MaterialSlot_index(ptr);
@@ -1869,7 +1867,7 @@ static PointerRNA rna_Object_active_constraint_get(PointerRNA *ptr)
 
 static void rna_Object_active_constraint_set(PointerRNA *ptr,
                                              PointerRNA value,
-                                             struct ReportList * /*reports*/)
+                                             ReportList * /*reports*/)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   BKE_constraints_active_set(&ob->constraints, static_cast<bConstraint *>(value.data));
@@ -2598,7 +2596,7 @@ static PointerRNA rna_LightLinking_receiver_collection_get(PointerRNA *ptr)
 
 static void rna_LightLinking_receiver_collection_set(PointerRNA *ptr,
                                                      PointerRNA value,
-                                                     struct ReportList * /*reports*/)
+                                                     ReportList * /*reports*/)
 {
   Object *object = reinterpret_cast<Object *>(ptr->owner_id);
   Collection *new_collection = static_cast<Collection *>(value.data);
@@ -2618,7 +2616,7 @@ static PointerRNA rna_LightLinking_blocker_collection_get(PointerRNA *ptr)
 
 static void rna_LightLinking_blocker_collection_set(PointerRNA *ptr,
                                                     PointerRNA value,
-                                                    struct ReportList * /*reports*/)
+                                                    ReportList * /*reports*/)
 {
   Object *object = reinterpret_cast<Object *>(ptr->owner_id);
   Collection *new_collection = static_cast<Collection *>(value.data);
