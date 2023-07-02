@@ -72,7 +72,7 @@ set(DEFSRC
   rna_scene.cc
   rna_screen.cc
   rna_sculpt_paint.cc
-  rna_sensor.c
+  rna_sensor.cc
   rna_sequencer.cc
   rna_shader_fx.cc
   rna_sound.cc
@@ -122,7 +122,7 @@ set(APISRC
   rna_pose_api.cc
   rna_python_proxy.cc
   rna_scene_api.cc
-  rna_sensor_api.c
+  rna_sensor_api.cc
   rna_sequencer_api.cc
   rna_sound_api.cc
   rna_space_api.cc

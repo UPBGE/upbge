@@ -111,7 +111,7 @@ static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
 static void rna_Sensor_name_set(PointerRNA *ptr, const char *value)
 {
   Object *ob = (Object *)ptr->owner_id;
-  bSensor *sens = ptr->data;
+  bSensor *sens = (bSensor *)ptr->data;
   BLI_strncpy_utf8(sens->name, value, sizeof(sens->name));
   BLI_uniquename(
       &ob->sensors, sens, DATA_("Sensor"), '.', offsetof(bSensor, name), sizeof(sens->name));
@@ -142,7 +142,7 @@ static int rna_Sensor_controllers_length(PointerRNA *ptr)
 
 const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C,
                                               PointerRNA *ptr,
-                                              PropertyRNA *UNUSED(prop),
+                                              PropertyRNA */*prop*/,
                                               bool *r_free)
 {
   EnumPropertyItem *item = NULL;
@@ -237,10 +237,10 @@ static void rna_Sensor_level_set(struct PointerRNA *ptr, bool value)
     sens->tap = 0;
 }
 
-static void rna_Sensor_Armature_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Sensor_Armature_update(Main */*bmain*/, Scene */*scene*/, PointerRNA *ptr)
 {
   bSensor *sens = (bSensor *)ptr->data;
-  bArmatureSensor *as = sens->data;
+  bArmatureSensor *as = (bArmatureSensor *)sens->data;
   Object *ob = (Object *)ptr->owner_id;
 
   char *posechannel = as->posechannel;
@@ -250,11 +250,11 @@ static void rna_Sensor_Armature_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
   if (ob->type == OB_ARMATURE && ob->pose) {
     bPoseChannel *pchan;
     bPose *pose = ob->pose;
-    for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+    for (pchan = (bPoseChannel *)pose->chanbase.first; pchan; pchan = pchan->next) {
       if (STREQ(pchan->name, posechannel)) {
         /* found it, now look for constraint channel */
         bConstraint *con;
-        for (con = pchan->constraints.first; con; con = con->next) {
+        for (con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
           if (STREQ(con->name, constraint)) {
             /* found it, all ok */
             return;
