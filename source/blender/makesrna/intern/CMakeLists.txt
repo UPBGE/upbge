@@ -31,7 +31,7 @@ set(DEFSRC
   rna_color.cc
   rna_constraint.cc
   rna_context.cc
-  rna_controller.c
+  rna_controller.cc
   rna_curve.cc
   rna_curveprofile.cc
   rna_curves.cc
@@ -109,7 +109,7 @@ set(APISRC
   rna_animation_api.cc
   rna_armature_api.cc
   rna_camera_api.cc
-  rna_controller_api.c
+  rna_controller_api.cc
   rna_curve_api.cc
   rna_fcurve_api.cc
   rna_image_api.cc
