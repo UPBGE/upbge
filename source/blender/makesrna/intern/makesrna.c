@@ -4599,7 +4599,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_curveprofile.cc", NULL, RNA_def_profile},
     {"rna_lightprobe.cc", NULL, RNA_def_lightprobe},
     {"rna_property.c", NULL, RNA_def_gameproperty},
-    {"rna_python_proxy.c", NULL, RNA_def_py_proxy},
+    {"rna_python_proxy.cc", NULL, RNA_def_py_proxy},
     {"rna_render.cc", NULL, RNA_def_render},
     {"rna_rigidbody.c", NULL, RNA_def_rigidbody},
     {"rna_scene.cc", "rna_scene_api.cc", RNA_def_scene},

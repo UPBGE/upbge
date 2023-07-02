@@ -79,22 +79,22 @@ static void rna_ProxySetProperty_set(struct PointerRNA *ptr, int value)
   pprop->itemval = value;
 }
 
-static EnumPropertyItem *rna_ProxySetProperty_itemf(bContext *UNUSED(C),
-                                                    PointerRNA *ptr,
-                                                    PropertyRNA *UNUSED(prop),
-                                                    bool *r_free)
+static const EnumPropertyItem *rna_ProxySetProperty_itemf(bContext * /*C*/,
+                                                          PointerRNA *ptr,
+                                                          PropertyRNA * /*prop*/,
+                                                          bool *r_free)
 {
   PythonProxyProperty *pprop = (PythonProxyProperty *)(ptr->data);
   EnumPropertyItem *items = NULL;
   int totitem = 0;
   int j = 0;
 
-  for (LinkData *link = pprop->enumval.first; link; link = link->next, ++j) {
+  for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next, ++j) {
     EnumPropertyItem item = {0, "", 0, "", ""};
     item.value = j;
-    item.identifier = link->data;
+    item.identifier = (const char *)link->data;
     item.icon = 0;
-    item.name = link->data;
+    item.name = (const char *)link->data;
     item.description = "";
     RNA_enum_item_add(&items, &totitem, &item);
   }
@@ -219,8 +219,10 @@ static void rna_def_py_proxy_property(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "value", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, empty_items);
-  RNA_def_property_enum_funcs(
-      prop, "rna_ProxySetProperty_get", "rna_ProxySetProperty_set", "rna_ProxySetProperty_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_ProxySetProperty_get",
+                              "rna_ProxySetProperty_set",
+                              "rna_ProxySetProperty_itemf");
   RNA_def_property_enum_default(prop, 0);
   RNA_def_property_ui_text(prop, "Value", "Property value");
   RNA_def_property_update(prop, NC_LOGIC, NULL);

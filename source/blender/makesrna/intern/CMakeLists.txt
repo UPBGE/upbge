@@ -65,7 +65,7 @@ set(DEFSRC
   rna_pointcloud.cc
   rna_pose.cc
   rna_property.c
-  rna_python_proxy.c
+  rna_python_proxy.cc
   rna_render.cc
   rna_rigidbody.c
   rna_rna.c
@@ -120,7 +120,7 @@ set(APISRC
   rna_meta_api.cc
   rna_object_api.cc
   rna_pose_api.cc
-  rna_python_proxy.c
+  rna_python_proxy.cc
   rna_scene_api.cc
   rna_sensor_api.c
   rna_sequencer_api.cc
