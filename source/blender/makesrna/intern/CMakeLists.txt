@@ -64,7 +64,7 @@ set(DEFSRC
   rna_particle.cc
   rna_pointcloud.cc
   rna_pose.cc
-  rna_property.c
+  rna_property.cc
   rna_python_proxy.cc
   rna_render.cc
   rna_rigidbody.c

@@ -100,11 +100,45 @@ static void rna_GameProperty_type_set(PointerRNA *ptr, int value)
 static void rna_GameProperty_name_set(PointerRNA *ptr, const char *value)
 {
   Object *ob = (Object *)ptr->owner_id;
-  bProperty *prop = ptr->data;
+  bProperty *prop = (bProperty *)ptr->data;
   BLI_strncpy_utf8(prop->name, value, sizeof(prop->name));
 
   BLI_uniquename(
       &ob->prop, prop, DATA_("Property"), '.', offsetof(bProperty, name), sizeof(prop->name));
+}
+
+static void rna_GameStringProperty_value_get(PointerRNA *ptr, char *value)
+{
+  bProperty *prop = (bProperty *)ptr->data;
+  strcpy(value, (const char *)prop->poin);
+}
+
+static int rna_GameStringProperty_value_length(PointerRNA *ptr)
+{
+  bProperty *prop = (bProperty *)ptr->data;
+
+  if (prop->poin) {
+    return strlen((const char *)prop->poin);
+  }
+  else {
+    return 0;
+  }
+}
+
+static void rna_GameStringProperty_value_set(PointerRNA *ptr, const char *value)
+{
+  bProperty *prop = (bProperty *)ptr->data;
+
+  if (prop->poin) {
+    MEM_freeN(prop->poin);
+  }
+
+  if (value[0]) {
+    prop->poin = BLI_strdup(value);
+  }
+  else {
+    prop->poin = nullptr;
+  }
 }
 
 #else
@@ -198,6 +232,10 @@ void RNA_def_gameproperty(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "poin");
   RNA_def_property_string_maxlength(prop, MAX_PROPSTRING);
+  RNA_def_property_string_funcs(prop,
+                                "rna_GameStringProperty_value_get",
+                                "rna_GameStringProperty_value_length",
+                                "rna_GameStringProperty_value_set");
   RNA_def_property_ui_text(prop, "Value", "Property value");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
