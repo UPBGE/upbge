@@ -110,7 +110,12 @@ static void rna_GameProperty_name_set(PointerRNA *ptr, const char *value)
 static void rna_GameStringProperty_value_get(PointerRNA *ptr, char *value)
 {
   bProperty *prop = (bProperty *)ptr->data;
-  strcpy(value, (const char *)prop->poin);
+  if (prop->poin) {
+    strcpy(value, (const char *)prop->poin);
+  }
+  else {
+    value[0] = '\0';
+  }
 }
 
 static int rna_GameStringProperty_value_length(PointerRNA *ptr)
