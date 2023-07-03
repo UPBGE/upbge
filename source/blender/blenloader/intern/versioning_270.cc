@@ -69,7 +69,7 @@
 
 #include "NOD_common.h"
 #include "NOD_composite.h"
-#include "NOD_socket.h"
+#include "NOD_socket.hh"
 
 #include "readfile.h"
 

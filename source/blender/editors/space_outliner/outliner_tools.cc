@@ -1102,6 +1102,18 @@ static void id_override_library_create_hierarchy_pre_process_fn(bContext *C,
     return;
   }
 
+  /* Only process a given ID once. Otherwise, all kind of weird things can happen if e.g. a
+   * selected sub-collection is part of more than one override hierarchies. */
+  if (data->selected_id_uid.contains(id_root_reference->session_uuid)) {
+    return;
+  }
+  data->selected_id_uid.add(id_root_reference->session_uuid);
+
+  if (ID_IS_OVERRIDE_LIBRARY_REAL(id_root_reference) && !ID_IS_LINKED(id_root_reference)) {
+    id_root_reference->override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
+    return;
+  }
+
   if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id_root_reference)) {
     if (ID_IS_LINKED(id_root_reference)) {
       BKE_reportf(
@@ -1117,18 +1129,6 @@ static void id_override_library_create_hierarchy_pre_process_fn(bContext *C,
 
   BLI_assert(do_hierarchy);
   UNUSED_VARS_NDEBUG(do_hierarchy);
-
-  /* Only process a given ID once. Otherwise, all kind of weird things can happen if e.g. a
-   * selected sub-collection is part of more than one override hierarchies. */
-  if (data->selected_id_uid.contains(id_root_reference->session_uuid)) {
-    return;
-  }
-  data->selected_id_uid.add(id_root_reference->session_uuid);
-
-  if (ID_IS_OVERRIDE_LIBRARY_REAL(id_root_reference) && !ID_IS_LINKED(id_root_reference)) {
-    id_root_reference->override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
-    return;
-  }
 
   if (GS(id_root_reference->name) == ID_GR && (tselem->flag & TSE_CLOSED) != 0) {
     /* If selected element is a (closed) collection, check all of its objects recursively, and also
@@ -1473,6 +1473,7 @@ static void id_override_library_clear_single_process(bContext *C,
           BKE_libblock_remap(
               bmain, id, id->override_library->reference, ID_REMAP_SKIP_INDIRECT_USAGE);
           if (do_remap_active) {
+            BKE_view_layer_synced_ensure(scene, view_layer);
             Object *ref_object = reinterpret_cast<Object *>(id->override_library->reference);
             Base *basact = BKE_view_layer_base_find(view_layer, ref_object);
             if (basact != nullptr) {
@@ -2608,9 +2609,12 @@ static TreeTraversalAction outliner_collect_objects_to_delete(TreeElement *te, v
   if (te_parent != nullptr && outliner_is_collection_tree_element(te_parent)) {
     TreeStoreElem *tselem_parent = TREESTORE(te_parent);
     ID *id_parent = tselem_parent->id;
-    BLI_assert(GS(id_parent->name) == ID_GR);
-    if (ID_IS_OVERRIDE_LIBRARY_REAL(id_parent)) {
-      return TRAVERSE_SKIP_CHILDS;
+    /* It's not possible to remove an object from an overridden collection (and potentially scene,
+     * through the master collection). */
+    if ((ELEM(GS(id_parent->name), ID_GR, ID_SCE))) {
+      if (ID_IS_OVERRIDE_LIBRARY_REAL(id_parent)) {
+        return TRAVERSE_SKIP_CHILDS;
+      }
     }
   }
 

@@ -60,6 +60,7 @@
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
+#include "BKE_node.h"
 #include "BKE_node_tree_update.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -69,8 +70,6 @@
 #include "BKE_texture.h"
 
 #include "SEQ_iterator.h"
-
-#include "NOD_socket.h"
 
 #include "BLO_readfile.h"
 
