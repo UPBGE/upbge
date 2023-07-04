@@ -26,6 +26,7 @@
 
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_string_utils.h"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
 #include "DNA_python_proxy_types.h"
 #include "DNA_windowmanager_types.h"
@@ -726,7 +727,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
   orgfilecontent[filesize] = '\0';
 
-  filecontent = BLI_str_replaceN((char *)orgfilecontent, "%Name%", classname);
+  filecontent = BLI_string_replaceN((char *)orgfilecontent, "%Name%", classname);
 
   BKE_text_write(text, filecontent, strlen(filecontent));
 
