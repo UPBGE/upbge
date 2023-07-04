@@ -50,7 +50,7 @@ const EnumPropertyItem rna_enum_controller_type_items[] = {
     {CONT_LOGIC_XNOR, "LOGIC_XNOR", 0, "Xnor", "Logic Xnor"},
     {CONT_EXPRESSION, "EXPRESSION", 0, "Expression", ""},
     {CONT_PYTHON, "PYTHON", 0, "Python", ""},
-    {0, NULL, 0, NULL, NULL}};
+    {0, nullptr, 0, nullptr, nullptr}};
 
 #ifdef RNA_RUNTIME
 
@@ -114,7 +114,7 @@ static void rna_Controller_mode_set(struct PointerRNA *ptr, int value)
   /* if mode changed and previous mode were Script */
   if (value != pycon->mode && pycon->mode == CONT_PY_SCRIPT) {
     /* clear script to avoid it to get linked with the controller */
-    pycon->text = NULL;
+    pycon->text = nullptr;
   }
   pycon->mode = value;
 }
@@ -143,7 +143,7 @@ static void rna_Controller_state_number_set(struct PointerRNA *ptr, const int va
 static void rna_Controller_actuators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   bController *cont = (bController *)ptr->data;
-  rna_iterator_array_begin(iter, cont->links, sizeof(bActuator *), (int)cont->totlinks, 0, NULL);
+  rna_iterator_array_begin(iter, cont->links, sizeof(bActuator *), (int)cont->totlinks, 0, nullptr);
 }
 
 static int rna_Controller_actuators_length(PointerRNA *ptr)
@@ -162,10 +162,10 @@ void RNA_def_controller(BlenderRNA *brna)
   static const EnumPropertyItem python_controller_modes[] = {
       {CONT_PY_SCRIPT, "SCRIPT", 0, "Script", ""},
       {CONT_PY_MODULE, "MODULE", 0, "Module", ""},
-      {0, NULL, 0, NULL, NULL}};
+      {0, nullptr, 0, nullptr, nullptr}};
 
   /* Controller */
-  srna = RNA_def_struct(brna, "Controller", NULL);
+  srna = RNA_def_struct(brna, "Controller", nullptr);
   RNA_def_struct_sdna(srna, "bController");
   RNA_def_struct_refine_func(srna, "rna_Controller_refine");
   RNA_def_struct_ui_text(
@@ -177,39 +177,39 @@ void RNA_def_controller(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Name", "");
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Constroller_name_set");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Constroller_name_set");
   RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_enum_funcs(prop, NULL, "rna_Controller_type_set", NULL);
+  RNA_def_property_enum_funcs(prop, nullptr, "rna_Controller_type_set", nullptr);
   RNA_def_property_enum_items(prop, rna_enum_controller_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", CONT_SHOW);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CONT_SHOW);
   RNA_def_property_ui_text(prop, "Expanded", "Set controller expanded in the user interface");
   RNA_def_property_ui_icon(prop, ICON_TRIA_RIGHT, 1);
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", CONT_DEACTIVATE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", CONT_DEACTIVATE);
   RNA_def_property_ui_text(prop, "Active", "Set the active state of the controller");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "use_priority", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", CONT_PRIO);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CONT_PRIO);
   RNA_def_property_ui_text(prop,
                            "Priority",
                            "Mark controller for execution before all non-marked controllers "
                            "(good for startup scripts)");
   RNA_def_property_ui_icon(prop, ICON_BOOKMARKS, 1);
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "actuators", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, NULL, "links", NULL);
+  RNA_def_property_collection_sdna(prop, nullptr, "links", nullptr);
   RNA_def_property_struct_type(prop, "Actuator");
   RNA_def_property_ui_text(
       prop, "Actuators", "The list containing the actuators connected to the controller");
@@ -219,18 +219,18 @@ void RNA_def_controller(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_dereference_get",
                                     "rna_Controller_actuators_length",
-                                    NULL,
-                                    NULL,
-                                    NULL);
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
 
   /* Number of the state */
   prop = RNA_def_property(srna, "states", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, NULL, "state_mask");
+  RNA_def_property_int_sdna(prop, nullptr, "state_mask");
   RNA_def_property_range(prop, 1, OB_MAX_STATES);
   RNA_def_property_ui_text(prop, "", "Set Controller state index (1 to 30)");
   RNA_def_property_int_funcs(
-      prop, "rna_Controller_state_number_get", "rna_Controller_state_number_set", NULL);
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+      prop, "rna_Controller_state_number_get", "rna_Controller_state_number_set", nullptr);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Expression Controller */
   srna = RNA_def_struct(brna, "ExpressionController", "Controller");
@@ -240,9 +240,9 @@ void RNA_def_controller(BlenderRNA *brna)
                          "Controller passing on events based on the evaluation of an expression");
 
   prop = RNA_def_property(srna, "expression", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, NULL, "str");
+  RNA_def_property_string_sdna(prop, nullptr, "str");
   RNA_def_property_ui_text(prop, "Expression", "");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Python Controller */
   srna = RNA_def_struct(brna, "PythonController", "Controller");
@@ -251,31 +251,31 @@ void RNA_def_controller(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, python_controller_modes);
-  RNA_def_property_enum_funcs(prop, NULL, "rna_Controller_mode_set", NULL);
+  RNA_def_property_enum_funcs(prop, nullptr, "rna_Controller_mode_set", nullptr);
   RNA_def_property_ui_text(
       prop, "Execution Method", "Python script type (textblock or module - faster)");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "text", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Text");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Text", "Text data-block with the python script");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "module", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop,
                            "Module",
                            "Module name and function to run, e.g. \"someModule.main\" "
                            "(internal texts and external python files can be used)");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "use_debug", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", CONT_PY_DEBUG);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CONT_PY_DEBUG);
   RNA_def_property_ui_text(prop,
                            "D",
                            "Continuously reload the module from disk for editing external modules "
                            "without restarting");
-  RNA_def_property_update(prop, NC_LOGIC, NULL);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Other Controllers */
   srna = RNA_def_struct(brna, "AndController", "Controller");
