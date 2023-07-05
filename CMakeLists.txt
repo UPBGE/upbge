@@ -170,6 +170,13 @@ if(WIN32)
   )
 endif()
 
+
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.19")
+  # This changes the default value from Off to On, but will still allow people to manually change
+  # this setting through their CMakeCache.txt if they desire to do so.
+  set(CMAKE_OPTIMIZE_DEPENDENCIES ON CACHE INTERNAL "")
+endif()
+
 # -----------------------------------------------------------------------------
 # Declare Options
 
@@ -1633,8 +1640,9 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   # Apple Clang (tested on version 12) doesn't support this flag while LLVM Clang 11 does.
   add_check_cxx_compiler_flag(CXX_WARNINGS CXX_WARN_NO_SUGGEST_OVERRIDE    -Wno-suggest-override)
 
-  add_check_c_compiler_flag(CXX_WARNINGS CXX_WARN_UNDEF -Wundef)
-  add_check_c_compiler_flag(CXX_WARNINGS CXX_WARN_UNDEF_PREFIX -Wundef-prefix)
+  add_check_cxx_compiler_flag(CXX_WARNINGS CXX_WARN_UNDEF -Wundef)
+  add_check_cxx_compiler_flag(CXX_WARNINGS CXX_WARN_UNDEF_PREFIX -Wundef-prefix)
+  add_check_cxx_compiler_flag(CXX_WARNINGS CXX_WARN_UNUSED_PARAMETER -Wunused-parameter)
 
   # gives too many unfixable warnings
   # add_check_c_compiler_flag(C_WARNINGS C_WARN_UNUSED_MACROS      -Wunused-macros)

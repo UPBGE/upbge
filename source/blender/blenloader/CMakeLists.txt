@@ -42,7 +42,7 @@ set(SRC
   intern/runtime.c
   intern/undofile.cc
   intern/versioning_250.c
-  intern/versioning_260.c
+  intern/versioning_260.cc
   intern/versioning_270.cc
   intern/versioning_280.cc
   intern/versioning_290.cc

@@ -171,7 +171,7 @@ static int calculate_to_frame_invoke(bContext *C, wmOperator *op, const wmEvent 
   wmJob *wm_job = WM_jobs_get(wm,
                               CTX_wm_window(C),
                               CTX_data_scene(C),
-                              "Bake Simulation Nodes",
+                              "Calculate Simulation",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_CALCULATE_SIMULATION_NODES);
 
@@ -342,7 +342,7 @@ static void bake_simulation_job_startjob(void *customdata,
       NodesModifierData &nmd = *modifier_bake_data.nmd;
       if (nmd.simulation_cache) {
         /* Tag the caches as being baked so that they are not changed anymore. */
-        nmd.simulation_cache->ptr->cache_state_ = CacheState::Baked;
+        nmd.simulation_cache->ptr->cache_state = CacheState::Baked;
       }
     }
     DEG_id_tag_update(&object_bake_data.object->id, ID_RECALC_GEOMETRY);
