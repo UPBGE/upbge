@@ -434,7 +434,7 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
 classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
-    OBJECT_PT_transform_game, # Game engine transition
+    OBJECT_PT_transform_game, # UPBGE
     OBJECT_PT_delta_transform,
     OBJECT_PT_relations,
     COLLECTION_MT_context_menu,

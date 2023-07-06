@@ -48,7 +48,12 @@ class RENDER_PT_context(Panel):
 
 class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
     bl_label = "Game Resolution"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     def draw(self, context):
         import sys
@@ -89,7 +94,12 @@ class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Game Debug"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     def draw(self, context):
         layout = self.layout

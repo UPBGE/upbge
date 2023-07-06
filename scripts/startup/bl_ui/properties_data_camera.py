@@ -72,7 +72,12 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
 class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
     bl_label = "Game Camera Settings"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     def draw(self, context):
         layout = self.layout

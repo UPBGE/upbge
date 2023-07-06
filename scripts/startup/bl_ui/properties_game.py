@@ -208,7 +208,12 @@ class PhysicsButtonsPanel:
 
 class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
     bl_label = "Game Physics"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -453,7 +458,12 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
 class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
     bl_label = "Collision Bounds"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -493,7 +503,12 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
 
 class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
     bl_label = "Create Obstacle"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -536,7 +551,12 @@ class SceneButtonsPanel:
 
 class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
     bl_label = "Game Physics"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -603,7 +623,12 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
 class SCENE_PT_game_physics_obstacles(SceneButtonsPanel, Panel):
     bl_label = "Obstacle Simulation"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -624,7 +649,12 @@ class SCENE_PT_game_physics_obstacles(SceneButtonsPanel, Panel):
 class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
     bl_label = "Navigation Mesh"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -685,7 +715,12 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
 
 class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
     bl_label = "Level of Detail"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -705,7 +740,12 @@ class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
 class SCENE_PT_game_console(SceneButtonsPanel, Panel):
     bl_label = "Game Python Console"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -742,7 +782,12 @@ class ObjectButtonsPanel:
 
 class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
     bl_label = "Activity Culling"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -780,7 +825,12 @@ class OBJECT_MT_lod_tools(Menu):
 
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
 
     @classmethod
     def poll(cls, context):
