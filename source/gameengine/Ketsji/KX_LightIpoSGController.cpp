@@ -70,11 +70,11 @@ bool KX_LightIpoSGController::Update(double currentTime)
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
     }
 
-    if (m_modify_dist) {
+    /*if (m_modify_dist) {
       la->dist = m_dist;
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-    }
+    }*/
 
     m_modified = false;
   }

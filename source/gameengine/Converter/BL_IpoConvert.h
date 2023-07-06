@@ -205,7 +205,7 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj,
   ipocontr->m_col_rgb[0] = blenderlamp->r;
   ipocontr->m_col_rgb[1] = blenderlamp->g;
   ipocontr->m_col_rgb[2] = blenderlamp->b;
-  ipocontr->m_dist = blenderlamp->dist;
+  //ipocontr->m_dist = blenderlamp->dist;
 
   BL_InterpolatorList *adtList = GetAdtList(action, scene);
 
@@ -221,11 +221,11 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj,
     ipocontr->SetModifyEnergy(true);
   }
 
-  if ((interp = adtList->GetScalarInterpolator("distance", 0))) {
+  /*if ((interp = adtList->GetScalarInterpolator("distance", 0))) {
     interpolator = new KX_ScalarInterpolator(&ipocontr->m_dist, interp);
     ipocontr->AddInterpolator(interpolator);
     ipocontr->SetModifyDist(true);
-  }
+  }*/
 
   for (int i = 0; i < 3; i++) {
     if ((interp = adtList->GetScalarInterpolator("color", i))) {

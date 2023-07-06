@@ -46,7 +46,7 @@ class KX_LightIpoSGController : public SG_Controller {
   T_InterpolatorList m_interpolators;
   unsigned short m_modify_energy : 1;
   unsigned short m_modify_color : 1;
-  unsigned short m_modify_dist : 1;
+  //unsigned short m_modify_dist : 1;
   bool m_modified;
 
   double m_ipotime;
@@ -55,7 +55,7 @@ class KX_LightIpoSGController : public SG_Controller {
   KX_LightIpoSGController()
       : m_modify_energy(false),
         m_modify_color(false),
-        m_modify_dist(false),
+        //m_modify_dist(false),
         m_modified(true),
         m_ipotime(0.0)
   {
@@ -83,10 +83,10 @@ class KX_LightIpoSGController : public SG_Controller {
     m_modify_color = modify;
   }
 
-  void SetModifyDist(bool modify)
+  /*void SetModifyDist(bool modify)
   {
     m_modify_dist = modify;
-  }
+  }*/
 
   void SetOption(int option, int value){
       // intentionally empty
