@@ -12,11 +12,9 @@ set(INC
   ../../bmesh/intern
   ../../depsgraph
   ../../editors/include
-  ../../makesdna
   ../../makesrna
   ../../nodes
   ../../windowmanager
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -39,6 +37,8 @@ set(SRC
 
 set(LIB
   bf_blenkernel
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   bf_io_common
 )
 

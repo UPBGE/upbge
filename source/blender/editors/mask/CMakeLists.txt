@@ -8,10 +8,8 @@ set(INC
   ../../blenlib
   ../../depsgraph
   ../../gpu
-  ../../makesdna
   ../../makesrna
   ../../windowmanager
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -32,6 +30,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 

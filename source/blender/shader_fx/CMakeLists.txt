@@ -12,12 +12,10 @@ set(INC
   ../bmesh
   ../depsgraph
   ../editors/include
-  ../makesdna
   ../makesrna
   ../render
   ../windowmanager
   ../../../intern/eigen
-  ../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -46,6 +44,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 

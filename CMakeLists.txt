@@ -534,6 +534,7 @@ mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG_NAN)
 mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 mark_as_advanced(WITH_CYCLES_PRECOMPUTE)
+mark_as_advanced(CYCLES_TEST_DEVICES)
 
 # NVIDIA CUDA & OptiX
 if(NOT APPLE)
@@ -1342,6 +1343,9 @@ if(WITH_OPENMP)
       add_definitions("${OpenMP_C_FLAGS}")
 
       find_library_static(OpenMP_LIBRARIES gomp ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
+      mark_as_advanced(
+        OpenMP_LIBRARIES
+      )
     endif()
   endif()
 

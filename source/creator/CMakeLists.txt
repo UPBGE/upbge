@@ -4,7 +4,6 @@
 
 set(INC
   ../../intern/clog
-  ../../intern/guardedalloc
   ../blender/blenkernel
   ../blender/blenlib
   ../blender/depsgraph
@@ -13,13 +12,14 @@ set(INC
   ../blender/imbuf
   ../blender/io/usd
   ../blender/bmesh
-  ../blender/makesdna
   ../blender/makesrna
   ../blender/render
   ../blender/windowmanager
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   bf_windowmanager
 )
 

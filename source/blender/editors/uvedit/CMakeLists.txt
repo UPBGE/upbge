@@ -11,11 +11,9 @@ set(INC
   ../../depsgraph
   ../../geometry
   ../../gpu
-  ../../makesdna
   ../../makesrna
   ../../windowmanager
   ../../../../intern/eigen
-  ../../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -42,6 +40,8 @@ set(SRC
 
 set(LIB
   bf_bmesh
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 

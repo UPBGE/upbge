@@ -8,8 +8,6 @@ set(INC
   ../..
   ../../../blenkernel
   ../../../blenlib
-  ../../../makesdna
-  ../../../../../intern/guardedalloc
   ../../../../../intern/utfconv
 )
 
@@ -23,6 +21,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_IMAGE_OPENEXR)

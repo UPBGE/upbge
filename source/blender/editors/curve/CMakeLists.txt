@@ -9,11 +9,9 @@ set(INC
   ../../blentranslation
   ../../depsgraph
   ../../gpu
-  ../../makesdna
   ../../makesrna
   ../../windowmanager
   ../../../../intern/clog
-  ../../../../intern/guardedalloc
   ../../../../extern/curve_fit_nd
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -40,6 +38,8 @@ set(SRC
 set(LIB
   bf_blenkernel
   bf_blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   extern_curve_fit_nd
 )
 

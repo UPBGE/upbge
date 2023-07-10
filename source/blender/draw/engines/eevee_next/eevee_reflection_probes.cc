@@ -83,7 +83,7 @@ int ReflectionProbeModule::needed_layers_get() const
   return max_layer + 1;
 }
 
-void ReflectionProbeModule::sync(const ReflectionProbe &probe)
+void ReflectionProbeModule::sync(ReflectionProbe &probe)
 {
   switch (probe.type) {
     case ReflectionProbe::Type::World: {
@@ -92,6 +92,7 @@ void ReflectionProbeModule::sync(const ReflectionProbe &probe)
     case ReflectionProbe::Type::Probe: {
       if (probe.do_render) {
         upload_dummy_texture(probe);
+        probe.do_render = false;
       }
       break;
     }
@@ -189,6 +190,35 @@ class ProbeLocationFinder {
     taken_spots_.resize(num_spots, false);
   }
 
+  void print_debug() const
+  {
+    std::ostream &os = std::cout;
+    int layer = 0;
+    int row = 0;
+    int column = 0;
+
+    os << "subdivision " << subdivision_level_ << "\n";
+
+    for (bool spot_taken : taken_spots_) {
+      if (row == 0 && column == 0) {
+        os << "layer " << layer << "\n";
+      }
+
+      os << (spot_taken ? '1' : '0');
+
+      column++;
+      if (column == probes_per_dimension_) {
+        os << "\n";
+        column = 0;
+        row++;
+      }
+      if (row == probes_per_dimension_) {
+        row = 0;
+        layer++;
+      }
+    }
+  }
+
   /**
    * Mark space to be occupied by the given probe_data.
    *
@@ -197,19 +227,20 @@ class ProbeLocationFinder {
    */
   void mark_space_used(const ReflectionProbeData &probe_data)
   {
-    /* Number of spots that the probe data will occupied in a single dimension. */
-    int clamped_subdivision_shift = max_ii(probe_data.layer_subdivision - subdivision_level_, 0);
-    int spots_per_dimension = 1 << max_ii(subdivision_level_ - probe_data.layer_subdivision, 0);
-    int probes_per_dimension_in_probe_data = 1 << probe_data.layer_subdivision;
-    int2 pos_in_probe_data = int2(probe_data.area_index % probes_per_dimension_in_probe_data,
-                                  probe_data.area_index / probes_per_dimension_in_probe_data);
-    int2 pos_in_location_finder = int2(pos_in_probe_data.x >> clamped_subdivision_shift,
-                                       pos_in_probe_data.y >> clamped_subdivision_shift);
-    int layer_offset = probe_data.layer * probes_per_layer_;
-    for (int y : IndexRange(spots_per_dimension)) {
-      for (int x : IndexRange(spots_per_dimension)) {
-        int2 pos = pos_in_location_finder + int2(x, y);
-        int area_index = pos.x + pos.y * probes_per_dimension_;
+    const int shift_right = max_ii(probe_data.layer_subdivision - subdivision_level_, 0);
+    const int shift_left = max_ii(subdivision_level_ - probe_data.layer_subdivision, 0);
+    const int spots_per_dimension = 1 << shift_left;
+    const int probes_per_dimension_in_probe_data = 1 << probe_data.layer_subdivision;
+    const int2 pos_in_probe_data = int2(probe_data.area_index % probes_per_dimension_in_probe_data,
+                                        probe_data.area_index /
+                                            probes_per_dimension_in_probe_data);
+    const int2 pos_in_location_finder = int2((pos_in_probe_data.x >> shift_right) << shift_left,
+                                             (pos_in_probe_data.y >> shift_right) << shift_left);
+    const int layer_offset = probe_data.layer * probes_per_layer_;
+    for (const int y : IndexRange(spots_per_dimension)) {
+      for (const int x : IndexRange(spots_per_dimension)) {
+        const int2 pos = pos_in_location_finder + int2(x, y);
+        const int area_index = pos.x + pos.y * probes_per_dimension_;
         taken_spots_[area_index + layer_offset].set();
       }
     }
@@ -307,7 +338,6 @@ void ReflectionProbeModule::end_sync()
         break;
     }
     probe.do_update_data = false;
-    probe.do_render = false;
   }
 
   if (regenerate_mipmaps) {
@@ -373,6 +403,17 @@ void ReflectionProbeModule::recalc_lod_factors()
         0.5 * log(float(square_i(probes_tx_.width() >> probe_data.layer_subdivision))) / log(2.0);
     probe_data.lod_factor = lod_factor;
   }
+}
+bool ReflectionProbeModule::do_world_update_get() const
+{
+  const ReflectionProbe &world_probe = probes_.lookup(world_object_key_);
+  return world_probe.do_render;
+}
+
+void ReflectionProbeModule::do_world_update_set(bool value)
+{
+  ReflectionProbe &world_probe = probes_.lookup(world_object_key_);
+  world_probe.do_render = value;
 }
 
 /* -------------------------------------------------------------------- */

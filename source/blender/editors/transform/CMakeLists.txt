@@ -12,12 +12,10 @@ set(INC
   ../../depsgraph
   ../../gpu
   ../../ikplugin
-  ../../makesdna
   ../../makesrna
   ../../render
   ../../sequencer
   ../../windowmanager
-  ../../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -122,8 +120,10 @@ set(LIB
   bf_blenkernel
   bf_blenlib
   bf_bmesh
+  PRIVATE bf::dna
   bf_editor_mask
   bf_gpu
+  PRIVATE bf::intern::guardedalloc
 )
 
 

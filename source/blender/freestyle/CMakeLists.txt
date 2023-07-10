@@ -530,6 +530,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   bf_python_mathutils
 
   ${PYTHON_LINKFLAGS}
@@ -543,13 +545,11 @@ set(INC
   ../blentranslation
   ../depsgraph
   ../imbuf
-  ../makesdna
   ../makesrna
   ../python
   ../python/intern
   ../render
   ../render/intern
-  ../../../intern/guardedalloc
 
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna

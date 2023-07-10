@@ -4,11 +4,9 @@
 
 set(INC
   .
-  ../guardedalloc
   ../../source/blender/blenlib
   ../../source/blender/gpu
   ../../source/blender/gpu/intern
-  ../../source/blender/makesdna
 )
 
 set(INC_SYS
@@ -25,6 +23,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_OPENCOLORIO)
