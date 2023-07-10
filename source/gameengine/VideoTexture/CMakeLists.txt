@@ -24,12 +24,10 @@ set(INC
   ../../blender/gpu
   ../../blender/imbuf
   ../../blender/makesrna
-  ../../blender/makesdna
   ../../blender/python
   ../../blender/python/generic
   ../../blender/render
   ../../../intern/ffmpeg
-  ../../../intern/guardedalloc
   ../../../intern/decklink
   ../../../intern/gpudirect
   ../../../intern/atomic
@@ -84,6 +82,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   ge_scenegraph
 )
 

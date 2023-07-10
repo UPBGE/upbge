@@ -45,9 +45,7 @@ set(INC
   ../../../blender/blenkernel
   ../../../blender/blenlib
   ../../../blender/depsgraph
-  ../../../blender/makesdna
   ../../../blender/makesrna
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -69,6 +67,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_PYTHON)

@@ -53,7 +53,6 @@ set(INC
   ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
-  ../../blender/makesdna
   ../../blender/makesrna
   ../../blender/python
   ../../blender/render
@@ -63,7 +62,6 @@ set(INC
   ../../blender/windowmanager/message_bus
   ../../../intern/clog
   ../../../intern/ghost
-  ../../../intern/guardedalloc
   ../../../intern/memutil
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -83,6 +81,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 add_definitions(${GL_DEFINITIONS})

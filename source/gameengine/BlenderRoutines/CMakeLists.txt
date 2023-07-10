@@ -23,10 +23,8 @@ set(INC
   ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
-  ../../blender/makesdna
   ../../blender/makesrna
   ../../blender/windowmanager
-  ../../../intern/guardedalloc
   ../../../intern/termcolor
   ../../../intern/ghost
 )
@@ -42,6 +40,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dna
   ge_ketsji
   ge_common
   ge_launcher

@@ -43,11 +43,9 @@ set(INC
   ../../blender/draw/engines/eevee/
   ../../blender/draw/intern
   ../../blender/gpu
-  ../../blender/makesdna
   ../../blender/makesrna
   ../../blender/render
   ../../blender/windowmanager
-  ../../../intern/guardedalloc
   ../../../intern/ghost
   ../../../intern/termcolor
 )
@@ -73,6 +71,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   bf_intern_moto
   ge_expressions
   ge_logic_bricks

@@ -52,7 +52,6 @@ set(INC
   ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
-  ../../blender/makesdna
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
@@ -63,7 +62,6 @@ set(INC
   ../../blender/windowmanager
   ../../../intern/clog
   ../../../intern/ghost
-  ../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -186,6 +184,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   ge_converter
   ge_logic_bricks
   ge_scenegraph

@@ -28,7 +28,6 @@ set(INC
   ../Common
   ../SceneGraph
   ../../blender/blenlib
-  ../../../intern/guardedalloc
   ../../../intern/termcolor
 )
 
@@ -77,6 +76,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_PYTHON)

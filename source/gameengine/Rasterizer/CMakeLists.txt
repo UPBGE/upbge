@@ -43,11 +43,9 @@ set(INC
   ../../blender/draw/engines/eevee/
   ../../blender/gpu
   ../../blender/imbuf
-  ../../blender/makesdna
   ../../blender/makesrna
   ../../blender/render
   ../../blender/render/intern
-  ../../../intern/guardedalloc
   ../../../intern/termcolor
 )
 
@@ -113,8 +111,10 @@ set(SRC
 )
 
 set(LIB
-  ge_rasterizer_opengl
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   bf_intern_moto
+  ge_rasterizer_opengl
 )
 
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)

@@ -31,7 +31,6 @@ set(INC
   ../SceneGraph
   ../../blender/blenlib
   ../../blender/python/generic
-  ../../../intern/guardedalloc
   ../../../intern/termcolor
 )
 
@@ -55,6 +54,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::intern::guardedalloc
 )
 
 blender_add_lib(ge_common "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

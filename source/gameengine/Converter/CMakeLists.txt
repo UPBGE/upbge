@@ -51,11 +51,9 @@ set(INC
   ../../blender/gpu
   ../../blender/ikplugin
   ../../blender/imbuf
-  ../../blender/makesdna
   ../../blender/makesrna
   ../../blender/render
   ../../blender/windowmanager
-  ../../../intern/guardedalloc
   ../../../intern/termcolor
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -101,6 +99,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   ge_physics_dummy
   ge_physics_bullet
   ge_ketsji

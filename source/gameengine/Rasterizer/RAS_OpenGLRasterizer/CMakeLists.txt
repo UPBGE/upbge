@@ -43,11 +43,9 @@ set(INC
   ../../../blender/draw/intern
   ../../../blender/draw/engines/eevee/
   ../../../blender/gpu
-  ../../../blender/makesdna
   ../../../blender/makesrna
   ../../../blender/render
   ../../../blender/render/intern
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -65,6 +63,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 add_definitions(${GL_DEFINITIONS})

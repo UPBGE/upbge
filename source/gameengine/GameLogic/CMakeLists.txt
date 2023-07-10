@@ -36,7 +36,6 @@ set(INC
   ../SceneGraph
   ../../blender/blenkernel
   ../../blender/blenlib
-  ../../blender/makesdna
   ../../blender/python/generic
   ../../../intern/termcolor
   ../../../intern/ghost
@@ -188,6 +187,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dna
   ge_expressions
 )
 
