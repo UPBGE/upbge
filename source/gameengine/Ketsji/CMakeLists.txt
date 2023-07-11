@@ -40,7 +40,6 @@ set(INC
   ../VideoTexture
   ../../blender
   ../../blender/blenfont
-  ../../blender/blenkernel
   ../../blender/blenlib
   ../../blender/blenloader
   ../../blender/blentranslation
@@ -184,6 +183,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   ge_converter
@@ -192,7 +192,6 @@ set(LIB
   ge_msg_network
   ge_device
   extern_recastnavigation
-  bf_blenkernel
   ge_rasterizer
 )
 

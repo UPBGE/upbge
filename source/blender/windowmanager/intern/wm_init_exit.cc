@@ -496,10 +496,10 @@ bool WM_init_game(bContext *C)
     BKE_report(&wm->reports, RPT_ERROR, "No valid 3D View found, game auto start is not possible");
 
     /* After adding the report to the global list, reset the report timer. */
-    WM_event_remove_timer(wm, NULL, wm->reports.reporttimer);
+    WM_event_timer_remove(wm, NULL, wm->reports.reporttimer);
 
     /* Records time since last report was added */
-    wm->reports.reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.02);
+    wm->reports.reporttimer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.02);
 
     rti = (ReportTimerInfo *)MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
     wm->reports.reporttimer->customdata = rti;
