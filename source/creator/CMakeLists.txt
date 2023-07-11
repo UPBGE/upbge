@@ -4,8 +4,6 @@
 
 set(INC
   ../../intern/clog
-  ../blender/blenkernel
-  ../blender/blenlib
   ../blender/depsgraph
   ../blender/editors/include
   ../blender/gpu
@@ -18,6 +16,8 @@ set(INC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   bf_windowmanager
@@ -60,6 +60,10 @@ if(WITH_CYCLES)
     list(APPEND INC ../../intern/cycles/blender)
     add_definitions(-DWITH_CYCLES_LOGGING)
   endif()
+endif()
+
+if(WITH_OPENGL_BACKEND)
+  add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)

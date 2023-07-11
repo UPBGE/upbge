@@ -17,8 +17,6 @@ set(INC
   shader
   texture
   ../editors/include
-  ../blenkernel
-  ../blenlib
   ../blentranslation
   ../bmesh
   ../depsgraph
@@ -27,6 +25,7 @@ set(INC
   ../gpu
   ../imbuf
   ../makesrna
+  ../modifiers
   ../render
   ../windowmanager
   ../../../extern/fmtlib/include
@@ -80,6 +79,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   bf_bmesh
   PRIVATE bf::dna
   bf_functions

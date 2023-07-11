@@ -6,8 +6,6 @@ set(INC
   .
   algorithms
   cached_resources
-  ../../blenkernel
-  ../../blenlib
   ../../blentranslation
   ../../draw
   ../../gpu
@@ -103,8 +101,8 @@ set(LIB
   bf_nodes
   bf_imbuf
   bf_render
-  bf_blenlib
-  bf_blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blenkernel
 )
 
 set(GLSL_SRC

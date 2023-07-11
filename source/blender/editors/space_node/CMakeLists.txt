@@ -6,8 +6,6 @@ set(INC
   ../include
   ../../asset_system
   ../../blenfont
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
   ../../blentranslation
   ../../compositor
@@ -52,8 +50,8 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   bf_editor_screen
   PRIVATE bf::intern::guardedalloc

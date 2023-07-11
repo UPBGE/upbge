@@ -4,8 +4,6 @@
 
 set(INC
   .
-  ../../blenkernel
-  ../../blenlib
   ../../editors/include
   ../../gpu
   ../../imbuf
@@ -61,6 +59,8 @@ set(LIB
   ${Epoxy_LIBRARIES}
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

@@ -8,8 +8,6 @@ set(INC
   gizmo/intern
   ../asset_system
   ../blenfont
-  ../blenkernel
-  ../blenlib
   ../blenloader
   ../blentranslation
   ../compositor
@@ -99,6 +97,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   bf_editor_screen
   PRIVATE bf::intern::guardedalloc
@@ -124,6 +124,10 @@ endif()
 
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
+endif()
+
+if(WITH_OPENGL_BACKEND)
+  add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)

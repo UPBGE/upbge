@@ -4,8 +4,6 @@
 
 set(INC
   .
-  ../blenkernel
-  ../blenlib
   ../blenloader
   ../gpu
   ../makesrna
@@ -74,8 +72,8 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   bf_blenloader
   PRIVATE bf::dna
   bf_imbuf_openimageio

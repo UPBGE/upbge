@@ -46,8 +46,6 @@ endif()
 set(INC
   .
   ../common
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
   ../../blentranslation
   ../../bmesh
@@ -126,8 +124,8 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   bf_imbuf
   PRIVATE bf::intern::guardedalloc

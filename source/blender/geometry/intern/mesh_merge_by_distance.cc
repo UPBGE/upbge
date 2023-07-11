@@ -80,6 +80,8 @@ struct WeldPoly {
 };
 
 struct WeldMesh {
+  /* These vectors indicate the index of elements that will participate in the creation of groups.
+   * These groups are used in customdata interpolation (`do_mix_data`). */
   Vector<int> double_verts;
   Vector<int> double_edges;
 
@@ -359,21 +361,21 @@ static Vector<WeldEdge> weld_edge_ctx_alloc_and_find_collapsed(Span<int2> edges,
     int v2 = edges[i][1];
     int v_dest_1 = vert_dest_map[v1];
     int v_dest_2 = vert_dest_map[v2];
-    if ((v_dest_1 != OUT_OF_CONTEXT) || (v_dest_2 != OUT_OF_CONTEXT)) {
-      const int vert_a = (v_dest_1 != OUT_OF_CONTEXT) ? v_dest_1 : v1;
-      const int vert_b = (v_dest_2 != OUT_OF_CONTEXT) ? v_dest_2 : v2;
+    if (v_dest_1 == OUT_OF_CONTEXT && v_dest_2 == OUT_OF_CONTEXT) {
+      r_edge_dest_map[i] = OUT_OF_CONTEXT;
+      continue;
+    }
 
-      if (vert_a == vert_b) {
-        edge_collapsed_len++;
-        r_edge_dest_map[i] = ELEM_COLLAPSED;
-      }
-      else {
-        wedge.append({i, vert_a, vert_b});
-        r_edge_dest_map[i] = i;
-      }
+    const int vert_a = (v_dest_1 == OUT_OF_CONTEXT) ? v1 : v_dest_1;
+    const int vert_b = (v_dest_2 == OUT_OF_CONTEXT) ? v2 : v_dest_2;
+
+    if (vert_a == vert_b) {
+      r_edge_dest_map[i] = ELEM_COLLAPSED;
+      edge_collapsed_len++;
     }
     else {
-      r_edge_dest_map[i] = OUT_OF_CONTEXT;
+      wedge.append({i, vert_a, vert_b});
+      r_edge_dest_map[i] = i;
     }
   }
 
@@ -382,13 +384,15 @@ static Vector<WeldEdge> weld_edge_ctx_alloc_and_find_collapsed(Span<int2> edges,
 }
 
 /**
- * Configure Weld Edges.
+ * Fills `r_edge_dest_map` indicating the duplicated edges.
  *
- * \return r_edge_dest_map: Map of indices pointing edges that will be merged.
- * \return r_wedge: Weld edges. `flag` and `edge_dest` members will be set here.
- * \return r_edge_double_kill_len: Number of edges to be destroyed by merging or collapsing.
+ * \param weld_edges: Candidate edges for merging (edges that don't collapse and that have at least
+ *                    one weld vertex).
+ *
+ * \param r_edge_dest_map: Resulting map of indices pointing the source edges to each target.
+ * \param r_edge_double_kill_len: Resulting number of duplicate edges to be destroyed.
  */
-static void weld_edge_find_doubles(Span<WeldEdge> wedge,
+static void weld_edge_find_doubles(Span<WeldEdge> weld_edges,
                                    int mvert_num,
                                    MutableSpan<int> r_edge_dest_map,
                                    int *r_edge_double_kill_len)
@@ -396,7 +400,7 @@ static void weld_edge_find_doubles(Span<WeldEdge> wedge,
   /* Setup Edge Overlap. */
   int edge_double_kill_len = 0;
 
-  if (wedge.size() == 0) {
+  if (weld_edges.size() == 0) {
     *r_edge_double_kill_len = edge_double_kill_len;
     return;
   }
@@ -404,7 +408,7 @@ static void weld_edge_find_doubles(Span<WeldEdge> wedge,
   /* Add +1 to allow calculation of the length of the last group. */
   Array<int> v_links(mvert_num + 1, 0);
 
-  for (const WeldEdge &we : wedge) {
+  for (const WeldEdge &we : weld_edges) {
     BLI_assert(r_edge_dest_map[we.edge_orig] != ELEM_COLLAPSED);
     BLI_assert(we.vert_a != we.vert_b);
     v_links[we.vert_a]++;
@@ -422,8 +426,8 @@ static void weld_edge_find_doubles(Span<WeldEdge> wedge,
   Array<int> link_edge_buffer(link_len);
 
   /* Use a reverse for loop to ensure that indexes are assigned in ascending order. */
-  for (int i = wedge.size(); i--;) {
-    const WeldEdge &we = wedge[i];
+  for (int i = weld_edges.size(); i--;) {
+    const WeldEdge &we = weld_edges[i];
     BLI_assert(r_edge_dest_map[we.edge_orig] != ELEM_COLLAPSED);
     int dst_vert_a = we.vert_a;
     int dst_vert_b = we.vert_b;
@@ -432,8 +436,8 @@ static void weld_edge_find_doubles(Span<WeldEdge> wedge,
     link_edge_buffer[--v_links[dst_vert_b]] = i;
   }
 
-  for (const int i : wedge.index_range()) {
-    const WeldEdge &we = wedge[i];
+  for (const int i : weld_edges.index_range()) {
+    const WeldEdge &we = weld_edges[i];
     BLI_assert(r_edge_dest_map[we.edge_orig] != OUT_OF_CONTEXT);
     if (r_edge_dest_map[we.edge_orig] != we.edge_orig) {
       /* Already a duplicate. */
@@ -472,7 +476,7 @@ static void weld_edge_find_doubles(Span<WeldEdge> wedge,
       }
       int e_ctx_b = *edges_ctx_b;
       if (e_ctx_a == e_ctx_b) {
-        const WeldEdge &we_b = wedge[e_ctx_b];
+        const WeldEdge &we_b = weld_edges[e_ctx_b];
         BLI_assert(ELEM(we_b.vert_a, dst_vert_a, dst_vert_b));
         BLI_assert(ELEM(we_b.vert_b, dst_vert_a, dst_vert_b));
         BLI_assert(we_b.edge_orig != edge_orig);
@@ -1271,8 +1275,7 @@ static void weld_mesh_context_create(const Mesh &mesh,
  *
  * \param dest_map: Map that defines the source and target elements. The source elements will be
  *                  merged into the target. Each target corresponds to a group.
- * \param double_elems: Affected elements in `dest_map` that will compose groups.
- *                      Used for performance only.
+ * \param double_elems: Source and target elements in `dest_map`. For quick access.
  *
  * \return r_groups_map: Map that points out the group of elements that an element belongs to.
  * \return r_groups_buffer: Buffer containing the indices of all elements that merge.
@@ -1280,56 +1283,35 @@ static void weld_mesh_context_create(const Mesh &mesh,
  */
 static void merge_groups_create(Span<int> dest_map,
                                 Span<int> double_elems,
-                                Array<int> &r_groups_map,
-                                Array<int> &r_groups_buffer,
-                                Array<int> &r_groups_offs)
+                                MutableSpan<int> r_groups_offsets,
+                                Array<int> &r_groups_buffer)
 {
-  r_groups_map.reinitialize(dest_map.size());
-  r_groups_map.fill(OUT_OF_CONTEXT);
+  BLI_assert(r_groups_offsets.size() == dest_map.size() + 1);
+  r_groups_offsets.fill(0);
 
-  int wgroups_len = 0;
+  /* TODO: Check using #array_utils::count_indices instead. At the moment it cannot be used
+   * because `dest_map` has negative values and `double_elems` (which indicates only the indexes to
+   * be read) is not used. */
   for (const int elem_orig : double_elems) {
     const int elem_dest = dest_map[elem_orig];
-    if (elem_dest == elem_orig) {
-      r_groups_map[elem_orig] = wgroups_len;
-      wgroups_len++;
-    }
-    else {
-      r_groups_map[elem_orig] = ELEM_MERGED;
-    }
-  }
-
-  if (wgroups_len == 0) {
-    /* All elems in the context are collapsed or do not form groups. */
-    return;
-  }
-
-  /* Add +1 to allow calculation of the length of the last group. */
-  r_groups_offs.reinitialize(wgroups_len + 1);
-  r_groups_offs.fill(0);
-
-  for (const int elem_orig : double_elems) {
-    const int elem_dest = dest_map[elem_orig];
-    const int group_index = r_groups_map[elem_dest];
-    r_groups_offs[group_index]++;
+    r_groups_offsets[elem_dest]++;
   }
 
   int offs = 0;
-  for (const int i : IndexRange(wgroups_len)) {
-    offs += r_groups_offs[i];
-    r_groups_offs[i] = offs;
+  for (const int i : dest_map.index_range()) {
+    offs += r_groups_offsets[i];
+    r_groups_offsets[i] = offs;
   }
-  r_groups_offs[wgroups_len] = offs;
+  r_groups_offsets.last() = offs;
 
   r_groups_buffer.reinitialize(offs);
   BLI_assert(r_groups_buffer.size() == double_elems.size());
 
-  /* Use a reverse for loop to ensure that indexes are assigned in ascending order. */
+  /* Use a reverse for loop to ensure that indices are assigned in ascending order. */
   for (int i = double_elems.size(); i--;) {
     const int elem_orig = double_elems[i];
     const int elem_dest = dest_map[elem_orig];
-    const int group_index = r_groups_map[elem_dest];
-    r_groups_buffer[--r_groups_offs[group_index]] = elem_orig;
+    r_groups_buffer[--r_groups_offsets[elem_dest]] = elem_orig;
   }
 }
 
@@ -1428,6 +1410,21 @@ static void customdata_weld(
   }
 }
 
+/**
+ * \brief Applies to `CustomData *dest` the values in `CustomData *source`.
+ *
+ * This function creates the CustomData of the resulting mesh according to the merge map in
+ * `dest_map`. The resulting customdata will not have the source elements, so the indexes will be
+ * modified. To indicate the new indices `r_final_map` is also created.
+ *
+ * \param dest_map: Map that defines the source and target elements. The source elements will be
+ *                  merged into the target. Each target corresponds to a group.
+ * \param double_elems: Source and target elements in `dest_map`. For quick access.
+ * \param do_mix_data: If true the target element will have the custom data interpolated with all
+ *                     sources pointing to it.
+ *
+ * \return r_final_map: Array indicating the new indices of the elements.
+ */
 static void merge_customdata_all(const CustomData *source,
                                  CustomData *dest,
                                  Span<int> dest_map,
@@ -1440,20 +1437,19 @@ static void merge_customdata_all(const CustomData *source,
 
   const int source_size = dest_map.size();
 
-  MutableSpan<int> groups_map;
-  Array<int> groups_buffer, groups_offs;
+  MutableSpan<int> groups_offs_;
+  Array<int> groups_buffer;
   if (do_mix_data) {
-    merge_groups_create(dest_map, double_elems, r_final_map, groups_buffer, groups_offs);
+    r_final_map.reinitialize(source_size + 1);
 
-    /**
-     * Be careful when setting values to this array as it uses the same buffer as #r_final_map.
-     * This map will be used to adjust the index of vertices and edges in the new edges and loops.
-     */
-    groups_map = r_final_map;
+    /* Be careful when setting values to this array as it uses the same buffer as `r_final_map`. */
+    groups_offs_ = r_final_map;
+    merge_groups_create(dest_map, double_elems, groups_offs_, groups_buffer);
   }
   else {
     r_final_map.reinitialize(source_size);
   }
+  OffsetIndices<int> groups_offs(groups_offs_);
 
   bool finalize_map = false;
   int dest_index = 0;
@@ -1474,10 +1470,12 @@ static void merge_customdata_all(const CustomData *source,
     }
     if (dest_map[i] == i) {
       if (do_mix_data) {
-        const int grp_index = groups_map[i];
-        const int grp_buffer_offs = groups_offs[grp_index];
-        const int grp_buffer_len = groups_offs[grp_index + 1] - grp_buffer_offs;
-        customdata_weld(source, dest, &groups_buffer[grp_buffer_offs], grp_buffer_len, dest_index);
+        const IndexRange grp_buffer_range = groups_offs[i];
+        customdata_weld(source,
+                        dest,
+                        &groups_buffer[grp_buffer_range.start()],
+                        grp_buffer_range.size(),
+                        dest_index);
       }
       else {
         CustomData_copy_data(source, dest, i, dest_index, 1);
@@ -1506,7 +1504,7 @@ static void merge_customdata_all(const CustomData *source,
   }
 
   if (finalize_map) {
-    for (int i : r_final_map.index_range()) {
+    for (const int i : r_final_map.index_range()) {
       if (r_final_map[i] < 0) {
         r_final_map[i] = r_final_map[-r_final_map[i]];
         BLI_assert(r_final_map[i] < dest_size);

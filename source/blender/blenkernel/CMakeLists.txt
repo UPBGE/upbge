@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   ../asset_system
   ../blenfont
-  ../blenlib
   ../blenloader
   ../blentranslation
   ../bmesh
@@ -271,7 +270,6 @@ set(SRC
   intern/screen.c
   intern/shader_fx.c
   intern/shrinkwrap.cc
-  intern/simulation.cc
   intern/simulation_state.cc
   intern/simulation_state_serialize.cc
   intern/softbody.c
@@ -482,7 +480,6 @@ set(SRC
   BKE_sequencer_offscreen.h
   BKE_shader_fx.h
   BKE_shrinkwrap.h
-  BKE_simulation.h
   BKE_simulation_state.hh
   BKE_simulation_state_serialize.hh
   BKE_softbody.h
@@ -540,7 +537,7 @@ set(SRC
 set(LIB
   bf_asset_system
   bf_blenfont
-  bf_blenlib
+  PRIVATE bf::blenlib
   bf_blenloader
   bf_blentranslation
   bf_bmesh
@@ -829,6 +826,7 @@ endif()
 # endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blenkernel ALIAS bf_blenkernel)
 
 # RNA_prototypes.h
 add_dependencies(bf_blenkernel bf_rna)

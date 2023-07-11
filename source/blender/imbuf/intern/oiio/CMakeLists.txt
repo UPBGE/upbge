@@ -6,8 +6,6 @@ set(INC
   .
   ..
   ../..
-  ../../../blenkernel
-  ../../../blenlib
   ../../../../../intern/utfconv
 )
 
@@ -26,6 +24,8 @@ set(SRC
 set(LIB
   ${OPENIMAGEIO_LIBRARIES}
   ${PUGIXML_LIBRARIES}
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )
