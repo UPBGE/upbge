@@ -887,6 +887,10 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     arm = (bArmature *)ob->data;
   }
 
+  if (ob->pose) {
+    BKE_pose_blend_write(writer, ob->pose, arm);
+  }
+
   /* UPBGE */
   write_properties(writer, &ob->prop);
   write_sensors(writer, &ob->sensors);
@@ -904,7 +908,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
   /***************/
 
-  BKE_pose_blend_write(writer, ob->pose, arm);
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
 

@@ -715,7 +715,8 @@ bool RNA_struct_override_matches(Main *bmain,
       continue;
     }
 
-#if 0 /* This actually makes things slower, since it has to check for animation paths etc! */
+#if 0
+    /* This actually makes things slower, since it has to check for animation paths etc! */
     if (RNA_property_animated(ptr_local, prop_local)) {
       /* We cannot do anything here really, animation is some kind of dynamic overrides that has
        * precedence over static one... */
@@ -823,9 +824,16 @@ bool RNA_struct_override_matches(Main *bmain,
           op ? op->operations.first : nullptr);
 
       if (op != nullptr) {
-        /* Do not use #BKE_lib_override_library_operations_tag here, in collection case some of the
-         * operations may still be unused. */
-        op->tag &= ~LIBOVERRIDE_PROP_OP_TAG_UNUSED;
+        /* Only set all operations from this property as used (via
+         * #BKE_lib_override_library_operations_tag) if the property itself is still tagged as
+         * unused.
+         *
+         * In case the property itself is already tagged as used, in means lower-level diffing code
+         * took care of this property (as is needed for e.g. collections of items, since then some
+         * operations may be valid, while others may need to be purged). */
+        if (op->tag & LIBOVERRIDE_PROP_OP_TAG_UNUSED) {
+          BKE_lib_override_library_operations_tag(op, LIBOVERRIDE_PROP_OP_TAG_UNUSED, false);
+        }
       }
 
       if ((do_restore || do_tag_for_restore) &&
@@ -887,8 +895,9 @@ bool RNA_struct_override_matches(Main *bmain,
           else {
             /* Too noisy for now, this triggers on runtime props like transform matrices etc. */
 #if 0
-            BLI_assert_msg(0, "We have differences between reference and "
-                       "overriding data on non-editable property.");
+            BLI_assert_msg(0,
+                           "We have differences between reference and "
+                           "overriding data on non-editable property.");
 #endif
             matching = false;
           }
@@ -1035,7 +1044,7 @@ static void rna_property_override_collection_subitem_name_index_lookup(
     return;
   }
 
-  /* If name lookup failed, `r_ptr_item_name` is invalidated, so if index lookup was sucessful it
+  /* If name lookup failed, `r_ptr_item_name` is invalidated, so if index lookup was successful it
    * will be the only valid return value. */
 }
 

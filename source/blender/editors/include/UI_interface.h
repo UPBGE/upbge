@@ -413,7 +413,7 @@ typedef enum {
   UI_BTYPE_HISTOGRAM = 48 << 9,
   UI_BTYPE_WAVEFORM = 49 << 9,
   UI_BTYPE_VECTORSCOPE = 50 << 9,
-  UI_BTYPE_PROGRESS_BAR = 51 << 9,
+  UI_BTYPE_PROGRESS = 51 << 9,
   UI_BTYPE_NODE_SOCKET = 53 << 9,
   UI_BTYPE_SEPR = 54 << 9,
   UI_BTYPE_SEPR_LINE = 55 << 9,
@@ -1457,6 +1457,12 @@ enum {
 enum {
   UI_TEMPLATE_ID_FILTER_ALL = 0,
   UI_TEMPLATE_ID_FILTER_AVAILABLE = 1,
+};
+
+enum eButProgressType {
+  UI_BUT_PROGRESS_TYPE_BAR = 0,
+  UI_BUT_PROGRESS_TYPE_RING = 1,
+  UI_BUT_PROGRESS_TYPE_PIE = 2,
 };
 
 /***************************** ID Utilities *******************************/
@@ -2906,6 +2912,11 @@ void uiItemS(uiLayout *layout);
 void uiItemS_ex(uiLayout *layout, float factor);
 /** Flexible spacing. */
 void uiItemSpacer(uiLayout *layout);
+
+void uiItemProgressIndicator(uiLayout *layout,
+                             const char *text,
+                             float factor,
+                             enum eButProgressType progress_type);
 
 /* popover */
 void uiItemPopoverPanel_ptr(

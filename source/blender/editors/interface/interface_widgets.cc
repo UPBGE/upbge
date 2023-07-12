@@ -104,7 +104,7 @@ enum uiWidgetTypeEnum {
   UI_WTYPE_BOX,
   UI_WTYPE_SCROLL,
   UI_WTYPE_LISTITEM,
-  UI_WTYPE_PROGRESSBAR,
+  UI_WTYPE_PROGRESS,
   UI_WTYPE_NODESOCKET,
   UI_WTYPE_VIEW_ITEM,
 };
@@ -3662,14 +3662,12 @@ static void widget_scroll(uiBut *but,
   UI_draw_widget_scroll(wcol, rect, &rect1, (state->but_flag & UI_SELECT) ? UI_SCROLL_PRESSED : 0);
 }
 
-static void widget_progressbar(uiBut *but,
-                               uiWidgetColors *wcol,
-                               rcti *rect,
-                               const uiWidgetStateInfo * /*state*/,
-                               int roundboxalign,
-                               const float zoom)
+static void widget_progress_type_bar(uiButProgress *but_progress,
+                                     uiWidgetColors *wcol,
+                                     rcti *rect,
+                                     int roundboxalign,
+                                     const float zoom)
 {
-  uiButProgressbar *but_progressbar = (uiButProgressbar *)but;
   rcti rect_prog = *rect, rect_bar = *rect;
 
   uiWidgetBase wtb, wtb_bar;
@@ -3677,9 +3675,9 @@ static void widget_progressbar(uiBut *but,
   widget_init(&wtb_bar);
 
   /* round corners */
-  const float value = but_progressbar->progress;
+  const float factor = but_progress->progress_factor;
   const float ofs = widget_radius_from_zoom(zoom, wcol);
-  float w = value * BLI_rcti_size_x(&rect_prog);
+  float w = factor * BLI_rcti_size_x(&rect_prog);
 
   /* Ensure minimum size. */
   w = MAX2(w, ofs);
@@ -3716,6 +3714,67 @@ static void widget_link(uiBut *but,
     rectlink.ymax = but->linkto[1];
 
     ui_draw_link_bezier(&rectlink, color);
+  }
+}
+
+/**
+ * Used for both ring & pie types.
+ */
+static void widget_progress_type_circle(uiButProgress *but_progress,
+                                        uiWidgetColors *wcol,
+                                        rcti *rect,
+                                        const float ring_width)
+{
+  const float outer_rad = (rect->ymax - rect->ymin) / 2.0f;
+  const float inner_rad = outer_rad * ring_width;
+  const float x = rect->xmin + outer_rad;
+  const float y = rect->ymin + outer_rad;
+  const float start = 0.0f;
+  const float end = but_progress->progress_factor * 360.0f;
+  GPUVertFormat *format = immVertexFormat();
+  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immUniformColor3ubvAlpha(wcol->item, 255 / UI_PIXEL_AA_JITTER * 2);
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  for (int i = 0; i < UI_PIXEL_AA_JITTER; i++) {
+    imm_draw_disk_partial_fill_2d(pos,
+                                  x + ui_pixel_jitter[i][0],
+                                  y + ui_pixel_jitter[i][1],
+                                  inner_rad,
+                                  outer_rad,
+                                  48,
+                                  start,
+                                  end);
+  }
+  immUnbindProgram();
+
+  if (but_progress->drawstr[0]) {
+    rect->xmin += UI_UNIT_X;
+  }
+}
+
+static void widget_progress_indicator(uiBut *but,
+                                      uiWidgetColors *wcol,
+                                      rcti *rect,
+                                      const uiWidgetStateInfo * /*state*/,
+                                      int roundboxalign,
+                                      const float zoom)
+{
+  uiButProgress *but_progress = static_cast<uiButProgress *>(but);
+  switch (but_progress->progress_type) {
+    case UI_BUT_PROGRESS_TYPE_BAR: {
+      widget_progress_type_bar(but_progress, wcol, rect, roundboxalign, zoom);
+      break;
+    }
+    case UI_BUT_PROGRESS_TYPE_PIE: {
+      widget_progress_type_circle(but_progress, wcol, rect, 0.6f);
+      break;
+    }
+    case UI_BUT_PROGRESS_TYPE_RING: {
+      widget_progress_type_circle(but_progress, wcol, rect, 0.0f);
+      break;
+    }
   }
 }
 
@@ -4636,9 +4695,9 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
       wt.draw = widget_list_itembut;
       break;
 
-    case UI_WTYPE_PROGRESSBAR:
+    case UI_WTYPE_PROGRESS:
       wt.wcol_theme = &btheme->tui.wcol_progress;
-      wt.custom = widget_progressbar;
+      wt.custom = widget_progress_indicator;
       break;
 
     case UI_WTYPE_VIEW_ITEM:
@@ -4982,8 +5041,8 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         ui_draw_but_CURVEPROFILE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_PROGRESS_BAR:
-        wt = widget_type(UI_WTYPE_PROGRESSBAR);
+      case UI_BTYPE_PROGRESS:
+        wt = widget_type(UI_WTYPE_PROGRESS);
         fstyle = &style->widgetlabel;
         break;
 
