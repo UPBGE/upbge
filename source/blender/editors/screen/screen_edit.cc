@@ -1127,7 +1127,7 @@ static void screen_global_area_refresh(wmWindow *win,
   }
 }
 
-static int screen_global_header_size(void)
+static int screen_global_header_size()
 {
   return (int)ceilf(ED_area_headersize() / UI_SCALE_FAC);
 }
@@ -1415,7 +1415,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *area)
   wmWindow *win = CTX_wm_window(C);
   SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
   bScreen *screen = CTX_wm_screen(C);
-  short state = (screen ? screen->state : SCREENMAXIMIZED);
+  short state = (screen ? screen->state : short(SCREENMAXIMIZED));
 
   /* If full-screen area has a temporary space (such as a file browser or full-screen render
    * overlaid on top of an existing setup) then return to the previous space. */
@@ -1649,7 +1649,7 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
                          y,
                          sizex,
                          sizey,
-                         (int)space_type,
+                         int(space_type),
                          false,
                          dialog,
                          true,
@@ -1668,7 +1668,7 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
         ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       }
       else {
-        area = ED_screen_full_newspace(C, ctx_area, (int)space_type);
+        area = ED_screen_full_newspace(C, ctx_area, int(space_type));
         ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       }
       break;

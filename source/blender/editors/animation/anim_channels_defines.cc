@@ -3601,7 +3601,7 @@ static bAnimChannelType ACF_GPL = {
 
     /*name*/ acf_gpl_name,
     /*name_prop*/ acf_gpl_name_prop,
-    /*icon*/ NULL,
+    /*icon*/ nullptr,
 
     /*has_setting*/ acf_gpl_setting_valid,
     /*setting_flag*/ acf_gpl_setting_flag,
@@ -4743,6 +4743,9 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   /* verify that we have a channel to operate on. */
   if (!ale_setting) {
     return;
+  }
+  if (ale_setting->type == ANIMTYPE_GREASE_PENCIL_LAYER) {
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   if (ale_setting->type == ANIMTYPE_GPLAYER) {

@@ -1200,7 +1200,7 @@ typedef struct wmDrag {
   double value;
 
   /** If no icon but imbuf should be drawn around cursor. */
-  struct ImBuf *imb;
+  const struct ImBuf *imb;
   float imbuf_scale;
 
   wmDragActiveDropState drop_state;

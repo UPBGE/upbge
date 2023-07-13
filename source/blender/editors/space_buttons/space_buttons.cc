@@ -529,7 +529,7 @@ static void buttons_main_region_listener(const wmRegionListenerParams *params)
   }
 }
 
-static void buttons_operatortypes(void)
+static void buttons_operatortypes()
 {
   WM_operatortype_append(BUTTONS_OT_start_filter);
   WM_operatortype_append(BUTTONS_OT_clear_filter);
@@ -948,7 +948,7 @@ static void buttons_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 /** \name Space Type Initialization
  * \{ */
 
-void ED_spacetype_buttons(void)
+void ED_spacetype_buttons()
 {
   SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype buttons"));
   ARegionType *art;

@@ -14,9 +14,11 @@
 
 #include "physics_intern.h" /* own include */
 
-/***************************** particles ***********************************/
+/* -------------------------------------------------------------------- */
+/** \name Particles
+ * \{ */
 
-static void operatortypes_particle(void)
+static void operatortypes_particle()
 {
   WM_operatortype_append(PARTICLE_OT_select_all);
   WM_operatortype_append(PARTICLE_OT_select_roots);
@@ -88,9 +90,13 @@ static void keymap_particle(wmKeyConfig *keyconf)
   keymap->poll = PE_poll;
 }
 
-/******************************* boids *************************************/
+/** \} */
 
-static void operatortypes_boids(void)
+/* -------------------------------------------------------------------- */
+/** \name Boids
+ * \{ */
+
+static void operatortypes_boids()
 {
   WM_operatortype_append(BOID_OT_rule_add);
   WM_operatortype_append(BOID_OT_rule_del);
@@ -103,9 +109,13 @@ static void operatortypes_boids(void)
   WM_operatortype_append(BOID_OT_state_move_down);
 }
 
-/********************************* fluid ***********************************/
+/** \} */
 
-static void operatortypes_fluid(void)
+/* -------------------------------------------------------------------- */
+/** \name Fluid
+ * \{ */
+
+static void operatortypes_fluid()
 {
   WM_operatortype_append(FLUID_OT_bake_all);
   WM_operatortype_append(FLUID_OT_free_all);
@@ -122,9 +132,13 @@ static void operatortypes_fluid(void)
   WM_operatortype_append(FLUID_OT_pause_bake);
 }
 
-/**************************** point cache **********************************/
+/** \} */
 
-static void operatortypes_pointcache(void)
+/* -------------------------------------------------------------------- */
+/** \name Point Cache
+ * \{ */
+
+static void operatortypes_pointcache()
 {
   WM_operatortype_append(PTCACHE_OT_bake_all);
   WM_operatortype_append(PTCACHE_OT_free_bake_all);
@@ -135,9 +149,13 @@ static void operatortypes_pointcache(void)
   WM_operatortype_append(PTCACHE_OT_remove);
 }
 
-/********************************* dynamic paint ***********************************/
+/** \} */
 
-static void operatortypes_dynamicpaint(void)
+/* -------------------------------------------------------------------- */
+/** \name Dynamic Paint
+ * \{ */
+
+static void operatortypes_dynamicpaint()
 {
   WM_operatortype_append(DPAINT_OT_bake);
   WM_operatortype_append(DPAINT_OT_surface_slot_add);
@@ -146,9 +164,13 @@ static void operatortypes_dynamicpaint(void)
   WM_operatortype_append(DPAINT_OT_output_toggle);
 }
 
-/****************************** general ************************************/
+/** \} */
 
-void ED_operatortypes_physics(void)
+/* -------------------------------------------------------------------- */
+/** \name Registration
+ * \{ */
+
+void ED_operatortypes_physics()
 {
   operatortypes_particle();
   operatortypes_boids();
@@ -161,3 +183,5 @@ void ED_keymap_physics(wmKeyConfig *keyconf)
 {
   keymap_particle(keyconf);
 }
+
+/** \} */

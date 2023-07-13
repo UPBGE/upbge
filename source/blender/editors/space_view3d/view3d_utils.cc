@@ -493,7 +493,7 @@ bool ED_view3d_persp_ensure(const Depsgraph *depsgraph, View3D *v3d, ARegion *re
     if (rv3d->persp == RV3D_CAMOB) {
       /* If autopersp and previous view was an axis one,
        * switch back to PERSP mode, else reuse previous mode. */
-      char persp = (autopersp && RV3D_VIEW_IS_AXIS(rv3d->lview)) ? RV3D_PERSP : rv3d->lpersp;
+      char persp = (autopersp && RV3D_VIEW_IS_AXIS(rv3d->lview)) ? char(RV3D_PERSP) : rv3d->lpersp;
       ED_view3d_persp_switch_from_camera(depsgraph, v3d, rv3d, persp);
     }
     else if (autopersp && RV3D_VIEW_IS_AXIS(rv3d->view)) {
@@ -1772,7 +1772,7 @@ bool ED_view3d_depth_read_cached_normal(const ARegion *region,
 
       float depth_fl = 1.0f;
       ED_view3d_depth_read_cached(depths, mval_ofs, 0, &depth_fl);
-      const double depth = (double)depth_fl;
+      const double depth = double(depth_fl);
       if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
         if (ED_view3d_depth_unproject_v3(region, mval_ofs, depth, coords[i])) {
           depths_valid[i] = true;
