@@ -1974,6 +1974,6 @@ void ED_screen_refresh_blenderplayer(wmWindow *win)
   /* prevent multiwin errors */
   screen->winid = win->winid;
 
-  screen->context = ed_screen_context;
+  screen->context = reinterpret_cast<void *>(ed_screen_context);
 }
 /******************************************************************************/
