@@ -985,7 +985,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
         }
         /* Keep aligned with rna_Object_material_slots_get. */
         CTX_data_pointer_set(
-            result, &ob->id, &RNA_MaterialSlot, (void *)(matnr + (uintptr_t)&ob->id));
+            result, &ob->id, &RNA_MaterialSlot, (void *)(matnr + uintptr_t(&ob->id)));
       }
     }
 
@@ -1042,7 +1042,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 
       if (part) {
         CTX_data_pointer_set(
-            result, &part->id, &RNA_ParticleSettingsTextureSlot, part->mtex[(int)part->texact]);
+            result, &part->id, &RNA_ParticleSettingsTextureSlot, part->mtex[int(part->texact)]);
       }
     }
     else if (ct) {
@@ -1053,7 +1053,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 
       if (ls) {
         CTX_data_pointer_set(
-            result, &ls->id, &RNA_LineStyleTextureSlot, ls->mtex[(int)ls->texact]);
+            result, &ls->id, &RNA_LineStyleTextureSlot, ls->mtex[int(ls->texact)]);
       }
     }
 
