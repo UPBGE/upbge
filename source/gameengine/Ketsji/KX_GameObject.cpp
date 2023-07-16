@@ -378,6 +378,20 @@ void KX_GameObject::ReplicateBlenderObject()
     /* This will call BKE_main_collection_sync_remap at frame end. */
     GetScene()->TagForCollectionRemap();
 
+    /* Attempt to fix missing notifier in special cases (realtime compositor when overlay pass)
+     * See: https://github.com/UPBGE/upbge/issues/1818 - Would maybe need more investigations
+     * for a better fix... */
+    if (GetScene()->GetOverlayCamera()) {
+      View3D *v3d = CTX_wm_view3d(C);
+      bool is_realtime_compositor_enabled = scene->use_nodes && scene->nodetree &&
+                                            v3d->shading.use_compositor !=
+                                                V3D_SHADING_USE_COMPOSITOR_DISABLED &&
+                                            v3d->shading.type >= OB_MATERIAL;
+      if (is_realtime_compositor_enabled) {
+        GetScene()->AppendToIdsToUpdateInOverlayPass(&scene->id, ID_RECALC_EDITORS);
+      }
+    }
+
     if (ob->parent) {
       if (GetScene()->GetLastReplicatedParentObject()) {
         newob->parent = GetScene()->GetLastReplicatedParentObject();

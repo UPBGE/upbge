@@ -509,7 +509,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
   }
   else {
     /* Get the dir only */
-    BLI_path_split_file_part(KX_GetMainPath().c_str(), cpath, sizeof(cpath));
+    BLI_path_split_dir_part(KX_GetMainPath().c_str(), cpath, sizeof(cpath));
   }
 
   if ((dp = opendir(cpath)) == nullptr) {
@@ -1889,7 +1889,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
   PyObject *item;
   char expanded[FILE_MAX];
 
-  BLI_path_split_file_part(
+  BLI_path_split_dir_part(
       filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
   BLI_path_abs(expanded,
                KX_GetMainPath().c_str()); /* filename from lib->filename is (always?) absolute, so

@@ -529,7 +529,7 @@ static bool load_class(PythonProxy *pp,
   /* Add to sys.path the path to all the used library to follow game engine sys.path management.
    * These path are remove later in FINISH. */
   for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) {
-    BLI_path_split_file_part(lib->filepath, path, sizeof(path));
+    BLI_path_split_dir_part(lib->filepath, path, sizeof(path));
     pypath = PyC_UnicodeFromBytes(path);
     PyList_Insert(sys_path, 0, pypath);
     Py_DECREF(pypath);
