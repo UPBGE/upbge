@@ -26,7 +26,7 @@ extern "C" {
 /** Blender release cycle stage: alpha/beta/rc/release. */
 #define BLENDER_VERSION_CYCLE release
 
-#define UPBGE_VERSION_PATCH 0
+#define UPBGE_VERSION_PATCH 1
 /** alpha/beta/rc/release, docs use this. */
 #define UPBGE_VERSION_CYCLE release
 
