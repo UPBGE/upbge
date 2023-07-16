@@ -764,6 +764,10 @@ if(WITH_GAMEENGINE)
   add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+if(WITH_WINDOWS_7)
+  add_definitions(-DWITH_WINDOWS_7)
+endif()
+
 if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()

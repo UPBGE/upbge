@@ -1424,7 +1424,7 @@ elseif(WIN32)
     install(
       FILES ${LIBDIR}/bcompat7/bin/bcompat7.dll
             ${LIBDIR}/bcompat7/bin/api-ms-win-core-path-l1-1-0.dll
-      DESTINATION "."
+      DESTINATION ${TARGETDIR_EXE}
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel;Debug
     )
   endif()
