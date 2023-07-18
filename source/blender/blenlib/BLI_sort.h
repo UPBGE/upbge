@@ -14,9 +14,8 @@ extern "C" {
 
 #include <stdlib.h>
 
-/* glibc 2.8+ */
-#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 8))
-#  define BLI_qsort_r qsort_r
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /** Quick sort (re-entrant). */

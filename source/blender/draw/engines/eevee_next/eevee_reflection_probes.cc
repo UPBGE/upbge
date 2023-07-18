@@ -21,7 +21,7 @@ void ReflectionProbeModule::init()
     world_probe_data.layer = 0;
     world_probe_data.layer_subdivision = 0;
     world_probe_data.area_index = 0;
-    world_probe_data.pos = float3(0.0f);
+    world_probe_data.pos = float4(0.0f);
     data_buf_[0] = world_probe_data;
 
     ReflectionProbe world_probe;
@@ -50,7 +50,7 @@ void ReflectionProbeModule::init()
     pass.shader_set(instance_.shaders.static_shader_get(REFLECTION_PROBE_REMAP));
     pass.bind_texture("cubemap_tx", &cubemap_tx_);
     pass.bind_image("octahedral_img", &probes_tx_);
-    pass.bind_ssbo(REFLECTION_PROBE_BUF_SLOT, data_buf_);
+    pass.bind_ubo(REFLECTION_PROBE_BUF_SLOT, data_buf_);
     pass.push_constant("reflection_probe_index", &reflection_probe_index_);
     pass.dispatch(&dispatch_probe_pack_);
   }
@@ -125,7 +125,7 @@ void ReflectionProbeModule::sync_object(Object *ob, ObjectHandle &ob_handle)
     probe_data.area_index = new_probe_data.area_index;
   }
 
-  probe_data.pos = float3(float4x4(ob->object_to_world) * float4(0.0, 0.0, 0.0, 1.0));
+  probe_data.pos = float4x4(ob->object_to_world) * float4(0.0, 0.0, 0.0, 1.0);
 }
 
 ReflectionProbe &ReflectionProbeModule::find_or_insert(ObjectHandle &ob_handle,
@@ -458,7 +458,7 @@ std::optional<ReflectionProbeUpdateInfo> ReflectionProbeModule::update_info_pop(
     info.object_key = item.key;
     info.resolution = 1 << (max_shift - probe_data.layer_subdivision - 1);
     info.clipping_distances = item.value.clipping_distances;
-    info.probe_pos = probe_data.pos;
+    info.probe_pos = float3(probe_data.pos);
 
     if (cubemap_tx_.ensure_cube(GPU_RGBA16F,
                                 info.resolution,
