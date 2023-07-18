@@ -1174,8 +1174,10 @@ static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan
   copy_v3_v3(pchan->scale_in, chan->scale_in);
   copy_v3_v3(pchan->scale_out, chan->scale_out);
 
-  con = chan->constraints.first;
-  for (pcon = pchan->constraints.first; pcon && con; pcon = pcon->next, con = con->next) {
+  con = (bConstraint *)chan->constraints.first;
+  for (pcon = (bConstraint *)pchan->constraints.first; pcon && con;
+       pcon = pcon->next, con = con->next)
+  {
     pcon->enforce = con->enforce;
     pcon->headtail = con->headtail;
   }
@@ -1691,14 +1693,16 @@ eAction_TransformFlags BKE_action_get_item_transform_flags(bAction *act,
 void extract_pose_from_pose(bPose *pose, const bPose *src)
 {
   const bPoseChannel *schan;
-  bPoseChannel *pchan = pose->chanbase.first;
+  bPoseChannel *pchan = (bPoseChannel *)pose->chanbase.first;
 
   if (pose == src) {
     printf("extract_pose_from_pose source and target are the same\n");
     return;
   }
 
-  for (schan = src->chanbase.first; (schan && pchan); schan = schan->next, pchan = pchan->next) {
+  for (schan = (bPoseChannel *)src->chanbase.first; (schan && pchan);
+       schan = schan->next, pchan = pchan->next)
+  {
     copy_pose_channel_data(pchan, schan);
   }
 }

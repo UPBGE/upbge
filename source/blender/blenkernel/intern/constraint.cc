@@ -3787,7 +3787,7 @@ static void rbj_new_data(void *cdata)
 
 static void rbj_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
-  bRigidBodyJointConstraint *data = con->data;
+  bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
 
   /* target only */
   func(con, (ID **)&data->tar, false, userdata);
@@ -3797,7 +3797,7 @@ static void rbj_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdat
 static int rbj_get_tars(bConstraint *con, ListBase *list)
 {
   if (con && list) {
-    bRigidBodyJointConstraint *data = con->data;
+    bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
     bConstraintTarget *ct;
 
     /* standard target-getting macro for single-target constraints without subtargets */
@@ -3812,8 +3812,8 @@ static int rbj_get_tars(bConstraint *con, ListBase *list)
 static void rbj_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
 {
   if (con && list) {
-    bRigidBodyJointConstraint *data = con->data;
-    bConstraintTarget *ct = list->first;
+    bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
+    bConstraintTarget *ct = (bConstraintTarget *)list->first;
 
     /* the following macro is used for all standard single-target constraints */
     SINGLETARGETNS_FLUSH_TARS(con, data->tar, ct, list, no_copy);
