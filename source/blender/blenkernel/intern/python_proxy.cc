@@ -55,135 +55,135 @@
 #ifdef WITH_PYTHON
 
 #  define FAKE_TYPES \
-    FT_DEF(KX_2DFilter, NULL) \
-    FT_DEF(KX_2DFilterManager, NULL) \
-    FT_DEF(KX_2DFilterOffScreen, NULL) \
-    FT_DEF(KX_BlenderMaterial, NULL) \
-    FT_DEF(KX_CharacterWrapper, NULL) \
-    FT_DEF(KX_CollisionContactPoint, NULL) \
-    FT_DEF(KX_ConstraintWrapper, NULL) \
-    FT_DEF(KX_GameObject, NULL) \
+    FT_DEF(KX_2DFilter, nullptr) \
+    FT_DEF(KX_2DFilterManager, nullptr) \
+    FT_DEF(KX_2DFilterOffScreen, nullptr) \
+    FT_DEF(KX_BlenderMaterial, nullptr) \
+    FT_DEF(KX_CharacterWrapper, nullptr) \
+    FT_DEF(KX_CollisionContactPoint, nullptr) \
+    FT_DEF(KX_ConstraintWrapper, nullptr) \
+    FT_DEF(KX_GameObject, nullptr) \
     FT_DEF(KX_FontObject, &FT_KX_GameObject) \
     FT_DEF(KX_Camera, &FT_KX_GameObject) \
-    FT_DEF(KX_LibLoadStatus, NULL) \
+    FT_DEF(KX_LibLoadStatus, nullptr) \
     FT_DEF(KX_LightObject, &FT_KX_GameObject) \
-    FT_DEF(KX_LodLevel, NULL) \
-    FT_DEF(KX_LodManager, NULL) \
-    FT_DEF(KX_MeshProxy, NULL) \
+    FT_DEF(KX_LodLevel, nullptr) \
+    FT_DEF(KX_LodManager, nullptr) \
+    FT_DEF(KX_MeshProxy, nullptr) \
     FT_DEF(KX_NavMeshObject, &FT_KX_GameObject) \
-    FT_DEF(KX_PolyProxy, NULL) \
-    FT_DEF(KX_PythonComponent, NULL) \
-    FT_DEF(KX_Scene, NULL) \
-    FT_DEF(KX_VehicleWrapper, NULL) \
-    FT_DEF(KX_VertexProxy, NULL) \
-    FT_DEF(BL_ArmatureBone, NULL) \
-    FT_DEF(BL_ArmatureChannel, NULL) \
-    FT_DEF(BL_ArmatureConstraint, NULL) \
+    FT_DEF(KX_PolyProxy, nullptr) \
+    FT_DEF(KX_PythonComponent, nullptr) \
+    FT_DEF(KX_Scene, nullptr) \
+    FT_DEF(KX_VehicleWrapper, nullptr) \
+    FT_DEF(KX_VertexProxy, nullptr) \
+    FT_DEF(BL_ArmatureBone, nullptr) \
+    FT_DEF(BL_ArmatureChannel, nullptr) \
+    FT_DEF(BL_ArmatureConstraint, nullptr) \
     FT_DEF(BL_ArmatureObject, &FT_KX_GameObject) \
-    FT_DEF(BL_Shader, NULL) \
-    FT_DEF(BL_Texture, NULL) \
-    FT_DEF(SCA_2DFilterActuator, NULL) \
-    FT_DEF(SCA_ANDController, NULL) \
-    FT_DEF(SCA_ActionActuator, NULL) \
-    FT_DEF(SCA_ActuatorSensor, NULL) \
-    FT_DEF(SCA_AddObjectActuator, NULL) \
-    FT_DEF(SCA_AlwaysSensor, NULL) \
-    FT_DEF(SCA_ArmatureActuator, NULL) \
-    FT_DEF(SCA_ArmatureSensor, NULL) \
-    FT_DEF(SCA_CameraActuator, NULL) \
-    FT_DEF(SCA_CollisionSensor, NULL) \
-    FT_DEF(SCA_ConstraintActuator, NULL) \
-    FT_DEF(SCA_DelaySensor, NULL) \
-    FT_DEF(SCA_DynamicActuator, NULL) \
-    FT_DEF(SCA_EndObjectActuator, NULL) \
-    FT_DEF(SCA_GameActuator, NULL) \
-    FT_DEF(SCA_IActuator, NULL) \
-    FT_DEF(SCA_IController, NULL) \
-    FT_DEF(SCA_ILogicBrick, NULL) \
-    FT_DEF(SCA_IObject, NULL) \
-    FT_DEF(SCA_ISensor, NULL) \
-    FT_DEF(SCA_InputEvent, NULL) \
-    FT_DEF(SCA_JoystickSensor, NULL) \
-    FT_DEF(SCA_KeyboardSensor, NULL) \
-    FT_DEF(SCA_MouseActuator, NULL) \
-    FT_DEF(SCA_MouseFocusSensor, NULL) \
-    FT_DEF(SCA_MouseSensor, NULL) \
-    FT_DEF(SCA_NANDController, NULL) \
-    FT_DEF(SCA_NORController, NULL) \
-    FT_DEF(SCA_NearSensor, NULL) \
-    FT_DEF(SCA_NetworkMessageActuator, NULL) \
-    FT_DEF(SCA_NetworkMessageSensor, NULL) \
-    FT_DEF(SCA_ORController, NULL) \
-    FT_DEF(SCA_ObjectActuator, NULL) \
-    FT_DEF(SCA_ParentActuator, NULL) \
-    FT_DEF(SCA_PropertyActuator, NULL) \
-    FT_DEF(SCA_PropertySensor, NULL) \
-    FT_DEF(SCA_PythonController, NULL) \
-    FT_DEF(SCA_PythonJoystick, NULL) \
-    FT_DEF(SCA_PythonKeyboard, NULL) \
-    FT_DEF(SCA_PythonMouse, NULL) \
-    FT_DEF(SCA_RadarSensor, NULL) \
-    FT_DEF(SCA_RandomActuator, NULL) \
-    FT_DEF(SCA_RandomSensor, NULL) \
-    FT_DEF(SCA_RaySensor, NULL) \
-    FT_DEF(SCA_ReplaceMeshActuator, NULL) \
-    FT_DEF(SCA_SceneActuator, NULL) \
-    FT_DEF(SCA_SoundActuator, NULL) \
-    FT_DEF(SCA_StateActuator, NULL) \
-    FT_DEF(SCA_SteeringActuator, NULL) \
-    FT_DEF(SCA_TrackToActuator, NULL) \
-    FT_DEF(SCA_VibrationActuator, NULL) \
-    FT_DEF(SCA_VisibilityActuator, NULL) \
-    FT_DEF(SCA_XNORController, NULL) \
-    FT_DEF(SCA_XORController, NULL)
+    FT_DEF(BL_Shader, nullptr) \
+    FT_DEF(BL_Texture, nullptr) \
+    FT_DEF(SCA_2DFilterActuator, nullptr) \
+    FT_DEF(SCA_ANDController, nullptr) \
+    FT_DEF(SCA_ActionActuator, nullptr) \
+    FT_DEF(SCA_ActuatorSensor, nullptr) \
+    FT_DEF(SCA_AddObjectActuator, nullptr) \
+    FT_DEF(SCA_AlwaysSensor, nullptr) \
+    FT_DEF(SCA_ArmatureActuator, nullptr) \
+    FT_DEF(SCA_ArmatureSensor, nullptr) \
+    FT_DEF(SCA_CameraActuator, nullptr) \
+    FT_DEF(SCA_CollisionSensor, nullptr) \
+    FT_DEF(SCA_ConstraintActuator, nullptr) \
+    FT_DEF(SCA_DelaySensor, nullptr) \
+    FT_DEF(SCA_DynamicActuator, nullptr) \
+    FT_DEF(SCA_EndObjectActuator, nullptr) \
+    FT_DEF(SCA_GameActuator, nullptr) \
+    FT_DEF(SCA_IActuator, nullptr) \
+    FT_DEF(SCA_IController, nullptr) \
+    FT_DEF(SCA_ILogicBrick, nullptr) \
+    FT_DEF(SCA_IObject, nullptr) \
+    FT_DEF(SCA_ISensor, nullptr) \
+    FT_DEF(SCA_InputEvent, nullptr) \
+    FT_DEF(SCA_JoystickSensor, nullptr) \
+    FT_DEF(SCA_KeyboardSensor, nullptr) \
+    FT_DEF(SCA_MouseActuator, nullptr) \
+    FT_DEF(SCA_MouseFocusSensor, nullptr) \
+    FT_DEF(SCA_MouseSensor, nullptr) \
+    FT_DEF(SCA_NANDController, nullptr) \
+    FT_DEF(SCA_NORController, nullptr) \
+    FT_DEF(SCA_NearSensor, nullptr) \
+    FT_DEF(SCA_NetworkMessageActuator, nullptr) \
+    FT_DEF(SCA_NetworkMessageSensor, nullptr) \
+    FT_DEF(SCA_ORController, nullptr) \
+    FT_DEF(SCA_ObjectActuator, nullptr) \
+    FT_DEF(SCA_ParentActuator, nullptr) \
+    FT_DEF(SCA_PropertyActuator, nullptr) \
+    FT_DEF(SCA_PropertySensor, nullptr) \
+    FT_DEF(SCA_PythonController, nullptr) \
+    FT_DEF(SCA_PythonJoystick, nullptr) \
+    FT_DEF(SCA_PythonKeyboard, nullptr) \
+    FT_DEF(SCA_PythonMouse, nullptr) \
+    FT_DEF(SCA_RadarSensor, nullptr) \
+    FT_DEF(SCA_RandomActuator, nullptr) \
+    FT_DEF(SCA_RandomSensor, nullptr) \
+    FT_DEF(SCA_RaySensor, nullptr) \
+    FT_DEF(SCA_ReplaceMeshActuator, nullptr) \
+    FT_DEF(SCA_SceneActuator, nullptr) \
+    FT_DEF(SCA_SoundActuator, nullptr) \
+    FT_DEF(SCA_StateActuator, nullptr) \
+    FT_DEF(SCA_SteeringActuator, nullptr) \
+    FT_DEF(SCA_TrackToActuator, nullptr) \
+    FT_DEF(SCA_VibrationActuator, nullptr) \
+    FT_DEF(SCA_VisibilityActuator, nullptr) \
+    FT_DEF(SCA_XNORController, nullptr) \
+    FT_DEF(SCA_XORController, nullptr)
 
 #  define FakeType(Type, Base) \
     static PyTypeObject FT_##Type = { \
-        PyVarObject_HEAD_INIT(NULL, 0) STRINGIFY(Type), /* tp_name */ \
+        PyVarObject_HEAD_INIT(nullptr, 0) STRINGIFY(Type), /* tp_name */ \
         sizeof(PyObject),                               /* tp_basicsize */ \
         0,                                              /* tp_itemsize */ \
-        (destructor)NULL,                               /* tp_dealloc */ \
+        (destructor)nullptr,                               /* tp_dealloc */ \
         0,                                              /* tp_vectorcall_offset */ \
-        NULL,                                           /* tp_getattr */ \
-        NULL,                                           /* tp_setattr */ \
-        NULL,                                           /* tp_compare */ \
-        (reprfunc)NULL,                                 /* tp_repr */ \
-        NULL,                                           /* tp_as_number */ \
-        NULL,                                           /* tp_as_sequence */ \
-        NULL,                                           /* tp_as_mapping */ \
-        (hashfunc)NULL,                                 /* tp_hash */ \
-        NULL,                                           /* tp_call */ \
-        NULL,                                           /* tp_str */ \
-        NULL,                                           /* tp_getattro */ \
-        NULL,                                           /* tp_setattro */ \
-        NULL,                                           /* tp_as_buffer */ \
+        nullptr,                                           /* tp_getattr */ \
+        nullptr,                                           /* tp_setattr */ \
+        nullptr,                                           /* tp_compare */ \
+        (reprfunc)nullptr,                                 /* tp_repr */ \
+        nullptr,                                           /* tp_as_number */ \
+        nullptr,                                           /* tp_as_sequence */ \
+        nullptr,                                           /* tp_as_mapping */ \
+        (hashfunc)nullptr,                                 /* tp_hash */ \
+        nullptr,                                           /* tp_call */ \
+        nullptr,                                           /* tp_str */ \
+        nullptr,                                           /* tp_getattro */ \
+        nullptr,                                           /* tp_setattro */ \
+        nullptr,                                           /* tp_as_buffer */ \
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,       /* tp_flags */ \
-        NULL,                                           /* tp_doc */ \
-        (traverseproc)NULL,                             /* tp_traverse */ \
-        (inquiry)NULL,                                  /* tp_clear */ \
-        (richcmpfunc)NULL,                              /* tp_richcompare */ \
+        nullptr,                                           /* tp_doc */ \
+        (traverseproc)nullptr,                             /* tp_traverse */ \
+        (inquiry)nullptr,                                  /* tp_clear */ \
+        (richcmpfunc)nullptr,                              /* tp_richcompare */ \
         0,                                              /* tp_weaklistoffset */ \
-        NULL,                                           /* tp_iter */ \
-        NULL,                                           /* tp_iternext */ \
-        NULL,                                           /* tp_methods */ \
-        NULL,                                           /* tp_members */ \
-        NULL,                                           /* tp_getset */ \
+        nullptr,                                           /* tp_iter */ \
+        nullptr,                                           /* tp_iternext */ \
+        nullptr,                                           /* tp_methods */ \
+        nullptr,                                           /* tp_members */ \
+        nullptr,                                           /* tp_getset */ \
         Base,                                           /* tp_base */ \
-        NULL,                                           /* tp_dict */ \
-        NULL,                                           /* tp_descr_get */ \
-        NULL,                                           /* tp_descr_set */ \
+        nullptr,                                           /* tp_dict */ \
+        nullptr,                                           /* tp_descr_get */ \
+        nullptr,                                           /* tp_descr_set */ \
         0,                                              /* tp_dictoffset */ \
-        NULL,                                           /* tp_init */ \
+        nullptr,                                           /* tp_init */ \
         PyType_GenericAlloc,                            /* tp_alloc */ \
         PyType_GenericNew,                              /* tp_new */ \
-        NULL,                                           /* tp_free */ \
-        NULL,                                           /* tp_is_gc */ \
-        NULL,                                           /* tp_bases */ \
-        NULL,                                           /* tp_mro */ \
-        NULL,                                           /* tp_cache */ \
-        NULL,                                           /* tp_subclasses */ \
-        NULL,                                           /* tp_weaklist */ \
-        NULL                                            /* tp_del */ \
+        nullptr,                                           /* tp_free */ \
+        nullptr,                                           /* tp_is_gc */ \
+        nullptr,                                           /* tp_bases */ \
+        nullptr,                                           /* tp_mro */ \
+        nullptr,                                           /* tp_cache */ \
+        nullptr,                                           /* tp_subclasses */ \
+        nullptr,                                           /* tp_weaklist */ \
+        nullptr                                            /* tp_del */ \
     };
 
 #  define FT_DEF(Type, Base) FakeType(Type, Base)
@@ -198,11 +198,11 @@ static struct PyModuleDef bge_module_def = {
     "bge",                 /* m_name */
     module_documentation,  /* m_doc */
     0,                     /* m_size */
-    NULL,                  /* m_methods */
-    NULL,                  /* m_reload */
-    NULL,                  /* m_traverse */
-    NULL,                  /* m_clear */
-    NULL,                  /* m_free */
+    nullptr,                  /* m_methods */
+    nullptr,                  /* m_reload */
+    nullptr,                  /* m_traverse */
+    nullptr,                  /* m_clear */
+    nullptr,                  /* m_free */
 };
 
 static struct PyModuleDef bge_types_module_def = {
@@ -210,11 +210,11 @@ static struct PyModuleDef bge_types_module_def = {
     "types",               /* m_name */
     module_documentation,  /* m_doc */
     0,                     /* m_size */
-    NULL,                  /* m_methods */
-    NULL,                  /* m_reload */
-    NULL,                  /* m_traverse */
-    NULL,                  /* m_clear */
-    NULL,                  /* m_free */
+    nullptr,                  /* m_methods */
+    nullptr,                  /* m_reload */
+    nullptr,                  /* m_traverse */
+    nullptr,                  /* m_clear */
+    nullptr,                  /* m_free */
 };
 
 static int verify_custom_object_class(PyObject *cls)
@@ -231,7 +231,7 @@ static PythonProxyProperty *create_property(char *name)
 {
   PythonProxyProperty *pprop;
 
-  pprop = MEM_callocN(sizeof(PythonProxyProperty), "PythonProxyProperty");
+  pprop = (PythonProxyProperty *)MEM_callocN(sizeof(PythonProxyProperty), "PythonProxyProperty");
   BLI_strncpy(pprop->name, name, sizeof(pprop->name));
 
   return pprop;
@@ -243,10 +243,10 @@ static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
 {
   PythonProxyProperty *ppropn;
 
-  ppropn = MEM_dupallocN(pprop);
+  ppropn = (PythonProxyProperty *)MEM_dupallocN(pprop);
 
   BLI_duplicatelist(&ppropn->enumval, &pprop->enumval);
-  for (LinkData *link = ppropn->enumval.first; link; link = link->next) {
+  for (LinkData *link = (LinkData *)ppropn->enumval.first; link; link = link->next) {
     link->data = MEM_dupallocN(link->data);
   }
 
@@ -255,7 +255,7 @@ static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
 
 static void free_property(PythonProxyProperty *pprop)
 {
-  for (LinkData *link = pprop->enumval.first; link; link = link->next) {
+  for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
     MEM_freeN(link->data);
   }
   BLI_freelistN(&pprop->enumval);
@@ -266,7 +266,7 @@ static void free_properties(ListBase *lb)
 {
   PythonProxyProperty *pprop;
 
-  while ((pprop = lb->first)) {
+  while ((pprop = (PythonProxyProperty *)lb->first)) {
     BLI_remlink(lb, pprop);
     free_property(pprop);
   }
@@ -330,7 +330,7 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
       BLI_strncpy((char *)pprop->strval, _PyUnicode_AsString(pyvalue), MAX_PROPSTRING);
     }
     else if (PySet_Check(pyvalue)) {
-      PyObject *iterator = PyObject_GetIter(pyvalue), *v = NULL;
+      PyObject *iterator = PyObject_GetIter(pyvalue), *v = nullptr;
       unsigned int j = 0;
       pprop->type = PPROP_TYPE_SET;
 
@@ -342,8 +342,8 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
           continue;
         }
 
-        LinkData *link = MEM_callocN(sizeof(LinkData), "PythonComponentProperty set link data");
-        char *str = MEM_callocN(MAX_PROPSTRING, "PythonComponentProperty set string");
+        LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "PythonComponentProperty set link data");
+        char *str = (char *)MEM_callocN(MAX_PROPSTRING, "PythonComponentProperty set string");
         BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
         link->data = str;
@@ -419,7 +419,7 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
     }
 
     bool found = false;
-    for (PythonProxyProperty *propit = pp->properties.first; propit; propit = propit->next) {
+    for (PythonProxyProperty *propit = (PythonProxyProperty *)pp->properties.first; propit; propit = propit->next) {
       if ((strcmp(propit->name, pprop->name) == 0) && propit->type == pprop->type) {
         /* We never reuse a enum property because we don't know if one of the
          * enum value was modified and it easier to just copy the current item
@@ -430,10 +430,10 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
            * content. To solve that we iterate on all new enums and find the coresponding
            * index for the old enum name.
            */
-          char *str = ((LinkData *)BLI_findlink(&propit->enumval, propit->itemval))->data;
+          char *str = (char *)((LinkData *)BLI_findlink(&propit->enumval, propit->itemval))->data;
           int j = 0;
-          for (LinkData *link = pprop->enumval.first; link; link = link->next) {
-            if (strcmp(link->data, str) == 0) {
+          for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+            if (strcmp((const char *)link->data, str) == 0) {
               pprop->itemval = j;
             }
             ++j;
@@ -461,7 +461,7 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
   }
 
   // Free properties no used in the new component.
-  for (PythonProxyProperty *propit = pp->properties.first; propit;) {
+  for (PythonProxyProperty *propit = (PythonProxyProperty *)pp->properties.first; propit;) {
     PythonProxyProperty *prop = propit;
     propit = propit->next;
     free_property(prop);
@@ -515,7 +515,7 @@ static bool load_class(PythonProxy *pp,
     PyGILState_Release(state); \
     return value;
 
-  PyObject *mod, *item = NULL, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
+  PyObject *mod, *item = nullptr, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
   PyGILState_STATE state;
   char path[FILE_MAX];
   int index;
@@ -549,7 +549,7 @@ static bool load_class(PythonProxy *pp,
   PyModule_AddObject(bgemod, "types", bgesubmod);
   PyType_Ready(&FT_KX_PythonComponent);
 
-#  define FT_DEF(Type, NULL) \
+#  define FT_DEF(Type, nullptr) \
     PyType_Ready(&FT_##Type); \
     PyModule_AddObject(bgesubmod, STRINGIFY(Type), (PyObject *)&FT_##Type);
 
@@ -615,7 +615,7 @@ PythonProxy *BKE_python_class_new(char *import,
   // Don't bother with an empty string
   if (strcmp(import, "") == 0) {
     BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class was specified.");
-    return NULL;
+    return nullptr;
   }
 
   // Extract the module name and the class name.
@@ -629,10 +629,10 @@ PythonProxy *BKE_python_class_new(char *import,
   }
   else {
     BKE_report(reports, RPT_ERROR_INVALID_INPUT, "Invalid module name.");
-    return NULL;
+    return nullptr;
   }
 
-  pp = MEM_callocN(sizeof(PythonProxy), "PythonProxy");
+  pp = (PythonProxy *)MEM_callocN(sizeof(PythonProxy), "PythonProxy");
 
   // Copy module and class names.
   strcpy(pp->module, modulename);
@@ -643,7 +643,7 @@ PythonProxy *BKE_python_class_new(char *import,
   // Try load the component.
   if (!load_class(pp, verifier, reports, CTX_data_main(context))) {
     BKE_python_proxy_free(pp);
-    return NULL;
+    return nullptr;
   }
 
   return pp;
@@ -659,7 +659,7 @@ PythonProxy *BKE_custom_object_new(char *import, ReportList *reports, bContext *
 (void)reports;
 (void)context;
 
-return NULL;
+return nullptr;
 #endif /* WITH_PYTHON */
 }
 
@@ -672,7 +672,7 @@ PythonProxy *BKE_python_component_new(char *import, ReportList *reports, bContex
 (void)reports;
 (void)context;
 
-return NULL;
+return nullptr;
 #endif /* WITH_PYTHON */
 }
 
@@ -698,16 +698,16 @@ PythonProxy *BKE_python_class_create_file(char *import,
   // Don't bother with an empty string
   if (strcmp(import, "") == 0) {
     BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class name was specified.");
-    return NULL;
+    return nullptr;
   }
 
   // Extract the module name and the class name.
   modulename = strtok(import, ".");
-  classname = strtok(NULL, ".");
+  classname = strtok(nullptr, ".");
 
   if (!classname) {
     BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class name was specified.");
-    return NULL;
+    return nullptr;
   }
 
   strcpy(filename, modulename);
@@ -715,7 +715,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   if (BLI_findstring(&maggie->texts, filename, offsetof(ID, name) + 2)) {
     BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "File %s already exists.", filename);
-    return NULL;
+    return nullptr;
   }
 
   text = BKE_text_add(maggie, filename);
@@ -724,7 +724,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
       respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir), sizeof(respath));
   BLI_path_append(respath, sizeof(respath), template_name);
 
-  orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
+  orgfilecontent = (unsigned char *)BLI_file_read_text_as_mem(respath, 0, &filesize);
   orgfilecontent[filesize] = '\0';
 
   filecontent = BLI_string_replaceN((char *)orgfilecontent, "%Name%", classname);
@@ -733,7 +733,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   MEM_freeN(filecontent);
 
-  pp = MEM_callocN(sizeof(PythonProxy), "PythonProxy");
+  pp = (PythonProxy *)MEM_callocN(sizeof(PythonProxy), "PythonProxy");
 
   // Copy module and class names.
   strcpy(pp->module, modulename);
@@ -744,7 +744,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
   // Try load the component.
   if (!load_class(pp, verifier, reports, CTX_data_main(context))) {
     BKE_python_proxy_free(pp);
-    return NULL;
+    return nullptr;
   }
 
   BKE_reportf(reports, RPT_INFO, "File %s created.", filename);
@@ -767,7 +767,7 @@ PythonProxy *BKE_custom_object_create_file(char *import, ReportList *reports, bC
 (void)reports;
 (void)context;
 
-return NULL;
+return nullptr;
 #endif /* WITH_PYTHON */
 }
 
@@ -785,7 +785,7 @@ PythonProxy *BKE_python_component_create_file(char *import, ReportList *reports,
   (void)reports;
   (void)context;
 
-  return NULL;
+  return nullptr;
 #endif /* WITH_PYTHON */
 }
 
@@ -817,10 +817,10 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
   PythonProxy *proxyn;
   PythonProxyProperty *pprop, *ppropn;
 
-  proxyn = MEM_dupallocN(pp);
+  proxyn = (PythonProxy *)MEM_dupallocN(pp);
 
   BLI_listbase_clear(&proxyn->properties);
-  pprop = pp->properties.first;
+  pprop = (PythonProxyProperty *)pp->properties.first;
   while (pprop) {
     ppropn = copy_property(pprop);
     BLI_addtail(&proxyn->properties, ppropn);
@@ -831,7 +831,7 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
 #else
   (void)pp;
 
-  return NULL;
+  return nullptr;
 #endif /* WITH_PYTHON */
 }
 
@@ -840,8 +840,8 @@ void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
 #ifdef WITH_PYTHON
   PythonProxy *proxy, *proxyn;
 
-  lbn->first = lbn->last = NULL;
-  proxy = lbo->first;
+  lbn->first = lbn->last = nullptr;
+  proxy = (PythonProxy *)lbo->first;
   while (proxy) {
     proxyn = BKE_python_proxy_copy(proxy);
     BLI_addtail(lbn, proxyn);
@@ -869,7 +869,7 @@ void BKE_python_proxy_free_list(ListBase *lb)
 #ifdef WITH_PYTHON
   PythonProxy *pp;
 
-  while ((pp = lb->first)) {
+  while ((pp = (PythonProxy *)lb->first)) {
     BLI_remlink(lb, pp);
     BKE_python_proxy_free(pp);
   }
@@ -899,8 +899,8 @@ void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
       value = PyUnicode_FromString(pprop->strval);
     }
     else if (pprop->type == PPROP_TYPE_SET) {
-      LinkData *link = BLI_findlink(&pprop->enumval, pprop->itemval);
-      value = PyUnicode_FromString(link->data);
+      LinkData *link = (LinkData *)BLI_findlink(&pprop->enumval, pprop->itemval);
+      value = PyUnicode_FromString((const char *)link->data);
     }
     else if (pprop->type == PPROP_TYPE_VEC2 || pprop->type == PPROP_TYPE_VEC3 ||
              pprop->type == PPROP_TYPE_VEC4) {
@@ -955,7 +955,7 @@ void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
 #else
   (void)pp;
 
-  return NULL;
+  return nullptr;
 #endif /* WITH_PYTHON */
 }
 
@@ -965,7 +965,7 @@ void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *user
   ListBase *properties = &pp->properties;
   PythonProxyProperty *prop;
 
-  for (prop = properties->first; prop; prop = prop->next) {
+  for (prop = (PythonProxyProperty *)properties->first; prop; prop = prop->next) {
 #define PT_DEF(name, lower, upper) func(pp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
     POINTER_TYPES
 #undef PT_DEF
@@ -983,7 +983,7 @@ void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *use
 #ifdef WITH_PYTHON
   PythonProxy *pp;
 
-  for (pp = list->first; pp; pp = pp->next) {
+  for (pp = (PythonProxy *)list->first; pp; pp = pp->next) {
     BKE_python_proxy_id_loop(pp, func, userdata);
   }
 #else

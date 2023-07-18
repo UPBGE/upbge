@@ -261,11 +261,11 @@ set(SRC
   intern/pointcloud.cc
   intern/pose_backup.cc
   intern/preferences.cc
-  intern/property.c
-  intern/python_proxy.c
+  intern/property.cc
+  intern/python_proxy.cc
   intern/report.cc
   intern/rigidbody.cc
-  intern/sca.c
+  intern/sca.cc
   intern/scene.cc
   intern/screen.cc
   intern/shader_fx.cc

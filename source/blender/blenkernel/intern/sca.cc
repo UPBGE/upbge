@@ -66,23 +66,23 @@ void BKE_sca_free_sensors(ListBase *lb)
 {
   bSensor *sens;
 
-  while ((sens = BLI_pophead(lb))) {
+  while ((sens = (bSensor *)BLI_pophead(lb))) {
     BKE_sca_free_sensor(sens);
   }
 }
 
-bSensor *BKE_sca_copy_sensor(bSensor *sens, const int UNUSED(flag))
+bSensor *BKE_sca_copy_sensor(bSensor *sens, const int /*flag*/)
 {
   bSensor *sensn;
 
-  sensn = MEM_dupallocN(sens);
+  sensn = (bSensor *)MEM_dupallocN(sens);
   sensn->flag |= SENS_NEW;
   if (sens->data) {
-    sensn->data = MEM_dupallocN(sens->data);
+    sensn->data = (void *)MEM_dupallocN(sens->data);
   }
 
   if (sens->links)
-    sensn->links = MEM_dupallocN(sens->links);
+    sensn->links = (bController **)MEM_dupallocN(sens->links);
 
   return sensn;
 }
@@ -91,8 +91,8 @@ void BKE_sca_copy_sensors(ListBase *lbn, const ListBase *lbo, const int flag)
 {
   bSensor *sens, *sensn;
 
-  lbn->first = lbn->last = NULL;
-  sens = lbo->first;
+  lbn->first = lbn->last = nullptr;
+  sens = (bSensor *)lbo->first;
   while (sens) {
     sensn = BKE_sca_copy_sensor(sens, flag);
     BLI_addtail(lbn, sensn);
@@ -111,7 +111,7 @@ void BKE_sca_init_sensor(bSensor *sens)
 
   if (sens->data)
     MEM_freeN(sens->data);
-  sens->data = NULL;
+  sens->data = nullptr;
   sens->pulse = 0;
 
   switch (sens->type) {
@@ -119,7 +119,8 @@ void BKE_sca_init_sensor(bSensor *sens)
       sens->pulse = 0;
       break;
     case SENS_NEAR:
-      ns = sens->data = MEM_callocN(sizeof(bNearSensor), "nearsens");
+      sens->data = MEM_callocN(sizeof(bNearSensor), "nearsens");
+      ns = (bNearSensor *)sens->data;
       ns->dist = 1.0;
       ns->resetdist = 2.0;
       break;
@@ -139,7 +140,8 @@ void BKE_sca_init_sensor(bSensor *sens)
       sens->data = MEM_callocN(sizeof(bDelaySensor), "delaysens");
       break;
     case SENS_MOUSE:
-      ms = sens->data = MEM_callocN(sizeof(bMouseSensor), "mousesens");
+      sens->data = MEM_callocN(sizeof(bMouseSensor), "mousesens");
+      ms = (bMouseSensor *)sens->data;
       ms->type = 1;  // LEFTMOUSE workaround because Mouse Sensor types enum starts in 1
       ms->mask = (1 << OB_MAX_COL_MASKS) - 1;
       break;
@@ -154,12 +156,12 @@ void BKE_sca_init_sensor(bSensor *sens)
       break;
     case SENS_MOVEMENT:
       sens->data = MEM_callocN(sizeof(bMovementSensor), "movementsens");
-      movs = sens->data;
+      movs = (bMovementSensor *)sens->data;
       movs->threshold = 0.01f;
       break;
     case SENS_RAY:
       sens->data = MEM_callocN(sizeof(bRaySensor), "raysens");
-      rs = sens->data;
+      rs = (bRaySensor *)sens->data;
       rs->range = 0.01f;
       rs->mask = (1 << OB_MAX_COL_MASKS) - 1;
       break;
@@ -168,7 +170,7 @@ void BKE_sca_init_sensor(bSensor *sens)
       break;
     case SENS_JOYSTICK:
       sens->data = MEM_callocN(sizeof(bJoystickSensor), "joysticksens");
-      js = sens->data;
+      js = (bJoystickSensor *)sens->data;
       js->type = SENS_JOY_AXIS;
       js->axis = SENS_JOY_LEFT_STICK;
       js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
@@ -183,7 +185,7 @@ bSensor *BKE_sca_new_sensor(int type)
 {
   bSensor *sens;
 
-  sens = MEM_callocN(sizeof(bSensor), "Sensor");
+  sens = (bSensor *)MEM_callocN(sizeof(bSensor), "Sensor");
   sens->type = type;
   sens->flag = SENS_SHOW;
 
@@ -203,14 +205,14 @@ void BKE_sca_unlink_controller(bController *cont)
   Object *ob;
 
   /* check for controller pointers in sensors */
-  ob = G.main->objects.first;
+  ob = (Object *)G.main->objects.first;
   while (ob) {
-    sens = ob->sensors.first;
+    sens = (bSensor *)ob->sensors.first;
     while (sens) {
       BKE_sca_unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
       sens = sens->next;
     }
-    ob = ob->id.next;
+    ob = (Object *)ob->id.next;
   }
 }
 
@@ -218,7 +220,7 @@ void BKE_sca_unlink_controllers(ListBase *lb)
 {
   bController *cont;
 
-  for (cont = lb->first; cont; cont = cont->next)
+  for (cont = (bController *)lb->first; cont; cont = cont->next)
     BKE_sca_unlink_controller(cont);
 }
 
@@ -238,26 +240,26 @@ void BKE_sca_free_controllers(ListBase *lb)
 {
   bController *cont;
 
-  while ((cont = BLI_pophead(lb))) {
+  while ((cont = (bController *)BLI_pophead(lb))) {
     if (cont->slinks)
       MEM_freeN(cont->slinks);
     BKE_sca_free_controller(cont);
   }
 }
 
-bController *BKE_sca_copy_controller(bController *cont, const int UNUSED(flag))
+bController *BKE_sca_copy_controller(bController *cont, const int /*flag*/)
 {
   bController *contn;
 
-  cont->mynew = contn = MEM_dupallocN(cont);
+  cont->mynew = contn = (bController *)MEM_dupallocN(cont);
   contn->flag |= CONT_NEW;
   if (cont->data) {
     contn->data = MEM_dupallocN(cont->data);
   }
 
   if (cont->links)
-    contn->links = MEM_dupallocN(cont->links);
-  contn->slinks = NULL;
+    contn->links = (bActuator **)MEM_dupallocN(cont->links);
+  contn->slinks = nullptr;
   contn->totslinks = 0;
 
   return contn;
@@ -267,8 +269,8 @@ void BKE_sca_copy_controllers(ListBase *lbn, const ListBase *lbo, const int flag
 {
   bController *cont, *contn;
 
-  lbn->first = lbn->last = NULL;
-  cont = lbo->first;
+  lbn->first = lbn->last = nullptr;
+  cont = (bController *)lbo->first;
   while (cont) {
     contn = BKE_sca_copy_controller(cont, flag);
     BLI_addtail(lbn, contn);
@@ -282,7 +284,7 @@ void BKE_sca_init_controller(bController *cont)
 
   if (cont->data)
     MEM_freeN(cont->data);
-  cont->data = NULL;
+  cont->data = nullptr;
 
   switch (cont->type) {
     case CONT_EXPRESSION:
@@ -298,7 +300,7 @@ bController *BKE_sca_new_controller(int type)
 {
   bController *cont;
 
-  cont = MEM_callocN(sizeof(bController), "Controller");
+  cont = (bController *)MEM_callocN(sizeof(bController), "Controller");
   cont->type = type;
   cont->flag = CONT_SHOW;
 
@@ -318,14 +320,14 @@ void BKE_sca_unlink_actuator(bActuator *act)
   Object *ob;
 
   /* check for actuator pointers in controllers */
-  ob = G.main->objects.first;
+  ob = (Object *)G.main->objects.first;
   while (ob) {
-    cont = ob->controllers.first;
+    cont = (bController *)ob->controllers.first;
     while (cont) {
       BKE_sca_unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
       cont = cont->next;
     }
-    ob = ob->id.next;
+    ob = (Object *)ob->id.next;
   }
 }
 
@@ -333,7 +335,7 @@ void BKE_sca_unlink_actuators(ListBase *lb)
 {
   bActuator *act;
 
-  for (act = lb->first; act; act = act->next)
+  for (act = (bActuator *)lb->first; act; act = act->next)
     BKE_sca_unlink_actuator(act);
 }
 
@@ -365,7 +367,7 @@ void BKE_sca_free_actuators(ListBase *lb)
 {
   bActuator *act;
 
-  while ((act = BLI_pophead(lb))) {
+  while ((act = (bActuator *)BLI_pophead(lb))) {
     BKE_sca_free_actuator(act);
   }
 }
@@ -374,7 +376,7 @@ bActuator *BKE_sca_copy_actuator(bActuator *act)
 {
   bActuator *actn;
 
-  act->mynew = actn = MEM_dupallocN(act);
+  act->mynew = actn = (bActuator *)MEM_dupallocN(act);
   actn->flag |= ACT_NEW;
   if (act->data) {
     actn->data = MEM_dupallocN(act->data);
@@ -404,8 +406,8 @@ void BKE_sca_copy_actuators(ListBase *lbn, const ListBase *lbo)
 {
   bActuator *act, *actn;
 
-  lbn->first = lbn->last = NULL;
-  act = lbo->first;
+  lbn->first = lbn->last = nullptr;
+  act = (bActuator *)lbo->first;
   while (act) {
     actn = BKE_sca_copy_actuator(act);
     BLI_addtail(lbn, actn);
@@ -428,14 +430,15 @@ void BKE_sca_init_actuator(bActuator *act)
 
   if (act->data)
     MEM_freeN(act->data);
-  act->data = NULL;
+  act->data = nullptr;
 
   switch (act->type) {
     case ACT_ACTION:
       act->data = MEM_callocN(sizeof(bActionActuator), "actionact");
       break;
     case ACT_SOUND:
-      sa = act->data = MEM_callocN(sizeof(bSoundActuator), "soundact");
+      act->data = MEM_callocN(sizeof(bSoundActuator), "soundact");
+      sa = (bSoundActuator *)act->data;
       sa->volume = 1.0f;
       sa->sound3D.rolloff_factor = 1.0f;
       sa->sound3D.reference_distance = 1.0f;
@@ -446,7 +449,7 @@ void BKE_sca_init_actuator(bActuator *act)
       break;
     case ACT_OBJECT:
       act->data = MEM_callocN(sizeof(bObjectActuator), "objectact");
-      oa = act->data;
+      oa = (bObjectActuator *)act->data;
       oa->flag = 15;
       break;
     case ACT_PROPERTY:
@@ -454,13 +457,13 @@ void BKE_sca_init_actuator(bActuator *act)
       break;
     case ACT_CAMERA:
       act->data = MEM_callocN(sizeof(bCameraActuator), "camact");
-      ca = act->data;
+      ca = (bCameraActuator *)act->data;
       ca->axis = OB_POSX;
       ca->damping = 1.0 / 32.0;
       break;
     case ACT_EDIT_OBJECT:
       act->data = MEM_callocN(sizeof(bEditObjectActuator), "editobact");
-      eoa = act->data;
+      eoa = (bEditObjectActuator *)act->data;
       eoa->upflag = ACT_TRACK_UP_Z;
       eoa->trackflag = ACT_TRACK_TRAXIS_Y;
       break;
@@ -478,7 +481,7 @@ void BKE_sca_init_actuator(bActuator *act)
       break;
     case ACT_RANDOM:
       act->data = MEM_callocN(sizeof(bRandomActuator), "random act");
-      ra = act->data;
+      ra = (bRandomActuator *)act->data;
       ra->float_arg_1 = 0.1f;
       break;
     case ACT_MESSAGE:
@@ -489,7 +492,7 @@ void BKE_sca_init_actuator(bActuator *act)
       break;
     case ACT_VIBRATION:
       act->data = MEM_callocN(sizeof(bVibrationActuator), "vibration act");
-      via = act->data;
+      via = (bVibrationActuator *)act->data;
       via->duration = 500;  // milliseconds
       via->strength = 0.4;
       break;
@@ -507,12 +510,12 @@ void BKE_sca_init_actuator(bActuator *act)
       break;
     case ACT_ARMATURE:
       act->data = MEM_callocN(sizeof(bArmatureActuator), "armature act");
-      arma = act->data;
+      arma = (bArmatureActuator *)act->data;
       arma->influence = 1.f;
       break;
     case ACT_STEERING:
       act->data = MEM_callocN(sizeof(bSteeringActuator), "steering act");
-      sta = act->data;
+      sta = (bSteeringActuator *)act->data;
       sta->acceleration = 3.f;
       sta->turnspeed = 120.f;
       sta->dist = 1.f;
@@ -521,7 +524,8 @@ void BKE_sca_init_actuator(bActuator *act)
       sta->facingaxis = 1;
       break;
     case ACT_MOUSE:
-      ma = act->data = MEM_callocN(sizeof(bMouseActuator), "mouse act");
+      act->data = MEM_callocN(sizeof(bMouseActuator), "mouse act");
+      ma = (bMouseActuator *)act->data;
       ma->flag = ACT_MOUSE_VISIBLE | ACT_MOUSE_USE_AXIS_X | ACT_MOUSE_USE_AXIS_Y |
                  ACT_MOUSE_RESET_X | ACT_MOUSE_RESET_Y | ACT_MOUSE_LOCAL_Y;
       ma->sensitivity[0] = ma->sensitivity[1] = 2.f;
@@ -539,7 +543,7 @@ bActuator *BKE_sca_new_actuator(int type)
 {
   bActuator *act;
 
-  act = MEM_callocN(sizeof(bActuator), "Actuator");
+  act = (bActuator *)MEM_callocN(sizeof(bActuator), "Actuator");
   act->type = type;
   act->flag = ACT_SHOW;
 
@@ -558,20 +562,20 @@ void BKE_sca_clear_new_points_ob(Object *ob)
   bController *cont;
   bActuator *act;
 
-  sens = ob->sensors.first;
+  sens = (bSensor *)ob->sensors.first;
   while (sens) {
     sens->flag &= ~SENS_NEW;
     sens = sens->next;
   }
-  cont = ob->controllers.first;
+  cont = (bController *)ob->controllers.first;
   while (cont) {
-    cont->mynew = NULL;
+    cont->mynew = nullptr;
     cont->flag &= ~CONT_NEW;
     cont = cont->next;
   }
-  act = ob->actuators.first;
+  act = (bActuator *)ob->actuators.first;
   while (act) {
-    act->mynew = NULL;
+    act->mynew = nullptr;
     act->flag &= ~ACT_NEW;
     act = act->next;
   }
@@ -581,10 +585,10 @@ void BKE_sca_clear_new_points(void)
 {
   Object *ob;
 
-  ob = G.main->objects.first;
+  ob = (Object *)G.main->objects.first;
   while (ob) {
     BKE_sca_clear_new_points_ob(ob);
-    ob = ob->id.next;
+    ob = (Object *)ob->id.next;
   }
 }
 
@@ -596,7 +600,7 @@ void BKE_sca_set_new_points_ob(Object *ob)
 
   int a;
 
-  sens = ob->sensors.first;
+  sens = (bSensor *)ob->sensors.first;
   while (sens) {
     if (sens->flag & SENS_NEW) {
       for (a = 0; a < sens->totlinks; a++) {
@@ -607,7 +611,7 @@ void BKE_sca_set_new_points_ob(Object *ob)
     sens = sens->next;
   }
 
-  cont = ob->controllers.first;
+  cont = (bController *)ob->controllers.first;
   while (cont) {
     if (cont->flag & CONT_NEW) {
       for (a = 0; a < cont->totlinks; a++) {
@@ -618,49 +622,49 @@ void BKE_sca_set_new_points_ob(Object *ob)
     cont = cont->next;
   }
 
-  act = ob->actuators.first;
+  act = (bActuator *)ob->actuators.first;
   while (act) {
     if (act->flag & ACT_NEW) {
       if (act->type == ACT_EDIT_OBJECT) {
-        bEditObjectActuator *eoa = act->data;
+        bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
         ID_NEW_REMAP(eoa->ob);
       }
       else if (act->type == ACT_SCENE) {
-        bSceneActuator *sca = act->data;
+        bSceneActuator *sca = (bSceneActuator *)act->data;
         ID_NEW_REMAP(sca->camera);
       }
       else if (act->type == ACT_COLLECTION) {
-        bCollectionActuator *ca = act->data;
+        bCollectionActuator *ca = (bCollectionActuator *)act->data;
         ID_NEW_REMAP(ca->collection);
         ID_NEW_REMAP(ca->camera);
       }
       else if (act->type == ACT_CAMERA) {
-        bCameraActuator *ca = act->data;
+        bCameraActuator *ca = (bCameraActuator *)act->data;
         ID_NEW_REMAP(ca->ob);
       }
       else if (act->type == ACT_OBJECT) {
-        bObjectActuator *oa = act->data;
+        bObjectActuator *oa = (bObjectActuator *)act->data;
         ID_NEW_REMAP(oa->reference);
       }
       else if (act->type == ACT_MESSAGE) {
-        bMessageActuator *ma = act->data;
+        bMessageActuator *ma = (bMessageActuator *)act->data;
         ID_NEW_REMAP(ma->toObject);
       }
       else if (act->type == ACT_PARENT) {
-        bParentActuator *para = act->data;
+        bParentActuator *para = (bParentActuator *)act->data;
         ID_NEW_REMAP(para->ob);
       }
       else if (act->type == ACT_ARMATURE) {
-        bArmatureActuator *aa = act->data;
+        bArmatureActuator *aa = (bArmatureActuator *)act->data;
         ID_NEW_REMAP(aa->target);
         ID_NEW_REMAP(aa->subtarget);
       }
       else if (act->type == ACT_PROPERTY) {
-        bPropertyActuator *pa = act->data;
+        bPropertyActuator *pa = (bPropertyActuator *)act->data;
         ID_NEW_REMAP(pa->ob);
       }
       else if (act->type == ACT_STEERING) {
-        bSteeringActuator *sta = act->data;
+        bSteeringActuator *sta = (bSteeringActuator *)act->data;
         ID_NEW_REMAP(sta->navmesh);
         ID_NEW_REMAP(sta->target);
       }
@@ -673,10 +677,10 @@ void BKE_sca_set_new_points(void)
 {
   Object *ob;
 
-  ob = G.main->objects.first;
+  ob = (Object *)G.main->objects.first;
   while (ob) {
     BKE_sca_set_new_points_ob(ob);
-    ob = ob->id.next;
+    ob = (Object *)ob->id.next;
   }
 }
 
@@ -691,7 +695,7 @@ void BKE_sca_set_new_points(void)
  * working. */
 void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object *ob_old, Object *ob_new)
 {
-  if (ob_new == NULL || (ob_old->controllers.first == NULL && ob_old->actuators.first == NULL)) {
+  if (ob_new == nullptr || (ob_old->controllers.first == nullptr && ob_old->actuators.first == nullptr)) {
     /* Nothing to do here... */
     return;
   }
@@ -699,26 +703,27 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
   GHash *controllers_map = ob_old->controllers.first ?
                                BLI_ghash_ptr_new_ex(__func__,
                                                     BLI_listbase_count(&ob_old->controllers)) :
-                               NULL;
+                               nullptr;
   GHash *actuators_map = ob_old->actuators.first ?
                              BLI_ghash_ptr_new_ex(__func__,
                                                   BLI_listbase_count(&ob_old->actuators)) :
-                             NULL;
+                             nullptr;
 
   /* We try to remap old controllers/actuators to new ones - in a very basic way. */
-  for (bController *cont_old = ob_old->controllers.first, *cont_new = ob_new->controllers.first;
+  for (bController *cont_old = (bController *)ob_old->controllers.first,
+                   *cont_new = (bController *)ob_new->controllers.first;
        cont_old;
        cont_old = cont_old->next) {
     bController *cont_new2 = cont_new;
 
-    if (cont_old->mynew != NULL) {
+    if (cont_old->mynew != nullptr) {
       cont_new2 = cont_old->mynew;
       if (!(cont_new2 == cont_new || BLI_findindex(&ob_new->controllers, cont_new2) >= 0)) {
-        cont_new2 = NULL;
+        cont_new2 = nullptr;
       }
     }
     else if (cont_new && cont_old->type != cont_new->type) {
-      cont_new2 = NULL;
+      cont_new2 = nullptr;
     }
 
     BLI_ghash_insert(controllers_map, cont_old, cont_new2);
@@ -728,18 +733,20 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
     }
   }
 
-  for (bActuator *act_old = ob_old->actuators.first, *act_new = ob_new->actuators.first; act_old;
+  for (bActuator *act_old = (bActuator *)ob_old->actuators.first,
+                 *act_new = (bActuator *)ob_new->actuators.first;
+       act_old;
        act_old = act_old->next) {
     bActuator *act_new2 = act_new;
 
-    if (act_old->mynew != NULL) {
+    if (act_old->mynew != nullptr) {
       act_new2 = act_old->mynew;
       if (!(act_new2 == act_new || BLI_findindex(&ob_new->actuators, act_new2) >= 0)) {
-        act_new2 = NULL;
+        act_new2 = nullptr;
       }
     }
     else if (act_new && act_old->type != act_new->type) {
-      act_new2 = NULL;
+      act_new2 = nullptr;
     }
 
     BLI_ghash_insert(actuators_map, act_old, act_new2);
@@ -749,20 +756,20 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
     }
   }
 
-  for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-    if (controllers_map != NULL) {
-      for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
+  for (Object *ob = (Object *)bmain->objects.first; ob; ob = (Object *)ob->id.next) {
+    if (controllers_map != nullptr) {
+      for (bSensor *sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
         for (int a = 0; a < sens->totlinks; a++) {
           if (sens->links[a]) {
             bController *old_link = sens->links[a];
             bController **new_link_p = (bController **)BLI_ghash_lookup_p(controllers_map,
                                                                           old_link);
 
-            if (new_link_p == NULL) {
+            if (new_link_p == nullptr) {
               /* old_link is *not* in map's keys (i.e. not to any ob_old->controllers),
                * which means we ignore it totally here. */
             }
-            else if (*new_link_p == NULL) {
+            else if (*new_link_p == nullptr) {
               BKE_sca_unlink_logicbricks(
                   (void **)&old_link, (void ***)&(sens->links), &sens->totlinks);
               a--;
@@ -775,18 +782,18 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
       }
     }
 
-    if (actuators_map != NULL) {
-      for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
+    if (actuators_map != nullptr) {
+      for (bController *cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
         for (int a = 0; a < cont->totlinks; a++) {
           if (cont->links[a]) {
             bActuator *old_link = cont->links[a];
             bActuator **new_link_p = (bActuator **)BLI_ghash_lookup_p(actuators_map, old_link);
 
-            if (new_link_p == NULL) {
+            if (new_link_p == nullptr) {
               /* old_link is *not* in map's keys (i.e. not to any ob_old->actuators),
                * which means we ignore it totally here. */
             }
-            else if (*new_link_p == NULL) {
+            else if (*new_link_p == nullptr) {
               BKE_sca_unlink_logicbricks(
                   (void **)&old_link, (void ***)&(cont->links), &cont->totlinks);
               a--;
@@ -801,10 +808,10 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
   }
 
   if (controllers_map) {
-    BLI_ghash_free(controllers_map, NULL, NULL);
+    BLI_ghash_free(controllers_map, nullptr, nullptr);
   }
   if (actuators_map) {
-    BLI_ghash_free(actuators_map, NULL, NULL);
+    BLI_ghash_free(actuators_map, nullptr, nullptr);
   }
 }
 
@@ -818,7 +825,7 @@ void BKE_sca_copy_logicbricks(Object *ob_new, const Object *ob, const int flag)
   BKE_sca_copy_controllers(&ob_new->controllers, &ob->controllers, flag);
   BKE_sca_copy_actuators(&ob_new->actuators, &ob->actuators);
 
-  for (bSensor *sens = ob_new->sensors.first; sens; sens = sens->next) {
+  for (bSensor *sens = (bSensor *)ob_new->sensors.first; sens; sens = sens->next) {
     if (sens->flag & SENS_NEW) {
       for (int a = 0; a < sens->totlinks; a++) {
         if (sens->links[a] && sens->links[a]->mynew) {
@@ -828,7 +835,7 @@ void BKE_sca_copy_logicbricks(Object *ob_new, const Object *ob, const int flag)
     }
   }
 
-  for (bController *cont = ob_new->controllers.first; cont; cont = cont->next) {
+  for (bController *cont = (bController *)ob_new->controllers.first; cont; cont = cont->next) {
     if (cont->flag & CONT_NEW) {
       for (int a = 0; a < cont->totlinks; a++) {
         if (cont->links[a] && cont->links[a]->mynew) {
@@ -848,7 +855,7 @@ void BKE_sca_move_sensor(bSensor *sens_to_move, Object *ob, int move_up)
   val = move_up ? 1 : 2;
 
   /* make sure this sensor belongs to this object */
-  sens = ob->sensors.first;
+  sens = (bSensor *)ob->sensors.first;
   while (sens) {
     if (sens == sens_to_move)
       break;
@@ -889,7 +896,7 @@ void BKE_sca_move_controller(bController *cont_to_move, Object *ob, int move_up)
   val = move_up ? 1 : 2;
 
   /* make sure this controller belongs to this object */
-  cont = ob->controllers.first;
+  cont = (bController *)ob->controllers.first;
   while (cont) {
     if (cont == cont_to_move)
       break;
@@ -934,7 +941,7 @@ void BKE_sca_move_actuator(bActuator *act_to_move, Object *ob, int move_up)
   val = move_up ? 1 : 2;
 
   /* make sure this actuator belongs to this object */
-  act = ob->actuators.first;
+  act = (bActuator *)ob->actuators.first;
   while (act) {
     if (act == act_to_move)
       break;
@@ -971,7 +978,7 @@ void BKE_sca_move_actuator(bActuator *act_to_move, Object *ob, int move_up)
 
 void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size)
 {
-  void **old_links = NULL;
+  void **old_links = nullptr;
 
   int ibrick;
 
@@ -985,7 +992,7 @@ void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size
     old_links = *ppoin;
 
     (*tot)++;
-    *ppoin = MEM_callocN((*tot) * size, "new link");
+    *ppoin = *(void ***)MEM_callocN((*tot) * size, "new link");
 
     for (ibrick = 0; ibrick < *(tot)-1; ibrick++) {
       (*ppoin)[ibrick] = old_links[ibrick];
@@ -997,7 +1004,7 @@ void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size
   }
   else {
     (*tot) = 1;
-    *ppoin = MEM_callocN((*tot) * size, "new link");
+    *ppoin = *(void ***)MEM_callocN((*tot) * size, "new link");
     (*ppoin)[0] = *poin;
   }
 }
@@ -1019,7 +1026,7 @@ void BKE_sca_unlink_logicbricks(void **poin, void ***ppoin, short *tot)
 
     if (*tot == 0) {
       MEM_freeN(*ppoin);
-      (*ppoin) = NULL;
+      (*ppoin) = nullptr;
     }
     return;
   }
@@ -1029,18 +1036,18 @@ void BKE_sca_sensors_id_loop(ListBase *senslist, SCASensorIDFunc func, void *use
 {
   bSensor *sensor;
 
-  for (sensor = senslist->first; sensor; sensor = sensor->next) {
+  for (sensor = (bSensor *)senslist->first; sensor; sensor = sensor->next) {
     func(sensor, (ID **)&sensor->ob, userdata, IDWALK_CB_NOP);
 
     switch (sensor->type) {
       case SENS_TOUCH: /* DEPRECATED */
       {
-        bTouchSensor *ts = sensor->data;
+        bTouchSensor *ts = (bTouchSensor *)sensor->data;
         func(sensor, (ID **)&ts->ma, userdata, IDWALK_CB_NOP);
         break;
       }
       case SENS_MESSAGE: {
-        bMessageSensor *ms = sensor->data;
+        bMessageSensor *ms = (bMessageSensor *)sensor->data;
         func(sensor, (ID **)&ms->fromObject, userdata, IDWALK_CB_NOP);
         break;
       }
@@ -1068,10 +1075,10 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
 {
   bController *controller;
 
-  for (controller = contlist->first; controller; controller = controller->next) {
+  for (controller = (bController *)contlist->first; controller; controller = controller->next) {
     switch (controller->type) {
       case CONT_PYTHON: {
-        bPythonCont *pc = controller->data;
+        bPythonCont *pc = (bPythonCont *)controller->data;
         // if (strlen(pc->module)) {
         //  if (!pc->module_script) {
         //    char modulename[FILE_MAX];
@@ -1092,7 +1099,7 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
         //    read
         //      LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
         //        if (strcmp(text->id.name + 2, dest) == 0) {
-        //          if (text->filepath == NULL) {  // Means the script is embedded
+        //          if (text->filepath == nullptr) {  // Means the script is embedded
         //            pc->module_script = text;
         //          }
         //          break;
@@ -1123,7 +1130,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 {
   bActuator *actuator;
 
-  for (actuator = actlist->first; actuator; actuator = actuator->next) {
+  for (actuator = (bActuator *)actlist->first; actuator; actuator = actuator->next) {
     func(actuator, (ID **)&actuator->ob, userdata, IDWALK_CB_NOP);
 
     /*
@@ -1136,76 +1143,76 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
     switch (actuator->type) {
       case ACT_ADD_OBJECT: /* DEPRECATED */
       {
-        bAddObjectActuator *aoa = actuator->data;
+        bAddObjectActuator *aoa = (bAddObjectActuator *)actuator->data;
         func(actuator, (ID **)&aoa->ob, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_ACTION: {
-        bActionActuator *aa = actuator->data;
+        bActionActuator *aa = (bActionActuator *)actuator->data;
         func(actuator, (ID **)&aa->act, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SOUND: {
-        bSoundActuator *sa = actuator->data;
+        bSoundActuator *sa = (bSoundActuator *)actuator->data;
         func(actuator, (ID **)&sa->sound, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_EDIT_OBJECT: {
-        bEditObjectActuator *eoa = actuator->data;
+        bEditObjectActuator *eoa = (bEditObjectActuator *)actuator->data;
         func(actuator, (ID **)&eoa->ob, userdata, IDWALK_CB_NOP);
         func(actuator, (ID **)&eoa->me, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SCENE: {
-        bSceneActuator *sa = actuator->data;
+        bSceneActuator *sa = (bSceneActuator *)actuator->data;
         func(actuator, (ID **)&sa->scene, userdata, IDWALK_CB_NOP);
         func(actuator, (ID **)&sa->camera, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_COLLECTION: {
-        bCollectionActuator *ca = actuator->data;
+        bCollectionActuator *ca = (bCollectionActuator *)actuator->data;
         func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_USER);
         func(actuator, (ID **)&ca->camera, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_PROPERTY: {
-        bPropertyActuator *pa = actuator->data;
+        bPropertyActuator *pa = (bPropertyActuator *)actuator->data;
         func(actuator, (ID **)&pa->ob, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_OBJECT: {
-        bObjectActuator *oa = actuator->data;
+        bObjectActuator *oa = (bObjectActuator *)actuator->data;
         func(actuator, (ID **)&oa->reference, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_CAMERA: {
-        bCameraActuator *ca = actuator->data;
+        bCameraActuator *ca = (bCameraActuator *)actuator->data;
         func(actuator, (ID **)&ca->ob, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_MESSAGE: {
-        bMessageActuator *ma = actuator->data;
+        bMessageActuator *ma = (bMessageActuator *)actuator->data;
         func(actuator, (ID **)&ma->toObject, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_2DFILTER: {
-        bTwoDFilterActuator *tdfa = actuator->data;
+        bTwoDFilterActuator *tdfa = (bTwoDFilterActuator *)actuator->data;
         func(actuator, (ID **)&tdfa->text, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_PARENT: {
-        bParentActuator *pa = actuator->data;
+        bParentActuator *pa = (bParentActuator *)actuator->data;
         func(actuator, (ID **)&pa->ob, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_ARMATURE: {
-        bArmatureActuator *aa = actuator->data;
+        bArmatureActuator *aa = (bArmatureActuator *)actuator->data;
         func(actuator, (ID **)&aa->target, userdata, IDWALK_CB_NOP);
         func(actuator, (ID **)&aa->subtarget, userdata, IDWALK_CB_NOP);
         break;
       }
       case ACT_STEERING: {
-        bSteeringActuator *sa = actuator->data;
+        bSteeringActuator *sa = (bSteeringActuator *)actuator->data;
         func(actuator, (ID **)&sa->target, userdata, IDWALK_CB_NOP);
         func(actuator, (ID **)&sa->navmesh, userdata, IDWALK_CB_NOP);
         break;
@@ -1235,12 +1242,12 @@ const char *BKE_sca_get_name_state(Object *ob, short bit)
   unsigned int mask;
 
   mask = (1 << bit);
-  cont = ob->controllers.first;
+  cont = (bController *)ob->controllers.first;
   while (cont) {
     if (cont->state_mask & mask) {
       return cont->name;
     }
     cont = cont->next;
   }
-  return NULL;
+  return nullptr;
 }

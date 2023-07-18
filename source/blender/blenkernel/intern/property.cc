@@ -60,7 +60,7 @@ void BKE_bproperty_free_list(ListBase *lb)
 {
   bProperty *prop;
 
-  while ((prop = BLI_pophead(lb))) {
+  while ((prop = (bProperty *)BLI_pophead(lb))) {
     BKE_bproperty_free(prop);
   }
 }
@@ -69,7 +69,7 @@ bProperty *BKE_bproperty_copy(const bProperty *prop)
 {
   bProperty *propn;
 
-  propn = MEM_dupallocN(prop);
+  propn = (bProperty *)MEM_dupallocN(prop);
   if (prop->poin && prop->poin != &prop->data) {
     propn->poin = MEM_dupallocN(prop->poin);
   }
@@ -84,7 +84,7 @@ void BKE_bproperty_copy_list(ListBase *lbn, const ListBase *lbo)
 {
   bProperty *prop, *propn;
   BKE_bproperty_free_list(lbn); /* in case we are copying to an object with props */
-  prop = lbo->first;
+  prop = (bProperty *)lbo->first;
   while (prop) {
     propn = BKE_bproperty_copy(prop);
     BLI_addtail(lbn, propn);
@@ -98,7 +98,7 @@ void BKE_bproperty_init(bProperty *prop)
 
   if (prop->poin && prop->poin != &prop->data)
     MEM_freeN(prop->poin);
-  prop->poin = NULL;
+  prop->poin = nullptr;
 
   prop->data = 0;
 
@@ -119,7 +119,7 @@ bProperty *BKE_bproperty_new(int type)
 {
   bProperty *prop;
 
-  prop = MEM_callocN(sizeof(bProperty), "property");
+  prop = (bProperty *)MEM_callocN(sizeof(bProperty), "property");
   prop->type = type;
 
   BKE_bproperty_init(prop);
@@ -131,7 +131,7 @@ bProperty *BKE_bproperty_new(int type)
 
 bProperty *BKE_bproperty_object_get(Object *ob, const char *name)
 {
-  return BLI_findstring(&ob->prop, name, offsetof(bProperty, name));
+  return (bProperty *)BLI_findstring(&ob->prop, name, offsetof(bProperty, name));
 }
 
 void BKE_bproperty_object_set(Object *ob, bProperty *propc)
@@ -208,7 +208,7 @@ void BKE_bproperty_set(bProperty *prop, const char *str)
       *((float *)&prop->data) = (float)atof(str);
       break;
     case GPROP_STRING:
-      strcpy(prop->poin, str); /* TODO - check size? */
+      strcpy((char *)prop->poin, str); /* TODO - check size? */
       break;
   }
 }
@@ -237,7 +237,7 @@ void BKE_bproperty_set_valstr(bProperty *prop, char str[MAX_PROPSTRING])
 {
   //	extern int Gdfra;		/* sector.c */
 
-  if (str == NULL)
+  if (str == nullptr)
     return;
 
   switch (prop->type) {
@@ -250,7 +250,7 @@ void BKE_bproperty_set_valstr(bProperty *prop, char str[MAX_PROPSTRING])
       sprintf(str, "%f", *((float *)&prop->data));
       break;
     case GPROP_STRING:
-      BLI_strncpy(str, prop->poin, MAX_PROPSTRING);
+      BLI_strncpy(str, (const char *)prop->poin, MAX_PROPSTRING);
       break;
   }
 }
