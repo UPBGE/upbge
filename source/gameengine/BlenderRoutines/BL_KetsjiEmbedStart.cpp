@@ -207,6 +207,14 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   int shadingTypeRuntime = GetShadingTypeRuntime(C, useViewportRender);
   int shadingTypeBackup = CTX_wm_view3d(C)->shading.type;
 
+  /* Global Undo behaviour change since ebb5643e598a17b2f21b4e50acac35afe82dbd55
+   * We now need to backup v3d->camera and restore it manually at ge exit as
+   * v3d->camera can be changed during bge pipeline (RenderAfterCameraSetup) */
+  Object *backup_cam = nullptr;
+  if (CTX_wm_view3d(C)->camera != nullptr) {
+    backup_cam = CTX_wm_view3d(C)->camera;
+  }
+
   do {
     // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
     if (exitrequested == KX_ExitRequest::START_OTHER_GAME ||
@@ -406,6 +414,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   /* Restore shading type we had before game start */
   CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
+
+  /* Restore saved v3d->camera before bge start */
+  CTX_wm_view3d(C)->camera = backup_cam;
 
   /* Undo System */
   if (startscene->gm.flag & GAME_USE_UNDO) {
