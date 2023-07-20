@@ -593,7 +593,7 @@ bool screen_area_close(bContext *C, bScreen *screen, ScrArea *area)
   return screen_area_join_ex(C, screen, sa2, area, true);
 }
 
-void screen_area_spacelink_add(Scene *scene, ScrArea *area, eSpace_Type space_type)
+void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type)
 {
   SpaceType *stype = BKE_spacetype_from_id(space_type);
   SpaceLink *slink = stype->create(area, scene);
@@ -1631,10 +1631,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 
 ScrArea *ED_screen_temp_space_open(bContext *C,
                                    const char *title,
-                                   int x,
-                                   int y,
-                                   int sizex,
-                                   int sizey,
+                                   const rcti *rect_unscaled,
                                    eSpace_Type space_type,
                                    int display_type,
                                    bool dialog)
@@ -1645,15 +1642,14 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
     case USER_TEMP_SPACE_DISPLAY_WINDOW:
       if (WM_window_open(C,
                          title,
-                         x,
-                         y,
-                         sizex,
-                         sizey,
+                         rect_unscaled,
                          int(space_type),
                          false,
                          dialog,
                          true,
-                         WIN_ALIGN_LOCATION_CENTER))
+                         WIN_ALIGN_LOCATION_CENTER,
+                         nullptr,
+                         nullptr))
       {
         area = CTX_wm_area(C);
       }

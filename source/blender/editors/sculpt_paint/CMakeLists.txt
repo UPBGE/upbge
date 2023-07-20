@@ -16,7 +16,6 @@ set(INC
   ../../makesrna
   ../../nodes
   ../../render
-  ../../windowmanager
   ../../../../intern/clog
   ../../../../intern/eigen
   # RNA_prototypes.h
@@ -39,6 +38,7 @@ set(SRC
   curves_sculpt_smooth.cc
   curves_sculpt_snake_hook.cc
   grease_pencil_draw_ops.cc
+  grease_pencil_erase.cc
   grease_pencil_paint.cc
   paint_canvas.cc
   paint_cursor.cc
@@ -97,6 +97,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_TBB)

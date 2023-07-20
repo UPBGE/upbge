@@ -33,8 +33,6 @@ from typing import (
 # List of (source_file, all_arguments)
 ProcessedCommands = List[Tuple[str, str]]
 
-USE_MULTIPROCESS = True
-
 VERBOSE = False
 
 # Print the output of the compiler (_very_ noisy, only useful for troubleshooting compiler issues).
@@ -1339,6 +1337,27 @@ def edit_docstring_from_id(name: str) -> str:
     return dedent(result or '').strip('\n') + '\n'
 
 
+def edit_group_compatible(edits: Sequence[str]) -> Sequence[Sequence[str]]:
+    """
+    Group compatible edits, so it's possible for a single process to iterate on many edits for a single file.
+    """
+    edits_grouped = []
+
+    edit_generator_class_prev = None
+    for edit in edits:
+        edit_generator_class = edit_class_from_id(edit)
+        if edit_generator_class_prev is None or (
+                edit_generator_class.setup != edit_generator_class_prev.setup and
+                edit_generator_class.teardown != edit_generator_class_prev.teardown
+        ):
+            # Create a new group.
+            edits_grouped.append([edit])
+        else:
+            edits_grouped[-1].append(edit)
+        edit_generator_class_prev = edit_generator_class
+    return edits_grouped
+
+
 # -----------------------------------------------------------------------------
 # Accept / Reject Edits
 
@@ -1360,14 +1379,14 @@ def apply_edit(data: str, text_to_replace: str, start: int, end: int, *, verbose
     return data
 
 
-def wash_source_with_edits(
+def wash_source_with_edit(
         source: str,
         output: str,
         build_args: Sequence[str],
         build_cwd: Optional[str],
-        edit_to_apply: str,
         skip_test: bool,
         shared_edit_data: Any,
+        edit_to_apply: str,
 ) -> None:
     # build_args = build_args + " -Werror=duplicate-decl-specifier"
     with open(source, 'r', encoding='utf-8') as fh:
@@ -1465,6 +1484,19 @@ def wash_source_with_edits(
                 pass
 
 
+def wash_source_with_edit_list(
+        source: str,
+        output: str,
+        build_args: Sequence[str],
+        build_cwd: Optional[str],
+        skip_test: bool,
+        shared_edit_data: Any,
+        edit_list: Sequence[str],
+) -> None:
+    for edit_to_apply in edit_list:
+        wash_source_with_edit(source, output, build_args, build_cwd, skip_test, shared_edit_data, edit_to_apply)
+
+
 # -----------------------------------------------------------------------------
 # Edit Source Code From Args
 
@@ -1472,8 +1504,11 @@ def run_edits_on_directory(
         build_dir: str,
         regex_list: List[re.Pattern[str]],
         edits_to_apply: Sequence[str],
-        skip_test: bool = False,
+        skip_test: bool,
+        jobs: int,
 ) -> int:
+    import multiprocessing
+
     # currently only supports ninja or makefiles
     build_file_ninja = os.path.join(build_dir, "build.ninja")
     build_file_make = os.path.join(build_dir, "Makefile")
@@ -1489,6 +1524,9 @@ def run_edits_on_directory(
             (build_file_ninja, build_file_make)
         )
         return 1
+
+    if jobs <= 0:
+        jobs = multiprocessing.cpu_count() * 2
 
     if args is None:
         # Error will have been reported.
@@ -1559,39 +1597,45 @@ def run_edits_on_directory(
         print(" ", c)
     del args_orig_len
 
-    for i, edit_to_apply in enumerate(edits_to_apply):
-        print("Applying edit:", edit_to_apply, "({:d} of {:d})".format(i + 1, len(edits_to_apply)))
-        edit_generator_class = edit_class_from_id(edit_to_apply)
+    if jobs > 1:
+        # Group edits to avoid one file holding up the queue before other edits can be worked on.
+        # Custom setup/tear-down functions still block though.
+        edits_to_apply_grouped = edit_group_compatible(edits_to_apply)
+    else:
+        # No significant advantage in grouping, split each into a group of one for simpler debugging/execution.
+        edits_to_apply_grouped = [[edit] for edit in edits_to_apply]
+
+    for i, edits_group in enumerate(edits_to_apply_grouped):
+        print("Applying edit:", edits_group, "({:d} of {:d})".format(i + 1, len(edits_to_apply_grouped)))
+        edit_generator_class = edit_class_from_id(edits_group[0])
 
         shared_edit_data = edit_generator_class.setup()
 
         try:
-            if USE_MULTIPROCESS:
+            if jobs > 1:
                 args_expanded = [(
                     c,
                     output_from_build_args(build_args, build_cwd),
                     build_args,
                     build_cwd,
-                    edit_to_apply,
                     skip_test,
                     shared_edit_data,
+                    edits_group,
                 ) for (c, build_args, build_cwd) in args_with_cwd]
-                import multiprocessing
-                job_total = multiprocessing.cpu_count()
-                pool = multiprocessing.Pool(processes=job_total * 2)
-                pool.starmap(wash_source_with_edits, args_expanded)
+                pool = multiprocessing.Pool(processes=jobs)
+                pool.starmap(wash_source_with_edit_list, args_expanded)
                 del args_expanded
             else:
                 # now we have commands
                 for c, build_args, build_cwd in args_with_cwd:
-                    wash_source_with_edits(
+                    wash_source_with_edit_list(
                         c,
                         output_from_build_args(build_args, build_cwd),
                         build_args,
                         build_cwd,
-                        edit_to_apply,
                         skip_test,
                         shared_edit_data,
+                        edits_group,
                     )
         except Exception as ex:
             raise ex
@@ -1603,7 +1647,7 @@ def run_edits_on_directory(
 
 
 def create_parser(edits_all: Sequence[str]) -> argparse.ArgumentParser:
-    from textwrap import indent, dedent
+    from textwrap import indent
 
     # Create docstring for edits.
     edits_all_docs = []
@@ -1651,6 +1695,17 @@ def create_parser(edits_all: Sequence[str]) -> argparse.ArgumentParser:
         ),
         required=False,
     )
+    parser.add_argument(
+        "--jobs",
+        dest="jobs",
+        type=int,
+        default=0,
+        help=(
+            "The number of processes to use. "
+            "Defaults to zero which detects the available cores, 1 is single threaded (useful for debugging)."
+        ),
+        required=False,
+    )
 
     return parser
 
@@ -1683,7 +1738,13 @@ def main() -> int:
             ))
             return 1
 
-    return run_edits_on_directory(build_dir, regex_list, edits_all_from_args, args.skip_test)
+    return run_edits_on_directory(
+        build_dir,
+        regex_list,
+        edits_all_from_args,
+        args.skip_test,
+        args.jobs,
+    )
 
 
 if __name__ == "__main__":
