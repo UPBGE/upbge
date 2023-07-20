@@ -125,7 +125,7 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
           if (sbuts->pinid == nullptr) {
             sbuts->flag &= ~SB_PIN_CONTEXT;
           }
-          /* Note: Restoring path pointers is complicated, if not impossible, because this contains
+          /* NOTE: Restoring path pointers is complicated, if not impossible, because this contains
            * data pointers too, not just ID ones. See #40046. */
           MEM_SAFE_FREE(sbuts->path);
         }
@@ -1343,7 +1343,7 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
         BLO_read_data_address(reader, &rv3d->localvd);
         BLO_read_data_address(reader, &rv3d->clipbb);
 
-        rv3d->render_engine = nullptr;
+        rv3d->view_render = nullptr;
         rv3d->sms = nullptr;
         rv3d->smooth_timer = nullptr;
 

@@ -95,7 +95,7 @@ void main()
   }
   else {
     vec3 world_radiance = irradiance_sky_sample(-sky_L);
-    irradiance_capture(sky_L, world_radiance, sh);
+    irradiance_capture(-sky_L, world_radiance, sh);
   }
 
   if (surfel_prev > -1) {
@@ -104,7 +104,7 @@ void main()
   }
   else {
     vec3 world_radiance = irradiance_sky_sample(sky_L);
-    irradiance_capture(-sky_L, world_radiance, sh);
+    irradiance_capture(sky_L, world_radiance, sh);
   }
 
   /* Normalize for storage. We accumulated 2 samples. */
