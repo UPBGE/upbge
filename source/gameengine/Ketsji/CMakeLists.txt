@@ -40,7 +40,6 @@ set(INC
   ../VideoTexture
   ../../blender
   ../../blender/blenfont
-  ../../blender/blenlib
   ../../blender/blenloader
   ../../blender/blentranslation
   ../../blender/bmesh
@@ -58,7 +57,6 @@ set(INC
   ../../blender/python/intern
   ../../blender/render/
   ../../blender/render/intern/
-  ../../blender/windowmanager
   ../../../intern/clog
   ../../../intern/ghost
 )
@@ -184,8 +182,10 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
   ge_converter
   ge_logic_bricks
   ge_scenegraph

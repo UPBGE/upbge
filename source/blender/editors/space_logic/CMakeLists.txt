@@ -21,15 +21,10 @@
 set(INC
   ../include
   ../interface
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
   ../../blentranslation
   ../../gpu
-  ../../makesdna
   ../../makesrna
-  ../../windowmanager
-  ../../../../intern/guardedalloc
 
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
@@ -48,6 +43,14 @@ set(SRC
   space_logic.cc
 
   logic_intern.hh
+)
+
+set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_GAMEENGINE)

@@ -42,8 +42,6 @@ set(INC
   ../../blender
   ../../blender/asset_system
   ../../blender/blenfont
-  ../../blender/blenkernel
-  ../../blender/blenlib
   ../../blender/blenloader
   ../../blender/blentranslation
   ../../blender/bmesh
@@ -57,7 +55,6 @@ set(INC
   ../../blender/python
   ../../blender/render
   ../../blender/sequencer
-  ../../blender/windowmanager
   ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
   ../../../intern/clog
@@ -81,8 +78,11 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 add_definitions(${GL_DEFINITIONS})

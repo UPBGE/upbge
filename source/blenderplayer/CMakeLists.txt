@@ -29,7 +29,7 @@ list(APPEND LIB
   ge_player
   bf_asset_system
   bf_intern_guardedalloc
-  bf_blenlib
+  PRIVATE bf::blenlib
   bf_intern_memutil
   bf_dna_blenlib
   bf_blenloader

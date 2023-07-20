@@ -35,8 +35,6 @@ set(INC
   # >>>
   ../../SceneGraph
   ../../../blender/blenfont
-  ../../../blender/blenkernel
-  ../../../blender/blenlib
   ../../../blender/blentranslation
   ../../../blender/bmesh
   ../../../blender/depsgraph
@@ -63,6 +61,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

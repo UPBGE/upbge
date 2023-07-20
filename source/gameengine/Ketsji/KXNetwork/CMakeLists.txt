@@ -30,7 +30,6 @@ set(INC
   ../../Expressions
   ../../GameLogic
   ../../SceneGraph
-  ../../../blender/blenlib
 )
 
 set(INC_SYS
@@ -46,6 +45,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
 )
 
 blender_add_lib(ge_msg_network "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

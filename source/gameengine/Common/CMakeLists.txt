@@ -29,7 +29,6 @@ set(INC
   ../GameLogic
   ../Ketsji
   ../SceneGraph
-  ../../blender/blenlib
   ../../blender/python/generic
   ../../../intern/termcolor
 )
@@ -54,6 +53,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
   PRIVATE bf::intern::guardedalloc
 )
 

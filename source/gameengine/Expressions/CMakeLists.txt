@@ -27,7 +27,6 @@ set(INC
   .
   ../Common
   ../SceneGraph
-  ../../blender/blenlib
   ../../../intern/termcolor
 )
 
@@ -76,6 +75,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
   PRIVATE bf::intern::guardedalloc
 )
 

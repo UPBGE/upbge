@@ -42,8 +42,6 @@ set(INC
   ../../Ketsji
   ../../Rasterizer
   ../../SceneGraph
-  ../../../blender/blenkernel
-  ../../../blender/blenlib
   ../../../blender/depsgraph
   ../../../blender/makesrna
 )
@@ -67,6 +65,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

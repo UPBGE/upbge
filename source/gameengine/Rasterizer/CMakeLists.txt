@@ -33,8 +33,6 @@ set(INC
   ../SceneGraph
   ../GameLogic
   ../../blender/blenfont
-  ../../blender/blenlib
-  ../../blender/blenkernel
   ../../blender/blentranslation
   ../../blender/bmesh
   ../../blender/depsgraph
@@ -111,6 +109,8 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   bf_intern_moto

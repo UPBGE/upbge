@@ -4,7 +4,6 @@
 set(INC
   .
   ../Common
-  ../../blender/blenlib
 )
 
 set(INC_SYS
@@ -31,6 +30,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
   ge_common
 )
 

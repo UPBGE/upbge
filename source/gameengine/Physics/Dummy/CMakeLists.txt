@@ -26,7 +26,6 @@
 set(INC
   .
   ../Common
-  ../../../blender/blenlib
 )
 
 set(INC_SYS
@@ -40,6 +39,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
 )
 
 blender_add_lib(ge_physics_dummy "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
