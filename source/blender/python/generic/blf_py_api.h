@@ -8,10 +8,6 @@
  * \ingroup pygen
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <Python.h>
 
 #ifdef __cplusplus

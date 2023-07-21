@@ -57,4 +57,10 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
 )
 
+if(MSVC)
+	add_definitions(
+		/DNOMINMAX
+	)
+endif()
+
 blender_add_lib(ge_common "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

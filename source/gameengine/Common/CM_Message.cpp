@@ -34,9 +34,7 @@
 #ifdef WITH_PYTHON
 
 #  include "EXP_Python.h"
-extern "C" {
 #  include "py_capi_utils.h"  // for PyC_FileAndNum only
-}
 
 #endif  // WITH_PYTHON
 

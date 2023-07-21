@@ -276,8 +276,6 @@ static uiBlock *wm_block_create_about(bContext *C, ARegion *region, void * /*arg
 
 /* Blender logo. */
 #ifndef WITH_HEADLESS
-  extern char datatoc_upbge_logo_png[];
-  extern int datatoc_upbge_logo_png_size;
 
   const uchar *blender_logo_data = (const uchar *)datatoc_upbge_logo_png;
   size_t blender_logo_data_size = datatoc_upbge_logo_png_size;
