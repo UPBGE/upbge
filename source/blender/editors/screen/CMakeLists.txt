@@ -4,11 +4,8 @@
 
 set(INC
   ../include
-  ../../blenfont
   ../../blenloader
-  ../../blentranslation
   ../../bmesh
-  ../../depsgraph
   ../../gpu
   ../../imbuf
   ../../makesrna
@@ -40,8 +37,11 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_datafiles
   bf_editor_space_sequencer

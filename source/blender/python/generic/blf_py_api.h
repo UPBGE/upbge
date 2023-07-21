@@ -14,6 +14,10 @@ extern "C" {
 
 #include <Python.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 PyObject *BPyInit_blf(void);
 
 #ifdef __cplusplus

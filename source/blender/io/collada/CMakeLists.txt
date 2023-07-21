@@ -21,8 +21,6 @@ unset(OPENCOLLADA_ANIMATION_CLIP CACHE)
 
 set(INC
   .
-  ../../blentranslation
-  ../../depsgraph
   ../../editors/include
   ../../imbuf
   ../../makesrna
@@ -114,6 +112,8 @@ set(LIB
   ${XML2_LIBRARIES}
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
