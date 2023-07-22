@@ -40,7 +40,6 @@ set(INC
   ../VideoTexture
   ../../blender
   ../../blender/blenloader
-  ../../blender/bmesh
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee
@@ -181,6 +180,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
   PRIVATE bf::depsgraph
   PRIVATE bf::intern::clog

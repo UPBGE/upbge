@@ -42,7 +42,6 @@ set(INC
   ../../blender
   ../../blender/asset_system
   ../../blender/blenloader
-  ../../blender/bmesh
   ../../blender/draw
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
@@ -78,6 +77,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::clog

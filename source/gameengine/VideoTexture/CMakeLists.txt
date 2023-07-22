@@ -12,7 +12,6 @@ set(INC
   ../Rasterizer
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
-  ../../blender/bmesh
   ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
@@ -82,6 +81,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   ge_scenegraph

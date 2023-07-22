@@ -32,7 +32,6 @@ set(INC
   ../Physics/Common
   ../SceneGraph
   ../GameLogic
-  ../../blender/bmesh
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee/
@@ -110,6 +109,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
