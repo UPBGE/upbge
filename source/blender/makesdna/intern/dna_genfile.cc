@@ -12,10 +12,10 @@
  * SDNA and the SDNA of the current (running) version of Blender.
  */
 
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h" /* for MEM_freeN MEM_mallocN MEM_callocN */
 
@@ -860,7 +860,7 @@ static bool elem_streq(const char *name, const char *oname)
 {
   int a = 0;
 
-  while (1) {
+  while (true) {
     if (name[a] != oname[a]) {
       return false;
     }

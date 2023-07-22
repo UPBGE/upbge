@@ -48,7 +48,7 @@
 /** \name GPUOffScreen Common Utilities
  * \{ */
 
-static const struct PyC_StringEnumItems pygpu_framebuffer_color_texture_formats[] = {
+static const PyC_StringEnumItems pygpu_framebuffer_color_texture_formats[] = {
     {GPU_RGBA8, "RGBA8"},
     {GPU_RGBA16, "RGBA16"},
     {GPU_RGBA16F, "RGBA16F"},
@@ -138,11 +138,20 @@ static PyObject *pygpu_offscreen_stack_context_exit(OffScreenStackContext *self,
   Py_RETURN_NONE;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_offscreen_stack_context__tp_methods[] = {
     {"__enter__", (PyCFunction)pygpu_offscreen_stack_context_enter, METH_NOARGS},
     {"__exit__", (PyCFunction)pygpu_offscreen_stack_context_exit, METH_VARARGS},
     {nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static PyTypeObject PyGPUOffscreenStackContext_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
@@ -256,7 +265,7 @@ static PyObject *pygpu_offscreen__tp_new(PyTypeObject * /*self*/, PyObject *args
 {
   GPUOffScreen *ofs = nullptr;
   int width, height;
-  struct PyC_StringEnum pygpu_textureformat = {pygpu_framebuffer_color_texture_formats, GPU_RGBA8};
+  PyC_StringEnum pygpu_textureformat = {pygpu_framebuffer_color_texture_formats, GPU_RGBA8};
   char err_out[256];
 
   static const char *_keywords[] = {"width", "height", "format", nullptr};
@@ -359,7 +368,7 @@ static PyObject *pygpu_offscreen_draw_view3d(BPyGPUOffScreen *self, PyObject *ar
   MatrixObject *py_mat_view, *py_mat_projection;
   PyObject *py_scene, *py_view_layer, *py_region, *py_view3d;
 
-  struct Depsgraph *depsgraph;
+  Depsgraph *depsgraph;
   Scene *scene;
   ViewLayer *view_layer;
   View3D *v3d;
@@ -521,6 +530,11 @@ static PyGetSetDef pygpu_offscreen__tp_getseters[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_offscreen__tp_methods[] = {
     {"bind", (PyCFunction)pygpu_offscreen_bind, METH_NOARGS, pygpu_offscreen_bind_doc},
     {"unbind",
@@ -536,6 +550,10 @@ static PyMethodDef pygpu_offscreen__tp_methods[] = {
 #endif
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 PyDoc_STRVAR(pygpu_offscreen__tp_doc,
              ".. class:: GPUOffScreen(width, height, *, format='RGBA8')\n"

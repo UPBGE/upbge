@@ -64,12 +64,12 @@ static PyObject *idprop_py_from_idp_string(const IDProperty *prop)
 
 static PyObject *idprop_py_from_idp_int(const IDProperty *prop)
 {
-  return PyLong_FromLong((long)IDP_Int(prop));
+  return PyLong_FromLong(long(IDP_Int(prop)));
 }
 
 static PyObject *idprop_py_from_idp_float(const IDProperty *prop)
 {
-  return PyFloat_FromDouble((double)IDP_Float(prop));
+  return PyFloat_FromDouble(double(IDP_Float(prop)));
 }
 
 static PyObject *idprop_py_from_idp_double(const IDProperty *prop)
@@ -437,7 +437,7 @@ static IDProperty *idp_from_PyUnicode(const char *name, PyObject *ob)
   Py_ssize_t value_len;
   PyObject *value_coerce = nullptr;
   val.string.str = PyC_UnicodeAsBytesAndSize(ob, &value_len, &value_coerce);
-  val.string.len = (int)value_len + 1;
+  val.string.len = int(value_len) + 1;
   val.string.subtype = IDP_STRING_SUB_UTF8;
   prop = IDP_New(IDP_STRING, &val, name);
   Py_XDECREF(value_coerce);
@@ -525,7 +525,7 @@ static IDProperty *idp_from_PySequence_Fast(const char *name, PyObject *ob)
 
   ob_seq_fast_items = PySequence_Fast_ITEMS(ob);
 
-  if ((val.array.type = idp_sequence_type(ob)) == (char)-1) {
+  if ((val.array.type = idp_sequence_type(ob)) == char(-1)) {
     PyErr_SetString(PyExc_TypeError,
                     "only floats, ints and dicts are allowed in ID property arrays");
     return nullptr;
@@ -1043,7 +1043,7 @@ PyTypeObject BPy_IDGroup_IterValues_Type = {PyVarObject_HEAD_INIT(nullptr, 0)};
 PyTypeObject BPy_IDGroup_IterItems_Type = {PyVarObject_HEAD_INIT(nullptr, 0)};
 
 /* ID Property Group Iterator. */
-static void IDGroup_Iter_init_type(void)
+static void IDGroup_Iter_init_type()
 {
 #define SHARED_MEMBER_SET(member, value) \
   { \
@@ -1280,7 +1280,7 @@ PyTypeObject BPy_IDGroup_ViewValues_Type = {PyVarObject_HEAD_INIT(nullptr, 0)};
 PyTypeObject BPy_IDGroup_ViewItems_Type = {PyVarObject_HEAD_INIT(nullptr, 0)};
 
 /* ID Property Group View. */
-static void IDGroup_View_init_type(void)
+static void IDGroup_View_init_type()
 {
   PyTypeObject *k_ty = &BPy_IDGroup_ViewKeys_Type;
   PyTypeObject *v_ty = &BPy_IDGroup_ViewValues_Type;
@@ -1603,6 +1603,11 @@ static PyObject *BPy_IDGroup_get(BPy_IDProperty *self, PyObject *args)
   return def;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef BPy_IDGroup_methods[] = {
     {"pop", (PyCFunction)BPy_IDGroup_pop, METH_VARARGS, BPy_IDGroup_pop_doc},
     {"keys", (PyCFunction)BPy_IDGroup_keys, METH_NOARGS, BPy_IDGroup_keys_doc},
@@ -1614,6 +1619,10 @@ static PyMethodDef BPy_IDGroup_methods[] = {
     {"clear", (PyCFunction)BPy_IDGroup_clear, METH_NOARGS, BPy_IDGroup_clear_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 /** \} */
 
@@ -1728,7 +1737,7 @@ static PyObject *BPy_IDArray_repr(BPy_IDArray *self)
 
 PyDoc_STRVAR(BPy_IDArray_get_typecode_doc,
              "The type of the data in the array {'f': float, 'd': double, 'i': int, 'b': bool}.");
-static PyObject *BPy_IDArray_get_typecode(BPy_IDArray *self)
+static PyObject *BPy_IDArray_get_typecode(BPy_IDArray *self, void * /*closure*/)
 {
   switch (self->prop->subtype) {
     case IDP_FLOAT:
@@ -1766,10 +1775,19 @@ static PyObject *BPy_IDArray_to_list(BPy_IDArray *self)
   return BPy_IDGroup_MapDataToPy(self->prop);
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef BPy_IDArray_methods[] = {
     {"to_list", (PyCFunction)BPy_IDArray_to_list, METH_NOARGS, BPy_IDArray_to_list_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static Py_ssize_t BPy_IDArray_Len(BPy_IDArray *self)
 {
@@ -1809,7 +1827,7 @@ static int BPy_IDArray_SetItem(BPy_IDArray *self, Py_ssize_t index, PyObject *va
 
   switch (self->prop->subtype) {
     case IDP_FLOAT: {
-      const float f = (float)PyFloat_AsDouble(value);
+      const float f = float(PyFloat_AsDouble(value));
       if (f == -1 && PyErr_Occurred()) {
         return -1;
       }
@@ -1900,7 +1918,7 @@ static PyObject *BPy_IDArray_slice(BPy_IDArray *self, int begin, int end)
     case IDP_BOOLEAN: {
       const int8_t *array = (const int8_t *)IDP_Array(prop);
       for (count = begin; count < end; count++) {
-        PyTuple_SET_ITEM(tuple, count - begin, PyBool_FromLong((long)array[count]));
+        PyTuple_SET_ITEM(tuple, count - begin, PyBool_FromLong(long(array[count])));
       }
       break;
     }
@@ -2127,7 +2145,7 @@ PyTypeObject BPy_IDArray_Type = {
 /** \name Initialize Types
  * \{ */
 
-void IDProp_Init_Types(void)
+void IDProp_Init_Types()
 {
   IDGroup_Iter_init_type();
   IDGroup_View_init_type();
@@ -2198,7 +2216,7 @@ static PyModuleDef IDProp_types_module_def = {
     /*m_free*/ nullptr,
 };
 
-static PyObject *BPyInit_idprop_types(void)
+static PyObject *BPyInit_idprop_types()
 {
   PyObject *submodule;
 
@@ -2247,7 +2265,7 @@ static PyModuleDef IDProp_module_def = {
     /*m_free*/ nullptr,
 };
 
-PyObject *BPyInit_idprop(void)
+PyObject *BPyInit_idprop()
 {
   PyObject *mod;
   PyObject *submodule;

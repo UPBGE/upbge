@@ -639,7 +639,7 @@ static PyObject *bpy_bm_utils_face_join(PyObject * /*self*/, PyObject *args)
 
   /* Go ahead and join the face!
    * --------------------------- */
-  f_new = BM_faces_join(bm, face_array, (int)face_seq_len, do_remove);
+  f_new = BM_faces_join(bm, face_array, int(face_seq_len), do_remove);
 
   PyMem_FREE(face_array);
 
@@ -763,6 +763,11 @@ static PyObject *bpy_bm_utils_loop_separate(PyObject * /*self*/, BPy_BMLoop *val
   Py_RETURN_NONE;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef BPy_BM_utils_methods[] = {
     {"vert_collapse_edge",
      (PyCFunction)bpy_bm_utils_vert_collapse_edge,
@@ -813,6 +818,10 @@ static PyMethodDef BPy_BM_utils_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
+
 PyDoc_STRVAR(BPy_BM_utils_doc, "This module provides access to blenders bmesh data structures.");
 static PyModuleDef BPy_BM_utils_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
@@ -826,7 +835,7 @@ static PyModuleDef BPy_BM_utils_module_def = {
     /*m_free*/ nullptr,
 };
 
-PyObject *BPyInit_bmesh_utils(void)
+PyObject *BPyInit_bmesh_utils()
 {
   PyObject *submodule;
 

@@ -124,7 +124,7 @@ static bool pygpu_vertbuf_fill_impl(GPUVertBuf *vbo,
       return false;
     }
 
-    const uint comp_len = pybuffer.ndim == 1 ? 1 : (uint)pybuffer.shape[1];
+    const uint comp_len = pybuffer.ndim == 1 ? 1 : uint(pybuffer.shape[1]);
 
     if (pybuffer.shape[0] != vert_len) {
       PyErr_Format(
@@ -217,7 +217,7 @@ static int pygpu_vertbuf_fill(GPUVertBuf *buf,
     return 0;
   }
 
-  if (!pygpu_vertbuf_fill_impl(buf, (uint)id, py_seq_data, error_prefix)) {
+  if (!pygpu_vertbuf_fill_impl(buf, uint(id), py_seq_data, error_prefix)) {
     return 0;
   }
 
@@ -311,6 +311,11 @@ static PyObject *pygpu_vertbuf_attr_fill(BPyGPUVertBuf *self, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_vertbuf__tp_methods[] = {
     {"attr_fill",
      (PyCFunction)pygpu_vertbuf_attr_fill,
@@ -318,6 +323,10 @@ static PyMethodDef pygpu_vertbuf__tp_methods[] = {
      pygpu_vertbuf_attr_fill_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static void pygpu_vertbuf__tp_dealloc(BPyGPUVertBuf *self)
 {

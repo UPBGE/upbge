@@ -6,14 +6,14 @@
  * \ingroup RNA
  */
 
-#include <errno.h>
-#include <float.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cerrno>
+#include <cfloat>
+#include <cinttypes>
+#include <climits>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -177,7 +177,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
    *
    * This is only an issue for `Unix Makefiles`, `Ninja` generator doesn't have this problem. */
 
-  if (1) {
+  if (true) {
     /* First check if `makesrna.cc` is newer than generated files.
      * For development on `makesrna.cc` you may want to disable this. */
     if (file_older(orgfile, makesrna_source_filepath)) {
@@ -196,7 +196,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
         /* Only the directory (base-name). */
         SNPRINTF(from_path,
                  "%.*s%s",
-                 (int)(makesrna_source_filename - makesrna_source_filepath),
+                 int(makesrna_source_filename - makesrna_source_filepath),
                  makesrna_source_filepath,
                  dep_files[pass]);
         /* Account for build dependencies, if `makesrna.cc` (this file) is newer. */
@@ -634,7 +634,7 @@ static void rna_float_print(FILE *f, float num)
   else if (num == FLT_MAX) {
     fprintf(f, "FLT_MAX");
   }
-  else if ((fabsf(num) < (float)INT64_MAX) && ((int64_t)num == num)) {
+  else if ((fabsf(num) < float(INT64_MAX)) && (int64_t(num) == num)) {
     fprintf(f, "%.1ff", num);
   }
   else {
@@ -674,7 +674,7 @@ static void rna_int_print(FILE *f, int64_t num)
     fprintf(f, "%" PRId64 "LL", num);
   }
   else {
-    fprintf(f, "%d", (int)num);
+    fprintf(f, "%d", int(num));
   }
 }
 
@@ -3291,7 +3291,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   dfunc->gencall = funcname;
 }
 
-static void rna_auto_types(void)
+static void rna_auto_types()
 {
   StructDefRNA *ds;
   PropertyDefRNA *dp;
@@ -3912,7 +3912,7 @@ static void rna_generate_struct_prototypes(FILE *f)
 static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, PropertyRNA *prop)
 {
   char *strnest = (char *)"", *errnest = (char *)"";
-  bool freenest = 0;
+  bool freenest = false;
 
   if (nest != nullptr) {
     int len = strlen(nest);
@@ -3928,7 +3928,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     errnest[0] = '.';
     memcpy(errnest + 1, nest, len + 1);
 
-    freenest = 1;
+    freenest = true;
   }
 
   switch (prop->type) {
@@ -4290,7 +4290,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
       fprintf(f, ", ");
       rna_float_print(f, fprop->step);
       fprintf(f, ", ");
-      rna_int_print(f, (int)fprop->precision);
+      rna_int_print(f, int(fprop->precision));
       fprintf(f, ", ");
       rna_float_print(f, fprop->defaultvalue);
       fprintf(f, ", ");
@@ -4313,7 +4313,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(sprop->length_ex),
               rna_function_string(sprop->set_ex),
               rna_function_string(sprop->search),
-              (int)sprop->search_flag,
+              int(sprop->search_flag),
               sprop->maxlength);
       rna_print_c_string(f, sprop->defaultvalue);
       fprintf(f, "\n");

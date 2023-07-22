@@ -6,9 +6,9 @@
  * \ingroup edanimation
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -2532,7 +2532,7 @@ static void ANIM_OT_channels_expand(wmOperatorType *ot)
 
   /* props */
   ot->prop = RNA_def_boolean(
-      ot->srna, "all", 1, "All", "Expand all channels (not just selected ones)");
+      ot->srna, "all", true, "All", "Expand all channels (not just selected ones)");
 }
 
 /** \} */

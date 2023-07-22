@@ -141,6 +141,11 @@ static PyObject *bpy_bmeditselseq_discard(BPy_BMEditSelSeq *self, BPy_BMElem *va
   Py_RETURN_NONE;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef bpy_bmeditselseq_methods[] = {
     {"validate",
      (PyCFunction)bpy_bmeditselseq_validate,
@@ -153,6 +158,10 @@ static PyMethodDef bpy_bmeditselseq_methods[] = {
     {"discard", (PyCFunction)bpy_bmeditselseq_discard, METH_O, bpy_bmeditselseq_discard_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 /* Sequences
  * ========= */
@@ -297,8 +306,8 @@ static PySequenceMethods bpy_bmeditselseq_as_sequence = {
     /*sq_repeat*/ nullptr,
     /* Only set this so `PySequence_Check()` returns True. */
     /*sq_item*/ (ssizeargfunc)bpy_bmeditselseq_subscript_int,
-    /*sq_slice */ nullptr,
-    /*sq_ass_item */ nullptr,
+    /*was_sq_slice*/ nullptr,
+    /*sq_ass_item*/ nullptr,
     /*was_sq_ass_slice*/ nullptr,
     /*sq_contains*/ (objobjproc)bpy_bmeditselseq_contains,
     /*sq_inplace_concat*/ nullptr,
@@ -355,7 +364,7 @@ PyObject *BPy_BMEditSelIter_CreatePyObject(BMesh *bm)
   return (PyObject *)self;
 }
 
-void BPy_BM_init_types_select(void)
+void BPy_BM_init_types_select()
 {
   BPy_BMEditSelSeq_Type.tp_basicsize = sizeof(BPy_BMEditSelSeq);
   BPy_BMEditSelIter_Type.tp_basicsize = sizeof(BPy_BMEditSelIter);

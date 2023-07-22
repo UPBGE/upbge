@@ -59,7 +59,7 @@ static void report_deprecated_call(const char *function_name)
   times++;
 }
 
-static void report_deprecated_call_to_user(void)
+static void report_deprecated_call_to_user()
 {
   /* Only report the first deprecated usage. */
   if (G.opengl_deprecation_usage_detected) {
@@ -614,10 +614,19 @@ static PyObject *Buffer_dimensions(Buffer *self, void * /*arg*/)
   return list;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef Buffer_methods[] = {
     {"to_list", (PyCFunction)Buffer_to_list_recursive, METH_NOARGS, "return the buffer as a list"},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static PyGetSetDef Buffer_getseters[] = {
     {"dimensions", (getter)Buffer_dimensions, nullptr, nullptr, nullptr},
@@ -1149,7 +1158,7 @@ static PyObject *Buffer_repr(Buffer *self)
     }
 #else
 
-static void bgl_no_opengl_error(void)
+static void bgl_no_opengl_error()
 {
   PyErr_SetString(PyExc_RuntimeError, "Built without OpenGL support");
 }
@@ -2648,7 +2657,7 @@ static void init_bgl_version_3_3_constants(PyObject *dict)
   PY_DICT_ADD_INT(GL_VERTEX_ATTRIB_ARRAY_DIVISOR);
 }
 
-PyObject *BPyInit_bgl(void)
+PyObject *BPyInit_bgl()
 {
   PyObject *submodule, *dict;
   submodule = PyModule_Create(&BGL_module_def);

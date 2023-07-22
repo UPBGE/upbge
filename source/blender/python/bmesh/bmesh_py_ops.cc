@@ -227,11 +227,20 @@ static PyObject *bpy_bmesh_ops_module_dir(PyObject * /*self*/)
   return ret;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef BPy_BM_ops_methods[] = {
     {"__getattr__", (PyCFunction)bpy_bmesh_ops_module_getattro, METH_O, nullptr},
     {"__dir__", (PyCFunction)bpy_bmesh_ops_module_dir, METH_NOARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 PyDoc_STRVAR(BPy_BM_ops_doc, "Access to BMesh operators");
 static PyModuleDef BPy_BM_ops_module_def = {
@@ -246,7 +255,7 @@ static PyModuleDef BPy_BM_ops_module_def = {
     /*m_free*/ nullptr,
 };
 
-PyObject *BPyInit_bmesh_ops(void)
+PyObject *BPyInit_bmesh_ops()
 {
   PyObject *submodule = PyModule_Create(&BPy_BM_ops_module_def);
 

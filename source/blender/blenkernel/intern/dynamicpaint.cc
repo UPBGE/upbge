@@ -8,8 +8,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include <math.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdio>
 
 #include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
@@ -3110,11 +3110,11 @@ int dynamicPaint_createUVSurface(Scene *scene,
           active_points * aa_samples * sizeof(*f_data->barycentricWeights), "PaintUVPoint"));
 
       if (!f_data->uv_p || !f_data->barycentricWeights) {
-        error = 1;
+        error = true;
       }
     }
     else {
-      error = 1;
+      error = true;
     }
 
     /* in case of allocation error, free everything */

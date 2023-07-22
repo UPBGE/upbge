@@ -6,13 +6,13 @@
  * \ingroup RNA
  */
 
-#include <ctype.h>
-#include <float.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cctype>
+#include <cfloat>
+#include <climits>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
@@ -54,7 +54,7 @@ BlenderDefRNA DefRNA = {
     /*structs*/ {nullptr, nullptr},
     /*allocs*/ {nullptr, nullptr},
     /*laststruct*/ nullptr,
-    /*error*/ 0,
+    /*error*/ false,
     /*silent*/ false,
     /*preprocess*/ false,
     /*verify*/ true,
@@ -413,7 +413,7 @@ static int rna_member_cmp(const char *name, const char *oname)
     oname++;
   }
 
-  while (1) {
+  while (true) {
     if (name[a] == '[' && oname[a] == 0) {
       return 1;
     }
@@ -678,7 +678,7 @@ void RNA_identifier_sanitize(char *identifier, int property)
 
 /* Blender Data Definition */
 
-BlenderRNA *RNA_create(void)
+BlenderRNA *RNA_create()
 {
   BlenderRNA *brna;
 
@@ -1706,17 +1706,17 @@ void RNA_def_property_ui_range(
   switch (prop->type) {
     case PROP_INT: {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      iprop->softmin = (int)min;
-      iprop->softmax = (int)max;
-      iprop->step = (int)step;
+      iprop->softmin = int(min);
+      iprop->softmax = int(max);
+      iprop->step = int(step);
       break;
     }
     case PROP_FLOAT: {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      fprop->softmin = (float)min;
-      fprop->softmax = (float)max;
-      fprop->step = (float)step;
-      fprop->precision = (int)precision;
+      fprop->softmin = float(min);
+      fprop->softmax = float(max);
+      fprop->step = float(step);
+      fprop->precision = int(precision);
       break;
     }
     default:
@@ -1763,18 +1763,18 @@ void RNA_def_property_range(PropertyRNA *prop, double min, double max)
   switch (prop->type) {
     case PROP_INT: {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      iprop->hardmin = (int)min;
-      iprop->hardmax = (int)max;
-      iprop->softmin = MAX2((int)min, iprop->hardmin);
-      iprop->softmax = MIN2((int)max, iprop->hardmax);
+      iprop->hardmin = int(min);
+      iprop->hardmax = int(max);
+      iprop->softmin = MAX2(int(min), iprop->hardmin);
+      iprop->softmax = MIN2(int(max), iprop->hardmax);
       break;
     }
     case PROP_FLOAT: {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      fprop->hardmin = (float)min;
-      fprop->hardmax = (float)max;
-      fprop->softmin = MAX2((float)min, fprop->hardmin);
-      fprop->softmax = MIN2((float)max, fprop->hardmax);
+      fprop->hardmin = float(min);
+      fprop->hardmax = float(max);
+      fprop->softmin = MAX2(float(min), fprop->hardmin);
+      fprop->softmax = MIN2(float(max), fprop->hardmax);
       break;
     }
     default:
@@ -2587,7 +2587,7 @@ void RNA_def_property_float_sdna(PropertyRNA *prop, const char *structname, cons
               fprop->defaultvalue = *(const float *)default_data;
             }
             else if (STREQ(dp->dnatype, "char")) {
-              fprop->defaultvalue = (float)*(const char *)default_data * (1.0f / 255.0f);
+              fprop->defaultvalue = float(*(const char *)default_data) * (1.0f / 255.0f);
             }
             else {
               has_default = false;

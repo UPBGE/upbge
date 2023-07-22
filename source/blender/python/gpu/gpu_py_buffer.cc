@@ -384,7 +384,7 @@ static PyObject *pygpu_buffer__tp_new(PyTypeObject * /*type*/, PyObject *args, P
     return nullptr;
   }
 
-  const struct PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items, GPU_DATA_FLOAT};
+  const PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items, GPU_DATA_FLOAT};
   if (!PyArg_ParseTuple(
           args, "O&O|O: Buffer", PyC_ParseStringEnum, &pygpu_dataformat, &length_ob, &init))
   {
@@ -566,6 +566,11 @@ static int pygpu_buffer__mp_ass_subscript(BPyGPUBuffer *self, PyObject *item, Py
   return -1;
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_buffer__tp_methods[] = {
     {"to_list",
      (PyCFunction)pygpu_buffer_to_list_recursive,
@@ -573,6 +578,10 @@ static PyMethodDef pygpu_buffer__tp_methods[] = {
      "return the buffer as a list"},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static PyGetSetDef pygpu_buffer_getseters[] = {
     {"dimensions",

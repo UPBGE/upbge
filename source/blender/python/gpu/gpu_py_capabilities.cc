@@ -234,6 +234,11 @@ static PyObject *pygpu_shader_image_load_store_support_get(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_capabilities__tp_methods[] = {
     {"max_texture_size_get",
      (PyCFunction)pygpu_max_texture_size_get,
@@ -301,6 +306,10 @@ static PyMethodDef pygpu_capabilities__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
+
 PyDoc_STRVAR(pygpu_capabilities__tp_doc, "This module provides access to the GPU capabilities.");
 static PyModuleDef pygpu_capabilities_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
@@ -314,7 +323,7 @@ static PyModuleDef pygpu_capabilities_module_def = {
     /*m_free*/ nullptr,
 };
 
-PyObject *bpygpu_capabilities_init(void)
+PyObject *bpygpu_capabilities_init()
 {
   PyObject *submodule;
 

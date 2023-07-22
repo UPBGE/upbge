@@ -8,7 +8,6 @@ set(INC
   metal
   opengl
   vulkan
-  ../bmesh
   ../draw
   ../imbuf
   ../makesrna
@@ -316,6 +315,7 @@ set(METAL_SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
   PRIVATE bf::intern::atomic
   ${Epoxy_LIBRARIES}

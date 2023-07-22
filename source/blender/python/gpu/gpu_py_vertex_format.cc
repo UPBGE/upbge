@@ -22,7 +22,7 @@
  * Use with PyArg_ParseTuple's "O&" formatting.
  * \{ */
 
-static struct PyC_StringEnumItems pygpu_vertcomptype_items[] = {
+static PyC_StringEnumItems pygpu_vertcomptype_items[] = {
     {GPU_COMP_I8, "I8"},
     {GPU_COMP_U8, "U8"},
     {GPU_COMP_I16, "I16"},
@@ -34,7 +34,7 @@ static struct PyC_StringEnumItems pygpu_vertcomptype_items[] = {
     {0, nullptr},
 };
 
-static struct PyC_StringEnumItems pygpu_vertfetchmode_items[] = {
+static PyC_StringEnumItems pygpu_vertfetchmode_items[] = {
     {GPU_FETCH_FLOAT, "FLOAT"},
     {GPU_FETCH_INT, "INT"},
     {GPU_FETCH_INT_TO_FLOAT_UNIT, "INT_TO_FLOAT_UNIT"},
@@ -81,8 +81,8 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
 {
   const char *id;
   uint len;
-  struct PyC_StringEnum comp_type = {pygpu_vertcomptype_items, GPU_COMP_I8};
-  struct PyC_StringEnum fetch_mode = {pygpu_vertfetchmode_items, GPU_FETCH_FLOAT};
+  PyC_StringEnum comp_type = {pygpu_vertcomptype_items, GPU_COMP_I8};
+  PyC_StringEnum fetch_mode = {pygpu_vertfetchmode_items, GPU_FETCH_FLOAT};
 
   if (self->fmt.attr_len == GPU_VERT_ATTR_MAX_LEN) {
     PyErr_SetString(PyExc_ValueError, "Maximum attr reached " STRINGIFY(GPU_VERT_ATTR_MAX_LEN));
@@ -121,6 +121,11 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
   return PyLong_FromLong(attr_id);
 }
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_vertformat__tp_methods[] = {
     {"attr_add",
      (PyCFunction)pygpu_vertformat_attr_add,
@@ -128,6 +133,10 @@ static PyMethodDef pygpu_vertformat__tp_methods[] = {
      pygpu_vertformat_attr_add_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static void pygpu_vertformat__tp_dealloc(BPyGPUVertFormat *self)
 {

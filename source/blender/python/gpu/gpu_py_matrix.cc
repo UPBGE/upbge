@@ -33,7 +33,7 @@
 /** \name Helper Functions
  * \{ */
 
-static bool pygpu_stack_is_push_model_view_ok_or_error(void)
+static bool pygpu_stack_is_push_model_view_ok_or_error()
 {
   if (GPU_matrix_stack_level_get_model_view() >= GPU_PY_MATRIX_STACK_LEN) {
     PyErr_SetString(
@@ -44,7 +44,7 @@ static bool pygpu_stack_is_push_model_view_ok_or_error(void)
   return true;
 }
 
-static bool pygpu_stack_is_push_projection_ok_or_error(void)
+static bool pygpu_stack_is_push_projection_ok_or_error()
 {
   if (GPU_matrix_stack_level_get_projection() >= GPU_PY_MATRIX_STACK_LEN) {
     PyErr_SetString(
@@ -55,7 +55,7 @@ static bool pygpu_stack_is_push_projection_ok_or_error(void)
   return true;
 }
 
-static bool pygpu_stack_is_pop_model_view_ok_or_error(void)
+static bool pygpu_stack_is_pop_model_view_ok_or_error()
 {
   if (GPU_matrix_stack_level_get_model_view() == 0) {
     PyErr_SetString(PyExc_RuntimeError, "Minimum model-view stack depth reached");
@@ -64,7 +64,7 @@ static bool pygpu_stack_is_pop_model_view_ok_or_error(void)
   return true;
 }
 
-static bool pygpu_stack_is_pop_projection_ok_or_error(void)
+static bool pygpu_stack_is_pop_projection_ok_or_error()
 {
   if (GPU_matrix_stack_level_get_projection() == 0) {
     PyErr_SetString(PyExc_RuntimeError, "Minimum projection stack depth reached");
@@ -154,11 +154,20 @@ enum {
 static PyObject *pygpu_matrix_stack_context_enter(BPyGPU_MatrixStackContext *self);
 static PyObject *pygpu_matrix_stack_context_exit(BPyGPU_MatrixStackContext *self, PyObject *args);
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_matrix_stack_context__tp_methods[] = {
     {"__enter__", (PyCFunction)pygpu_matrix_stack_context_enter, METH_NOARGS},
     {"__exit__", (PyCFunction)pygpu_matrix_stack_context_exit, METH_VARARGS},
     {nullptr},
 };
+
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
 
 static PyTypeObject PyGPUMatrixStackContext_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
@@ -506,6 +515,11 @@ static PyObject *pygpu_matrix_get_normal_matrix(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static PyMethodDef pygpu_matrix__tp_methods[] = {
     /* Manage Stack */
     {"push", (PyCFunction)pygpu_matrix_push, METH_NOARGS, pygpu_matrix_push_doc},
@@ -575,6 +589,10 @@ static PyMethodDef pygpu_matrix__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#if (defined(__GNUC__) && !defined(__clang__))
+#  pragma GCC diagnostic pop
+#endif
+
 PyDoc_STRVAR(pygpu_matrix__tp_doc, "This module provides access to the matrix stack.");
 static PyModuleDef pygpu_matrix_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
@@ -588,7 +606,7 @@ static PyModuleDef pygpu_matrix_module_def = {
     /*m_free*/ nullptr,
 };
 
-PyObject *bpygpu_matrix_init(void)
+PyObject *bpygpu_matrix_init()
 {
   PyObject *submodule;
 

@@ -46,7 +46,7 @@
 
 #include "undo_intern.hh"
 
-#include <stdio.h>
+#include <cstdio>
 
 /* -------------------------------------------------------------------- */
 /** \name Implements ED Undo System
