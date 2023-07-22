@@ -37,7 +37,6 @@ set(INC
   ../Rasterizer
   ../SceneGraph
   ../VideoTexture
-  ../../blender/blentranslation
   ../../blender/draw/engines/eevee/
   ../../blender/draw/intern
   ../../blender/gpu
@@ -70,6 +69,7 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager

@@ -8,7 +8,6 @@ set(INC
   metal
   opengl
   vulkan
-  ../blentranslation # UPBGE
   ../bmesh
   ../draw
   ../imbuf
@@ -831,6 +830,7 @@ if(WITH_GPU_BUILDTIME_SHADER_BUILDER)
     ${PLATFORM_LINKLIBS}
     PRIVATE bf::intern::guardedalloc
     PRIVATE bf::blenkernel
+    PRIVATE bf::blentranslation #UPBGE
   )
   target_include_directories(shader_builder PRIVATE ${INC} ${CMAKE_CURRENT_BINARY_DIR})
 

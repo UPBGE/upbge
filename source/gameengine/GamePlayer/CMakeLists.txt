@@ -41,11 +41,8 @@ set(INC
   ../SceneGraph
   ../../blender
   ../../blender/asset_system
-  ../../blender/blenfont
   ../../blender/blenloader
-  ../../blender/blentranslation
   ../../blender/bmesh
-  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
@@ -57,7 +54,6 @@ set(INC
   ../../blender/sequencer
   ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
-  ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/memutil
   # RNA_prototypes.h
@@ -78,9 +74,13 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )

@@ -15,7 +15,6 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
-  ../../blender/blenfont
   ../../blender/blenloader
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
@@ -37,6 +36,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
