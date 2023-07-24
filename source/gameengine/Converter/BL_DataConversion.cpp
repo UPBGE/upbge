@@ -382,9 +382,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const float(*positions)[3] = BKE_mesh_vert_positions(final_me);
   const int totverts = final_me->totvert;
 
-  const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata, CD_MFACE);
-  const int totfaces = final_me->totface;
-  const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata, CD_ORIGINDEX);
+  const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata_legacy, CD_MFACE);
+  const int totfaces = final_me->totface_legacy;
+  const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata_legacy, CD_ORIGINDEX);
 
   /* Extract available layers.
    * Get the active color and uv layer. */
@@ -430,12 +430,12 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     bke::mesh::normals_calc_loop(final_me->vert_positions(),
                                  final_me->edges(),
-                                 final_me->polys(),
+                                 final_me->faces(),
                                  final_me->corner_verts(),
                                  final_me->corner_edges(),
                                  {},
                                  final_me->vert_normals(),
-                                 final_me->poly_normals(),
+                                 final_me->face_normals(),
                                  sharp_edges,
                                  sharp_faces,
                                  use_split_nors,
@@ -452,10 +452,10 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const Span<MLoopTri> looptris = final_me->looptris();
       BKE_mesh_calc_loop_tangent_ex(
           positions,
-          final_me->polys(),
+          final_me->faces(),
           final_me->corner_verts().data(),
           looptris.data(),
-          final_me->looptri_polys().data(),
+          final_me->looptri_faces().data(),
           uint(looptris.size()),
           static_cast<const bool *>(
               CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face")),
@@ -464,7 +464,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           nullptr,
           0,
           reinterpret_cast<const float(*)[3]>(final_me->vert_normals().data()),
-          reinterpret_cast<const float(*)[3]>(final_me->poly_normals().data()),
+          reinterpret_cast<const float(*)[3]>(final_me->face_normals().data()),
           static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->ldata, CD_NORMAL)),
           /* may be nullptr */
           static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vdata, CD_ORCO)),
@@ -522,7 +522,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                         bucket->IsWire()};
   }
 
-  std::vector<std::vector<unsigned int>> mpolyToMface(final_me->polys().size());
+  std::vector<std::vector<unsigned int>> mpolyToMface(final_me->faces().size());
   // Generate a list of all mfaces wrapped by a mpoly.
   for (unsigned int i = 0; i < totfaces; ++i) {
     mpolyToMface[mfaceToMpoly[i]].push_back(i);
@@ -542,7 +542,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const Span<int> corner_edges = final_me->corner_edges();
   const Span<int2> edges = final_me->edges();
 
-  const OffsetIndices polys = final_me->polys();
+  const OffsetIndices polys = final_me->faces();
 
   for (const unsigned int i : polys.index_range()) {
     /* Try to get evaluated mesh poly material index */

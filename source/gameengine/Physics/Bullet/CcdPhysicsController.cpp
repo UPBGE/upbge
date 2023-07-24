@@ -854,15 +854,15 @@ void CcdPhysicsController::UpdateSoftBody()
         Mesh *me = (Mesh *)ob->data;
         BKE_mesh_tessface_ensure(me);
 
-        const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
+        const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
         const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
         if (!index_mf_to_mpoly) {
           index_mp_to_orig = nullptr;
         }
 
         float(*positions)[3] = BKE_mesh_vert_positions_for_write(me);
-        const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
-        int numpolys = me->totface;
+        const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
+        int numpolys = me->totface_legacy;
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
@@ -2042,12 +2042,12 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   /* No need to call again ensure_tessface as it was called in BL_DataConversion */
 
   const float(*positions)[3] = BKE_mesh_vert_positions(me);
-  const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+  const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
   numverts = me->totvert;
-  const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
+  const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
 
   /* double lookup */
-  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
+  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
   const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
   if (!index_mf_to_mpoly) {
     index_mp_to_orig = nullptr;
@@ -2061,7 +2061,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   if (polytope) {
     // Tag verts we're using
-    for (int p2 = 0; p2 < me->totface; p2++) {
+    for (int p2 = 0; p2 < me->totface_legacy; p2++) {
       const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
@@ -2098,7 +2098,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
     btScalar *bt = &m_vertexArray[0];
 
-     for (int p2 = 0; p2 < me->totface; p2++) {
+     for (int p2 = 0; p2 < me->totface_legacy; p2++) {
       const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
@@ -2143,7 +2143,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     std::vector<int> vert_remap_array(numverts, 0);
 
     // Tag verts we're using
-    for (int p2 = 0; p2 < me->totface; p2++) {
+    for (int p2 = 0; p2 < me->totface_legacy; p2++) {
       const MFace *face = &faces[p2];
       const int origi = index_mf_to_mpoly ?
                             DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
@@ -2196,7 +2196,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     else
       m_triFaceUVcoArray.clear();
 
-     for (int p2 = 0; p2 < me->totface; p2++) {
+     for (int p2 = 0; p2 < me->totface_legacy; p2++) {
       const MFace *face = &faces[p2];
       const MTFace *tface = (tfaces) ? &tfaces[p2] : nullptr;
       const int origi = index_mf_to_mpoly ?
@@ -2390,12 +2390,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
      *
      * */
     const float(*positions)[3] = BKE_mesh_vert_positions(me);
-    MFace *mface = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
-    numpolys = me->totface;
+    MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
+    numpolys = me->totface_legacy;
     numverts = me->totvert;
 
     // double lookup
-    const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata, CD_ORIGINDEX);
+    const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
     const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
     if (!index_mf_to_mpoly) {
       index_mp_to_orig = nullptr;
@@ -2403,8 +2403,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
     MFace *mf;
 
-    if (CustomData_has_layer(&me->fdata, CD_MTFACE)) {
-      MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata, CD_MTFACE);
+    if (CustomData_has_layer(&me->fdata_legacy, CD_MTFACE)) {
+      MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
       MTFace *tf;
 
       std::vector<bool> vert_tag_array(numverts, false);

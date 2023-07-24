@@ -1852,14 +1852,14 @@ void BKE_mesh_ensure_navmesh(Mesh *me)
 {
   if (!CustomData_has_layer(&me->pdata, CD_RECAST)) {
     int i;
-    int polys_len = me->totpoly;
+    int faces_len = me->faces_num;
     int *recastData;
-    recastData = (int *)MEM_malloc_arrayN(polys_len, sizeof(int), __func__);
-    for (i = 0; i < polys_len; i++) {
+    recastData = (int *)MEM_malloc_arrayN(faces_len, sizeof(int), __func__);
+    for (i = 0; i < faces_len; i++) {
       recastData[i] = i + 1;
     }
     CustomData_add_layer_named_with_data(
-        &me->pdata, CD_RECAST, recastData, polys_len, "recastData", nullptr);
+        &me->pdata, CD_RECAST, recastData, faces_len, "recastData", nullptr);
   }
 }
 /************************************/

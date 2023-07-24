@@ -170,13 +170,13 @@ static int buildRawVertIndicesData(Mesh *me,
 
   /* calculate number of tris */
   BKE_mesh_tessface_ensure(me);
-  nfaces = me->totface;
+  nfaces = me->totface_legacy;
   if (nfaces == 0) {
     printf("Converting navmesh: Error! There are %i vertices, but no faces!\n", nverts);
     return 0;
   }
 
-  faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+  faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
   ntris = nfaces;
   for (fi = 0; fi < nfaces; fi++) {
     MFace *face = &faces[fi];

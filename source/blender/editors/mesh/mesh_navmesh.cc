@@ -90,11 +90,11 @@ static void createVertsTrisData(
     BLI_linklist_append(&meshes_pair, me);
 
     nverts += me->totvert;
-    nfaces = me->totface;
+    nfaces = me->totface_legacy;
     ntris += nfaces;
 
     /* resolve quad faces */
-    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
     for (i = 0; i < nfaces; i++) {
       const MFace *face = &faces[i];
       if (face->v4) {
@@ -131,8 +131,8 @@ static void createVertsTrisData(
     }
 
     /* create tris */
-    curnfaces = me->totface;
-    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+    curnfaces = me->totface_legacy;
+    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
 
     for (i = 0; i < curnfaces; i++) {
       const MFace *face = &faces[i];
@@ -690,7 +690,7 @@ static int navmesh_reset_exec(bContext *C, wmOperator */*op*/)
   Object *ob = ED_object_active_context(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->pdata, CD_RECAST, me->totpoly);
+  CustomData_free_layers(&me->pdata, CD_RECAST, me->faces_num);
 
   BKE_mesh_ensure_navmesh(me);
 
@@ -720,7 +720,7 @@ static int navmesh_clear_exec(bContext *C, wmOperator */*op*/)
   Object *ob = ED_object_active_context(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->pdata, CD_RECAST, me->totpoly);
+  CustomData_free_layers(&me->pdata, CD_RECAST, me->faces_num);
   ob->gameflag &= ~OB_NAVMESH;
 
   DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
