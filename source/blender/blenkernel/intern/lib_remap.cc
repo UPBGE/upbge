@@ -55,7 +55,7 @@ void BKE_library_callback_remap_editor_id_reference_set(
   remap_editor_id_reference_cb = func;
 }
 
-typedef struct IDRemap {
+struct IDRemap {
   eIDRemapType type;
   Main *bmain; /* Only used to trigger depsgraph updates in the right bmain. */
 
@@ -64,7 +64,7 @@ typedef struct IDRemap {
   /** The ID in which we are replacing old_id by new_id usages. */
   ID *id_owner;
   int flag;
-} IDRemap;
+};
 
 /* IDRemap->flag enums defined in BKE_lib.h */
 
@@ -543,10 +543,10 @@ static void libblock_remap_data(
   BKE_id_remapper_iter(id_remapper, libblock_remap_data_update_tags, &id_remap_data);
 }
 
-typedef struct LibblockRemapMultipleUserData {
+struct LibBlockRemapMultipleUserData {
   Main *bmain;
   int remap_flags;
-} LibBlockRemapMultipleUserData;
+};
 
 static void libblock_remap_foreach_idpair_cb(ID *old_id, ID *new_id, void *user_data)
 {
@@ -734,10 +734,10 @@ void BKE_libblock_unlink(Main *bmain,
  *     ... sigh
  */
 
-typedef struct LibblockRelinkMultipleUserData {
+struct LibBlockRelinkMultipleUserData {
   Main *bmain;
   LinkNode *ids;
-} LibBlockRelinkMultipleUserData;
+};
 
 static void libblock_relink_foreach_idpair_cb(ID *old_id, ID *new_id, void *user_data)
 {
@@ -896,10 +896,10 @@ void BKE_libblock_relink_ex(
   BKE_id_remapper_free(id_remapper);
 }
 
-typedef struct RelinkToNewIDData {
+struct RelinkToNewIDData {
   LinkNode *ids;
   IDRemapper *id_remapper;
-} RelinkToNewIDData;
+};
 
 static void libblock_relink_to_newid_prepare_data(Main *bmain,
                                                   ID *id,

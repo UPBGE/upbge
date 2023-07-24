@@ -164,7 +164,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
     }
     else {
       const int *material_indices = BKE_mesh_material_indices(me);
-      a = me->totpoly;
+      a = me->faces_num;
       while (ok && a--) {
         Image *ima = bake_object_image_get(ob, material_indices ? material_indices[a] : 0);
 
@@ -269,10 +269,10 @@ static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *l
   return dm;
 }
 
-typedef enum ClearFlag {
+enum ClearFlag {
   CLEAR_TANGENT_NORMAL = 1,
   CLEAR_DISPLACEMENT = 2,
-} ClearFlag;
+};
 
 static void clear_single_image(Image *image, ClearFlag flag)
 {

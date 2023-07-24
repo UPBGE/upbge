@@ -141,7 +141,7 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
     }
     case VIEW_CANCEL: {
-      viewops_data_state_restore(vod);
+      vod->state_restore();
       ret = OPERATOR_CANCELLED;
       break;
     }
@@ -173,71 +173,58 @@ static const EnumPropertyItem prop_view_roll_items[] = {
 
 static int viewroll_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d;
-  RegionView3D *rv3d;
-  ARegion *region;
-
+  ViewOpsData *vod;
   if (op->customdata) {
-    ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
-    region = vod->region;
-    v3d = vod->v3d;
+    vod = static_cast<ViewOpsData *>(op->customdata);
   }
   else {
-    ED_view3d_context_user_region(C, &v3d, &region);
+    vod = new ViewOpsData();
+    ED_view3d_context_user_region(C, &vod->v3d, &vod->region);
+    vod->rv3d = static_cast<RegionView3D *>(vod->region->regiondata);
   }
 
-  rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-  const bool is_camera_lock = ED_view3d_camera_lock_check(v3d, rv3d);
-  if ((rv3d->persp != RV3D_CAMOB) || is_camera_lock) {
-    if (is_camera_lock) {
-      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      ED_view3d_camera_lock_init(depsgraph, v3d, rv3d);
-    }
-
-    ED_view3d_smooth_view_force_finish(C, v3d, region);
-
-    int type = RNA_enum_get(op->ptr, "type");
-    float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF(U.pad_rot_angle);
-    float mousevec[3];
-    float quat_new[4];
-
-    const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-
-    if (type == V3D_VIEW_STEPLEFT) {
-      angle = -angle;
-    }
-
-    normalize_v3_v3(mousevec, rv3d->viewinv[2]);
-    negate_v3(mousevec);
-    view_roll_angle(region, quat_new, rv3d->viewquat, mousevec, angle, true);
-
-    const float *dyn_ofs_pt = nullptr;
-    float dyn_ofs[3];
-    if (U.uiflag & USER_ORBIT_SELECTION) {
-      if (view3d_orbit_calc_center(C, dyn_ofs)) {
-        negate_v3(dyn_ofs);
-        dyn_ofs_pt = dyn_ofs;
-      }
-    }
-
-    V3D_SmoothParams sview_params = {};
-    sview_params.quat = quat_new;
-    sview_params.dyn_ofs = dyn_ofs_pt;
-    /* Group as successive roll may run by holding a key. */
-    sview_params.undo_str = op->type->name;
-    sview_params.undo_grouped = true;
-
-    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview_params);
-
-    viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
+  const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
+  if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
+    viewops_data_free(C, vod);
     op->customdata = nullptr;
-    return OPERATOR_FINISHED;
+    return OPERATOR_CANCELLED;
   }
 
-  viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
+  if (vod->depsgraph == nullptr) {
+    vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    vod->init_navigation(C, nullptr, &ViewOpsType_roll, false);
+  }
+
+  int type = RNA_enum_get(op->ptr, "type");
+  float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF(U.pad_rot_angle);
+  float mousevec[3];
+  float quat_new[4];
+
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+
+  if (type == V3D_VIEW_STEPLEFT) {
+    angle = -angle;
+  }
+
+  normalize_v3_v3(mousevec, vod->rv3d->viewinv[2]);
+  negate_v3(mousevec);
+  view_roll_angle(vod->region, quat_new, vod->rv3d->viewquat, mousevec, angle, true);
+
+  V3D_SmoothParams sview_params = {};
+  sview_params.quat = quat_new;
+  /* Group as successive roll may run by holding a key. */
+  sview_params.undo_str = op->type->name;
+  sview_params.undo_grouped = true;
+
+  if (vod->use_dyn_ofs) {
+    sview_params.dyn_ofs = vod->dyn_ofs;
+  }
+
+  ED_view3d_smooth_view(C, vod->v3d, vod->region, smooth_viewtx, &sview_params);
+
+  viewops_data_free(C, vod);
   op->customdata = nullptr;
-  return OPERATOR_CANCELLED;
+  return OPERATOR_FINISHED;
 }
 
 static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -251,7 +238,7 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
   else {
     /* makes op->customdata */
-    vod = viewops_data_create(C, event, V3D_OP_MODE_VIEW_ROLL, false);
+    vod = viewops_data_create(C, event, &ViewOpsType_roll, false);
     const float start_position[2] = {float(BLI_rcti_cent_x(&vod->region->winrct)),
                                      float(BLI_rcti_cent_y(&vod->region->winrct))};
     vod->init.dial = BLI_dial_init(start_position, FLT_EPSILON);
@@ -286,7 +273,7 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
   /* identifiers */
   ot->name = "View Roll";
   ot->description = "Roll the view";
-  ot->idname = viewops_operator_idname_get(V3D_OP_MODE_VIEW_ROLL);
+  ot->idname = ViewOpsType_roll.idname;
 
   /* api callbacks */
   ot->invoke = viewroll_invoke;
@@ -312,3 +299,11 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
 }
 
 /** \} */
+
+const ViewOpsType ViewOpsType_roll = {
+    /*flag*/ (VIEWOPS_FLAG_ORBIT_SELECT),
+    /*idname*/ "VIEW3D_OT_view_roll",
+    /*init_fn*/ nullptr,
+    /*apply_fn*/ nullptr,
+    /*cancel_fn*/ nullptr,
+};
