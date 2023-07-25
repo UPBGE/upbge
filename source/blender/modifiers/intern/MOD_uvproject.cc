@@ -124,7 +124,7 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
       umd->uvlayer_name, ATTR_DOMAIN_CORNER, bke::AttributeInitDefaultValue());
 
   /* make sure we're using an existing layer */
-  CustomData_validate_layer_name(&mesh->ldata, CD_PROP_FLOAT2, umd->uvlayer_name, uvname);
+  CustomData_validate_layer_name(&mesh->loop_data, CD_PROP_FLOAT2, umd->uvlayer_name, uvname);
 
   /* calculate a projection matrix and normal for each projector */
   for (i = 0; i < projectors_num; i++) {
@@ -186,7 +186,7 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
   const Span<int> corner_verts = mesh->corner_verts();
 
   float(*mloop_uv)[2] = static_cast<float(*)[2]>(CustomData_get_layer_named_for_write(
-      &mesh->ldata, CD_PROP_FLOAT2, uvname, corner_verts.size()));
+      &mesh->loop_data, CD_PROP_FLOAT2, uvname, corner_verts.size()));
 
   coords = BKE_mesh_vert_coords_alloc(mesh, &verts_num);
 
@@ -207,22 +207,18 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
     const blender::IndexRange face = faces[i];
     if (projectors_num == 1) {
       if (projectors[0].uci) {
-        uint fidx = face.size() - 1;
-        do {
-          uint lidx = face.start() + fidx;
-          const int vidx = corner_verts[lidx];
+        for (const int corner : face) {
+          const int vert = corner_verts[corner];
           BLI_uvproject_from_camera(
-              mloop_uv[lidx], coords[vidx], static_cast<ProjCameraInfo *>(projectors[0].uci));
-        } while (fidx--);
+              mloop_uv[corner], coords[vert], static_cast<ProjCameraInfo *>(projectors[0].uci));
+        }
       }
       else {
         /* apply transformed coords as UVs */
-        uint fidx = face.size() - 1;
-        do {
-          uint lidx = face.start() + fidx;
-          const int vidx = corner_verts[lidx];
-          copy_v2_v2(mloop_uv[lidx], coords[vidx]);
-        } while (fidx--);
+        for (const int corner : face) {
+          const int vert = corner_verts[corner];
+          copy_v2_v2(mloop_uv[corner], coords[vert]);
+        }
       }
     }
     else {
@@ -250,21 +246,17 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
       }
 
       if (best_projector->uci) {
-        uint fidx = face.size() - 1;
-        do {
-          uint lidx = face.start() + fidx;
-          const int vidx = corner_verts[lidx];
+        for (const int corner : face) {
+          const int vert = corner_verts[corner];
           BLI_uvproject_from_camera(
-              mloop_uv[lidx], coords[vidx], static_cast<ProjCameraInfo *>(best_projector->uci));
-        } while (fidx--);
+              mloop_uv[corner], coords[vert], static_cast<ProjCameraInfo *>(best_projector->uci));
+        }
       }
       else {
-        uint fidx = face.size() - 1;
-        do {
-          uint lidx = face.start() + fidx;
-          const int vidx = corner_verts[lidx];
-          mul_v2_project_m4_v3(mloop_uv[lidx], best_projector->projmat, coords[vidx]);
-        } while (fidx--);
+        for (const int corner : face) {
+          const int vert = corner_verts[corner];
+          mul_v2_project_m4_v3(mloop_uv[corner], best_projector->projmat, coords[vert]);
+        }
       }
     }
   }

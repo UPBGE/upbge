@@ -2281,12 +2281,12 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
         {reinterpret_cast<blender::float3 *>(vert_normals), mesh->totvert});
   }
   if (loop_normals_needed) {
-    blender::short2 *clnors = static_cast<blender::short2 *>(
-        CustomData_get_layer_for_write(&mesh->ldata, CD_CUSTOMLOOPNORMAL, corner_verts.size()));
+    blender::short2 *clnors = static_cast<blender::short2 *>(CustomData_get_layer_for_write(
+        &mesh->loop_data, CD_CUSTOMLOOPNORMAL, corner_verts.size()));
     const bool *sharp_edges = static_cast<const bool *>(
-        CustomData_get_layer_named(&mesh->edata, CD_PROP_BOOL, "sharp_edge"));
+        CustomData_get_layer_named(&mesh->edge_data, CD_PROP_BOOL, "sharp_edge"));
     const bool *sharp_faces = static_cast<const bool *>(
-        CustomData_get_layer_named(&mesh->pdata, CD_PROP_BOOL, "sharp_face"));
+        CustomData_get_layer_named(&mesh->face_data, CD_PROP_BOOL, "sharp_face"));
     blender::bke::mesh::normals_calc_loop(
         positions,
         edges,

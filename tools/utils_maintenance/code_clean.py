@@ -355,11 +355,22 @@ del namedtuple
 class EditGenerator:
     __slots__ = ()
 
+    # Each subclass must also a default boolean: `is_default`.
+    # When false, a detailed explanation must be included for why.
+
+    @classmethod
+    def __init_subclass__(cls) -> None:
+        if not isinstance(getattr(cls, "is_default", None), bool):
+            raise Exception("Class %r missing \"is_default\" boolean!" % cls)
+        if getattr(cls, "edit_list_from_file") is EditGenerator.edit_list_from_file:
+            raise Exception("Class %r missing \"edit_list_from_file\" callback!" % cls)
+
     def __new__(cls, *args: Tuple[Any], **kwargs: Dict[str, Any]) -> Any:
         raise RuntimeError("%s should not be instantiated" % cls)
 
     @staticmethod
     def edit_list_from_file(_source: str, _data: str, _shared_edit_data: Any) -> List[Edit]:
+        # The `__init_subclass__` function ensures this is always overridden.
         raise RuntimeError("This function must be overridden by it's subclass!")
         return []
 
@@ -384,6 +395,11 @@ class edit_generators:
         With:
           sizeof(float[4][4])
         """
+
+        # Not default because there are times when the literal sizes don't represent extra dimensions on an array,
+        # where making this edit would be misleading as it would indicate a matrix (for e.g.) when a vector is intended.
+        is_default = False
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -436,6 +452,11 @@ class edit_generators:
         With:
           (const float (*))
         """
+
+        # Non-default because pre-processor defines can cause `const` variables on some platforms
+        # to be non `const` on others.
+        is_default = False
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -488,6 +509,8 @@ class edit_generators:
         With:
           1.0f
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -519,12 +542,27 @@ class edit_generators:
         With:
           uint
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
 
+            # Keep `typedef` unsigned as some files have local types, e.g.
+            #    `typedef unsigned int uint;`
+            # Should not be changed to:
+            #    `typedef uint uint;`
+            # ... even if it happens to compile - because it may cause problems on other platforms
+            # that don't have `uint` defined.
+            span_skip = set()
+            for match in re.finditer(r"\btypedef\s+(unsigned)\b", data):
+                span_skip.add(match.span(1))
+
             # `unsigned char` -> `uchar`.
             for match in re.finditer(r"(unsigned)\s+([a-z]+)", data):
+                if match.span(1) in span_skip:
+                    continue
+
                 edits.append(Edit(
                     span=match.span(),
                     content='u%s' % match.group(2),
@@ -533,7 +571,10 @@ class edit_generators:
 
             # There may be some remaining uses of `unsigned` without any integer type afterwards.
             # `unsigned` -> `uint`.
-            for match in re.finditer(r"\bunsigned\b", data):
+            for match in re.finditer(r"\b(unsigned)\b", data):
+                if match.span(1) in span_skip:
+                    continue
+
                 edits.append(Edit(
                     span=match.span(),
                     content='uint',
@@ -551,6 +592,8 @@ class edit_generators:
         With:
           nullptr
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits: List[Edit] = []
@@ -587,6 +630,8 @@ class edit_generators:
         With:
           function() {}
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits: List[Edit] = []
@@ -613,6 +658,8 @@ class edit_generators:
         With:
           void function(int /*arg*/) {...}
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits: List[Edit] = []
@@ -654,6 +701,8 @@ class edit_generators:
           (ELEM(a, b, c))
           (!ELEM(a, b, c))
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -727,6 +776,8 @@ class edit_generators:
         With:
           (STR_ELEM(a, b, c))
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -807,6 +858,11 @@ class edit_generators:
         With:
           const float abc[3] = {0, 1, 2};
         """
+
+        # Non-default because pre-processor defines can cause `const` variables on some platforms
+        # to be non `const` on others.
+        is_default = False
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -836,14 +892,30 @@ class edit_generators:
         With:
           Foo
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
 
+            # Keep:
+            # - `strucrt Foo;` (forward declaration).
+            # - `struct Foo {` (declaration).
+            # - `struct {` (declaration).
+            # In these cases removing will cause a build error (which is technically "safe")
+            # it just causes a lot of unnecessary code edits which always fail and slow down operation.
+            span_skip = set()
+            for match in re.finditer(r"\b(struct)\s+([a-zA-Z0-9_]+)?\s*({|;)", data):
+                span_skip.add(match.span(1))
+
             # Remove `struct`
-            for match in re.finditer(r"\bstruct\b", data):
+            for match in re.finditer(r"\b(struct)\s+[a-zA-Z0-9_]+", data):
+                span = match.span(1)
+                if span in span_skip:
+                    continue
+
                 edits.append(Edit(
-                    span=match.span(),
+                    span=span,
                     content=' ',
                     content_fail=' __ALWAYS_FAIL__ ',
                 ))
@@ -858,6 +930,8 @@ class edit_generators:
         With:
           return value;
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -885,6 +959,8 @@ class edit_generators:
         With:
           !STREQ(a, b)
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -933,6 +1009,8 @@ class edit_generators:
         With:
           SNPRINTF(a, "format %s", b)
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -991,6 +1069,8 @@ class edit_generators:
         With:
           ARRAY_SIZE(foo)
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -1022,6 +1102,12 @@ class edit_generators:
         Note that the `CFLAGS` should be set so missing parentheses that contain assignments - error instead of warn:
         With GCC: `-Werror=parentheses`
         """
+
+        # Non-default because this edit can be applied to macros in situations where removing the parentheses
+        # could result in macro expansion to have different results (depending on the arguments parsed in).
+        # TODO: make this check skip macro text and it could be enabled by default.
+        is_default = False
+
         @staticmethod
         def edit_list_from_file(_source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
             edits = []
@@ -1120,6 +1206,10 @@ class edit_generators:
         With GCC: `-Werror=missing-prototypes`
         """
 
+        # Non-default because changes to headers may cause breakage on other platforms.
+        # Before committing these changes all supported platforms should be tested to compile without problems.
+        is_default = False
+
         @staticmethod
         def _header_guard_from_filename(f: str) -> str:
             return '__%s__' % os.path.basename(f).replace('.', '_').upper()
@@ -1202,6 +1292,8 @@ class edit_generators:
         With:
           float(foo(a + b))
         """
+        is_default = True
+
         @staticmethod
         def edit_list_from_file(source: str, data: str, _shared_edit_data: Any) -> List[Edit]:
 
@@ -1328,11 +1420,14 @@ def test_edit(
 # -----------------------------------------------------------------------------
 # List Fix Functions
 
-def edit_function_get_all() -> List[str]:
+def edit_function_get_all(*, is_default: Optional[bool] = None) -> List[str]:
     fixes = []
     for name in dir(edit_generators):
         value = getattr(edit_generators, name)
         if type(value) is type and issubclass(value, EditGenerator):
+            if is_default is not None:
+                if is_default != value.is_default:
+                    continue
             fixes.append(name)
     fixes.sort()
     return fixes
@@ -1693,7 +1788,7 @@ def run_edits_on_directory(
     return 0
 
 
-def create_parser(edits_all: Sequence[str]) -> argparse.ArgumentParser:
+def create_parser(edits_all: Sequence[str], edits_all_default: Sequence[str]) -> argparse.ArgumentParser:
     from textwrap import indent
 
     # Create doc-string for edits.
@@ -1729,18 +1824,28 @@ def create_parser(edits_all: Sequence[str]) -> argparse.ArgumentParser:
     parser.add_argument(
         "--match",
         nargs='+',
-        required=True,
+        default=(
+            r".*\.(c|cc|cpp)$",
+        ),
+        required=False,
         metavar="REGEX",
         help="Match file paths against this expression",
     )
     parser.add_argument(
         "--edits",
         dest="edits",
+        default=",".join(edits_all_default),
         help=(
-            "Specify the edit preset to run.\n\n" +
+            "Specify the edit preset to run.\n"
+            "\n" +
             "\n".join(edits_all_docs) + "\n"
-            "Multiple edits may be passed at once (comma separated, no spaces)."),
-        required=True,
+            "Multiple edits may be passed at once (comma separated, no spaces).\n"
+            "\n"
+            "The default value for this argument includes edits which are unlikely\n"
+            "to cause problems on other platforms and are generally considered safe to apply.\n"
+            "Non-default edits should be manually reviewed in more derail before committing."
+        ),
+        required=False,
     )
     parser.add_argument(
         "--verbose",
@@ -1780,7 +1885,8 @@ def create_parser(edits_all: Sequence[str]) -> argparse.ArgumentParser:
 
 def main() -> int:
     edits_all = edit_function_get_all()
-    parser = create_parser(edits_all)
+    edits_all_default = edit_function_get_all(is_default=True)
+    parser = create_parser(edits_all, edits_all_default)
     args = parser.parse_args()
 
     build_dir = args.build_dir
@@ -1826,7 +1932,7 @@ def main() -> int:
     if len(edits_all_from_args) > 1:
         for edit in edits_all:
             if edit not in edits_all_from_args:
-                print("Skipping edit:", edit)
+                print("Skipping edit: %s, default=%d" % (edit, getattr(edit_generators, edit).is_default))
 
     return run_edits_on_directory(
         build_dir=build_dir,
