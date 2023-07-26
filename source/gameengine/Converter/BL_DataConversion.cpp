@@ -425,8 +425,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         CustomData_get_layer_named(&final_me->edge_data, CD_PROP_BOOL, "sharp_edge"));
     const bool *sharp_faces = static_cast<const bool *>(
         CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
-    short2 *clnors = static_cast<short2 *>(CustomData_get_layer_for_write(
-        &final_me->loop_data, CD_CUSTOMLOOPNORMAL, final_me->totloop));
+    const blender::short2 *clnors = static_cast<const blender::short2 *>(
+        CustomData_get_layer(&final_me->loop_data, CD_CUSTOMLOOPNORMAL));
 
     bke::mesh::normals_calc_loop(final_me->vert_positions(),
                                  final_me->edges(),
@@ -438,9 +438,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                  final_me->face_normals(),
                                  sharp_edges,
                                  sharp_faces,
+                                 clnors,
                                  use_split_nors,
                                  split_angle,
-                                 clnors,
                                  nullptr,
                                  {loop_nors_dst, final_me->corner_verts().size()});
   }

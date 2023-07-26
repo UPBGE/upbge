@@ -860,7 +860,8 @@ void CcdPhysicsController::UpdateSoftBody()
           index_mp_to_orig = nullptr;
         }
 
-        float(*positions)[3] = BKE_mesh_vert_positions_for_write(me);
+        float(*positions)[3] = reinterpret_cast<float(*)[3]>(
+            me->vert_positions_for_write().data());
         const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
         int numpolys = me->totface_legacy;
 
