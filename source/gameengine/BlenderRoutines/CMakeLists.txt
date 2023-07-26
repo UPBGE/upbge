@@ -15,12 +15,15 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
+  ../../blender/blenfont
+  ../../blender/blenkernel
   ../../blender/blenloader
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
   ../../blender/makesrna
+  ../../blender/windowmanager
   ../../../intern/termcolor
   ../../../intern/ghost
 )
@@ -36,12 +39,9 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenfont
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::windowmanager
   ge_ketsji
   ge_common
   ge_launcher

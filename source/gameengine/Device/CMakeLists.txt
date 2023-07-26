@@ -26,6 +26,7 @@ set(INC
   ../Ketsji
   ../Rasterizer
   ../SceneGraph
+  ../../blender/blenkernel
   ../../../intern/ghost
   ../../../intern/termcolor
 )
@@ -49,7 +50,6 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
 )
 

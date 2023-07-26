@@ -1854,7 +1854,7 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
 /****************UPBGE****************/
 void BKE_mesh_ensure_navmesh(Mesh *me)
 {
-  if (!CustomData_has_layer(&me->pdata, CD_RECAST)) {
+  if (!CustomData_has_layer(&me->face_data, CD_RECAST)) {
     int i;
     int faces_len = me->faces_num;
     int *recastData;
@@ -1863,7 +1863,7 @@ void BKE_mesh_ensure_navmesh(Mesh *me)
       recastData[i] = i + 1;
     }
     CustomData_add_layer_named_with_data(
-        &me->pdata, CD_RECAST, recastData, faces_len, "recastData", nullptr);
+        &me->face_data, CD_RECAST, recastData, faces_len, "recastData", nullptr);
   }
 }
 /************************************/

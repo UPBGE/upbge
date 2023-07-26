@@ -671,7 +671,7 @@ static bool navmesh_obmode_data_poll(bContext *C)
   Object *ob = ED_object_active_context(C);
   if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
     Mesh *me = (Mesh *)ob->data;
-    return CustomData_has_layer(&me->pdata, CD_RECAST);
+    return CustomData_has_layer(&me->face_data, CD_RECAST);
   }
   return false;
 }
@@ -690,7 +690,7 @@ static int navmesh_reset_exec(bContext *C, wmOperator */*op*/)
   Object *ob = ED_object_active_context(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->pdata, CD_RECAST, me->faces_num);
+  CustomData_free_layers(&me->face_data, CD_RECAST, me->faces_num);
 
   BKE_mesh_ensure_navmesh(me);
 
@@ -720,7 +720,7 @@ static int navmesh_clear_exec(bContext *C, wmOperator */*op*/)
   Object *ob = ED_object_active_context(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->pdata, CD_RECAST, me->faces_num);
+  CustomData_free_layers(&me->face_data, CD_RECAST, me->faces_num);
   ob->gameflag &= ~OB_NAVMESH;
 
   DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);

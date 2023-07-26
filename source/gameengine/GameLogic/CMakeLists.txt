@@ -34,6 +34,7 @@ set(INC
   ../Physics/Common
   ../Rasterizer
   ../SceneGraph
+  ../../blender/blenkernel
   ../../blender/python/generic
   ../../../intern/termcolor
   ../../../intern/ghost
@@ -185,7 +186,6 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc

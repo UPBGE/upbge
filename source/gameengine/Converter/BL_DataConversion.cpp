@@ -388,45 +388,45 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   /* Extract available layers.
    * Get the active color and uv layer. */
-  const short activeUv = CustomData_get_active_layer(&final_me->ldata, CD_PROP_FLOAT2);
-  const short activeColor = CustomData_get_active_layer(&final_me->ldata, CD_PROP_BYTE_COLOR);
+  const short activeUv = CustomData_get_active_layer(&final_me->loop_data, CD_PROP_FLOAT2);
+  const short activeColor = CustomData_get_active_layer(&final_me->loop_data, CD_PROP_BYTE_COLOR);
 
   RAS_MeshObject::LayersInfo layersInfo;
   layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
   layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
-  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->ldata, CD_PROP_FLOAT2);
-  const unsigned short colorLayers = CustomData_number_of_layers(&final_me->ldata, CD_PROP_BYTE_COLOR);
+  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->loop_data, CD_PROP_FLOAT2);
+  const unsigned short colorLayers = CustomData_number_of_layers(&final_me->loop_data, CD_PROP_BYTE_COLOR);
 
   // Extract UV loops.
   for (unsigned short i = 0; i < uvLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&final_me->ldata, CD_PROP_FLOAT2, i);
-    const float(*uv)[2] = (const float(*)[2])CustomData_get_layer_n(&final_me->ldata, CD_PROP_FLOAT2, i);
+    const std::string name = CustomData_get_layer_name(&final_me->loop_data, CD_PROP_FLOAT2, i);
+    const float(*uv)[2] = (const float(*)[2])CustomData_get_layer_n(&final_me->loop_data, CD_PROP_FLOAT2, i);
     layersInfo.layers.push_back({uv, nullptr, i, name});
   }
   // Extract color loops.
   for (unsigned short i = 0; i < colorLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&final_me->ldata, CD_PROP_BYTE_COLOR, i);
-    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&final_me->ldata, CD_PROP_BYTE_COLOR, i);
+    const std::string name = CustomData_get_layer_name(&final_me->loop_data, CD_PROP_BYTE_COLOR, i);
+    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&final_me->loop_data, CD_PROP_BYTE_COLOR, i);
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
   float3 *loop_nors_dst = nullptr;
-  float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->ldata, CD_NORMAL);
+  float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->loop_data, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
     loop_nors_dst = static_cast<float3 *>(CustomData_add_layer(
-        &final_me->ldata, CD_NORMAL, CD_SET_DEFAULT, final_me->totloop));
-    CustomData_set_layer_flag(&final_me->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
+        &final_me->loop_data, CD_NORMAL, CD_SET_DEFAULT, final_me->totloop));
+    CustomData_set_layer_flag(&final_me->loop_data, CD_NORMAL, CD_FLAG_TEMPORARY);
 
     const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
     const float split_angle = final_me->smoothresh;
     const bool *sharp_edges = static_cast<const bool *>(
-        CustomData_get_layer_named(&final_me->edata, CD_PROP_BOOL, "sharp_edge"));
+        CustomData_get_layer_named(&final_me->edge_data, CD_PROP_BOOL, "sharp_edge"));
     const bool *sharp_faces = static_cast<const bool *>(
-        CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
+        CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
     short2 *clnors = static_cast<short2 *>(CustomData_get_layer_for_write(
-        &final_me->ldata, CD_CUSTOMLOOPNORMAL, final_me->totloop));
+        &final_me->loop_data, CD_CUSTOMLOOPNORMAL, final_me->totloop));
 
     bke::mesh::normals_calc_loop(final_me->vert_positions(),
                                  final_me->edges(),
@@ -447,7 +447,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
-    if (CustomData_get_layer_index(&final_me->ldata, CD_TANGENT) == -1) {
+    if (CustomData_get_layer_index(&final_me->loop_data, CD_TANGENT) == -1) {
       short tangent_mask = 0;
       const Span<MLoopTri> looptris = final_me->looptris();
       BKE_mesh_calc_loop_tangent_ex(
@@ -458,22 +458,22 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           final_me->looptri_faces().data(),
           uint(looptris.size()),
           static_cast<const bool *>(
-              CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face")),
-          &final_me->ldata,
+              CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face")),
+          &final_me->loop_data,
           true,
           nullptr,
           0,
           reinterpret_cast<const float(*)[3]>(final_me->vert_normals().data()),
           reinterpret_cast<const float(*)[3]>(final_me->face_normals().data()),
-          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->ldata, CD_NORMAL)),
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->loop_data, CD_NORMAL)),
           /* may be nullptr */
-          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vdata, CD_ORCO)),
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vert_data, CD_ORCO)),
           /* result */
-          &final_me->ldata,
+          &final_me->loop_data,
           uint(final_me->totloop),
           &tangent_mask);
     }
-    tangent = (float(*)[4])CustomData_get_layer(&final_me->ldata, CD_TANGENT);
+    tangent = (float(*)[4])CustomData_get_layer(&final_me->loop_data, CD_TANGENT);
   }
 
   meshobj = new RAS_MeshObject(mesh, final_me->totvert, blenderobj, layersInfo);
@@ -536,7 +536,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       "material_index", ATTR_DOMAIN_FACE, 0);
 
   const bool *sharp_faces = static_cast<const bool *>(
-      CustomData_get_layer_named(&final_me->pdata, CD_PROP_BOOL, "sharp_face"));
+      CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
 
   const Span<int> corner_verts = final_me->corner_verts();
   const Span<int> corner_edges = final_me->corner_edges();

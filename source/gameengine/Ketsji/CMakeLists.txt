@@ -39,7 +39,12 @@ set(INC
   ../SceneGraph
   ../VideoTexture
   ../../blender
+  ../../blender/blenfont
+  ../../blender/blenkernel
   ../../blender/blenloader
+  ../../blender/blentranslation
+  ../../blender/bmesh
+  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee
@@ -52,7 +57,9 @@ set(INC
   ../../blender/python/mathutils
   ../../blender/python/intern
   ../../blender/render/
+  ../../blender/windowmanager
   ../../blender/render/intern/
+  ../../../intern/clog
   ../../../intern/ghost
 )
 
@@ -176,16 +183,9 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenfont
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  PRIVATE bf::blentranslation
-  PRIVATE bf::bmesh
   PRIVATE bf::dna
-  PRIVATE bf::depsgraph
-  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::windowmanager
   ge_converter
   ge_logic_bricks
   ge_scenegraph

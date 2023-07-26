@@ -32,6 +32,11 @@ set(INC
   ../Physics/Common
   ../SceneGraph
   ../GameLogic
+  ../../blender/blenfont
+  ../../blender/blenkernel
+  ../../blender/blentranslation
+  ../../blender/bmesh
+  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee/
@@ -105,12 +110,7 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenfont
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  PRIVATE bf::blentranslation
-  PRIVATE bf::bmesh
-  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   bf_intern_moto

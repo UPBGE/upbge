@@ -855,7 +855,7 @@ void CcdPhysicsController::UpdateSoftBody()
         BKE_mesh_tessface_ensure(me);
 
         const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-        const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
+        const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
         if (!index_mf_to_mpoly) {
           index_mp_to_orig = nullptr;
         }
@@ -2048,7 +2048,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   /* double lookup */
   const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-  const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
+  const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
   if (!index_mf_to_mpoly) {
     index_mp_to_orig = nullptr;
   }
@@ -2396,7 +2396,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
     // double lookup
     const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-    const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->pdata, CD_ORIGINDEX);
+    const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
     if (!index_mf_to_mpoly) {
       index_mp_to_orig = nullptr;
     }

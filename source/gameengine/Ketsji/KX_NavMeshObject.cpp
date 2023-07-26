@@ -206,7 +206,7 @@ static int buildRawVertIndicesData(Mesh *me,
   }
 
   /* carefully, recast data is just reference to data in mesh */
-  *recastData = (int *)CustomData_get_layer(&me->pdata, CD_RECAST);
+  *recastData = (int *)CustomData_get_layer(&me->face_data, CD_RECAST);
 
   *nverts_r = nverts;
   *verts_r = verts;
@@ -618,7 +618,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
   BKE_mesh_tessface_ensure(final_me);
-  CustomData *pdata = &final_me->pdata;
+  CustomData *pdata = &final_me->face_data;
   int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
   if (recastData) {
     int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
