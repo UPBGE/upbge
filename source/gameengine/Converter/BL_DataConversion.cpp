@@ -1534,6 +1534,17 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       // special case: the parent and child object are not in the same layer.
       // This weird situation is used in Apricot for test purposes.
       // Resolve it by not converting the child
+      /* When this is happening, and it can happen more often in 0.3+ due to
+       * active/inactive layers organisation from outliner which can be
+       * a bit confusing, display a message to say which child is being removed /
+       * will not be converted. */
+      if (parentobj) {
+        CM_Warning("Parent object "
+                   << parentobj->GetName() << " and Child object " << childobj->GetName()
+                   << " are not in the same layer (active / inactive objects lists).");
+        CM_Warning("Child object " << childobj->GetName() << " will not be converted.");
+        CM_Warning("Please ensure that parents and children are in the same layer.");
+      }
       childobj->GetSGNode()->DisconnectFromParent();
       delete pcit->m_gamechildnode;
       // Now destroy the child object but also all its descendent that may already be linked
