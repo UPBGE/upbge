@@ -251,16 +251,17 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    */
   CTX_data_ensure_evaluated_depsgraph(C);
 
-  if (CTX_wm_region_view3d(C)->persp != RV3D_CAMOB) {
-    m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
-    m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
-    BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
-    /* Fix crash at start with some files: See 68589a31ebfb79165f99a979357d237e5413e904 */
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
-    defaultCamBase->flag |= BASE_HIDDEN;
-    DEG_relations_tag_update(bmain);
-  }
+  /* Always create a default camera in case no valid active camera is found
+   * https://github.com/UPBGE/upbge/issues/1829
+   * This camera will be added to kxscene.objects list only if needed */
+  m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
+  m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
+  BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
+  /* Fix crash at start with some files: See 68589a31ebfb79165f99a979357d237e5413e904 */
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
+  defaultCamBase->flag |= BASE_HIDDEN;
+  DEG_relations_tag_update(bmain);
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
