@@ -160,8 +160,9 @@ static int buildRawVertIndicesData(Mesh *me,
     return 0;
   }
 
-  verts = (float *)MEM_mallocN(sizeof(float[3]) * nverts, "buildRawVertIndicesData verts");
-  BKE_mesh_vert_coords_get(me, (float (*)[3])verts);
+  /* buildRawVertIndicesData verts */
+  float(*v)[3] = BKE_mesh_vert_coords_alloc(me, nullptr);
+  verts = (float *)v;
 
   /* flip coordinates */
   for (vi = 0; vi < nverts; vi++) {
