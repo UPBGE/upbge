@@ -180,7 +180,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
           MEM_malloc_arrayN(verts_num, sizeof(*vertexCos_New), __func__));
 
       BKE_mesh_calc_relative_deform(
-          BKE_mesh_face_offsets(me),
+          me->face_offsets().data(),
           me->faces_num,
           me->corner_verts().data(),
           me->totvert,
@@ -367,6 +367,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_MeshCache = {
+    /*idname*/ "MeshCache",
     /*name*/ N_("MeshCache"),
     /*structName*/ "MeshCacheModifierData",
     /*structSize*/ sizeof(MeshCacheModifierData),

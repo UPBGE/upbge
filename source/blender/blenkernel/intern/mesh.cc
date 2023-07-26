@@ -1731,18 +1731,11 @@ void BKE_mesh_count_selected_items(const Mesh *mesh, int r_count[3])
   /* We could support faces in paint modes. */
 }
 
-void BKE_mesh_vert_coords_get(const Mesh *mesh, float (*vert_coords)[3])
-{
-  blender::bke::AttributeAccessor attributes = mesh->attributes();
-  VArray<float3> positions = *attributes.lookup_or_default(
-      "position", ATTR_DOMAIN_POINT, float3(0));
-  positions.materialize({(float3 *)vert_coords, mesh->totvert});
-}
-
 float (*BKE_mesh_vert_coords_alloc(const Mesh *mesh, int *r_vert_len))[3]
 {
   float(*vert_coords)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * mesh->totvert, __func__);
-  BKE_mesh_vert_coords_get(mesh, vert_coords);
+  MutableSpan(reinterpret_cast<float3 *>(vert_coords), mesh->totvert)
+      .copy_from(mesh->vert_positions());
   if (r_vert_len) {
     *r_vert_len = mesh->totvert;
   }
@@ -1796,9 +1789,8 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh,
                                  ((mesh->flag & ME_AUTOSMOOTH) != 0);
   const float split_angle = (mesh->flag & ME_AUTOSMOOTH) != 0 ? mesh->smoothresh : float(M_PI);
 
-  /* may be nullptr */
-  blender::short2 *clnors = (blender::short2 *)CustomData_get_layer_for_write(
-      &mesh->loop_data, CD_CUSTOMLOOPNORMAL, mesh->totloop);
+  const blender::short2 *clnors = static_cast<const blender::short2 *>(
+      CustomData_get_layer(&mesh->loop_data, CD_CUSTOMLOOPNORMAL));
   const bool *sharp_edges = static_cast<const bool *>(
       CustomData_get_layer_named(&mesh->edge_data, CD_PROP_BOOL, "sharp_edge"));
   const bool *sharp_faces = static_cast<const bool *>(
@@ -1815,9 +1807,9 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh,
       mesh->face_normals(),
       sharp_edges,
       sharp_faces,
+      clnors,
       use_split_normals,
       split_angle,
-      clnors,
       nullptr,
       {reinterpret_cast<float3 *>(r_corner_normals), mesh->totloop});
 }

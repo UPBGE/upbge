@@ -79,7 +79,7 @@ set(DEFSRC
   rna_sound.cc
   rna_space.cc
   rna_speaker.cc
-  rna_test.c
+  rna_test.cc
   rna_text.cc
   rna_texture.cc
   rna_timeline.cc
