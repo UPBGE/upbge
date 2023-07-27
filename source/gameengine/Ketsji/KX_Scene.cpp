@@ -893,6 +893,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_config_array(
       input->GetFrameBuffer(), config, sizeof(config) / sizeof(GPUAttachment));
 
+  GPU_framebuffer_config_array(
+      output->GetFrameBuffer(), config, sizeof(config) / sizeof(GPUAttachment));
+
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
