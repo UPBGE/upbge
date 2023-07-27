@@ -12,6 +12,8 @@
 
 #include "IMB_imbuf.h"
 
+#include "KX_PythonInit.h" // to find PyMODINIT_FUNC initVideoTexturePythonBinding(void) declaration
+
 // get material id
 static PyObject *getMaterialID(PyObject *self, PyObject *args)
 {

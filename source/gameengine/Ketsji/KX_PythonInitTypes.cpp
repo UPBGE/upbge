@@ -111,7 +111,7 @@
 #  include "SCA_VisibilityActuator.h"
 #  include "SCA_XNORController.h"
 #  include "SCA_XORController.h"
-#  include "Texture.h"
+#  include "../VideoTexture/Texture.h"
 
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {

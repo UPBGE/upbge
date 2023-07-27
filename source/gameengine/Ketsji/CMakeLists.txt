@@ -37,7 +37,6 @@ set(INC
   ../Rasterizer
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
-  ../VideoTexture
   ../../blender
   ../../blender/blenfont
   ../../blender/blenkernel
@@ -193,6 +192,7 @@ set(LIB
   ge_device
   extern_recastnavigation
   ge_rasterizer
+  ge_videotexture
 )
 
 add_definitions(${GL_DEFINITIONS})
