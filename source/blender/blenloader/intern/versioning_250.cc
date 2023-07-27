@@ -698,7 +698,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         if (act->type == ACT_SOUND) {
           bSoundActuator *sAct = (bSoundActuator *)act->data;
           if (sAct->sound) {
-            bSound *sound = blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), sAct->sound);
+            bSound *sound = (bSound *)blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), sAct->sound);
             sAct->flag = (sound->flags & SOUND_FLAGS_3D) ? ACT_SND_3D_SOUND : 0;
             sAct->pitch = sound->pitch;
             sAct->volume = sound->volume;
@@ -880,7 +880,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         ob->mode |= OB_MODE_POSE;
       }
     }
-    for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+    for (Scene *sce = (Scene *)bmain->scenes.first; sce; sce = (Scene *)sce->id.next) {
 
       /* Framing */
       // sce->gm.framing = sce->framing;

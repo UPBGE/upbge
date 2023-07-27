@@ -4025,19 +4025,18 @@ void DRW_transform_to_display(GPUViewport *viewport,
   const float halfx = GLA_PIXEL_OFS / w;
   const float halfy = GLA_PIXEL_OFS / h;
 
-  rctf pos_rect = {
-      .xmin = sanitized_rect.xmin,
-      .ymin = sanitized_rect.ymin,
-      .xmax = sanitized_rect.xmin + w,
-      .ymax = sanitized_rect.ymin + h,
-  };
+  rctf pos_rect{};
+  pos_rect.xmin = sanitized_rect.xmin;
+  pos_rect.ymin = sanitized_rect.ymin;
+  pos_rect.xmax = sanitized_rect.xmin + w;
+  pos_rect.ymax = sanitized_rect.ymin + h;
 
-  rctf uv_rect = {
-      .xmin = halfx,
-      .ymin = halfy,
-      .xmax = halfx + 1.0f,
-      .ymax = halfy + 1.0f,
-  };
+  rctf uv_rect{};
+  uv_rect.xmin = halfx;
+  uv_rect.ymin = halfy;
+  uv_rect.xmax = halfx + 1.0f;
+  uv_rect.ymax = halfy + 1.0f;
+
   /* Mirror the UV rect in case axis-swapped drawing is requested (by passing a rect with min and
    * max values swapped). */
   if (BLI_rcti_size_x(rect) < 0) {
