@@ -78,6 +78,24 @@ GPUTexture *RAS_FrameBuffer::GetDepthAttachment()
   return m_depthAttachment;
 }
 
+void RAS_FrameBuffer::UpdateSize(int width, int height)
+{
+  if (GPU_texture_width(m_colorAttachment) != width ||
+      GPU_texture_height(m_colorAttachment) != height)
+  {
+    GPU_texture_free(m_colorAttachment);
+    GPU_texture_free(m_depthAttachment);
+    m_colorAttachment = GPU_texture_create_2d(
+        "color_tex", width, height, 1, GPU_RGBA16F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+    m_depthAttachment = GPU_texture_create_2d(
+        "depth_tex", width, height, 1, GPU_DEPTH24_STENCIL8, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+    GPUAttachment config[] = {GPU_ATTACHMENT_TEXTURE(m_depthAttachment),
+                              GPU_ATTACHMENT_TEXTURE(m_colorAttachment)};
+
+    GPU_framebuffer_config_array(m_frameBuffer, config, sizeof(config) / sizeof(GPUAttachment));
+  }
+}
+
 RAS_Rasterizer::FrameBufferType RAS_FrameBuffer::GetType() const
 {
   return m_frameBufferType;

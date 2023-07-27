@@ -57,5 +57,7 @@ class RAS_FrameBuffer {
   GPUTexture *GetColorAttachment();
   GPUTexture *GetDepthAttachment();
 
+  void UpdateSize(int width, int height);
+
   RAS_Rasterizer::FrameBufferType GetType() const;
 };

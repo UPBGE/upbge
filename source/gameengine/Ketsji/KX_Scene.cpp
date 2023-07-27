@@ -889,12 +889,15 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
+  GPUTexture *color = GPU_viewport_color_texture(m_currentGPUViewport, 0);
   GPUAttachment config[] = {
       GPU_ATTACHMENT_TEXTURE(GPU_viewport_depth_texture(m_currentGPUViewport)),
-      GPU_ATTACHMENT_TEXTURE(GPU_viewport_color_texture(m_currentGPUViewport, 0))};
+      GPU_ATTACHMENT_TEXTURE(color)};
 
   GPU_framebuffer_config_array(
       input->GetFrameBuffer(), config, sizeof(config) / sizeof(GPUAttachment));
+
+  output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
 
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
