@@ -663,12 +663,12 @@ static void gradientVert_update(WPGradient_userData *grad_data, int index)
   }
 }
 
-static void gradientVertUpdate__mapFunc(void *userData,
+static void gradientVertUpdate__mapFunc(void *user_data,
                                         int index,
                                         const float /*co*/[3],
                                         const float /*no*/[3])
 {
-  WPGradient_userData *grad_data = static_cast<WPGradient_userData *>(userData);
+  WPGradient_userData *grad_data = static_cast<WPGradient_userData *>(user_data);
   WPGradient_vertStore *vs = &grad_data->vert_cache->elem[index];
 
   if (vs->sco[0] == FLT_MAX) {
@@ -682,12 +682,12 @@ static void gradientVertUpdate__mapFunc(void *userData,
   gradientVert_update(grad_data, index);
 }
 
-static void gradientVertInit__mapFunc(void *userData,
+static void gradientVertInit__mapFunc(void *user_data,
                                       int index,
                                       const float co[3],
                                       const float /*no*/[3])
 {
-  WPGradient_userData *grad_data = static_cast<WPGradient_userData *>(userData);
+  WPGradient_userData *grad_data = static_cast<WPGradient_userData *>(user_data);
   WPGradient_vertStore *vs = &grad_data->vert_cache->elem[index];
 
   if (grad_data->use_select && (grad_data->select_vert && !grad_data->select_vert[index])) {
@@ -731,7 +731,16 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, const wmEven
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   WPGradient_vertStoreBase *vert_cache = static_cast<WPGradient_vertStoreBase *>(
       gesture->user_data.data);
-  int ret = WM_gesture_straightline_modal(C, op, event);
+  Object *ob = CTX_data_active_object(C);
+  int ret;
+
+  if (BKE_object_defgroup_active_is_locked(ob)) {
+    BKE_report(op->reports, RPT_WARNING, "Active group is locked, aborting");
+    ret = OPERATOR_CANCELLED;
+  }
+  else {
+    ret = WM_gesture_straightline_modal(C, op, event);
+  }
 
   if (ret & OPERATOR_RUNNING_MODAL) {
     if (event->type == LEFTMOUSE && event->val == KM_RELEASE) { /* XXX, hardcoded */
@@ -743,7 +752,6 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, const wmEven
   }
 
   if (ret & OPERATOR_CANCELLED) {
-    Object *ob = CTX_data_active_object(C);
     if (vert_cache != nullptr) {
       Mesh *me = static_cast<Mesh *>(ob->data);
       if (vert_cache->wpp.wpaint_prev) {

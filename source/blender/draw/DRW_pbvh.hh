@@ -17,6 +17,10 @@
 
 #include "BKE_ccg.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct PBVHAttrReq;
 struct GPUBatch;
 struct PBVHNode;
@@ -53,19 +57,18 @@ struct PBVH_GPU_Args {
 
   SubdivCCG *subdiv_ccg;
   const DMFlagMat *grid_flag_mats;
-  const int *grid_indices;
+  blender::Span<int> grid_indices;
   CCGKey ccg_key;
   CCGElem **grids;
   void **gridfaces;
   BLI_bitmap **grid_hidden;
 
-  const int *prim_indices;
-  int totprim;
+  blender::Span<int> prim_indices;
 
   const bool *hide_poly;
 
-  const MLoopTri *mlooptri;
-  const int *looptri_faces;
+  blender::Span<MLoopTri> mlooptri;
+  blender::Span<int> looptri_faces;
   PBVHNode *node;
 
   /* BMesh. */
@@ -91,3 +94,7 @@ GPUBatch *DRW_pbvh_lines_get(PBVHBatches *batches,
                              PBVH_GPU_Args *args,
                              int *r_prim_count,
                              bool do_coarse_grids);
+
+#ifdef __cplusplus
+}
+#endif

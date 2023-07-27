@@ -8,11 +8,11 @@
  * Operators for dealing with armatures and GP data-blocks.
  */
 
-#include <math.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cmath>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -45,6 +45,8 @@
 #include "ED_gpencil_legacy.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
+
+#include "ANIM_bone_collections.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -203,7 +205,7 @@ static int dgroup_skinnable_cb(Object *ob, Bone *bone, void *datap)
         segments = 1;
       }
 
-      if (arm->layer & bone->layer) {
+      if (ANIM_bonecoll_is_visible(arm, bone)) {
         if (!(defgroup = BKE_object_defgroup_find_name(ob, bone->name))) {
           defgroup = BKE_object_defgroup_add_name(ob, bone->name);
         }
@@ -250,7 +252,7 @@ static void gpencil_add_verts_to_dgroups(
   bDeformGroup **dgrouplist;
   bPoseChannel *pchan;
   bGPdata *gpd = (bGPdata *)ob->data;
-  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+  const bool is_multiedit = bool(GPENCIL_MULTIEDIT_SESSIONS_ON(gpd));
 
   Mat4 bbone_array[MAX_BBONE_SUBDIV], *bbone = nullptr;
   float(*root)[3], (*tip)[3], (*verts)[3];

@@ -6,8 +6,8 @@
  * \ingroup modifiers
  */
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
@@ -69,7 +69,7 @@ struct GPHookData_cb {
   float mat[4][4];
 };
 
-static void initData(GpencilModifierData *md)
+static void init_data(GpencilModifierData *md)
 {
   HookGpencilModifierData *gpmd = (HookGpencilModifierData *)md;
 
@@ -81,7 +81,7 @@ static void initData(GpencilModifierData *md)
   BKE_curvemapping_init(gpmd->curfalloff);
 }
 
-static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
+static void copy_data(const GpencilModifierData *md, GpencilModifierData *target)
 {
   HookGpencilModifierData *gmd = (HookGpencilModifierData *)md;
   HookGpencilModifierData *tgmd = (HookGpencilModifierData *)target;
@@ -97,7 +97,7 @@ static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
 }
 
 /* Calculate the factor of falloff. */
-static float gpencil_hook_falloff(const struct GPHookData_cb *tData, const float len_sq)
+static float gpencil_hook_falloff(const GPHookData_cb *tData, const float len_sq)
 {
   BLI_assert(tData->falloff_sq);
   if (len_sq > tData->falloff_sq) {
@@ -150,7 +150,7 @@ static float gpencil_hook_falloff(const struct GPHookData_cb *tData, const float
 }
 
 /* apply point deformation */
-static void gpencil_hook_co_apply(struct GPHookData_cb *tData, float weight, bGPDspoint *pt)
+static void gpencil_hook_co_apply(GPHookData_cb *tData, float weight, bGPDspoint *pt)
 {
   float fac;
 
@@ -180,12 +180,12 @@ static void gpencil_hook_co_apply(struct GPHookData_cb *tData, float weight, bGP
 }
 
 /* deform stroke */
-static void deformStroke(GpencilModifierData *md,
-                         Depsgraph * /*depsgraph*/,
-                         Object *ob,
-                         bGPDlayer *gpl,
-                         bGPDframe * /*gpf*/,
-                         bGPDstroke *gps)
+static void deform_stroke(GpencilModifierData *md,
+                          Depsgraph * /*depsgraph*/,
+                          Object *ob,
+                          bGPDlayer *gpl,
+                          bGPDframe * /*gpf*/,
+                          bGPDstroke *gps)
 {
   HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
   if (!mmd->object) {
@@ -196,7 +196,7 @@ static void deformStroke(GpencilModifierData *md,
 
   bPoseChannel *pchan = BKE_pose_channel_find_name(mmd->object->pose, mmd->subtarget);
   float dmat[4][4];
-  struct GPHookData_cb tData;
+  GPHookData_cb tData;
 
   if (!is_stroke_affected_by_modifier(ob,
                                       mmd->layername,
@@ -265,10 +265,10 @@ static void deformStroke(GpencilModifierData *md,
 /* FIXME: Ideally we be doing this on a copy of the main depsgraph
  * (i.e. one where we don't have to worry about restoring state)
  */
-static void bakeModifier(Main * /*bmain*/,
-                         Depsgraph *depsgraph,
-                         GpencilModifierData *md,
-                         Object *ob)
+static void bake_modifier(Main * /*bmain*/,
+                          Depsgraph *depsgraph,
+                          GpencilModifierData *md,
+                          Object *ob)
 {
   HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
 
@@ -276,10 +276,10 @@ static void bakeModifier(Main * /*bmain*/,
     return;
   }
 
-  generic_bake_deform_stroke(depsgraph, md, ob, true, deformStroke);
+  generic_bake_deform_stroke(depsgraph, md, ob, true, deform_stroke);
 }
 
-static void freeData(GpencilModifierData *md)
+static void free_data(GpencilModifierData *md)
 {
   HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
 
@@ -288,16 +288,16 @@ static void freeData(GpencilModifierData *md)
   }
 }
 
-static bool isDisabled(GpencilModifierData *md, int /*userRenderParams*/)
+static bool is_disabled(GpencilModifierData *md, bool /*use_render_params*/)
 {
   HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
 
   return !mmd->object;
 }
 
-static void updateDepsgraph(GpencilModifierData *md,
-                            const ModifierUpdateDepsgraphContext *ctx,
-                            const int /*mode*/)
+static void update_depsgraph(GpencilModifierData *md,
+                             const ModifierUpdateDepsgraphContext *ctx,
+                             const int /*mode*/)
 {
   HookGpencilModifierData *lmd = (HookGpencilModifierData *)md;
   if (lmd->object != nullptr) {
@@ -307,12 +307,12 @@ static void updateDepsgraph(GpencilModifierData *md,
   DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
 }
 
-static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
 
-  walk(userData, ob, (ID **)&mmd->material, IDWALK_CB_USER);
-  walk(userData, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+  walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -379,7 +379,7 @@ static void mask_panel_draw(const bContext * /*C*/, Panel *panel)
   gpencil_modifier_masking_panel_draw(panel, true, false);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = gpencil_modifier_panel_register(
       region_type, eGpencilModifierType_Hook, panel_draw);
@@ -391,24 +391,24 @@ static void panelRegister(ARegionType *region_type)
 
 GpencilModifierTypeInfo modifierType_Gpencil_Hook = {
     /*name*/ N_("Hook"),
-    /*structName*/ "HookGpencilModifierData",
-    /*structSize*/ sizeof(HookGpencilModifierData),
+    /*struct_name*/ "HookGpencilModifierData",
+    /*struct_size*/ sizeof(HookGpencilModifierData),
     /*type*/ eGpencilModifierTypeType_Gpencil,
     /*flags*/ eGpencilModifierTypeFlag_SupportsEditmode,
 
-    /*copyData*/ copyData,
+    /*copy_data*/ copy_data,
 
-    /*deformStroke*/ deformStroke,
-    /*generateStrokes*/ nullptr,
-    /*bakeModifier*/ bakeModifier,
-    /*remapTime*/ nullptr,
+    /*deform_stroke*/ deform_stroke,
+    /*generate_strokes*/ nullptr,
+    /*bake_modifier*/ bake_modifier,
+    /*remap_time*/ nullptr,
 
-    /*initData*/ initData,
-    /*freeData*/ freeData,
-    /*isDisabled*/ isDisabled,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ nullptr,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ nullptr,
-    /*panelRegister*/ panelRegister,
+    /*init_data*/ init_data,
+    /*free_data*/ free_data,
+    /*is_disabled*/ is_disabled,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ nullptr,
+    /*panel_register*/ panel_register,
 };

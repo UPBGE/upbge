@@ -63,6 +63,8 @@
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 
+#include "ANIM_bone_collections.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 
@@ -313,10 +315,7 @@ bool ED_object_jump_to_bone(bContext *C,
       if (reveal_hidden) {
         /* Unhide the bone. */
         ebone->flag &= ~BONE_HIDDEN_A;
-
-        if ((arm->layer & ebone->layer) == 0) {
-          arm->layer |= 1U << bitscan_forward_uint(ebone->layer);
-        }
+        ANIM_armature_ensure_layer_enabled_from_ebone(arm, ebone);
       }
 
       /* Select it. */
@@ -340,10 +339,7 @@ bool ED_object_jump_to_bone(bContext *C,
       if (reveal_hidden) {
         /* Unhide the bone. */
         pchan->bone->flag &= ~BONE_HIDDEN_P;
-
-        if ((arm->layer & pchan->bone->layer) == 0) {
-          arm->layer |= 1U << bitscan_forward_uint(pchan->bone->layer);
-        }
+        ANIM_armature_ensure_layer_enabled_from_pchan(arm, pchan);
       }
 
       /* Select it. */

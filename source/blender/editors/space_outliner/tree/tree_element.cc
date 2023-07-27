@@ -20,6 +20,7 @@
 #include "tree_element_anim_data.hh"
 #include "tree_element_bone.hh"
 #include "tree_element_collection.hh"
+#include "tree_element_defgroup.hh"
 #include "tree_element_driver.hh"
 #include "tree_element_edit_bone.hh"
 #include "tree_element_gpencil_layer.hh"
@@ -27,6 +28,7 @@
 #include "tree_element_label.hh"
 #include "tree_element_nla.hh"
 #include "tree_element_overrides.hh"
+#include "tree_element_particle_system.hh"
 #include "tree_element_rna.hh"
 #include "tree_element_scene_objects.hh"
 #include "tree_element_seq.hh"
@@ -113,6 +115,20 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const i
       EditBoneElementCreateData *ebone_data = static_cast<EditBoneElementCreateData *>(idv);
       return std::make_unique<TreeElementEditBone>(
           legacy_te, *ebone_data->armature_id, *ebone_data->ebone);
+    }
+    case TSE_DEFGROUP_BASE:
+      return std::make_unique<TreeElementDeformGroupBase>(legacy_te, *static_cast<Object *>(idv));
+    case TSE_DEFGROUP: {
+      DeformGroupElementCreateData *defgroup_data = static_cast<DeformGroupElementCreateData *>(
+          idv);
+      return std::make_unique<TreeElementDeformGroup>(
+          legacy_te, *defgroup_data->object, *defgroup_data->defgroup);
+    }
+    case TSE_LINKED_PSYS: {
+      ParticleSystemElementCreateData *psys_data = static_cast<ParticleSystemElementCreateData *>(
+          idv);
+      return std::make_unique<TreeElementParticleSystem>(
+          legacy_te, *psys_data->object, *psys_data->psys);
     }
     default:
       break;

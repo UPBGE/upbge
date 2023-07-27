@@ -65,7 +65,7 @@ struct PBVHProxyNode {
 };
 
 struct PBVHColorBufferNode {
-  float (*color)[4];
+  float (*color)[4] = nullptr;
 };
 
 struct PBVHPixels {
@@ -83,7 +83,7 @@ struct PBVHPixelsNode {
    *
    * Contains #blender::bke::pbvh::pixels::NodeData.
    */
-  void *node_data;
+  void *node_data = nullptr;
 };
 
 struct PBVHAttrReq {
@@ -393,7 +393,7 @@ void BKE_pbvh_vert_tag_update_normal(PBVH *pbvh, PBVHVertRef vertex);
 
 void BKE_pbvh_node_get_grids(PBVH *pbvh,
                              PBVHNode *node,
-                             int **grid_indices,
+                             const int **grid_indices,
                              int *totgrid,
                              int *maxgrid,
                              int *gridsize,
@@ -494,7 +494,7 @@ struct PBVHVertexIter {
   CCGElem **grids;
   CCGElem *grid;
   BLI_bitmap **grid_hidden, *gh;
-  int *grid_indices;
+  const int *grid_indices;
   int totgrid;
   int gridsize;
 
@@ -617,9 +617,9 @@ struct PBVHFaceIter {
   int cd_hide_poly_, cd_face_set_;
   bool *hide_poly_;
   int *face_sets_;
-  const int *face_offsets_;
-  const int *looptri_faces_;
-  const int *corner_verts_;
+  blender::OffsetIndices<int> face_offsets_;
+  blender::Span<int> looptri_faces_;
+  blender::Span<int> corner_verts_;
   int prim_index_;
   const SubdivCCG *subdiv_ccg_;
   const BMesh *bm;

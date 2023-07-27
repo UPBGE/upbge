@@ -36,7 +36,7 @@ set(SRC
   intern/readfile_tempload.cc
   intern/runtime.c
   intern/undofile.cc
-  intern/versioning_250.c
+  intern/versioning_250.cc
   intern/versioning_260.cc
   intern/versioning_270.cc
   intern/versioning_280.cc
@@ -45,10 +45,10 @@ set(SRC
   intern/versioning_400.cc
   intern/versioning_common.cc
   intern/versioning_defaults.cc
-  intern/versioning_dna.c
-  intern/versioning_legacy.c
+  intern/versioning_dna.cc
+  intern/versioning_legacy.cc
   intern/versioning_upbge.c
-  intern/versioning_userdef.c
+  intern/versioning_userdef.cc
   intern/writefile.cc
 
   BLO_blend_defs.h
