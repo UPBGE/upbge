@@ -897,7 +897,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_config_array(
       input->GetFrameBuffer(), config, sizeof(config) / sizeof(GPUAttachment));
 
-  output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
+  bool is_custom_viewport_render_pass = cam && cam->GetViewport();
+  if (!is_custom_viewport_render_pass) {
+    output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
+  }
 
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
