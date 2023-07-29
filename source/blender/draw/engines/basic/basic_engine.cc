@@ -78,9 +78,9 @@ static void basic_cache_init(void *vedata)
   /* Twice for normal and in front objects. */
   for (int i = 0; i < 2; i++) {
     DRWState clip_state = DRWState(
-        (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) ? DRW_STATE_CLIP_PLANES : 0);
+        (draw_ctx->sh_cfg == GPU_SHADER_CFG_CLIPPED) ? DRW_STATE_CLIP_PLANES : DRW_STATE_NO_DRAW);
     DRWState infront_state = DRWState(
-        (DRW_state_is_select() && (i == 1)) ? DRW_STATE_IN_FRONT_SELECT : 0);
+        (DRW_state_is_select() && (i == 1)) ? DRW_STATE_IN_FRONT_SELECT : DRW_STATE_NO_DRAW);
     DRWState state = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
 
     GPUShader *sh = DRW_state_is_select() ?
@@ -118,7 +118,7 @@ static void basic_cache_init(void *vedata)
 
 /* TODO(fclem): DRW_cache_object_surface_material_get needs a refactor to allow passing nullptr
  * instead of gpumat_array. Avoiding all this boilerplate code. */
-static struct GPUBatch **basic_object_surface_material_get(Object *ob)
+static GPUBatch **basic_object_surface_material_get(Object *ob)
 {
   const int materials_len = DRW_cache_object_material_count_get(ob);
   GPUMaterial **gpumat_array = BLI_array_alloca(gpumat_array, materials_len);
@@ -141,7 +141,7 @@ static void basic_cache_populate_particles(void *vedata, Object *ob)
     ParticleSettings *part = psys->part;
     const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
     if (draw_as == PART_DRAW_PATH) {
-      struct GPUBatch *hairs = DRW_cache_particles_get_hair(ob, psys, nullptr);
+      GPUBatch *hairs = DRW_cache_particles_get_hair(ob, psys, nullptr);
       if (stl->g_data->use_material_slot_selection) {
         const short material_slot = part->omat;
         DRW_select_load_id(ob->runtime.select_id | (material_slot << 16));
@@ -188,7 +188,7 @@ static void basic_cache_populate(void *vedata, Object *ob)
 
     if (is_flat_object_viewed_from_side) {
       /* Avoid losing flat objects when in ortho views (see #56549) */
-      struct GPUBatch *geom = DRW_cache_object_all_edges_get(ob);
+      GPUBatch *geom = DRW_cache_object_all_edges_get(ob);
       if (geom) {
         DRW_shgroup_call(stl->g_data->depth_shgrp[do_in_front], geom, ob);
       }
@@ -209,7 +209,7 @@ static void basic_cache_populate(void *vedata, Object *ob)
   }
   else {
     if (stl->g_data->use_material_slot_selection && BKE_object_supports_material_slots(ob)) {
-      struct GPUBatch **geoms = basic_object_surface_material_get(ob);
+      GPUBatch **geoms = basic_object_surface_material_get(ob);
       if (geoms) {
         const int materials_len = DRW_cache_object_material_count_get(ob);
         for (int i = 0; i < materials_len; i++) {
@@ -223,7 +223,7 @@ static void basic_cache_populate(void *vedata, Object *ob)
       }
     }
     else {
-      struct GPUBatch *geom = DRW_cache_object_surface_get(ob);
+      GPUBatch *geom = DRW_cache_object_surface_get(ob);
       if (geom) {
         DRW_shgroup_call(shgrp, geom, ob);
       }
@@ -256,7 +256,7 @@ static void basic_draw_scene(void *vedata)
   DRW_draw_pass(psl->depth_pass_cull[1]);
 }
 
-static void basic_engine_free(void)
+static void basic_engine_free()
 {
   BASIC_shaders_free();
 }
@@ -270,7 +270,7 @@ DrawEngineType draw_engine_basic_type = {
     /*vedata_size*/ &basic_data_size,
     /*engine_init*/ nullptr,
     /*engine_free*/ &basic_engine_free,
-    /*instance_free*/ /*instance_free*/ nullptr,
+    /*instance_free*/ nullptr,
     /*cache_init*/ &basic_cache_init,
     /*cache_populate*/ &basic_cache_populate,
     /*cache_finish*/ &basic_cache_finish,

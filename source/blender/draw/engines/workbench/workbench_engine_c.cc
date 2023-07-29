@@ -653,7 +653,7 @@ void workbench_draw_finish(void * /*ved*/)
   DRW_view_set_active(nullptr);
 }
 
-static void workbench_engine_free(void)
+static void workbench_engine_free()
 {
   workbench_shader_free();
 }
@@ -685,7 +685,7 @@ DrawEngineType draw_engine_workbench = {
     /*vedata_size*/ &workbench_data_size,
     /*engine_init*/ &workbench_engine_init,
     /*engine_free*/ &workbench_engine_free,
-    /*instance_free*/ /*instance_free*/ nullptr,
+    /*instance_free*/ nullptr,
     /*cache_init*/ &workbench_cache_init,
     /*cache_populate*/ &workbench_cache_populate,
     /*cache_finish*/ &workbench_cache_finish,

@@ -187,7 +187,8 @@ GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd, Obje
                        V3D_SHADING_VERTEX_COLOR :
                        pd->v3d_color_type;
   const eV3DShadingLightingMode lighting_mode = eV3DShadingLightingMode(
-      (pd->v3d != nullptr) ? pd->v3d->shading.light : V3D_LIGHTING_STUDIO);
+      (pd->v3d != nullptr) ? eV3DShadingLightingMode(pd->v3d->shading.light) :
+                             V3D_LIGHTING_STUDIO);
 
   GPENCIL_MaterialPool *pool = matpool;
   for (int i = 0; i < mat_len; i++) {
@@ -465,7 +466,7 @@ static void gpencil_view_layer_data_free(void *storage)
   BLI_memblock_destroy(vldata->gp_vfx_pool, nullptr);
 }
 
-GPENCIL_ViewLayerData *GPENCIL_view_layer_data_ensure(void)
+GPENCIL_ViewLayerData *GPENCIL_view_layer_data_ensure()
 {
   GPENCIL_ViewLayerData **vldata = (GPENCIL_ViewLayerData **)DRW_view_layer_engine_data_ensure(
       &draw_engine_gpencil_type, gpencil_view_layer_data_free);

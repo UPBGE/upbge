@@ -129,7 +129,7 @@ static void drw_state_ensure_not_reused(DRWManager *dst)
 }
 #endif
 
-static bool drw_draw_show_annotation(void)
+static bool drw_draw_show_annotation()
 {
   if (DST.draw_ctx.space_data == nullptr) {
     View3D *v3d = DST.draw_ctx.v3d;
@@ -156,14 +156,14 @@ static bool drw_draw_show_annotation(void)
 /** \name Threading
  * \{ */
 
-static void drw_task_graph_init(void)
+static void drw_task_graph_init()
 {
   BLI_assert(DST.task_graph == nullptr);
   DST.task_graph = BLI_task_graph_create();
   DST.delayed_extraction = BLI_gset_ptr_new(__func__);
 }
 
-static void drw_task_graph_deinit(void)
+static void drw_task_graph_deinit()
 {
   BLI_task_graph_work_and_wait(DST.task_graph);
 
@@ -287,23 +287,23 @@ void DRW_render_viewport_size_set(const int size[2])
   DST.inv_size[1] = 1.0f / size[1];
 }
 
-const float *DRW_viewport_size_get(void)
+const float *DRW_viewport_size_get()
 {
   return DST.size;
 }
 
-const float *DRW_viewport_invert_size_get(void)
+const float *DRW_viewport_invert_size_get()
 {
   return DST.inv_size;
 }
 
-const float *DRW_viewport_pixelsize_get(void)
+const float *DRW_viewport_pixelsize_get()
 {
   return &DST.pixsize;
 }
 
 /* Not a viewport variable, we could split this out. */
-static void drw_context_state_init(void)
+static void drw_context_state_init()
 {
   if (DST.draw_ctx.obact) {
     DST.draw_ctx.object_mode = eObjectMode(DST.draw_ctx.obact->mode);
@@ -337,7 +337,7 @@ static void drw_context_state_init(void)
   }
 }
 
-static void draw_unit_state_create(void)
+static void draw_unit_state_create()
 {
   DRWObjectInfos *infos = static_cast<DRWObjectInfos *>(BLI_memblock_alloc(DST.vmempool->obinfos));
   DRWObjectMatrix *mats = static_cast<DRWObjectMatrix *>(BLI_memblock_alloc(DST.vmempool->obmats));
@@ -362,7 +362,7 @@ static void draw_unit_state_create(void)
   DRW_handle_increment(&DST.resource_handle);
 }
 
-DRWData *DRW_viewport_data_create(void)
+DRWData *DRW_viewport_data_create()
 {
   DRWData *drw_data = static_cast<DRWData *>(MEM_callocN(sizeof(DRWData), "DRWData"));
 
@@ -650,17 +650,17 @@ static void drw_manager_exit(DRWManager *dst)
 #endif
 }
 
-DefaultFramebufferList *DRW_viewport_framebuffer_list_get(void)
+DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
 {
   return DRW_view_data_default_framebuffer_list_get(DST.view_data_active);
 }
 
-DefaultTextureList *DRW_viewport_texture_list_get(void)
+DefaultTextureList *DRW_viewport_texture_list_get()
 {
   return DRW_view_data_default_texture_list_get(DST.view_data_active);
 }
 
-void DRW_viewport_request_redraw(void)
+void DRW_viewport_request_redraw()
 {
   if (DST.viewport) {
     GPU_viewport_tag_update(DST.viewport);
@@ -750,7 +750,7 @@ static void duplidata_key_free(void *key)
   MEM_freeN(key);
 }
 
-static void drw_duplidata_free(void)
+static void drw_duplidata_free()
 {
   if (DST.dupli_ghash != nullptr) {
     BLI_ghash_free(DST.dupli_ghash, duplidata_key_free, duplidata_value_free);
@@ -825,7 +825,7 @@ void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type,
  */
 struct IdDdtTemplate {
   ID id;
-  struct AnimData *adt;
+  AnimData *adt;
   DrawDataList drawdata;
 };
 
@@ -976,7 +976,7 @@ void DRW_cache_free_old_batches(Main *bmain)
   Scene *scene;
   ViewLayer *view_layer;
   static int lasttime = 0;
-  int ctime = (int)PIL_check_seconds_timer();
+  int ctime = int(PIL_check_seconds_timer());
 
   if (U.vbotimeout == 0 || (ctime - lasttime) < U.vbocollectrate || ctime == lasttime) {
     return;
@@ -1014,7 +1014,7 @@ void DRW_cache_free_old_batches(Main *bmain)
 /** \name Rendering (DRW_engines)
  * \{ */
 
-static void drw_engines_init(void)
+static void drw_engines_init()
 {
   DRW_ENABLED_ENGINE_ITER (DST.view_data_active, engine, data) {
     PROFILE_START(stime);
@@ -1030,7 +1030,7 @@ static void drw_engines_init(void)
   }
 }
 
-static void drw_engines_cache_init(void)
+static void drw_engines_cache_init()
 {
   DRW_manager_begin_sync();
 
@@ -1098,7 +1098,7 @@ static void drw_engines_cache_populate(Object *ob)
   drw_drawdata_unlink_dupli((ID *)ob);
 }
 
-static void drw_engines_cache_finish(void)
+static void drw_engines_cache_finish()
 {
   DRW_ENABLED_ENGINE_ITER (DST.view_data_active, engine, data) {
     if (engine->cache_finish) {
@@ -1109,7 +1109,7 @@ static void drw_engines_cache_finish(void)
   DRW_manager_end_sync();
 }
 
-static void drw_engines_draw_scene(void)
+static void drw_engines_draw_scene()
 {
   DRW_ENABLED_ENGINE_ITER (DST.view_data_active, engine, data) {
     PROFILE_START(stime);
@@ -1128,7 +1128,7 @@ static void drw_engines_draw_scene(void)
   DRW_state_reset();
 }
 
-static void drw_engines_draw_text(void)
+static void drw_engines_draw_text()
 {
   DRW_ENABLED_ENGINE_ITER (DST.view_data_active, engine, data) {
     PROFILE_START(stime);
@@ -1198,7 +1198,7 @@ static void drw_engines_enable_from_engine(const RenderEngineType *engine_type, 
   }
 }
 
-static void drw_engines_enable_overlays(void)
+static void drw_engines_enable_overlays()
 {
   use_drw_engine((U.experimental.enable_overlay_next) ? &draw_engine_overlay_next_type :
                                                         &draw_engine_overlay_type);
@@ -1206,12 +1206,12 @@ static void drw_engines_enable_overlays(void)
 /**
  * Use for select and depth-drawing.
  */
-static void drw_engines_enable_basic(void)
+static void drw_engines_enable_basic()
 {
   use_drw_engine(&draw_engine_basic_type);
 }
 
-static void drw_engine_enable_image_editor(void)
+static void drw_engine_enable_image_editor()
 {
   if (DRW_engine_external_acquire_for_image_editor()) {
     use_drw_engine(&draw_engine_external_type);
@@ -1224,7 +1224,7 @@ static void drw_engine_enable_image_editor(void)
                                                         &draw_engine_overlay_type);
 }
 
-static void drw_engines_enable_editors(void)
+static void drw_engines_enable_editors()
 {
   SpaceLink *space_data = DST.draw_ctx.space_data;
   if (!space_data) {
@@ -1245,7 +1245,7 @@ static void drw_engines_enable_editors(void)
   }
 }
 
-static bool is_compositor_enabled(void)
+static bool is_compositor_enabled()
 {
   if (DST.draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
     return false;
@@ -1299,12 +1299,12 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
 #endif
 }
 
-static void drw_engines_disable(void)
+static void drw_engines_disable()
 {
   DRW_view_data_reset(DST.view_data_active);
 }
 
-static void drw_engines_data_validate(void)
+static void drw_engines_data_validate()
 {
   DRW_view_data_free_unused(DST.view_data_active);
 }
@@ -1454,7 +1454,7 @@ static void drw_notify_view_update_offscreen(Depsgraph *depsgraph,
 /** \name Callbacks
  * \{ */
 
-void DRW_draw_callbacks_pre_scene(void)
+void DRW_draw_callbacks_pre_scene()
 {
   RegionView3D *rv3d = DST.draw_ctx.rv3d;
 
@@ -1469,7 +1469,7 @@ void DRW_draw_callbacks_pre_scene(void)
   }
 }
 
-void DRW_draw_callbacks_post_scene(void)
+void DRW_draw_callbacks_post_scene()
 {
   RegionView3D *rv3d = DST.draw_ctx.rv3d;
   ARegion *region = DST.draw_ctx.region;
@@ -1627,7 +1627,7 @@ void DRW_draw_callbacks_post_scene(void)
   }
 }
 
-struct DRWTextStore *DRW_text_cache_ensure(void)
+DRWTextStore *DRW_text_cache_ensure()
 {
   BLI_assert(DST.text_store_p);
   if (*DST.text_store_p == nullptr) {
@@ -1701,7 +1701,6 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
   /*********/
 
   BKE_view_layer_synced_ensure(scene, view_layer);
-  DST.draw_ctx.evil_C = evil_C;
   DST.draw_ctx = {};
   DST.draw_ctx.region = region;
   DST.draw_ctx.rv3d = rv3d;
@@ -1713,7 +1712,7 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
   DST.draw_ctx.depsgraph = depsgraph;
 
   /* reuse if caller sets */
-  DST.draw_ctx.evil_C = DST.draw_ctx.evil_C;
+  DST.draw_ctx.evil_C = evil_C;
 
   drw_task_graph_init();
   drw_context_state_init();
@@ -2183,7 +2182,7 @@ void DRW_custom_pipeline_begin(DrawEngineType *draw_engine_type, Depsgraph *deps
   DRW_view_data_engine_data_get_ensure(DST.view_data_active, draw_engine_type);
 }
 
-void DRW_custom_pipeline_end(void)
+void DRW_custom_pipeline_end()
 {
   DST.buffer_finish_called = false;
 
@@ -2218,7 +2217,7 @@ void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
   DRW_custom_pipeline_end();
 }
 
-void DRW_cache_restart(void)
+void DRW_cache_restart()
 {
   DRW_smoke_exit(DST.vmempool);
 
@@ -2241,7 +2240,6 @@ void DRW_draw_render_loop_2d_ex(Depsgraph *depsgraph,
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
-  DST.draw_ctx.evil_C = evil_C;
   DST.draw_ctx = {};
   DST.draw_ctx.region = region;
   DST.draw_ctx.scene = scene;
@@ -2251,7 +2249,7 @@ void DRW_draw_render_loop_2d_ex(Depsgraph *depsgraph,
   DST.draw_ctx.space_data = CTX_wm_space_data(evil_C);
 
   /* reuse if caller sets */
-  DST.draw_ctx.evil_C = DST.draw_ctx.evil_C;
+  DST.draw_ctx.evil_C = evil_C;
 
   drw_context_state_init();
   drw_manager_init(&DST, viewport, nullptr);
@@ -2420,7 +2418,7 @@ static void draw_select_framebuffer_depth_only_setup(const int size[2])
   }
 }
 
-void DRW_render_instance_buffer_finish(void)
+void DRW_render_instance_buffer_finish()
 {
   BLI_assert_msg(!DST.buffer_finish_called, "DRW_render_instance_buffer_finish called twice!");
   DST.buffer_finish_called = true;
@@ -2928,7 +2926,7 @@ void DRW_draw_depth_object(
   GPU_framebuffer_clear_depth(depth_fb, 1.0f);
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-  struct GPUClipPlanes planes;
+  GPUClipPlanes planes;
   const bool use_clipping_planes = RV3D_CLIPPING_ENABLED(v3d, rv3d);
   if (use_clipping_planes) {
     GPU_clip_distances(6);
@@ -2953,7 +2951,7 @@ void DRW_draw_depth_object(
       else {
         batch = DRW_mesh_batch_cache_get_surface(me);
       }
-      struct TaskGraph *task_graph = BLI_task_graph_create();
+      TaskGraph *task_graph = BLI_task_graph_create();
       DRW_mesh_batch_cache_create_requested(task_graph, object, me, scene, false, true);
       BLI_task_graph_work_and_wait(task_graph);
       BLI_task_graph_free(task_graph);
@@ -2964,7 +2962,7 @@ void DRW_draw_depth_object(
 
       GPUUniformBuf *ubo = nullptr;
       if (use_clipping_planes) {
-        ubo = GPU_uniformbuf_create_ex(sizeof(struct GPUClipPlanes), &planes, __func__);
+        ubo = GPU_uniformbuf_create_ex(sizeof(GPUClipPlanes), &planes, __func__);
         GPU_batch_uniformbuf_bind(batch, "clipPlanes", ubo);
       }
 
@@ -2994,44 +2992,44 @@ void DRW_draw_depth_object(
 /** \name Draw Manager State (DRW_state)
  * \{ */
 
-bool DRW_state_is_fbo(void)
+bool DRW_state_is_fbo()
 {
   return ((DST.default_framebuffer != nullptr) || DST.options.is_image_render) &&
          !DRW_state_is_depth() && !DRW_state_is_select();
 }
 
-bool DRW_state_is_select(void)
+bool DRW_state_is_select()
 {
   return DST.options.is_select;
 }
 
-bool DRW_state_is_material_select(void)
+bool DRW_state_is_material_select()
 {
   return DST.options.is_material_select;
 }
 
-bool DRW_state_is_depth(void)
+bool DRW_state_is_depth()
 {
   return DST.options.is_depth;
 }
 
-bool DRW_state_is_image_render(void)
+bool DRW_state_is_image_render()
 {
   return DST.options.is_image_render;
 }
 
-bool DRW_state_is_scene_render(void)
+bool DRW_state_is_scene_render()
 {
   BLI_assert(DST.options.is_scene_render ? DST.options.is_image_render : true);
   return DST.options.is_scene_render;
 }
 
-bool DRW_state_is_viewport_image_render(void)
+bool DRW_state_is_viewport_image_render()
 {
   return DST.options.is_image_render && !DST.options.is_scene_render;
 }
 
-bool DRW_state_is_playback(void)
+bool DRW_state_is_playback()
 {
   if (DST.draw_ctx.evil_C != nullptr) {
     wmWindowManager *wm = CTX_wm_manager(DST.draw_ctx.evil_C);
@@ -3040,26 +3038,26 @@ bool DRW_state_is_playback(void)
   return false;
 }
 
-bool DRW_state_is_navigating(void)
+bool DRW_state_is_navigating()
 {
   const RegionView3D *rv3d = DST.draw_ctx.rv3d;
   return (rv3d) && (rv3d->rflag & (RV3D_NAVIGATING | RV3D_PAINTING));
 }
 
-bool DRW_state_show_text(void)
+bool DRW_state_show_text()
 {
   return (DST.options.is_select) == 0 && (DST.options.is_depth) == 0 &&
          (DST.options.is_scene_render) == 0 && (DST.options.draw_text) == 0;
 }
 
-bool DRW_state_draw_support(void)
+bool DRW_state_draw_support()
 {
   View3D *v3d = DST.draw_ctx.v3d;
   return (DRW_state_is_scene_render() == false) && (v3d != nullptr) &&
          ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0);
 }
 
-bool DRW_state_draw_background(void)
+bool DRW_state_draw_background()
 {
   return DST.options.draw_background;
 }
@@ -3070,7 +3068,7 @@ bool DRW_state_draw_background(void)
 /** \name Context State (DRW_context_state)
  * \{ */
 
-const DRWContextState *DRW_context_state_get(void)
+const DRWContextState *DRW_context_state_get()
 {
   return &DST.draw_ctx;
 }
@@ -3097,7 +3095,7 @@ void DRW_engine_register(DrawEngineType *draw_engine_type)
   g_registered_engines.len = BLI_listbase_count(&g_registered_engines.engines);
 }
 
-void DRW_engines_register_experimental(void)
+void DRW_engines_register_experimental()
 {
   if (U.experimental.enable_eevee_next) {
     RE_engines_register(&DRW_engine_viewport_eevee_next_type);
@@ -3107,7 +3105,7 @@ void DRW_engines_register_experimental(void)
   }
 }
 
-void DRW_engines_register(void)
+void DRW_engines_register()
 {
   RE_engines_register(&DRW_engine_viewport_eevee_type);
   RE_engines_register(&DRW_engine_viewport_workbench_type);
@@ -3161,7 +3159,7 @@ void DRW_engines_register(void)
   }
 }
 
-static void drw_registered_engines_free(void)
+static void drw_registered_engines_free()
 {
   DRWRegisteredDrawEngine *next;
   for (DRWRegisteredDrawEngine *type =
@@ -3182,7 +3180,7 @@ static void drw_registered_engines_free(void)
   g_registered_engines.len = 0;
 }
 
-void DRW_engines_free(void)
+void DRW_engines_free()
 {
   drw_registered_engines_free();
 
@@ -3281,7 +3279,7 @@ void DRW_render_context_disable(Render *render)
 /** \name Init/Exit (DRW_gpu_ctx)
  * \{ */
 
-void DRW_gpu_context_create(void)
+void DRW_gpu_context_create()
 {
   BLI_assert(DST.system_gpu_context == nullptr); /* Ensure it's called once */
 
@@ -3295,7 +3293,7 @@ void DRW_gpu_context_create(void)
   wm_window_reset_drawable();
 }
 
-void DRW_gpu_context_destroy(void)
+void DRW_gpu_context_destroy()
 {
   BLI_assert(BLI_thread_is_main());
   if (DST.system_gpu_context != nullptr) {
@@ -3347,7 +3345,7 @@ void DRW_gpu_context_disable_ex(bool restore)
   }
 }
 
-void DRW_gpu_context_enable(void)
+void DRW_gpu_context_enable()
 {
   /* TODO: should be replace by a more elegant alternative. */
 
@@ -3357,7 +3355,7 @@ void DRW_gpu_context_enable(void)
   DRW_gpu_context_enable_ex(true);
 }
 
-void DRW_gpu_context_disable(void)
+void DRW_gpu_context_disable()
 {
   DRW_gpu_context_disable_ex(true);
 }
@@ -3397,7 +3395,7 @@ void DRW_blender_gpu_render_context_disable(void * /*re_gpu_context*/)
 
 #ifdef WITH_XR_OPENXR
 
-void *DRW_system_gpu_context_get(void)
+void *DRW_system_gpu_context_get()
 {
   /* XXX: There should really be no such getter, but for VR we currently can't easily avoid it.
    * OpenXR needs some low level info for the GPU context that will be used for submitting the
@@ -3411,21 +3409,21 @@ void *DRW_system_gpu_context_get(void)
   return DST.system_gpu_context;
 }
 
-void *DRW_xr_blender_gpu_context_get(void)
+void *DRW_xr_blender_gpu_context_get()
 {
   /* XXX: See comment on #DRW_system_gpu_context_get(). */
 
   return DST.blender_gpu_context;
 }
 
-void DRW_xr_drawing_begin(void)
+void DRW_xr_drawing_begin()
 {
   /* XXX: See comment on #DRW_system_gpu_context_get(). */
 
   BLI_ticket_mutex_lock(DST.system_gpu_context_mutex);
 }
 
-void DRW_xr_drawing_end(void)
+void DRW_xr_drawing_end()
 {
   /* XXX: See comment on #DRW_system_gpu_context_get(). */
 
@@ -3479,7 +3477,7 @@ void DRW_draw_state_init_gtests(eGPUShaderConfig sh_cfg)
  *
  * \{ */
 
-bool DRW_gpu_context_release(void)
+bool DRW_gpu_context_release()
 {
   if (!BLI_thread_is_main()) {
     return false;

@@ -873,7 +873,6 @@ void BKE_pbvh_build_mesh(PBVH *pbvh, Mesh *mesh)
 
   /* For each face, store the AABB and the AABB centroid */
   blender::Array<BBC> prim_bbc(looptri_num);
-
   BB cb;
   BB_reset(&cb);
   cb = blender::threading::parallel_reduce(
@@ -884,14 +883,14 @@ void BKE_pbvh_build_mesh(PBVH *pbvh, Mesh *mesh)
         BB current = init;
         for (const int i : range) {
           const MLoopTri &lt = pbvh->looptri[i];
-    BBC *bbc = &prim_bbc[i];
-    BB_reset((BB *)bbc);
+          BBC *bbc = &prim_bbc[i];
+          BB_reset((BB *)bbc);
           for (int j = 0; j < 3; j++) {
             BB_expand((BB *)bbc, vert_positions[pbvh->corner_verts[lt.tri[j]]]);
-    }
-    BBC_update_centroid(bbc);
+          }
+          BBC_update_centroid(bbc);
           BB_expand(&current, bbc->bcentroid);
-  }
+        }
         return current;
       },
       [](const BB &a, const BB &b) {
@@ -968,26 +967,33 @@ void BKE_pbvh_build_grids(PBVH *pbvh,
   /* We also need the base mesh for PBVH draw. */
   pbvh->mesh = me;
 
-  BB cb;
-  BB_reset(&cb);
-
   /* For each grid, store the AABB and the AABB centroid */
   blender::Array<BBC> prim_bbc(totgrid);
-
-  for (int i = 0; i < totgrid; i++) {
-    CCGElem *grid = grids[i];
-    BBC *bbc = &prim_bbc[i];
-
-    BB_reset((BB *)bbc);
-
-    for (int j = 0; j < gridsize * gridsize; j++) {
-      BB_expand((BB *)bbc, CCG_elem_offset_co(key, grid, j));
-    }
-
-    BBC_update_centroid(bbc);
-
-    BB_expand(&cb, bbc->bcentroid);
-  }
+  BB cb;
+  BB_reset(&cb);
+  cb = blender::threading::parallel_reduce(
+      blender::IndexRange(totgrid),
+      1024,
+      cb,
+      [&](const blender::IndexRange range, const BB &init) {
+        BB current = init;
+        for (const int i : range) {
+          CCGElem *grid = grids[i];
+          BBC *bbc = &prim_bbc[i];
+          BB_reset((BB *)bbc);
+          for (int j = 0; j < gridsize * gridsize; j++) {
+            BB_expand((BB *)bbc, CCG_elem_offset_co(key, grid, j));
+          }
+          BBC_update_centroid(bbc);
+          BB_expand(&current, bbc->bcentroid);
+        }
+        return current;
+      },
+      [](const BB &a, const BB &b) {
+        BB current = a;
+        BB_expand_with_bb(&current, &b);
+        return current;
+      });
 
   if (totgrid) {
     const int *material_indices = static_cast<const int *>(
@@ -1513,7 +1519,7 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
     PBVH_GPU_Args args;
     pbvh_draw_args_init(pbvh, &args, node);
 
-    node->draw_batches = DRW_pbvh_node_create(&args);
+    node->draw_batches = DRW_pbvh_node_create(args);
   }
 
   if (node->flag & PBVH_UpdateDrawBuffers) {
@@ -1523,7 +1529,7 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
       PBVH_GPU_Args args;
 
       pbvh_draw_args_init(pbvh, &args, node);
-      DRW_pbvh_node_update(node->draw_batches, &args);
+      DRW_pbvh_node_update(node->draw_batches, args);
     }
   }
 }
@@ -1568,7 +1574,7 @@ static void pbvh_update_draw_buffers(PBVH *pbvh, Span<PBVHNode *> nodes, int upd
         PBVH_GPU_Args args;
 
         pbvh_draw_args_init(pbvh, &args, node);
-        DRW_pbvh_update_pre(node->draw_batches, &args);
+        DRW_pbvh_update_pre(node->draw_batches, args);
       }
     }
   }
@@ -2972,7 +2978,9 @@ void BKE_pbvh_draw_cb(PBVH *pbvh,
                       bool update_only_visible,
                       PBVHFrustumPlanes *update_frustum,
                       PBVHFrustumPlanes *draw_frustum,
-                      void (*draw_fn)(void *user_data, PBVHBatches *batches, PBVH_GPU_Args *args),
+                      void (*draw_fn)(void *user_data,
+                                      PBVHBatches *batches,
+                                      const PBVH_GPU_Args &args),
                       void *user_data,
                       bool /*full_render*/,
                       PBVHAttrReq *attrs,
@@ -3018,8 +3026,7 @@ void BKE_pbvh_draw_cb(PBVH *pbvh,
   for (PBVHNode *node : nodes) {
     if (!(node->flag & PBVH_FullyHidden)) {
       pbvh_draw_args_init(pbvh, &args, node);
-
-      draw_fn(user_data, node->draw_batches, &args);
+      draw_fn(user_data, node->draw_batches, args);
     }
   }
 }
