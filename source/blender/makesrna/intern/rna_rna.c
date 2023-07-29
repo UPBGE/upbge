@@ -1453,6 +1453,7 @@ static int rna_property_override_diff_propptr(Main *bmain,
                                                                       rna_itemindex_a,
                                                                       true,
                                                                       NULL);
+              opop->tag &= ~LIBOVERRIDE_PROP_OP_TAG_UNUSED;
               BLI_assert(opop != NULL);
             }
 
@@ -2942,7 +2943,7 @@ static void rna_def_property(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
-  EnumPropertyItem dummy_prop_tags[] = {
+  static const EnumPropertyItem dummy_prop_tags[] = {
       {0, NULL, 0, NULL, NULL},
   };
 

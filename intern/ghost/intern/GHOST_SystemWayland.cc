@@ -2434,16 +2434,22 @@ static void data_device_handle_drop(void *data, struct wl_data_device * /*wl_dat
       std::vector<std::string> uris;
 
       size_t pos = 0;
-      while (true) {
+      while (pos != std::string::npos) {
         pos = data.find(file_proto, pos);
-        const size_t start = pos + sizeof(file_proto) - 1;
-        pos = data.find(lf, pos);
-
         if (pos == std::string::npos) {
           break;
         }
-        /* Account for 'CRLF' case. */
+        const size_t start = pos + sizeof(file_proto) - 1;
+        pos = data.find(lf, pos);
+
         size_t end = pos;
+        if (UNLIKELY(end == std::string::npos)) {
+          /* Note that most well behaved file managers will add a trailing newline,
+           * Gnome's web browser (44.3) doesn't, so support reading up until the last byte. */
+          /* Account for 'CRLF' case. */
+          end = data.size();
+        }
+        /* Account for 'CRLF' case. */
         if (data[end - 1] == '\r') {
           end -= 1;
         }
@@ -6105,8 +6111,8 @@ static GHOST_TSuccess getCursorPositionClientRelative_impl(
     y = wl_fixed_to_int(win->wl_fixed_to_window(xy_wrap[1]));
   }
   else {
-    x = win->wl_fixed_to_window(seat_state_pointer->xy[0]);
-    y = win->wl_fixed_to_window(seat_state_pointer->xy[1]);
+    x = wl_fixed_to_int(win->wl_fixed_to_window(seat_state_pointer->xy[0]));
+    y = wl_fixed_to_int(win->wl_fixed_to_window(seat_state_pointer->xy[1]));
   }
 
   return GHOST_kSuccess;
