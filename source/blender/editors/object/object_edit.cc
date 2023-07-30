@@ -2484,7 +2484,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
                   ICON_ADD,
                   static_cast<IDProperty *>(menu->ptr.data),
                   WM_OP_INVOKE_DEFAULT,
-                  0,
+                  UI_ITEM_NONE,
                   nullptr);
 
   uiItemS(layout);

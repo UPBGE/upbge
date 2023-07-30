@@ -2084,7 +2084,7 @@ enum {
   UI_LAYOUT_ALIGN_RIGHT = 3,
 };
 
-enum {
+typedef enum eUI_Item_Flag {
   /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   UI_ITEM_R_EXPAND = 1 << 1,
   UI_ITEM_R_SLIDER = 1 << 2,
@@ -2114,7 +2114,9 @@ enum {
   UI_ITEM_R_FORCE_BLANK_DECORATE = 1 << 13,
   /* Even create the property split layout if there's no name to show there. */
   UI_ITEM_R_SPLIT_EMPTY_NAME = 1 << 14,
-};
+} eUI_Item_Flag;
+ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_SPLIT_EMPTY_NAME)
+#define UI_ITEM_NONE eUI_Item_Flag(0)
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
 
@@ -2776,7 +2778,7 @@ void uiItemFullO_ptr(uiLayout *layout,
                      int icon,
                      struct IDProperty *properties,
                      wmOperatorCallContext context,
-                     int flag,
+                     eUI_Item_Flag flag,
                      struct PointerRNA *r_opptr);
 void uiItemFullO(uiLayout *layout,
                  const char *opname,
@@ -2784,7 +2786,7 @@ void uiItemFullO(uiLayout *layout,
                  int icon,
                  struct IDProperty *properties,
                  wmOperatorCallContext context,
-                 int flag,
+                 eUI_Item_Flag flag,
                  struct PointerRNA *r_opptr);
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              struct wmOperatorType *ot,
@@ -2792,14 +2794,14 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              int icon,
                              struct IDProperty *properties,
                              wmOperatorCallContext context,
-                             int flag,
+                             eUI_Item_Flag flag,
                              const char *menu_id, /* extra menu arg. */
                              struct PointerRNA *r_opptr);
 
 void uiItemR(uiLayout *layout,
              struct PointerRNA *ptr,
              const char *propname,
-             int flag,
+             eUI_Item_Flag flag,
              const char *name,
              int icon);
 void uiItemFullR(uiLayout *layout,
@@ -2807,7 +2809,7 @@ void uiItemFullR(uiLayout *layout,
                  struct PropertyRNA *prop,
                  int index,
                  int value,
-                 int flag,
+                 eUI_Item_Flag flag,
                  const char *name,
                  int icon);
 /**
@@ -2818,7 +2820,7 @@ void uiItemFullR_with_popover(uiLayout *layout,
                               struct PropertyRNA *prop,
                               int index,
                               int value,
-                              int flag,
+                              eUI_Item_Flag flag,
                               const char *name,
                               int icon,
                               const char *panel_type);
@@ -2827,7 +2829,7 @@ void uiItemFullR_with_menu(uiLayout *layout,
                            struct PropertyRNA *prop,
                            int index,
                            int value,
-                           int flag,
+                           eUI_Item_Flag flag,
                            const char *name,
                            int icon,
                            const char *menu_type);
@@ -2876,7 +2878,7 @@ void uiItemsFullEnumO(uiLayout *layout,
                       const char *propname,
                       struct IDProperty *properties,
                       wmOperatorCallContext context,
-                      int flag);
+                      eUI_Item_Flag flag);
 /**
  * Create UI items for enum items in \a item_array.
  *
@@ -2888,7 +2890,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                             struct PropertyRNA *prop,
                             struct IDProperty *properties,
                             wmOperatorCallContext context,
-                            int flag,
+                            eUI_Item_Flag flag,
                             const struct EnumPropertyItem *item_array,
                             int totitem);
 

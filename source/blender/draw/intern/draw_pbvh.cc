@@ -63,12 +63,12 @@ using blender::FunctionRef;
 using blender::IndexRange;
 using blender::Map;
 using blender::short3;
+using blender::StringRef;
+using blender::StringRefNull;
 using blender::uchar3;
 using blender::ushort3;
 using blender::ushort4;
 using blender::Vector;
-
-using string = std::string;
 
 static bool valid_pbvh_attr(int type)
 {
@@ -89,12 +89,12 @@ static bool valid_pbvh_attr(int type)
 struct PBVHVbo {
   uint64_t type;
   eAttrDomain domain;
-  string name;
+  std::string name;
   GPUVertBuf *vert_buf = nullptr;
-  string key;
+  std::string key;
 
-  PBVHVbo(eAttrDomain _domain, uint64_t _type, string _name)
-      : type(_type), domain(_domain), name(_name)
+  PBVHVbo(eAttrDomain domain, uint64_t type, std::string name)
+      : type(type), domain(domain), name(std::move(name))
   {
   }
 
@@ -103,20 +103,18 @@ struct PBVHVbo {
     GPU_vertbuf_clear(vert_buf);
   }
 
-  string build_key()
+  void build_key()
   {
     char buf[512];
 
     SNPRINTF(buf, "%d:%d:%s", int(type), int(domain), name.c_str());
 
-    key = string(buf);
-    return key;
+    key = std::string(buf);
   }
 };
 
 struct PBVHBatch {
   Vector<int> vbos;
-  string key;
   GPUBatch *tris = nullptr, *lines = nullptr;
   int tris_count = 0, lines_count = 0;
   /* Coarse multi-resolution, will use full-sized VBOs only index buffer changes. */
@@ -138,9 +136,9 @@ struct PBVHBatch {
     std::sort(vbos.begin(), vbos.end(), cmp(master_vbos));
   }
 
-  string build_key(Vector<PBVHVbo> &master_vbos)
+  std::string build_key(Vector<PBVHVbo> &master_vbos)
   {
-    key = "";
+    std::string key = "";
 
     if (is_coarse) {
       key += "c:";
@@ -172,7 +170,7 @@ static const CustomData *get_cdata(eAttrDomain domain, const PBVH_GPU_Args &args
 
 struct PBVHBatches {
   Vector<PBVHVbo> vbos;
-  Map<string, PBVHBatch> batches;
+  Map<std::string, PBVHBatch> batches;
   GPUIndexBuf *tri_index = nullptr;
   GPUIndexBuf *lines_index = nullptr;
   int faces_count = 0; /* Used by PBVH_BMESH and PBVH_GRIDS */
@@ -252,9 +250,8 @@ struct PBVHBatches {
     GPU_INDEXBUF_DISCARD_SAFE(lines_index_coarse);
   }
 
-  string build_key(PBVHAttrReq *attrs, int attrs_num, bool do_coarse_grids)
+  std::string build_key(PBVHAttrReq *attrs, int attrs_num, bool do_coarse_grids)
   {
-    string key;
     PBVHBatch batch;
     Vector<PBVHVbo> vbos;
 
@@ -265,7 +262,7 @@ struct PBVHBatches {
         continue;
       }
 
-      PBVHVbo vbo(attr->domain, attr->type, string(attr->name));
+      PBVHVbo vbo(attr->domain, attr->type, std::string(attr->name));
       vbo.build_key();
 
       vbos.append(vbo);
@@ -273,11 +270,10 @@ struct PBVHBatches {
     }
 
     batch.is_coarse = do_coarse_grids;
-    batch.build_key(vbos);
-    return batch.key;
+    return batch.build_key(vbos);
   }
 
-  bool has_vbo(eAttrDomain domain, int type, string name)
+  bool has_vbo(eAttrDomain domain, int type, const StringRef name)
   {
     for (PBVHVbo &vbo : vbos) {
       if (vbo.domain == domain && vbo.type == type && vbo.name == name) {
@@ -299,7 +295,7 @@ struct PBVHBatches {
     return -1;
   }
 
-  PBVHVbo *get_vbo(eAttrDomain domain, int type, string name)
+  PBVHVbo *get_vbo(eAttrDomain domain, int type, const StringRef name)
   {
     for (PBVHVbo &vbo : vbos) {
       if (vbo.domain == domain && vbo.type == type && vbo.name == name) {
@@ -852,7 +848,10 @@ struct PBVHBatches {
     }
   }
 
-  void create_vbo(eAttrDomain domain, const uint32_t type, string name, const PBVH_GPU_Args &args)
+  void create_vbo(eAttrDomain domain,
+                  const uint32_t type,
+                  const StringRefNull name,
+                  const PBVH_GPU_Args &args)
   {
     PBVHVbo vbo(domain, type, name);
     GPUVertFormat format;
@@ -913,8 +912,8 @@ struct PBVHBatches {
 
         if (ELEM(type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
           prefix = "c";
-          is_active = blender::StringRef(args.active_color) == layer->name;
-          is_render = blender::StringRef(args.render_color) == layer->name;
+          is_active = StringRef(args.active_color) == layer->name;
+          is_render = StringRef(args.render_color) == layer->name;
         }
         else {
           switch (type) {
@@ -1312,8 +1311,7 @@ struct PBVHBatches {
       }
     }
 
-    batch.build_key(vbos);
-    batches.add(batch.key, batch);
+    batches.add(batch.build_key(vbos), batch);
   }
 };
 
