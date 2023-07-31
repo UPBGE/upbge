@@ -248,6 +248,6 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_TOKEN }}
-        packages_dir: python_api/upbge-stub/dist
-        skip_existing: true
+        packages-dir: python_api/upbge-stub/dist
+        skip-existing: true
 
