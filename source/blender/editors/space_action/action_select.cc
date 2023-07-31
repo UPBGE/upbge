@@ -693,6 +693,15 @@ static void region_select_elem(RegionSelectData *sel_data, bAnimListElem *ale, b
       ale->update |= ANIM_UPDATE_DEPS;
       break;
     }
+    case ANIMTYPE_GREASE_PENCIL_LAYER: {
+      blender::ed::greasepencil::select_frames_region(
+          &sel_data->ked,
+          static_cast<blender::bke::greasepencil::Layer *>(ale->data),
+          sel_data->mode,
+          sel_data->selectmode);
+      ale->update |= ANIM_UPDATE_DEPS;
+      break;
+    }
     case ANIMTYPE_MASKDATABLOCK: {
       Mask *mask = static_cast<Mask *>(ale->data);
       MaskLayer *masklay;
@@ -993,7 +1002,7 @@ static const EnumPropertyItem prop_column_select_types[] = {
 
 /* Selects all visible keyframes between the specified markers */
 /* TODO(@ideasman42): this is almost an _exact_ duplicate of a function of the same name in
- * graph_select.c should de-duplicate. */
+ * `graph_select.cc` should de-duplicate. */
 static void markers_selectkeys_between(bAnimContext *ac)
 {
   ListBase anim_data = {nullptr, nullptr};

@@ -276,7 +276,7 @@ enum {
   G_TRANSFORM_CURSOR = (1 << 5),
 };
 
-/** Defined in blender.c */
+/** Defined in `blender.cc` */
 extern Global G;
 
 /**

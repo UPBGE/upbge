@@ -1060,7 +1060,7 @@ typedef struct EEVEE_PrivateData {
   int render_sample_count_per_timestep;
 } EEVEE_PrivateData; /* Transient data */
 
-/* eevee_data.c */
+/* `eevee_data.cc` */
 
 void EEVEE_motion_blur_data_init(EEVEE_MotionBlurData *mb);
 void EEVEE_motion_blur_data_free(EEVEE_MotionBlurData *mb);
@@ -1086,7 +1086,7 @@ EEVEE_WorldEngineData *EEVEE_world_data_ensure(struct World *wo);
 
 void eevee_id_update(void *vedata, ID *id);
 
-/* eevee_materials.c */
+/* `eevee_materials.cc` */
 
 struct GPUTexture *EEVEE_materials_get_util_tex(void); /* XXX */
 void EEVEE_materials_init(EEVEE_ViewLayerData *sldata,
@@ -1124,7 +1124,7 @@ void EEVEE_material_bind_resources(DRWShadingGroup *shgrp,
                                    const float alpha_clip_threshold,
                                    bool use_ssrefraction,
                                    bool use_alpha_blend);
-/* eevee_lights.c */
+/* `eevee_lights.cc` */
 
 /**
  * Reconstruct local `obmat` from EEVEE_light. (normalized).
@@ -1134,7 +1134,7 @@ void EEVEE_lights_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lights_cache_add(EEVEE_ViewLayerData *sldata, struct Object *ob);
 void EEVEE_lights_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_shadows.c */
+/* `eevee_shadows.cc` */
 
 void eevee_contact_shadow_setup(const Light *la, EEVEE_Shadow *evsh);
 void EEVEE_shadows_init(EEVEE_ViewLayerData *sldata);
@@ -1162,7 +1162,7 @@ void EEVEE_shadows_draw_cascades(EEVEE_ViewLayerData *sldata,
 void EEVEE_shadow_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, uint tot_samples);
 void EEVEE_shadow_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_sampling.c */
+/* `eevee_sampling.cc` */
 
 /**
  * Special ball distribution:
@@ -1185,7 +1185,7 @@ void EEVEE_sample_ellipse(int sample_ofs,
                           float rsample[3]);
 void EEVEE_random_rotation_m4(int sample_ofs, float scale, float r_mat[4][4]);
 
-/* eevee_shaders.c */
+/* `eevee_shaders.cc` */
 
 void EEVEE_shaders_material_shaders_init(void);
 struct DRWShaderLibrary *EEVEE_shader_lib_get(void);
@@ -1291,7 +1291,7 @@ GPUShader *eevee_shaders_sh_create_helper(const char *name,
                                           const char *defines,
                                           bool use_layered_rendering);
 
-/* eevee_lightprobes.c */
+/* `eevee_lightprobes.cc` */
 
 bool EEVEE_lightprobes_obj_visibility_cb(bool vis_in, void *user_data);
 void EEVEE_lightprobes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1362,7 +1362,7 @@ void EEVEE_lightprobes_planar_data_from_object(Object *ob,
                                                EEVEE_PlanarReflection *eplanar,
                                                EEVEE_LightProbeVisTest *vis_test);
 
-/* eevee_depth_of_field.c */
+/* `eevee_depth_of_field.cc` */
 
 int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, Object *camera);
 void EEVEE_depth_of_field_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1374,7 +1374,7 @@ int EEVEE_depth_of_field_sample_count_get(EEVEE_EffectsInfo *effects,
                                           int sample_count,
                                           int *r_ring_count);
 
-/* eevee_bloom.c */
+/* `eevee_bloom.cc` */
 
 int EEVEE_bloom_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_bloom_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1382,7 +1382,7 @@ void EEVEE_bloom_draw(EEVEE_Data *vedata);
 void EEVEE_bloom_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, uint tot_samples);
 void EEVEE_bloom_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_cryptomatte.c */
+/* `eevee_cryptomatte.cc` */
 
 void EEVEE_cryptomatte_renderpasses_init(EEVEE_Data *vedata);
 void EEVEE_cryptomatte_output_init(EEVEE_ViewLayerData *sldata,
@@ -1413,7 +1413,7 @@ void EEVEE_cryptomatte_render_result(struct RenderLayer *rl,
 void EEVEE_cryptomatte_store_metadata(EEVEE_Data *vedata, struct RenderResult *render_result);
 void EEVEE_cryptomatte_free(EEVEE_Data *vedata);
 
-/* eevee_occlusion.c */
+/* `eevee_occlusion.cc` */
 
 int EEVEE_occlusion_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_occlusion_output_init(EEVEE_ViewLayerData *sldata,
@@ -1425,7 +1425,7 @@ void EEVEE_occlusion_compute(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_occlusion_draw_debug(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_occlusion_free(void);
 
-/* eevee_screen_raytrace.c */
+/* `eevee_screen_raytrace.cc` */
 
 int EEVEE_screen_raytrace_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1436,7 +1436,7 @@ void EEVEE_reflection_output_init(EEVEE_ViewLayerData *sldata,
                                   uint tot_samples);
 void EEVEE_reflection_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_subsurface.c */
+/* `eevee_subsurface.cc` */
 
 void EEVEE_subsurface_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_draw_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1453,7 +1453,7 @@ void EEVEE_subsurface_data_render(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
 void EEVEE_subsurface_compute(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_motion_blur.c */
+/* `eevee_motion_blur.cc` */
 
 int EEVEE_motion_blur_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_motion_blur_step_set(EEVEE_Data *vedata, int step);
@@ -1471,12 +1471,12 @@ void EEVEE_motion_blur_swap_data(EEVEE_Data *vedata);
 void EEVEE_motion_blur_cache_finish(EEVEE_Data *vedata);
 void EEVEE_motion_blur_draw(EEVEE_Data *vedata);
 
-/* eevee_mist.c */
+/* `eevee_mist.cc` */
 
 void EEVEE_mist_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_mist_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_renderpasses.c */
+/* `eevee_renderpasses.cc` */
 
 void EEVEE_renderpasses_init(EEVEE_Data *vedata);
 void EEVEE_renderpasses_output_init(EEVEE_ViewLayerData *sldata,
@@ -1512,7 +1512,7 @@ bool EEVEE_renderpasses_only_first_sample_pass_active(EEVEE_Data *vedata);
  */
 uint EEVEE_renderpasses_aov_hash(const ViewLayerAOV *aov);
 
-/* eevee_temporal_sampling.c */
+/* `eevee_temporal_sampling.cc` */
 
 void EEVEE_temporal_sampling_reset(EEVEE_Data *vedata);
 void EEVEE_temporal_sampling_create_view(EEVEE_Data *vedata);
@@ -1530,7 +1530,7 @@ void EEVEE_temporal_sampling_update_matrices(EEVEE_Data *vedata);
 void EEVEE_temporal_sampling_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_temporal_sampling_draw(EEVEE_Data *vedata);
 
-/* eevee_volumes.c */
+/* `eevee_volumes.cc` */
 
 void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_volumes_set_jitter(EEVEE_ViewLayerData *sldata, uint current_sample);
@@ -1547,7 +1547,7 @@ void EEVEE_volumes_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, 
 void EEVEE_volumes_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_volumes_free(void);
 
-/* eevee_effects.c */
+/* `eevee_effects.cc` */
 
 void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
                         EEVEE_Data *vedata,
@@ -1566,7 +1566,7 @@ void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src
 void EEVEE_downsample_cube_buffer(EEVEE_Data *vedata, struct GPUTexture *texture_src, int level);
 void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-/* eevee_render.c */
+/* `eevee_render.cc` */
 
 /**
  * Return true if initialized properly.
@@ -1600,7 +1600,7 @@ void EEVEE_render_update_passes(struct RenderEngine *engine,
                                 struct Scene *scene,
                                 struct ViewLayer *view_layer);
 
-/** eevee_lookdev.c */
+/** `eevee_lookdev.cc` */
 void EEVEE_lookdev_init(EEVEE_Data *vedata);
 void EEVEE_lookdev_cache_init(EEVEE_Data *vedata,
                               EEVEE_ViewLayerData *sldata,
@@ -1609,10 +1609,10 @@ void EEVEE_lookdev_cache_init(EEVEE_Data *vedata,
                               DRWShadingGroup **r_shgrp);
 void EEVEE_lookdev_draw(EEVEE_Data *vedata);
 
-/** eevee_engine.c */
+/** `eevee_engine.cc` */
 void EEVEE_cache_populate(void *vedata, Object *ob);
 
-/** eevee_lut_gen.c */
+/** `eevee_lut_gen.cc` */
 float *EEVEE_lut_update_ggx_brdf(int lut_size);
 float *EEVEE_lut_update_ggx_btdf(int lut_size, int lut_depth);
 

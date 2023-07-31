@@ -661,20 +661,18 @@ static void rna_Object_parent_set(PointerRNA *ptr, PointerRNA value, ReportList 
 }
 
 static bool rna_Object_parent_override_apply(Main *bmain,
-                                             PointerRNA *ptr_dst,
-                                             PointerRNA *ptr_src,
-                                             PointerRNA *ptr_storage,
-                                             PropertyRNA *prop_dst,
-                                             PropertyRNA *prop_src,
-                                             PropertyRNA * /*prop_storage*/,
-                                             const int len_dst,
-                                             const int len_src,
-                                             const int len_storage,
-                                             PointerRNA * /*ptr_item_dst*/,
-                                             PointerRNA * /*ptr_item_src*/,
-                                             PointerRNA * /*ptr_item_storage*/,
-                                             IDOverrideLibraryPropertyOperation *opop)
+                                             RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PointerRNA *ptr_storage = &rnaapply_ctx.ptr_storage;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  PropertyRNA *prop_src = rnaapply_ctx.prop_src;
+  const int len_dst = rnaapply_ctx.len_src;
+  const int len_src = rnaapply_ctx.len_src;
+  const int len_storage = rnaapply_ctx.len_storage;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(len_dst == len_src && (!ptr_storage || len_dst == len_storage) && len_dst == 0);
   BLI_assert(opop->operation == LIBOVERRIDE_OP_REPLACE &&
              "Unsupported RNA override operation on object parent pointer");
@@ -714,20 +712,18 @@ static void rna_Object_parent_type_set(PointerRNA *ptr, int value)
 }
 
 static bool rna_Object_parent_type_override_apply(Main *bmain,
-                                                  PointerRNA *ptr_dst,
-                                                  PointerRNA *ptr_src,
-                                                  PointerRNA *ptr_storage,
-                                                  PropertyRNA *prop_dst,
-                                                  PropertyRNA *prop_src,
-                                                  PropertyRNA * /*prop_storage*/,
-                                                  const int len_dst,
-                                                  const int len_src,
-                                                  const int len_storage,
-                                                  PointerRNA * /*ptr_item_dst*/,
-                                                  PointerRNA * /*ptr_item_src*/,
-                                                  PointerRNA * /*ptr_item_storage*/,
-                                                  IDOverrideLibraryPropertyOperation *opop)
+                                                  RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PointerRNA *ptr_storage = &rnaapply_ctx.ptr_storage;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  PropertyRNA *prop_src = rnaapply_ctx.prop_src;
+  const int len_dst = rnaapply_ctx.len_src;
+  const int len_src = rnaapply_ctx.len_src;
+  const int len_storage = rnaapply_ctx.len_storage;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(len_dst == len_src && (!ptr_storage || len_dst == len_storage) && len_dst == 0);
   BLI_assert(opop->operation == LIBOVERRIDE_OP_REPLACE &&
              "Unsupported RNA override operation on object parent pointer");
@@ -828,20 +824,18 @@ static void rna_Object_parent_bone_set(PointerRNA *ptr, const char *value)
 }
 
 static bool rna_Object_parent_bone_override_apply(Main *bmain,
-                                                  PointerRNA *ptr_dst,
-                                                  PointerRNA *ptr_src,
-                                                  PointerRNA *ptr_storage,
-                                                  PropertyRNA *prop_dst,
-                                                  PropertyRNA *prop_src,
-                                                  PropertyRNA * /*prop_storage*/,
-                                                  const int len_dst,
-                                                  const int len_src,
-                                                  const int len_storage,
-                                                  PointerRNA * /*ptr_item_dst*/,
-                                                  PointerRNA * /*ptr_item_src*/,
-                                                  PointerRNA * /*ptr_item_storage*/,
-                                                  IDOverrideLibraryPropertyOperation *opop)
+                                                  RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PointerRNA *ptr_storage = &rnaapply_ctx.ptr_storage;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  PropertyRNA *prop_src = rnaapply_ctx.prop_src;
+  const int len_dst = rnaapply_ctx.len_src;
+  const int len_src = rnaapply_ctx.len_src;
+  const int len_storage = rnaapply_ctx.len_storage;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(len_dst == len_src && (!ptr_storage || len_dst == len_storage) && len_dst == 0);
   BLI_assert(opop->operation == LIBOVERRIDE_OP_REPLACE &&
              "Unsupported RNA override operation on object parent bone property");
@@ -2022,20 +2016,13 @@ static bConstraint *rna_Object_constraints_copy(Object *object, Main *bmain, Poi
 }
 
 bool rna_Object_constraints_override_apply(Main *bmain,
-                                           PointerRNA *ptr_dst,
-                                           PointerRNA *ptr_src,
-                                           PointerRNA * /*ptr_storage*/,
-                                           PropertyRNA *prop_dst,
-                                           PropertyRNA * /*prop_src*/,
-                                           PropertyRNA * /*prop_storage*/,
-                                           const int /*len_dst*/,
-                                           const int /*len_src*/,
-                                           const int /*len_storage*/,
-                                           PointerRNA * /*ptr_item_dst*/,
-                                           PointerRNA * /*ptr_item_src*/,
-                                           PointerRNA * /*ptr_item_storage*/,
-                                           IDOverrideLibraryPropertyOperation *opop)
+                                           RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on constraints collection");
 
@@ -2151,20 +2138,13 @@ static void rna_Object_active_modifier_set(PointerRNA *ptr, PointerRNA value, Re
 }
 
 bool rna_Object_modifiers_override_apply(Main *bmain,
-                                         PointerRNA *ptr_dst,
-                                         PointerRNA *ptr_src,
-                                         PointerRNA * /*ptr_storage*/,
-                                         PropertyRNA *prop_dst,
-                                         PropertyRNA * /*prop_src*/,
-                                         PropertyRNA * /*prop_storage*/,
-                                         const int /*len_dst*/,
-                                         const int /*len_src*/,
-                                         const int /*len_storage*/,
-                                         PointerRNA * /*ptr_item_dst*/,
-                                         PointerRNA * /*ptr_item_src*/,
-                                         PointerRNA * /*ptr_item_storage*/,
-                                         IDOverrideLibraryPropertyOperation *opop)
+                                         RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on modifiers collection");
 
@@ -2267,21 +2247,14 @@ static void rna_Object_greasepencil_modifier_clear(Object *object, bContext *C)
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, object);
 }
 
-bool rna_Object_greasepencil_modifiers_override_apply(Main *bmain,
-                                                      PointerRNA *ptr_dst,
-                                                      PointerRNA *ptr_src,
-                                                      PointerRNA * /*ptr_storage*/,
-                                                      PropertyRNA *prop_dst,
-                                                      PropertyRNA * /*prop_src*/,
-                                                      PropertyRNA * /*prop_storage*/,
-                                                      const int /*len_dst*/,
-                                                      const int /*len_src*/,
-                                                      const int /*len_storage*/,
-                                                      PointerRNA * /*ptr_item_dst*/,
-                                                      PointerRNA * /*ptr_item_src*/,
-                                                      PointerRNA * /*ptr_item_storage*/,
-                                                      IDOverrideLibraryPropertyOperation *opop)
+bool rna_Object_greasepencil_modifiers_override_apply(
+    Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on modifiers collection");
 

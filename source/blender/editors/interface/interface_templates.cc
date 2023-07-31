@@ -4638,23 +4638,35 @@ static void curvemap_buttons_layout(uiLayout *layout,
     uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
 
     if (cumap->cm[3].curve) {
-      bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "C", 0, 0, dx, dx, &cumap->cur, 0.0, 3.0, 0.0, 0.0, "");
+      bt = uiDefButI(block,
+                     UI_BTYPE_ROW,
+                     0,
+                     CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "C"),
+                     0,
+                     0,
+                     dx,
+                     dx,
+                     &cumap->cur,
+                     0.0,
+                     3.0,
+                     0.0,
+                     0.0,
+                     "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
     if (cumap->cm[0].curve) {
       bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "R", 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, 0.0, 0.0, "");
+          block, UI_BTYPE_ROW, 0, IFACE_("R"), 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, 0.0, 0.0, "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
     if (cumap->cm[1].curve) {
       bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "G", 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, 0.0, 0.0, "");
+          block, UI_BTYPE_ROW, 0, IFACE_("G"), 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, 0.0, 0.0, "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
     if (cumap->cm[2].curve) {
       bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "B", 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, 0.0, 0.0, "");
+          block, UI_BTYPE_ROW, 0, IFACE_("B"), 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, 0.0, 0.0, "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
   }
@@ -4665,17 +4677,17 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
     if (cumap->cm[0].curve) {
       bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "H", 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, 0.0, 0.0, "");
+          block, UI_BTYPE_ROW, 0, IFACE_("H"), 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, 0.0, 0.0, "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
     if (cumap->cm[1].curve) {
       bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "S", 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, 0.0, 0.0, "");
+          block, UI_BTYPE_ROW, 0, IFACE_("S"), 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, 0.0, 0.0, "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
     if (cumap->cm[2].curve) {
       bt = uiDefButI(
-          block, UI_BTYPE_ROW, 0, "V", 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, 0.0, 0.0, "");
+          block, UI_BTYPE_ROW, 0, IFACE_("V"), 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, 0.0, 0.0, "");
       UI_but_func_set(bt, curvemap_buttons_redraw, nullptr, nullptr);
     }
   }
@@ -5983,7 +5995,7 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
   }
 
   /* view3d layer change should update depsgraph (invisible object changed maybe) */
-  /* see view3d_header.c */
+  /* see `view3d_header.cc` */
 }
 
 void uiTemplateLayers(uiLayout *layout,
