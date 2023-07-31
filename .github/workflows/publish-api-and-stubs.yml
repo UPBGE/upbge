@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.10"
 
 jobs:
   build:
@@ -131,6 +131,7 @@ jobs:
 
     - name: Install Tools
       run: | 
+        sudo apt update && \
         sudo apt dist-upgrade && \
         sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libtbb12 libavutil57 \
           libavformat59 libavdevice59 libboost-locale1.74.0 libopenimageio-dev
