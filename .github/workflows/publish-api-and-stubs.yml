@@ -29,7 +29,7 @@ jobs:
       run: | 
         sudo apt update && \
         sudo apt dist-upgrade && \
-        sudo apt install -y build-essential cmake libembree-dev \
+        sudo apt install -y build-essential cmake libembree-dev libavutil-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
           libavformat-dev libswscale-dev libavdevice-dev libblas3 libopenimageio-dev \
           libzstd-dev libopenimageio-dev libfreetype-dev libepoxy-dev libdecor-0-dev
@@ -132,7 +132,7 @@ jobs:
     - name: Install Tools
       run: | 
         sudo apt dist-upgrade && \
-        sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libtbb12 \
+        sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libtbb12 libavutil57 \
           libavformat59 libavdevice59 libboost-locale1.74.0 libopenimageio-dev
 
     - name: Install Python
