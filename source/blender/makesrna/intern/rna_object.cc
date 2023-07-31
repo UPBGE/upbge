@@ -1812,21 +1812,13 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const bool *val
 }
 
 static bool rna_GameObjectSettings_components_override_apply(
-    Main */*bmain*/,
-    PointerRNA *ptr_dst,
-    PointerRNA *ptr_src,
-    PointerRNA */*ptr_storage*/,
-    PropertyRNA */*prop_dst*/,
-    PropertyRNA */*prop_src*/,
-    PropertyRNA */*prop_storage*/,
-    const int /*len_dst*/,
-    const int /*len_src*/,
-    const int /*len_storage*/,
-    PointerRNA */*ptr_item_dst*/,
-    PointerRNA */*ptr_item_src*/,
-    PointerRNA */*ptr_item_storage*/,
-    IDOverrideLibraryPropertyOperation *opop)
+    Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
              "Unsupported RNA override operation on components collection");
 
