@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PYTHON_VERSION: "3.10"
+  PYTHON_VERSION: "3.11"
 
 jobs:
   build:
@@ -19,17 +19,23 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+    - name: Setup APT
+      run: |
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01lunar.list \
+          -o /etc/apt/sources.list.d/01lunar.list && \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01ubuntu \
+          -o /etc/apt/apt.conf.d/01ubuntu
     - name: Install Tools
       run: | 
         sudo apt update && \
+        sudo apt dist-upgrade && \
         sudo apt install -y build-essential cmake libembree-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
-          libavformat-dev libtbb2-dev libswscale-dev libavdevice-dev libblas3 \
-          libzstd-dev libopenal-dev libopenblas-dev libopenimageio-dev libepoxy-dev \
-          libdecor-0-dev
+          libavformat-dev libswscale-dev libavdevice-dev libblas3 libopenimageio-dev \
+          libzstd-dev libopenimageio-dev libfreetype-dev libepoxy-dev libdecor-0-dev
 
     - name: Install Python
-      uses: actions/setup-python@v2.3.1
+      uses: actions/setup-python@v4
       with: 
         python-version: "${{env.PYTHON_VERSION}}"
 
@@ -44,14 +50,14 @@ jobs:
         sudo ldconfig
 
     - name: Checkout sources
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: "UPBGE/upbge"
         ref: "master"
         path: "upbge"
 
     - name: Checkout addons
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: "UPBGE/blender-addons"
         ref: "master"
@@ -94,7 +100,7 @@ jobs:
 
     - name: Upload Build
       if: ${{ !env.ACT }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: blender
         path: build.tar.gz
@@ -108,7 +114,7 @@ jobs:
     steps:
     - name: Download Build
       if: ${{ !env.ACT }}
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: blender
 
@@ -116,14 +122,21 @@ jobs:
       if: ${{ !env.ACT }}
       run: tar zxvf build.tar.gz
 
+    - name: Setup APT
+      run: |
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01lunar.list \
+          -o /etc/apt/sources.list.d/01lunar.list && \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01ubuntu \
+          -o /etc/apt/apt.conf.d/01ubuntu
+
     - name: Install Tools
       run: | 
-        sudo apt update && \
-        sudo apt install -y libtbb2 libxi6 libxxf86vm1 libxfixes3 libgl1 \
-          libavformat58 libavdevice58 libboost-locale1.74.0 libopenimageio-dev
+        sudo apt dist-upgrade && \
+        sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libtbb12 \
+          libavformat59 libavdevice59 libboost-locale1.74.0 libopenimageio-dev
 
     - name: Install Python
-      uses: actions/setup-python@v2.3.1
+      uses: actions/setup-python@v4
       with: 
         python-version: "${{env.PYTHON_VERSION}}"
 
@@ -138,7 +151,7 @@ jobs:
         sudo ldconfig
 
     - name: Checkout sources
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: "UPBGE/upbge"
         ref: "master"
@@ -147,7 +160,7 @@ jobs:
     - name: Prepare API Documentation
       working-directory: build
       run: | 
-        rm -Rf bin/3.2/python && \
+        rm -Rf bin/4.0/python && \
         bin/blender --python-use-system-env --background -noaudio --factory-startup \
                     --python ../upbge/doc/python_api/sphinx_doc_gen.py -- \
                     --output "${{ github.workspace }}/python_api"
@@ -173,7 +186,7 @@ jobs:
 
     - name: Upload Documents
       if: ${{ !env.ACT }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: apidocs
         path: apidocs.tar.gz
@@ -187,7 +200,7 @@ jobs:
     steps:
     - name: Download Build
       if: ${{ !env.ACT }}
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: blender
 
@@ -197,7 +210,7 @@ jobs:
 
     - name: Download Documents
       if: ${{ !env.ACT }}
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: apidocs
 
@@ -206,7 +219,7 @@ jobs:
       run: tar zxvf apidocs.tar.gz
 
     - name: Install Python
-      uses: actions/setup-python@v2.3.1
+      uses: actions/setup-python@v4
       with: 
         python-version: "${{env.PYTHON_VERSION}}"
 
