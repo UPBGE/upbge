@@ -256,7 +256,7 @@ static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw
 }
 
 
-static PyMethodDef bpy_import_meth = {"bpy_import_meth",
-                                     (PyCFunction)blender_import,
-                                     METH_VARARGS | METH_KEYWORDS,
-                                     "blenders import"};
+PyMethodDef bpy_import_meth = {"bpy_import_meth",
+                               (PyCFunction)blender_import,
+                               METH_VARARGS | METH_KEYWORDS,
+                               "blenders import"};
