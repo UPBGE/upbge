@@ -56,6 +56,8 @@ void bpy_import_main_set(struct Main *maggie);
 void bpy_import_main_extra_add(struct Main *maggie);
 void bpy_import_main_extra_remove(struct Main *maggie);
 
+extern PyMethodDef bpy_import_meth;
+
 #ifdef __cplusplus
 }
 #endif

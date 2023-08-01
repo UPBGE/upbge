@@ -20,7 +20,7 @@ set(SRC
   bl_math_py_api.cc
   blf_py_api.cc
   bpy_threads.cc
-  bpy_internal_import.c
+  bpy_internal_import.cc
   idprop_py_api.cc
   idprop_py_ui_api.cc
   imbuf_py_api.cc

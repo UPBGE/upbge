@@ -44,10 +44,8 @@
 
 #include "bpy_internal_import.h" /* own include */
 
-static Main *bpy_import_main = NULL;
+static Main *bpy_import_main = nullptr;
 static ListBase bpy_import_main_list;
-
-static PyMethodDef bpy_import_meth;
 
 /* 'builtins' is most likely PyEval_GetBuiltins() */
 
@@ -67,7 +65,7 @@ void bpy_import_init(PyObject *builtins)
 {
   PyObject *item;
 
-  PyDict_SetItemString(builtins, "__import__", item = PyCFunction_New(&bpy_import_meth, NULL));
+  PyDict_SetItemString(builtins, "__import__", item = PyCFunction_New(&bpy_import_meth, nullptr));
   Py_DECREF(item);
 }
 
@@ -76,7 +74,7 @@ static void free_compiled_text(Text *text)
   if (text->compiled) {
     Py_DECREF((PyObject *)text->compiled);
   }
-  text->compiled = NULL;
+  text->compiled = nullptr;
 }
 
 struct Main *bpy_import_main_get(void)
@@ -121,7 +119,7 @@ bool bpy_text_compile(Text *text)
 
   size_t buf_len_dummy;
   buf = txt_to_buf(text, &buf_len_dummy);
-  text->compiled = Py_CompileStringObject(buf, fn_dummy_py, Py_file_input, NULL, -1);
+  text->compiled = Py_CompileStringObject(buf, fn_dummy_py, Py_file_input, nullptr, -1);
   MEM_freeN(buf);
 
   Py_DECREF(fn_dummy_py);
@@ -129,7 +127,7 @@ bool bpy_text_compile(Text *text)
   if (PyErr_Occurred()) {
     PyErr_Print();
     PyErr_Clear();
-    PySys_SetObject("last_traceback", NULL);
+    PySys_SetObject("last_traceback", nullptr);
     free_compiled_text(text);
     return false;
   }
@@ -145,14 +143,14 @@ PyObject *bpy_text_import(Text *text)
 
   if (!text->compiled) {
     if (bpy_text_compile(text) == false) {
-      return NULL;
+      return nullptr;
     }
   }
 
   len = strlen(text->id.name + 2);
   BLI_strncpy(modulename, text->id.name + 2, len);
   modulename[len - 3] = '\0'; /* remove .py */
-  return PyImport_ExecCodeModule(modulename, text->compiled);
+  return PyImport_ExecCodeModule(modulename, (PyObject *)text->compiled);
 }
 
 PyObject *bpy_text_import_name(const char *name, int *found)
@@ -167,18 +165,18 @@ PyObject *bpy_text_import_name(const char *name, int *found)
 
   if (!maggie) {
     printf("ERROR: bpy_import_main_set() was not called before running python. this is a bug.\n");
-    return NULL;
+    return nullptr;
   }
 
   /* we know this cant be importable, the name is too long for blender! */
   if (namelen >= (MAX_ID_NAME - 2) - 3) {
-    return NULL;
+    return nullptr;
   }
 
   memcpy(txtname, name, namelen);
   memcpy(&txtname[namelen], ".py", 4);
 
-  text = BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
+  text = (Text *)BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
 
   if (text) {
     *found = 1;
@@ -186,14 +184,14 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   }
 
   /* If we still haven't found the module try additional modules form bpy_import_main_list */
-  maggie = bpy_import_main_list.first;
+  maggie = (Main *)bpy_import_main_list.first;
   while (maggie && !text) {
-    text = BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
+    text = (Text *)BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
     maggie = maggie->next;
   }
 
   if (!text) {
-    return NULL;
+    return nullptr;
   }
   else {
     *found = 1;
@@ -202,20 +200,20 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   return bpy_text_import(text);
 }
 
-static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
+static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw)
 {
   PyObject *exception, *err, *tb;
   const char *name;
   int found = 0;
-  PyObject *globals = NULL, *locals = NULL, *fromlist = NULL;
+  PyObject *globals = nullptr, *locals = nullptr, *fromlist = nullptr;
   int level = 0; /* relative imports */
   PyObject *newmodule;
 
-  static const char *_keywords[] = {"name", "globals", "locals", "fromlist", "level", NULL};
+  static const char *_keywords[] = {"name", "globals", "locals", "fromlist", "level", nullptr};
   static _PyArg_Parser _parser = {"s|OOOi:bpy_import_meth", _keywords, 0};
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kw, &_parser, &name, &globals, &locals, &fromlist, &level)) {
-    return NULL;
+    return nullptr;
   }
 
   /* import existing builtin modules or modules that have been imported already */
@@ -247,7 +245,7 @@ static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject
 
     //PyErr_Format(PyExc_ImportError, "Failed to import module : '%s'", name);
 
-    return NULL;
+    return nullptr;
   }
   else {
     /* no blender text was found that could import the module
@@ -259,6 +257,6 @@ static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject
 
 
 static PyMethodDef bpy_import_meth = {"bpy_import_meth",
-                                      (PyCFunction)blender_import,
-                                      METH_VARARGS | METH_KEYWORDS,
-                                      "blenders import"};
+                                     (PyCFunction)blender_import,
+                                     METH_VARARGS | METH_KEYWORDS,
+                                     "blenders import"};
