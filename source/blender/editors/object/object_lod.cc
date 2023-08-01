@@ -50,7 +50,7 @@
 
 #include "object_intern.h"
 
-static int object_lod_add_exec(bContext *C, wmOperator *UNUSED(op))
+static int object_lod_add_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = ED_object_context(C);
 

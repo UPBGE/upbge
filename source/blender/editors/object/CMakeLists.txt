@@ -42,7 +42,7 @@ set(SRC
   object_gpencil_modifier.cc
   object_hook.cc
   object_light_linking_ops.cc
-  object_lod.c
+  object_lod.cc
   object_modes.cc
   object_modifier.cc
   object_ops.cc
