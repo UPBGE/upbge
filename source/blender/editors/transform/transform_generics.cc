@@ -29,7 +29,7 @@
 #include "BKE_layer.h"
 #include "BKE_mask.h"
 #include "BKE_modifier.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 
 #include "SEQ_transform.h"
 
@@ -186,7 +186,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     mval = float2(0, 0);
   }
 
-  t->mouse.imval = mval;
+  t->mval = mval;
 
   t->mode_info = nullptr;
 

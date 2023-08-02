@@ -12,7 +12,7 @@
 
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_unit.h"
 
 #include "ED_screen.h"
@@ -60,7 +60,7 @@ void freeCustomNormalArray(TransInfo *t, TransDataContainer *tc, TransCustomData
 }
 
 /* Works by getting custom normal from clnor_data, transform, then store */
-static void applyNormalRotation(TransInfo *t, const int[2] /*mval*/)
+static void applyNormalRotation(TransInfo *t)
 {
   char str[UI_MAX_DRAW_STR];
 

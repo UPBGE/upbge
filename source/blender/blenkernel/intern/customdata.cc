@@ -48,10 +48,10 @@
 #include "BKE_customdata_file.h"
 #include "BKE_deform.h"
 #include "BKE_main.h"
-#include "BKE_mesh_mapping.h"
-#include "BKE_mesh_remap.h"
-#include "BKE_multires.h"
-#include "BKE_subsurf.h"
+#include "BKE_mesh_mapping.hh"
+#include "BKE_mesh_remap.hh"
+#include "BKE_multires.hh"
+#include "BKE_subsurf.hh"
 
 #include "BLO_read_write.h"
 
@@ -3502,33 +3502,6 @@ void CustomData_swap_corners(CustomData *data, const int index, const int *corne
       const size_t offset = size_t(index) * typeInfo->size;
 
       typeInfo->swap(POINTER_OFFSET(data->layers[i].data, offset), corner_indices);
-    }
-  }
-}
-
-void CustomData_swap(CustomData *data, const int index_a, const int index_b, const int totelem)
-{
-  char buff_static[256];
-
-  if (index_a == index_b) {
-    return;
-  }
-
-  for (int i = 0; i < data->totlayer; i++) {
-    CustomDataLayer &layer = data->layers[i];
-    ensure_layer_data_is_mutable(layer, totelem);
-    const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer.type));
-    const size_t size = typeInfo->size;
-    const size_t offset_a = size * index_a;
-    const size_t offset_b = size * index_b;
-
-    void *buff = size <= sizeof(buff_static) ? buff_static : MEM_mallocN(size, __func__);
-    memcpy(buff, POINTER_OFFSET(layer.data, offset_a), size);
-    memcpy(POINTER_OFFSET(layer.data, offset_a), POINTER_OFFSET(layer.data, offset_b), size);
-    memcpy(POINTER_OFFSET(layer.data, offset_b), buff, size);
-
-    if (buff != buff_static) {
-      MEM_freeN(buff);
     }
   }
 }

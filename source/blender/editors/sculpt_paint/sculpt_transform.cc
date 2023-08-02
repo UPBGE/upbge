@@ -13,10 +13,10 @@
 
 #include "DNA_meshdata_types.h"
 
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_context.h"
 #include "BKE_kelvinlet.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
 
 #include "DEG_depsgraph.h"
@@ -38,7 +38,10 @@
 #include <cmath>
 #include <cstdlib>
 
-void ED_sculpt_init_transform(bContext *C, Object *ob, const int mval[2], const char *undo_name)
+void ED_sculpt_init_transform(bContext *C,
+                              Object *ob,
+                              const float mval_fl[2],
+                              const char *undo_name)
 {
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   SculptSession *ss = ob->sculpt;
@@ -59,7 +62,7 @@ void ED_sculpt_init_transform(bContext *C, Object *ob, const int mval[2], const 
 
   SCULPT_vertex_random_access_ensure(ss);
 
-  SCULPT_filter_cache_init(C, ob, sd, SCULPT_UNDO_COORDS, mval, 5.0, 1.0f);
+  SCULPT_filter_cache_init(C, ob, sd, SCULPT_UNDO_COORDS, mval_fl, 5.0, 1.0f);
 
   if (sd->transform_mode == SCULPT_TRANSFORM_MODE_RADIUS_ELASTIC) {
     ss->filter_cache->transform_displacement_mode = SCULPT_TRANSFORM_DISPLACEMENT_INCREMENTAL;

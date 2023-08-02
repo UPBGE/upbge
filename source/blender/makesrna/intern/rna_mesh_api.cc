@@ -23,10 +23,10 @@
 #  include "DNA_mesh_types.h"
 
 #  include "BKE_anim_data.h"
-#  include "BKE_mesh.h"
-#  include "BKE_mesh_mapping.h"
-#  include "BKE_mesh_runtime.h"
-#  include "BKE_mesh_tangent.h"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_mapping.hh"
+#  include "BKE_mesh_runtime.hh"
+#  include "BKE_mesh_tangent.hh"
 #  include "BKE_report.h"
 
 #  include "ED_mesh.h"
@@ -160,15 +160,10 @@ static void rna_Mesh_transform(Mesh *mesh, const float mat[16], bool shape_keys)
 
 static void rna_Mesh_flip_normals(Mesh *mesh)
 {
-  BKE_mesh_faces_flip(BKE_mesh_face_offsets(mesh),
-                      mesh->corner_verts_for_write().data(),
-                      mesh->corner_edges_for_write().data(),
-                      &mesh->loop_data,
-                      mesh->totloop,
-                      mesh->faces_num);
+  using namespace blender;
+  bke::mesh_flip_faces(*mesh, IndexMask(mesh->faces_num));
   BKE_mesh_tessface_clear(mesh);
   BKE_mesh_runtime_clear_geometry(mesh);
-
   DEG_id_tag_update(&mesh->id, 0);
 }
 
