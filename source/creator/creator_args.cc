@@ -1558,12 +1558,12 @@ static int arg_handle_unregister_extension_all(int /*argc*/,
 }
 
 static const char arg_handle_joystick_disable_doc[] = "\n\tDisable joystick support.";
-static int arg_handle_joystick_disable(int UNUSED(argc), const char **UNUSED(argv), void *data)
+static int arg_handle_joystick_disable(int /*argc*/, const char **/*argv*/, void *data)
 {
 #  ifndef WITH_GAMEENGINE
   (void)data;
 #  else
-  SYS_SystemHandle *syshandle = data;
+  SYS_SystemHandle *syshandle = (SYS_SystemHandle *)data;
 
   /**
    * don't initialize joysticks if user doesn't want to use joysticks

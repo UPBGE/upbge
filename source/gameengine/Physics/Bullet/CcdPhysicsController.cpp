@@ -27,7 +27,7 @@
 
 #include "BKE_context.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_legacy_convert.h"
+#include "BKE_mesh_legacy_convert.hh"
 #include "DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 

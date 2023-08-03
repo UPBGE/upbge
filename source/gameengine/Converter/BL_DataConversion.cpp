@@ -64,9 +64,9 @@
 #include "BKE_main.h"
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_mesh.hh"
-#include "BKE_mesh_legacy_convert.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_mesh_tangent.h"
+#include "BKE_mesh_legacy_convert.hh"
+#include "BKE_mesh_runtime.hh"
+#include "BKE_mesh_tangent.hh"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
