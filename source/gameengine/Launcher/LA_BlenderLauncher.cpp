@@ -29,13 +29,16 @@
 #include "BKE_screen.h"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
+#include "GPU_context.h"
 #include "GPU_framebuffer.h"
 #include "GPU_state.h"
 #include "WM_api.h"
 #include "wm_event_system.h"
+#include "wm_window.h"
 
 #include "CM_Message.h"
 #include "KX_BlenderCanvas.h"
+#include "KX_Globals.h"
 #include "KX_PythonInit.h"
 
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
@@ -167,17 +170,32 @@ void LA_BlenderLauncher::ExitEngine()
 
 void LA_BlenderLauncher::RenderEngine()
 {
+  // in case of multi-window we need to ensure we are drawing to the correct
+  // window always, because it may change in window event handling
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  wm_window_make_drawable(CTX_wm_manager(C), CTX_wm_window(C));
+
+  if (!m_useViewportRender) {
+    /* See wm_draw_update for "chronology" */
+    GPU_context_begin_frame((GPUContext *)CTX_wm_window(C)->gpuctx);
+  }
   if (m_drawLetterBox) { // Useful on linux
-    GPU_scissor_test(true);
-    GPU_scissor(m_ar->winrct.xmin,
-                m_ar->winrct.ymin,
-                BLI_rcti_size_x(&m_ar->winrct) + 1,
-                BLI_rcti_size_y(&m_ar->winrct) + 1);
-    GPU_apply_state();
-    GPU_clear_color(m_startScene->gm.framing.col[0],
-                    m_startScene->gm.framing.col[1],
-                    m_startScene->gm.framing.col[2],
-                    0.0f);
+    if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+      GPU_scissor_test(true);
+      GPU_scissor(m_ar->winrct.xmin,
+                  m_ar->winrct.ymin,
+                  BLI_rcti_size_x(&m_ar->winrct) + 1,
+                  BLI_rcti_size_y(&m_ar->winrct) + 1);
+      GPU_apply_state();
+      GPU_clear_color(m_startScene->gm.framing.col[0],
+                      m_startScene->gm.framing.col[1],
+                      m_startScene->gm.framing.col[2],
+                      0.0f);
+    }
+    else {
+      /* Vulkan back_left buffer is "immutable" and has no "attachments" to clear
+       * ... maybe we can draw a black screen instead idk... */
+    }
   }
   LA_Launcher::RenderEngine();
 }

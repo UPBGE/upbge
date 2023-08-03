@@ -909,10 +909,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   rcti winrect = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
 
   GPU_viewport(v[0], v[1], v[2], v[3]);
-  GPU_scissor_test(true);
-  GPU_scissor(v[0], v[1], v[2], v[3]);
-
-  GPU_apply_state();
+  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+    GPU_scissor_test(true);
+    GPU_scissor(v[0], v[1], v[2], v[3]);
+  }
 
   DRW_state_reset();
   GPU_matrix_reset();
