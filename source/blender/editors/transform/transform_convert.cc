@@ -320,7 +320,6 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 /* adjust pose-channel's auto-ik chainlen */
 static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
 {
-  bConstraint *con;
   bool changed = false;
 
   /* don't bother to search if no valid constraints */
@@ -329,7 +328,7 @@ static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
   }
 
   /* check if pchan has ik-constraint */
-  for (con = static_cast<bConstraint *>(pchan->constraints.first); con; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
     if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) {
       continue;
     }
@@ -359,7 +358,6 @@ void transform_autoik_update(TransInfo *t, short mode)
   Main *bmain = CTX_data_main(t->context);
 
   short *chainlen = &t->settings->autoik_chainlen;
-  bPoseChannel *pchan;
 
   /* mode determines what change to apply to chainlen */
   if (mode == 1) {
@@ -387,9 +385,7 @@ void transform_autoik_update(TransInfo *t, short mode)
       continue;
     }
 
-    for (pchan = static_cast<bPoseChannel *>(tc->poseobj->pose->chanbase.first); pchan;
-         pchan = pchan->next)
-    {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &tc->poseobj->pose->chanbase) {
       changed |= pchan_autoik_adjust(pchan, *chainlen);
     }
   }
@@ -434,7 +430,7 @@ void calc_distanceCurveVerts(TransData *head, TransData *tail, bool cyclic)
       next_td = head;
     }
 
-    if (next_td != nullptr && !(next_td->flag & TD_NOTCONNECTED)) {
+    if (next_td != nullptr) {
       sub_v3_v3v3(vec, next_td->center, td->center);
       mul_m3_v3(head->mtx, vec);
       dist = len_v3(vec) + td->dist;
@@ -454,7 +450,7 @@ void calc_distanceCurveVerts(TransData *head, TransData *tail, bool cyclic)
       next_td = tail;
     }
 
-    if (next_td != nullptr && !(next_td->flag & TD_NOTCONNECTED)) {
+    if (next_td != nullptr) {
       sub_v3_v3v3(vec, next_td->center, td->center);
       mul_m3_v3(head->mtx, vec);
       dist = len_v3(vec) + td->dist;
@@ -552,13 +548,11 @@ bool FrameOnMouseSide(char side, float frame, float cframe)
 
 bool constraints_list_needinv(TransInfo *t, ListBase *list)
 {
-  bConstraint *con;
-
   /* loop through constraints, checking if there's one of the mentioned
    * constraints needing special crazy-space corrections
    */
   if (list) {
-    for (con = static_cast<bConstraint *>(list->first); con; con = con->next) {
+    LISTBASE_FOREACH (bConstraint *, con, list) {
       /* only consider constraint if it is enabled, and has influence on result */
       if ((con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) == 0 && (con->enforce != 0.0f)) {
         /* (affirmative) returns for specific constraints here... */

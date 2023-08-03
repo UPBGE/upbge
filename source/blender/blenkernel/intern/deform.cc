@@ -684,9 +684,8 @@ int BKE_object_defgroup_flip_index(const Object *ob, int index, const bool use_d
 static bool defgroup_find_name_dupe(const char *name, bDeformGroup *dg, Object *ob)
 {
   const ListBase *defbase = BKE_object_defgroup_list(ob);
-  bDeformGroup *curdef;
 
-  for (curdef = static_cast<bDeformGroup *>(defbase->first); curdef; curdef = curdef->next) {
+  LISTBASE_FOREACH (bDeformGroup *, curdef, defbase) {
     if (dg != curdef) {
       if (STREQ(curdef->name, name)) {
         return true;
@@ -1225,7 +1224,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
 
   const int tot_dst = BLI_listbase_count(dst_defbase);
 
-  const size_t elem_size = sizeof(*((MDeformVert *)nullptr));
+  const size_t elem_size = sizeof(MDeformVert);
 
   switch (tolayers) {
     case DT_LAYERS_INDEX_DST:
@@ -1369,7 +1368,7 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
 {
   int idx_src, idx_dst;
 
-  const size_t elem_size = sizeof(*((MDeformVert *)nullptr));
+  const size_t elem_size = sizeof(MDeformVert);
 
   /* NOTE:
    * VGroups are a bit hairy, since their layout is defined on object level (ob->defbase),

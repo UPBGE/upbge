@@ -591,7 +591,7 @@ static void do_cloth_brush_apply_forces_task_cb_ex(void *__restrict userdata,
 static ListBase *cloth_brush_collider_cache_create(Object *object, Depsgraph *depsgraph)
 {
   ListBase *cache = nullptr;
-  DEGObjectIterSettings deg_iter_settings = {0};
+  DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY | DEG_ITER_OBJECT_FLAG_VISIBLE |
                             DEG_ITER_OBJECT_FLAG_DUPLI;
@@ -664,16 +664,12 @@ static void cloth_brush_solve_collision(Object *object,
 {
   const int raycast_flag = BVH_RAYCAST_DEFAULT & ~(BVH_RAYCAST_WATERTIGHT);
 
-  ColliderCache *collider_cache;
   BVHTreeRayHit hit;
 
   float obmat_inv[4][4];
   invert_m4_m4(obmat_inv, object->object_to_world);
 
-  for (collider_cache = static_cast<ColliderCache *>(cloth_sim->collider_list->first);
-       collider_cache;
-       collider_cache = collider_cache->next)
-  {
+  LISTBASE_FOREACH (ColliderCache *, collider_cache, cloth_sim->collider_list) {
     float ray_start[3], ray_normal[3];
     float pos_world_space[3], prev_pos_world_space[3];
 
@@ -803,7 +799,7 @@ static void cloth_brush_satisfy_constraints(SculptSession *ss,
 {
 
   AutomaskingCache *automasking = SCULPT_automasking_active_cache_get(ss);
-  AutomaskingNodeData automask_data = {0};
+  AutomaskingNodeData automask_data = {nullptr};
 
   automask_data.have_orig_data = true;
 

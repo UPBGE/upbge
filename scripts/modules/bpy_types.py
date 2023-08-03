@@ -1192,6 +1192,10 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
             layout.menu(cls.__name__, icon='COLLAPSEMENU')
 
 
+class AssetShelf(StructRNA, metaclass=RNAMeta):
+    __slots__ = ()
+
+
 class NodeTree(bpy_types.ID, metaclass=RNAMetaPropGroup):
     __slots__ = ()
 

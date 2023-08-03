@@ -539,11 +539,7 @@ static bool object_select_all_by_particle(bContext *C, Object *ob)
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       /* Loop through other particles. */
-      ParticleSystem *psys;
-
-      for (psys = static_cast<ParticleSystem *>(base->object->particlesystem.first); psys;
-           psys = psys->next)
-      {
+      LISTBASE_FOREACH (ParticleSystem *, psys, &base->object->particlesystem) {
         if (psys->part == psys_act->part) {
           ED_object_base_select(base, BA_SELECT);
           changed = true;
@@ -876,10 +872,9 @@ static bool select_grouped_object_hooks(bContext *C, Object *ob)
 
   bool changed = false;
   Base *base;
-  ModifierData *md;
   HookModifierData *hmd;
 
-  for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
     if (md->type == eModifierType_Hook) {
       hmd = (HookModifierData *)md;
       if (hmd->object) {
@@ -1028,12 +1023,9 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     /* only check for this object if it isn't selected already, to limit time wasted */
     if ((base->flag & BASE_SELECTED) == 0) {
-      KS_Path *ksp;
-
-      /* this is the slow way... we could end up with > 500 items here,
-       * with none matching, but end up doing this on 1000 objects...
-       */
-      for (ksp = static_cast<KS_Path *>(ks->paths.first); ksp; ksp = ksp->next) {
+      /* This is the slow way... we could end up with > 500 items here,
+       * with none matching, but end up doing this on 1000 objects. */
+      LISTBASE_FOREACH (KS_Path *, ksp, &ks->paths) {
         /* if id matches, select then stop looping (match found) */
         if (ksp->id == (ID *)base->object) {
           ED_object_base_select(base, BA_SELECT);
@@ -1359,7 +1351,6 @@ static bool object_select_more_less(bContext *C, const bool select)
   }
 
   ListBase ctx_base_list;
-  CollectionPointerLink *ctx_base;
   CTX_data_selectable_bases(C, &ctx_base_list);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
@@ -1367,9 +1358,7 @@ static bool object_select_more_less(bContext *C, const bool select)
   }
   CTX_DATA_END;
 
-  for (ctx_base = static_cast<CollectionPointerLink *>(ctx_base_list.first); ctx_base;
-       ctx_base = ctx_base->next)
-  {
+  LISTBASE_FOREACH (CollectionPointerLink *, ctx_base, &ctx_base_list) {
     Object *ob = ((Base *)ctx_base->ptr.data)->object;
     if (ob->parent) {
       if ((ob->flag & OB_DONE) != (ob->parent->flag & OB_DONE)) {
@@ -1383,9 +1372,7 @@ static bool object_select_more_less(bContext *C, const bool select)
   const short select_mode = select ? BA_SELECT : BA_DESELECT;
   const short select_flag = select ? BASE_SELECTED : 0;
 
-  for (ctx_base = static_cast<CollectionPointerLink *>(ctx_base_list.first); ctx_base;
-       ctx_base = ctx_base->next)
-  {
+  LISTBASE_FOREACH (CollectionPointerLink *, ctx_base, &ctx_base_list) {
     Base *base = static_cast<Base *>(ctx_base->ptr.data);
     Object *ob = base->object;
     if ((ob->id.tag & LIB_TAG_DOIT) && ((base->flag & BASE_SELECTED) != select_flag)) {
@@ -1479,10 +1466,7 @@ static int object_select_random_exec(bContext *C, wmOperator *op)
   int elem_map_len = 0;
   Base **elem_map = static_cast<Base **>(MEM_mallocN(sizeof(*elem_map) * tot, __func__));
 
-  CollectionPointerLink *ctx_link;
-  for (ctx_link = static_cast<CollectionPointerLink *>(ctx_data_list.first); ctx_link;
-       ctx_link = ctx_link->next)
-  {
+  LISTBASE_FOREACH (CollectionPointerLink *, ctx_link, &ctx_data_list) {
     elem_map[elem_map_len++] = static_cast<Base *>(ctx_link->ptr.data);
   }
   BLI_freelistN(&ctx_data_list);

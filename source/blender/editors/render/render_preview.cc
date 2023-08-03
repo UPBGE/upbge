@@ -1454,12 +1454,6 @@ static void icon_preview_startjob(void *customdata, bool *stop, bool *do_update)
 
     *do_update = true;
   }
-  else if (idtype == ID_SCR) {
-    bScreen *screen = (bScreen *)id;
-
-    ED_screen_preview_render(screen, sp->sizex, sp->sizey, sp->pr_rect);
-    *do_update = true;
-  }
   else {
     /* re-use shader job */
     shader_preview_startjob(customdata, stop, do_update);
@@ -1563,11 +1557,8 @@ static void icon_preview_startjob_all_sizes(void *customdata,
                                             float *progress)
 {
   IconPreview *ip = (IconPreview *)customdata;
-  IconPreviewSize *cur_size;
 
-  for (cur_size = static_cast<IconPreviewSize *>(ip->sizes.first); cur_size;
-       cur_size = cur_size->next)
-  {
+  LISTBASE_FOREACH (IconPreviewSize *, cur_size, &ip->sizes) {
     PreviewImage *prv = static_cast<PreviewImage *>(ip->owner);
     /* Is this a render job or a deferred loading job? */
     const ePreviewRenderMethod pr_method = (prv->tag & PRV_TAG_DEFFERED) ? PR_ICON_DEFERRED :

@@ -198,11 +198,39 @@ static void rna_def_lightprobe(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, INT_MAX);
   RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING, "rna_LightProbe_recalc");
 
+  prop = RNA_def_property(srna, "grid_surface_bias", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop,
+                           "Capture Surface Bias",
+                           "Moves capture points position away from surfaces to avoid artifacts");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING, "rna_LightProbe_recalc");
+
+  prop = RNA_def_property(srna, "grid_escape_bias", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop, "Capture Escape Bias", "Moves capture points outside objects");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING, "rna_LightProbe_recalc");
+
   prop = RNA_def_property(srna, "surfel_density", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(prop,
                            "Surfel Density",
                            "Number of surfels per unit distance (higher values improve quality)");
+  RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING, "rna_LightProbe_recalc");
+
+  prop = RNA_def_property(srna, "grid_dilation_threshold", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop,
+                           "Dilation Threshold",
+                           "Ratio of front-facing surface hits under which a grid sample will "
+                           "reuse neighbors grid sample lighting");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING, "rna_LightProbe_recalc");
+
+  prop = RNA_def_property(srna, "grid_dilation_radius", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(
+      prop,
+      "Dilation Radius",
+      "Radius in grid sample to search valid grid samples to copy into invalid grid samples");
+  RNA_def_property_range(prop, 1.0f, 5.0f);
   RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING, "rna_LightProbe_recalc");
 
   prop = RNA_def_property(srna, "visibility_buffer_bias", PROP_FLOAT, PROP_NONE);

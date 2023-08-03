@@ -2135,7 +2135,8 @@ static bool ui_but_drag_init(bContext *C,
                RGN_TYPE_NAV_BAR,
                RGN_TYPE_HEADER,
                RGN_TYPE_TOOL_HEADER,
-               RGN_TYPE_FOOTER))
+               RGN_TYPE_FOOTER,
+               RGN_TYPE_ASSET_SHELF_HEADER))
       {
         const int region_alignment = RGN_ALIGN_ENUM_FROM_MASK(data->region->alignment);
         int lock_axis = -1;
@@ -4943,12 +4944,12 @@ static int ui_do_but_TEX(
     if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, EVT_PADENTER, EVT_RETKEY) &&
         event->val == KM_PRESS) {
       if (ELEM(event->type, EVT_PADENTER, EVT_RETKEY) && !UI_but_is_utf8(but)) {
-        /* pass - allow filesel, enter to execute */
+        /* Pass, allow file-selector, enter to execute. */
       }
       else if (ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS) &&
                ((event->modifier & KM_CTRL) == 0))
       {
-        /* pass */
+        /* Pass. */
       }
       else {
         if (!ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
@@ -5080,15 +5081,17 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
           if (ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
             return WM_UI_HANDLER_BREAK;
           }
-          button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
-          data->dragstartx = event->xy[0];
-          data->dragstarty = event->xy[1];
+
+          if (UI_view_item_supports_drag(view_item_but->view_item)) {
+            button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
+            data->dragstartx = event->xy[0];
+            data->dragstarty = event->xy[1];
+          }
+          else {
+            button_activate_state(C, but, BUTTON_STATE_EXIT);
+          }
+
           return WM_UI_HANDLER_CONTINUE;
-
-        case KM_CLICK:
-          button_activate_state(C, but, BUTTON_STATE_EXIT);
-          return WM_UI_HANDLER_BREAK;
-
         case KM_DBL_CLICK:
           data->cancel = true;
           UI_view_item_begin_rename(view_item_but->view_item);

@@ -38,7 +38,7 @@ static struct {
   } attr_id;
 
   ThreadMutex mutex;
-} g_presets_3d = {{0}};
+} g_presets_3d = {{nullptr}};
 
 static struct {
   struct {
@@ -56,7 +56,7 @@ static struct {
   struct {
     uint pos, col;
   } attr_id;
-} g_presets_2d = {{0}};
+} g_presets_2d = {{nullptr}};
 
 static ListBase presets_list = {nullptr, nullptr};
 
@@ -366,7 +366,7 @@ void gpu_batch_presets_register(GPUBatch *preset_batch)
 bool gpu_batch_presets_unregister(GPUBatch *preset_batch)
 {
   BLI_mutex_lock(&g_presets_3d.mutex);
-  for (LinkData *link = static_cast<LinkData *>(presets_list.last); link; link = link->prev) {
+  LISTBASE_FOREACH_BACKWARD (LinkData *, link, &presets_list) {
     if (preset_batch == link->data) {
       BLI_remlink(&presets_list, link);
       BLI_mutex_unlock(&g_presets_3d.mutex);
@@ -380,8 +380,7 @@ bool gpu_batch_presets_unregister(GPUBatch *preset_batch)
 
 void gpu_batch_presets_exit()
 {
-  LinkData *link;
-  while ((link = static_cast<LinkData *>(BLI_pophead(&presets_list)))) {
+  while (LinkData *link = static_cast<LinkData *>(BLI_pophead(&presets_list))) {
     GPUBatch *preset = static_cast<GPUBatch *>(link->data);
     GPU_batch_discard(preset);
     MEM_freeN(link);

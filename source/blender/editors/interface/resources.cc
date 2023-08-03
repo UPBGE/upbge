@@ -168,6 +168,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (g_theme_state.regionid == RGN_TYPE_EXECUTE) {
             cp = ts->execution_buts;
           }
+          else if (g_theme_state.regionid == RGN_TYPE_ASSET_SHELF) {
+            cp = ts->asset_shelf.back;
+          }
+          else if (g_theme_state.regionid == RGN_TYPE_ASSET_SHELF_HEADER) {
+            cp = ts->asset_shelf.header_back;
+          }
           else {
             cp = ts->button;
           }
@@ -193,7 +199,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_text;
           }
-          else if (ELEM(g_theme_state.regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+          else if (ELEM(g_theme_state.regionid,
+                        RGN_TYPE_HEADER,
+                        RGN_TYPE_FOOTER,
+                        RGN_TYPE_ASSET_SHELF_HEADER))
+          {
             cp = ts->header_text;
           }
           else {
@@ -207,7 +217,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_text_hi;
           }
-          else if (ELEM(g_theme_state.regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+          else if (ELEM(g_theme_state.regionid,
+                        RGN_TYPE_HEADER,
+                        RGN_TYPE_FOOTER,
+                        RGN_TYPE_ASSET_SHELF_HEADER))
+          {
             cp = ts->header_text_hi;
           }
           else {
@@ -221,7 +235,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_title;
           }
-          else if (ELEM(g_theme_state.regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+          else if (ELEM(g_theme_state.regionid,
+                        RGN_TYPE_HEADER,
+                        RGN_TYPE_FOOTER,
+                        RGN_TYPE_ASSET_SHELF_HEADER))
+          {
             cp = ts->header_title;
           }
           else {

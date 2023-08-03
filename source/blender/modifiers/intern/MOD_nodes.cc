@@ -403,7 +403,8 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
   }
   IDProperty *new_properties = nmd->settings.properties;
 
-  nodes::update_input_properties_from_node_tree(*nmd->node_group, old_properties, *new_properties);
+  nodes::update_input_properties_from_node_tree(
+      *nmd->node_group, old_properties, false, *new_properties);
   nodes::update_output_properties_from_node_tree(
       *nmd->node_group, old_properties, *new_properties);
 
@@ -846,7 +847,7 @@ static void modifyGeometry(ModifierData *md,
   bool use_orig_index_verts = false;
   bool use_orig_index_edges = false;
   bool use_orig_index_faces = false;
-  if (const Mesh *mesh = geometry_set.get_mesh_for_read()) {
+  if (const Mesh *mesh = geometry_set.get_mesh()) {
     use_orig_index_verts = CustomData_has_layer(&mesh->vert_data, CD_ORIGINDEX);
     use_orig_index_edges = CustomData_has_layer(&mesh->edge_data, CD_ORIGINDEX);
     use_orig_index_faces = CustomData_has_layer(&mesh->face_data, CD_ORIGINDEX);
@@ -905,7 +906,7 @@ static void modifyGeometry(ModifierData *md,
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
-  bke::GeometrySet geometry_set = bke::GeometrySet::create_with_mesh(
+  bke::GeometrySet geometry_set = bke::GeometrySet::from_mesh(
       mesh, bke::GeometryOwnershipType::Editable);
 
   modifyGeometry(md, ctx, geometry_set);

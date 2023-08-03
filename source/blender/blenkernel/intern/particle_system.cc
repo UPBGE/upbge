@@ -745,11 +745,20 @@ void psys_get_birth_coords(
                              nor,
                              utan,
                              vtan,
-                             0);
+                             nullptr);
   }
   else {
-    psys_particle_on_emitter(
-        sim->psmd, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, loc, nor, 0, 0, 0);
+    psys_particle_on_emitter(sim->psmd,
+                             part->from,
+                             pa->num,
+                             pa->num_dmcache,
+                             pa->fuv,
+                             pa->foffset,
+                             loc,
+                             nor,
+                             nullptr,
+                             nullptr,
+                             nullptr);
   }
 
   /* get possible textural influence */
@@ -1203,7 +1212,7 @@ void psys_count_keyed_targets(ParticleSimulationData *sim)
 static void set_keyed_keys(ParticleSimulationData *sim)
 {
   ParticleSystem *psys = sim->psys;
-  ParticleSimulationData ksim = {0};
+  ParticleSimulationData ksim = {nullptr};
   ParticleTarget *pt;
   PARTICLE_P;
   ParticleKey *key;
@@ -2838,7 +2847,6 @@ static int collision_detect(ParticleData *pa,
                             ListBase *colliders)
 {
   const int raycast_flag = BVH_RAYCAST_DEFAULT & ~(BVH_RAYCAST_WATERTIGHT);
-  ColliderCache *coll;
   float ray_dir[3];
 
   if (BLI_listbase_is_empty(colliders)) {
@@ -2856,7 +2864,7 @@ static int collision_detect(ParticleData *pa,
     hit->dist = col->original_ray_length = 0.000001f;
   }
 
-  for (coll = static_cast<ColliderCache *>(colliders->first); coll; coll = coll->next) {
+  LISTBASE_FOREACH (ColliderCache *, coll, colliders) {
     /* for boids: don't check with current ground object; also skip if permeated */
     bool skip = false;
 
@@ -4206,7 +4214,7 @@ static void particles_fluid_step(ParticleSimulationData *sim,
   ParticleSystem *psys = sim->psys;
   if (psys->particles) {
     MEM_freeN(psys->particles);
-    psys->particles = 0;
+    psys->particles = nullptr;
     psys->totpart = 0;
   }
 
@@ -4793,7 +4801,7 @@ void particle_system_update(Depsgraph *depsgraph,
                             ParticleSystem *psys,
                             const bool use_render_params)
 {
-  ParticleSimulationData sim = {0};
+  ParticleSimulationData sim = {nullptr};
   ParticleSettings *part = psys->part;
   ParticleSystem *psys_orig = psys_orig_get(psys);
   float cfra;
@@ -5026,7 +5034,6 @@ static void particlesystem_modifiersForeachIDLink(void *user_data,
 
 void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func, void *userdata)
 {
-  ParticleTarget *pt;
   LibraryForeachIDData *foreachid_data = static_cast<LibraryForeachIDData *>(userdata);
   const int foreachid_data_flags = BKE_lib_query_foreachid_process_flags_get(foreachid_data);
 
@@ -5047,7 +5054,7 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
     }
   }
 
-  for (pt = static_cast<ParticleTarget *>(psys->targets.first); pt; pt = pt->next) {
+  LISTBASE_FOREACH (ParticleTarget *, pt, &psys->targets) {
     func(psys, (ID **)&pt->ob, userdata, IDWALK_CB_NOP);
   }
 

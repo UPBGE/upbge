@@ -361,7 +361,7 @@ static void file_draw_preview(const FileList *files,
   bool show_outline = !is_icon && (file->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_OBJECT_IO |
                                                      FILE_TYPE_MOVIE | FILE_TYPE_BLENDER));
   const bool is_offline = (file->attributes & FILE_ATTR_OFFLINE);
-  const bool is_loading = !filelist_is_ready(files) || file->flags & FILE_ENTRY_PREVIEW_LOADING;
+  const bool is_loading = filelist_file_is_preview_pending(files, file);
 
   BLI_assert(imb != nullptr);
 
@@ -1083,7 +1083,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                      0,
                                      0,
                                      0,
-                                     0);
+                                     nullptr);
           UI_but_dragflag_enable(drag_but, UI_BUT_DRAG_FULL_BUT);
           file_but_enable_drag(drag_but, sfile, file, path, nullptr, icon, UI_SCALE_FAC);
         }

@@ -1152,8 +1152,8 @@ static char *get_rna_access(ID *id,
   /* NOTE: strings are not escaped and they should be! */
   if ((actname && actname[0]) && (constname && constname[0])) {
     /* Constraint in Pose-Channel */
-    char actname_esc[sizeof(((bActionChannel *)nullptr)->name) * 2];
-    char constname_esc[sizeof(((bConstraint *)nullptr)->name) * 2];
+    char actname_esc[sizeof(bActionChannel::name) * 2];
+    char constname_esc[sizeof(bConstraint::name) * 2];
     BLI_str_escape(actname_esc, actname, sizeof(actname_esc));
     BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
     SNPRINTF(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname_esc, constname_esc);
@@ -1170,14 +1170,14 @@ static char *get_rna_access(ID *id,
     }
     else {
       /* Pose-Channel */
-      char actname_esc[sizeof(((bActionChannel *)nullptr)->name) * 2];
+      char actname_esc[sizeof(bActionChannel::name) * 2];
       BLI_str_escape(actname_esc, actname, sizeof(actname_esc));
       SNPRINTF(buf, "pose.bones[\"%s\"]", actname_esc);
     }
   }
   else if (constname && constname[0]) {
     /* Constraint in Object */
-    char constname_esc[sizeof(((bConstraint *)nullptr)->name) * 2];
+    char constname_esc[sizeof(bConstraint::name) * 2];
     BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
     SNPRINTF(buf, "constraints[\"%s\"]", constname_esc);
   }
@@ -1728,7 +1728,7 @@ static void ipo_to_animato(ID *id,
   }
 
   /* loop over IPO-Curves, freeing as we progress */
-  for (icu = static_cast<IpoCurve *>(ipo->curve.first); icu; icu = icu->next) {
+  LISTBASE_FOREACH (IpoCurve *, icu, &ipo->curve) {
     /* Since an IPO-Curve may end up being made into many F-Curves (i.e. bitflag curves),
      * we figure out the best place to put the channel,
      * then tell the curve-converter to just dump there. */
@@ -2108,8 +2108,6 @@ void do_versions_ipos_to_animato(Main *bmain)
   /* objects */
   for (id = static_cast<ID *>(bmain->objects.first); id; id = static_cast<ID *>(id->next)) {
     Object *ob = (Object *)id;
-    bPoseChannel *pchan;
-    bConstraint *con;
     bConstraintChannel *conchan, *conchann;
 
     if (G.debug & G_DEBUG) {
@@ -2167,9 +2165,8 @@ void do_versions_ipos_to_animato(Main *bmain)
       /* Verify if there's AnimData block */
       BKE_animdata_ensure_id(id);
 
-      for (pchan = static_cast<bPoseChannel *>(ob->pose->chanbase.first); pchan;
-           pchan = pchan->next) {
-        for (con = static_cast<bConstraint *>(pchan->constraints.first); con; con = con->next) {
+      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+        LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
           /* if constraint has own IPO, convert add these to Object
            * (NOTE: they're most likely to be drivers too)
            */
@@ -2186,7 +2183,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     }
 
     /* check constraints for local IPO's */
-    for (con = static_cast<bConstraint *>(ob->constraints.first); con; con = con->next) {
+    LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
       /* if constraint has own IPO, convert add these to Object
        * (NOTE: they're most likely to be drivers too)
        */

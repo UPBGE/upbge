@@ -182,9 +182,8 @@ static void duplicateStroke(Object *ob,
 static void generate_geometry(GpencilModifierData *md, Object *ob, bGPDlayer *gpl, bGPDframe *gpf)
 {
   MultiplyGpencilModifierData *mmd = (MultiplyGpencilModifierData *)md;
-  bGPDstroke *gps;
-  ListBase duplicates = {0};
-  for (gps = static_cast<bGPDstroke *>(gpf->strokes.first); gps; gps = gps->next) {
+  ListBase duplicates = {nullptr};
+  LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
     if (!is_stroke_affected_by_modifier(ob,
                                         mmd->layername,
                                         mmd->material,

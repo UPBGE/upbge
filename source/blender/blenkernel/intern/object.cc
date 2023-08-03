@@ -1983,9 +1983,7 @@ void BKE_object_workob_clear(Object *workob)
 
 void BKE_object_free_particlesystems(Object *ob)
 {
-  ParticleSystem *psys;
-
-  while ((psys = (ParticleSystem *)BLI_pophead(&ob->particlesystem))) {
+  while (ParticleSystem *psys = (ParticleSystem *)BLI_pophead(&ob->particlesystem)) {
     psys_free(ob, psys);
   }
 }
@@ -2019,14 +2017,13 @@ void BKE_object_free_curve_cache(Object *ob)
 
 void BKE_object_free_modifiers(Object *ob, const int flag)
 {
-  ModifierData *md;
-  GpencilModifierData *gp_md;
-
-  while ((md = (ModifierData *)BLI_pophead(&ob->modifiers))) {
+  while (ModifierData *md = (ModifierData *)BLI_pophead(&ob->modifiers)) {
     BKE_modifier_free_ex(md, flag);
   }
 
-  while ((gp_md = (GpencilModifierData *)BLI_pophead(&ob->greasepencil_modifiers))) {
+  while (
+      GpencilModifierData *gp_md = (GpencilModifierData *)BLI_pophead(&ob->greasepencil_modifiers))
+  {
     BKE_gpencil_modifier_free_ex(gp_md, flag);
   }
   /* Particle modifiers were freed, so free the particle-systems as well. */
@@ -2041,9 +2038,7 @@ void BKE_object_free_modifiers(Object *ob, const int flag)
 
 void BKE_object_free_shaderfx(Object *ob, const int flag)
 {
-  ShaderFxData *fx;
-
-  while ((fx = (ShaderFxData *)BLI_pophead(&ob->shader_fx))) {
+  while (ShaderFxData *fx = (ShaderFxData *)BLI_pophead(&ob->shader_fx)) {
     BKE_shaderfx_free_ex(fx, flag);
   }
 }
@@ -5325,7 +5320,7 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
      * this should be avoided, or at least protected with a lock, so a const mesh could be returned
      * from this function. We use a const_cast instead of #get_mesh_for_write, because that might
      * result in a copy of the mesh when it is shared. */
-    Mesh *mesh = const_cast<Mesh *>(geometry_set_eval->get_mesh_for_read());
+    Mesh *mesh = const_cast<Mesh *>(geometry_set_eval->get_mesh());
     if (mesh) {
       return mesh;
     }
@@ -6084,8 +6079,7 @@ static Object *obrel_armature_find(Object *ob)
     ob_arm = ob->parent;
   }
   else {
-    ModifierData *mod;
-    for (mod = (ModifierData *)ob->modifiers.first; mod; mod = mod->next) {
+    LISTBASE_FOREACH (ModifierData *, mod, &ob->modifiers) {
       if (mod->type == eModifierType_Armature) {
         ob_arm = ((ArmatureModifierData *)mod)->object;
       }

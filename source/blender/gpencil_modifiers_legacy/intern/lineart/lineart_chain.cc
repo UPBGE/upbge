@@ -263,7 +263,7 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
       }
 
       if (new_vt == new_e->v1) {
-        for (es = static_cast<LineartEdgeSegment *>(new_e->segments.last); es; es = es->prev) {
+        LISTBASE_FOREACH_BACKWARD (LineartEdgeSegment *, es, &new_e->segments) {
           double gpos[3], lpos[3];
           double *lfb = new_e->v1->fbcoord, *rfb = new_e->v2->fbcoord;
           double global_at = lfb[3] * es->ratio / (es->ratio * lfb[3] + (1 - es->ratio) * rfb[3]);
@@ -420,7 +420,7 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
         eci->occlusion = last_occlusion;
         eci->material_mask_bits = last_transparency;
         eci->shadow_mask_bits = last_shadow;
-        for (es = static_cast<LineartEdgeSegment *>(new_e->segments.last); es; es = es->prev) {
+        LISTBASE_FOREACH_BACKWARD (LineartEdgeSegment *, es, &new_e->segments) {
           double gpos[3], lpos[3];
           double *lfb = new_e->v1->fbcoord, *rfb = new_e->v2->fbcoord;
           double global_at = lfb[3] * es->ratio / (es->ratio * lfb[3] + (1 - es->ratio) * rfb[3]);
@@ -658,9 +658,8 @@ static bool lineart_chain_fix_ambiguous_segments(LineartEdgeChain *ec,
 
 void MOD_lineart_chain_split_for_fixed_occlusion(LineartData *ld)
 {
-  LineartEdgeChain *ec, *new_ec;
   LineartEdgeChainItem *eci, *next_eci;
-  ListBase swap = {0};
+  ListBase swap = {nullptr};
 
   swap.first = ld->chains.first;
   swap.last = ld->chains.last;
@@ -668,7 +667,7 @@ void MOD_lineart_chain_split_for_fixed_occlusion(LineartData *ld)
   ld->chains.last = ld->chains.first = nullptr;
 
   int loop_id = 0;
-  while ((ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) != nullptr) {
+  while (LineartEdgeChain *ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) {
     ec->next = ec->prev = nullptr;
     BLI_addtail(&ld->chains, ec);
 
@@ -709,13 +708,13 @@ void MOD_lineart_chain_split_for_fixed_occlusion(LineartData *ld)
           /* No need to split at the last point anyway. */
           break;
         }
-        new_ec = lineart_chain_create(ld);
+        LineartEdgeChain *new_ec = lineart_chain_create(ld);
         new_ec->chain.first = eci;
         new_ec->chain.last = ec->chain.last;
         new_ec->loop_id = loop_id;
         ec->chain.last = eci->prev;
-        ((LineartEdgeChainItem *)ec->chain.last)->next = 0;
-        eci->prev = 0;
+        ((LineartEdgeChainItem *)ec->chain.last)->next = nullptr;
+        eci->prev = nullptr;
 
         /* End the previous one. */
         lineart_chain_append_point(ld,
@@ -922,7 +921,6 @@ static LineartChainRegisterEntry *lineart_chain_get_closest_cre(LineartData *ld,
 
 void MOD_lineart_chain_connect(LineartData *ld)
 {
-  LineartEdgeChain *ec;
   LineartEdgeChainItem *eci_l, *eci_r;
   LineartBoundingArea *ba_l, *ba_r;
   LineartChainRegisterEntry *closest_cre_l, *closest_cre_r, *closest_cre;
@@ -931,7 +929,7 @@ void MOD_lineart_chain_connect(LineartData *ld)
   int reverse_main, loop_id;
   uint8_t occlusion, material_mask_bits, isec_mask;
   uint32_t shadow_mask;
-  ListBase swap = {0};
+  ListBase swap = {nullptr};
 
   if (ld->conf.chaining_image_threshold < 0.0001) {
     return;
@@ -942,7 +940,7 @@ void MOD_lineart_chain_connect(LineartData *ld)
 
   ld->chains.last = ld->chains.first = nullptr;
 
-  while ((ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) != nullptr) {
+  while (LineartEdgeChain *ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) {
     ec->next = ec->prev = nullptr;
     if (ec->picked || ec->chain.first == ec->chain.last) {
       continue;
@@ -1038,7 +1036,7 @@ float MOD_lineart_chain_compute_length(LineartEdgeChain *ec)
     return 0;
   }
   copy_v2_v2(last_point, eci->pos);
-  for (eci = static_cast<LineartEdgeChainItem *>(ec->chain.first); eci; eci = eci->next) {
+  LISTBASE_FOREACH (LineartEdgeChainItem *, eci, &ec->chain) {
     dist = len_v2v2(eci->pos, last_point);
     offset_accum += dist;
     copy_v2_v2(last_point, eci->pos);
@@ -1230,15 +1228,14 @@ static LineartEdgeChainItem *lineart_chain_create_crossing_point(LineartData *ld
 
 void MOD_lineart_chain_clip_at_border(LineartData *ld)
 {
-  LineartEdgeChain *ec;
   LineartEdgeChainItem *eci, *next_eci, *prev_eci, *new_eci;
   bool is_inside, new_inside;
-  ListBase swap = {0};
+  ListBase swap = {nullptr};
   swap.first = ld->chains.first;
   swap.last = ld->chains.last;
 
   ld->chains.last = ld->chains.first = nullptr;
-  while ((ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) != nullptr) {
+  while (LineartEdgeChain *ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) {
     bool ec_added = false;
     LineartEdgeChainItem *first_eci = (LineartEdgeChainItem *)ec->chain.first;
     is_inside = LRT_ECI_INSIDE(first_eci) ? true : false;
@@ -1296,16 +1293,15 @@ void MOD_lineart_chain_clip_at_border(LineartData *ld)
 
 void MOD_lineart_chain_split_angle(LineartData *ld, float angle_threshold_rad)
 {
-  LineartEdgeChain *ec, *new_ec;
   LineartEdgeChainItem *eci, *next_eci, *prev_eci;
-  ListBase swap = {0};
+  ListBase swap = {nullptr};
 
   swap.first = ld->chains.first;
   swap.last = ld->chains.last;
 
   ld->chains.last = ld->chains.first = nullptr;
 
-  while ((ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) != nullptr) {
+  while (LineartEdgeChain *ec = static_cast<LineartEdgeChain *>(BLI_pophead(&swap))) {
     ec->next = ec->prev = nullptr;
     BLI_addtail(&ld->chains, ec);
     LineartEdgeChainItem *first_eci = (LineartEdgeChainItem *)ec->chain.first;
@@ -1320,6 +1316,7 @@ void MOD_lineart_chain_split_angle(LineartData *ld, float angle_threshold_rad)
         break; /* No need to split at the last point anyway. */
       }
       if (angle < angle_threshold_rad) {
+        LineartEdgeChain *new_ec;
         new_ec = lineart_chain_create(ld);
         new_ec->chain.first = eci;
         new_ec->chain.last = ec->chain.last;
