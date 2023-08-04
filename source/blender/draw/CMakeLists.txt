@@ -161,6 +161,7 @@ set(SRC
   engines/eevee_next/eevee_sync.cc
   engines/eevee_next/eevee_velocity.cc
   engines/eevee_next/eevee_view.cc
+  engines/eevee_next/eevee_volume.cc
   engines/eevee_next/eevee_world.cc
   engines/workbench/workbench_data.cc
   engines/workbench/workbench_effect_antialiasing.cc
@@ -242,7 +243,7 @@ set(SRC
   intern/draw_attributes.hh
   intern/draw_cache.h
   intern/draw_cache_extract.hh
-  intern/draw_cache_impl.h
+  intern/draw_cache_impl.hh
   intern/draw_cache_inline.h
   intern/draw_color_management.h
   intern/draw_command.hh
@@ -307,6 +308,7 @@ set(SRC
   engines/eevee_next/eevee_sync.hh
   engines/eevee_next/eevee_velocity.hh
   engines/eevee_next/eevee_view.hh
+  engines/eevee_next/eevee_volume.hh
   engines/eevee_next/eevee_world.hh
   engines/external/external_engine.h
   engines/gpencil/gpencil_antialiasing.hh
@@ -580,6 +582,11 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_surfel_ray_comp.glsl
   engines/eevee_next/shaders/eevee_transparency_lib.glsl
   engines/eevee_next/shaders/eevee_velocity_lib.glsl
+  engines/eevee_next/shaders/eevee_volume_integration_comp.glsl
+  engines/eevee_next/shaders/eevee_volume_lib.glsl
+  engines/eevee_next/shaders/eevee_volume_material_comp.glsl
+  engines/eevee_next/shaders/eevee_volume_resolve_frag.glsl
+  engines/eevee_next/shaders/eevee_volume_scatter_comp.glsl
 
   engines/eevee_next/eevee_defines.hh
   engines/eevee_next/eevee_shader_shared.hh

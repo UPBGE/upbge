@@ -302,6 +302,11 @@
  \
   }
 
+#define _DNA_DEFAULT_SceneHydra \
+  { \
+    .export_method = SCE_HYDRA_EXPORT_HYDRA, \
+  }
+
 #define _DNA_DEFAULT_Scene \
   { \
     .cursor = _DNA_DEFAULT_View3DCursor, \
@@ -316,8 +321,9 @@
  \
     .eevee = _DNA_DEFAULT_SceneEEVEE, \
  \
-    .gm = _DNA_DEFAULT_GameData, \
+    .hydra = _DNA_DEFAULT_SceneHydra, \
  \
+    .gm = _DNA_DEFAULT_GameData, \
   }
 
 /** \} */

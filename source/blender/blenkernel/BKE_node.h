@@ -238,6 +238,8 @@ typedef struct bNodeType {
   char ui_name[64]; /* MAX_NAME */
   char ui_description[256];
   int ui_icon;
+  /** Should usually use the idname instead, but this enum type is still exposed in Python. */
+  const char *enum_name_legacy;
 
   float width, minwidth, maxwidth;
   float height, minheight, maxheight;
@@ -1365,6 +1367,11 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
  * the repeat zone. */
 #define GEO_NODE_REPEAT_INPUT 2107
 #define GEO_NODE_REPEAT_OUTPUT 2108
+#define GEO_NODE_TOOL_SELECTION 2109
+#define GEO_NODE_TOOL_SET_SELECTION 2110
+#define GEO_NODE_TOOL_3D_CURSOR 2111
+#define GEO_NODE_TOOL_FACE_SET 2112
+#define GEO_NODE_TOOL_SET_FACE_SET 2113
 
 /** \} */
 

@@ -613,20 +613,6 @@ extern FunctionRNA rna_Node_draw_label_func;
 
 static void rna_Node_socket_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr);
 
-int rna_node_tree_type_to_enum(bNodeTreeType *typeinfo)
-{
-  int i = 0, result = -1;
-  NODE_TREE_TYPES_BEGIN (nt) {
-    if (nt == typeinfo) {
-      result = i;
-      break;
-    }
-    i++;
-  }
-  NODE_TREE_TYPES_END;
-  return result;
-}
-
 int rna_node_tree_idname_to_enum(const char *idname)
 {
   int i = 0, result = -1;
@@ -691,114 +677,6 @@ const EnumPropertyItem *rna_node_tree_type_itemf(void *data,
   *r_free = true;
 
   return item;
-}
-
-int rna_node_type_to_enum(bNodeType *typeinfo)
-{
-  int i = 0, result = -1;
-  NODE_TYPES_BEGIN (ntype) {
-    if (ntype == typeinfo) {
-      result = i;
-      break;
-    }
-    i++;
-  }
-  NODE_TYPES_END;
-  return result;
-}
-
-int rna_node_idname_to_enum(const char *idname)
-{
-  int i = 0, result = -1;
-  NODE_TYPES_BEGIN (ntype) {
-    if (STREQ(ntype->idname, idname)) {
-      result = i;
-      break;
-    }
-    i++;
-  }
-  NODE_TYPES_END;
-  return result;
-}
-
-bNodeType *rna_node_type_from_enum(int value)
-{
-  int i = 0;
-  bNodeType *result = nullptr;
-  NODE_TYPES_BEGIN (ntype) {
-    if (i == value) {
-      result = ntype;
-      break;
-    }
-    i++;
-  }
-  NODE_TYPES_END;
-  return result;
-}
-
-const EnumPropertyItem *rna_node_type_itemf(void *data,
-                                            bool (*poll)(void *data, bNodeType *),
-                                            bool *r_free)
-{
-  EnumPropertyItem *item = nullptr;
-  EnumPropertyItem tmp = {0};
-  int totitem = 0, i = 0;
-
-  NODE_TYPES_BEGIN (ntype) {
-    if (poll && !poll(data, ntype)) {
-      i++;
-      continue;
-    }
-
-    tmp.value = i;
-    tmp.identifier = ntype->idname;
-    tmp.icon = ntype->ui_icon;
-    tmp.name = ntype->ui_name;
-    tmp.description = ntype->ui_description;
-
-    RNA_enum_item_add(&item, &totitem, &tmp);
-
-    i++;
-  }
-  NODE_TYPES_END;
-
-  if (totitem == 0) {
-    *r_free = false;
-    return DummyRNA_NULL_items;
-  }
-
-  RNA_enum_item_end(&item, &totitem);
-  *r_free = true;
-
-  return item;
-}
-
-int rna_node_socket_type_to_enum(bNodeSocketType *typeinfo)
-{
-  int i = 0, result = -1;
-  NODE_SOCKET_TYPES_BEGIN (stype) {
-    if (stype == typeinfo) {
-      result = i;
-      break;
-    }
-    i++;
-  }
-  NODE_SOCKET_TYPES_END;
-  return result;
-}
-
-int rna_node_socket_idname_to_enum(const char *idname)
-{
-  int i = 0, result = -1;
-  NODE_SOCKET_TYPES_BEGIN (stype) {
-    if (STREQ(stype->idname, idname)) {
-      result = i;
-      break;
-    }
-    i++;
-  }
-  NODE_SOCKET_TYPES_END;
-  return result;
 }
 
 bNodeSocketType *rna_node_socket_type_from_enum(int value)
@@ -889,87 +767,36 @@ static const EnumPropertyItem *rna_node_static_type_itemf(bContext * /*C*/,
   tmp.icon = ICON_NONE;
   RNA_enum_item_add(&item, &totitem, &tmp);
 
-#  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-    if (STREQ(#Category, "Node")) { \
-      tmp.value = ID; \
-      tmp.identifier = EnumName; \
-      tmp.name = UIName; \
-      tmp.description = UIDesc; \
-      tmp.icon = ICON_NONE; \
-      RNA_enum_item_add(&item, &totitem, &tmp); \
-    }
-#  include "../../nodes/NOD_static_types.h"
-#  undef DefNode
-
+  const char *category = "";
   if (RNA_struct_is_a(ptr->type, &RNA_ShaderNode)) {
-#  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-    if (STREQ(#Category, "ShaderNode")) { \
-      tmp.value = ID; \
-      tmp.identifier = EnumName; \
-      tmp.name = UIName; \
-      tmp.description = UIDesc; \
-      tmp.icon = ICON_NONE; \
-      RNA_enum_item_add(&item, &totitem, &tmp); \
-    }
-#  include "../../nodes/NOD_static_types.h"
-#  undef DefNode
+    category = "ShaderNode";
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_CompositorNode)) {
+    category = "CompositorNode";
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_TextureNode)) {
+    category = "TextureNode";
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_GeometryNode)) {
+    category = "GeometryNode";
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_FunctionNode)) {
+    category = "FunctionNode";
   }
 
-  if (RNA_struct_is_a(ptr->type, &RNA_CompositorNode)) {
-#  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-    if (STREQ(#Category, "CompositorNode")) { \
-      tmp.value = ID; \
-      tmp.identifier = EnumName; \
-      tmp.name = UIName; \
-      tmp.description = UIDesc; \
-      tmp.icon = ICON_NONE; \
-      RNA_enum_item_add(&item, &totitem, &tmp); \
+  NODE_TYPES_BEGIN (ntype) {
+    if (ntype->enum_name_legacy &&
+        (BLI_str_startswith(ntype->idname, "Node") || BLI_str_startswith(ntype->idname, category)))
+    {
+      tmp.value = ntype->type;
+      tmp.identifier = ntype->enum_name_legacy;
+      tmp.name = ntype->ui_name;
+      tmp.description = ntype->ui_description;
+      tmp.icon = ICON_NONE;
+      RNA_enum_item_add(&item, &totitem, &tmp);
     }
-#  include "../../nodes/NOD_static_types.h"
-#  undef DefNode
   }
-
-  if (RNA_struct_is_a(ptr->type, &RNA_TextureNode)) {
-#  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-    if (STREQ(#Category, "TextureNode")) { \
-      tmp.value = ID; \
-      tmp.identifier = EnumName; \
-      tmp.name = UIName; \
-      tmp.description = UIDesc; \
-      tmp.icon = ICON_NONE; \
-      RNA_enum_item_add(&item, &totitem, &tmp); \
-    }
-#  include "../../nodes/NOD_static_types.h"
-#  undef DefNode
-  }
-
-  if (RNA_struct_is_a(ptr->type, &RNA_GeometryNode)) {
-#  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-    if (STREQ(#Category, "GeometryNode")) { \
-      tmp.value = ID; \
-      tmp.identifier = EnumName; \
-      tmp.name = UIName; \
-      tmp.description = UIDesc; \
-      tmp.icon = ICON_NONE; \
-      RNA_enum_item_add(&item, &totitem, &tmp); \
-    }
-#  include "../../nodes/NOD_static_types.h"
-#  undef DefNode
-  }
-
-  if (RNA_struct_is_a(ptr->type, &RNA_FunctionNode)) {
-#  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-    if (STREQ(#Category, "FunctionNode")) { \
-      tmp.value = ID; \
-      tmp.identifier = EnumName; \
-      tmp.name = UIName; \
-      tmp.description = UIDesc; \
-      tmp.icon = ICON_NONE; \
-      RNA_enum_item_add(&item, &totitem, &tmp); \
-    }
-#  include "../../nodes/NOD_static_types.h"
-#  undef DefNode
-  }
+  NODE_TYPES_END;
 
   RNA_enum_item_end(&item, &totitem);
   *r_free = true;
@@ -2118,6 +1945,81 @@ static bool compare_type_supported(const EnumPropertyItem *item)
 static bool compare_main_operation_supported(const EnumPropertyItem *item)
 {
   return !ELEM(item->value, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER);
+}
+
+static bool geometry_node_asset_trait_flag_get(PointerRNA *ptr,
+                                               const GeometryNodeAssetTraitFlag flag)
+{
+  const bNodeTree *ntree = static_cast<const bNodeTree *>(ptr->data);
+  if (!ntree->geometry_node_asset_traits) {
+    return false;
+  }
+  return ntree->geometry_node_asset_traits->flag & flag;
+}
+
+static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
+                                               const GeometryNodeAssetTraitFlag flag,
+                                               const bool value)
+{
+  bNodeTree *ntree = static_cast<bNodeTree *>(ptr->data);
+  if (!ntree->geometry_node_asset_traits) {
+    ntree->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
+  }
+  SET_FLAG_FROM_TEST(ntree->geometry_node_asset_traits->flag, value, flag);
+}
+
+static bool rna_GeometryNodeTree_is_tool_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_TOOL);
+}
+static void rna_GeometryNodeTree_is_tool_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_TOOL, value);
+}
+
+static bool rna_GeometryNodeTree_is_mode_edit_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_EDIT);
+}
+static void rna_GeometryNodeTree_is_mode_edit_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_EDIT, value);
+}
+
+static bool rna_GeometryNodeTree_is_mode_sculpt_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_SCULPT);
+}
+static void rna_GeometryNodeTree_is_mode_sculpt_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_SCULPT, value);
+}
+
+static bool rna_GeometryNodeTree_is_type_mesh_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_MESH);
+}
+static void rna_GeometryNodeTree_is_type_mesh_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_MESH, value);
+}
+
+static bool rna_GeometryNodeTree_is_type_curve_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_CURVE);
+}
+static void rna_GeometryNodeTree_is_type_curve_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_CURVE, value);
+}
+
+static bool rna_GeometryNodeTree_is_type_point_cloud_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_POINT_CLOUD);
+}
+static void rna_GeometryNodeTree_is_type_point_cloud_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_POINT_CLOUD, value);
 }
 
 static bool compare_rgba_operation_supported(const EnumPropertyItem *item)
@@ -10203,6 +10105,16 @@ static void def_geo_points_to_volume(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_geo_tool_set_selection(StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, rna_enum_attribute_domain_point_face_curve_items);
+  RNA_def_property_enum_default(prop, ATTR_DOMAIN_POINT);
+  RNA_def_property_ui_text(prop, "Domain", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_geo_points_to_sdf_volume(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -12316,12 +12228,62 @@ static void rna_def_texture_nodetree(BlenderRNA *brna)
 static void rna_def_geometry_nodetree(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "GeometryNodeTree", "NodeTree");
   RNA_def_struct_ui_text(
       srna, "Geometry Node Tree", "Node tree consisting of linked nodes used for geometries");
   RNA_def_struct_sdna(srna, "bNodeTree");
   RNA_def_struct_ui_icon(srna, ICON_NODETREE);
+
+  prop = RNA_def_property(srna, "is_tool", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_TOOL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Tool", "The node group is used as a tool");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GeometryNodeTree_is_tool_get", "rna_GeometryNodeTree_is_tool_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
+
+  prop = RNA_def_property(srna, "is_mode_edit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_EDIT);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Edit", "The node group is used in edit mode");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GeometryNodeTree_is_mode_edit_get", "rna_GeometryNodeTree_is_mode_edit_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
+
+  prop = RNA_def_property(srna, "is_mode_sculpt", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_SCULPT);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Sculpt", "The node group is used in sculpt mode");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GeometryNodeTree_is_mode_sculpt_get", "rna_GeometryNodeTree_is_mode_sculpt_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
+
+  prop = RNA_def_property(srna, "is_type_mesh", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_MESH);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Mesh", "The node group is used for meshes");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GeometryNodeTree_is_type_mesh_get", "rna_GeometryNodeTree_is_type_mesh_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
+
+  prop = RNA_def_property(srna, "is_type_curve", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_CURVE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Curves", "The node group is used for curves");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GeometryNodeTree_is_type_curve_get", "rna_GeometryNodeTree_is_type_curve_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
+
+  prop = RNA_def_property(srna, "is_type_point_cloud", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_POINT_CLOUD);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Point Cloud", "The node group is used for point clouds");
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GeometryNodeTree_is_type_point_cloud_get",
+                                 "rna_GeometryNodeTree_is_type_point_cloud_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
 }
 
 static StructRNA *define_specific_node(BlenderRNA *brna,

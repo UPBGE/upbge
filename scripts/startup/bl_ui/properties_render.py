@@ -506,6 +506,53 @@ class RENDER_PT_eevee_volumetric_blending(RenderButtonsPanel, Panel):
 ######
 
 
+class RENDER_PT_eevee_next_volumetric(RenderButtonsPanel, Panel):
+    bl_label = "Volumetrics"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        scene = context.scene
+        props = scene.eevee
+
+        col = layout.column(align=True)
+        col.prop(props, "volumetric_start")
+        col.prop(props, "volumetric_end")
+
+        col = layout.column()
+        col.prop(props, "volumetric_tile_size")
+        col.prop(props, "volumetric_samples")
+        col.prop(props, "volumetric_sample_distribution", text="Distribution")
+
+
+class RENDER_PT_eevee_next_volumetric_lighting(RenderButtonsPanel, Panel):
+    bl_label = "Volumetric Lighting"
+    bl_parent_id = "RENDER_PT_eevee_next_volumetric"
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.eevee
+        self.layout.prop(props, "use_volumetric_lights", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        scene = context.scene
+        props = scene.eevee
+
+        layout.active = props.use_volumetric_lights
+        layout.prop(props, "volumetric_light_clamp", text="Light Clamping")
+
+
 class RENDER_PT_eevee_subsurface_scattering(RenderButtonsPanel, Panel):
     bl_label = "Subsurface Scattering"
     bl_options = {'DEFAULT_CLOSED'}
@@ -1209,6 +1256,25 @@ class RENDER_PT_simplify_greasepencil(RenderButtonsPanel, Panel, GreasePencilSim
     bl_options = {'DEFAULT_CLOSED'}
 
 
+class RENDER_PT_hydra_debug(RenderButtonsPanel, Panel):
+    bl_label = "Hydra Debug"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 200
+    COMPAT_ENGINES = {'HYDRA_STORM'}
+
+    @classmethod
+    def poll(cls, context):
+        prefs = context.preferences
+        return (context.engine in cls.COMPAT_ENGINES) and prefs.view.show_developer_ui
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        hydra = context.scene.hydra
+        layout.prop(hydra, "export_method")
+
+
 classes = (
     RENDER_PT_context,
     RENDER_PT_game_resolution, # UPBGE
@@ -1235,6 +1301,8 @@ classes = (
     RENDER_PT_eevee_volumetric,
     RENDER_PT_eevee_volumetric_lighting,
     RENDER_PT_eevee_volumetric_shadows,
+    RENDER_PT_eevee_next_volumetric,
+    RENDER_PT_eevee_next_volumetric_lighting,
     RENDER_PT_eevee_volumetric_blending, # UPBGE
     RENDER_PT_eevee_performance,
     RENDER_PT_eevee_hair,
@@ -1254,6 +1322,7 @@ classes = (
     RENDER_PT_opengl_color,
     RENDER_PT_opengl_options,
     RENDER_PT_opengl_film,
+    RENDER_PT_hydra_debug,
     RENDER_PT_color_management,
     RENDER_PT_color_management_curves,
     RENDER_PT_simplify,
