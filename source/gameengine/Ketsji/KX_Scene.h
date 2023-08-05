@@ -374,6 +374,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void AppendToIdsToUpdateInAllRenderPasses(ID *id, IDRecalcFlag flag);
   void AppendToIdsToUpdateInOverlayPass(ID *id, IDRecalcFlag flag);
   void TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam);
+  void TagBlenderPhysicsObject(Scene *scene, Object *ob);
   KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj,
                                   KX_GameObject *reference,
                                   float lifespan);

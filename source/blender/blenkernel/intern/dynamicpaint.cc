@@ -2119,6 +2119,22 @@ static void dynamicPaint_frameUpdate(
         continue;
       }
 
+      /* UPBGE */
+      bool use_interactive_dynapaint = (scene->flag & SCE_INTERACTIVE ||
+                                        scene->flag & SCE_INTERACTIVE_VIEWPORT) &&
+                                       scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
+      if (use_interactive_dynapaint) {
+        dynamicPaint_calculateFrame(surface, depsgraph, scene, ob, 0);
+        /* restore canvas mesh if required */
+        if (surface->type == MOD_DPAINT_SURFACE_T_DISPLACE &&
+            surface->flags & MOD_DPAINT_DISP_INCREMENTAL && surface->next)
+        {
+          canvas_copyMesh(canvas, mesh);
+        }
+        return;
+      }
+      /*********/
+
       /* limit frame range */
       CLAMP(current_frame, surface->start_frame, surface->end_frame);
 
@@ -6395,6 +6411,15 @@ int dynamicPaint_calculateFrame(
 
   /* update bake data */
   dynamicPaint_generateBakeData(surface, depsgraph, cObject);
+
+  /* UPBGE */
+  bool use_interactive_dynapaint = (scene->flag & SCE_INTERACTIVE ||
+                                    scene->flag & SCE_INTERACTIVE_VIEWPORT) &&
+                                   scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
+  if (use_interactive_dynapaint) {
+    return dynamicPaint_doStep(depsgraph, scene, cObject, surface, timescale, 0.0f);
+  }
+  /*********/
 
   /* don't do substeps for first frame */
   if (surface->substeps && (frame != surface->start_frame)) {

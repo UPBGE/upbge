@@ -619,6 +619,26 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             col.label(text="Logic Steps:")
             col.prop(gs, "logic_step_max", text="Max")
 
+class SCENE_PT_game_blender_physics(SceneButtonsPanel, Panel):
+    bl_label = "Game Blender Physics"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+        'BLENDER_WORKBENCH_NEXT'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        layout.prop(gs, "use_interactive_dynapaint")
 
 class SCENE_PT_game_physics_obstacles(SceneButtonsPanel, Panel):
     bl_label = "Obstacle Simulation"
@@ -884,6 +904,7 @@ classes = (
     PHYSICS_PT_game_collision_bounds,
     PHYSICS_PT_game_obstacles,
     SCENE_PT_game_physics,
+    SCENE_PT_game_blender_physics,
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,

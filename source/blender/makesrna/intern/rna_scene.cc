@@ -6250,6 +6250,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "Restrict the number of animation updates to the animation FPS (this is "
       "better for performance, but can cause issues with smooth playback)");
 
+  /* game python console */
   prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);
   RNA_def_property_ui_text(prop, "Python Console", "Create a python interpreter console in game");
@@ -6281,6 +6282,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key4_set", NULL);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_ui_text(prop, "Python Console Key", "Fourth python console shortcut key");
+
+  /* game blender physics simulation during runtime */
+  prop = RNA_def_property(srna, "use_interactive_dynapaint", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_INTERACTIVE_DYNAPAINT);
+  RNA_def_property_ui_text(prop, "Use Interactive Dynamic Paint", "Blender Dynamic paint at bge runtime");
 
   /* obstacle simulation */
   prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);
