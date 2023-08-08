@@ -22,7 +22,7 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -32,7 +32,7 @@
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_clip.h"
+#  include "ED_clip.hh"
 
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"

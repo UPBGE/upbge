@@ -31,13 +31,13 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_image.h"
-#include "ED_uvedit.h"
+#include "ED_image.hh"
+#include "ED_uvedit.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #define B_UVEDIT_VERTEX 3
 

@@ -26,23 +26,23 @@
 
 #include "GPU_state.h"
 
-#include "ED_clip.h"
-#include "ED_gpencil_legacy.h"
-#include "ED_image.h"
-#include "ED_keyframing.h"
-#include "ED_node.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
+#include "ED_clip.hh"
+#include "ED_gpencil_legacy.hh"
+#include "ED_image.hh"
+#include "ED_keyframing.hh"
+#include "ED_node.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
 
 #include "SEQ_transform.h"
 
-#include "WM_api.h"
-#include "WM_message.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
+#include "WM_types.hh"
 
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "RNA_access.h"
 
@@ -650,7 +650,9 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
         return false;
       }
       if (value == TFM_MODAL_RESIZE && t->mode == TFM_RESIZE) {
-        return false;
+        /* The tracking transform in MovieClip has an alternate resize that only affects the
+         * tracker size and not the search area. */
+        return t->data_type == &TransConvertType_Tracking;
       }
       if (value == TFM_MODAL_VERT_EDGE_SLIDE &&
           (t->data_type != &TransConvertType_Mesh ||

@@ -23,7 +23,7 @@
 
 #include "rna_internal.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #ifndef RNA_RUNTIME
 static const EnumPropertyItem beztriple_handle_type_items[] = {
@@ -161,11 +161,11 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 #  include "MEM_guardedalloc.h"
 
-#  include "ED_curve.h" /* for BKE_curve_nurbs_get */
+#  include "ED_curve.hh" /* for BKE_curve_nurbs_get */
 
 /* highly irritating but from RNA we can't know this */
 static Nurb *curve_nurb_from_point(Curve *cu, const void *point, int *nu_index, int *pt_index)
@@ -594,10 +594,10 @@ static void rna_Curve_body_set(PointerRNA *ptr, const char *value)
   }
 
   cu->str = static_cast<char *>(MEM_mallocN(len_bytes + sizeof(char32_t), "str"));
+  memcpy(cu->str, value, len_bytes + 1);
+
   cu->strinfo = static_cast<CharInfo *>(
       MEM_callocN((len_chars + 4) * sizeof(CharInfo), "strinfo"));
-
-  memcpy(cu->str, value, len_bytes + 1);
 }
 
 static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)

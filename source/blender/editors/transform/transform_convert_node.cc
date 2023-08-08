@@ -22,14 +22,14 @@
 
 #include "ED_node.hh"
 
-#include "UI_interface.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_view2d.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 struct TransCustomDataNode {
   View2DEdgePanData edgepan_data;

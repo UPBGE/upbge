@@ -16,18 +16,18 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "ED_screen.h"
-#include "ED_space_api.h"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
 
 #include "RNA_access.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "BLO_read_write.h"
 
-#include "WM_api.h"
-#include "WM_message.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
+#include "WM_types.hh"
 
 /* ******************** default callbacks for statusbar space ******************** */
 

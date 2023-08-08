@@ -18,7 +18,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_workspace_types.h"
 
-#include "ED_info.h"
+#include "ED_info.hh"
 
 const EnumPropertyItem rna_enum_region_type_items[] = {
     {RGN_TYPE_WINDOW, "WINDOW", 0, "Window", ""},
@@ -40,10 +40,10 @@ const EnumPropertyItem rna_enum_region_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
 
@@ -55,7 +55,7 @@ const EnumPropertyItem rna_enum_region_type_items[] = {
 
 #  include "DEG_depsgraph.h"
 
-#  include "UI_view2d.h"
+#  include "UI_view2d.hh"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.h"

@@ -61,7 +61,7 @@
 
 #  include "ED_datafiles.h"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 /* for passing information between creator and gameengine */
 #  ifdef WITH_GAMEENGINE
@@ -82,7 +82,7 @@
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_debug.h"
 
-#  include "WM_types.h"
+#  include "WM_types.hh"
 
 #  include "creator_intern.h" /* own include */
 

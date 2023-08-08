@@ -11,11 +11,10 @@
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "UI_interface.h"
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "BLT_translation.h"
 

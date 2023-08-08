@@ -14,7 +14,7 @@
 #include "BLI_math.h"
 #include "BLI_rect.h"
 
-#include "ED_select_utils.h"
+#include "ED_select_utils.hh"
 
 #include "DNA_scene_types.h"
 
@@ -105,7 +105,7 @@ bool PAINT_brush_tool_poll(bContext *C);
 /**
  * Delete overlay cursor textures to preserve memory and invalidate all overlay flags.
  */
-void paint_cursor_delete_textures(void);
+void paint_cursor_delete_textures();
 
 /* `paint_vertex.cc` */
 
@@ -209,7 +209,7 @@ struct ImagePaintPartialRedraw {
 bool image_texture_paint_poll(bContext *C);
 void imapaint_image_update(
     SpaceImage *sima, Image *image, ImBuf *ibuf, ImageUser *iuser, short texpaint);
-ImagePaintPartialRedraw *get_imapaintpartial(void);
+ImagePaintPartialRedraw *get_imapaintpartial();
 void set_imapaintpartial(ImagePaintPartialRedraw *ippr);
 void imapaint_region_tiles(
     ImBuf *ibuf, int x, int y, int w, int h, int *tx, int *ty, int *tw, int *th);
@@ -445,42 +445,42 @@ BLI_INLINE void flip_qt(float quat[4], const ePaintSymmetryFlags symm)
 }
 
 /* stroke operator */
-typedef enum BrushStrokeMode {
+enum BrushStrokeMode {
   BRUSH_STROKE_NORMAL,
   BRUSH_STROKE_INVERT,
   BRUSH_STROKE_SMOOTH,
-} BrushStrokeMode;
+};
 
 /* paint_hide.cc */
 
-typedef enum {
+enum PartialVisAction {
   PARTIALVIS_HIDE,
   PARTIALVIS_SHOW,
-} PartialVisAction;
+};
 
-typedef enum {
+enum PartialVisArea {
   PARTIALVIS_INSIDE,
   PARTIALVIS_OUTSIDE,
   PARTIALVIS_ALL,
   PARTIALVIS_MASKED,
-} PartialVisArea;
+};
 
 void PAINT_OT_hide_show(wmOperatorType *ot);
 
 /* `paint_mask.cc` */
 
 /* The gesture API doesn't write to this enum type,
- * it writes to eSelectOp from ED_select_utils.h.
+ * it writes to eSelectOp from ED_select_utils.hh.
  * We must thus map the modes here to the desired
  * eSelectOp modes.
  *
  * Fixes #102349.
  */
-typedef enum {
+enum PaintMaskFloodMode {
   PAINT_MASK_FLOOD_VALUE = SEL_OP_SUB,
   PAINT_MASK_FLOOD_VALUE_INVERSE = SEL_OP_ADD,
   PAINT_MASK_INVERT = SEL_OP_XOR,
-} PaintMaskFloodMode;
+};
 
 void PAINT_OT_mask_flood_fill(wmOperatorType *ot);
 void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot);

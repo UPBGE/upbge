@@ -11,7 +11,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "ED_text.h"
+#include "ED_text.hh"
 
 #include "RNA_define.h"
 
@@ -19,8 +19,8 @@
 
 #ifdef RNA_RUNTIME
 
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 static void rna_Text_clear(Text *text)
 {

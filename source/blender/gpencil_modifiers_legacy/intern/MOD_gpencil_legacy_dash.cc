@@ -32,8 +32,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
@@ -47,7 +47,7 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 static void init_data(GpencilModifierData *md)
 {
@@ -174,7 +174,7 @@ static bool stroke_dash(const bGPDstroke *gps,
       for (int di = 0; di < stroke->totpoints; di++) {
         MDeformVert *dv = &gps->dvert[new_stroke_offset + di];
         if (dv && dv->totweight && dv->dw) {
-          MDeformWeight *dw = (MDeformWeight *)MEM_callocN(sizeof(MDeformWeight) * dv->totweight,
+          MDeformWeight *dw = (MDeformWeight *)MEM_mallocN(sizeof(MDeformWeight) * dv->totweight,
                                                            __func__);
           memcpy(dw, dv->dw, sizeof(MDeformWeight) * dv->totweight);
           stroke->dvert[di].dw = dw;

@@ -25,8 +25,8 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_armature.h"
-#include "ED_util.h"
+#include "ED_armature.hh"
+#include "ED_util.hh"
 
 #include "ANIM_bone_collections.h"
 

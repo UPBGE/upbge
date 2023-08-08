@@ -6,9 +6,9 @@
  * \ingroup edinterface
  */
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "interface_intern.hh"
 

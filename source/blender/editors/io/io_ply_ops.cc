@@ -12,13 +12,13 @@
 #  include "BKE_main.h"
 #  include "BKE_report.h"
 
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 #  include "DNA_space_types.h"
 
-#  include "ED_fileselect.h"
-#  include "ED_outliner.h"
+#  include "ED_fileselect.hh"
+#  include "ED_outliner.hh"
 
 #  include "RNA_access.h"
 #  include "RNA_define.h"
@@ -27,8 +27,8 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "UI_interface.h"
-#  include "UI_resources.h"
+#  include "UI_interface.hh"
+#  include "UI_resources.hh"
 
 #  include "DEG_depsgraph.h"
 

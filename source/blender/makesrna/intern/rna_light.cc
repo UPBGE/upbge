@@ -32,9 +32,9 @@
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_node.h"
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "ED_node.hh"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 static StructRNA *rna_Light_refine(PointerRNA *ptr)
 {

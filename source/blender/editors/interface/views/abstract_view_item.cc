@@ -11,9 +11,9 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 #include "interface_intern.hh"
 
 #include "UI_abstract_view.hh"

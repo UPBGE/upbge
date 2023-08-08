@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "curves.h"
 
@@ -134,7 +135,7 @@ void CurvesData::write_materials()
 {
   const Object *object = (const Object *)id;
   const Material *mat = nullptr;
-  /* TODO: Using only first material. Add support for multimaterial. */
+  /* TODO: Using only first material. Add support for multi-material. */
   if (BKE_object_material_count_eval(object) > 0) {
     mat = BKE_object_material_get_eval(const_cast<Object *>(object), 0);
   }

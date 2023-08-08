@@ -13,10 +13,9 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_report.h"
 
-#include "ED_node.h"
 #include "ED_node.hh"
-#include "ED_render.h"
-#include "ED_screen.h"
+#include "ED_render.hh"
+#include "ED_screen.hh"
 
 #include "NOD_socket.hh"
 

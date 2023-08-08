@@ -20,8 +20,8 @@
 
 #include "RNA_access.h"
 
-#include "ED_asset.h"
-#include "ED_screen.h"
+#include "ED_asset.hh"
+#include "ED_screen.hh"
 
 #include "node_intern.hh"
 

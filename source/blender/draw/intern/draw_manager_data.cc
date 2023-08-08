@@ -23,8 +23,8 @@
 #include "BKE_volume.h"
 
 /* For debug cursor position. */
-#include "WM_api.h"
-#include "wm_window.h"
+#include "WM_api.hh"
+#include "wm_window.hh"
 
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"

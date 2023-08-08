@@ -20,8 +20,8 @@
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
 
-#include "ED_keyframes_edit.h"
-#include "ED_keyframing.h"
+#include "ED_keyframes_edit.hh"
+#include "ED_keyframing.hh"
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
@@ -37,8 +37,8 @@
 #include "RNA_path.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "bpy_capi_utils.h"
 #include "bpy_rna.h"

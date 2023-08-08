@@ -17,7 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 
-#include "ED_view3d_offscreen.h"
+#include "ED_view3d_offscreen.hh"
 
 #include "GHOST_C-api.h"
 #include "GPU_batch_presets.h"
@@ -26,9 +26,9 @@
 
 #include "GPU_viewport.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "wm_surface.h"
+#include "wm_surface.hh"
 #include "wm_xr_intern.h"
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])

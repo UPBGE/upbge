@@ -39,9 +39,7 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
                                                      const char *name,
                                                      const char *dirpath)
 {
-  bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(
-      MEM_callocN(sizeof(*library), "bUserAssetLibrary"));
-  memcpy(library, DNA_struct_default_get(bUserAssetLibrary), sizeof(*library));
+  bUserAssetLibrary *library = DNA_struct_default_alloc(bUserAssetLibrary);
 
   BLI_addtail(&userdef->asset_libraries, library);
 
@@ -81,13 +79,13 @@ void BKE_preferences_asset_library_path_set(bUserAssetLibrary *library, const ch
   }
 }
 
-bUserAssetLibrary *BKE_preferences_asset_library_find_from_index(const UserDef *userdef, int index)
+bUserAssetLibrary *BKE_preferences_asset_library_find_index(const UserDef *userdef, int index)
 {
   return static_cast<bUserAssetLibrary *>(BLI_findlink(&userdef->asset_libraries, index));
 }
 
-bUserAssetLibrary *BKE_preferences_asset_library_find_from_name(const UserDef *userdef,
-                                                                const char *name)
+bUserAssetLibrary *BKE_preferences_asset_library_find_by_name(const UserDef *userdef,
+                                                              const char *name)
 {
   return static_cast<bUserAssetLibrary *>(
       BLI_findstring(&userdef->asset_libraries, name, offsetof(bUserAssetLibrary, name)));

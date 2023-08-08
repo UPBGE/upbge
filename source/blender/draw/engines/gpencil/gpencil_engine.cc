@@ -12,8 +12,8 @@
 #include "DNA_shader_fx_types.h"
 #include "DRW_engine.h"
 #include "DRW_render.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 #include "GPU_capabilities.h"
 #include "IMB_imbuf_types.h"
 

@@ -67,13 +67,13 @@
 #include "BKE_modifier.h"
 #include "BKE_screen.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "WM_types.h" /* For skin mark clear operator UI. */
+#include "WM_types.hh" /* For skin mark clear operator UI. */
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"

@@ -43,12 +43,11 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "ED_image.h"
-#include "ED_node.h"  /* own include */
+#include "ED_image.hh"
 #include "ED_node.hh" /* own include */
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
 #include "ED_viewer_path.hh"
 
 #include "RNA_access.h"
@@ -56,10 +55,10 @@
 #include "RNA_enum_types.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
 #include "GPU_material.h"
 
@@ -2231,8 +2230,6 @@ static int ntree_socket_add_exec(bContext *C, wmOperator *op)
         ntree, in_out, active_sock->idname, active_sock->next, active_sock->name);
     /* XXX this only works for actual sockets, not interface templates! */
     // nodeSocketCopyValue(sock, &ntree_ptr, active_sock, &ntree_ptr);
-    /* Inherit socket panel from the active socket interface. */
-    sock->panel = active_sock->panel;
   }
   else {
     /* XXX TODO: define default socket type for a tree! */
@@ -2627,8 +2624,6 @@ static int ntree_socket_move_exec(bContext *C, wmOperator *op)
       break;
     }
   }
-
-  ntreeEnsureSocketInterfacePanelOrder(ntree);
 
   BKE_ntree_update_tag_interface(ntree);
   ED_node_tree_propagate_change(C, CTX_data_main(C), ntree);

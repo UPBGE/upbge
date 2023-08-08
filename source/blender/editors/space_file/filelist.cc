@@ -63,8 +63,8 @@
 #include "DNA_space_types.h"
 
 #include "ED_datafiles.h"
-#include "ED_fileselect.h"
-#include "ED_screen.h"
+#include "ED_fileselect.hh"
+#include "ED_screen.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -72,11 +72,11 @@
 
 #include "PIL_time.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
 #include "atomic_ops.h"
 
@@ -1063,7 +1063,7 @@ static bool filelist_compare_asset_libraries(const AssetLibraryReference *librar
   }
   if (library_a->type == ASSET_LIBRARY_CUSTOM) {
     /* Don't only check the index, also check that it's valid. */
-    bUserAssetLibrary *library_ptr_a = BKE_preferences_asset_library_find_from_index(
+    bUserAssetLibrary *library_ptr_a = BKE_preferences_asset_library_find_index(
         &U, library_a->custom_library_index);
     return (library_ptr_a != nullptr) &&
            (library_a->custom_library_index == library_b->custom_library_index);

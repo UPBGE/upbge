@@ -48,12 +48,12 @@
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
-#include "ED_node.h"
-#include "ED_object.h"
-#include "ED_screen.h"
+#include "ED_node.hh"
+#include "ED_object.hh"
+#include "ED_screen.hh"
 
-#include "WM_api.h" /* XXX hrm, see if we can do without this */
-#include "WM_types.h"
+#include "WM_api.hh" /* XXX hrm, see if we can do without this */
+#include "WM_types.hh"
 
 #include "bmesh.h"
 #include "bmesh_tools.h"

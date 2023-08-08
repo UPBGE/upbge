@@ -28,12 +28,13 @@
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
 
-#include "ED_view3d.h"
+#include "ED_view3d.hh"
 
 #include <functional>
 
 struct AutomaskingCache;
 struct AutomaskingNodeData;
+struct BMLog;
 struct Dial;
 struct DistRayAABB_Precalc;
 struct Image;
@@ -98,7 +99,7 @@ struct SculptVertexNeighborIter {
 
 /* Sculpt Original Data */
 struct SculptOrigVertData {
-  struct BMLog *bm_log;
+  BMLog *bm_log;
 
   SculptUndoNode *unode;
   float (*coords)[3];
@@ -115,7 +116,7 @@ struct SculptOrigVertData {
 
 struct SculptOrigFaceData {
   SculptUndoNode *unode;
-  struct BMLog *bm_log;
+  BMLog *bm_log;
   const int *face_sets;
   int face_set;
 };
@@ -1618,7 +1619,7 @@ void SCULPT_cache_free(StrokeCache *cache);
 
 SculptUndoNode *SCULPT_undo_push_node(Object *ob, PBVHNode *node, SculptUndoType type);
 SculptUndoNode *SCULPT_undo_get_node(PBVHNode *node, SculptUndoType type);
-SculptUndoNode *SCULPT_undo_get_first_node(void);
+SculptUndoNode *SCULPT_undo_get_first_node();
 
 /**
  * Pushes an undo step using the operator name. This is necessary for

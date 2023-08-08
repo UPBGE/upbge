@@ -22,9 +22,9 @@
 
 #include "BKE_screen.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "ED_space_api.h"
+#include "ED_space_api.hh"
 
 #include "BPY_extern.h" /* For public API. */
 

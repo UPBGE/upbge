@@ -18,9 +18,9 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_tracking.h"
 
-#include "ED_clip.h"
+#include "ED_clip.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -481,7 +481,7 @@ static void flushTransTracking(TransInfo *t)
 
       if (t->flag & T_ALT_TRANSFORM) {
         if (t->mode == TFM_RESIZE) {
-          if (tdt->area != TRACK_AREA_PAT) {
+          if (tdt->area != TRACK_AREA_PAT && !(t->state == TRANS_CANCEL)) {
             continue;
           }
         }

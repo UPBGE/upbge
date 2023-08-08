@@ -49,17 +49,17 @@
 
 #include "BLF_api.h"
 
-#include "ED_fileselect.h"
-#include "ED_screen.h"
+#include "ED_fileselect.hh"
+#include "ED_screen.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_view2d.hh"
 
 #include "AS_asset_representation.hh"
 #include "AS_essentials_library.hh"
@@ -424,8 +424,7 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
   if (library->type == ASSET_LIBRARY_CUSTOM) {
     BLI_assert(library->custom_library_index >= 0);
 
-    user_library = BKE_preferences_asset_library_find_from_index(&U,
-                                                                 library->custom_library_index);
+    user_library = BKE_preferences_asset_library_find_index(&U, library->custom_library_index);
     if (!user_library) {
       library->type = ASSET_LIBRARY_ALL;
     }
@@ -1410,7 +1409,7 @@ void file_params_renamefile_activate(SpaceFile *sfile, FileSelectParams *params)
       params->rename_flag = FILE_PARAMS_RENAME_POSTSCROLL_ACTIVE;
     }
   }
-  /* File listing is now async, only reset renaming if matching entry is not found
+  /* File listing is now asynchronous, only reset renaming if matching entry is not found
    * when file listing is not done. */
   else if (filelist_is_ready(sfile->files)) {
     file_params_renamefile_clear(params);

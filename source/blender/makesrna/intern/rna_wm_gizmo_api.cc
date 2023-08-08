@@ -18,16 +18,16 @@
 
 #include "DNA_windowmanager_types.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "rna_internal.h" /* own include */
 
 #ifdef RNA_RUNTIME
 
 #  include "BKE_context.h"
-#  include "UI_interface.h"
+#  include "UI_interface.hh"
 
-#  include "ED_gizmo_library.h"
+#  include "ED_gizmo_library.hh"
 
 static void rna_gizmo_draw_preset_box(wmGizmo *gz, const float matrix[16], int select_id)
 {

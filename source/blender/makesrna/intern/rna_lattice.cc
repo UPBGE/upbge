@@ -32,9 +32,9 @@
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_lattice.h"
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "ED_lattice.hh"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 static void rna_LatticePoint_co_get(PointerRNA *ptr, float *values)
 {

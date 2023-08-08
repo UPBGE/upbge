@@ -23,15 +23,15 @@
 
 #include "DNA_scene_types.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.h"
 #endif
 
-#include "ED_numinput.h"
-#include "UI_interface.h"
+#include "ED_numinput.hh"
+#include "UI_interface.hh"
 
 /* Numeric input which isn't allowing full numeric editing. */
 #define USE_FAKE_EDIT

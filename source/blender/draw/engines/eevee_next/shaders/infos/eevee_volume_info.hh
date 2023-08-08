@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_create_info.hh"
 
 #pragma once
 
-/* Used for shaders that need the final accumulated volume transmittance and scaterring. */
+/* Used for shaders that need the final accumulated volume transmittance and scattering. */
 GPU_SHADER_CREATE_INFO(eevee_volume_lib)
     .additional_info("eevee_shared")
     .additional_info("draw_view")

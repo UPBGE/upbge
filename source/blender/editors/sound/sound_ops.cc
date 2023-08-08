@@ -40,10 +40,10 @@
 #include "SEQ_iterator.h"
 #include "SEQ_utils.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #ifdef WITH_AUDASPACE
 #  include <AUD_Special.h>
@@ -51,8 +51,8 @@
 
 #include "DEG_depsgraph_query.h"
 
-#include "ED_sound.h"
-#include "ED_util.h"
+#include "ED_sound.hh"
+#include "ED_util.hh"
 
 /******************** open sound operator ********************/
 

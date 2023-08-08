@@ -25,14 +25,13 @@
 #include "ED_asset_shelf.h"
 
 #include "UI_grid_view.hh"
-#include "UI_interface.h"
 #include "UI_interface.hh"
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "asset_shelf.hh"
 

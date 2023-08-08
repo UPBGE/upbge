@@ -41,20 +41,20 @@
 #include "GPU_matrix.h"
 #include "GPU_state.h"
 
-#include "ED_mesh.h"
-#include "ED_numinput.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_transform.h"
-#include "ED_view3d.h"
+#include "ED_mesh.hh"
+#include "ED_numinput.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
+#include "ED_transform.hh"
+#include "ED_view3d.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "DNA_object_types.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -2843,7 +2843,6 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
   KnifeEdge *kfe;
   KnifeVert *v;
   ListBase *list;
-  Ref *ref;
   KnifeLineHit *linehits = nullptr;
   BLI_array_declare(linehits);
   SmallHashIter hiter;
@@ -2956,7 +2955,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
     BLI_smallhash_insert(&fobs, uintptr_t(f), (void *)uintptr_t(ob_index));
 
     list = knife_get_face_kedges(kcd, ob, ob_index, f);
-    for (ref = static_cast<Ref *>(list->first); ref; ref = ref->next) {
+    LISTBASE_FOREACH (Ref *, ref, list) {
       kfe = static_cast<KnifeEdge *>(ref->ref);
       if (kfe->is_invalid) {
         continue;

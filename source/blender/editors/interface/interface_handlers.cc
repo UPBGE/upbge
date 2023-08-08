@@ -55,11 +55,11 @@
 
 #include "IMB_colormanagement.h"
 
-#include "ED_screen.h"
-#include "ED_undo.h"
+#include "ED_screen.hh"
+#include "ED_undo.hh"
 
-#include "UI_interface.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_view2d.hh"
 
 #include "BLF_api.h"
 
@@ -68,14 +68,14 @@
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 #include "wm_event_system.h"
 
 #ifdef WITH_INPUT_IME
 #  include "BLT_lang.h"
 #  include "BLT_translation.h"
-#  include "wm_window.h"
+#  include "wm_window.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -9874,7 +9874,7 @@ static int ui_list_handle_click_drag(bContext *C,
 static void ui_list_activate_row_from_index(
     bContext *C, ARegion *region, uiBut *listbox, uiList *ui_list, int index)
 {
-  uiBut *new_active_row = ui_list_row_find_from_index(region, index, listbox);
+  uiBut *new_active_row = ui_list_row_find_index(region, index, listbox);
   if (new_active_row) {
     /* Preferred way to update the active item, also calls the custom activate operator
      * (#uiListDyn::custom_activate_optype). */

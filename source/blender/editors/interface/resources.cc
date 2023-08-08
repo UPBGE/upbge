@@ -29,10 +29,10 @@
 
 #include "BLF_api.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
 
 #include "GPU_framebuffer.h"
 #include "interface_intern.hh"
@@ -695,6 +695,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_SEQ_EFFECT:
           cp = ts->effect;
+          break;
+        case TH_SEQ_TRANSITION:
+          cp = ts->transition;
           break;
         case TH_SEQ_META:
           cp = ts->meta;

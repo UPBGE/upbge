@@ -25,7 +25,7 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "rna_internal.h"
 
@@ -227,9 +227,9 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_query.h"
 
-#  include "ED_asset.h"
+#  include "ED_asset.hh"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.h"

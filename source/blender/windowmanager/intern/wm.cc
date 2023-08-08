@@ -39,19 +39,19 @@
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
 
-#include "WM_api.h"
-#include "WM_message.h"
-#include "WM_types.h"
-#include "wm.h"
-#include "wm_draw.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
+#include "WM_types.hh"
+#include "wm.hh"
+#include "wm_draw.hh"
 #include "wm_event_system.h"
-#include "wm_window.h"
+#include "wm_window.hh"
 #ifdef WITH_XR_OPENXR
 #  include "wm_xr.h"
 #endif
 
 #include "BKE_undo_system.h"
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"

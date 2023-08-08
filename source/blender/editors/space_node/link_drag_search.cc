@@ -5,7 +5,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string_search.h"
+#include "BLI_string_search.hh"
 
 #include "DNA_space_types.h"
 
@@ -24,12 +24,12 @@
 
 #include "RNA_access.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "DEG_depsgraph_build.h"
 
-#include "ED_asset.h"
-#include "ED_node.h"
+#include "ED_asset.hh"
+#include "ED_node.hh"
 
 #include "node_intern.hh"
 
@@ -344,27 +344,22 @@ static void link_drag_search_update_fn(
     storage.update_items_tag = false;
   }
 
-  StringSearch *search = BLI_string_search_new();
+  string_search::StringSearch<SocketLinkOperation> search;
 
   for (SocketLinkOperation &op : storage.search_link_ops) {
-    BLI_string_search_add(search, op.name.c_str(), &op, op.weight);
+    search.add(op.name, &op, op.weight);
   }
 
   /* Don't filter when the menu is first opened, but still run the search
    * so the items are in the same order they will appear in while searching. */
   const char *string = is_first ? "" : str;
-  SocketLinkOperation **filtered_items;
-  const int filtered_amount = BLI_string_search_query(search, string, (void ***)&filtered_items);
+  const Vector<SocketLinkOperation *> filtered_items = search.query(string);
 
-  for (const int i : IndexRange(filtered_amount)) {
-    SocketLinkOperation &item = *filtered_items[i];
-    if (!UI_search_item_add(items, item.name.c_str(), &item, ICON_NONE, 0, 0)) {
+  for (SocketLinkOperation *item : filtered_items) {
+    if (!UI_search_item_add(items, item->name.c_str(), item, ICON_NONE, 0, 0)) {
       break;
     }
   }
-
-  MEM_freeN(filtered_items);
-  BLI_string_search_free(search);
 }
 
 static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)

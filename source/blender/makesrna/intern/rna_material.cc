@@ -24,8 +24,8 @@
 
 #include "rna_internal.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_ramp_blend_items[] = {
     {MA_RAMP_BLEND, "MIX", 0, "Mix", ""},
@@ -79,10 +79,10 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
 
-#  include "ED_gpencil_legacy.h"
-#  include "ED_image.h"
-#  include "ED_node.h"
-#  include "ED_screen.h"
+#  include "ED_gpencil_legacy.hh"
+#  include "ED_image.hh"
+#  include "ED_node.hh"
+#  include "ED_screen.hh"
 
 static void rna_Material_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {

@@ -11,14 +11,14 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_grease_pencil.h"
+#include "ED_grease_pencil.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
 #include "DNA_scene_types.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 namespace blender::ed::greasepencil {
 

@@ -12,13 +12,13 @@
 
 #include "BLT_translation.h"
 
-#include "ED_object.h"
-#include "ED_render.h"
+#include "ED_object.hh"
+#include "ED_render.hh"
 
 #include "RE_engine.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_define.h"
 

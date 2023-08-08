@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "viewport_engine.h"
 
@@ -10,7 +11,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_vec_types.h" /* this include must be before BKE_camera.h due to "rctf" type */
+#include "DNA_vec_types.h" /* This include must be before `BKE_camera.h` due to `rctf` type. */
 #include "DNA_view3d_types.h"
 
 #include "BLI_math_matrix.h"
@@ -137,10 +138,10 @@ int ViewSettings::height()
 
 pxr::GfCamera ViewSettings::gf_camera()
 {
-  return camera_data.gf_camera(pxr::GfVec4f((float)border[0] / screen_width,
-                                            (float)border[1] / screen_height,
-                                            (float)border[2] / screen_width,
-                                            (float)border[3] / screen_height));
+  return camera_data.gf_camera(pxr::GfVec4f(float(border[0]) / screen_width,
+                                            float(border[1]) / screen_height,
+                                            float(border[2]) / screen_width,
+                                            float(border[3]) / screen_height));
 }
 
 DrawTexture::DrawTexture()

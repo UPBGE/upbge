@@ -29,11 +29,11 @@
 #  include "BKE_mesh_tangent.hh"
 #  include "BKE_report.h"
 
-#  include "ED_mesh.h"
+#  include "ED_mesh.hh"
 
 #  include "DEG_depsgraph.h"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 static const char *rna_Mesh_unit_test_compare(Mesh *mesh, Mesh *mesh2, float threshold)
 {

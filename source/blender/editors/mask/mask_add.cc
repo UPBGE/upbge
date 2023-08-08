@@ -20,12 +20,12 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_mask.h" /* own include */
-#include "ED_screen.h"
-#include "ED_select_utils.h"
+#include "ED_mask.hh" /* own include */
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"

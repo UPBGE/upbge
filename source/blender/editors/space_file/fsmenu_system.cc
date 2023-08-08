@@ -6,10 +6,10 @@
  * \ingroup spfile
  */
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -27,7 +27,7 @@
 
 #include "BKE_appdir.h"
 
-#include "ED_fileselect.h"
+#include "ED_fileselect.hh"
 
 #ifdef WIN32
 /* Need to include windows.h so _WIN32_IE is defined. */
@@ -39,7 +39,7 @@
 #  include <shlwapi.h>
 #endif
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #ifdef __APPLE__
 #  include <Carbon/Carbon.h>
@@ -450,7 +450,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         }
 
         /* Exclude "all my files" as it makes no sense in blender file-selector. */
-        /* Exclude "airdrop" if wlan not active as it would show "" ) */
+        /* Exclude "airdrop" if WLAN not active as it would show "". */
         if (!strstr(line, "myDocuments.cannedSearch") && (*line != '\0')) {
           fsmenu_insert_entry(fsmenu,
                               FS_CATEGORY_SYSTEM_BOOKMARKS,

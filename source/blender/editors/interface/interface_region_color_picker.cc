@@ -23,15 +23,15 @@
 
 #include "BKE_context.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "BLT_translation.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "IMB_colormanagement.h"
 

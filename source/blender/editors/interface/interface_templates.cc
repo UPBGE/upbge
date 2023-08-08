@@ -33,7 +33,7 @@
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
-#include "BLI_string_search.h"
+#include "BLI_string_search.hh"
 #include "BLI_string_utils.h"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
@@ -73,24 +73,24 @@
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
-#include "ED_fileselect.h"
-#include "ED_info.h"
-#include "ED_object.h"
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_undo.h"
+#include "ED_fileselect.hh"
+#include "ED_info.hh"
+#include "ED_object.hh"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "RE_engine.h"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_view2d.hh"
 #include "interface_intern.hh"
 
 #include "PIL_time.h"
@@ -426,26 +426,22 @@ static void id_search_cb(const bContext *C,
   ListBase *lb = template_ui->idlb;
   const int flag = RNA_property_flag(template_ui->prop);
 
-  StringSearch *search = BLI_string_search_new();
+  blender::string_search::StringSearch<ID> search;
 
   /* ID listbase */
   LISTBASE_FOREACH (ID *, id, lb) {
     if (id_search_allows_id(template_ui, flag, id, str)) {
-      BLI_string_search_add(search, id->name + 2, id, 0);
+      search.add(id->name + 2, id);
     }
   }
 
-  ID **filtered_ids;
-  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const blender::Vector<ID *> filtered_ids = search.query(str);
 
-  for (int i = 0; i < filtered_amount; i++) {
-    if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
+  for (ID *id : filtered_ids) {
+    if (!id_search_add(C, template_ui, items, id)) {
       break;
     }
   }
-
-  MEM_freeN(filtered_ids);
-  BLI_string_search_free(search);
 }
 
 /**
@@ -460,29 +456,25 @@ static void id_search_cb_tagged(const bContext *C,
   ListBase *lb = template_ui->idlb;
   const int flag = RNA_property_flag(template_ui->prop);
 
-  StringSearch *search = BLI_string_search_new();
+  blender::string_search::StringSearch<ID> search;
 
   /* ID listbase */
   LISTBASE_FOREACH (ID *, id, lb) {
     if (id->tag & LIB_TAG_DOIT) {
       if (id_search_allows_id(template_ui, flag, id, str)) {
-        BLI_string_search_add(search, id->name + 2, id, 0);
+        search.add(id->name + 2, id);
       }
       id->tag &= ~LIB_TAG_DOIT;
     }
   }
 
-  ID **filtered_ids;
-  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  blender::Vector<ID *> filtered_ids = search.query(str);
 
-  for (int i = 0; i < filtered_amount; i++) {
-    if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
+  for (ID *id : filtered_ids) {
+    if (!id_search_add(C, template_ui, items, id)) {
       break;
     }
   }
-
-  MEM_freeN(filtered_ids);
-  BLI_string_search_free(search);
 }
 
 /**

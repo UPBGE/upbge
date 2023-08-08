@@ -50,7 +50,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -576,8 +576,8 @@ static EnumPropertyItem rna_node_geometry_mesh_circle_fill_type_items[] = {
 
 #  include "BKE_global.h"
 
-#  include "ED_node.h"
-#  include "ED_render.h"
+#  include "ED_node.hh"
+#  include "ED_render.hh"
 
 #  include "GPU_material.h"
 
@@ -592,7 +592,7 @@ static EnumPropertyItem rna_node_geometry_mesh_circle_fill_type_items[] = {
 #  include "RE_pipeline.h"
 
 #  include "DNA_scene_types.h"
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 extern "C" {
 extern FunctionRNA rna_NodeTree_poll_func;
@@ -2619,89 +2619,6 @@ static void rna_Node_dimensions_get(PointerRNA *ptr, float *value)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
   nodeDimensionsGet(node, &value[0], &value[1]);
-}
-
-/* ******** Node Socket Panels ******** */
-
-static void rna_NodePanel_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
-{
-  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
-  BKE_ntree_update_tag_interface(ntree);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
-}
-
-static bNodePanel *rna_NodeTree_panels_new(bNodeTree *ntree,
-                                           Main *bmain,
-                                           ReportList *reports,
-                                           const char *name)
-{
-  bNodePanel *panel = ntreeAddPanel(ntree, name);
-
-  if (panel == nullptr) {
-    BKE_report(reports, RPT_ERROR, "Unable to create panel");
-  }
-  else {
-    BKE_ntree_update_tag_interface(ntree);
-    ED_node_tree_propagate_change(nullptr, bmain, ntree);
-    WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
-  }
-
-  return panel;
-}
-
-static void rna_NodeTree_panels_remove(bNodeTree *ntree, Main *bmain, bNodePanel *panel)
-{
-  ntreeRemovePanel(ntree, panel);
-
-  BKE_ntree_update_tag_interface(ntree);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
-  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
-}
-
-static void rna_NodeTree_panels_clear(bNodeTree *ntree, Main *bmain)
-{
-  ntreeClearPanels(ntree);
-
-  BKE_ntree_update_tag_interface(ntree);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
-  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
-}
-
-static void rna_NodeTree_panels_move(bNodeTree *ntree, Main *bmain, int from_index, int to_index)
-{
-  if (from_index < 0 || from_index >= ntree->panels_num || to_index < 0 ||
-      to_index >= ntree->panels_num)
-  {
-    return;
-  }
-
-  ntreeMovePanel(ntree, ntree->panels_array[from_index], to_index);
-
-  BKE_ntree_update_tag_interface(ntree);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
-  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
-}
-
-static PointerRNA rna_NodeTree_active_panel_get(PointerRNA *ptr)
-{
-  bNodeTree *ntree = (bNodeTree *)ptr->data;
-  bNodePanel *panel = nullptr;
-  if (ntree->active_panel >= 0 && ntree->active_panel < ntree->panels_num) {
-    panel = ntree->panels_array[ntree->active_panel];
-  }
-
-  PointerRNA r_ptr;
-  RNA_pointer_create(ptr->owner_id, &RNA_NodePanel, panel, &r_ptr);
-  return r_ptr;
-}
-
-static void rna_NodeTree_active_panel_set(PointerRNA *ptr,
-                                          PointerRNA value,
-                                          ReportList * /*reports*/)
-{
-  bNodePanel *panel = (bNodePanel *)value.data;
-  bNodeTree *ntree = (bNodeTree *)ptr->data;
-  ntree->active_panel = ntreeGetPanelIndex(ntree, panel);
 }
 
 /* ******** Node Types ******** */
@@ -11734,23 +11651,6 @@ static void rna_def_node_link(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Is Hidden", "Link is hidden due to invisible sockets");
 }
 
-static void rna_def_node_socket_panel(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "NodePanel", nullptr);
-  RNA_def_struct_ui_text(srna, "NodePanel", "Panel in the node group interface");
-  RNA_def_struct_sdna(srna, "bNodePanel");
-  RNA_def_struct_ui_icon(srna, ICON_NODE);
-
-  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "name");
-  RNA_def_property_ui_text(prop, "Name", "Name of the socket panel");
-  RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodePanel_update");
-}
-
 static void rna_def_nodetree_nodes_api(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;
@@ -11890,63 +11790,6 @@ static void rna_def_node_tree_sockets_api(BlenderRNA *brna, PropertyRNA *cprop, 
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
-static void rna_def_node_tree_socket_panels_api(BlenderRNA *brna, PropertyRNA *cprop)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-  PropertyRNA *parm;
-  FunctionRNA *func;
-
-  RNA_def_property_srna(cprop, "NodePanels");
-  srna = RNA_def_struct(brna, "NodePanels", nullptr);
-  RNA_def_struct_sdna(srna, "bNodeTree");
-  RNA_def_struct_ui_text(
-      srna, "Node Tree Socket Panels", "Collection of socket panels in a node tree");
-
-  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "active_panel");
-  RNA_def_property_ui_text(prop, "Active Index", "Index of the active panel");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_NODE, nullptr);
-
-  prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "NodePanel");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(
-      prop, "rna_NodeTree_active_panel_get", "rna_NodeTree_active_panel_set", nullptr, nullptr);
-  RNA_def_property_ui_text(prop, "Active", "Active panel");
-  RNA_def_property_update(prop, NC_NODE, nullptr);
-
-  func = RNA_def_function(srna, "new", "rna_NodeTree_panels_new");
-  RNA_def_function_ui_description(func, "Add a new panel to the tree");
-  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
-  parm = RNA_def_string(func, "name", nullptr, MAX_NAME, "Name", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  /* return value */
-  parm = RNA_def_pointer(func, "panel", "NodePanel", "", "New panel");
-  RNA_def_function_return(func, parm);
-
-  func = RNA_def_function(srna, "remove", "rna_NodeTree_panels_remove");
-  RNA_def_function_ui_description(func, "Remove a panel from the tree");
-  RNA_def_function_flag(func, FUNC_USE_MAIN);
-  parm = RNA_def_pointer(func, "panel", "NodePanel", "", "The panel to remove");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "clear", "rna_NodeTree_panels_clear");
-  RNA_def_function_ui_description(func, "Remove all panels from the tree");
-  RNA_def_function_flag(func, FUNC_USE_MAIN);
-
-  func = RNA_def_function(srna, "move", "rna_NodeTree_panels_move");
-  RNA_def_function_ui_description(func, "Move a panel to another position");
-  RNA_def_function_flag(func, FUNC_USE_MAIN);
-  parm = RNA_def_int(
-      func, "from_index", -1, 0, INT_MAX, "From Index", "Index of the panel to move", 0, 10000);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(
-      func, "to_index", -1, 0, INT_MAX, "To Index", "Target index for the panel", 0, 10000);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-}
-
 static void rna_def_nodetree(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -12048,13 +11891,6 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Active Output", "Index of the active output");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
-
-  prop = RNA_def_property(srna, "panels", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "panels_array", "panels_num");
-  RNA_def_property_struct_type(prop, "NodePanel");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Panels", "UI panels for structuring the node tree interface");
-  rna_def_node_tree_socket_panels_api(brna, prop);
 
   /* exposed as a function for runtime interface type properties */
   func = RNA_def_function(srna, "interface_update", "rna_NodeTree_interface_update");
@@ -12289,8 +12125,6 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
 static StructRNA *define_specific_node(BlenderRNA *brna,
                                        const char *struct_name,
                                        const char *base_name,
-                                       const char *ui_name,
-                                       const char *ui_desc,
                                        void (*def_func)(StructRNA *))
 {
   StructRNA *srna;
@@ -12304,7 +12138,6 @@ static StructRNA *define_specific_node(BlenderRNA *brna,
   }
 
   srna = RNA_def_struct(brna, struct_name, base_name);
-  RNA_def_struct_ui_text(srna, ui_name, ui_desc);
   RNA_def_struct_sdna(srna, "bNode");
 
   func = RNA_def_function(srna, "is_registered_node_type", "rna_Node_is_registered_node_type");
@@ -12372,7 +12205,6 @@ void RNA_def_nodetree(BlenderRNA *brna)
   rna_def_geometry_node(brna);
   rna_def_function_node(brna);
 
-  rna_def_node_socket_panel(brna);
   rna_def_nodetree(brna);
 
   rna_def_composite_nodetree(brna);
@@ -12385,8 +12217,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
 
 #  define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
     { \
-      srna = define_specific_node( \
-          brna, #Category #StructName, #Category, UIName, UIDesc, DefFunc); \
+      srna = define_specific_node(brna, #Category #StructName, #Category, DefFunc); \
       if (ID == CMP_NODE_OUTPUT_FILE) { \
         /* needs brna argument, can't use NOD_static_types.h */ \
         def_cmp_output_file(brna, srna); \
@@ -12401,10 +12232,10 @@ void RNA_def_nodetree(BlenderRNA *brna)
   /* Node group types need to be defined for shader, compositor, texture, geometry nodes
    * individually. Cannot use the static types header for this, since they share the same int id.
    */
-  define_specific_node(brna, "ShaderNodeGroup", "ShaderNode", "Group", "", def_group);
-  define_specific_node(brna, "CompositorNodeGroup", "CompositorNode", "Group", "", def_group);
-  define_specific_node(brna, "TextureNodeGroup", "TextureNode", "Group", "", def_group);
-  define_specific_node(brna, "GeometryNodeGroup", "GeometryNode", "Group", "", def_group);
+  define_specific_node(brna, "ShaderNodeGroup", "ShaderNode", def_group);
+  define_specific_node(brna, "CompositorNodeGroup", "CompositorNode", def_group);
+  define_specific_node(brna, "TextureNodeGroup", "TextureNode", def_group);
+  define_specific_node(brna, "GeometryNodeGroup", "GeometryNode", def_group);
   def_custom_group(brna,
                    "ShaderNodeCustomGroup",
                    "ShaderNode",

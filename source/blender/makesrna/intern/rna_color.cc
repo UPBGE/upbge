@@ -20,8 +20,8 @@
 #include "RNA_enum_types.h"
 #include "rna_internal.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
     {0,
@@ -57,7 +57,7 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_node.h"
+#  include "ED_node.hh"
 
 #  include "IMB_colormanagement.h"
 #  include "IMB_imbuf.h"

@@ -56,17 +56,17 @@
 
 #include "RE_texture.h"
 
-#include "ED_image.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_image.hh"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "BLI_sys_types.h"
-#include "ED_mesh.h" /* for face mask functions */
+#include "ED_mesh.hh" /* for face mask functions */
 
 #include "DRW_select_buffer.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "paint_intern.hh"
 

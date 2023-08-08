@@ -21,8 +21,8 @@
 #include "BKE_context.h"
 #include "BKE_report.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_define.h"
 
@@ -37,12 +37,12 @@
 
 /* For menu, popup, icons, etc. */
 
-#include "ED_outliner.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
-#include "ED_sequencer.h"
+#include "ED_outliner.hh"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
+#include "ED_sequencer.hh"
 
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
 /* Own include. */
 #include "sequencer_intern.h"

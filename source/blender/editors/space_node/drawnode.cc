@@ -30,7 +30,7 @@
 #include "BLF_api.h"
 #include "BLT_translation.h"
 
-#include "BIF_glutil.h"
+#include "BIF_glutil.hh"
 
 #include "GPU_batch.h"
 #include "GPU_batch_presets.h"
@@ -48,14 +48,14 @@
 #include "RNA_define.h"
 #include "RNA_prototypes.h"
 
-#include "ED_node.h"
-#include "ED_space_api.h"
+#include "ED_node.hh"
+#include "ED_space_api.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
@@ -1486,10 +1486,6 @@ static void std_node_socket_interface_draw(bContext * /*C*/, uiLayout *layout, P
   const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
   if (sock->in_out == SOCK_IN && node_tree->type == NTREE_GEOMETRY) {
     uiItemR(col, ptr, "hide_in_modifier", DEFAULT_FLAGS, nullptr, 0);
-  }
-
-  if (U.experimental.use_node_panels) {
-    uiItemPointerR(col, ptr, "panel", &tree_ptr, "panels", nullptr, 0);
   }
 }
 

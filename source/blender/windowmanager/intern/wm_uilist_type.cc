@@ -19,7 +19,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "BLI_ghash.h"
 #include "BLI_string.h"
@@ -28,8 +28,8 @@
 #include "BKE_main.h"
 #include "BKE_screen.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 static GHash *uilisttypes_hash = nullptr;
 

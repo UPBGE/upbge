@@ -28,16 +28,16 @@
 
 #include "DEG_depsgraph_query.h"
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #include "GPU_matrix.h"
 #include "GPU_select.h"
 #include "GPU_state.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "ED_object.h"
-#include "ED_screen.h"
+#include "ED_object.hh"
+#include "ED_screen.hh"
 
 #include "DRW_engine.h"
 

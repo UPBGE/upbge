@@ -26,10 +26,10 @@
 
 #include "DEG_depsgraph.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "io_cache.hh"
 

@@ -19,12 +19,12 @@
 #include "BLT_translation.h"
 
 #include "ED_curves.hh"
-#include "ED_object.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
-#include "ED_view3d.h"
+#include "ED_object.hh"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
+#include "ED_view3d.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.h"
@@ -57,8 +57,8 @@
 #include "RNA_enum_types.h"
 #include "RNA_prototypes.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "GEO_reverse_uv_sampler.hh"
 

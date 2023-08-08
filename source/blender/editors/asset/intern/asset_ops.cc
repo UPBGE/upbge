@@ -22,12 +22,12 @@
 #include "BLI_path_util.h"
 #include "BLI_set.hh"
 
-#include "ED_asset.h"
+#include "ED_asset.hh"
 #include "ED_asset_catalog.hh"
-#include "ED_screen.h"
-#include "ED_util.h"
+#include "ED_screen.hh"
+#include "ED_util.hh"
 /* XXX needs access to the file list, should all be done via the asset system in future. */
-#include "ED_fileselect.h"
+#include "ED_fileselect.hh"
 
 #include "BLT_translation.h"
 
@@ -35,7 +35,7 @@
 #include "RNA_define.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "DNA_space_types.h"
 
@@ -844,7 +844,7 @@ static const bUserAssetLibrary *selected_asset_library(wmOperator *op)
 {
   const int enum_value = RNA_enum_get(op->ptr, "asset_library_ref");
   const AssetLibraryReference lib_ref = ED_asset_library_reference_from_enum_value(enum_value);
-  const bUserAssetLibrary *lib = BKE_preferences_asset_library_find_from_index(
+  const bUserAssetLibrary *lib = BKE_preferences_asset_library_find_index(
       &U, lib_ref.custom_library_index);
   return lib;
 }

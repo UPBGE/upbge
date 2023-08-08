@@ -20,17 +20,16 @@
 #include "DNA_screen_types.h"
 
 #include "ED_asset_list.h"
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "RNA_prototypes.h"
 
-#include "UI_interface.h"
 #include "UI_interface.hh"
-#include "UI_resources.h"
+#include "UI_resources.hh"
 #include "UI_tree_view.hh"
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "ED_asset_shelf.h"
 #include "asset_shelf.hh"
@@ -383,7 +382,7 @@ void ED_asset_shelf_region_layout(const bContext *C, ARegion *region)
 
   RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(*region);
   if (!shelf_regiondata) {
-    /* Regiondata should've been created by a previously called ED_asset_shelf_region_init(). */
+    /* Region-data should've been created by a previously called #ED_asset_shelf_region_init(). */
     BLI_assert_unreachable();
     return;
   }

@@ -30,17 +30,17 @@
 #include "BKE_fcurve.h"
 #include "BKE_screen.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "ED_anim_api.h"
-#include "ED_undo.h"
+#include "ED_anim_api.hh"
+#include "ED_undo.hh"
 
 #include "DEG_depsgraph.h"
 

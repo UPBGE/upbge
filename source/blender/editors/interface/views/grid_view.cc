@@ -13,9 +13,9 @@
 
 #include "BLI_index_range.hh"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 #include "interface_intern.hh"
 
 #include "UI_grid_view.hh"

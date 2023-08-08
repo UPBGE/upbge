@@ -26,6 +26,7 @@
     .grid_normal_bias = 0.3f, \
     .grid_view_bias = 0.0f, \
     .grid_facing_bias = 0.5f, \
+    .grid_validity_threshold = 0.40f, \
     .grid_dilation_threshold = 0.5f, \
     .grid_dilation_radius = 1.0f, \
     .surfel_density = 1.0f, \
@@ -38,6 +39,7 @@
     .vis_blur = 0.2f, \
     .intensity = 1.0f, \
     .flag = LIGHTPROBE_FLAG_SHOW_INFLUENCE, \
+    .grid_flag = LIGHTPROBE_GRID_CAPTURE_INDIRECT | LIGHTPROBE_GRID_CAPTURE_EMISSION, \
     .resolution = LIGHT_PROBE_RESOLUTION_1024, \
   }
 

@@ -24,9 +24,9 @@
 #include "BKE_modifier.h"
 #include "BKE_outliner_treehash.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "outliner_intern.hh"
 #include "tree/common.hh"

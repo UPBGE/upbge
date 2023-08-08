@@ -18,11 +18,11 @@
 
 #include "DEG_depsgraph_query.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "GPU_material.h"
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #include "eevee_lightcache.h"
 #include "eevee_private.h"

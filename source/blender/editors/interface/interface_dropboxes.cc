@@ -19,9 +19,8 @@
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "UI_interface.h"
 #include "UI_interface.hh"
 
 using namespace blender::ui;

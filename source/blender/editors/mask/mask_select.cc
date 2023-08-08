@@ -22,12 +22,12 @@
 
 #include "DNA_mask_types.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_clip.h"
-#include "ED_mask.h" /* own include */
-#include "ED_select_utils.h"
+#include "ED_clip.hh"
+#include "ED_mask.hh" /* own include */
+#include "ED_select_utils.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"

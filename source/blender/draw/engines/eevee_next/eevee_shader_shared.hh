@@ -55,11 +55,13 @@ enum eDebugMode : uint32_t {
    */
   DEBUG_IRRADIANCE_CACHE_SURFELS_NORMAL = 3u,
   DEBUG_IRRADIANCE_CACHE_SURFELS_IRRADIANCE = 4u,
-  DEBUG_IRRADIANCE_CACHE_SURFELS_CLUSTER = 5u,
+  DEBUG_IRRADIANCE_CACHE_SURFELS_VISIBILITY = 5u,
+  DEBUG_IRRADIANCE_CACHE_SURFELS_CLUSTER = 6u,
   /**
    * Display IrradianceCache virtual offset.
    */
-  DEBUG_IRRADIANCE_CACHE_VIRTUAL_OFFSET = 6u,
+  DEBUG_IRRADIANCE_CACHE_VIRTUAL_OFFSET = 7u,
+  DEBUG_IRRADIANCE_CACHE_VALIDITY = 8u,
   /**
    * Show tiles depending on their status.
    */
@@ -929,8 +931,14 @@ static inline ShadowTileDataPacked shadow_tile_pack(ShadowTileData tile)
  * \{ */
 
 struct SurfelRadiance {
+  /* Actually stores radiance and world (sky) visibility. Stored normalized. */
   float4 front;
   float4 back;
+  /* Accumulated weights per face. */
+  float front_weight;
+  float back_weight;
+  float _pad0;
+  float _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(SurfelRadiance, 16)
 
@@ -991,6 +999,14 @@ struct CaptureInfoData {
   float max_virtual_offset;
   /** Radius of surfels. */
   float surfel_radius;
+  /** Capture options. */
+  bool1 capture_world_direct;
+  bool1 capture_world_indirect;
+  bool1 capture_visibility_direct;
+  bool1 capture_visibility_indirect;
+  bool1 capture_indirect;
+  bool1 capture_emission;
+  int _pad0;
 };
 BLI_STATIC_ASSERT_ALIGN(CaptureInfoData, 16)
 
@@ -1082,7 +1098,7 @@ struct RayTraceData {
   int2 full_resolution;
   /** Inverse of input resolution to get screen UVs. */
   float2 full_resolution_inv;
-  /** Scale and bias to go from raytrace resolution to input resolution. */
+  /** Scale and bias to go from ray-trace resolution to input resolution. */
   int2 resolution_bias;
   int resolution_scale;
   /** View space thickness the objects. */

@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "camera.h"
@@ -20,7 +21,7 @@ CameraData::CameraData(const View3D *v3d, const ARegion *region)
   float VIEWPORT_SENSOR_SIZE = DEFAULT_SENSOR_WIDTH * 2.0f;
 
   pxr::GfVec2i res(region->winx, region->winy);
-  float ratio = (float)res[0] / res[1];
+  float ratio = float(res[0]) / res[1];
   transform_ = gf_matrix_from_transform(region_data->viewmat).GetInverse();
 
   switch (region_data->persp) {
@@ -261,7 +262,7 @@ pxr::GfCamera CameraData::gf_camera(pxr::GfVec4f tile)
     case CAM_ORTHO: {
       gf_camera.SetProjection(pxr::GfCamera::Projection::Orthographic);
 
-      /* Use tenths of a world unit accorging to USD docs
+      /* Use tenths of a world unit according to USD docs
        * https://graphics.pixar.com/usd/docs/api/class_gf_camera.html */
       float o_size[2] = {ortho_size_[0] * t_size[0] * 10, ortho_size_[1] * t_size[1] * 10};
 

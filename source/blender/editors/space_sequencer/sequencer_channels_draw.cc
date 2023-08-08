@@ -17,7 +17,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
@@ -34,11 +34,11 @@
 #include "SEQ_sequencer.h"
 #include "SEQ_time.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 /* Own include. */
 #include "sequencer_intern.h"

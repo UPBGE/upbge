@@ -27,8 +27,8 @@
 
 #include "rna_internal.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_image_generated_type_items[] = {
     {IMA_GENTYPE_BLANK, "BLANK", 0, "Blank", "Generate a blank image"},
@@ -63,7 +63,7 @@ static const EnumPropertyItem image_source_items[] = {
 #  include "IMB_imbuf.h"
 #  include "IMB_imbuf_types.h"
 
-#  include "ED_node.h"
+#  include "ED_node.hh"
 
 static bool rna_Image_is_stereo_3d_get(PointerRNA *ptr)
 {

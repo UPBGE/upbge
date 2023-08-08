@@ -17,6 +17,10 @@ extern "C" {
 struct UserDef;
 struct bUserAssetLibrary;
 
+/* -------------------------------------------------------------------- */
+/** \name Assert Libraries
+ * \{ */
+
 /** Name of the asset library added by default. Needs translation with `DATA_()` still. */
 #define BKE_PREFS_ASSET_LIBRARY_DEFAULT_NAME N_("User Library")
 
@@ -43,10 +47,12 @@ void BKE_preferences_asset_library_name_set(struct UserDef *userdef,
 void BKE_preferences_asset_library_path_set(struct bUserAssetLibrary *library, const char *path)
     ATTR_NONNULL();
 
-struct bUserAssetLibrary *BKE_preferences_asset_library_find_from_index(
-    const struct UserDef *userdef, int index) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
-struct bUserAssetLibrary *BKE_preferences_asset_library_find_from_name(
-    const struct UserDef *userdef, const char *name) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
+struct bUserAssetLibrary *BKE_preferences_asset_library_find_index(const struct UserDef *userdef,
+                                                                   int index)
+    ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
+struct bUserAssetLibrary *BKE_preferences_asset_library_find_by_name(const struct UserDef *userdef,
+                                                                     const char *name)
+    ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 
 /**
  * Return the bUserAssetLibrary that contains the given file/directory path. The given path can be
@@ -55,7 +61,8 @@ struct bUserAssetLibrary *BKE_preferences_asset_library_find_from_name(
  * When more than one asset libraries match, the first matching one is returned (no smartness when
  * there nested asset libraries).
  *
- * Return NULL when no such asset library is found. */
+ * Return NULL when no such asset library is found.
+ */
 struct bUserAssetLibrary *BKE_preferences_asset_library_containing_path(
     const struct UserDef *userdef, const char *path) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 
@@ -64,6 +71,8 @@ int BKE_preferences_asset_library_get_index(const struct UserDef *userdef,
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 
 void BKE_preferences_asset_library_default_add(struct UserDef *userdef) ATTR_NONNULL();
+
+/** \} */
 
 #ifdef __cplusplus
 }

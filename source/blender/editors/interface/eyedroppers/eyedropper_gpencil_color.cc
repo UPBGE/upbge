@@ -30,19 +30,19 @@
 #include "BKE_paint.hh"
 #include "BKE_report.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "IMB_colormanagement.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "ED_gpencil_legacy.h"
-#include "ED_screen.h"
-#include "ED_undo.h"
+#include "ED_gpencil_legacy.hh"
+#include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"

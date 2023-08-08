@@ -25,7 +25,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_color.h"
 
-#include "BIF_glutil.h"
+#include "BIF_glutil.hh"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -39,9 +39,9 @@
 
 #include "BLO_readfile.h"
 
-#include "ED_asset.h"
-#include "ED_fileselect.h"
-#include "ED_screen.h"
+#include "ED_asset.hh"
+#include "ED_fileselect.hh"
+#include "ED_screen.hh"
 
 #include "GPU_shader.h"
 #include "GPU_state.h"
@@ -49,16 +49,16 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 #include "wm_event_system.h"
-#include "wm_window.h"
+#include "wm_window.hh"
 
 /* ****************************************************** */
 

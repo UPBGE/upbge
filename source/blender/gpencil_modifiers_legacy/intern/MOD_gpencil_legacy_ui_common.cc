@@ -20,18 +20,18 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "ED_object.h"
+#include "ED_object.hh"
 
 #include "BLT_translation.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "MOD_gpencil_legacy_ui_common.h" /* Self include */
 

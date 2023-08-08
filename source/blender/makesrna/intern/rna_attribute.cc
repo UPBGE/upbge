@@ -25,7 +25,7 @@
 
 #include "BLT_translation.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_attribute_type_items[] = {
     {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
@@ -101,7 +101,7 @@ const EnumPropertyItem rna_enum_attribute_domain_point_face_curve_items[] = {
     {ATTR_DOMAIN_POINT, "POINT", 0, "Point", "Attribute on point"},
     {ATTR_DOMAIN_FACE, "FACE", 0, "Face", "Attribute on mesh faces"},
     {ATTR_DOMAIN_CURVE, "CURVE", 0, "Spline", "Attribute on spline"},
-    {0, NULL, 0, NULL, NULL},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_attribute_domain_without_corner_items[] = {
@@ -142,7 +142,7 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 
 #  include "BLT_translation.h"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 /* Attribute */
 

@@ -29,10 +29,10 @@
 #include "BKE_material.h"
 #include "BKE_paint.hh"
 
-#include "ED_image.h"
+#include "ED_image.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_particle_edit_hair_brush_items[] = {
     {PE_BRUSH_COMB, "COMB", 0, "Comb", "Comb hairs"},
@@ -117,9 +117,9 @@ const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_gpencil_legacy.h"
-#  include "ED_paint.h"
-#  include "ED_particle.h"
+#  include "ED_gpencil_legacy.hh"
+#  include "ED_paint.hh"
+#  include "ED_particle.hh"
 
 static void rna_GPencil_update(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
 {

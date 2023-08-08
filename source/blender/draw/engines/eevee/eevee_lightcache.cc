@@ -31,12 +31,12 @@
 #include "GPU_capabilities.h"
 #include "GPU_context.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "BLO_read_write.h"
 
-#include "wm_window.h"
+#include "wm_window.hh"
 
 /* Rounded to nearest PowerOfTwo */
 #if defined(IRRADIANCE_SH_L2)

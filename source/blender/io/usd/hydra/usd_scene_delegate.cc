@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "usd_scene_delegate.h"
 
@@ -22,7 +23,7 @@ USDSceneDelegate::USDSceneDelegate(pxr::HdRenderIndex *render_index,
 {
   /* Temporary directory to write any additional files to, like image or VDB files. */
   char unique_name[FILE_MAXFILE];
-  BLI_snprintf(unique_name, sizeof(unique_name), "%p", this);
+  SNPRINTF(unique_name, "%p", this);
 
   char dir_path[FILE_MAX];
   BLI_path_join(
@@ -43,19 +44,11 @@ USDSceneDelegate::~USDSceneDelegate()
 
 void USDSceneDelegate::populate(Depsgraph *depsgraph)
 {
-  USDExportParams params = {};
-  params.export_hair = true;
-  params.export_uvmaps = true;
-  params.export_normals = true;
-  params.export_materials = true;
-  params.selected_objects_only = false;
-  params.visible_objects_only = true;
+  USDExportParams params;
   params.use_instancing = true;
+  params.relative_paths = false;  /* Unnecessary. */
+  params.export_textures = false; /* Don't copy all textures, is slow. */
   params.evaluation_mode = DEG_get_mode(depsgraph);
-  params.generate_preview_surface = true;
-  params.export_textures = true;
-  params.overwrite_textures = true;
-  params.relative_paths = true;
 
   /* Create clean directory for export. */
   BLI_delete(temp_dir_.c_str(), true, true);
@@ -65,7 +58,7 @@ void USDSceneDelegate::populate(Depsgraph *depsgraph)
   delegate_.reset();
   stage_.Reset();
 
-  /* Convert depsgraph to stage + aditional file in temp directory. */
+  /* Convert depsgraph to stage + additional file in temp directory. */
   stage_ = io::usd::export_to_stage(params, depsgraph, temp_file_.c_str());
   delegate_ = std::make_unique<pxr::UsdImagingDelegate>(render_index_, delegate_id_);
   delegate_->Populate(stage_->GetPseudoRoot());
