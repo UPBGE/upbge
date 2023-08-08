@@ -71,14 +71,14 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       sce->gm.stereoflag = STEREO_NOSTEREO;
       sce->gm.stereomode = STEREO_ANAGLYPH;
       sce->gm.eyeseparation = 0.10;
-
       sce->gm.xplay = 1280;
       sce->gm.yplay = 720;
+      sce->gm.samples_per_frame = 1;
       sce->gm.freqplay = 60;
       sce->gm.depth = 32;
-
       sce->gm.gravity = 9.8f;
       sce->gm.physicsEngine = WOPHY_BULLET;
+      sce->gm.mode = WO_ACTIVITY_CULLING;
       sce->gm.occlusionRes = 128;
       sce->gm.ticrate = 60;
       sce->gm.maxlogicstep = 5;
@@ -109,10 +109,27 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       /* Blender key code for ESC */
       sce->gm.exitkey = 218;
 
+      sce->gm.flag |= GAME_USE_UNDO;
+
       sce->gm.lodflag = SCE_LOD_USE_HYST;
       sce->gm.scehysteresis = 10;
 
-      sce->gm.flag |= GAME_USE_UNDO;
+      sce->gm.timeScale = 1.0f;
+      sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+      sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+      sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+      sce->gm.pythonkeys[3] = EVT_TKEY;
+
+      if (sce->master_collection) {
+        sce->master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+        sce->master_collection->flag |= COLLECTION_IS_SPAWNED;
+      }
+
+      sce->gm.erp = 0.2f;
+      sce->gm.erp2 = 0.8f;
+      sce->gm.cfm = 0.0f;
+
+      sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
     }
 
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
@@ -138,6 +155,25 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       ob->max_slope = M_PI_2;
       ob->col_group = 0x01;
       ob->col_mask = 0xffff;
+      if (ob->type == OB_CAMERA) {
+        Camera *cam = static_cast<Camera *>(ob->data);
+        cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+        cam->lodfactor = 1.0f;
+      }
+
+      ob->ccd_motion_threshold = 1.0f;
+      ob->ccd_swept_sphere_radius = 0.9f;
+
+      ob->lodfactor = 1.0f;
+
+      if (ob->type == OB_LAMP) {
+        Light *light = static_cast<Light *>(ob->data);
+        light->mode |= LA_SOFT_SHADOWS;
+      }
+    }
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+      collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+      collection->flag |= COLLECTION_IS_SPAWNED;
     }
   }
   if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&
@@ -341,12 +377,6 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 5)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
-    }
-  }
-
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 7)) {
     LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
       collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
@@ -381,11 +411,6 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       if (cam->flag & (1 << 11)) {
         cam->gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
       }
-    }
-  }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 12)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.smaa_predication_scale = 0.01f;
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 13)) {

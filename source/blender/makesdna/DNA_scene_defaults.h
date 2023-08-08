@@ -298,9 +298,6 @@
                     SCE_EEVEE_GTAO_BOUNCE | SCE_EEVEE_TAA_REPROJECTION | \
                     SCE_EEVEE_SSR_HALF_RESOLUTION | SCE_EEVEE_SHADOW_SOFT, \
  \
-    .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
-    .smaa_predication_scale = 0.01, \
- \
   }
 
 #define _DNA_DEFAULT_SceneHydra \

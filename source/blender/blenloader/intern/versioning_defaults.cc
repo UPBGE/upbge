@@ -23,6 +23,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_camera_types.h"
+#include "DNA_collection_types.h" // UPBGE
 #include "DNA_curveprofile_types.h"
 #include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -67,6 +68,8 @@
 #include "BLT_translation.h"
 
 #include "versioning_common.h"
+
+#include "wm_event_types.hh" // UPBGE
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
@@ -424,12 +427,30 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.recastData.detailsamplemaxerror = 1.0f;
     sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
 
-    sce->gm.exitkey = 218;  // Blender key code for ESC
+    /* Blender key code for ESC */
+    sce->gm.exitkey = 218;
 
     sce->gm.flag |= GAME_USE_UNDO;
 
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
+
+    sce->gm.timeScale = 1.0f;
+    sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+    sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+    sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+    sce->gm.pythonkeys[3] = EVT_TKEY;
+
+    if (sce->master_collection) {
+      sce->master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+      sce->master_collection->flag |= COLLECTION_IS_SPAWNED;
+    }
+
+    sce->gm.erp = 0.2f;
+    sce->gm.erp2 = 0.8f;
+    sce->gm.cfm = 0.0f;
+
+    sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
   }
   for (Object *ob = static_cast<Object *>(bmain->objects.first); ob; ob = static_cast<Object *>(ob->id.next)) {
     /* UPBGE defaults*/
@@ -457,7 +478,22 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     if (ob->type == OB_CAMERA) {
       Camera *cam = static_cast<Camera *>(ob->data);
       cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+      cam->lodfactor = 1.0f;
     }
+
+    ob->ccd_motion_threshold = 1.0f;
+    ob->ccd_swept_sphere_radius = 0.9f;
+
+    ob->lodfactor = 1.0f;
+
+    if (ob->type == OB_LAMP) {
+      Light *light = static_cast<Light *>(ob->data);
+      light->mode |= LA_SOFT_SHADOWS;
+    }
+  }
+  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+    collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+    collection->flag |= COLLECTION_IS_SPAWNED;
   }
   /***********************End of UPBGE**********************/
 

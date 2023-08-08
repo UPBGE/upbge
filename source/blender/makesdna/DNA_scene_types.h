@@ -2071,8 +2071,7 @@ typedef struct SceneEEVEE {
   float overscan;
   float light_threshold;
 
-  int gameflag, smaa_quality;           // UPBGE
-  float smaa_predication_scale, _pad50; // UPBGE
+  int gameflag, _pad50[3]; // UPBGE
 
 } SceneEEVEE;
 
@@ -3052,14 +3051,6 @@ enum {
   SCE_EEVEE_MB_CENTER = 0,
   SCE_EEVEE_MB_START = 1,
   SCE_EEVEE_MB_END = 2,
-};
-
-/* SceneEEVEE->smaa_quality */ /* UPBGE */
-enum {
-  SCE_EEVEE_SMAA_PRESET_LOW = 0,
-  SCE_EEVEE_SMAA_PRESET_MEDIUM = 1,
-  SCE_EEVEE_SMAA_PRESET_HIGH = 2,
-  SCE_EEVEE_SMAA_PRESET_ULTRA = 3,
 };
 
 /** #SceneDisplay->render_aa and #SceneDisplay->viewport_aa */
