@@ -48,7 +48,7 @@
 #include "BKE_python_proxy.h"
 #include "BKE_sca.h"
 
-#include "ED_logic.h"
+#include "ED_logic.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"

@@ -28,8 +28,7 @@
  *  \ingroup splogic
  */
 
-#ifndef __LOGIC_INTERN_H__
-#define __LOGIC_INTERN_H__
+#pragma once
 
 /* internal exports only */
 struct bContext;
@@ -38,16 +37,14 @@ struct ScrArea;
 struct wmOperatorType;
 
 /* space_logic.c */
-struct ARegion *logic_has_buttons_region(struct ScrArea *sa);
+struct ARegion *logic_has_buttons_region(ScrArea *sa);
 
 /* logic_ops.c */
 
 /* logic_buttons.c */
-void LOGIC_OT_properties(struct wmOperatorType *ot);
-void LOGIC_OT_links_cut(struct wmOperatorType *ot);
+void LOGIC_OT_properties(wmOperatorType *ot);
+void LOGIC_OT_links_cut(wmOperatorType *ot);
 
 /* logic_window.c */
-void logic_buttons(struct bContext *C, struct ARegion *region);
-void make_unique_prop_names(struct bContext *C, char *str);
-
-#endif /* __LOGIC_INTERN_H__ */
+void logic_buttons(bContext *C, ARegion *region);
+/* void make_unique_prop_names(bContext *C, char *str); */
