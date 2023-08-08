@@ -56,7 +56,7 @@
 
 #include "BLO_readfile.h"
 
-#include "wm_event_types.h"
+#include "wm_event_types.hh"
 
 #include "readfile.h"
 

@@ -44,7 +44,7 @@
 #include "BKE_object.h"
 #include "DEG_depsgraph_query.h"
 #include "DRW_render.h"
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"

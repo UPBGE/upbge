@@ -43,7 +43,7 @@
 
 #include "rna_internal.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 /* Always keep in alphabetical order */
 static const EnumPropertyItem actuator_type_items[] = {

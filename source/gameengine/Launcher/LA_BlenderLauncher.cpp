@@ -32,9 +32,9 @@
 #include "GPU_context.h"
 #include "GPU_framebuffer.h"
 #include "GPU_state.h"
-#include "WM_api.h"
+#include "WM_api.hh"
 #include "wm_event_system.h"
-#include "wm_window.h"
+#include "wm_window.hh"
 
 #include "CM_Message.h"
 #include "KX_BlenderCanvas.h"

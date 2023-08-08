@@ -687,3 +687,8 @@ enum eScreenCycle {
   SPACE_CONTEXT_CYCLE_PREV,
   SPACE_CONTEXT_CYCLE_NEXT,
 };
+
+/* UPBGE */
+bool ED_operator_logic_active(bContext *C);
+void ED_screen_refresh_blenderplayer(wmWindow *win);
+/*********/

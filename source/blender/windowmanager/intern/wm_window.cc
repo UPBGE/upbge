@@ -2725,7 +2725,7 @@ void WM_ghost_show_message_box(const char *title,
 
 /* UPBGE */
 
-#include "WM_message.h"
+#include "WM_message.hh"
 
 void *WM_system_gpu_context_create_blenderplayer(void *ghost_system)
 {

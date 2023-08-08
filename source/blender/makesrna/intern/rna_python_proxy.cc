@@ -28,7 +28,7 @@
 #include "DNA_python_proxy_types.h"
 #include "rna_internal.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
 

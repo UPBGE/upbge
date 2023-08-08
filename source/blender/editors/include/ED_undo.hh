@@ -125,3 +125,7 @@ MemFile *ED_undosys_stack_memfile_get_active(UndoStack *ustack);
  * (currently we only do that in #MemFileWriteData when writing a new step).
  */
 void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id);
+
+/* UPBGE */
+void ED_undo_push_old(bContext *C, const char *str);
+/*********/

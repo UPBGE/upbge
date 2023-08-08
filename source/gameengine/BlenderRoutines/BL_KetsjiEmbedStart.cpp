@@ -42,10 +42,10 @@
 #include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
-#include "ED_screen.h"
+#include "ED_screen.hh"
 #include "GPU_context.h"
-#include "WM_api.h"
-#include "wm_window.h"
+#include "WM_api.hh"
+#include "wm_window.hh"
 
 #include "CM_Message.h"
 #include "GHOST_ISystem.hh"

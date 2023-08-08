@@ -33,7 +33,7 @@
 
 #include "DEG_depsgraph_query.h"
 #include "DNA_light_types.h"
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "KX_Light.h"
 #include "KX_ScalarInterpolator.h"

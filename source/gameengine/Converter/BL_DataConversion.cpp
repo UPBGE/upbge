@@ -73,7 +73,7 @@
 #include "DEG_depsgraph_query.h"
 #include "DNA_actuator_types.h"
 #include "DNA_python_proxy_types.h"
-#include "wm_event_types.h"
+#include "wm_event_types.hh"
 
 /* end of blender include block */
 

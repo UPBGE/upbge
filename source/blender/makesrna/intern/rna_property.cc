@@ -39,7 +39,7 @@
 
 #include "rna_internal.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_gameproperty_type_items[] = {
     {GPROP_BOOL, "BOOL", 0, "Boolean", "Boolean Property"},

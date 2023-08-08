@@ -40,8 +40,8 @@
 #include "GHOST_IWindow.hh"
 #include "GPU_context.h"
 #include "MEM_guardedalloc.h"
-#include "WM_api.h"
-#include "wm_window.h"
+#include "WM_api.hh"
+#include "wm_window.hh"
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"

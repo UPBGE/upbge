@@ -32,7 +32,7 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "rna_internal.h" /* own include */
 

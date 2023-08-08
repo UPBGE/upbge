@@ -39,7 +39,7 @@
 
 #include "rna_internal.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_controller_type_items[] = {
     {CONT_LOGIC_AND, "LOGIC_AND", 0, "And", "Logic And"},

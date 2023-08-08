@@ -33,7 +33,7 @@
 #include "BKE_main.h"
 #include "BKE_sound.h"
 #include "DNA_scene_types.h"
-#include "wm_event_types.h"
+#include "wm_event_types.hh"
 
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
