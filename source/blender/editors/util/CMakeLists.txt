@@ -60,7 +60,7 @@ set(SRC
   ../include/ED_keyframes_keylist.hh
   ../include/ED_keyframing.hh
   ../include/ED_lattice.hh
-  ../include/ED_logic.h
+  ../include/ED_logic.hh
   ../include/ED_markers.hh
   ../include/ED_mask.hh
   ../include/ED_mball.hh

@@ -47,7 +47,7 @@ set(SRC
   intern/versioning_defaults.cc
   intern/versioning_dna.cc
   intern/versioning_legacy.cc
-  intern/versioning_upbge.c
+  intern/versioning_upbge.cc
   intern/versioning_userdef.cc
   intern/writefile.cc
 

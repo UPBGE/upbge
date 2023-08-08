@@ -28,7 +28,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
@@ -62,11 +62,11 @@
 
 #include "MEM_guardedalloc.h"
 
-void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
+void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
 {
   /* UPBGE hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
-    for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+    LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
       /* game data */
       sce->gm.stereoflag = STEREO_NOSTEREO;
       sce->gm.stereomode = STEREO_ANAGLYPH;
@@ -106,7 +106,8 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
       sce->gm.recastData.detailsamplemaxerror = 1.0f;
       sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
 
-      sce->gm.exitkey = 218;  // Blender key code for ESC
+      /* Blender key code for ESC */
+      sce->gm.exitkey = 218;
 
       sce->gm.lodflag = SCE_LOD_USE_HYST;
       sce->gm.scehysteresis = 10;
@@ -114,7 +115,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
       sce->gm.flag |= GAME_USE_UNDO;
     }
 
-    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       /* UPBGE defaults*/
       ob->mass = ob->inertia = 1.0f;
       ob->formfactor = 0.4f;
@@ -141,11 +142,11 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
   if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&
       !DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
-    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       if (ob->type == OB_MESH) {
-        Mesh *me = blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->data);
+        Mesh *me = (Mesh *)blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->data);
         for (int i = 0; i < me->totcol; ++i) {
-          Material *ma = blo_do_versions_newlibadr(fd, &me->id, ID_IS_LINKED(me), me->mat[i]);
+          Material *ma = (Material *)blo_do_versions_newlibadr(fd, &me->id, ID_IS_LINKED(me), me->mat[i]);
           if (ma) {
             ob->friction = ma->friction;
             ob->rolling_friction = 0.0f;
@@ -161,15 +162,14 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
   /* UPBGE hack to force defaults in files saved in normal blender2.8 END */
 
-  // printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,
-  // main->upbgesubversionfile);
+  /* printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,
+   * main->upbgesubversionfile); */
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 0, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
       bRaySensor *raySensor;
 
-      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-        for (bSensor *sensor = ob->sensors.first; sensor != NULL;
-             sensor = (bSensor *)sensor->next) {
+      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+        LISTBASE_FOREACH (bSensor *, sensor, &ob->sensors) {
           if (sensor->type == SENS_RAY) {
             raySensor = (bRaySensor *)sensor->data;
             /* All one, because this was the previous behavior */
@@ -247,8 +247,8 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
 #endif
     if (!DNA_struct_elem_find(fd->filesdna, "bMouseSensor", "int", "mask")) {
-      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-        for (bSensor *sensor = ob->sensors.first; sensor; sensor = (bSensor *)sensor->next) {
+      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+        LISTBASE_FOREACH (bSensor *, sensor, &ob->sensors) {
           if (sensor->type == SENS_MOUSE) {
             bMouseSensor *mouseSensor = (bMouseSensor *)sensor->data;
             /* All one, because this was the previous behavior */
@@ -262,7 +262,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 3, 0)) {
     /* In this case we check against GameData to maintain previous behaviour */
     if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
-      for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+      LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
         sce->gm.flag |= GAME_USE_UNDO;
       }
     }
@@ -270,12 +270,12 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 0)) {
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
-      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->gm.timeScale = 1.0f;
       }
     }
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
-      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
         scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
         scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
@@ -283,7 +283,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
     if (!DNA_struct_elem_find(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
-      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         if (ob->bsoft) {
           ob->bsoft->margin = 0.1f;
           ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
@@ -306,7 +306,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "ccd_motion_threshold")) {
-      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         ob->ccd_motion_threshold = 1.0f;
         ob->ccd_swept_sphere_radius = 0.9f;
       }
@@ -314,7 +314,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 2)) {
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "erp")) {
-      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->gm.erp = 0.2f;
         scene->gm.erp2 = 0.8f;
         scene->gm.cfm = 0.0f;
@@ -377,7 +377,8 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 11)) {
     LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
-      if (cam->flag & (1 << 11)) {  // Game overlay mouse control moved from flag to gameflag
+      /* Game overlay mouse control moved from flag to gameflag */
+      if (cam->flag & (1 << 11)) {
         cam->gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
       }
     }
@@ -390,9 +391,6 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 13)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       /* Move some scene->eevee.flag to scene->eevee.gameflag */
-      /*if (scene->eevee.flag & (1 << 24)) {
-        scene->eevee.gameflag |= SCE_EEVEE_SMAA;
-      }*/ // 1 << 24 is now taken by SCE_EEVEE_SHADOW_ENABLED then I comment that
       if (scene->eevee.flag & (1 << 25)) {
         scene->eevee.gameflag |= SCE_EEVEE_VOLUMETRIC_BLENDING;
       }
