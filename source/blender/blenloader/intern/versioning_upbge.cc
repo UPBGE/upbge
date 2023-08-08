@@ -155,21 +155,18 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       ob->max_slope = M_PI_2;
       ob->col_group = 0x01;
       ob->col_mask = 0xffff;
-      if (ob->type == OB_CAMERA) {
-        Camera *cam = static_cast<Camera *>(ob->data);
-        cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
-        cam->lodfactor = 1.0f;
-      }
 
       ob->ccd_motion_threshold = 1.0f;
       ob->ccd_swept_sphere_radius = 0.9f;
 
       ob->lodfactor = 1.0f;
-
-      if (ob->type == OB_LAMP) {
-        Light *light = static_cast<Light *>(ob->data);
-        light->mode |= LA_SOFT_SHADOWS;
-      }
+    }
+    LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
+      cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+      cam->lodfactor = 1.0f;
+    }
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      light->mode |= LA_SOFT_SHADOWS;
     }
     LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
       collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;

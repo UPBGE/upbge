@@ -387,7 +387,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 {
   /*********************UPBGE*********************/
   // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
-  for (Scene *sce = static_cast<Scene *>(bmain->scenes.first); sce; sce = static_cast<Scene *>(sce->id.next)) {
+  LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
     /* game data */
     sce->gm.stereoflag = STEREO_NOSTEREO;
     sce->gm.stereomode = STEREO_ANAGLYPH;
@@ -452,7 +452,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
     sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
   }
-  for (Object *ob = static_cast<Object *>(bmain->objects.first); ob; ob = static_cast<Object *>(ob->id.next)) {
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
     /* UPBGE defaults*/
     ob->mass = ob->inertia = 1.0f;
     ob->formfactor = 0.4f;
@@ -475,21 +475,18 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->max_slope = M_PI_2;
     ob->col_group = 0x01;
     ob->col_mask = 0xffff;
-    if (ob->type == OB_CAMERA) {
-      Camera *cam = static_cast<Camera *>(ob->data);
-      cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
-      cam->lodfactor = 1.0f;
-    }
 
     ob->ccd_motion_threshold = 1.0f;
     ob->ccd_swept_sphere_radius = 0.9f;
 
     ob->lodfactor = 1.0f;
-
-    if (ob->type == OB_LAMP) {
-      Light *light = static_cast<Light *>(ob->data);
-      light->mode |= LA_SOFT_SHADOWS;
-    }
+  }
+  LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
+    cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+    cam->lodfactor = 1.0f;
+  }
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    light->mode |= LA_SOFT_SHADOWS;
   }
   LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
     collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
