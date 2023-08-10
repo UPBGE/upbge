@@ -12,7 +12,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
 #include "BLI_stack.h"
 #include "BLI_utildefines.h"
 
@@ -45,8 +45,8 @@
 #include "ED_space_api.hh"
 #include "ED_view3d.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"

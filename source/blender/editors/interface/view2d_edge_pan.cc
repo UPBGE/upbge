@@ -8,7 +8,6 @@
 
 #include "BKE_context.h"
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
 
 #include "ED_screen.hh"
@@ -17,8 +16,8 @@
 
 #include "PIL_time.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_interface.hh"
 #include "UI_view2d.hh"

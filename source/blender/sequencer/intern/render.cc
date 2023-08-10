@@ -21,6 +21,8 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
@@ -46,7 +48,7 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_metadata.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "RE_engine.h"

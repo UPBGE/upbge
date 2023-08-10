@@ -11,6 +11,8 @@
 
 #include "BLI_ghash.h"
 #include "BLI_math_base_safe.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_brush_types.h"
@@ -37,8 +39,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "paint_intern.hh"
 #include "uvedit_intern.h"

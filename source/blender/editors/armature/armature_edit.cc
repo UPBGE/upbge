@@ -18,7 +18,9 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
@@ -30,8 +32,8 @@
 #include "BKE_object.h"
 #include "BKE_report.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

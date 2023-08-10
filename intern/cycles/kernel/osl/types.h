@@ -39,6 +39,7 @@ enum OSLClosureType {
 
 #define OSL_CLOSURE_STRUCT_BEGIN(Upper, lower) OSL_CLOSURE_##Upper##_ID,
 #include "closures_template.h"
+  OSL_CLOSURE_LAYER_ID,
 };
 
 struct OSLClosure {
@@ -81,6 +82,9 @@ struct ShaderGlobals {
   ccl_private void *tracedata;
   ccl_private void *objdata;
   void *context;
+#if OSL_LIBRARY_VERSION_CODE >= 11302
+  void *shadingStateUniform;
+#endif
   void *renderer;
   ccl_private void *object2common;
   ccl_private void *shader2common;

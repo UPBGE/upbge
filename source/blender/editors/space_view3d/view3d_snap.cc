@@ -12,7 +12,8 @@
 #include "DNA_object_types.h"
 
 #include "BLI_array.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
@@ -33,8 +34,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "ED_keyframing.hh"
 #include "ED_object.hh"

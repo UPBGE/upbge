@@ -21,7 +21,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_easing.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_sort_utils.h"
 #include "BLI_string_utils.h"
 
@@ -38,8 +38,8 @@
 
 #include "BLO_read_write.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 
 #include "CLG_log.h"
 

@@ -10,7 +10,8 @@
 
 #include "BLI_jitter_2d.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -83,7 +84,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"

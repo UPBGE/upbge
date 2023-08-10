@@ -18,13 +18,13 @@
 
 #include "BKE_layer.h"
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -450,7 +450,7 @@ static EnumPropertyItem rna_enum_gpencil_brush_vertex_icons_items[] = {
 
 #  include "MEM_guardedalloc.h"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 #  include "BKE_brush.hh"
 #  include "BKE_colorband.h"

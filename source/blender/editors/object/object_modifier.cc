@@ -30,7 +30,6 @@
 
 #include "BLI_bitmap.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -78,9 +77,9 @@
 
 #include "BLT_translation.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_prototypes.h"
 
 #include "ED_armature.hh"

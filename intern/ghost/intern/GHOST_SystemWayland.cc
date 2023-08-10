@@ -1057,9 +1057,11 @@ static void gwl_display_destroy(GWL_Display *display)
     }
   }
 
+#ifdef WITH_OPENGL_BACKEND
   if (eglGetDisplay) {
     ::eglTerminate(eglGetDisplay(EGLNativeDisplayType(display->wl.display)));
   }
+#endif
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
   if (display->events_pthread) {
@@ -2546,7 +2548,7 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
        * 'text_update_edited' to behave like dropped text was pasted. */
       CLOG_INFO(LOG, 2, "drop_read_uris_fn (text_plain, text_utf8), unhandled!");
     }
-    wl_display_roundtrip(system->wl_display());
+    wl_display_roundtrip(system->wl_display_get());
   };
 
   /* Pass in `seat->wl_surface_window_focus_dnd` instead of accessing it from `seat` since the
@@ -2670,7 +2672,7 @@ static void cursor_surface_handle_enter(void *data, wl_surface *wl_surface, wl_o
       seat, wl_surface);
   const GWL_Output *reg_output = ghost_wl_output_user_data(wl_output);
   seat_state_pointer->outputs.insert(reg_output);
-  update_cursor_scale(seat->cursor, seat->system->wl_shm(), seat_state_pointer, wl_surface);
+  update_cursor_scale(seat->cursor, seat->system->wl_shm_get(), seat_state_pointer, wl_surface);
 }
 
 static void cursor_surface_handle_leave(void *data, wl_surface *wl_surface, wl_output *wl_output)
@@ -2686,7 +2688,7 @@ static void cursor_surface_handle_leave(void *data, wl_surface *wl_surface, wl_o
       seat, wl_surface);
   const GWL_Output *reg_output = ghost_wl_output_user_data(wl_output);
   seat_state_pointer->outputs.erase(reg_output);
-  update_cursor_scale(seat->cursor, seat->system->wl_shm(), seat_state_pointer, wl_surface);
+  update_cursor_scale(seat->cursor, seat->system->wl_shm_get(), seat_state_pointer, wl_surface);
 }
 
 static const wl_surface_listener cursor_surface_listener = {
@@ -3089,7 +3091,7 @@ static void gesture_pinch_handle_begin(void *data,
      * however as the operators are not even using coordinates compatible with each other,
      * it would be better to resolve this by passing rotation & zoom levels directly,
      * instead of attempting to handle them as cursor coordinates. */
-    const GWL_WindowScaleParams &scale_params = win->scale_params();
+    const GWL_WindowScaleParams &scale_params = win->scale_params_get();
     seat->pointer_gesture_pinch.scale.factor = gwl_window_scale_int_to(
         scale_params, seat->pointer_gesture_pinch.scale.factor);
     seat->pointer_gesture_pinch.rotation.factor = gwl_window_scale_int_to(
@@ -3677,7 +3679,7 @@ static void tablet_seat_handle_tool_added(void *data,
   tablet_tool->seat = seat;
 
   /* Every tool has its own cursor wl_surface. */
-  tablet_tool->wl.surface_cursor = wl_compositor_create_surface(seat->system->wl_compositor());
+  tablet_tool->wl.surface_cursor = wl_compositor_create_surface(seat->system->wl_compositor_get());
   ghost_wl_surface_tag_cursor_tablet(tablet_tool->wl.surface_cursor);
 
   wl_surface_add_listener(tablet_tool->wl.surface_cursor, &cursor_surface_listener, (void *)seat);
@@ -4310,7 +4312,7 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
     return;
   }
   seat->wl.pointer = wl_seat_get_pointer(seat->wl.seat);
-  seat->cursor.wl.surface_cursor = wl_compositor_create_surface(seat->system->wl_compositor());
+  seat->cursor.wl.surface_cursor = wl_compositor_create_surface(seat->system->wl_compositor_get());
   seat->cursor.visible = true;
   seat->cursor.wl.buffer = nullptr;
   if (!get_cursor_settings(seat->cursor.theme_name, seat->cursor.theme_size)) {
@@ -4340,7 +4342,7 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
   wl_surface_add_listener(seat->cursor.wl.surface_cursor, &cursor_surface_listener, seat);
   ghost_wl_surface_tag_cursor_pointer(seat->cursor.wl.surface_cursor);
 
-  zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures();
+  zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures_get();
   if (pointer_gestures) {
     const uint pointer_gestures_version = zwp_pointer_gestures_v1_get_version(pointer_gestures);
 #ifdef ZWP_POINTER_GESTURE_HOLD_V1_INTERFACE
@@ -4380,7 +4382,7 @@ static void gwl_seat_capability_pointer_disable(GWL_Seat *seat)
     return;
   }
 
-  zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures();
+  zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures_get();
   if (pointer_gestures) {
 #ifdef ZWP_POINTER_GESTURE_HOLD_V1_INTERFACE
     { /* Hold gesture. */
@@ -6333,14 +6335,14 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       /* Create new off-screen surface only for vulkan. */
-      wl_surface *wl_surface = wl_compositor_create_surface(wl_compositor());
+      wl_surface *wl_surface = wl_compositor_create_surface(wl_compositor_get());
 
       GHOST_Context *context = new GHOST_ContextVK(false,
                                                    GHOST_kVulkanPlatformWayland,
                                                    0,
                                                    nullptr,
                                                    wl_surface,
-                                                   display_->wl_display,
+                                                   display_->wl.display,
                                                    1,
                                                    2,
                                                    debug_context);
@@ -6361,7 +6363,7 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
 #ifdef WITH_OPENGL_BACKEND
     case GHOST_kDrawingContextTypeOpenGL: {
       /* Create new off-screen window. */
-      wl_surface *wl_surface = wl_compositor_create_surface(wl_compositor());
+      wl_surface *wl_surface = wl_compositor_create_surface(wl_compositor_get());
       wl_egl_window *egl_window = wl_surface ? wl_egl_window_create(wl_surface, 1, 1) : nullptr;
 
       for (int minor = 6; minor >= 3; --minor) {
@@ -6476,10 +6478,8 @@ static void cursor_buffer_show(const GWL_Seat *seat)
     const int scale = cursor->is_custom ? cursor->custom_scale : seat->pointer.theme_scale;
     const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x) / scale;
     const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y) / scale;
-    if (seat->wl.pointer) {
-      wl_pointer_set_cursor(
-          seat->wl.pointer, seat->pointer.serial, cursor->wl.surface_cursor, hotspot_x, hotspot_y);
-    }
+    wl_pointer_set_cursor(
+        seat->wl.pointer, seat->pointer.serial, cursor->wl.surface_cursor, hotspot_x, hotspot_y);
   }
 
   if (!seat->wp.tablet_tools.empty()) {
@@ -6666,7 +6666,7 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
   if (!cursor->wl.theme) {
     /* The cursor wl_surface hasn't entered an output yet. Initialize theme with scale 1. */
     cursor->wl.theme = wl_cursor_theme_load(
-        cursor->theme_name.c_str(), cursor->theme_size, wl_shm());
+        cursor->theme_name.c_str(), cursor->theme_size, wl_shm_get());
   }
 
   wl_cursor *wl_cursor = wl_cursor_theme_get_cursor(cursor->wl.theme, cursor_name);
@@ -6882,7 +6882,7 @@ static bool setCursorGrab_use_software_confine(const GHOST_TGrabCursorMode mode,
   }
 
 #  ifndef USE_GNOME_CONFINE_HACK_ALWAYS_ON
-  if (win->scale() <= 1) {
+  if (win->scale_get() <= 1) {
     return false;
   }
 #  endif
@@ -6965,36 +6965,36 @@ void ghost_wl_surface_tag_cursor_tablet(wl_surface *wl_surface)
  * Expose some members via methods.
  * \{ */
 
-wl_display *GHOST_SystemWayland::wl_display()
+wl_display *GHOST_SystemWayland::wl_display_get()
 {
   return display_->wl.display;
 }
 
-wl_compositor *GHOST_SystemWayland::wl_compositor()
+wl_compositor *GHOST_SystemWayland::wl_compositor_get()
 {
   return display_->wl.compositor;
 }
 
-zwp_primary_selection_device_manager_v1 *GHOST_SystemWayland::wp_primary_selection_manager()
+zwp_primary_selection_device_manager_v1 *GHOST_SystemWayland::wp_primary_selection_manager_get()
 {
   return display_->wp.primary_selection_device_manager;
 }
 
-xdg_activation_v1 *GHOST_SystemWayland::xdg_activation_manager()
+xdg_activation_v1 *GHOST_SystemWayland::xdg_activation_manager_get()
 {
   return display_->xdg.activation_manager;
 }
 
-wp_fractional_scale_manager_v1 *GHOST_SystemWayland::wp_fractional_scale_manager()
+wp_fractional_scale_manager_v1 *GHOST_SystemWayland::wp_fractional_scale_manager_get()
 {
   return display_->wp.fractional_scale_manager;
 }
-wp_viewporter *GHOST_SystemWayland::wp_viewporter()
+wp_viewporter *GHOST_SystemWayland::wp_viewporter_get()
 {
   return display_->wp.viewporter;
 }
 
-zwp_pointer_gestures_v1 *GHOST_SystemWayland::wp_pointer_gestures()
+zwp_pointer_gestures_v1 *GHOST_SystemWayland::wp_pointer_gestures_get()
 {
   return display_->wp.pointer_gestures;
 }
@@ -7014,38 +7014,38 @@ static const char *ghost_wl_app_id = (
 #endif
 );
 
-const char *GHOST_SystemWayland::xdg_app_id()
+const char *GHOST_SystemWayland::xdg_app_id_get()
 {
   return ghost_wl_app_id;
 }
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
 
-libdecor *GHOST_SystemWayland::libdecor_context()
+libdecor *GHOST_SystemWayland::libdecor_context_get()
 {
   return display_->libdecor->context;
 }
 
 #endif /* !WITH_GHOST_WAYLAND_LIBDECOR */
 
-xdg_wm_base *GHOST_SystemWayland::xdg_decor_shell()
+xdg_wm_base *GHOST_SystemWayland::xdg_decor_shell_get()
 {
   return display_->xdg_decor->shell;
 }
 
-zxdg_decoration_manager_v1 *GHOST_SystemWayland::xdg_decor_manager()
+zxdg_decoration_manager_v1 *GHOST_SystemWayland::xdg_decor_manager_get()
 {
   return display_->xdg_decor->manager;
 }
 
 /* End `xdg_decor`. */
 
-const std::vector<GWL_Output *> &GHOST_SystemWayland::outputs() const
+const std::vector<GWL_Output *> &GHOST_SystemWayland::outputs_get() const
 {
   return display_->outputs;
 }
 
-wl_shm *GHOST_SystemWayland::wl_shm() const
+wl_shm *GHOST_SystemWayland::wl_shm_get() const
 {
   return display_->wl.shm;
 }
@@ -7174,7 +7174,7 @@ void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
   if (window_manager) {
     for (GHOST_IWindow *iwin : window_manager->getWindows()) {
       GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(iwin);
-      const std::vector<GWL_Output *> &outputs = win->outputs();
+      const std::vector<GWL_Output *> &outputs = win->outputs_get();
       if (!(std::find(outputs.begin(), outputs.end(), output) == outputs.cend())) {
         win->outputs_changed_update_scale_tag();
       }
@@ -7184,8 +7184,10 @@ void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
   for (GWL_Seat *seat : display_->seats) {
     if (seat->pointer.outputs.count(output)) {
       if (seat->cursor.wl.surface_cursor != nullptr) {
-        update_cursor_scale(
-            seat->cursor, seat->system->wl_shm(), &seat->pointer, seat->cursor.wl.surface_cursor);
+        update_cursor_scale(seat->cursor,
+                            seat->system->wl_shm_get(),
+                            &seat->pointer,
+                            seat->cursor.wl.surface_cursor);
       }
     }
 
@@ -7195,7 +7197,7 @@ void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
             zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
         if (tablet_tool->wl.surface_cursor != nullptr) {
           update_cursor_scale(seat->cursor,
-                              seat->system->wl_shm(),
+                              seat->system->wl_shm_get(),
                               &seat->pointer,
                               tablet_tool->wl.surface_cursor);
         }

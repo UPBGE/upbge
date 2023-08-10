@@ -27,7 +27,9 @@
 #include "DNA_shader_fx_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -42,9 +44,9 @@
 #include "BKE_paint.hh"
 #include "BKE_python_proxy.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -328,8 +330,6 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 };
 
 #ifdef RNA_RUNTIME
-
-#  include "BLI_math.h"
 
 #  include "DNA_ID.h"
 #  include "DNA_constraint_types.h"

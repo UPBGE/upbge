@@ -10,7 +10,8 @@
 
 #include "BLI_edgehash.h"
 #include "BLI_gsqueue.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -39,8 +40,8 @@
 
 #include "sculpt_intern.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"

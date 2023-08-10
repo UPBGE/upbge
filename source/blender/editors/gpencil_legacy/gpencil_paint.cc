@@ -16,8 +16,9 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_hash.h"
-#include "BLI_math.h"
 #include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
@@ -63,8 +64,8 @@
 #include "GPU_immediate_util.h"
 #include "GPU_state.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"
@@ -3776,13 +3777,13 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
     estate = OPERATOR_FINISHED;
   }
 
-  /* toggle painting mode upon mouse-button movement
-   * - LEFTMOUSE  = standard drawing (all) / straight line drawing (all)
-   * - RIGHTMOUSE = eraser (all)
-   *   (Disabling RIGHTMOUSE case here results in bugs like #32647)
-   * also making sure we have a valid event value, to not exit too early
-   */
-  if (ELEM(event->type, LEFTMOUSE, RIGHTMOUSE) && ELEM(event->val, KM_PRESS, KM_RELEASE)) {
+  /* Toggle painting mode upon mouse-button movement
+   * - #RIGHTMOUSE: eraser (all).
+   *   (Disabling #RIGHTMOUSE case here results in bugs like #32647)
+   * - Others (typically LMB): standard drawing (all) / straight line drawing (all).
+   * Also making sure we have a valid event value, to not exit too early. */
+
+  if (ISMOUSE_BUTTON(event->type) && ELEM(event->val, KM_PRESS, KM_RELEASE)) {
     /* if painting, end stroke */
     if (p->status == GP_STATUS_PAINTING) {
       p->status = GP_STATUS_DONE;
@@ -3831,7 +3832,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
           /* turn on eraser */
           p->paintmode = GP_PAINTMODE_ERASER;
         }
-        else if (event->type == LEFTMOUSE) {
+        else { /* Any mouse button besides the right. */
           /* restore drawmode to default */
           p->paintmode = eGPencil_PaintModes(RNA_enum_get(op->ptr, "mode"));
         }

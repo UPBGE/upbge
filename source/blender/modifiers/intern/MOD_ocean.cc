@@ -8,8 +8,6 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
-#include "BLI_math_inline.h"
 #include "BLI_task.h"
 
 #include "BLT_translation.h"
@@ -33,7 +31,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "BLO_read_write.h"

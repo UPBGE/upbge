@@ -10,9 +10,9 @@
 
 #include "DNA_grease_pencil_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -213,6 +213,14 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
   prop = RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, "GreasePencilLayer", "opacity");
   RNA_def_property_ui_text(prop, "Opacity", "Layer Opacity");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
+  /* Onion Skinning. */
+  prop = RNA_def_property(srna, "use_onion_skinning", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, "GreasePencilLayerTreeNode", "flag", GP_LAYER_TREE_NODE_USE_ONION_SKINNING);
+  RNA_def_property_ui_text(
+      prop, "Onion Skinning", "Display onion skins before and after the current frame");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
 }
 

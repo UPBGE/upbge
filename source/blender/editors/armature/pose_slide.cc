@@ -32,7 +32,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_dlrbTree.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 
 #include "BLT_translation.h"
 
@@ -53,9 +53,9 @@
 #include "BKE_screen.h"
 #include "BKE_unit.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"

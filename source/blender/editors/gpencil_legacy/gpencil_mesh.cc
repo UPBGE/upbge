@@ -11,7 +11,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -35,8 +35,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "ED_gpencil_legacy.hh"
 #include "ED_transform_snap_object_context.hh"

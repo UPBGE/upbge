@@ -13,14 +13,15 @@
 #include "DNA_gpencil_legacy_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_rand.h"
 
 #include "PIL_time.h"
 
 #include "BLT_translation.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"

@@ -13,7 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
@@ -51,8 +51,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_prototypes.h"
 
 /* For menu, popup, icons, etc. */

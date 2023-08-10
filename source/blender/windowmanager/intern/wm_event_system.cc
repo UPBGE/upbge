@@ -30,7 +30,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
 #include "BLI_timer.h"
 #include "BLI_utildefines.h"
 
@@ -61,7 +60,7 @@
 
 #include "GPU_context.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "UI_interface.hh"
 

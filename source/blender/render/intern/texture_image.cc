@@ -25,7 +25,9 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_interp.h"
+#include "BLI_math_vector.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -768,7 +770,7 @@ static int ibuf_get_color_clip_bilerp(
   return ibuf_get_color_clip(col, ibuf, int(u), int(v), extflag);
 }
 
-static void area_sample(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t *AFD)
+static void area_sample(TexResult *texr, ImBuf *ibuf, float fx, float fy, const afdata_t *AFD)
 {
   int xs, ys, clip = 0;
   float tc[4], xsd, ysd, cw = 0.0f;
@@ -808,7 +810,7 @@ static void area_sample(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata
 
 struct ReadEWAData {
   ImBuf *ibuf;
-  afdata_t *AFD;
+  const afdata_t *AFD;
 };
 
 static void ewa_read_pixel_cb(void *userdata, int x, int y, float result[4])
@@ -817,7 +819,7 @@ static void ewa_read_pixel_cb(void *userdata, int x, int y, float result[4])
   ibuf_get_color_clip(result, data->ibuf, x, y, data->AFD->extflag);
 }
 
-static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t *AFD)
+static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, const afdata_t *AFD)
 {
   ReadEWAData data;
   const float uv[2] = {fx, fy};
@@ -835,7 +837,7 @@ static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t 
                  texr->trgba);
 }
 
-static void feline_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t *AFD)
+static void feline_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, const afdata_t *AFD)
 {
   const int maxn = AFD->iProbes - 1;
   const float ll = ((AFD->majrad == AFD->minrad) ? 2.0f * AFD->majrad :
@@ -957,7 +959,7 @@ static int imagewraposa_aniso(Tex *tex,
   int curmap, retval, intpol, extflag = 0;
   afdata_t AFD;
 
-  void (*filterfunc)(TexResult *, ImBuf *, float, float, afdata_t *);
+  void (*filterfunc)(TexResult *, ImBuf *, float, float, const afdata_t *);
   switch (tex->texfilter) {
     case TXF_EWA:
       filterfunc = ewa_eval;

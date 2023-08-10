@@ -16,6 +16,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_fileops_types.h"
+#include "BLI_math_color.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -37,7 +38,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "ED_fileselect.hh"

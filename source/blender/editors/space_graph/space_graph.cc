@@ -16,7 +16,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
@@ -38,9 +38,9 @@
 #include "WM_message.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"

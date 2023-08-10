@@ -11,7 +11,9 @@
 #include "BLI_bitmap.h"
 #include "BLI_kdtree.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "BLT_translation.h"
 
@@ -29,8 +31,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "ED_mesh.hh"
 #include "ED_screen.hh"

@@ -17,7 +17,6 @@
 
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
@@ -32,8 +31,8 @@
 #include "ED_screen.hh"
 #include "UI_view2d.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "console_intern.hh"
 

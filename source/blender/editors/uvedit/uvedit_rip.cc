@@ -14,7 +14,6 @@
 
 #include "BLI_ghash.h"
 #include "BLI_linklist_stack.h"
-#include "BLI_math.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
@@ -38,8 +37,8 @@
 #include "ED_transform.hh"
 #include "ED_uvedit.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

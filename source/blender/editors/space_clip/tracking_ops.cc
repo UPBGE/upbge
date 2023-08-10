@@ -13,7 +13,8 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
@@ -30,8 +31,8 @@
 #include "ED_clip.hh"
 #include "ED_screen.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "BLT_translation.h"
 

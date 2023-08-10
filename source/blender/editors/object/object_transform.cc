@@ -25,8 +25,10 @@
 
 #include "BLI_array.hh"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -55,8 +57,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

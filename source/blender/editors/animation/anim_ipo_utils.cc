@@ -15,18 +15,20 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
 #include "DNA_anim_types.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "ED_anim_api.hh"
+
+#include <string.h>
 
 /* ----------------------- Getter functions ----------------------- */
 

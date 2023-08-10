@@ -9,7 +9,8 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "BLT_translation.h"
 
@@ -36,7 +37,7 @@
 
 #include "BLO_read_write.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "DEG_depsgraph_query.h"

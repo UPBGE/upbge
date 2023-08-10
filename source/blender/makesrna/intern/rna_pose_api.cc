@@ -11,9 +11,10 @@
 #include <cstring>
 #include <ctime>
 
+#include "BLI_math_matrix.h"
 #include "BLI_utildefines.h"
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "DNA_object_types.h"
 

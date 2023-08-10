@@ -39,7 +39,7 @@
 
 #include "RE_texture.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "BLI_math_vector.h"
@@ -106,7 +106,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr, 0, ICON_NONE, nullptr);
+  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr, 0, false, nullptr);
   uiItemR(layout, ptr, "texture_map_mode", UI_ITEM_NONE, "Texture Mapping", ICON_NONE);
 
   if (vdmd->texture_map_mode == MOD_VOLUME_DISPLACE_MAP_OBJECT) {

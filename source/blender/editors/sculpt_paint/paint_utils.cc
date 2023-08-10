@@ -18,7 +18,6 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_math_color.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
@@ -41,8 +40,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "GPU_framebuffer.h"

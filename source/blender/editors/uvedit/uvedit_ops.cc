@@ -22,7 +22,8 @@
 #include "DNA_space_types.h"
 
 #include "BLI_kdtree.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -45,8 +46,8 @@
 #include "ED_screen.hh"
 #include "ED_uvedit.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"

@@ -13,7 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string_utils.h"
 #include "BLI_threads.h"
@@ -63,8 +62,8 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "SEQ_relations.h"
 

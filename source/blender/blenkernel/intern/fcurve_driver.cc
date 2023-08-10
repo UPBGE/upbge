@@ -16,7 +16,9 @@
 #include "BLI_alloca.h"
 #include "BLI_expr_pylike_eval.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.h"
 #include "BLI_threads.h"
@@ -32,8 +34,8 @@
 #include "BKE_global.h"
 #include "BKE_object.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "atomic_ops.h"
@@ -45,6 +47,8 @@
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
 #endif
+
+#include <string.h>
 
 #ifdef WITH_PYTHON
 static ThreadMutex python_driver_lock = BLI_MUTEX_INITIALIZER;

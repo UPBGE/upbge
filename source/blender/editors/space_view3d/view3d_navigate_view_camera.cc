@@ -11,7 +11,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
 
 #include "BLT_translation.h"
@@ -36,8 +35,8 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_resources.hh"
 

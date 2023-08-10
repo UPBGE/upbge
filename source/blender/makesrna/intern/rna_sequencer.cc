@@ -18,7 +18,7 @@
 
 #include "BLI_iterator.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_string_utils.h"
 
@@ -32,9 +32,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 

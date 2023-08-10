@@ -16,7 +16,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sort_utils.h"
 
@@ -31,8 +31,8 @@
 
 #include "BLF_api.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"

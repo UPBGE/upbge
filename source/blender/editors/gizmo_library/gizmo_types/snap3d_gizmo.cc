@@ -15,7 +15,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -28,8 +29,8 @@
 
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"

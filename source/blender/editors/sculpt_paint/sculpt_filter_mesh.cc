@@ -12,7 +12,8 @@
 
 #include "BLI_hash.h"
 #include "BLI_index_range.hh"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.h"
 
@@ -38,8 +39,8 @@
 #include "paint_intern.hh"
 #include "sculpt_intern.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "UI_interface.hh"

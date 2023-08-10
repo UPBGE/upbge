@@ -35,7 +35,7 @@
 #include "BLI_fileops_types.h"
 #include "BLI_filereader.h"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
+#include "BLI_math_time.h"
 #include "BLI_system.h"
 #include "BLI_threads.h"
 #include "BLI_timer.h"
@@ -85,8 +85,8 @@
 #include "BLO_undofile.h" /* to save from an undo memfile */
 #include "BLO_writefile.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"

@@ -8,13 +8,13 @@
 
 #include <cstdlib>
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "rna_internal.h"
 

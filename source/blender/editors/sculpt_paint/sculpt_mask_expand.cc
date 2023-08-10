@@ -8,7 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_task.h"
 
 #include "BLT_translation.h"
@@ -28,8 +28,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "ED_screen.hh"
 #include "sculpt_intern.hh"

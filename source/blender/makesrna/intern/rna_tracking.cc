@@ -17,8 +17,8 @@
 
 #include "BLT_translation.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "rna_internal.h"
 
@@ -31,9 +31,9 @@
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math.h"
-
 #  include "DNA_anim_types.h"
+
+#  include "BLI_math_vector.h"
 
 #  include "BKE_anim_data.h"
 #  include "BKE_animsys.h"

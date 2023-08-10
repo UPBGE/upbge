@@ -6,7 +6,6 @@
  * \ingroup edinterface
  */
 
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
@@ -19,7 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

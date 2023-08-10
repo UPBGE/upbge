@@ -26,7 +26,7 @@
 #include "IMB_imbuf_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.h"
@@ -41,8 +41,8 @@
 #include "ED_object.hh"
 #include "ED_uvedit.hh"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -709,7 +709,7 @@ const EnumPropertyItem rna_enum_grease_pencil_selectmode_items[] = {
 #  include "DNA_text_types.h"
 #  include "DNA_workspace_types.h"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 #  include "MEM_guardedalloc.h"
 

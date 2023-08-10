@@ -8,7 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_color.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_task.h"
 
@@ -31,8 +31,8 @@
 #include "ED_paint.hh"
 #include "sculpt_intern.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"

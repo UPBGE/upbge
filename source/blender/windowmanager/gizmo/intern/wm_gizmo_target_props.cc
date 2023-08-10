@@ -7,13 +7,12 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 
 #include "BKE_context.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"

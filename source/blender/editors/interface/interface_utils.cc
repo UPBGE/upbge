@@ -17,7 +17,6 @@
 #include "ED_screen.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_string_search.hh"
 #include "BLI_utildefines.h"
@@ -33,7 +32,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"

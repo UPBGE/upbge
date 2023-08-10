@@ -6,12 +6,14 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "RNA_enum_types.h"
+#include "RNA_enum_types.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "NOD_socket_search_link.hh"
+
+#include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
 
@@ -126,6 +128,16 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_enum(srna,
+                    "operation",
+                    "Operation",
+                    "",
+                    rna_enum_node_boolean_math_items,
+                    NOD_inline_enum_accessors(custom1));
+}
+
 static void node_register()
 {
   static bNodeType ntype;
@@ -138,6 +150,8 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 

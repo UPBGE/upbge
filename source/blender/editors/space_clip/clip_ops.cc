@@ -23,7 +23,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_fileops.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -51,9 +51,9 @@
 
 #include "UI_interface.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "UI_view2d.hh"
 

@@ -9,7 +9,8 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -58,7 +59,7 @@
 #include "IMB_imbuf.h"
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "SEQ_proxy.h"
 #include "SEQ_render.h"

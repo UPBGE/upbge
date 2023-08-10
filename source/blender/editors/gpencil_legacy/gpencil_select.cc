@@ -17,6 +17,8 @@
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_lasso_2d.h"
+#include "BLI_math_color.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
@@ -41,8 +43,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_view2d.hh"
 

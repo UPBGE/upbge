@@ -17,7 +17,8 @@
  * - `matrix[2]` is the arrow direction (for all arrows).
  */
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
@@ -33,8 +34,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

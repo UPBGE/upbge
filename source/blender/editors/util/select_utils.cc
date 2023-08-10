@@ -7,16 +7,17 @@
  */
 
 #include <cfloat>
+#include <math.h>
+#include <string.h>
 
 #include "BLI_kdtree.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
 #include "DNA_windowmanager_types.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "WM_types.hh"
 

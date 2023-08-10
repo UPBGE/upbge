@@ -8,9 +8,9 @@
 
 #include <cstdlib>
 
-#include "BLI_math.h"
-
 #include "MEM_guardedalloc.h"
+
+#include "BLI_math_rotation.h"
 
 #include "BLT_translation.h"
 
@@ -20,8 +20,8 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 

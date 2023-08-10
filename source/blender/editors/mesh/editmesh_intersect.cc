@@ -12,7 +12,8 @@
 
 #include "BLI_buffer.h"
 #include "BLI_linklist_stack.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_memarena.h"
 #include "BLI_stack.h"
 
@@ -22,8 +23,8 @@
 #include "BKE_layer.h"
 #include "BKE_report.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_types.hh"
 

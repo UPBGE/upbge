@@ -24,7 +24,10 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_session_uuid.h"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
@@ -53,8 +56,8 @@
 
 #include "BIK_api.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "BLO_read_write.h"

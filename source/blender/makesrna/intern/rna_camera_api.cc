@@ -10,13 +10,15 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "rna_internal.h" /* own include */
 
 #ifdef RNA_RUNTIME
 
 #  include "DNA_scene_types.h"
+
+#  include "BLI_math_vector.h"
 
 #  include "BKE_camera.h"
 #  include "BKE_context.h"

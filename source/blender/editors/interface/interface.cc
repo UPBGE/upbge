@@ -23,7 +23,6 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_search.hh"
@@ -61,7 +60,7 @@
 #include "WM_message.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.h"

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BLI_rect.h"
+
 /** \file
  * \ingroup bke
  * \brief Camera data-block and utility functions.

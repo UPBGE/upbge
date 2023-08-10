@@ -10,8 +10,6 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math.h"
-
 #include "BLT_translation.h"
 
 #include "BKE_context.h"
@@ -25,11 +23,13 @@
 #include "BKE_screen.h"
 #include "BKE_shrinkwrap.h"
 
+#include "BLI_math_vector.h"
+
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

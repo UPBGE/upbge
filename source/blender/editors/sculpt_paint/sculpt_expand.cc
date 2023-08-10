@@ -12,7 +12,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_linklist_stack.h"
-#include "BLI_math.h"
 #include "BLI_task.h"
 
 #include "DNA_brush_types.h"
@@ -39,8 +38,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"

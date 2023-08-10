@@ -9,7 +9,8 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -19,7 +20,7 @@
 #include "UI_interface.hh"
 #include "UI_view2d.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "interface_intern.hh"
 

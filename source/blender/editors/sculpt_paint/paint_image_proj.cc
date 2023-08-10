@@ -22,9 +22,9 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
 #include "BLI_math_bits.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_math_geom.h"
 #include "BLI_memarena.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -98,10 +98,10 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
-#include "RNA_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
+#include "RNA_types.hh"
 
 #include "IMB_colormanagement.h"
 

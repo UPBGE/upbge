@@ -15,7 +15,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_lasso_2d.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -23,8 +23,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "BKE_context.h"
 #include "BKE_fcurve.h"

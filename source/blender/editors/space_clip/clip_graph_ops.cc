@@ -8,7 +8,8 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -24,8 +25,8 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_view2d.hh"
 

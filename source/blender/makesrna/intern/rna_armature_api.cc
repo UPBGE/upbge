@@ -11,7 +11,7 @@
 #include <cstring>
 #include <ctime>
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "rna_internal.h" /* own include */
 
@@ -22,6 +22,7 @@
 #  include "DNA_armature_types.h"
 
 #  include "BKE_armature.h"
+#  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
 
 static void rna_EditBone_align_roll(EditBone *ebo, const float no[3])

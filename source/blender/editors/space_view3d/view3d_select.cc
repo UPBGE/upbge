@@ -28,8 +28,8 @@
 #include "BLI_lasso_2d.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_math_bits.h"
+#include "BLI_math_geom.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_task.hh"
@@ -67,9 +67,9 @@
 #include "WM_toolsystem.h"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "ED_armature.hh"
 #include "ED_curve.hh"

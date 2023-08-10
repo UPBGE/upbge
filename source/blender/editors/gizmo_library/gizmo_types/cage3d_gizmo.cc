@@ -15,7 +15,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector_types.hh"
 
 #include "BKE_context.h"
@@ -27,8 +27,8 @@
 #include "GPU_shader.h"
 #include "GPU_state.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

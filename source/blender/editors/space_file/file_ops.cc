@@ -10,7 +10,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
 
 #include "BKE_appdir.h"
 #include "BKE_blendfile.h"
@@ -37,8 +36,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_view2d.hh"
 

@@ -13,11 +13,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 
 #include "BLI_array.hh"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rand.h"
 #include "BLI_span.hh"
@@ -62,10 +65,10 @@
 #include "DNA_world_types.h"
 
 #include "NOD_geometry_nodes_log.hh"
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
-#include "RNA_types.h"
+#include "RNA_types.hh"
 
 #include "MOD_nodes.hh"
 

@@ -10,7 +10,6 @@
 
 #include "BLI_lasso_2d.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
@@ -29,8 +28,8 @@
 #include "ED_mask.hh" /* own include */
 #include "ED_select_utils.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "mask_intern.h" /* own include */
 

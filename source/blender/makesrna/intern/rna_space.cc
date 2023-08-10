@@ -28,7 +28,9 @@
 #include "ED_text.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
 #include "BLI_uuid.h"
@@ -45,8 +47,8 @@
 #include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "rna_internal.h"
 
@@ -60,7 +62,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "RNA_enum_types.h"
+#include "RNA_enum_types.hh"
 
 const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
     {int(blender::bke::GeometryComponent::Type::Mesh),

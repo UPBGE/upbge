@@ -18,8 +18,8 @@
 
 #include "DNA_space_types.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 
 #include "../outliner_intern.hh"
 
@@ -403,8 +403,15 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
                                                  item_idx,
                                                  nullptr);
     IDOverrideLibraryPropertyOperation *item_operation =
-        BKE_lib_override_library_property_operation_find(
-            &override_data.override_property, nullptr, nullptr, -1, item_idx, false, nullptr);
+        BKE_lib_override_library_property_operation_find(&override_data.override_property,
+                                                         nullptr,
+                                                         nullptr,
+                                                         {},
+                                                         {},
+                                                         -1,
+                                                         item_idx,
+                                                         false,
+                                                         nullptr);
     TreeElement *current_te = nullptr;
 
     TreeElement *existing_te = path_te_map.lookup_default(coll_item_path, nullptr);

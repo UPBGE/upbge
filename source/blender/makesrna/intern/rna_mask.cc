@@ -16,13 +16,15 @@
 #include "DNA_object_types.h" /* SELECT */
 #include "DNA_scene_types.h"
 
+#include "BLI_math_vector.h"
+
 #include "BLT_translation.h"
 
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -33,15 +35,13 @@
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math.h"
-
 #  include "DNA_movieclip_types.h"
 
 #  include "BKE_mask.h"
 
 #  include "DEG_depsgraph.h"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 #  include "WM_api.hh"
 

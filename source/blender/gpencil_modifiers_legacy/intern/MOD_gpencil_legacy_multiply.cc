@@ -18,6 +18,7 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
@@ -39,7 +40,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "MOD_gpencil_legacy_modifiertypes.h"
 #include "MOD_gpencil_legacy_ui_common.h"

@@ -15,7 +15,6 @@
 #include "DNA_view3d_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.h"
@@ -29,8 +28,8 @@
 
 #include "DEG_depsgraph.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"

@@ -8,11 +8,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
-
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_mask.h"
+
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "DEG_depsgraph.h"
 
@@ -27,8 +28,8 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "mask_intern.h" /* own include */
 

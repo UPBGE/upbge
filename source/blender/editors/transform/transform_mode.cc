@@ -15,14 +15,16 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_nla.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "UI_interface.hh"
 

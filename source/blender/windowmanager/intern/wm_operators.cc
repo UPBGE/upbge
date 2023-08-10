@@ -40,7 +40,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
 #include "BLI_dynstr.h" /* For #WM_operator_pystring. */
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
@@ -81,10 +81,10 @@
 #include "ED_undo.hh"
 #include "ED_view3d.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "UI_interface.hh"

@@ -25,12 +25,11 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_timecode.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 void ED_time_scrub_region_rect_get(const ARegion *region, rcti *rect)

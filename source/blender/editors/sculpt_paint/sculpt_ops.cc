@@ -11,7 +11,6 @@
 
 #include "BLI_ghash.h"
 #include "BLI_gsqueue.h"
-#include "BLI_math.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
@@ -60,8 +59,8 @@
 #include "paint_intern.hh"
 #include "sculpt_intern.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"

@@ -6,11 +6,13 @@
  * \ingroup RNA
  */
 
+#include "BLI_math_vector.h"
+
 #include "DNA_node_types.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
-#include "RNA_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
+#include "RNA_types.hh"
 
 #include "rna_internal.h"
 
@@ -38,8 +40,6 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 #ifdef RNA_RUNTIME
 
 #  include "DNA_material_types.h"
-
-#  include "BLI_math.h"
 
 #  include "BKE_node.h"
 #  include "BKE_node_tree_update.h"

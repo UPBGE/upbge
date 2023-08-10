@@ -53,7 +53,6 @@
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_map.hh"
-#include "BLI_math.h"
 #include "BLI_memarena.h"
 #include "BLI_mempool.h"
 #include "BLI_threads.h"
@@ -1948,6 +1947,13 @@ static void lib_link_id(BlendLibReader *reader, ID *id)
     BLO_read_id_address(reader, id, &id->override_library->reference);
     BLO_read_id_address(reader, id, &id->override_library->storage);
     BLO_read_id_address(reader, id, &id->override_library->hierarchy_root);
+
+    LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &id->override_library->properties) {
+      LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
+        BLO_read_id_address(reader, id, &opop->subitem_reference_id);
+        BLO_read_id_address(reader, id, &opop->subitem_local_id);
+      }
+    }
   }
 
   lib_link_id_embedded_id(reader, id);

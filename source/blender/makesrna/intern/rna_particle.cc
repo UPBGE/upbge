@@ -22,13 +22,15 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "BLT_translation.h"
 
@@ -134,7 +136,6 @@ static const EnumPropertyItem part_fluid_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math.h"
 #  include "BLI_string_utils.h"
 
 #  include "BKE_boids.h"

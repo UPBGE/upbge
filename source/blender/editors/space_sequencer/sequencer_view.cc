@@ -7,7 +7,6 @@
  */
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -18,7 +17,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "UI_view2d.hh"
 

@@ -13,14 +13,14 @@
 #include "DNA_mesh_types.h"
 #include "DNA_texture_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 
 #include "BLT_translation.h"
 
 #include "BKE_customdata.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 

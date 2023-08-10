@@ -15,7 +15,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist_stack.h"
-#include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
@@ -26,8 +25,8 @@
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
 
-#include "RNA_access.h"
-#include "RNA_types.h"
+#include "RNA_access.hh"
+#include "RNA_types.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"

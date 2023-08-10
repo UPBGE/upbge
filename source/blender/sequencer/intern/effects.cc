@@ -15,7 +15,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h" /* windows needs for M_PI */
+#include "BLI_math_rotation.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -40,7 +40,7 @@
 
 #include "BLI_math_color_blend.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "RE_pipeline.h"

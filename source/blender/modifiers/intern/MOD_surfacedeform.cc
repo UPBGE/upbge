@@ -6,8 +6,8 @@
  * \ingroup modifiers
  */
 
-#include "BLI_math.h"
 #include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_task.h"
 
 #include "BLT_translation.h"
@@ -36,7 +36,7 @@
 
 #include "BLO_read_write.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "DEG_depsgraph.h"

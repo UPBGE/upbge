@@ -9,8 +9,8 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -20,7 +20,8 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.h"
@@ -82,7 +83,7 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 
 #  include "WM_api.hh"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 static void rna_Pose_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {

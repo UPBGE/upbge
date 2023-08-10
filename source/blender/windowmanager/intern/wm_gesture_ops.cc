@@ -16,7 +16,8 @@
 
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.h"
@@ -33,8 +34,8 @@
 
 #include "UI_interface.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Gesture Utilities

@@ -10,14 +10,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
-
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_scene.h"
+
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
@@ -27,8 +29,8 @@
 #include "ED_undo.hh"
 #include "ED_view3d.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

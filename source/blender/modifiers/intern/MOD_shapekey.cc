@@ -6,9 +6,8 @@
  * \ingroup modifiers
  */
 
+#include "BLI_math_matrix.h"
 #include "BLI_utildefines.h"
-
-#include "BLI_math.h"
 
 #include "BLT_translation.h"
 
@@ -19,7 +18,7 @@
 #include "BKE_key.h"
 #include "BKE_particle.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "MOD_modifiertypes.hh"

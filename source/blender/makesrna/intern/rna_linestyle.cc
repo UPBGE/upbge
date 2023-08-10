@@ -9,10 +9,11 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.h"
 
@@ -121,7 +122,7 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
 
 #  include "ED_node.hh"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 static StructRNA *rna_LineStyle_color_modifier_refine(PointerRNA *ptr)
 {
@@ -514,8 +515,6 @@ static void rna_LineStyle_geometry_modifier_remove(FreestyleLineStyle *linestyle
 }
 
 #else
-
-#  include "BLI_math.h"
 
 static void rna_def_linestyle_mtex(BlenderRNA *brna)
 {

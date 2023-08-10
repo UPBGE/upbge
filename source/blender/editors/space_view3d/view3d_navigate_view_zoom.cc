@@ -6,7 +6,7 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.h"
@@ -16,7 +16,7 @@
 
 #include "WM_api.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "ED_screen.hh"
 

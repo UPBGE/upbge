@@ -14,7 +14,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_math_vector.hh"
 #include "BLI_utildefines.h"
 
@@ -59,8 +58,8 @@
 #include "WM_toolsystem.h"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "IMB_colormanagement.h"
 

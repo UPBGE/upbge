@@ -62,8 +62,8 @@
 #include "UI_interface.hh"
 #include "UI_view2d.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "outliner_intern.hh"
@@ -1345,7 +1345,6 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         context = BCONTEXT_DATA;
         break;
       }
-      case TSE_R_LAYER_BASE:
       case TSE_R_LAYER: {
         ViewLayer *view_layer = static_cast<ViewLayer *>(te->directdata);
 

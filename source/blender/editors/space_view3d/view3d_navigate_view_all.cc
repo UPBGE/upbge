@@ -8,8 +8,6 @@
 
 #include "DNA_gpencil_legacy_types.h"
 
-#include "BLI_math.h"
-
 #include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_gpencil_geom_legacy.h"
@@ -17,6 +15,9 @@
 #include "BKE_object.h"
 #include "BKE_paint.hh"
 #include "BKE_scene.h"
+
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -27,8 +28,8 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "view3d_intern.h"
 #include "view3d_navigate.hh" /* own include */

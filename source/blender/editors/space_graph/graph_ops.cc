@@ -26,8 +26,8 @@
 
 #include "graph_intern.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "DEG_depsgraph.h"
 
@@ -469,6 +469,8 @@ void graphedit_operatortypes()
   WM_operatortype_append(GRAPH_OT_blend_to_neighbor);
   WM_operatortype_append(GRAPH_OT_breakdown);
   WM_operatortype_append(GRAPH_OT_ease);
+  WM_operatortype_append(GRAPH_OT_blend_offset);
+  WM_operatortype_append(GRAPH_OT_blend_to_ease);
   WM_operatortype_append(GRAPH_OT_blend_to_default);
   WM_operatortype_append(GRAPH_OT_gaussian_smooth);
   WM_operatortype_append(GRAPH_OT_butterworth_smooth);

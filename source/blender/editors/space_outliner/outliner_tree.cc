@@ -325,6 +325,9 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
   else if (type == TSE_LINKED_PSYS) {
     /* pass */
   }
+  else if (ELEM(type, TSE_R_LAYER_BASE)) {
+    /* pass */
+  }
   else if (type == TSE_SOME_ID) {
     if (!te->abstract_element) {
       BLI_assert_msg(0, "Expected this ID type to be ported to new Outliner tree-element design");
@@ -375,8 +378,12 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
                 TSE_SEQ_STRIP,
                 TSE_SEQUENCE_DUP,
                 TSE_GENERIC_LABEL) ||
-           ELEM(
-               type, TSE_DEFGROUP, TSE_DEFGROUP_BASE, TSE_GPENCIL_EFFECT, TSE_GPENCIL_EFFECT_BASE))
+           ELEM(type,
+                TSE_DEFGROUP,
+                TSE_DEFGROUP_BASE,
+                TSE_GPENCIL_EFFECT,
+                TSE_GPENCIL_EFFECT_BASE,
+                TSE_R_LAYER_BASE))
   {
     BLI_assert_msg(false, "Element type should already use new AbstractTreeElement design");
   }

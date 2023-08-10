@@ -18,14 +18,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_string.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "BLT_translation.h"
 
@@ -972,6 +971,189 @@ void GRAPH_OT_ease(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
+
+  RNA_def_float_factor(ot->srna,
+                       "factor",
+                       0.0f,
+                       -FLT_MAX,
+                       FLT_MAX,
+                       "Curve Bend",
+                       "Control the bend of the curve",
+                       -1.0f,
+                       1.0f);
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Blend Offset Operator
+ * \{ */
+
+static void blend_offset_graph_keys(bAnimContext *ac, const float factor)
+{
+  apply_fcu_segment_function(ac, factor, blend_offset_fcurve_segment);
+}
+
+static void blend_offset_draw_status_header(bContext *C, tGraphSliderOp *gso)
+{
+  common_draw_status_header(C, gso, "Blend Offset Keys");
+}
+
+static void blend_offset_modal_update(bContext *C, wmOperator *op)
+{
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+
+  blend_offset_draw_status_header(C, gso);
+
+  /* Reset keyframes to the state at invoke. */
+  reset_bezts(gso);
+  const float factor = slider_factor_get_and_remember(op);
+  blend_offset_graph_keys(&gso->ac, factor);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+}
+
+static int blend_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  const int invoke_result = graph_slider_invoke(C, op, event);
+
+  if (invoke_result == OPERATOR_CANCELLED) {
+    return invoke_result;
+  }
+
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  gso->modal_update = blend_offset_modal_update;
+  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
+  blend_offset_draw_status_header(C, gso);
+  ED_slider_factor_bounds_set(gso->slider, -1, 1);
+  ED_slider_factor_set(gso->slider, 0.0f);
+
+  return invoke_result;
+}
+
+static int blend_offset_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+
+  /* Get editor data. */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const float factor = RNA_float_get(op->ptr, "factor");
+
+  blend_offset_graph_keys(&ac, factor);
+
+  /* Set notifier that keyframes have changed. */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_blend_offset(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Blend Offset Keyframes";
+  ot->idname = "GRAPH_OT_blend_offset";
+  ot->description = "Shift selected keys to the value of the neighboring keys as a block";
+
+  /* API callbacks. */
+  ot->invoke = blend_offset_invoke;
+  ot->modal = graph_slider_modal;
+  ot->exec = blend_offset_exec;
+  ot->poll = graphop_editable_keyframes_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_float_factor(ot->srna,
+                       "factor",
+                       0.0f,
+                       -FLT_MAX,
+                       FLT_MAX,
+                       "Offset Factor",
+                       "Control which key to offset towards and how far",
+                       -1.0f,
+                       1.0f);
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Blend to Ease Operator
+ * \{ */
+
+static void blend_to_ease_graph_keys(bAnimContext *ac, const float factor)
+{
+  apply_fcu_segment_function(ac, factor, blend_to_ease_fcurve_segment);
+}
+
+static void blend_to_ease_draw_status_header(bContext *C, tGraphSliderOp *gso)
+{
+  common_draw_status_header(C, gso, "Blend to Ease Keys");
+}
+
+static void blend_to_ease_modal_update(bContext *C, wmOperator *op)
+{
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+
+  blend_to_ease_draw_status_header(C, gso);
+
+  /* Reset keyframes to the state at invoke. */
+  reset_bezts(gso);
+  const float factor = slider_factor_get_and_remember(op);
+  blend_to_ease_graph_keys(&gso->ac, factor);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+}
+
+static int blend_to_ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  const int invoke_result = graph_slider_invoke(C, op, event);
+
+  if (invoke_result == OPERATOR_CANCELLED) {
+    return invoke_result;
+  }
+
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  gso->modal_update = blend_to_ease_modal_update;
+  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
+  blend_to_ease_draw_status_header(C, gso);
+  ED_slider_allow_overshoot_set(gso->slider, false, false);
+  ED_slider_factor_bounds_set(gso->slider, -1, 1);
+  ED_slider_factor_set(gso->slider, 0.0f);
+
+  return invoke_result;
+}
+
+static int blend_to_ease_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+
+  /* Get editor data. */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const float factor = RNA_float_get(op->ptr, "factor");
+
+  blend_to_ease_graph_keys(&ac, factor);
+
+  /* Set notifier that keyframes have changed. */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_blend_to_ease(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Blend to Ease Keyframes";
+  ot->idname = "GRAPH_OT_blend_to_ease";
+  ot->description = "Blends keyframes from current state to an ease-in or ease-out curve";
+
+  /* API callbacks. */
+  ot->invoke = blend_to_ease_invoke;
+  ot->modal = graph_slider_modal;
+  ot->exec = blend_to_ease_exec;
+  ot->poll = graphop_editable_keyframes_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_float_factor(ot->srna,
                        "factor",

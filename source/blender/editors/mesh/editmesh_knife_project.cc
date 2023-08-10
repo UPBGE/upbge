@@ -11,7 +11,7 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -27,8 +27,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "MEM_guardedalloc.h"
 

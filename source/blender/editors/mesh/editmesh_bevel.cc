@@ -10,7 +10,8 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.h"
@@ -24,8 +25,8 @@
 #include "DNA_curveprofile_types.h"
 #include "DNA_mesh_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"
