@@ -16,6 +16,10 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "RNA_enum_types.h"
+
+#include "NOD_rna_define.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_subdivision_surface_cc {
@@ -190,24 +194,44 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_subdivision_surface_cc
-
-void register_node_type_geo_subdivision_surface()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_subdivision_surface_cc;
+  RNA_def_node_enum(srna,
+                    "uv_smooth",
+                    "UV Smooth",
+                    "Controls how smoothing is applied to UVs",
+                    rna_enum_subdivision_uv_smooth_items,
+                    NOD_storage_enum_accessors(uv_smooth),
+                    SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES);
 
+  RNA_def_node_enum(srna,
+                    "boundary_smooth",
+                    "Boundary Smooth",
+                    "Controls how open boundaries are smoothed",
+                    rna_enum_subdivision_boundary_smooth_items,
+                    NOD_storage_enum_accessors(boundary_smooth),
+                    SUBSURF_BOUNDARY_SMOOTH_ALL);
+}
+
+static void node_register()
+{
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_SUBDIVISION_SURFACE, "Subdivision Surface", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.initfunc = file_ns::node_init;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
+  ntype.initfunc = node_init;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
   node_type_storage(&ntype,
                     "NodeGeometrySubdivisionSurface",
                     node_free_standard_storage,
                     node_copy_standard_storage);
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_subdivision_surface_cc

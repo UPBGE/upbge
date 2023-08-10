@@ -17,6 +17,8 @@
 
 #include "BKE_mesh.hh"
 
+#include "NOD_rna_define.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_scale_elements_cc {
@@ -450,19 +452,62 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(geometry));
 }
 
-}  // namespace blender::nodes::node_geo_scale_elements_cc
-
-void register_node_type_geo_scale_elements()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_scale_elements_cc;
+  static const EnumPropertyItem domain_items[] = {
+      {ATTR_DOMAIN_FACE,
+       "FACE",
+       ICON_NONE,
+       "Face",
+       "Scale individual faces or neighboring face islands"},
+      {ATTR_DOMAIN_EDGE,
+       "EDGE",
+       ICON_NONE,
+       "Edge",
+       "Scale individual edges or neighboring edge islands"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
+  static const EnumPropertyItem scale_mode_items[] = {
+      {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
+       "UNIFORM",
+       ICON_NONE,
+       "Uniform",
+       "Scale elements by the same factor in every direction"},
+      {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
+       "SINGLE_AXIS",
+       ICON_NONE,
+       "Single Axis",
+       "Scale elements in a single direction"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_node_enum(srna,
+                    "domain",
+                    "Domain",
+                    "Element type to transform",
+                    domain_items,
+                    NOD_inline_enum_accessors(custom1),
+                    ATTR_DOMAIN_FACE);
+
+  RNA_def_node_enum(
+      srna, "scale_mode", "Scale Mode", "", scale_mode_items, NOD_inline_enum_accessors(custom2));
+}
+
+static void node_register()
+{
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SCALE_ELEMENTS, "Scale Elements", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.initfunc = file_ns::node_init;
-  ntype.updatefunc = file_ns::node_update;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  ntype.initfunc = node_init;
+  ntype.updatefunc = node_update;
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_scale_elements_cc

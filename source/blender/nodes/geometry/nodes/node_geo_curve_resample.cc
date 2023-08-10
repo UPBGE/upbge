@@ -9,6 +9,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_rna_define.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_curve_resample_cc {
@@ -106,21 +108,53 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Curve", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_curve_resample_cc
-
-void register_node_type_geo_curve_resample()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_curve_resample_cc;
+  static EnumPropertyItem mode_items[] = {
+      {GEO_NODE_CURVE_RESAMPLE_EVALUATED,
+       "EVALUATED",
+       0,
+       "Evaluated",
+       "Output the input spline's evaluated points, based on the resolution attribute for NURBS "
+       "and Bezier splines. Poly splines are unchanged"},
+      {GEO_NODE_CURVE_RESAMPLE_COUNT,
+       "COUNT",
+       0,
+       "Count",
+       "Sample the specified number of points along each spline"},
+      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
+       "LENGTH",
+       0,
+       "Length",
+       "Calculate the number of samples by splitting each spline into segments with the specified "
+       "length"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
+  RNA_def_node_enum(srna,
+                    "mode",
+                    "Mode",
+                    "How to specify the amount of samples",
+                    mode_items,
+                    NOD_storage_enum_accessors(mode));
+}
+
+static void node_register()
+{
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_RESAMPLE_CURVE, "Resample Curve", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_layout;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
   node_type_storage(
       &ntype, "NodeGeometryCurveResample", node_free_standard_storage, node_copy_standard_storage);
-  ntype.initfunc = file_ns::node_init;
-  ntype.updatefunc = file_ns::node_update;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.initfunc = node_init;
+  ntype.updatefunc = node_update;
+  ntype.geometry_node_execute = node_geo_exec;
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_curve_resample_cc

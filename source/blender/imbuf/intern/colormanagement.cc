@@ -42,6 +42,8 @@
 #include "BKE_image_format.h"
 #include "BKE_main.h"
 
+#include "GPU_capabilities.h"
+
 #include "RNA_define.h"
 
 #include "SEQ_iterator.h"
@@ -1928,8 +1930,6 @@ static void colormanagement_transform_ex(uchar *byte_buffer,
                                          bool predivide,
                                          bool do_threaded)
 {
-  ColormanageProcessor *cm_processor;
-
   if (from_colorspace[0] == '\0') {
     return;
   }
@@ -1941,7 +1941,12 @@ static void colormanagement_transform_ex(uchar *byte_buffer,
     return;
   }
 
-  cm_processor = IMB_colormanagement_colorspace_processor_new(from_colorspace, to_colorspace);
+  ColormanageProcessor *cm_processor = IMB_colormanagement_colorspace_processor_new(
+      from_colorspace, to_colorspace);
+  if (IMB_colormanagement_processor_is_noop(cm_processor)) {
+    IMB_colormanagement_processor_free(cm_processor);
+    return;
+  }
 
   if (do_threaded) {
     processor_transform_apply_threaded(
@@ -2787,6 +2792,31 @@ void IMB_display_buffer_transform_apply(uchar *display_buffer,
                              width,
                              width);
 
+  MEM_freeN(buffer);
+}
+
+void IMB_display_buffer_transform_apply_float(float *float_display_buffer,
+                                              float *linear_buffer,
+                                              int width,
+                                              int height,
+                                              int channels,
+                                              const ColorManagedViewSettings *view_settings,
+                                              const ColorManagedDisplaySettings *display_settings,
+                                              bool predivide)
+{
+  float *buffer;
+  ColormanageProcessor *cm_processor = IMB_colormanagement_display_processor_new(view_settings,
+                                                                                 display_settings);
+
+  buffer = static_cast<float *>(MEM_mallocN(size_t(channels) * width * height * sizeof(float),
+                                            "display transform temp buffer"));
+  memcpy(buffer, linear_buffer, size_t(channels) * width * height * sizeof(float));
+
+  IMB_colormanagement_processor_apply(cm_processor, buffer, width, height, channels, predivide);
+
+  IMB_colormanagement_processor_free(cm_processor);
+
+  memcpy(float_display_buffer, buffer, size_t(channels) * width * height * sizeof(float));
   MEM_freeN(buffer);
 }
 
@@ -3824,6 +3854,18 @@ ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(const char *f
   return cm_processor;
 }
 
+bool IMB_colormanagement_processor_is_noop(ColormanageProcessor *cm_processor)
+{
+  if (cm_processor->curve_mapping) {
+    /* Consider processor which has curve mapping as a non no-op.
+     * This is mainly for the simplicity of the check, since the current cases where this function
+     * is used the curve mapping is never assigned. */
+    return false;
+  }
+
+  return OCIO_cpuProcessorIsNoOp(cm_processor->cpu_processor);
+}
+
 void IMB_colormanagement_processor_apply_v4(ColormanageProcessor *cm_processor, float pixel[4])
 {
   if (cm_processor->curve_mapping) {
@@ -4080,6 +4122,8 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
   const float gamma = applied_view_settings->gamma;
   const float scale = (exposure == 0.0f) ? 1.0f : powf(2.0f, exposure);
   const float exponent = (gamma == 1.0f) ? 1.0f : 1.0f / max_ff(FLT_EPSILON, gamma);
+  const bool use_hdr = GPU_hdr_support() &&
+                       (applied_view_settings->flag & COLORMANAGE_VIEW_USE_HDR) != 0;
 
   OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
 
@@ -4094,7 +4138,8 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
                                                                 exponent,
                                                                 dither,
                                                                 predivide,
-                                                                do_overlay_merge);
+                                                                do_overlay_merge,
+                                                                use_hdr);
 
   OCIO_configRelease(config);
 

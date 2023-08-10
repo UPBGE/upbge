@@ -364,6 +364,7 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   BLI_freelistN(&userdef->autoexec_paths);
   BLI_freelistN(&userdef->script_directories);
   BLI_freelistN(&userdef->asset_libraries);
+  BLI_freelistN(&userdef->extension_repos);
 
   BLI_freelistN(&userdef->uistyles);
   BLI_freelistN(&userdef->uifonts);
@@ -393,7 +394,7 @@ void BKE_blender_userdef_app_template_data_swap(UserDef *userdef_a, UserDef *use
   } \
   ((void)0)
 
-#define LIST_SWAP(id) \
+#define LISTBASE_SWAP(id) \
   { \
     SWAP(ListBase, userdef_a->id, userdef_b->id); \
   } \
@@ -410,12 +411,12 @@ void BKE_blender_userdef_app_template_data_swap(UserDef *userdef_a, UserDef *use
   } \
   ((void)0)
 
-  LIST_SWAP(uistyles);
-  LIST_SWAP(uifonts);
-  LIST_SWAP(themes);
-  LIST_SWAP(addons);
-  LIST_SWAP(user_keymaps);
-  LIST_SWAP(user_keyconfig_prefs);
+  LISTBASE_SWAP(uistyles);
+  LISTBASE_SWAP(uifonts);
+  LISTBASE_SWAP(themes);
+  LISTBASE_SWAP(addons);
+  LISTBASE_SWAP(user_keymaps);
+  LISTBASE_SWAP(user_keyconfig_prefs);
 
   DATA_SWAP(font_path_ui);
   DATA_SWAP(font_path_ui_mono);
@@ -431,7 +432,7 @@ void BKE_blender_userdef_app_template_data_swap(UserDef *userdef_a, UserDef *use
 
 #undef SWAP_TYPELESS
 #undef DATA_SWAP
-#undef LIST_SWAP
+#undef LISTBASE_SWAP
 #undef FLAG_SWAP
 }
 

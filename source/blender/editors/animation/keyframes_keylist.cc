@@ -54,8 +54,10 @@ BLI_INLINE bool is_cfra_lt(const float a, const float b)
 
 /* --------------- */
 
-/* Animation data of Grease Pencil cels,
-   which are drawings positioned in time. */
+/**
+ * Animation data of Grease Pencil cels,
+ * which are drawings positioned in time.
+ */
 struct GreasePencilCel {
   int frame_number;
   GreasePencilFrame frame;
@@ -959,6 +961,10 @@ void summary_to_keylist(bAnimContext *ac, AnimKeylist *keylist, const int sactio
         case ALE_GPFRAME:
           gpl_to_keylist(ac->ads, static_cast<bGPDlayer *>(ale->data), keylist);
           break;
+        case ALE_GREASE_PENCIL_CEL:
+          grease_pencil_cels_to_keylist(
+              ale->adt, static_cast<const GreasePencilLayer *>(ale->data), keylist, saction_flag);
+          break;
         default:
           // printf("%s: datatype %d unhandled\n", __func__, ale->datatype);
           break;
@@ -1158,8 +1164,21 @@ void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, con
   }
 }
 
+void grease_pencil_data_block_to_keylist(AnimData *adt,
+                                         const GreasePencil *grease_pencil,
+                                         AnimKeylist *keylist,
+                                         const int saction_flag)
+{
+  if ((grease_pencil == nullptr) || (keylist == nullptr)) {
+    return;
+  }
+  for (const blender::bke::greasepencil::Layer *layer : grease_pencil->layers()) {
+    grease_pencil_cels_to_keylist(adt, layer, keylist, saction_flag);
+  }
+}
+
 void grease_pencil_cels_to_keylist(AnimData * /*adt*/,
-                                   GreasePencilLayer *gpl,
+                                   const GreasePencilLayer *gpl,
                                    AnimKeylist *keylist,
                                    int /*saction_flag*/)
 {

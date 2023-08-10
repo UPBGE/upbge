@@ -1135,8 +1135,9 @@ static void asset_shelf_draw_context_menu(const bContext *C,
 
   PointerRNA ptr;
   RNA_pointer_create(nullptr, shelf_type->rna_ext.srna, nullptr, &ptr); /* dummy */
-  FunctionRNA *func = &rna_AssetShelf_draw_context_menu_func; /* RNA_struct_find_function(&ptr,
-                                                                     "draw_context_menu"); */
+
+  FunctionRNA *func = &rna_AssetShelf_draw_context_menu_func;
+  // RNA_struct_find_function(&ptr, "draw_context_menu");
 
   ParameterList list;
   RNA_parameter_list_create(&list, &ptr, func);
@@ -1344,22 +1345,22 @@ static void rna_UILayout_enabled_set(PointerRNA *ptr, bool value)
 #  if 0
 static int rna_UILayout_red_alert_get(PointerRNA *ptr)
 {
-  return uiLayoutGetRedAlert(static_cast<  uiLayout*>(ptr->data));
+  return uiLayoutGetRedAlert(static_cast<uiLayout *>(ptr->data));
 }
 
 static void rna_UILayout_red_alert_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetRedAlert(static_cast<  uiLayout*>(ptr->data), value);
+  uiLayoutSetRedAlert(static_cast<uiLayout *>(ptr->data), value);
 }
 
 static bool rna_UILayout_keep_aspect_get(PointerRNA *ptr)
 {
-  return uiLayoutGetKeepAspect(static_cast<  uiLayout*>(ptr->data));
+  return uiLayoutGetKeepAspect(static_cast<uiLayout *>(ptr->data));
 }
 
 static void rna_UILayout_keep_aspect_set(PointerRNA *ptr, int value)
 {
-  uiLayoutSetKeepAspect(static_cast<  uiLayout*>(ptr->data), value);
+  uiLayoutSetKeepAspect(static_cast<uiLayout *>(ptr->data), value);
 }
 #  endif
 

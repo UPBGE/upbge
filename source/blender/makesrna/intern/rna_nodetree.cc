@@ -620,7 +620,7 @@ extern FunctionRNA rna_Node_draw_buttons_ext_func;
 extern FunctionRNA rna_Node_draw_label_func;
 }
 
-static void rna_Node_socket_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr);
+void rna_Node_socket_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr);
 
 int rna_node_tree_idname_to_enum(const char *idname)
 {
@@ -2371,7 +2371,7 @@ static bool rna_Node_parent_poll(PointerRNA *ptr, PointerRNA value)
   return true;
 }
 
-static void rna_Node_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+void rna_Node_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode *node = static_cast<bNode *>(ptr->data);
@@ -4011,7 +4011,7 @@ static void rna_ShaderNode_socket_update(Main *bmain, Scene *scene, PointerRNA *
   rna_Node_update(bmain, scene, ptr);
 }
 
-static void rna_Node_socket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+void rna_Node_socket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_Node_update(bmain, scene, ptr);
 }
@@ -9264,26 +9264,6 @@ static void def_geo_triangulate(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-static void def_geo_subdivision_surface(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  RNA_def_struct_sdna_from(srna, "NodeGeometrySubdivisionSurface", "storage");
-  prop = RNA_def_property(srna, "uv_smooth", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "uv_smooth");
-  RNA_def_property_enum_items(prop, rna_enum_subdivision_uv_smooth_items);
-  RNA_def_property_enum_default(prop, SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES);
-  RNA_def_property_ui_text(prop, "UV Smooth", "Controls how smoothing is applied to UVs");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
-  prop = RNA_def_property(srna, "boundary_smooth", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "boundary_smooth");
-  RNA_def_property_enum_items(prop, rna_enum_subdivision_boundary_smooth_items);
-  RNA_def_property_enum_default(prop, SUBSURF_BOUNDARY_SMOOTH_ALL);
-  RNA_def_property_ui_text(prop, "Boundary Smooth", "Controls how open boundaries are smoothed");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
 static void def_geo_accumulate_field(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -9481,17 +9461,6 @@ static void def_geo_curve_set_handle_positions(StructRNA *srna)
   RNA_def_property_enum_items(prop, rna_node_geometry_curve_handle_side_items);
   RNA_def_property_ui_text(prop, "Mode", "Whether to update left and right handles");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-}
-
-static void def_geo_set_curve_normal(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, rna_enum_curve_normal_modes);
-  RNA_def_property_ui_text(prop, "Mode", "Mode for curve normal evaluation");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_geo_simulation_input(StructRNA *srna)
@@ -10067,33 +10036,6 @@ static void def_geo_points_to_sdf_volume(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
-static void def_geo_uv_unwrap(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static EnumPropertyItem rna_node_geometry_uv_unwrap_method_items[] = {
-      {GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED,
-       "ANGLE_BASED",
-       0,
-       "Angle Based",
-       "This method gives a good 2D representation of a mesh"},
-      {GEO_NODE_UV_UNWRAP_METHOD_CONFORMAL,
-       "CONFORMAL",
-       0,
-       "Conformal",
-       "Uses LSCM (Least Squares Conformal Mapping). This usually gives a less accurate UV "
-       "mapping than Angle Based, but works better for simpler objects"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_struct_sdna_from(srna, "NodeGeometryUVUnwrap", "storage");
-
-  prop = RNA_def_property(srna, "method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_node_geometry_uv_unwrap_method_items);
-  RNA_def_property_ui_text(prop, "Method", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
 static void def_geo_collection_info(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10154,37 +10096,6 @@ static void def_geo_proximity(StructRNA *srna)
   RNA_def_property_enum_default(prop, GEO_NODE_PROX_TARGET_FACES);
   RNA_def_property_ui_text(
       prop, "Target Geometry", "Element of the target geometry to calculate the distance from");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-}
-
-static void def_geo_volume_to_mesh(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static EnumPropertyItem resolution_mode_items[] = {
-      {VOLUME_TO_MESH_RESOLUTION_MODE_GRID,
-       "GRID",
-       0,
-       "Grid",
-       "Use resolution of the volume grid"},
-      {VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT,
-       "VOXEL_AMOUNT",
-       0,
-       "Amount",
-       "Desired number of voxels along one axis"},
-      {VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE,
-       "VOXEL_SIZE",
-       0,
-       "Size",
-       "Desired voxel side length"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_struct_sdna_from(srna, "NodeGeometryVolumeToMesh", "storage");
-
-  prop = RNA_def_property(srna, "resolution_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, resolution_mode_items);
-  RNA_def_property_ui_text(prop, "Resolution Mode", "How the voxel size is specified");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
@@ -10399,39 +10310,6 @@ static void def_geo_curve_primitive_quadrilateral(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
-static void def_geo_curve_resample(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_RESAMPLE_EVALUATED,
-       "EVALUATED",
-       0,
-       "Evaluated",
-       "Output the input spline's evaluated points, based on the resolution attribute for NURBS "
-       "and Bezier splines. Poly splines are unchanged"},
-      {GEO_NODE_CURVE_RESAMPLE_COUNT,
-       "COUNT",
-       0,
-       "Count",
-       "Sample the specified number of points along each spline"},
-      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
-       "LENGTH",
-       0,
-       "Length",
-       "Calculate the number of samples by splitting each spline into segments with the specified "
-       "length"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_struct_sdna_from(srna, "NodeGeometryCurveResample", "storage");
-
-  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, mode_items);
-  RNA_def_property_ui_text(prop, "Mode", "How to specify the amount of samples");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-}
-
 static void def_geo_curve_fillet(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10524,32 +10402,6 @@ static void def_geo_mesh_to_points(StructRNA *srna)
   RNA_def_property_enum_items(prop, mode_items);
   RNA_def_property_ui_text(prop, "Mode", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
-static void def_geo_curve_trim(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_SAMPLE_FACTOR,
-       "FACTOR",
-       0,
-       "Factor",
-       "Find the endpoint positions using a factor of each spline's length"},
-      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
-       "LENGTH",
-       0,
-       "Length",
-       "Find the endpoint positions using a length from the start of each spline"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_struct_sdna_from(srna, "NodeGeometryCurveTrim", "storage");
-
-  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, mode_items);
-  RNA_def_property_ui_text(prop, "Mode", "How to find endpoint positions for the trimmed spline");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
 static void def_geo_sample_index(StructRNA *srna)
@@ -11051,53 +10903,6 @@ static void def_geo_evaluate_on_domain(StructRNA *srna)
   RNA_def_property_enum_funcs(
       prop, nullptr, nullptr, "rna_GeometryNodeAttributeType_type_with_socket_itemf");
   RNA_def_property_ui_text(prop, "Data Type", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_GeometryNode_socket_update");
-}
-
-static void def_geo_scale_elements(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static const EnumPropertyItem domain_items[] = {
-      {ATTR_DOMAIN_FACE,
-       "FACE",
-       ICON_NONE,
-       "Face",
-       "Scale individual faces or neighboring face islands"},
-      {ATTR_DOMAIN_EDGE,
-       "EDGE",
-       ICON_NONE,
-       "Edge",
-       "Scale individual edges or neighboring edge islands"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  static const EnumPropertyItem scale_mode_items[] = {
-      {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
-       "UNIFORM",
-       ICON_NONE,
-       "Uniform",
-       "Scale elements by the same factor in every direction"},
-      {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
-       "SINGLE_AXIS",
-       ICON_NONE,
-       "Single Axis",
-       "Scale elements in a single direction"},
-      {0, nullptr, 0, nullptr, nullptr},
-
-  };
-
-  prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, domain_items);
-  RNA_def_property_enum_default(prop, ATTR_DOMAIN_FACE);
-  RNA_def_property_ui_text(prop, "Domain", "Element type to transform");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_GeometryNode_socket_update");
-
-  prop = RNA_def_property(srna, "scale_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
-  RNA_def_property_enum_items(prop, scale_mode_items);
-  RNA_def_property_ui_text(prop, "Scale Mode", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_GeometryNode_socket_update");
 }
 

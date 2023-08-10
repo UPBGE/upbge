@@ -2,6 +2,35 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+set(DISCOVER_NODES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/intern/discover_nodes.py)
+
+# Creates a library with the given name that exposes one function which calls
+# the register functions of all nodes in the provided source files.
+function(add_node_discovery
+  lib_name
+  sources
+  output_file
+  output_function
+  )
+
+  add_custom_command(
+    OUTPUT
+      ${output_file}
+    COMMAND
+      ${PYTHON_EXECUTABLE}
+        ${DISCOVER_NODES_PATH}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${output_file}
+        ${output_function}
+        ${sources}
+    DEPENDS
+      ${SRC}
+      ${DISCOVER_NODES_PATH}
+  )
+
+  add_library(${lib_name} ${output_file})
+endfunction()
+
 add_subdirectory(composite)
 add_subdirectory(function)
 add_subdirectory(geometry)
@@ -67,6 +96,7 @@ set(SRC
   NOD_multi_function.hh
   NOD_node_declaration.hh
   NOD_register.hh
+  NOD_rna_define.hh
   NOD_shader.h
   NOD_socket.hh
   NOD_socket_declarations.hh
