@@ -846,8 +846,6 @@ void CcdPhysicsController::UpdateSoftBody()
       RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
 
       if (rasMesh) {
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
         Object *ob = gameobj->GetBlenderObject();

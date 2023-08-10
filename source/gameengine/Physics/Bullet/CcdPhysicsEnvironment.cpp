@@ -2078,7 +2078,6 @@ void CcdPhysicsEnvironment::CallbackTriggers()
   // callback, perform callback
   btDispatcher *dispatcher = m_dynamicsWorld->getDispatcher();
   for (unsigned int i = 0, numManifolds = dispatcher->getNumManifolds(); i < numManifolds; i++) {
-    bool colliding_ctrl0 = true;
     btPersistentManifold *manifold = dispatcher->getManifoldByIndexInternal(i);
     if (manifold->getNumContacts() == 0) {
       continue;
@@ -2779,8 +2778,6 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   CcdConstructionInfo ci;
   class CcdShapeConstructionInfo *shapeInfo = new CcdShapeConstructionInfo();
 
-  Object *blenderparent = blenderobject->parent;
-  Object *rootparent = nullptr;
   // Find the upper parent object using compound shape.
   Object *blenderRoot = blenderobject->parent;
   Object *blenderCompoundRoot = nullptr;
