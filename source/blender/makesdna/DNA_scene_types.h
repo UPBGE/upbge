@@ -1032,6 +1032,7 @@ enum {
 #define GAME_USE_VIEWPORT_RENDER (1 << 21)
 #define GAME_PYTHON_CONSOLE (1 << 22)
 #define GAME_USE_INTERACTIVE_DYNAPAINT (1 << 23)
+#define GAME_USE_INTERACTIVE_RIGIDBODY (1 << 24)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */

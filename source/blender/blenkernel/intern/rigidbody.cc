@@ -2136,7 +2136,7 @@ bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime)
   return (rbw && (rbw->flag & RBW_FLAG_MUTED) == 0 && ctime > rbw->shared->pointcache->startframe);
 }
 
-void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
+void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Scene *scene, Object *ob, float ctime) /* UPBGE: added Scene * arg */
 {
   if (!BKE_rigidbody_is_affected_by_simulation(ob)) {
     /* Don't sync transforms for objects that are not affected/changed by the simulation. */
@@ -2145,9 +2145,15 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 
   RigidBodyOb *rbo = ob->rigidbody_object;
 
+  /* UPBGE */
+  bool use_interactive_rb = (scene->flag & SCE_INTERACTIVE ||
+                             scene->flag & SCE_INTERACTIVE_VIEWPORT) &&
+                            scene->gm.flag & GAME_USE_INTERACTIVE_RIGIDBODY;
+  /*********/
+
   /* use rigid body transform after cache start frame if objects is not being transformed */
   if (BKE_rigidbody_check_sim_running(rbw, ctime) &&
-      !(ob->base_flag & BASE_SELECTED && G.moving & G_TRANSFORM_OBJ))
+          !(ob->base_flag & BASE_SELECTED && G.moving & G_TRANSFORM_OBJ) || use_interactive_rb)
   {
     float mat[4][4], size_mat[4][4], size[3];
 
@@ -2292,6 +2298,49 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
   PointCache *cache;
   PTCacheID pid;
   int startframe, endframe;
+
+  /* UPBGE */
+  bool use_interactive_rb = (scene->flag & SCE_INTERACTIVE ||
+                             scene->flag & SCE_INTERACTIVE_VIEWPORT) &&
+                            scene->gm.flag & GAME_USE_INTERACTIVE_RIGIDBODY;
+  if (use_interactive_rb) {
+    if (rbw->objects == nullptr) {
+      rigidbody_update_ob_array(rbw);
+    }
+    const float frame_diff = 1.0f;
+    /* calculate how much time elapsed since last step in seconds */
+    const float timestep = 1.0f / float(FPS) * frame_diff * rbw->time_scale;
+
+    const float substep = timestep / rbw->substeps_per_frame;
+
+    ListBase kinematic_substep_targets = rigidbody_create_substep_data(rbw);
+
+    const float interp_step = 1.0f / rbw->substeps_per_frame;
+    float cur_interp_val = interp_step;
+
+    /* update and validate simulation */
+    rigidbody_update_simulation(depsgraph, scene, rbw, false);
+
+    for (int i = 0; i < rbw->substeps_per_frame; i++) {
+      rigidbody_update_external_forces(depsgraph, scene, rbw);
+      rigidbody_update_kinematic_obj_substep(&kinematic_substep_targets, cur_interp_val);
+      RB_dworld_step_simulation(
+          static_cast<rbDynamicsWorld *>(rbw->shared->physics_world), substep, 0, substep);
+      cur_interp_val += interp_step;
+    }
+    rigidbody_free_substep_data(&kinematic_substep_targets);
+
+    rigidbody_update_simulation_post_step(depsgraph, rbw);
+    BKE_ptcache_id_from_rigidbody(&pid, nullptr, rbw);
+    BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, nullptr);
+    cache = rbw->shared->pointcache;
+    /* write cache for current frame */
+    if (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0) {
+      BKE_ptcache_write(&pid, startframe);
+    }
+    return;
+  }
+  /* End of UPBGE */
 
   BKE_ptcache_id_from_rigidbody(&pid, nullptr, rbw);
   BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, nullptr);
@@ -2485,5 +2534,5 @@ void BKE_rigidbody_object_sync_transforms(Depsgraph *depsgraph, Scene *scene, Ob
   float ctime = DEG_get_ctime(depsgraph);
   DEG_debug_print_eval_time(depsgraph, __func__, ob->id.name, ob, ctime);
   /* read values pushed into RBO from sim/cache... */
-  BKE_rigidbody_sync_transforms(rbw, ob, ctime);
+  BKE_rigidbody_sync_transforms(rbw, scene, ob, ctime);
 }

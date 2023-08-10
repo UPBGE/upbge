@@ -6288,6 +6288,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_INTERACTIVE_DYNAPAINT);
   RNA_def_property_ui_text(prop, "Use Interactive Dynamic Paint", "Blender Dynamic paint at bge runtime");
 
+  prop = RNA_def_property(srna, "use_interactive_rigidbody", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_INTERACTIVE_RIGIDBODY);
+  RNA_def_property_ui_text(
+      prop, "Use Interactive Rigidbody Sim", "Blender Rigidbody sim at bge runtime (experimental)");
+
   /* obstacle simulation */
   prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "obstacleSimulation");

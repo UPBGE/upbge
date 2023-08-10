@@ -202,7 +202,10 @@ void BKE_rigidbody_aftertrans_update(struct Object *ob,
 /**
  * Sync rigid body and object transformations.
  */
-void BKE_rigidbody_sync_transforms(struct RigidBodyWorld *rbw, struct Object *ob, float ctime);
+void BKE_rigidbody_sync_transforms(struct RigidBodyWorld *rbw,
+                                   struct Scene *scene,
+                                   struct Object *ob,
+                                   float ctime); /* UPBGE - added Scene * arg */
 bool BKE_rigidbody_check_sim_running(struct RigidBodyWorld *rbw, float ctime);
 bool BKE_rigidbody_is_affected_by_simulation(struct Object *ob);
 void BKE_rigidbody_cache_reset(struct RigidBodyWorld *rbw);

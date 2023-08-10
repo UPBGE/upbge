@@ -756,10 +756,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Notify the depsgraph if object transform changed in the scene
    * for next drawing loop. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
     /* Update compatibles blender physics simulations */
     Object *ob = gameobj->GetBlenderObject();
     TagBlenderPhysicsObject(scene, ob);
+    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
 
   /* Notify depsgraph for other changes */
@@ -1396,9 +1396,9 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
 void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
 {
   /* Optionally handle Blender Physics simulation at bge runtime when supported */
-  bool use_interactive_dynapaint = (scene->flag & SCE_INTERACTIVE ||
-                                    scene->flag & SCE_INTERACTIVE_VIEWPORT) &&
-                                   scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
+  bool do_blender_physics_step = KX_GetActiveEngine()->DoBlenderPhysicsStep();
+
+  bool use_interactive_dynapaint = scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
   if (use_interactive_dynapaint) {
     /* Option to leave dynamic paint work during bge session :
      * Tag the brush for transform to update simulation */
@@ -1410,6 +1410,13 @@ void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
         }
       }
+    }
+  }
+  bool use_interactive_rb = scene->gm.flag & GAME_USE_INTERACTIVE_RIGIDBODY;
+  if (use_interactive_rb) {
+    if (ob->rigidbody_object && do_blender_physics_step) {
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      ob->transflag |= OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
     }
   }
 }

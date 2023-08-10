@@ -639,6 +639,8 @@ class SCENE_PT_game_blender_physics(SceneButtonsPanel, Panel):
         gs = context.scene.game_settings
 
         layout.prop(gs, "use_interactive_dynapaint")
+        row = layout.row()
+        row.prop(gs, "use_interactive_rigidbody")
 
 class SCENE_PT_game_physics_obstacles(SceneButtonsPanel, Panel):
     bl_label = "Obstacle Simulation"

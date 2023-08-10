@@ -4378,7 +4378,7 @@ static void object_where_is_calc_ex(Depsgraph *depsgraph,
   /* try to fall back to the scene rigid body world if none given */
   rbw = rbw ? rbw : scene->rigidbody_world;
   /* read values pushed into RBO from sim/cache... */
-  BKE_rigidbody_sync_transforms(rbw, ob, ctime);
+  BKE_rigidbody_sync_transforms(rbw, scene, ob, ctime); /* UPBGE - added Scene * arg */
 
   /* solve constraints */
   if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
