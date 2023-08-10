@@ -161,7 +161,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
 
   m_scenes = new EXP_ListValue<KX_Scene>();
   m_renderingCameras = {};
-  m_previousBlenderPhysicsTime = 0.0;
 }
 
 /**
@@ -352,18 +351,6 @@ void KX_KetsjiEngine::EndFrameViewportRender()
   m_logger.StartLog(tc_rasterizer);
 
   m_canvas->EndDraw();
-}
-
-bool KX_KetsjiEngine::DoBlenderPhysicsStep()
-{
-  double physics_timestep = 1.0 / m_scenes->GetFront()->GetAnimationFPS();
-  if (m_frameTime - m_previousBlenderPhysicsTime > physics_timestep ||
-      m_frameTime == m_previousBlenderPhysicsTime)
-  {
-    m_previousBlenderPhysicsTime = m_frameTime;
-    return true;
-  }
-  return false;
 }
 
 KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()

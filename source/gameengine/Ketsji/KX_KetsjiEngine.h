@@ -131,7 +131,6 @@ class KX_KetsjiEngine {
   bool m_useViewportRender;
   int m_shadingTypeRuntime;
   std::vector<KX_Camera *> m_renderingCameras;
-  double m_previousBlenderPhysicsTime;
   /*************************************************/
 
   /// 2D Canvas (2D Rendering Device Context)
@@ -301,7 +300,6 @@ class KX_KetsjiEngine {
   void CountDepsgraphTime();
   void EndCountDepsgraphTime();
   void EndFrameViewportRender();
-  bool DoBlenderPhysicsStep();
   std::vector<KX_Camera *> GetRenderingCameras();
   /***** End of EEVEE integration *****/
 

@@ -1397,8 +1397,6 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
 void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
 {
   /* Optionally handle Blender Physics simulation at bge runtime when supported */
-  bool do_blender_physics_step = KX_GetActiveEngine()->DoBlenderPhysicsStep();
-
   bool use_interactive_dynapaint = scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
   if (use_interactive_dynapaint) {
     /* Option to leave dynamic paint work during bge session :
@@ -1416,7 +1414,7 @@ void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
   bool use_interactive_rb = scene->gm.flag & GAME_USE_INTERACTIVE_RIGIDBODY;
   if (use_interactive_rb) {
     if (ob->rigidbody_object &&
-        ob->rigidbody_object->type == RBO_TYPE_ACTIVE && do_blender_physics_step)
+        ob->rigidbody_object->type == RBO_TYPE_ACTIVE)
     {
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
       ob->transflag |= OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;

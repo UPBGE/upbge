@@ -2307,7 +2307,7 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
     if (rbw->objects == nullptr) {
       rigidbody_update_ob_array(rbw);
     }
-    const float frame_diff = 1.0f;
+    const float frame_diff = float(FPS) / 60.0f;
     /* calculate how much time elapsed since last step in seconds */
     const float timestep = 1.0f / float(FPS) * frame_diff * rbw->time_scale;
 
