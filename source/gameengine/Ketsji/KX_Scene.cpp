@@ -47,6 +47,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_property_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DRW_render.h"
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -1414,7 +1415,9 @@ void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
   }
   bool use_interactive_rb = scene->gm.flag & GAME_USE_INTERACTIVE_RIGIDBODY;
   if (use_interactive_rb) {
-    if (ob->rigidbody_object && do_blender_physics_step) {
+    if (ob->rigidbody_object &&
+        ob->rigidbody_object->type == RBO_TYPE_ACTIVE && do_blender_physics_step)
+    {
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
       ob->transflag |= OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
     }
