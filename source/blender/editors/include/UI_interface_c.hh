@@ -15,7 +15,7 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
-#include "RNA_types.h" /* UPBGE */
+#include "RNA_types.hh" /* UPBGE */
 #include "UI_interface_icons.hh"
 #include "WM_types.hh"
 

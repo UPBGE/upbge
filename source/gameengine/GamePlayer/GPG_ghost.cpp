@@ -105,7 +105,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 #include "RE_texture.h"
-#include "RNA_define.h"
+#include "RNA_define.hh"
 #include "SEQ_clipboard.h"
 #include "UI_interface.hh"
 #include "UI_resources.hh"

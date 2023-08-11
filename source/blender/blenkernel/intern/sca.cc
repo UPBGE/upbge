@@ -43,7 +43,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 
 #include "BKE_global.h"
 #include "BKE_lib_id.h"

@@ -22,7 +22,7 @@
 
 #include <stdlib.h>
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "DNA_property_types.h"
 #include "DNA_python_proxy_types.h"

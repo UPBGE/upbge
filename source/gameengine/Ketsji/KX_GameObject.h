@@ -40,7 +40,6 @@
 
 #include <stddef.h>
 
-#include "BLI_math.h"
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 

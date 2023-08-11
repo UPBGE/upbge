@@ -27,7 +27,7 @@
 #include "KX_PyMath.h"
 #include "PHY_ICharacter.h"
 
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 
 KX_CharacterWrapper::KX_CharacterWrapper(PHY_ICharacter *character) : m_character(character)
 {

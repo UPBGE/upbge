@@ -29,7 +29,7 @@
 #include <cstring>
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
@@ -37,8 +37,8 @@
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"

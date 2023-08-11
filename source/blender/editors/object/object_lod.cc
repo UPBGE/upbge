@@ -36,8 +36,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -45,7 +45,7 @@
 #ifdef WITH_GAMEENGINE
 #  include "BKE_object.h"
 
-#  include "RNA_enum_types.h"
+#  include "RNA_enum_types.hh"
 #endif
 
 #include "object_intern.h"

@@ -40,7 +40,7 @@
 #include "BKE_report.h"
 #include "BKE_text.h"
 
-#include "RNA_types.h"
+#include "RNA_types.hh"
 
 #ifdef WITH_PYTHON
 #  include "Python.h"

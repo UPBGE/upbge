@@ -35,7 +35,7 @@
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "BL_ArmatureObject.h"
 #include "BL_IpoConvert.h"

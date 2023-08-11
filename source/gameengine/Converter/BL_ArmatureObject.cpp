@@ -35,8 +35,9 @@
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
+#include "BLI_math_rotation.h"
 #include "DNA_armature_types.h"
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "BL_Action.h"
 #include "BL_SceneConverter.h"

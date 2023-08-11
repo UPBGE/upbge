@@ -30,6 +30,8 @@
 
 #include "SCA_SteeringActuator.h"
 
+#include "BLI_math_rotation.h"
+
 #include "EXP_ListWrapper.h"
 #include "KX_Globals.h"
 #include "KX_NavMeshObject.h"
