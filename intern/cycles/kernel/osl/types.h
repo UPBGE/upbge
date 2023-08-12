@@ -4,6 +4,10 @@
 
 #pragma once
 
+#if !defined(__KERNEL_GPU__)
+#  include <OSL/oslversion.h>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 #if defined(__KERNEL_GPU__)

@@ -25,6 +25,7 @@ set(INC
   ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/memutil
+  ../../../extern/fmtlib/include
   ../bmesh
 
   # RNA_prototypes.h

@@ -10,24 +10,26 @@
 
 #include "tree_element.hh"
 
+struct Object;
+struct bActionGroup;
+
 namespace blender::ed::outliner {
 
-class TreeElementViewLayerBase final : public AbstractTreeElement {
-  Scene &scene_;
+class TreeElementPoseGroupBase final : public AbstractTreeElement {
+  Object &object_;
 
  public:
-  TreeElementViewLayerBase(TreeElement &legacy_te, Scene &scene);
-
+  TreeElementPoseGroupBase(TreeElement &legacy_te, Object &object);
   void expand(SpaceOutliner &) const override;
 };
 
-class TreeElementViewLayer final : public AbstractTreeElement {
+class TreeElementPoseGroup final : public AbstractTreeElement {
   /* Not needed right now, avoid unused member variable warning. */
-  // Scene &scene_;
-  ViewLayer &view_layer_;
+  // Object &object_;
+  bActionGroup &agrp_;
 
  public:
-  TreeElementViewLayer(TreeElement &legacy_te, Scene &scene, ViewLayer &view_layer);
+  TreeElementPoseGroup(TreeElement &legacy_te, Object &object, bActionGroup &agrp);
 };
 
 }  // namespace blender::ed::outliner
