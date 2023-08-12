@@ -773,8 +773,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* We need the changes to be flushed before each draw loop! */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  //UpdateParents(0.0);
-
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForTransformUpdateEvaluated();
@@ -1429,14 +1427,13 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
   Object *ob = gameobj->GetBlenderObject();
   if (ob) {
     if (ob->instance_collection) {
-      std::cout << "Warning: Full duplication of an instance collection is not supported: " << ob->id.name + 2 << std::endl;
+      CM_Warning("Warning: Full duplication of an instance collection is not supported: " << ob->id.name + 2);
       return nullptr;
     }
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    // Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
       Base *basen = ED_object_add_duplicate(bmain, scene, view_layer, base, USER_DUP_OBDATA);
