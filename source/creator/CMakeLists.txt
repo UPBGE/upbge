@@ -393,7 +393,7 @@ if(UNIX AND NOT APPLE)
   else()
     if(WITH_INSTALL_PORTABLE)
       set(TARGETDIR_VER ${BLENDER_VERSION})
-      set(TARGETDIR_TEXT .)
+      set(TARGETDIR_TEXT "${CMAKE_INSTALL_PREFIX}")
       set(TARGETDIR_LIB lib)
     else()
       set(TARGETDIR_VER share/upbge/${BLENDER_VERSION})
@@ -410,9 +410,9 @@ elseif(WIN32)
     set(TARGETDIR_EXE ${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/bpy)
   else()
     set(TARGETDIR_VER ${BLENDER_VERSION})
-    set(TARGETDIR_TEXT .)
-    set(TARGETDIR_LIB ./blender.shared)
-    set(TARGETDIR_EXE .)
+    set(TARGETDIR_TEXT "${CMAKE_INSTALL_PREFIX}")
+    set(TARGETDIR_LIB "${CMAKE_INSTALL_PREFIX}/blender.shared")
+    set(TARGETDIR_EXE "${CMAKE_INSTALL_PREFIX}")
   endif()
 elseif(APPLE)
   if(WITH_PYTHON_MODULE)
@@ -663,7 +663,7 @@ if(UNIX AND NOT APPLE)
   elseif(WITH_INSTALL_PORTABLE)
     install(
       TARGETS blender
-      DESTINATION "."
+      DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
 
     install(
@@ -671,13 +671,13 @@ if(UNIX AND NOT APPLE)
         ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
         ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
         ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
-      DESTINATION "."
+      DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
 
     if(WITH_BLENDER_THUMBNAILER)
       install(
         TARGETS blender-thumbnailer
-        DESTINATION "."
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
       )
     endif()
 
@@ -691,7 +691,7 @@ if(UNIX AND NOT APPLE)
         PROGRAMS
         ${CMAKE_SOURCE_DIR}/release/bin/blender-launcher
         ${CMAKE_SOURCE_DIR}/release/bin/blender-softwaregl
-        DESTINATION "."
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
       )
 
       # Remove from old location, so existing builds don't start with software
@@ -1048,11 +1048,15 @@ elseif(WIN32)
       # on the build-bot does not support this endeavor.
       install(
         FILES ${CMAKE_CURRENT_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/blender_public.pdb
-        DESTINATION .
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
         RENAME blender.pdb
       )
     else()
-      install(FILES $<TARGET_PDB_FILE:blender> DESTINATION . RENAME blender.pdb)
+      install(
+        FILES $<TARGET_PDB_FILE:blender>
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
+        RENAME blender.pdb
+      )
     endif()
   endif()
 
@@ -1273,14 +1277,14 @@ elseif(WIN32)
         install(
           FILES
             ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}.pdb
-          DESTINATION "."
+          DESTINATION "${CMAKE_INSTALL_PREFIX}"
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         )
 
         install(
           FILES
             ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}_d.pdb
-          DESTINATION "."
+          DESTINATION "${CMAKE_INSTALL_PREFIX}"
           CONFIGURATIONS Debug
         )
       endif()
@@ -1378,7 +1382,7 @@ elseif(WIN32)
         ${LIBDIR}/audaspace/lib/audaspace.dll
         ${LIBDIR}/audaspace/lib/audaspace-c.dll
         ${LIBDIR}/audaspace/lib/audaspace-py.dll
-      DESTINATION "."
+      DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
   endif()
 
@@ -1399,7 +1403,7 @@ elseif(WIN32)
   if(WITH_BLENDER_THUMBNAILER)
     install(
       TARGETS BlendThumb
-      DESTINATION "."
+      DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
   endif()
 
@@ -1478,7 +1482,7 @@ elseif(APPLE)
 
   install(
     TARGETS blender
-    DESTINATION "."
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
   )
 
   install(
@@ -1793,7 +1797,7 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
   install(
     TARGETS blender blender-launcher
     COMPONENT Blender
-    DESTINATION "."
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
   )
   set_target_properties(
     blender
@@ -1851,7 +1855,7 @@ endif()\n\
       if(WITH_INSTALL_PORTABLE)
         install(
           FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
-          DESTINATION "."
+          DESTINATION "${CMAKE_INSTALL_PREFIX}"
         )
       else()
         # Manual page (only with `blender` binary).
