@@ -933,7 +933,7 @@ int main(int argc,
   /* Init icons before reading .blend files for preview icons, which can
    * get triggered by the depsgraph. This is also done in background mode
    * for scripts that do background processing with preview icons. */
-  BKE_icons_init(BIFICONID_LAST);
+  BKE_icons_init(BIFICONID_LAST_STATIC);
 
   /* reports cant be initialized before the wm,
    * but keep before file reading, since that may report errors */
