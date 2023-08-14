@@ -49,6 +49,29 @@ struct BaseRender {
                                   const char *view_name) = 0;
   virtual void compositor_free() = 0;
 
+  virtual void display_init(RenderResult *render_result) = 0;
+  virtual void display_clear(RenderResult *render_result) = 0;
+  virtual void display_update(RenderResult *render_result, rcti *rect) = 0;
+  virtual void current_scene_update(struct Scene *scene) = 0;
+
+  virtual void stats_draw(RenderStats *render_stats) = 0;
+  virtual void progress(float progress) = 0;
+
+  virtual void draw_lock() = 0;
+  virtual void draw_unlock() = 0;
+
+  /* Test whether render is to be stopped: if the function returns true rendering will be stopped
+   * as soon as the render pipeline allows it. */
+  virtual bool test_break() = 0;
+
+  /**
+   * Executed right before the initialization of the depsgraph, in order to modify some stuff in
+   * the viewlayer. The modified ids must be tagged in the depsgraph.
+   *
+   * If false is returned then rendering is aborted,
+   */
+  virtual bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) = 0;
+
   /* Result of rendering */
   RenderResult *result = nullptr;
 
@@ -78,6 +101,28 @@ struct ViewRender : public BaseRender {
   {
   }
   void compositor_free() override {}
+
+  void display_init(RenderResult * /*render_result*/) override {}
+  void display_clear(RenderResult * /*render_result*/) override {}
+  void display_update(RenderResult * /*render_result*/, rcti * /*rect*/) override {}
+  void current_scene_update(struct Scene * /*scene*/) override {}
+
+  void stats_draw(RenderStats * /*render_stats*/) override {}
+  void progress(const float /*progress*/) override {}
+
+  void draw_lock() override {}
+  void draw_unlock() override {}
+
+  bool test_break() override
+  {
+    return false;
+  }
+
+  bool prepare_viewlayer(struct ViewLayer * /*view_layer*/,
+                         struct Depsgraph * /*depsgraph*/) override
+  {
+    return true;
+  }
 };
 
 /* Controls state of render, everything that's read-only during render stage */
@@ -98,6 +143,21 @@ struct Render : public BaseRender {
                           const bool use_file_output,
                           const char *view_name) override;
   void compositor_free() override;
+
+  void display_init(RenderResult *render_result) override;
+  void display_clear(RenderResult *render_result) override;
+  void display_update(RenderResult *render_result, rcti *rect) override;
+  void current_scene_update(struct Scene *scene) override;
+
+  void stats_draw(RenderStats *render_stats) override;
+  void progress(float progress) override;
+
+  void draw_lock() override;
+  void draw_unlock() override;
+
+  bool test_break() override;
+
+  bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) override;
 
   char name[RE_MAXNAME] = "";
   int slot = 0;
@@ -150,31 +210,27 @@ struct Render : public BaseRender {
   blender::render::RealtimeCompositor *gpu_compositor = nullptr;
   std::mutex gpu_compositor_mutex;
 
-  /* callbacks */
-  void (*display_init)(void *handle, RenderResult *rr) = nullptr;
+  /* Callbacks for the corresponding base class method implementation. */
+  void (*display_init_cb)(void *handle, RenderResult *rr) = nullptr;
   void *dih = nullptr;
-  void (*display_clear)(void *handle, RenderResult *rr) = nullptr;
+  void (*display_clear_cb)(void *handle, RenderResult *rr) = nullptr;
   void *dch = nullptr;
-  void (*display_update)(void *handle, RenderResult *rr, rcti *rect) = nullptr;
+  void (*display_update_cb)(void *handle, RenderResult *rr, rcti *rect) = nullptr;
   void *duh = nullptr;
-  void (*current_scene_update)(void *handle, struct Scene *scene) = nullptr;
+  void (*current_scene_update_cb)(void *handle, struct Scene *scene) = nullptr;
   void *suh = nullptr;
 
-  void (*stats_draw)(void *handle, RenderStats *ri) = nullptr;
+  void (*stats_draw_cb)(void *handle, RenderStats *ri) = nullptr;
   void *sdh = nullptr;
-  void (*progress)(void *handle, float i) = nullptr;
+  void (*progress_cb)(void *handle, float i) = nullptr;
   void *prh = nullptr;
 
-  void (*draw_lock)(void *handle, bool lock) = nullptr;
+  void (*draw_lock_cb)(void *handle, bool lock) = nullptr;
   void *dlh = nullptr;
-  bool (*test_break)(void *handle) = nullptr;
+  bool (*test_break_cb)(void *handle) = nullptr;
   void *tbh = nullptr;
 
-  /**
-   * Executed right before the initialization of the depsgraph, in order to modify some stuff in
-   * the viewlayer. The modified ids must be tagged in the depsgraph.
-   */
-  bool (*prepare_viewlayer)(void *handle, struct ViewLayer *vl, struct Depsgraph *depsgraph);
+  bool (*prepare_viewlayer_cb)(void *handle, struct ViewLayer *vl, struct Depsgraph *depsgraph);
   void *prepare_vl_handle;
 
   RenderStats i = {};

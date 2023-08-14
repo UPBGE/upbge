@@ -20,16 +20,19 @@
 #include "tree_element_anim_data.hh"
 #include "tree_element_bone.hh"
 #include "tree_element_collection.hh"
+#include "tree_element_constraint.hh"
 #include "tree_element_defgroup.hh"
 #include "tree_element_driver.hh"
 #include "tree_element_edit_bone.hh"
 #include "tree_element_gpencil_effect.hh"
 #include "tree_element_gpencil_layer.hh"
+#include "tree_element_grease_pencil_node.hh"
 #include "tree_element_id.hh"
 #include "tree_element_label.hh"
 #include "tree_element_nla.hh"
 #include "tree_element_overrides.hh"
 #include "tree_element_particle_system.hh"
+#include "tree_element_pose.hh"
 #include "tree_element_pose_group.hh"
 #include "tree_element_rna.hh"
 #include "tree_element_scene_objects.hh"
@@ -79,6 +82,9 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const i
       return std::make_unique<TreeElementNLAAction>(legacy_te, *static_cast<bAction *>(idv));
     case TSE_GP_LAYER:
       return std::make_unique<TreeElementGPencilLayer>(legacy_te, *static_cast<bGPDlayer *>(idv));
+    case TSE_GREASE_PENCIL_NODE:
+      return std::make_unique<TreeElementGreasePencilNode>(
+          legacy_te, *static_cast<bke::greasepencil::TreeNode *>(idv));
     case TSE_R_LAYER_BASE:
       return std::make_unique<TreeElementViewLayerBase>(legacy_te, *static_cast<Scene *>(idv));
     case TSE_R_LAYER: {
@@ -146,6 +152,14 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const i
       return std::make_unique<TreeElementParticleSystem>(
           legacy_te, *psys_data->object, *psys_data->psys);
     }
+    case TSE_CONSTRAINT_BASE:
+      return std::make_unique<TreeElementConstraintBase>(legacy_te, *static_cast<Object *>(idv));
+    case TSE_CONSTRAINT: {
+      ConstraintElementCreateData *con_data = static_cast<ConstraintElementCreateData *>(idv);
+      return std::make_unique<TreeElementConstraint>(legacy_te, *con_data->object, *con_data->con);
+    }
+    case TSE_POSE_BASE:
+      return std::make_unique<TreeElementPoseBase>(legacy_te, *static_cast<Object *>(idv));
     case TSE_POSEGRP_BASE:
       return std::make_unique<TreeElementPoseGroupBase>(legacy_te, *static_cast<Object *>(idv));
     case TSE_POSEGRP: {
