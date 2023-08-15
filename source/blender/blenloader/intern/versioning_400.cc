@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -49,6 +49,18 @@
 
 // static CLG_LogRef LOG = {"blo.readfile.doversion"};
 
+static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
+{
+  for (bNode *node : ntree->all_nodes()) {
+    if (node->id == nullptr &&
+        ((node->type == CMP_NODE_R_LAYERS) ||
+         (node->type == CMP_NODE_CRYPTOMATTE && node->custom1 == CMP_CRYPTOMATTE_SRC_RENDER)))
+    {
+      node->id = &scene->id;
+    }
+  }
+}
+
 void do_versions_after_linking_400(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
@@ -57,6 +69,14 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       light->energy = light->energy_deprecated;
       if (light->type == LA_AREA) {
         light->energy *= M_PI_4;
+      }
+    }
+
+    /* XXX This was added several years ago in 'lib_link` code of Scene... Should be safe enough
+     * here. */
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->nodetree) {
+        version_composite_nodetree_null_id(scene->nodetree, scene);
       }
     }
 
@@ -614,6 +634,20 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 16)) {
+    /* Set Normalize property of Noise Texture node to true. */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_CUSTOM) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type == SH_NODE_TEX_NOISE) {
+            ((NodeTexNoise *)node->storage)->normalize = true;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
