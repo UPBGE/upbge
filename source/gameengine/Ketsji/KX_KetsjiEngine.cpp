@@ -750,17 +750,6 @@ void KX_KetsjiEngine::Render()
   std::vector<FrameRenderData> frameDataList;
   GetFrameRenderData(frameDataList);
 
-  // clear the entire game screen with the border color
-  int screen[4] = {0,
-                   0,
-                   m_canvas->GetWidth() + 1,
-                   m_canvas->GetHeight() + 1};
-  GPU_viewport(screen[0], screen[1], screen[2], screen[3]);
-  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
-    GPU_scissor_test(true);
-    GPU_scissor(screen[0], screen[1], screen[2], screen[3]);
-  }
-
   KX_Scene *firstscene = m_scenes->GetFront();
   const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
