@@ -3961,8 +3961,7 @@ void DRW_transform_to_display(GPUViewport *viewport,
                               GPUTexture *tex,
                               View3D *v3d,
                               Scene *scene,
-                              rcti *rect,
-                              bool do_dithering)
+                              rcti *rect)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
@@ -3986,7 +3985,7 @@ void DRW_transform_to_display(GPUViewport *viewport,
   if (use_render_settings) {
     /* Use full render settings, for renders with scene lighting. */
     view_settings = scene->view_settings;
-    dither = do_dithering ? scene->r.dither_intensity : 0.0f;
+    dither = scene->r.dither_intensity;
   }
   else if (use_view_transform) {
     /* Use only view transform + look and nothing else for lookdev without
@@ -3994,7 +3993,7 @@ void DRW_transform_to_display(GPUViewport *viewport,
     BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
     STRNCPY(view_settings.view_transform, scene->view_settings.view_transform);
     STRNCPY(view_settings.look, scene->view_settings.look);
-    dither = do_dithering ? scene->r.dither_intensity : 0.0f;
+    dither = scene->r.dither_intensity;
   }
   else {
     /* For workbench use only default view transform in configuration,

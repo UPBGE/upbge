@@ -811,8 +811,7 @@ void KX_KetsjiEngine::Render()
                              GPU_framebuffer_color_texture(background->GetFrameBuffer()),
                              CTX_wm_view3d(m_context),
                              CTX_data_scene(m_context),
-                             &winrect,
-                             false);
+                             &winrect);
     EndFrame();
   }
   else {
