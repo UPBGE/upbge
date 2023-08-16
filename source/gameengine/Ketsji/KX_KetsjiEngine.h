@@ -258,7 +258,7 @@ class KX_KetsjiEngine {
   bool GetFrameRenderData(std::vector<FrameRenderData> &frameDataList);
 
   /// EEVEE scene rendering
-  void RenderCamera(KX_Scene *scene, class RAS_FrameBuffer *background, const CameraRenderData &cameraFrameData, unsigned short pass);
+  void RenderCamera(KX_Scene *scene, class RAS_FrameBuffer *background_fb, const CameraRenderData &cameraFrameData, unsigned short pass);
   void RenderDebugProperties();
   /// Debug draw cameras frustum of a scene.
   void DrawDebugCameraFrustum(KX_Scene *scene,

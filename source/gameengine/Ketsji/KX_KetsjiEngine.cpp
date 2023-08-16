@@ -741,11 +741,11 @@ void KX_KetsjiEngine::Render()
 
   BeginFrame();
 
-  RAS_FrameBuffer *background = m_rasterizer->GetFrameBuffer(
+  RAS_FrameBuffer *background_fb = m_rasterizer->GetFrameBuffer(
       RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0);
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
-  background->UpdateSize(width, height);
+  background_fb->UpdateSize(width, height);
 
   std::vector<FrameRenderData> frameDataList;
   GetFrameRenderData(frameDataList);
@@ -757,13 +757,13 @@ void KX_KetsjiEngine::Render()
   unsigned short pass = 0;
 
   for (FrameRenderData &frameData : frameDataList) {
-    GPU_framebuffer_bind(background->GetFrameBuffer());
+    GPU_framebuffer_bind(background_fb->GetFrameBuffer());
     // Use the framing bar color set in the Blender scenes
     const float clear_col[4] = {
         framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f};
-    GPU_framebuffer_clear_color(background->GetFrameBuffer(), clear_col);
+    GPU_framebuffer_clear_color(background_fb->GetFrameBuffer(), clear_col);
     GPU_depth_mask(true);
-    GPU_framebuffer_clear_depth(background->GetFrameBuffer(), 1.0f);
+    GPU_framebuffer_clear_depth(background_fb->GetFrameBuffer(), 1.0f);
 
     // for each scene, call the proceed functions
     for (unsigned short i = 0, size = frameData.m_sceneDataList.size(); i < size; ++i) {
@@ -775,7 +775,7 @@ void KX_KetsjiEngine::Render()
       // Draw the scene once for each camera with an enabled viewport or an active camera.
       for (const CameraRenderData &cameraFrameData : sceneFrameData.m_cameraDataList) {
         // do the rendering
-        RenderCamera(scene, background, cameraFrameData, pass++);
+        RenderCamera(scene, background_fb, cameraFrameData, pass++);
       }
     }
   }
@@ -817,7 +817,7 @@ void KX_KetsjiEngine::Render()
     GPU_matrix_identity_set();
 
     DRW_transform_to_display(DRW_game_gpu_viewport_get(),
-                             GPU_framebuffer_color_texture(background->GetFrameBuffer()),
+                             GPU_framebuffer_color_texture(background_fb->GetFrameBuffer()),
                              CTX_wm_view3d(m_context),
                              CTX_data_scene(m_context),
                              &winrect);
@@ -1035,7 +1035,7 @@ MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene,
 
 // update graphics
 void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
-                                   RAS_FrameBuffer *background,
+                                   RAS_FrameBuffer *background_fb,
                                    const CameraRenderData &cameraFrameData,
                                    unsigned short pass)
 {
@@ -1050,7 +1050,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
    * if it's not the first render pass. */
   if (pass > 0) {
     GPU_depth_mask(true);
-    GPU_framebuffer_clear_depth(background->GetFrameBuffer(), 1.0f);
+    GPU_framebuffer_clear_depth(background_fb->GetFrameBuffer(), 1.0f);
   }
 
   m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE /*cameraFrameData.m_eye*/);
@@ -1078,7 +1078,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   bool is_last_render_pass = rendercam == m_renderingCameras.back();
 
-  scene->RenderAfterCameraSetup(rendercam, background, viewport, is_overlay_pass, is_last_render_pass);
+  scene->RenderAfterCameraSetup(rendercam, background_fb, viewport, is_overlay_pass, is_last_render_pass);
 
   if (scene->GetPhysicsEnvironment()) {
     scene->GetPhysicsEnvironment()->DebugDrawWorld();

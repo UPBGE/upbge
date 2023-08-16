@@ -719,7 +719,7 @@ static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTE
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
-                                      RAS_FrameBuffer *background,
+                                      RAS_FrameBuffer *background_fb,
                                       const RAS_Rect &viewport,
                                       bool is_overlay_pass,
                                       bool is_last_render_pass)
@@ -888,9 +888,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   samples_per_frame = max_ii(samples_per_frame, 1);
 
   for (short i = 0; i < samples_per_frame; i++) {
-    if (background) {
-      GPU_framebuffer_bind(background->GetFrameBuffer());
-      GPU_framebuffer_clear_depth(background->GetFrameBuffer(), 1.0f);
+    if (background_fb) {
+      GPU_framebuffer_bind(background_fb->GetFrameBuffer());
+      GPU_framebuffer_clear_depth(background_fb->GetFrameBuffer(), 1.0f);
       GPU_framebuffer_restore();
     }
     /* Draw custom viewport render loop into its own GPUViewport */
@@ -912,17 +912,17 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
 
   /* Draw 2D filters */
-  RAS_FrameBuffer *f = is_overlay_pass || !background ? input : Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = is_overlay_pass || !background_fb ? input : Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
 
-  if (background) {
+  if (background_fb) {
     /* Draw this camera render into background framebuffer */
-    GPU_framebuffer_bind(background->GetFrameBuffer());
+    GPU_framebuffer_bind(background_fb->GetFrameBuffer());
     GPU_viewport(v[0], v[1], v[2], v[3]);
     GPU_scissor_test(true);
     GPU_scissor(v[0], v[1], v[2], v[3]);
-    rasty->DrawFrameBuffer(f, background);
+    rasty->DrawFrameBuffer(f, background_fb);
   }
 
   GPU_framebuffer_restore();

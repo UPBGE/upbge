@@ -333,7 +333,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
 
   void RenderAfterCameraSetup(KX_Camera *cam,
-                              class RAS_FrameBuffer *background,
+                              class RAS_FrameBuffer *background_fb,
                               const RAS_Rect &viewport,
                               bool is_overlay_pass,
                               bool is_last_render_pass);
