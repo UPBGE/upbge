@@ -293,7 +293,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
        * KX_BlenderMaterials and BL_Textures.
        */
       const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
-      RenderAfterCameraSetup(nullptr, viewport, false, true);
+      RenderAfterCameraSetup(nullptr, nullptr, viewport, false, true);
     }
   }
   else {
@@ -719,6 +719,7 @@ static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTE
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
+                                      RAS_FrameBuffer *background,
                                       const RAS_Rect &viewport,
                                       bool is_overlay_pass,
                                       bool is_last_render_pass)
@@ -784,16 +785,16 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   int v[4];
   /* Custom BGE viewports*/
   if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
-    v[0] = canvas->GetViewportArea().GetLeft() + viewport.GetLeft();
-    v[1] = canvas->GetViewportArea().GetBottom() + viewport.GetBottom();
+    v[0] = viewport.GetLeft();
+    v[1] = viewport.GetBottom();
     v[2] = viewport.GetWidth() + 1;
     v[3] = viewport.GetHeight() + 1;
     window = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
   }
   /* Main cam (when it has no custom viewport), overlay cam */
   else {
-    v[0] = canvas->GetViewportArea().GetLeft();
-    v[1] = canvas->GetViewportArea().GetBottom();
+    v[0] = 0;
+    v[1] = 0;
     v[2] = canvas->GetWidth() + 1;
     v[3] = canvas->GetHeight() + 1;
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
@@ -808,6 +809,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
                 << std::endl;
       return;
     }
+
+    /* Don't need any background framebuffer as everything will be redrawn */
+    GPU_framebuffer_restore();
 
     /* When we call wm_draw_update, bContext variables are unset,
      * then we need to set it again correctly to render the next frame. */
@@ -883,13 +887,17 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   samples_per_frame = max_ii(samples_per_frame, 1);
 
   for (short i = 0; i < samples_per_frame; i++) {
-    GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
+    if (background) {
+      GPU_framebuffer_bind(background->GetFrameBuffer());
+      GPU_framebuffer_clear_depth(background->GetFrameBuffer(), 1.0f);
+      GPU_framebuffer_restore();
+    }
     DRW_game_render_loop(
         C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
+  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
   GPUTexture *color = GPU_viewport_color_texture(m_currentGPUViewport, 0);
   GPUAttachment config[] = {
@@ -899,36 +907,19 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_config_array(
       input->GetFrameBuffer(), config, sizeof(config) / sizeof(GPUAttachment));
 
-  bool is_custom_viewport_render_pass = cam && cam->GetViewport();
-  if (!is_custom_viewport_render_pass) {
-    output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
-  }
+  output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
 
-  RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = is_overlay_pass || !background ? input : Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
 
-  rcti winrect = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
-
-  GPU_viewport(v[0], v[1], v[2], v[3]);
-  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+  if (background) {
+    GPU_framebuffer_bind(background->GetFrameBuffer());
+    GPU_viewport(v[0], v[1], v[2], v[3]);
     GPU_scissor_test(true);
     GPU_scissor(v[0], v[1], v[2], v[3]);
+    rasty->DrawFrameBuffer(f, background);
   }
-
-  DRW_state_reset();
-  GPU_matrix_reset();
-  GPU_depth_test(GPU_DEPTH_ALWAYS);
-  const unsigned int width = canvas->GetWidth();
-  const unsigned int height = canvas->GetHeight();
-  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
-
-  DRW_transform_to_display(m_currentGPUViewport,
-                           GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           CTX_wm_view3d(C),
-                           CTX_data_scene(C),
-                           &winrect,
-                           GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   GPU_framebuffer_restore();
 
