@@ -114,7 +114,6 @@ bool KX_BlenderCanvas::GetFullScreen()
 
 void KX_BlenderCanvas::BeginDraw()
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
   wm_window_make_drawable(m_wm, m_win);
 
   if (!m_useViewportRender) {
