@@ -782,7 +782,8 @@ void KX_KetsjiEngine::Render()
 
   if (!UseViewportRender()) {
     /* Clear the entire screen (draw a black background rect before drawing) */
-    wmViewport(&CTX_wm_region(m_context)->winrct);
+    ARegion *region = CTX_wm_region(m_context);
+    wmViewport(&region->winrct);
 
     DRW_state_reset();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
@@ -794,8 +795,8 @@ void KX_KetsjiEngine::Render()
     immRectf(pos,
              0,
              0,
-             BLI_rcti_size_x(&CTX_wm_region(m_context)->winrct),
-             BLI_rcti_size_y(&CTX_wm_region(m_context)->winrct));
+             BLI_rcti_size_x(&region->winrct),
+             BLI_rcti_size_y(&region->winrct));
     immUnbindProgram();
 
     /* Draw to the result of render loop on window backbuffer */
