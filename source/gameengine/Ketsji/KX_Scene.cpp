@@ -881,6 +881,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     UpdateObjectLods(cam);
   }
 
+  /* Disable some post processing effects for overlay collections render pass */
   OverlayPassDisableEffects(depsgraph, cam, is_overlay_pass);
 
   short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
@@ -892,6 +893,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       GPU_framebuffer_clear_depth(background->GetFrameBuffer(), 1.0f);
       GPU_framebuffer_restore();
     }
+    /* Draw custom viewport render loop into its own GPUViewport */
     DRW_game_render_loop(
         C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
   }
@@ -909,11 +911,13 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
 
+  /* Draw 2D filters */
   RAS_FrameBuffer *f = is_overlay_pass || !background ? input : Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
 
   if (background) {
+    /* Draw this camera render into background framebuffer */
     GPU_framebuffer_bind(background->GetFrameBuffer());
     GPU_viewport(v[0], v[1], v[2], v[3]);
     GPU_scissor_test(true);

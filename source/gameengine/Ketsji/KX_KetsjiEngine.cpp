@@ -793,9 +793,12 @@ void KX_KetsjiEngine::Render()
   }
 
   if (!UseViewportRender()) {
+    /* Clear the entire screen (draw a black background rect before drawing) */
     wmViewport(&CTX_wm_region(m_context)->winrct);
+
     DRW_state_reset();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
+
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -807,28 +810,30 @@ void KX_KetsjiEngine::Render()
              BLI_rcti_size_y(&CTX_wm_region(m_context)->winrct));
     immUnbindProgram();
 
+    /* Draw to the result of render loop on window backbuffer */
     rcti winrect = {0, m_canvas->GetWidth(), 0, m_canvas->GetHeight()};
 
     int v[4] = {m_canvas->GetViewportArea().GetLeft(),
                 m_canvas->GetViewportArea().GetBottom(),
                 m_canvas->GetWidth() + 1,
                 m_canvas->GetHeight() + 1};
+
     GPU_viewport(v[0], v[1], v[2], v[3]);
     if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
       GPU_scissor_test(true);
       GPU_scissor(v[0], v[1], v[2], v[3]);
     }
 
-    DRW_state_reset();
-    GPU_matrix_reset();
-    GPU_depth_test(GPU_DEPTH_ALWAYS);
     GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+    GPU_matrix_identity_set();
 
     DRW_transform_to_display(DRW_game_gpu_viewport_get(),
                              GPU_framebuffer_color_texture(background->GetFrameBuffer()),
                              CTX_wm_view3d(m_context),
                              CTX_data_scene(m_context),
                              &winrect);
+
+    /* Draw last remaining debug drawings + few stuff + swapBuffer */
     EndFrame();
   }
   else {
