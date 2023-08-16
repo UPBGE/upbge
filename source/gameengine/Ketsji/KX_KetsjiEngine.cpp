@@ -735,15 +735,14 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData> &frameData
   return renderpereye;
 }
 
-static RAS_Rasterizer::FrameBufferType b = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0;
-
 void KX_KetsjiEngine::Render()
 {
   m_logger.StartLog(tc_rasterizer);
 
   BeginFrame();
 
-  RAS_FrameBuffer *background = m_rasterizer->GetFrameBuffer(m_rasterizer->NextRenderFrameBuffer(b));
+  RAS_FrameBuffer *background = m_rasterizer->GetFrameBuffer(
+      RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0);
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
   background->UpdateSize(width, height);
