@@ -168,38 +168,6 @@ void LA_BlenderLauncher::ExitEngine()
   wm_event_free_all(m_window);
 }
 
-void LA_BlenderLauncher::RenderEngine()
-{
-  // in case of multi-window we need to ensure we are drawing to the correct
-  // window always, because it may change in window event handling
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  wm_window_make_drawable(CTX_wm_manager(C), CTX_wm_window(C));
-
-  if (!m_useViewportRender) {
-    /* See wm_draw_update for "chronology" */
-    GPU_context_begin_frame((GPUContext *)CTX_wm_window(C)->gpuctx);
-  }
-  if (m_drawLetterBox) { // Useful on linux
-    if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
-      GPU_scissor_test(true);
-      GPU_scissor(m_ar->winrct.xmin,
-                  m_ar->winrct.ymin,
-                  BLI_rcti_size_x(&m_ar->winrct) + 1,
-                  BLI_rcti_size_y(&m_ar->winrct) + 1);
-      GPU_apply_state();
-      GPU_clear_color(m_startScene->gm.framing.col[0],
-                      m_startScene->gm.framing.col[1],
-                      m_startScene->gm.framing.col[2],
-                      0.0f);
-    }
-    else {
-      /* Vulkan back_left buffer is "immutable" and has no "attachments" to clear
-       * ... maybe we can draw a black screen instead idk... */
-    }
-  }
-  LA_Launcher::RenderEngine();
-}
-
 bool LA_BlenderLauncher::EngineNextFrame()
 {
   // Free all window manager events unused.

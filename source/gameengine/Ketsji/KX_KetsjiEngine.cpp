@@ -38,9 +38,12 @@
 
 #include <boost/format.hpp>
 
+#include "BLI_rect.h"
 #include "DRW_render.h"
 #include "GPU_context.h"
+#include "GPU_immediate.h"
 #include "GPU_matrix.h"
+#include "WM_api.hh"
 
 #include "BL_Converter.h"
 #include "BL_SceneConverter.h"
@@ -790,6 +793,20 @@ void KX_KetsjiEngine::Render()
   }
 
   if (!UseViewportRender()) {
+    wmViewport(&CTX_wm_region(m_context)->winrct);
+    DRW_state_reset();
+    GPU_depth_test(GPU_DEPTH_ALWAYS);
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    immUniform4fv("color", clear_col);
+    immRectf(pos,
+             0,
+             0,
+             BLI_rcti_size_x(&CTX_wm_region(m_context)->winrct),
+             BLI_rcti_size_y(&CTX_wm_region(m_context)->winrct));
+    immUnbindProgram();
+
     rcti winrect = {0, m_canvas->GetWidth(), 0, m_canvas->GetHeight()};
 
     int v[4] = {m_canvas->GetViewportArea().GetLeft(),

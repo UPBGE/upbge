@@ -114,6 +114,13 @@ bool KX_BlenderCanvas::GetFullScreen()
 
 void KX_BlenderCanvas::BeginDraw()
 {
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  wm_window_make_drawable(m_wm, m_win);
+
+  if (!m_useViewportRender) {
+    /* See wm_draw_update for "chronology" */
+    GPU_context_begin_frame((GPUContext *)m_win->gpuctx);
+  }
 }
 
 void KX_BlenderCanvas::EndDraw()
