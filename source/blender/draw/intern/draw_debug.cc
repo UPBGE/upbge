@@ -24,6 +24,7 @@
 #include "draw_shader_shared.h"
 
 #include <iomanip>
+#include <sstream>
 
 #if defined(DEBUG) || defined(WITH_DRAW_DEBUG)
 #  define DRAW_DEBUG
