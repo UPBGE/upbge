@@ -56,85 +56,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
                                 RAS_ICanvas *canvas,
                                 RAS_DebugDraw *debugDraw)
 {
-  //// Draw aabbs USE imm API
-  // for (const RAS_DebugDraw::Aabb &aabb : debugDraw->m_aabbs) {
-
-  //  const MT_Matrix3x3 &rot = aabb.m_rot;
-  //  const MT_Vector3 &pos = aabb.m_pos;
-  //  float mat[16] = {rot[0][0],
-  //                   rot[1][0],
-  //                   rot[2][0],
-  //                   0.0,
-  //                   rot[0][1],
-  //                   rot[1][1],
-  //                   rot[2][1],
-  //                   0.0,
-  //                   rot[0][2],
-  //                   rot[1][2],
-  //                   rot[2][2],
-  //                   0.0,
-  //                   pos[0],
-  //                   pos[1],
-  //                   pos[2],
-  //                   1.0};
-
-  //  const MT_Vector3 &min = aabb.m_min;
-  //  const MT_Vector3 &max = aabb.m_max;
-
-  //  GLfloat vertexes[24] = {
-  //      (float)min[0], (float)min[1], (float)min[2], (float)max[0], (float)min[1], (float)min[2],
-  //      (float)max[0], (float)max[1], (float)min[2], (float)min[0], (float)max[1], (float)min[2],
-  //      (float)min[0], (float)min[1], (float)max[2], (float)max[0], (float)min[1], (float)max[2],
-  //      (float)max[0], (float)max[1], (float)max[2], (float)min[0], (float)max[1],
-  //      (float)max[2]};
-
-  //  // rasty->PushMatrix();
-  //  // rasty->MultMatrix(mat);
-
-  //  float c[4];
-  //  aabb.m_color.getValue(c);
-
-  //  float mvp[16];
-  //  MT_Matrix4x4 object_to_world(mat);
-  //  MT_Matrix4x4 m(m_cameraMatrix * object_to_world);
-  //  m.getValue(mvp);
-
-  //  /*BindVBO(mvp, c, vertexes, m_wireibo);
-  //  glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
-  //  UnbindVBO();*/
-  //}
-
-  //// Draw boxes. USE imm API
-  // for (const RAS_DebugDraw::SolidBox &box : debugDraw->m_solidBoxes) {
-  //  GLfloat vertexes[24];
-  //  int k = 0;
-  //  for (int i = 0; i < 8; i++) {
-  //    for (int j = 0; j < 3; j++) {
-  //      vertexes[k] = box.m_vertices[i][j];
-  //      k++;
-  //    }
-  //  }
-  //  float c[4];
-  //  box.m_color.getValue(c);
-  //  /*BindVBO(mvp, c, vertexes, m_wireibo);
-  //  glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
-  //  UnbindVBO();*/
-
-  //  //rasty->SetFrontFace(false);
-  //  //GPU_front_facing(bool invert)
-  //  box.m_insideColor.getValue(c);
-  //  /*BindVBO(mvp, c, vertexes, m_solidibo);
-  //  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, 0);
-  //  UnbindVBO();*/
-
-  //  //rasty->SetFrontFace(true);
-  //  //GPU_front_facing(bool invert);
-  //  box.m_outsideColor.getValue(c);
-  //  /*BindVBO(mvp, c, vertexes, m_solidibo);
-  //  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, 0);
-  //  UnbindVBO();*/
-  //}
-
   if (KX_GetActiveEngine()->UseViewportRender()) {
     /* Draw Debug lines */
     if (!debugDraw->m_lines.empty()) {
@@ -160,11 +81,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   }
   else {  // Non viewport render pipeline
     if (!debugDraw->m_lines.empty()) {
-      GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-      immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
-
       bContext *C = KX_GetActiveEngine()->GetContext();
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
       GPU_matrix_push();
@@ -172,9 +88,14 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       GPU_matrix_projection_set(rv3d->winmat);
       GPU_matrix_set(rv3d->viewmat);
 
-      GPU_depth_test(GPU_DEPTH_ALWAYS);
       GPU_line_smooth(true);
       GPU_line_width(1.0f);
+
+      GPUVertFormat *format = immVertexFormat();
+      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+
       immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
       for (int i = 0; i < debugDraw->m_lines.size(); i++) {
         RAS_DebugDraw::Line line = debugDraw->m_lines[i];
@@ -185,21 +106,20 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
         immVertex3fv(pos, max.getValue());
       }
       immEnd();
+      immUnbindProgram();
 
       /* Reset defaults */
       GPU_line_smooth(false);
       GPU_matrix_pop();
       GPU_matrix_pop_projection();
-      GPU_depth_test(GPU_DEPTH_ALWAYS);
-      GPU_face_culling(GPU_CULL_NONE);
-
-      immUnbindProgram();
     }
 
 #ifdef WITH_PYTHON
     KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
 #endif
 
+    /* Restore default states + depth always (default bge depth test)
+     * (Post processing draw callbacks can have modify gpu states) */
     DRW_state_reset();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
 
@@ -207,8 +127,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     const unsigned int height = canvas->GetHeight();
 
     if (!debugDraw->m_boxes2D.empty()) {
-      GPU_face_culling(GPU_CULL_BACK);
-
       GPUVertFormat *format = immVertexFormat();
       uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
@@ -223,13 +141,9 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
         immRectf(pos, xco + 1 + xsize, yco + ysize, xco, yco);
       }
       immUnbindProgram();
-
-      DRW_state_reset();
-      GPU_depth_test(GPU_DEPTH_ALWAYS);
     }
 
     if (!debugDraw->m_texts2D.empty()) {
-      GPU_face_culling(GPU_CULL_NONE);
       short profile_size = KX_GetActiveScene()->GetBlenderScene()->gm.profileSize;
       int fontSize = 11;
       switch (profile_size) {
@@ -267,7 +181,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
         BLF_draw(blf_mono_font, text.c_str(), text.size());
       }
       BLF_disable(blf_mono_font, BLF_SHADOW);
-      GPU_depth_test(GPU_DEPTH_ALWAYS);
     }
   }
 }
