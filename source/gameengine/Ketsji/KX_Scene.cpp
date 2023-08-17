@@ -911,6 +911,13 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   output->UpdateSize(GPU_texture_width(color), GPU_texture_height(color));
 
+  /* Clear output framebuffer to ensure it has no color from previous pass.
+   * (was causing troubles in Vulkan + custom bge viewports) */
+  GPU_framebuffer_bind(output->GetFrameBuffer());
+  const float clear_col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  GPU_framebuffer_clear_color_depth(output->GetFrameBuffer(), clear_col, 1.0f);
+  GPU_framebuffer_restore();
+
   /* Draw 2D filters */
   RAS_FrameBuffer *f = is_overlay_pass || !background_fb ? input : Render2DFilters(rasty, canvas, input, output);
 
