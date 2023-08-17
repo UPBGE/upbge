@@ -1789,6 +1789,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
     CXX_WARN_UNUSED_PARAMETER -Wunused-parameter
     CXX_WARN_WRITE_STRINGS -Wwrite-strings
     CXX_WARN_UNDEF -Wundef
+    CXX_WARN_COMMA_SUBSCRIPT -Wcomma-subscript
     CXX_WARN_FORMAT_SIGN -Wformat-signedness
     CXX_WARN_RESTRICT -Wrestrict
     CXX_WARN_NO_SUGGEST_OVERRIDE -Wno-suggest-override
@@ -2020,6 +2021,12 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   set(C_WARNINGS "${_WARNINGS}")
   set(CXX_WARNINGS "${_WARNINGS}")
   unset(_WARNINGS)
+endif()
+
+# Xcode enables additional warning flags by default. Disable some to match
+# command line build and other platforms more closely.
+if(XCODE)
+  set(CMAKE_XCODE_ATTRIBUTE_GCC_WARN_64_TO_32_BIT_CONVERSION NO)
 endif()
 
 # ensure python header is found since detection can fail, this could happen
