@@ -136,6 +136,13 @@ typedef struct Main {
   short versionfile, subversionfile; /* see BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION */
   short upbgeversionfile, upbgesubversionfile; /* see UPBGE_FILE_VERSION, UPBGE_FILE_SUBVERSION */
   short minversionfile, minsubversionfile;
+  /** The currently opened .blend file was written from a newer version of Blender, and has forward
+   * compatibility issues (data loss).
+   *
+   * \note: In practice currently this is only based on the version numbers, in the future it
+   * could try to use more refined detection on load. */
+  bool has_forward_compatibility_issues;
+
   /** Commit timestamp from `buildinfo`. */
   uint64_t build_commit_timestamp;
   /** Commit Hash from `buildinfo`. */
@@ -455,6 +462,10 @@ int set_listbasepointers(struct Main *main, struct ListBase *lb[]);
 #define MAIN_VERSION_OLDER(main, ver, subver) \
   ((main)->versionfile < (ver) || \
    ((main)->versionfile == (ver) && (main)->subversionfile < (subver)))
+
+#define MAIN_VERSION_FILE_OLDER_OR_EQUAL(main, ver, subver) \
+  ((main)->versionfile < (ver) || \
+   ((main)->versionfile == (ver) && (main)->subversionfile <= (subver)))
 
 /**
  * The size of thumbnails (optionally) stored in the `.blend` files header.
