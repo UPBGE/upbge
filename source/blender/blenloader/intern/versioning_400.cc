@@ -22,6 +22,7 @@
 
 #include "DNA_defaults.h"
 #include "DNA_genfile.h"
+#include "DNA_particle_types.h"
 
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
@@ -29,6 +30,7 @@
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
+#include "BKE_effect.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.h"
@@ -77,6 +79,14 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->nodetree) {
         version_composite_nodetree_null_id(scene->nodetree, scene);
+      }
+    }
+
+    /* XXX This was added many years ago (1c19940198) in 'lib_link` code of particles as a bugfix.
+     * But this is actually versioning. Should be safe enough here. */
+    LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
+      if (!part->effector_weights) {
+        part->effector_weights = BKE_effector_add_weights(part->force_group);
       }
     }
 
@@ -394,6 +404,21 @@ static void version_principled_bsdf_sheen(bNodeTree *ntree)
   }
 }
 
+/* Replace old Principled Hair BSDF as a variant in the new Principled Hair BSDF. */
+static void version_replace_principled_hair_model(bNodeTree *ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type != SH_NODE_BSDF_HAIR_PRINCIPLED) {
+      continue;
+    }
+    NodeShaderHairPrincipled *data = MEM_cnew<NodeShaderHairPrincipled>(__func__);
+    data->model = SHD_PRINCIPLED_HAIR_CHIANG;
+    data->parametrization = node->custom1;
+
+    node->storage = data;
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -662,6 +687,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
+
+    if (!DNA_struct_find(fd->filesdna, "NodeShaderHairPrincipled")) {
+      FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+        if (ntree->type == NTREE_SHADER) {
+          version_replace_principled_hair_model(ntree);
+        }
+      }
+      FOREACH_NODETREE_END;
+    }
 
     if (!DNA_struct_elem_find(fd->filesdna, "LightProbe", "float", "grid_flag")) {
       LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {

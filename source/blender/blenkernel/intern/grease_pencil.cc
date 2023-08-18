@@ -424,7 +424,7 @@ TreeNode::TreeNode()
   this->next = this->prev = nullptr;
   this->parent = nullptr;
 
-  this->name_ptr = nullptr;
+  this->GreasePencilLayerTreeNode::name = nullptr;
   this->flag = 0;
   this->color[0] = this->color[1] = this->color[2] = 0;
 }
@@ -437,22 +437,25 @@ TreeNode::TreeNode(GreasePencilLayerTreeNodeType type) : TreeNode()
 TreeNode::TreeNode(GreasePencilLayerTreeNodeType type, StringRefNull name) : TreeNode()
 {
   this->type = type;
-  this->name_ptr = BLI_strdup(name.c_str());
+  this->GreasePencilLayerTreeNode::name = BLI_strdup(name.c_str());
 }
 
 TreeNode::TreeNode(const TreeNode &other)
-    : TreeNode::TreeNode(GreasePencilLayerTreeNodeType(other.type))
+    : TreeNode(GreasePencilLayerTreeNodeType(other.type))
 {
-  if (!other.name().is_empty()) {
-    this->name_ptr = BLI_strdup(other.name().c_str());
-  }
+  this->GreasePencilLayerTreeNode::name = BLI_strdup_null(other.GreasePencilLayerTreeNode::name);
   this->flag = other.flag;
   copy_v3_v3_uchar(this->color, other.color);
 }
 
+TreeNode::~TreeNode()
+{
+  MEM_SAFE_FREE(this->GreasePencilLayerTreeNode::name);
+}
+
 void TreeNode::set_name(StringRefNull name)
 {
-  this->name_ptr = BLI_strdup(name.c_str());
+  this->GreasePencilLayerTreeNode::name = BLI_strdup(name.c_str());
 }
 
 const LayerGroup &TreeNode::as_group() const
@@ -513,7 +516,7 @@ LayerMask::~LayerMask()
 
 Layer::Layer()
 {
-  this->base = TreeNode(GP_LAYER_TREE_LEAF);
+  new (&this->base) TreeNode(GP_LAYER_TREE_LEAF);
 
   this->frames_storage.num = 0;
   this->frames_storage.keys = nullptr;
@@ -529,12 +532,12 @@ Layer::Layer()
 
 Layer::Layer(StringRefNull name) : Layer()
 {
-  this->base.name_ptr = BLI_strdup(name.c_str());
+  new (&this->base) TreeNode(GP_LAYER_TREE_LEAF, name);
 }
 
 Layer::Layer(const Layer &other) : Layer()
 {
-  this->base = TreeNode(other.base.wrap());
+  new (&this->base) TreeNode(other.base.wrap());
 
   /* TODO: duplicate masks. */
 
@@ -550,7 +553,8 @@ Layer::Layer(const Layer &other) : Layer()
 
 Layer::~Layer()
 {
-  MEM_SAFE_FREE(this->base.name_ptr);
+  this->base.wrap().~TreeNode();
+
   MEM_SAFE_FREE(this->frames_storage.keys);
   MEM_SAFE_FREE(this->frames_storage.values);
 
@@ -758,7 +762,7 @@ void Layer::tag_frames_map_keys_changed()
 
 LayerGroup::LayerGroup()
 {
-  this->base = TreeNode(GP_LAYER_TREE_GROUP);
+  new (&this->base) TreeNode(GP_LAYER_TREE_GROUP);
 
   BLI_listbase_clear(&this->children);
 
@@ -767,12 +771,12 @@ LayerGroup::LayerGroup()
 
 LayerGroup::LayerGroup(StringRefNull name) : LayerGroup()
 {
-  this->base.name_ptr = BLI_strdup(name.c_str());
+  new (&this->base) TreeNode(GP_LAYER_TREE_GROUP, name);
 }
 
 LayerGroup::LayerGroup(const LayerGroup &other) : LayerGroup()
 {
-  this->base = TreeNode(other.base.wrap());
+  new (&this->base) TreeNode(other.base.wrap());
 
   LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &other.children) {
     switch (child->type) {
@@ -794,7 +798,7 @@ LayerGroup::LayerGroup(const LayerGroup &other) : LayerGroup()
 
 LayerGroup::~LayerGroup()
 {
-  MEM_SAFE_FREE(this->base.name_ptr);
+  this->base.wrap().~TreeNode();
 
   LISTBASE_FOREACH_MUTABLE (GreasePencilLayerTreeNode *, child, &this->children) {
     switch (child->type) {
@@ -2066,7 +2070,7 @@ static void read_layer(BlendDataReader *reader,
                        GreasePencilLayer *node,
                        GreasePencilLayerTreeGroup *parent)
 {
-  BLO_read_data_address(reader, &node->base.name_ptr);
+  BLO_read_data_address(reader, &node->base.name);
   node->base.parent = parent;
 
   /* Read frames storage. */
@@ -2091,7 +2095,7 @@ static void read_layer_tree_group(BlendDataReader *reader,
                                   GreasePencilLayerTreeGroup *node,
                                   GreasePencilLayerTreeGroup *parent)
 {
-  BLO_read_data_address(reader, &node->base.name_ptr);
+  BLO_read_data_address(reader, &node->base.name);
   node->base.parent = parent;
   /* Read list of children. */
   BLO_read_list(reader, &node->children);
@@ -2155,7 +2159,7 @@ static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
   }
 
   BLO_write_struct(writer, GreasePencilLayer, node);
-  BLO_write_string(writer, node->base.name_ptr);
+  BLO_write_string(writer, node->base.name);
 
   BLO_write_int32_array(writer, node->frames_storage.num, node->frames_storage.keys);
   BLO_write_struct_array(
@@ -2170,7 +2174,7 @@ static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
 static void write_layer_tree_group(BlendWriter *writer, GreasePencilLayerTreeGroup *node)
 {
   BLO_write_struct(writer, GreasePencilLayerTreeGroup, node);
-  BLO_write_string(writer, node->base.name_ptr);
+  BLO_write_string(writer, node->base.name);
   LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &node->children) {
     switch (child->type) {
       case GP_LAYER_TREE_LEAF: {

@@ -420,13 +420,6 @@ static void print_interface_as_struct(std::ostream &os,
   std::string struct_name = prefix + iface.name;
   Interpolation qualifier = iface.inouts[0].interp;
 
-  /* Workaround for shader that have not been converted yet. */
-  for (const StageInterfaceInfo::InOut &inout : iface.inouts) {
-    if (inout.interp == Interpolation::FLAT) {
-      qualifier = Interpolation::FLAT;
-    }
-  }
-
   os << "struct " << struct_name << " {\n";
   for (const StageInterfaceInfo::InOut &inout : iface.inouts) {
     os << "  " << to_string(inout.type) << " " << inout.name << ";\n";
@@ -663,11 +656,6 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   if (compilation_failed_) {
     return false;
   }
-#if DEBUG
-  if (!info->is_vulkan_compatible()) {
-    std::cout << "'" << info->name_ << "' stage interfaces are not compatible with Vulkan.\n";
-  }
-#endif
 
   VKShaderInterface *vk_interface = new VKShaderInterface();
   vk_interface->init(*info);
