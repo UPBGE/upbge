@@ -1,7 +1,7 @@
-uniform sampler2D bgl_RenderedTexture;
-uniform vec2 bgl_TextureCoordinateOffset[9];
-in vec4 bgl_TexCoord;
-out vec4 fragColor;
+//uniform sampler2D bgl_RenderedTexture;
+//uniform vec2 bgl_TextureCoordinateOffset[9];
+//in vec4 bgl_TexCoord;
+//out vec4 fragColor;
 
 void main(void)
 {

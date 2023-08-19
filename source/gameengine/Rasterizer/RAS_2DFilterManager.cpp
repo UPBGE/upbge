@@ -92,29 +92,7 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
     return targetfb;
   }
 
-  /* Set ogl states */
-  /*rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
-  rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
-  rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
-  rasty->Disable(RAS_Rasterizer::RAS_BLEND);
-  rasty->Disable(RAS_Rasterizer::RAS_ALPHA_TEST);*/
-
-  GPU_face_culling(GPU_CULL_NONE);
-  GPU_depth_test(GPU_DEPTH_NONE);
-  GPU_depth_mask(false);
-  GPU_blend(GPU_BLEND_NONE);
-
-  rasty->SetLines(false);
-
   RAS_FrameBuffer *previousfb = inputfb;
-
-  /* Set source off screen to RAS_FrameBuffer_FILTER0 in case of multisample and blit,
-   * else keep the original source off screen. */
-  // if (inputfb->GetSamples()) {
-  //	previousfb = rasty->GetFrameBuffer(RAS_Rasterizer::RAS_FrameBuffer_FILTER0);
-  //	// No need to bind previousfb because a blit is proceeded.
-  //	rasty->DrawOffScreen(inputfb, previousfb);
-  //}
 
   // The filter color input off screen, changed for each filters.
   RAS_FrameBuffer *colorfb;
@@ -157,13 +135,6 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
     GPU_framebuffer_bind(targetfb->GetFrameBuffer());
     rasty->DrawFrameBuffer(previousfb, targetfb);
   }
-
-  /*rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
-  rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
-  rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);*/
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-  GPU_depth_mask(true);
-  GPU_face_culling(GPU_CULL_BACK);
 
   return targetfb;
 }

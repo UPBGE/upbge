@@ -26,6 +26,7 @@
 
 #include "BLI_alloca.h"
 #include "GPU_immediate.h"
+#include "../gpu/intern/gpu_shader_create_info.hh"
 #include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
@@ -269,9 +270,30 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type) const
 
 bool RAS_Shader::LinkProgram(bool isCustomShader)
 {
+  using namespace blender::gpu::shader;
   std::string vert;
   std::string frag;
   std::string geom;
+
+  vert = GetParsedProgram(VERTEX_PROGRAM);
+  frag = GetParsedProgram(FRAGMENT_PROGRAM);
+  geom = GetParsedProgram(GEOMETRY_PROGRAM);
+
+  StageInterfaceInfo iface("2DFilter_Interface", "");
+  iface.smooth(Type::VEC4, "bgl_TexCoord");
+
+  ShaderCreateInfo info("2DFilter_Display");
+  info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  info.sampler(8, ImageType::FLOAT_2D, "bgl_RenderedTexture");
+  info.sampler(9, ImageType::FLOAT_2D, "bgl_DepthTexture");
+  info.vertex_in(0, Type::VEC2, "pos");
+  info.vertex_in(1, Type::VEC2, "texCoord");
+  info.vertex_out(iface);
+  info.fragment_out(0, Type::VEC4, "fragColor");
+  info.vertex_source("common_colormanagement_lib.glsl");
+  info.fragment_source("common_colormanagement_lib.glsl");
+  info.vertex_source_generated = vert;
+  info.fragment_source_generated = frag;
 
   if (m_error) {
     goto program_error;
@@ -282,19 +304,8 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
     return false;
   }
 
-  vert = GetParsedProgram(VERTEX_PROGRAM);
-  frag = GetParsedProgram(FRAGMENT_PROGRAM);
-  geom = GetParsedProgram(GEOMETRY_PROGRAM);
-  m_shader = GPU_shader_create_ex(vert.c_str(),
-                                  frag.c_str(),
-                                  geom.empty() ? nullptr : geom.c_str(),
-                                  nullptr,
-                                  nullptr,
-                                  nullptr,
-                                  GPU_SHADER_TFB_NONE,
-                                  NULL,
-                                  0,
-                                  "custom");
+  m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+
   if (!m_shader) {
     goto program_error;
   }
