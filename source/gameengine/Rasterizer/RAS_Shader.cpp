@@ -279,10 +279,10 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   frag = GetParsedProgram(FRAGMENT_PROGRAM);
   geom = GetParsedProgram(GEOMETRY_PROGRAM);
 
-  StageInterfaceInfo iface("2DFilter_Interface", "");
+  StageInterfaceInfo iface("s_Interface", "");
   iface.smooth(Type::VEC4, "bgl_TexCoord");
 
-  ShaderCreateInfo info("2DFilter_Display");
+  ShaderCreateInfo info("s_Display");
   info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
   info.sampler(8, ImageType::FLOAT_2D, "bgl_RenderedTexture");
   info.sampler(9, ImageType::FLOAT_2D, "bgl_DepthTexture");
