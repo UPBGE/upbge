@@ -470,7 +470,7 @@ void RAS_Shader::BindAttributes(const std::unordered_map<int, std::string> &attr
 int RAS_Shader::GetUniformLocation(const std::string &name, bool debug)
 {
   BLI_assert(m_shader != nullptr);
-  int location = GPU_shader_get_uniform_location_old(m_shader, name.c_str());
+  int location = GPU_shader_get_uniform(m_shader, name.c_str());
 
   if (location == -1 && debug) {
     CM_Error("invalid uniform value: " << name << ".");
