@@ -286,8 +286,6 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
   info.sampler(8, ImageType::FLOAT_2D, "bgl_RenderedTexture");
   info.sampler(9, ImageType::FLOAT_2D, "bgl_DepthTexture");
-  info.vertex_in(0, Type::VEC2, "pos");
-  info.vertex_in(1, Type::VEC2, "texCoord");
   info.vertex_out(iface);
   info.fragment_out(0, Type::VEC4, "fragColor");
   info.vertex_source("common_colormanagement_lib.glsl");
