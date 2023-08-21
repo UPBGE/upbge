@@ -340,7 +340,7 @@ Debug mode to be used with :func:`setDebugMode`.
 
 .. data:: DBG_ENABLESATCOMPARISION
 
-   Enable sat comparision in debug.
+   Enable sat comparison in debug.
 
    :type: integer
 
@@ -352,7 +352,7 @@ Debug mode to be used with :func:`setDebugMode`.
 
 .. data:: DBG_ENABLECCD
 
-   Enable Continous Collision Detection in debug.
+   Enable Continuous Collision Detection in debug.
 
    :type: integer
 

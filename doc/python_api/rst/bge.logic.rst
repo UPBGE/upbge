@@ -352,7 +352,7 @@ General functions
    :return: The physics update frequency in Hz
    :rtype: float
    
-   .. warning: Not implimented yet
+   .. warning: Not implemented yet
 
 .. function:: setPhysicsTicRate(ticrate)
 
@@ -364,7 +364,7 @@ General functions
    :arg ticrate: The new update frequency (in Hz).
    :type ticrate: float
 
-   .. warning: Not implimented yet
+   .. warning: Not implemented yet
 
 .. function:: getExitKey()
 

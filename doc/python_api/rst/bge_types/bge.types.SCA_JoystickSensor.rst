@@ -16,7 +16,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
       :type: list of ints.
 
       Each specifying the value of an axis between -32767 and 32767 depending on how far the axis is pushed, 0 for nothing.
-      The first 2 values are used by most joysticks and gamepads for directional control. 3rd and 4th values are only on some joysticks and can be used for arbitary controls.
+      The first 2 values are used by most joysticks and gamepads for directional control. 3rd and 4th values are only on some joysticks and can be used for arbitrary controls.
 
       * left:[-32767, 0, ...]
       * right:[32767, 0, ...]

@@ -90,7 +90,7 @@ Constants
 
    Enables adaptive vsync if supported.
    Adaptive vsync enables vsync if the framerate is above the monitors refresh rate.
-   Otherwise, vsync is diabled if the framerate is too low.
+   Otherwise, vsync is disabled if the framerate is too low.
 
    :type: integer
 
@@ -244,7 +244,7 @@ Functions
 
    .. deprecated:: 0.3.0
 
-   Sets the eye separation for stereo mode. Usually Focal Length/30 provides a confortable value.
+   Sets the eye separation for stereo mode. Usually Focal Length/30 provides a comfortable value.
 
    :arg eyesep: The distance between the left and right eye.
    :type eyesep: float
@@ -361,7 +361,7 @@ Functions
 
    Enable the motion blur effect.
 
-   :arg factor: the ammount of motion blur to display.
+   :arg factor: the amount of motion blur to display.
    :type factor: float [0.0 - 1.0]
 
 

@@ -7,7 +7,7 @@ cover all common video capture cases.
 
 This file reflects the current video transfer method implemented in the Decklink module:
 whenever possible the video images are transferred as float texture because this is more
-compatible with GPUs. Of course, only the pixel formats that have a correspondant GL format
+compatible with GPUs. Of course, only the pixel formats that have a correspondent GL format
 can be transferred as float. Look for fg_shaders in this file for an exhaustive list.
 
 Other pixel formats will be transferred as 32 bits integer red-channel texture but this
@@ -184,7 +184,7 @@ FragmentShader_v210 = """
 """
 
 # The exhausitve list of pixel formats that are transferred as float texture
-# Only use those for greater efficiency and compatiblity.
+# Only use those for greater efficiency and compatibility.
 #
 fg_shaders = {
     '2vuy'       :FragmentShader_2vuy,

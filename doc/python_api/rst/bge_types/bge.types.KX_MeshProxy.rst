@@ -93,7 +93,7 @@ base class --- :class:`~bge.types.EXP_Value`
 
       :arg matid: the specified material
       :type matid: integer
-      :return: the number of verticies in the vertex array.
+      :return: the number of vertices in the vertex array.
       :rtype: integer
 
    .. method:: getVertex(matid, index)

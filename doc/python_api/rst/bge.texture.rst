@@ -464,7 +464,7 @@ Image classes
 
       .. deprecated:: 0.3.0
 
-      Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
+      Choose to force shadow buffer update if there is a gap between image rendered and shadows.
 
       :type: bool
 
@@ -722,7 +722,7 @@ Image classes
 
       .. deprecated:: 0.3.0
 
-      Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
+      Choose to force shadow buffer update if there is a gap between image rendered and shadows.
 
       :type: bool
 
@@ -1225,7 +1225,7 @@ Texture classes
       :type refresh_source: bool
       :arg timestamp: If the texture controls a VideoFFmpeg object:
          timestamp (in seconds from the start of the movie) of the frame to be loaded; this can be
-         used for video-sound synchonization by passing :attr:`~bge.types.KX_SoundActuator.time` to it. (optional)
+         used for video-sound synchronization by passing :attr:`~bge.types.KX_SoundActuator.time` to it. (optional)
       :type timestamp: float
 
    .. attribute:: source
@@ -1379,11 +1379,11 @@ Filter classes
    Filter for Blue Screen.
    The RGB channels of the color are left unchanged, while the output alpha is obtained as follows:
 
-   - if the square of the euclidian distance between the RGB color
+   - if the square of the euclidean distance between the RGB color
      and the filter's reference color is smaller than the filter's lower limit,
      the output alpha is set to 0;
    - if that square is bigger than the filter's upper limit, the output alpha is set to 255;
-   - otherwise the output alpha is linarly extrapoled between 0 and 255 in the interval of the limits.
+   - otherwise the output alpha is linearly extrapolated between 0 and 255 in the interval of the limits.
 
    .. attribute:: color
 
@@ -1470,7 +1470,7 @@ Filter classes
 
    * if it is bigger than its corresponding max value, it is set to 255;
 
-   * Otherwise it is linearly extrapoled between 0 and 255 in the (min, max) interval.
+   * Otherwise it is linearly extrapolated between 0 and 255 in the (min, max) interval.
 
    .. attribute:: levels
 
