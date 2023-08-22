@@ -179,8 +179,14 @@ void BKE_constraints_copy_ex(struct ListBase *dst,
                              bool do_extern);
 /**
  * Run the given callback on all ID-blocks in list of constraints.
+ *
+ * \param flag the `IDWALK_` flags controlling the behavior of the foreach_id code, see
+ * `BKE_lib_query.h`
  */
-void BKE_constraints_id_loop(struct ListBase *list, ConstraintIDFunc func, void *userdata);
+void BKE_constraints_id_loop(struct ListBase *list,
+                             ConstraintIDFunc func,
+                             const int flag,
+                             void *userdata);
 void BKE_constraint_free_data(struct bConstraint *con);
 /**
  * Free data of a specific constraint if it has any info.
