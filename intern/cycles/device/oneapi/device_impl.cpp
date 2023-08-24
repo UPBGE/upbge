@@ -812,12 +812,12 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
   }
 
   /* Such order of logic allow us to override Blender default values, if needed,
-   * yet respect them overwise. */
+   * yet respect them otherwise. */
   if (preferred_work_group_size == 0) {
     preferred_work_group_size = oneapi_suggested_gpu_kernel_size((::DeviceKernel)kernel);
   }
 
-  /* If there is no recommendetion, then use manual default value. */
+  /* If there is no recommendation, then use manual default value. */
   if (preferred_work_group_size == 0) {
     preferred_work_group_size = preferred_work_group_size_default;
   }
@@ -848,7 +848,7 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
   }
 #  endif
 
-  assert(uniformed_kernel_work_size % local_size == 0);
+  // assert(uniformed_kernel_work_size % local_size == 0);
 }
 
 /* Compute-runtime (ie. NEO) version is what gets returned by sycl/L0 on Windows

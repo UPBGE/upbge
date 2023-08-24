@@ -600,7 +600,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->proxy, IDWALK_CB_NOP);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->proxy_group, IDWALK_CB_NOP);
-    /* Note that `proxy_from` is purposedly skipped here, as this should be considered as pure
+    /* Note that `proxy_from` is purposefully skipped here, as this should be considered as pure
      * runtime data. */
 
     PartEff *paf = BKE_object_do_version_give_parteff_245(object);
@@ -1594,23 +1594,6 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
   }
 }
 
-/* XXX deprecated - old animation system */
-static void expand_constraint_channels(BlendExpander *expander, ListBase *chanbase)
-{
-  LISTBASE_FOREACH (bConstraintChannel *, chan, chanbase) {
-    BLO_expand(expander, chan->ipo);
-  }
-}
-
-static void expand_object_expandModifiers(void *user_data,
-                                          Object * /*ob*/,
-                                          ID **idpoin,
-                                          int /*cb_flag*/)
-{
-  BlendExpander *expander = (BlendExpander *)user_data;
-  BLO_expand(expander, *idpoin);
-}
-
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
 {
   PartEff *paf;
@@ -1623,201 +1606,6 @@ PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
     paf = paf->next;
   }
   return nullptr;
-}
-
-static void object_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Object *ob = (Object *)id;
-
-  BLO_expand(expander, ob->data);
-
-  BLO_expand(expander, ob->parent);
-
-  /* expand_object_expandModifier() */
-  if (ob->modifiers.first) {
-    BKE_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, expander);
-  }
-
-  /* expand_object_expandModifier() */
-  if (ob->greasepencil_modifiers.first) {
-    BKE_gpencil_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, expander);
-  }
-
-  /* expand_object_expandShaderFx() */
-  if (ob->shader_fx.first) {
-    BKE_shaderfx_foreach_ID_link(ob, expand_object_expandModifiers, expander);
-  }
-
-  BKE_pose_blend_read_expand(expander, ob->pose);
-  BLO_expand(expander, ob->poselib);
-  BKE_constraint_blend_read_expand(expander, &ob->constraints);
-
-  BLO_expand(expander, ob->gpd);
-
-  /* XXX deprecated - old animation system (for version patching only) */
-  BLO_expand(expander, ob->ipo);
-  BLO_expand(expander, ob->action);
-
-  expand_constraint_channels(expander, &ob->constraintChannels);
-
-  LISTBASE_FOREACH (bActionStrip *, strip, &ob->nlastrips) {
-    BLO_expand(expander, strip->object);
-    BLO_expand(expander, strip->act);
-    BLO_expand(expander, strip->ipo);
-  }
-  /* XXX deprecated - old animation system (for version patching only) */
-
-  for (int a = 0; a < ob->totcol; a++) {
-    BLO_expand(expander, ob->mat[a]);
-  }
-
-  PartEff *paf = BKE_object_do_version_give_parteff_245(ob);
-  if (paf && paf->group) {
-    BLO_expand(expander, paf->group);
-  }
-
-  if (ob->instance_collection) {
-    BLO_expand(expander, ob->instance_collection);
-  }
-
-  if (ob->proxy) {
-    BLO_expand(expander, ob->proxy);
-  }
-  if (ob->proxy_group) {
-    BLO_expand(expander, ob->proxy_group);
-  }
-
-  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-    BLO_expand(expander, psys->part);
-  }
-
-  /* UPBGE */
-  bSensor *sens;
-  bController *cont;
-  bActuator *act;
-
-  for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
-    if (sens->type == SENS_MESSAGE) {
-      bMessageSensor *ms = (bMessageSensor *)sens->data;
-      BLO_expand(expander, ms->fromObject);
-    }
-  }
-
-  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
-    if (cont->type == CONT_PYTHON) {
-      bPythonCont *pc = (bPythonCont *)cont->data;
-      BLO_expand(expander, pc->text);
-      BLO_expand(expander, pc->module_script);
-    }
-  }
-
-  for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
-    if (act->type == ACT_SOUND) {
-      bSoundActuator *sa = (bSoundActuator *)act->data;
-      BLO_expand(expander, sa->sound);
-    }
-    else if (act->type == ACT_CAMERA) {
-      bCameraActuator *ca = (bCameraActuator *)act->data;
-      BLO_expand(expander, ca->ob);
-    }
-    else if (act->type == ACT_EDIT_OBJECT) {
-      bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
-      if (eoa) {
-        BLO_expand(expander, eoa->ob);
-        BLO_expand(expander, eoa->me);
-      }
-    }
-    else if (act->type == ACT_OBJECT) {
-      bObjectActuator *oa = (bObjectActuator *)act->data;
-      BLO_expand(expander, oa->reference);
-    }
-    else if (act->type == ACT_ADD_OBJECT) {
-      bAddObjectActuator *aoa = (bAddObjectActuator *)act->data;
-      BLO_expand(expander, aoa->ob);
-    }
-    else if (act->type == ACT_SCENE) {
-      bSceneActuator *sa = (bSceneActuator *)act->data;
-      BLO_expand(expander, sa->camera);
-      BLO_expand(expander, sa->scene);
-    }
-    else if (act->type == ACT_COLLECTION) {
-      bCollectionActuator *ca = (bCollectionActuator *)act->data;
-      BLO_expand(expander, ca->collection);
-      BLO_expand(expander, ca->camera);
-    }
-    else if (act->type == ACT_2DFILTER) {
-      bTwoDFilterActuator *tdfa = (bTwoDFilterActuator *)act->data;
-      BLO_expand(expander, tdfa->text);
-    }
-    else if (act->type == ACT_ACTION) {
-      bActionActuator *aa = (bActionActuator *)act->data;
-      BLO_expand(expander, aa->act);
-    }
-    else if (act->type == ACT_SHAPEACTION) {
-      bActionActuator *aa = (bActionActuator *)act->data;
-      BLO_expand(expander, aa->act);
-    }
-    else if (act->type == ACT_PROPERTY) {
-      bPropertyActuator *pa = (bPropertyActuator *)act->data;
-      BLO_expand(expander, pa->ob);
-    }
-    else if (act->type == ACT_MESSAGE) {
-      bMessageActuator *ma = (bMessageActuator *)act->data;
-      BLO_expand(expander, ma->toObject);
-    }
-    else if (act->type == ACT_PARENT) {
-      bParentActuator *pa = (bParentActuator *)act->data;
-      BLO_expand(expander, pa->ob);
-    }
-    else if (act->type == ACT_ARMATURE) {
-      bArmatureActuator *arma = (bArmatureActuator *)act->data;
-      BLO_expand(expander, arma->target);
-    }
-    else if (act->type == ACT_STEERING) {
-      bSteeringActuator *sta = (bSteeringActuator *)act->data;
-      BLO_expand(expander, sta->target);
-      BLO_expand(expander, sta->navmesh);
-    }
-  }
-
-  LISTBASE_FOREACH (PythonProxy *, proxy, &ob->components) {
-    LISTBASE_FOREACH (PythonProxyProperty *, prop, &proxy->properties) {
-#define PT_DEF(name, lower, upper) BLO_expand(expander, prop->lower);
-      POINTER_TYPES
-#undef PT_DEF
-    }
-  }
-
-  if (ob->currentlod) {
-    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
-      BLO_expand(expander, level->source);
-    }
-  }
-  /* End of UPBGE */
-
-  if (ob->pd) {
-    BLO_expand(expander, ob->pd->tex);
-    BLO_expand(expander, ob->pd->f_source);
-  }
-
-  if (ob->soft) {
-    BLO_expand(expander, ob->soft->collision_group);
-
-    if (ob->soft->effector_weights) {
-      BLO_expand(expander, ob->soft->effector_weights->group);
-    }
-  }
-
-  if (ob->rigidbody_constraint) {
-    BLO_expand(expander, ob->rigidbody_constraint->ob1);
-    BLO_expand(expander, ob->rigidbody_constraint->ob2);
-  }
-
-  /* Light and shadow linking. */
-  if (ob->light_linking) {
-    BLO_expand(expander, ob->light_linking->receiver_collection);
-    BLO_expand(expander, ob->light_linking->blocker_collection);
-  }
 }
 
 static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
@@ -1943,7 +1731,6 @@ IDTypeInfo IDType_ID_OB = {
     /*blend_write*/ object_blend_write,
     /*blend_read_data*/ object_blend_read_data,
     /*blend_read_lib*/ object_blend_read_lib,
-    /*blend_read_expand*/ object_blend_read_expand,
 
     /*blend_read_undo_preserve*/ nullptr,
 

@@ -84,7 +84,7 @@ enum {
   IDWALK_CB_INTERNAL = (1 << 9),
 
   /**
-   * This ID usage should not be processed during readfile (neither during liblinking nor
+   * This ID usage should not be processed during readfile (neither during lib-linking nor
    * expanding).
    *
    * Note that all embedded IDs pointers (#IDWALK_CB_EMBEDDED and #IDWALK_CB_EMBEDDED_NOT_OWNING)
@@ -175,9 +175,8 @@ enum {
    * \note Access to owning embedded ID pointers (e.g. `Scene.master_collection`) is not affected
    * here, these are presumed always valid.
    *
-   * \note This flag is mutually exclusive with `IDWALK_READONLY` and `IDWALK_RECURSE`, since by
-   * definition the only thing doable in readonly case is accessing current ID pointer, and this is
-   * also required for recursion.
+   * \note This flag is mutually exclusive with `IDWALK_RECURSE`, since by definition accessing the
+   * current ID pointer is required for recursion.
    *
    * \note After remapping, code may access the newly set ID pointer, which is always presumed
    * valid.
