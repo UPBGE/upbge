@@ -3673,7 +3673,6 @@ void drw_debug_draw_bge(void)
 /*--End of UPBGE Viewport Debug Drawing--*/
 
 #include "engines/eevee/eevee_private.h"
-#include "engines/workbench/workbench_private.h"
 
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
@@ -3750,7 +3749,7 @@ void DRW_game_render_loop(bContext *C,
     }
   }
   else {
-    use_drw_engine(&draw_engine_workbench);
+    use_drw_engine(DRW_engine_viewport_workbench_next_type.draw_engine);
   }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
