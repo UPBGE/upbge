@@ -745,7 +745,7 @@ void KX_KetsjiEngine::Render()
       RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0);
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
-  background_fb->UpdateSize(width, height);
+  background_fb->UpdateSize(width + 1, height + 1);
 
   std::vector<FrameRenderData> frameDataList;
   GetFrameRenderData(frameDataList);
