@@ -1343,6 +1343,22 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   BKE_pose_blend_read_after_liblink(reader, ob, ob->pose);
 
   BKE_particle_system_blend_read_after_liblink(reader, ob, &ob->id, &ob->particlesystem);
+
+  /* UPBGE */
+  for (bSensor *sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
+    for (int a = 0; a < sens->totlinks; a++) {
+      sens->links[a] = (bController *)BLO_read_get_new_globaldata_address(reader, sens->links[a]);
+    }
+  }
+
+  for (bController *cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
+    for (int a = 0; a < cont->totlinks; a++) {
+      cont->links[a] = (bActuator *)BLO_read_get_new_globaldata_address(reader, cont->links[a]);
+    }
+    cont->slinks = nullptr;
+    cont->totslinks = 0;
+  }
+  /* End of UPBGE */
 }
 
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
