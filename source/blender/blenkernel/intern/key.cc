@@ -184,6 +184,7 @@ static void shapekey_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *i
   /* ShapeKeys should always only be linked indirectly through their user ID (mesh, Curve etc.), or
    * be fully local data. */
   BLI_assert((id->tag & LIB_TAG_EXTERN) == 0);
+  UNUSED_VARS_NDEBUG(id);
 }
 
 IDTypeInfo IDType_ID_KE = {
@@ -2257,11 +2258,11 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
         {reinterpret_cast<blender::float3 *>(face_normals), faces.size()});
   }
   if (vert_normals_needed) {
-    blender::bke::mesh::normals_calc_face_vert(
+    blender::bke::mesh::normals_calc_verts(
         positions,
         faces,
         corner_verts,
-        {reinterpret_cast<blender::float3 *>(face_normals), faces.size()},
+        {reinterpret_cast<const blender::float3 *>(face_normals), faces.size()},
         {reinterpret_cast<blender::float3 *>(vert_normals), mesh->totvert});
   }
   if (loop_normals_needed) {
