@@ -143,7 +143,7 @@ static const EnumPropertyItem rna_enum_execution_mode_items[] = {
     {NTREE_EXECUTION_MODE_REALTIME,
      "REALTIME",
      0,
-     "Realtime GPU",
+     "GPU",
      "Use GPU accelerated compositing with more limited functionality"},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -1931,9 +1931,6 @@ static const EnumPropertyItem *itemf_function_check(
 
 static bool switch_type_supported(const EnumPropertyItem *item)
 {
-  if (!U.experimental.use_rotation_socket && item->value == SOCK_ROTATION) {
-    return false;
-  }
   return ELEM(item->value,
               SOCK_FLOAT,
               SOCK_INT,
@@ -2063,9 +2060,6 @@ static const EnumPropertyItem *rna_GeoNodeAccumulateField_type_itemf(bContext * 
 
 static bool generic_attribute_type_supported(const EnumPropertyItem *item)
 {
-  if (!U.experimental.use_rotation_socket && item->value == CD_PROP_QUATERNION) {
-    return false;
-  }
   return ELEM(item->value,
               CD_PROP_FLOAT,
               CD_PROP_FLOAT2,
@@ -2958,7 +2952,7 @@ static const EnumPropertyItem *rna_ShaderNodeMix_data_type_itemf(bContext * /*C*
 
   const auto rotation_supported_mix = [&](const EnumPropertyItem *item) -> bool {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(item->value);
-    if (U.experimental.use_rotation_socket && data_type == SOCK_ROTATION) {
+    if (data_type == SOCK_ROTATION) {
       const bNodeTree *tree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
       if (tree->type == NTREE_GEOMETRY) {
         return true;

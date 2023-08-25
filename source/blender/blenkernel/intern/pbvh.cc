@@ -26,7 +26,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_ccg.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -814,17 +814,11 @@ void BKE_pbvh_update_mesh_pointers(PBVH *pbvh, Mesh *mesh)
     pbvh->vert_positions = mesh->vert_positions_for_write();
   }
 
-  pbvh->hide_poly = static_cast<bool *>(CustomData_get_layer_named_for_write(
-      &mesh->face_data, CD_PROP_BOOL, ".hide_poly", mesh->faces_num));
-  pbvh->hide_vert = static_cast<bool *>(CustomData_get_layer_named_for_write(
-      &mesh->vert_data, CD_PROP_BOOL, ".hide_vert", mesh->totvert));
+  BKE_pbvh_update_hide_attributes_from_mesh(pbvh);
 
   /* Make sure cached normals start out calculated. */
-  mesh->vert_normals();
-  mesh->face_normals();
-
-  pbvh->vert_normals = mesh->runtime->vert_normals;
-  pbvh->face_normals = mesh->runtime->face_normals;
+  pbvh->vert_normals = mesh->vert_normals();
+  pbvh->face_normals = mesh->face_normals();
 
   pbvh->vert_data = &mesh->vert_data;
   pbvh->loop_data = &mesh->loop_data;
@@ -1296,7 +1290,7 @@ static bool update_search(PBVHNode *node, const int flag)
   return true;
 }
 
-static void pbvh_faces_update_normals(PBVH *pbvh, Span<PBVHNode *> nodes)
+static void pbvh_faces_update_normals(PBVH *pbvh, Span<PBVHNode *> nodes, Mesh &mesh)
 {
   using namespace blender;
   using namespace blender::bke;
@@ -1319,17 +1313,16 @@ static void pbvh_faces_update_normals(PBVH *pbvh, Span<PBVHNode *> nodes)
     return;
   }
 
-  MutableSpan<float3> vert_normals = pbvh->vert_normals;
-  MutableSpan<float3> face_normals = pbvh->face_normals;
-
   VectorSet<int> verts_to_update;
   threading::parallel_invoke(
       [&]() {
+        MutableSpan<float3> face_normals = mesh.runtime->face_normals;
         threading::parallel_for(faces_to_update.index_range(), 512, [&](const IndexRange range) {
           for (const int i : faces_to_update.as_span().slice(range)) {
             face_normals[i] = mesh::face_normal_calc(positions, corner_verts.slice(faces[i]));
           }
         });
+        mesh.runtime->face_normals_dirty = false;
       },
       [&]() {
         /* Update all normals connected to affected faces, even if not explicitly tagged. */
@@ -1346,6 +1339,8 @@ static void pbvh_faces_update_normals(PBVH *pbvh, Span<PBVHNode *> nodes)
         }
       });
 
+  const Span<float3> face_normals = mesh.runtime->face_normals;
+  MutableSpan<float3> vert_normals = mesh.runtime->vert_normals;
   threading::parallel_for(verts_to_update.index_range(), 1024, [&](const IndexRange range) {
     for (const int vert : verts_to_update.as_span().slice(range)) {
       float3 normal(0.0f);
@@ -1355,6 +1350,7 @@ static void pbvh_faces_update_normals(PBVH *pbvh, Span<PBVHNode *> nodes)
       vert_normals[vert] = math::normalize(normal);
     }
   });
+  mesh.runtime->vert_normals_dirty = false;
 }
 
 static void node_update_mask_redraw(PBVH &pbvh, PBVHNode &node)
@@ -2849,7 +2845,7 @@ void BKE_pbvh_update_normals(PBVH *pbvh, SubdivCCG *subdiv_ccg)
     pbvh_bmesh_normals_update(nodes);
   }
   else if (pbvh->header.type == PBVH_FACES) {
-    pbvh_faces_update_normals(pbvh, nodes);
+    pbvh_faces_update_normals(pbvh, nodes, *pbvh->mesh);
   }
   else if (pbvh->header.type == PBVH_GRIDS) {
     CCGFace **faces;
@@ -3550,6 +3546,8 @@ bool BKE_pbvh_face_iter_done(PBVHFaceIter *fd)
 
 void BKE_pbvh_sync_visibility_from_verts(PBVH *pbvh, Mesh *mesh)
 {
+  using namespace blender;
+  using namespace blender::bke;
   switch (pbvh->header.type) {
     case PBVH_FACES: {
       BKE_mesh_flush_hidden_from_verts(mesh);
@@ -3585,47 +3583,31 @@ void BKE_pbvh_sync_visibility_from_verts(PBVH *pbvh, Mesh *mesh)
       break;
     }
     case PBVH_GRIDS: {
-      const blender::OffsetIndices faces = mesh->faces();
+      const OffsetIndices faces = mesh->faces();
       CCGKey key = pbvh->gridkey;
 
-      bool *hide_poly = static_cast<bool *>(CustomData_get_layer_named_for_write(
-          &mesh->face_data, CD_PROP_BOOL, ".hide_poly", mesh->faces_num));
+      IndexMaskMemory memory;
+      const IndexMask hidden_faces = IndexMask::from_predicate(
+          faces.index_range(), GrainSize(1024), memory, [&](const int i) {
+            const IndexRange face = faces[i];
+            return std::any_of(face.begin(), face.end(), [&](const int corner) {
+              if (!pbvh->grid_hidden[corner]) {
+                return false;
+              }
+              return BLI_BITMAP_TEST_BOOL(pbvh->grid_hidden[corner], key.grid_area - 1);
+            });
+          });
 
-      bool delete_hide_poly = true;
-      for (const int face_i : faces.index_range()) {
-        const blender::IndexRange face = faces[face_i];
-        bool hidden = false;
-
-        for (int loop_index = 0; !hidden && loop_index < face.size(); loop_index++) {
-          int grid_index = face[loop_index];
-
-          if (pbvh->grid_hidden[grid_index] &&
-              BLI_BITMAP_TEST(pbvh->grid_hidden[grid_index], key.grid_area - 1))
-          {
-            hidden = true;
-
-            break;
-          }
-        }
-
-        if (hidden && !hide_poly) {
-          hide_poly = static_cast<bool *>(CustomData_get_layer_named_for_write(
-              &mesh->face_data, CD_PROP_BOOL, ".hide_poly", mesh->faces_num));
-
-          if (!hide_poly) {
-            hide_poly = static_cast<bool *>(CustomData_add_layer_named(
-                &mesh->face_data, CD_PROP_BOOL, CD_CONSTRUCT, mesh->faces_num, ".hide_poly"));
-          }
-        }
-
-        if (hide_poly) {
-          delete_hide_poly = delete_hide_poly && !hidden;
-          hide_poly[face_i] = hidden;
-        }
+      MutableAttributeAccessor attributes = mesh->attributes_for_write();
+      if (hidden_faces.is_empty()) {
+        attributes.remove(".hide_poly");
       }
-
-      if (delete_hide_poly) {
-        CustomData_free_layer_named(&mesh->face_data, ".hide_poly", mesh->faces_num);
+      else {
+        SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
+            ".hide_poly", ATTR_DOMAIN_FACE, AttributeInitConstruct());
+        hide_poly.span.fill(false);
+        index_mask::masked_fill(hide_poly.span, true, hidden_faces);
+        hide_poly.finish();
       }
 
       BKE_mesh_flush_hidden_from_faces(mesh);

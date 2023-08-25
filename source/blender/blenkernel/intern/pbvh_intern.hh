@@ -151,9 +151,8 @@ struct PBVH {
   /* Mesh data */
   Mesh *mesh;
 
-  /* NOTE: Normals are not `const` because they can be updated for drawing by sculpt code. */
-  blender::MutableSpan<blender::float3> vert_normals;
-  blender::MutableSpan<blender::float3> face_normals;
+  blender::Span<blender::float3> vert_normals;
+  blender::Span<blender::float3> face_normals;
   bool *hide_vert;
   blender::MutableSpan<blender::float3> vert_positions;
   /** Local vertex positions owned by the PVBH when not sculpting base mesh positions directly. */
@@ -265,8 +264,6 @@ bool ray_face_nearest_tri(const float ray_start[3],
                           const float t2[3],
                           float *r_depth,
                           float *r_dist_sq);
-
-void pbvh_update_BB_redraw(PBVH *bvh, PBVHNode **nodes, int totnode, int flag);
 
 /* pbvh_bmesh.cc */
 
