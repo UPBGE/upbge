@@ -2097,7 +2097,7 @@ static const EnumPropertyItem *gameprops_itemf(bContext *C,
   int a, totitem = 0;
 
   if (!ob)
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
 
   for (a = 1, prop = (bProperty *)ob->prop.first; prop; prop = prop->next, a++) {
     tmp.value = a;
@@ -2169,7 +2169,7 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot)
 
   RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
   prop = RNA_def_enum(
-      ot->srna, "property", DummyRNA_NULL_items, 0, "Property", "Properties to copy");
+      ot->srna, "property", rna_enum_dummy_NULL_items, 0, "Property", "Properties to copy");
   RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_ENUM_NO_TRANSLATE));
   RNA_def_enum_funcs(prop, gameprops_itemf);
   ot->prop = prop;
