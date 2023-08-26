@@ -4,7 +4,7 @@ import math
 # create a location matrix
 mat_loc = mathutils.Matrix.Translation((2.0, 3.0, 4.0))
 
-# create an identitiy matrix
+# create an identity matrix
 mat_sca = mathutils.Matrix.Scale(0.5, 4, (0.0, 0.0, 1.0))
 
 # create a rotation matrix

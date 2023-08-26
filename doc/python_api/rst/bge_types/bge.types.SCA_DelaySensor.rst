@@ -13,7 +13,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
    The duration parameter defines the length of the ON period following the OFF period.
    There is a negative trigger at the end of the ON period. If duration is 0, the sensor stays ON and there is no negative trigger.
 
-   The sensor runs the OFF-ON cycle once unless the repeat option is set: the OFF-ON cycle repeats indefinately (or the OFF cycle if duration is 0).
+   The sensor runs the OFF-ON cycle once unless the repeat option is set: the OFF-ON cycle repeats indefinitely (or the OFF cycle if duration is 0).
 
    Use :meth:`SCA_ISensor.reset <bge.types.SCA_ISensor.reset>` at any time to restart sensor.
 
@@ -33,6 +33,6 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
    .. attribute:: repeat
 
-      1 if the OFF-ON cycle should be repeated indefinately, 0 if it should run once.
+      1 if the OFF-ON cycle should be repeated indefinitely, 0 if it should run once.
 
       :type: integer

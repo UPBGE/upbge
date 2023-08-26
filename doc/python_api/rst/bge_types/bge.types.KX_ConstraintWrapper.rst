@@ -11,14 +11,14 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: getConstraintId(val)
 
-      Returns the contraint ID
+      Returns the constraint ID
 
       :return: the constraint ID
       :rtype: integer
 
    .. method:: setParam(axis, value0, value1)
 
-      Set the contraint limits
+      Set the constraint limits
 
       :arg axis:
       :type axis: integer
@@ -101,7 +101,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: getParam(axis)
 
-      Get the contraint position or euler angle of a generic 6DOF constraint
+      Get the constraint position or euler angle of a generic 6DOF constraint
 
       :arg axis:
       :type axis: integer
@@ -124,13 +124,13 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: constraint_id
 
-      Returns the contraint ID  (read only)
+      Returns the constraint ID  (read only)
 
       :type: integer
 
    .. attribute:: constraint_type
 
-      Returns the contraint type (read only)
+      Returns the constraint type (read only)
 
       :type: integer
 

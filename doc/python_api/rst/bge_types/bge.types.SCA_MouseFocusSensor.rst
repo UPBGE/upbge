@@ -38,7 +38,7 @@ base class --- :class:`~bge.types.SCA_MouseSensor`
 
    .. attribute:: hitPosition
 
-      The worldspace position of the ray intersecton.
+      The worldspace position of the ray intersection.
 
       :type: list (vector of 3 floats)
 

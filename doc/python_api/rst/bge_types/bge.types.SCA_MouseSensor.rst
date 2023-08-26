@@ -13,7 +13,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
       current [x, y] coordinates of the mouse, in frame coordinates (pixels).
 
-      :type: [integer, interger]
+      :type: [integer, integer]
 
    .. attribute:: mode
 
