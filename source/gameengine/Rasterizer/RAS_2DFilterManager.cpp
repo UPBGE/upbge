@@ -92,8 +92,6 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
     return targetfb;
   }
 
-  rasty->SetLines(false);
-
   RAS_FrameBuffer *previousfb = inputfb;
 
   /* Set source off screen to RAS_FrameBuffer_FILTER0 in case of multisample and blit,
