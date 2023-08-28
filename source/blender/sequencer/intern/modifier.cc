@@ -31,7 +31,7 @@
 #include "SEQ_modifier.h"
 #include "SEQ_render.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "render.h"
 
@@ -1553,6 +1553,12 @@ void SEQ_modifier_list_copy(Sequence *seqn, Sequence *seq)
 
     smdn->next = smdn->prev = nullptr;
     BLI_addtail(&seqn->modifiers, smdn);
+    BLI_uniquename(&seqn->modifiers,
+                   smdn,
+                   "Strip Modifier",
+                   '.',
+                   offsetof(SequenceModifierData, name),
+                   sizeof(SequenceModifierData::name));
   }
 }
 

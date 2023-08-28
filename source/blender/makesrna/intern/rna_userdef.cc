@@ -4858,13 +4858,25 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "playback_fps_samples", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "playback_fps_samples");
-  RNA_def_property_range(prop, 0, 200);
+  /* NOTE(@ideasman42): this maximum is arbitrary, 5000 samples averages over the last 10 seconds
+   * for an animation playing back at 500fps, which seems like more than enough. */
+  RNA_def_property_range(prop, 0, 5000);
+  RNA_def_property_ui_range(prop, 0, 500, 1, 3);
   RNA_def_property_ui_text(
       prop,
       "FPS Average Samples",
       "The number of frames to use for calculating FPS average. "
       "Zero to calculate this automatically, where the number of samples matches the target FPS");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "use_fresnel_edit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gpu_flag", USER_GPU_FLAG_FRESNEL_EDIT);
+  RNA_def_property_ui_text(prop,
+                           "Edit Mode",
+                           "Enable a fresnel effect on edit mesh overlays.\n"
+                           "It improves shape readability of very dense meshes, "
+                           "but increases eye fatigue when modeling lower poly");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   USERDEF_TAG_DIRTY_PROPERTY_UPDATE_DISABLE;
   prop = RNA_def_property(srna, "show_addons_enabled_only", PROP_BOOLEAN, PROP_NONE);
@@ -6499,7 +6511,8 @@ static void rna_def_userdef_filepaths_extension_repo(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "UserExtensionRepo", nullptr);
   RNA_def_struct_sdna(srna, "bUserExtensionRepo");
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-  RNA_def_struct_ui_text(srna, "Extension Repo", "Settings to define an extension repository");
+  RNA_def_struct_ui_text(
+      srna, "Extension Repository", "Settings to define an extension repository");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Name", "Unique repository name");
@@ -6612,7 +6625,8 @@ static void rna_def_userdef_extension_repos_collection(BlenderRNA *brna, Propert
   RNA_def_property_srna(cprop, "UserExtensionRepoCollection");
   srna = RNA_def_struct(brna, "UserExtensionRepoCollection", nullptr);
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-  RNA_def_struct_ui_text(srna, "User Extension Repos", "Collection of user extension repos");
+  RNA_def_struct_ui_text(
+      srna, "User Extension Repositories", "Collection of user extension repositories");
 
   func = RNA_def_function(srna, "new", "rna_userdef_extension_repo_new");
   RNA_def_function_flag(func, FUNC_NO_SELF);
@@ -6626,13 +6640,13 @@ static void rna_def_userdef_extension_repos_collection(BlenderRNA *brna, Propert
       func, "remote_path", nullptr, sizeof(bUserExtensionRepo::remote_path), "Remote Path", "");
 
   /* return type */
-  parm = RNA_def_pointer(func, "repo", "UserExtensionRepo", "", "Newly added repo");
+  parm = RNA_def_pointer(func, "repo", "UserExtensionRepo", "", "Newly added repository");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "remove", "rna_userdef_extension_repo_remove");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Remove repos");
-  parm = RNA_def_pointer(func, "repo", "UserExtensionRepo", "", "Repo to remove");
+  parm = RNA_def_pointer(func, "repo", "UserExtensionRepo", "", "Repository to remove");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }
@@ -6853,13 +6867,14 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "extension_repos", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "UserExtensionRepo");
-  RNA_def_property_ui_text(prop, "Extension Repos", "");
+  RNA_def_property_ui_text(prop, "Extension Repositories", "");
   rna_def_userdef_extension_repos_collection(brna, prop);
 
   prop = RNA_def_property(srna, "active_extension_repo", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Active Extension Repo",
-                           "Index of the extensions repo being edited in the Preferences UI");
+  RNA_def_property_ui_text(
+      prop,
+      "Active Extension Repository",
+      "Index of the extensions repository being edited in the Preferences UI");
 
   /* Tag for UI-only update, meaning preferences will not be tagged as changed. */
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");

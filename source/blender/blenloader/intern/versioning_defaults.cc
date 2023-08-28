@@ -68,7 +68,7 @@
 
 #include "BLT_translation.h"
 
-#include "versioning_common.h"
+#include "versioning_common.hh"
 
 #include "wm_event_types.hh" // UPBGE
 
