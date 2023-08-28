@@ -58,7 +58,7 @@
 
 #include "wm_event_types.hh"
 
-#include "readfile.h"
+#include "readfile.hh"
 
 #include "MEM_guardedalloc.h"
 
