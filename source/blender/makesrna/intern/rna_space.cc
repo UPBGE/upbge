@@ -6680,10 +6680,7 @@ static void rna_def_fileselect_asset_idfilter(BlenderRNA *brna)
     const char *identifier = rna_enum_id_type_filter_items[i].identifier;
     if (is_experimental) {
       /* Create name for experimental property and store in static buffer. */
-      BLI_snprintf(experimental_prop_names[i],
-                   ARRAY_SIZE(experimental_prop_names[i]),
-                   "experimental_%s",
-                   identifier);
+      SNPRINTF(experimental_prop_names[i], "experimental_%s", identifier);
       identifier = experimental_prop_names[i];
     }
 
@@ -7639,16 +7636,6 @@ static void rna_def_space_node(BlenderRNA *brna)
                                "rna_SpaceNodeEditor_cursor_location_set",
                                nullptr);
   RNA_def_property_ui_text(prop, "Cursor Location", "Location for adding new nodes");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
-
-  /* insert offset (called "Auto-offset" in UI) */
-  prop = RNA_def_property(srna, "use_insert_offset", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SNODE_SKIP_INSOFFSET);
-  RNA_def_property_ui_text(prop,
-                           "Auto-offset",
-                           "Automatically offset the following or previous nodes in a "
-                           "chain when inserting a new node");
-  RNA_def_property_ui_icon(prop, ICON_NODE_INSERT_ON, 1);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
 
   prop = RNA_def_property(srna, "insert_offset_direction", PROP_ENUM, PROP_NONE);

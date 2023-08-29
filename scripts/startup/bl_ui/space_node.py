@@ -262,11 +262,6 @@ class NODE_MT_view(Menu):
 
         layout.separator()
 
-        # Auto-offset nodes (called "insert_offset" in code)
-        layout.prop(snode, "use_insert_offset")
-
-        layout.separator()
-
         sub = layout.column()
         sub.operator_context = 'EXEC_REGION_WIN'
         sub.operator("view2d.zoom_in")
@@ -355,10 +350,10 @@ class NODE_MT_node(Menu):
 
         layout.separator()
 
+        layout.operator("node.group_make")
+        layout.operator("node.group_insert", text="Insert Into Group")
         layout.operator("node.group_edit").exit = False
         layout.operator("node.group_ungroup")
-        layout.operator("node.group_make")
-        layout.operator("node.group_insert")
 
         layout.separator()
 
@@ -593,7 +588,7 @@ class NODE_MT_context_menu(Menu):
         layout.operator("node.group_insert", text="Insert Into Group")
 
         if active_node and active_node.type == 'GROUP':
-            layout.operator("node.group_edit", text="Edit").exit = False
+            layout.operator("node.group_edit").exit = False
             layout.operator("node.group_ungroup", text="Ungroup")
 
         if is_nested:
