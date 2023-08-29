@@ -26,16 +26,11 @@
  *
  */
 
-#ifndef __BLO_RUNTIME_H__
-#define __BLO_RUNTIME_H__
+#pragma once
 
 /** \file BLO_runtime.h
  *  \ingroup blenloader
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct BlendFileData;
 struct BlendFileReadReport;
@@ -43,12 +38,6 @@ struct Main;
 struct ReportList;
 
 int BLO_is_a_runtime(const char *file);
-struct BlendFileData *BLO_read_runtime(const char *file, struct BlendFileReadReport *reports);
+BlendFileData *BLO_read_runtime(const char *file, BlendFileReadReport *reports);
 
-bool BLO_main_validate_libraries(struct Main *bmain, struct ReportList *reports);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __BLO_RUNTIME_H__ */
+bool BLO_main_validate_libraries(struct Main *bmain, ReportList *reports);

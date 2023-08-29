@@ -74,7 +74,7 @@
 #include "BLI_task.h"
 #include "BLI_timer.h"
 #include "BLO_readfile.h"
-#include "BLO_runtime.h"
+#include "BLO_runtime.hh"
 #include "BLT_lang.h"
 #include "BPY_extern_python.h"
 #include "BPY_extern_run.h"

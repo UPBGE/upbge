@@ -32,11 +32,11 @@
  * \ingroup blenloader
  */
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -49,7 +49,7 @@
 #include "BLI_utildefines.h"
 
 #include "BLO_readfile.h"
-#include "BLO_runtime.h"
+#include "BLO_runtime.hh"
 
 #include "BKE_report.h"
 
@@ -96,7 +96,7 @@ cleanup:
 
 BlendFileData *BLO_read_runtime(const char *path, BlendFileReadReport *reports)
 {
-  BlendFileData *bfd = NULL;
+  BlendFileData *bfd = nullptr;
   // size_t actualsize;
   int fd, datastart;
   char buf[8];

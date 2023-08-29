@@ -34,7 +34,7 @@ set(SRC
   intern/readblenentry.cc
   intern/readfile.cc
   intern/readfile_tempload.cc
-  intern/runtime.c
+  intern/runtime.cc
   intern/undofile.cc
   intern/versioning_250.cc
   intern/versioning_260.cc
@@ -55,7 +55,7 @@ set(SRC
   BLO_blend_validate.hh
   BLO_read_write.hh
   BLO_readfile.h
-  BLO_runtime.h
+  BLO_runtime.hh
   BLO_undofile.hh
   BLO_writefile.hh
   intern/readfile.hh
