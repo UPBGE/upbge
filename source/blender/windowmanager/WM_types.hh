@@ -1085,6 +1085,7 @@ enum eWM_DragDataType {
   WM_DRAG_DATASTACK,
   WM_DRAG_ASSET_CATALOG,
   WM_DRAG_GREASE_PENCIL_LAYER,
+  WM_DRAG_NODE_TREE_INTERFACE,
 };
 
 enum eWM_DragFlags {
@@ -1109,6 +1110,10 @@ struct wmDragAsset {
 struct wmDragAssetCatalog {
   bUUID drag_catalog_id;
 };
+
+typedef struct wmDragNodeTreeInterface {
+  struct bNodeTreeInterfaceItem *item;
+} wmDragNodeTreeInterface;
 
 /**
  * For some specific cases we support dragging multiple assets (#WM_DRAG_ASSET_LIST). There is no
