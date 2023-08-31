@@ -115,7 +115,7 @@ static BitVector<> selection_to_bit_vector(const IndexMask &selection, const int
 /**
  * Used for fanning around the corners connected to a vertex.
  *
- * Depending on the winding direction of neighboring faces, travelling from a corner across an edge
+ * Depending on the winding direction of neighboring faces, traveling from a corner across an edge
  * to a different face can give a corner that uses a different vertex than the original. To find
  * the face's corner that uses the original vertex, we may have to use the next corner instead.
  */
@@ -517,10 +517,7 @@ void split_edges(Mesh &mesh,
   const BitVector<> selection_bits = selection_to_bit_vector(selected_edges, orig_edges.size());
   const bke::LooseEdgeCache &loose_edges = mesh.loose_edges();
 
-  Array<int> vert_to_corner_offsets;
-  Array<int> vert_to_corner_indices;
-  const GroupedSpan<int> vert_to_corner_map = bke::mesh::build_vert_to_loop_map(
-      mesh.corner_verts(), orig_verts_num, vert_to_corner_offsets, vert_to_corner_indices);
+  const GroupedSpan<int> vert_to_corner_map = mesh.vert_to_corner_map();
 
   Array<int> edge_to_corner_offsets;
   Array<int> edge_to_corner_indices;
@@ -535,7 +532,7 @@ void split_edges(Mesh &mesh,
         orig_edges, orig_verts_num, vert_to_edge_offsets, vert_to_edge_indices);
   }
 
-  const Array<int> corner_to_face_map = bke::mesh::build_loop_to_face_map(mesh.faces());
+  const Array<int> corner_to_face_map = mesh.corner_to_face_map();
 
   const Array<Vector<CornerGroup>> corner_groups = calc_all_corner_groups(faces,
                                                                           mesh.corner_verts(),
