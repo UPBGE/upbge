@@ -903,6 +903,7 @@ void CcdPhysicsController::UpdateSoftBody()
             }
           }
         }
+        BKE_mesh_tag_positions_changed(me);
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
