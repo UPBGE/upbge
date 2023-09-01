@@ -98,7 +98,7 @@ static PointerRNA rna_NodeTreeInterfaceItem_parent_get(PointerRNA *ptr)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   const bNodeTreeInterfaceItem *item = static_cast<const bNodeTreeInterfaceItem *>(ptr->data);
-  bNodeTreeInterfacePanel *parent = ntree->tree_interface.find_item_parent(*item);
+  bNodeTreeInterfacePanel *parent = ntree->tree_interface.find_item_parent(*item, true);
   PointerRNA result;
   RNA_pointer_create(&ntree->id, &RNA_NodeTreeInterfacePanel, parent, &result);
   return result;
@@ -554,9 +554,6 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy(ID *id,
 {
   /* Copy to same parent as the item. */
   bNodeTreeInterfacePanel *parent = interface->find_item_parent(*item);
-  if (parent == nullptr) {
-    return nullptr;
-  }
   return rna_NodeTreeInterfaceItems_copy_to_parent(id, interface, bmain, reports, item, parent);
 }
 
@@ -606,7 +603,7 @@ static void rna_NodeTreeInterfaceItems_move_to_parent(ID *id,
                                                       bNodeTreeInterfacePanel *parent,
                                                       int to_position)
 {
-  if (item->item_type == NODE_INTERFACE_PANEL &&
+  if (item->item_type == NODE_INTERFACE_PANEL && parent &&
       !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
   {
     BKE_report(reports, RPT_WARNING, "Parent panel does not allow child panels");

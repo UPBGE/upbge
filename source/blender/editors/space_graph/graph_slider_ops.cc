@@ -1061,7 +1061,7 @@ void GRAPH_OT_blend_offset(wmOperatorType *ot)
   ot->poll = graphop_editable_keyframes_poll;
 
   /* Flags. */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
 
   RNA_def_float_factor(ot->srna,
                        "factor",
@@ -1358,7 +1358,7 @@ static void shear_modal_update(bContext *C, wmOperator *op)
   const tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
 
   shear_graph_keys(&gso->ac, factor, direction);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static int shear_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1368,20 +1368,18 @@ static int shear_modal(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   switch (event->type) {
-    {
-      case EVT_DKEY: {
-        tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
-        RNA_enum_set(op->ptr,
-                     "direction",
-                     (direction == SHEAR_FROM_LEFT) ? SHEAR_FROM_RIGHT : SHEAR_FROM_LEFT);
-        shear_modal_update(C, op);
-        break;
-      }
-
-      default:
-        return graph_slider_modal(C, op, event);
-        break;
+    case EVT_DKEY: {
+      tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
+      RNA_enum_set(op->ptr,
+                   "direction",
+                   (direction == SHEAR_FROM_LEFT) ? SHEAR_FROM_RIGHT : SHEAR_FROM_LEFT);
+      shear_modal_update(C, op);
+      break;
     }
+
+    default:
+      return graph_slider_modal(C, op, event);
+      break;
   }
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1419,7 +1417,7 @@ static int shear_exec(bContext *C, wmOperator *op)
   shear_graph_keys(&ac, factor, direction);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1440,7 +1438,7 @@ void GRAPH_OT_shear(wmOperatorType *ot)
   ot->poll = graphop_editable_keyframes_poll;
 
   /* Flags. */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
 
   RNA_def_float_factor(ot->srna,
                        "factor",

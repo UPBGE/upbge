@@ -30,6 +30,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
 #include "BKE_armature.h"
@@ -144,17 +145,16 @@ static void version_bonelayers_to_bonecollections(Main *bmain)
       if (arm_idprops) {
         /* See if we can use the layer name from the Bone Manager add-on. This is a popular add-on
          * for managing bone layers and giving them names. */
-        BLI_snprintf(custom_prop_name, sizeof(custom_prop_name), "layer_name_%u", layer);
+        SNPRINTF(custom_prop_name, "layer_name_%u", layer);
         IDProperty *prop = IDP_GetPropertyFromGroup(arm_idprops, custom_prop_name);
         if (prop != nullptr && prop->type == IDP_STRING && IDP_String(prop)[0] != '\0') {
-          BLI_snprintf(
-              bcoll_name, sizeof(bcoll_name), "Layer %u - %s", layer + 1, IDP_String(prop));
+          SNPRINTF(bcoll_name, "Layer %u - %s", layer + 1, IDP_String(prop));
         }
       }
       if (bcoll_name[0] == '\0') {
         /* Either there was no name defined in the custom property, or
          * it was the empty string. */
-        BLI_snprintf(bcoll_name, sizeof(bcoll_name), "Layer %u", layer + 1);
+        SNPRINTF(bcoll_name, "Layer %u", layer + 1);
       }
 
       /* Create a new bone collection for this layer. */
@@ -277,6 +277,17 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 21)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "BoneColor", "color")) {
+      version_bonegroup_migrate_color(bmain);
+    }
+
+    if (!DNA_struct_elem_find(fd->filesdna, "bArmature", "ListBase", "collections")) {
+      version_bonelayers_to_bonecollections(bmain);
+      version_bonegroups_to_bonecollections(bmain);
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -289,15 +300,6 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
-
-    if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "BoneColor", "color")) {
-      version_bonegroup_migrate_color(bmain);
-    }
-
-    if (!DNA_struct_elem_find(fd->filesdna, "bArmature", "ListBase", "collections")) {
-      version_bonelayers_to_bonecollections(bmain);
-      version_bonegroups_to_bonecollections(bmain);
-    }
   }
 }
 
@@ -604,15 +606,17 @@ static bNodeTreeInterfaceItem *legacy_socket_move_to_interface(bNodeSocket &lega
                      legacy_socket.flag & SOCK_HIDE_IN_MODIFIER,
                      NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER);
   new_socket.attribute_domain = legacy_socket.attribute_domain;
-  new_socket.default_attribute_name = BLI_strdup_null(legacy_socket.default_attribute_name);
-  new_socket.socket_data = legacy_socket.default_value;
-  new_socket.properties = legacy_socket.prop;
 
-  /* Clear moved pointers in legacy data. */
+  /* The following data are stolen from the old data, the ownership of their memory is directly
+   * transferred to the new data. */
+  new_socket.default_attribute_name = legacy_socket.default_attribute_name;
+  legacy_socket.default_attribute_name = nullptr;
+  new_socket.socket_data = legacy_socket.default_value;
   legacy_socket.default_value = nullptr;
+  new_socket.properties = legacy_socket.prop;
   legacy_socket.prop = nullptr;
 
-  /* Unused data */
+  /* Unused data. */
   MEM_delete(legacy_socket.runtime);
   legacy_socket.runtime = nullptr;
 
@@ -989,8 +993,16 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       /* Clear legacy sockets after conversion.
        * Internal data pointers have been moved or freed already. */
-      BLI_freelistN(&ntree->inputs_legacy);
-      BLI_freelistN(&ntree->outputs_legacy);
+      LISTBASE_FOREACH_MUTABLE (bNodeSocket *, legacy_socket, &ntree->inputs_legacy) {
+        MEM_delete(legacy_socket->runtime);
+        MEM_freeN(legacy_socket);
+      }
+      LISTBASE_FOREACH_MUTABLE (bNodeSocket *, legacy_socket, &ntree->outputs_legacy) {
+        MEM_delete(legacy_socket->runtime);
+        MEM_freeN(legacy_socket);
+      }
+      BLI_listbase_clear(&ntree->inputs_legacy);
+      BLI_listbase_clear(&ntree->outputs_legacy);
     }
     FOREACH_NODETREE_END;
   }

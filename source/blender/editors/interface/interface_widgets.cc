@@ -2728,27 +2728,36 @@ static void widget_state_menu_item(uiWidgetType *wt,
 {
   wt->wcol = *(wt->wcol_theme);
 
-  /* active and disabled (not so common) */
   if ((state->but_flag & UI_BUT_DISABLED) && (state->but_flag & UI_ACTIVE)) {
-    /* draw the backdrop at low alpha, helps navigating with keys
-     * when disabled items are active */
+    /* Hovering over disabled item. */
     wt->wcol.text[3] = 128;
     color_blend_v3_v3(wt->wcol.inner, wt->wcol.text, 0.5f);
     wt->wcol.inner[3] = 64;
   }
-  else {
-    /* regular active */
-    if (state->but_flag & UI_ACTIVE) {
-      copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
-    }
-    else if (state->but_flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-      /* regular disabled */
-      color_blend_v3_v3(wt->wcol.text, wt->wcol.inner, 0.5f);
-    }
-
-    if (state->but_flag & UI_ACTIVE) {
-      copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
-    }
+  else if (state->but_flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+    /* Regular disabled. */
+    color_blend_v3_v3(wt->wcol.text, wt->wcol.inner, 0.5f);
+  }
+  else if ((state->but_flag & UI_BUT_LIST_ITEM) &&
+           state->but_flag & (UI_BUT_ACTIVE_DEFAULT | UI_SELECT))
+  {
+    /* Currently-selected list item. */
+    copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+    copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
+  }
+  else if ((state->but_flag & (UI_SELECT | UI_BUT_ICON_PREVIEW)) ==
+           (UI_SELECT | UI_BUT_ICON_PREVIEW))
+  {
+    /* Currently-selected list or menu item that is large icon preview. */
+    copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+    copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
+  }
+  else if (state->but_flag & UI_ACTIVE) {
+    /* Regular hover. */
+    color_blend_v3_v3(wt->wcol.inner, wt->wcol.text, 0.2f);
+    copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
+    wt->wcol.inner[3] = 255;
+    wt->wcol.text[3] = 255;
   }
 }
 
@@ -3317,7 +3326,7 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 /** Separator for menus. */
 static void ui_draw_separator(const rcti *rect, const uiWidgetColors *wcol)
 {
-  const int y = rect->ymin + BLI_rcti_size_y(rect) / 2 - 1;
+  const int y = rect->ymin + BLI_rcti_size_y(rect) / 2;
   const uchar col[4] = {
       wcol->text[0],
       wcol->text[1],
@@ -3822,25 +3831,6 @@ static void widget_progress_indicator(uiBut *but,
       widget_progress_type_ring(but_progress, wcol, rect);
       break;
     }
-  }
-}
-
-static void widget_view_item(uiWidgetColors *wcol,
-                             rcti *rect,
-                             const uiWidgetStateInfo *state,
-                             int /*roundboxalign*/,
-                             const float zoom)
-{
-  uiWidgetBase wtb;
-  widget_init(&wtb);
-
-  /* no outline */
-  wtb.draw_outline = false;
-  const float rad = widget_radius_from_zoom(zoom, wcol);
-  round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
-
-  if ((state->but_flag & UI_ACTIVE) || (state->but_flag & UI_SELECT)) {
-    widgetbase_draw(&wtb, wcol);
   }
 }
 
@@ -4761,6 +4751,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
       break;
 
     case UI_WTYPE_LISTITEM:
+    case UI_WTYPE_VIEW_ITEM:
       wt.wcol_theme = &btheme->tui.wcol_list_item;
       wt.draw = widget_list_itembut;
       break;
@@ -4768,11 +4759,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
     case UI_WTYPE_PROGRESS:
       wt.wcol_theme = &btheme->tui.wcol_progress;
       wt.custom = widget_progress_indicator;
-      break;
-
-    case UI_WTYPE_VIEW_ITEM:
-      wt.wcol_theme = &btheme->tui.wcol_view_item;
-      wt.draw = widget_view_item;
       break;
 
     case UI_WTYPE_NODESOCKET:

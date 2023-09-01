@@ -57,7 +57,6 @@
 #include "BKE_pointcloud.h"
 #include "BKE_screen.h"
 #include "BKE_simulation_state.hh"
-#include "BKE_simulation_state_serialize.hh"
 #include "BKE_workspace.h"
 
 #include "BLO_read_write.hh"
@@ -811,7 +810,7 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
             zone_cache.cache_state = CacheState::Invalid;
           }
           output_copy_info.delta_time = delta_frames / fps_;
-          output_copy_info.items_by_id = this->to_readonly_items_map(prev_frame_cache.items);
+          output_copy_info.state = prev_frame_cache.state;
           this->output_store_frame_cache(zone_cache, zone_behavior);
           return;
         }
@@ -828,7 +827,7 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
             max_delta_frames, float(zone_cache.prev_state->frame) - float(current_frame_));
         auto &output_move_info = zone_behavior.input.emplace<sim_input::OutputMove>();
         output_move_info.delta_time = delta_frames / fps_;
-        output_move_info.items_by_id = std::move(zone_cache.prev_state->items);
+        output_move_info.state = std::move(zone_cache.prev_state->state);
         this->store_as_prev_items(zone_cache, zone_behavior);
         return;
       }
@@ -836,9 +835,9 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
         /* Just read from the previous state if the frame has not changed. */
         auto &output_copy_info = zone_behavior.input.emplace<sim_input::OutputCopy>();
         output_copy_info.delta_time = 0.0f;
-        output_copy_info.items_by_id = this->to_readonly_items_map(zone_cache.prev_state->items);
+        output_copy_info.state = zone_cache.prev_state->state;
         auto &read_single_info = zone_behavior.output.emplace<sim_output::ReadSingle>();
-        read_single_info.items_by_id = this->to_readonly_items_map(zone_cache.prev_state->items);
+        read_single_info.state = zone_cache.prev_state->state;
         return;
       }
       if (!depsgraph_is_active_) {
@@ -900,16 +899,15 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
   {
     auto &store_and_pass_through_info =
         zone_behavior.output.emplace<sim_output::StoreAndPassThrough>();
-    store_and_pass_through_info.store_fn =
-        [simulation_cache = simulation_cache_,
-         zone_cache = &zone_cache,
-         current_frame = current_frame_](Map<int, std::unique_ptr<bke::BakeItem>> items) {
-          std::lock_guard lock{simulation_cache->mutex};
-          auto frame_cache = std::make_unique<bke::sim::SimulationZoneFrameCache>();
-          frame_cache->frame = current_frame;
-          frame_cache->items = std::move(items);
-          zone_cache->frame_caches.append(std::move(frame_cache));
-        };
+    store_and_pass_through_info.store_fn = [simulation_cache = simulation_cache_,
+                                            zone_cache = &zone_cache,
+                                            current_frame = current_frame_](bke::BakeState state) {
+      std::lock_guard lock{simulation_cache->mutex};
+      auto frame_cache = std::make_unique<bke::sim::SimulationZoneFrameCache>();
+      frame_cache->frame = current_frame;
+      frame_cache->state = std::move(state);
+      zone_cache->frame_caches.append(std::move(frame_cache));
+    };
   }
 
   void store_as_prev_items(bke::sim::SimulationZoneCache &zone_cache,
@@ -917,17 +915,16 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
   {
     auto &store_and_pass_through_info =
         zone_behavior.output.emplace<sim_output::StoreAndPassThrough>();
-    store_and_pass_through_info.store_fn =
-        [simulation_cache = simulation_cache_,
-         zone_cache = &zone_cache,
-         current_frame = current_frame_](Map<int, std::unique_ptr<bke::BakeItem>> items) {
-          std::lock_guard lock{simulation_cache->mutex};
-          if (!zone_cache->prev_state) {
-            zone_cache->prev_state.emplace();
-          }
-          zone_cache->prev_state->items = std::move(items);
-          zone_cache->prev_state->frame = current_frame;
-        };
+    store_and_pass_through_info.store_fn = [simulation_cache = simulation_cache_,
+                                            zone_cache = &zone_cache,
+                                            current_frame = current_frame_](bke::BakeState state) {
+      std::lock_guard lock{simulation_cache->mutex};
+      if (!zone_cache->prev_state) {
+        zone_cache->prev_state.emplace();
+      }
+      zone_cache->prev_state->state = std::move(state);
+      zone_cache->prev_state->frame = current_frame;
+    };
   }
 
   void read_from_cache(const FrameIndices &frame_indices,
@@ -941,9 +938,7 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
       const float delta_frames = std::min(max_delta_frames,
                                           float(current_frame_) - float(frame_cache.frame));
       output_copy_info.delta_time = delta_frames / fps_;
-      for (auto item : frame_cache.items.items()) {
-        output_copy_info.items_by_id.add_new(item.key, item.value.get());
-      }
+      output_copy_info.state = frame_cache.state;
     }
     else {
       zone_behavior.input.emplace<sim_input::PassThrough>();
@@ -980,7 +975,7 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
     bke::sim::SimulationZoneFrameCache &frame_cache = *zone_cache.frame_caches[frame_index];
     this->ensure_bake_loaded(zone_cache, frame_cache);
     auto &read_single_info = zone_behavior.output.emplace<sim_output::ReadSingle>();
-    read_single_info.items_by_id = this->to_readonly_items_map(frame_cache.items);
+    read_single_info.state = frame_cache.state;
   }
 
   void read_interpolated(const int prev_frame_index,
@@ -998,24 +993,14 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
     read_interpolated_info.mix_factor = (float(current_frame_) - float(prev_frame_cache.frame)) /
                                         (float(next_frame_cache.frame) -
                                          float(prev_frame_cache.frame));
-    read_interpolated_info.prev_items_by_id = this->to_readonly_items_map(prev_frame_cache.items);
-    read_interpolated_info.next_items_by_id = this->to_readonly_items_map(next_frame_cache.items);
-  }
-
-  Map<int, const bke::BakeItem *> to_readonly_items_map(
-      const Map<int, std::unique_ptr<bke::BakeItem>> &items) const
-  {
-    Map<int, const bke::BakeItem *> map;
-    for (auto item : items.items()) {
-      map.add_new(item.key, item.value.get());
-    }
-    return map;
+    read_interpolated_info.prev_state = prev_frame_cache.state;
+    read_interpolated_info.next_state = next_frame_cache.state;
   }
 
   void ensure_bake_loaded(bke::sim::SimulationZoneCache &zone_cache,
                           bke::sim::SimulationZoneFrameCache &frame_cache) const
   {
-    if (!frame_cache.items.is_empty()) {
+    if (!frame_cache.state.items_by_id.is_empty()) {
       return;
     }
     if (!zone_cache.bdata_dir) {
@@ -1024,34 +1009,14 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
     if (!frame_cache.meta_path) {
       return;
     }
-    std::shared_ptr<io::serialize::Value> io_root_value = io::serialize::read_json_file(
-        *frame_cache.meta_path);
-    const io::serialize::DictionaryValue *io_root = io_root_value->as_dictionary_value();
-    if (!io_root) {
-      return;
-    }
-    if (io_root->lookup_int("version").value_or(0) != bke::sim::simulation_file_storage_version) {
-      return;
-    }
-    const io::serialize::DictionaryValue *io_items = io_root->lookup_dict("items");
-    if (!io_items) {
-      return;
-    }
-
     bke::DiskBDataReader bdata_reader{*zone_cache.bdata_dir};
-
-    for (const auto &io_item_value : io_items->elements()) {
-      const io::serialize::DictionaryValue *io_item = io_item_value.second->as_dictionary_value();
-      if (!io_item) {
-        continue;
-      }
-      const int zone_id = std::stoi(io_item_value.first);
-      std::unique_ptr<bke::BakeItem> item = bke::deserialize_bake_item(
-          *io_item, bdata_reader, *zone_cache.bdata_sharing);
-      if (item) {
-        frame_cache.items.add(zone_id, std::move(item));
-      }
+    fstream meta_file{*frame_cache.meta_path};
+    std::optional<bke::BakeState> bake_state = bke::deserialize_bake(
+        meta_file, bdata_reader, *zone_cache.bdata_sharing);
+    if (!bake_state.has_value()) {
+      return;
     }
+    frame_cache.state = std::move(*bake_state);
   }
 };
 

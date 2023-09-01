@@ -960,10 +960,10 @@ template<typename T>
   return false;
 }
 
-void serialize_bake_item(const BakeItem &item,
-                         BDataWriter &bdata_writer,
-                         BDataSharing &bdata_sharing,
-                         DictionaryValue &r_io_item)
+static void serialize_bake_item(const BakeItem &item,
+                                BDataWriter &bdata_writer,
+                                BDataSharing &bdata_sharing,
+                                DictionaryValue &r_io_item)
 {
   if (const auto *geometry_state_item = dynamic_cast<const GeometryBakeItem *>(&item)) {
     r_io_item.append_str("type", "GEOMETRY");
@@ -996,9 +996,9 @@ void serialize_bake_item(const BakeItem &item,
   }
 }
 
-std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
-                                                const BDataReader &bdata_reader,
-                                                const BDataSharing &bdata_sharing)
+static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
+                                                       const BDataReader &bdata_reader,
+                                                       const BDataSharing &bdata_sharing)
 {
 
   const std::optional<StringRefNull> state_item_type = io_item.lookup_str("type");
@@ -1062,6 +1062,72 @@ std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
     return std::make_unique<PrimitiveBakeItem>(cpp_type, buffer);
   }
   return {};
+}
+
+static constexpr int bake_file_version = 3;
+
+void serialize_bake(const BakeState &bake_state,
+                    BDataWriter &bdata_writer,
+                    BDataSharing &bdata_sharing,
+                    std::ostream &r_stream)
+{
+  io::serialize::DictionaryValue io_root;
+  io_root.append_int("version", bake_file_version);
+  io::serialize::DictionaryValue &io_items = *io_root.append_dict("items");
+  for (auto item : bake_state.items_by_id.items()) {
+    io::serialize::DictionaryValue &io_item = *io_items.append_dict(std::to_string(item.key));
+    bke::serialize_bake_item(*item.value, bdata_writer, bdata_sharing, io_item);
+  }
+
+  io::serialize::JsonFormatter formatter;
+  formatter.serialize(r_stream, io_root);
+}
+
+std::optional<BakeState> deserialize_bake(std::istream &stream,
+                                          const BDataReader &bdata_reader,
+                                          const BDataSharing &bdata_sharing)
+{
+  JsonFormatter formatter;
+  std::unique_ptr<io::serialize::Value> io_root_value = formatter.deserialize(stream);
+  if (!io_root_value) {
+    return std::nullopt;
+  }
+  const io::serialize::DictionaryValue *io_root = io_root_value->as_dictionary_value();
+  if (!io_root) {
+    return std::nullopt;
+  }
+  const std::optional<int> version = io_root->lookup_int("version");
+  if (!version.has_value() || *version != bake_file_version) {
+    return std::nullopt;
+  }
+  const io::serialize::DictionaryValue *io_items = io_root->lookup_dict("items");
+  if (!io_items) {
+    return std::nullopt;
+  }
+  BakeState bake_state;
+  for (const auto &io_item_value : io_items->elements()) {
+    const io::serialize::DictionaryValue *io_item = io_item_value.second->as_dictionary_value();
+    if (!io_item) {
+      return std::nullopt;
+    }
+    int id;
+    try {
+      id = std::stoi(io_item_value.first);
+    }
+    catch (...) {
+      return std::nullopt;
+    }
+    if (bake_state.items_by_id.contains(id)) {
+      return std::nullopt;
+    }
+    std::unique_ptr<BakeItem> bake_item = deserialize_bake_item(
+        *io_item, bdata_reader, bdata_sharing);
+    if (!bake_item) {
+      return std::nullopt;
+    }
+    bake_state.items_by_id.add_new(id, std::move(bake_item));
+  }
+  return bake_state;
 }
 
 }  // namespace blender::bke
