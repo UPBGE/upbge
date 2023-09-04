@@ -256,23 +256,6 @@ float nodetree_thickness();
 vec4 closure_to_rgba(Closure cl);
 #endif
 
-/* Fresnel monochromatic, perfect mirror */
-float F_eta(float eta, float cos_theta)
-{
-  /* Compute fresnel reflectance without explicitly computing
-   * the refracted direction. */
-  float c = abs(cos_theta);
-  float g = eta * eta - 1.0 + c * c;
-  if (g > 0.0) {
-    g = sqrt(g);
-    float A = (g - c) / (g + c);
-    float B = (c * (g + c) - 1.0) / (c * (g - c) + 1.0);
-    return 0.5 * A * A * (1.0 + B * B);
-  }
-  /* Total internal reflections. */
-  return 1.0;
-}
-
 /* Simplified form of F_eta(eta, 1.0). */
 float F0_from_ior(float eta)
 {
@@ -299,7 +282,7 @@ vec3 F_brdf_multi_scatter(vec3 f0, vec3 f90, vec2 lut)
 
   /* The original paper uses `FssEss * radiance + Fms*Ems * irradiance`, but
    * "A Journey Through Implementing Multiscattering BRDFs and Area Lights" by Steve McAuley
-   * suggests to use `FssEss * radiance + Fms*Ems * radiance` which results in comparible quality.
+   * suggests to use `FssEss * radiance + Fms*Ems * radiance` which results in comparable quality.
    * We handle `radiance` outside of this function, so the result simplifies to:
    * `FssEss + Fms*Ems = FssEss * (1 + Ems*Favg / (1 - Ems*Favg)) = FssEss / (1 - Ems*Favg)`.
    * This is a simple albedo scaling very similar to the approach used by Cycles:

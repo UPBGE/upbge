@@ -2610,7 +2610,7 @@ static bool read_libblock_is_identical(FileData *fd, BHead *bhead)
  *
  * NOTE: While in theory Library IDs (and their related linked IDs) are also 'noundo' data, in
  * practice they need to be handled separately, to ensure that their order in the new bmain list
- * matches the one from the read blendfile. Reading linked 'placeholder' entries in a memfile
+ * matches the one from the read blend-file. Reading linked 'placeholder' entries in a memfile
  * relies on current library being the last item in the new main list. */
 static void read_undo_reuse_noundo_local_ids(FileData *fd)
 {
@@ -3408,7 +3408,7 @@ static void after_liblink_merged_bmain_process(Main *bmain, BlendFileReadReport 
     BKE_report(
         reports ? reports->reports : nullptr,
         RPT_ERROR,
-        "Critical blendfile corruption: Conflicts and/or otherwise invalid data-blocks names "
+        "Critical blend-file corruption: Conflicts and/or otherwise invalid data-blocks names "
         "(see console for details)");
   }
 
@@ -4443,7 +4443,9 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
      * or they will go again through do_versions - bad, very bad! */
     split_main_newid(mainvar, main_newid);
 
-    do_versions_after_linking(*fd, main_newid);
+    do_versions_after_linking(
+        (main_newid->curlib && main_newid->curlib->filedata) ? main_newid->curlib->filedata : *fd,
+        main_newid);
 
     add_main_to_main(mainvar, main_newid);
 
@@ -4510,7 +4512,7 @@ void BLO_library_link_end(Main *mainl, BlendHandle **bh, const LibraryLink_Param
   LISTBASE_FOREACH (Library *, lib, &params->bmain->libraries) {
     /* Now we can clear this runtime library filedata, it is not needed anymore. */
     if (lib->filedata == reinterpret_cast<FileData *>(*bh)) {
-      /* The filedata is owned and managed by caller code, only clear matching library ponter. */
+      /* The filedata is owned and managed by caller code, only clear matching library pointer. */
       lib->filedata = nullptr;
     }
     else if (lib->filedata) {
@@ -4830,7 +4832,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
        * do_versions multiple times, which would have bad consequences. */
       split_main_newid(mainptr, main_newid);
 
-      /* `filedata` can be NULL when loading linked data from inexistant or invalid library
+      /* `filedata` can be NULL when loading linked data from nonexistent or invalid library
        * reference. Or during linking/appending, when processing data from a library not involved
        * in the current linking/appending operation.
        *
@@ -4850,7 +4852,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
     /* NOTE: No need to call #do_versions_after_linking() or #BKE_main_id_refcount_recompute()
      * here, as this function is only called for library 'subset' data handling, as part of
-     * either full blendfile reading (#blo_read_file_internal()), or library-data linking
+     * either full blend-file reading (#blo_read_file_internal()), or library-data linking
      * (#library_link_end()).
      *
      * For this to work reliably, `mainptr->curlib->filedata` also needs to be freed after said
