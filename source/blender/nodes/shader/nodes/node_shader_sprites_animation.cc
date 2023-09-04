@@ -74,6 +74,7 @@ void register_node_type_sh_sprites_animation()
   sh_fn_node_type_base(
       &ntype, SH_NODE_SPRITES_ANIMATION, "Sprites Animation", NODE_CLASS_SHADER);
   ntype.declare = file_ns::node_declare;
+  ntype.add_ui_poll = object_eevee_shader_nodes_poll;
   ntype.gpu_fn = file_ns::gpu_shader_sprites_animation;
 
   nodeRegisterType(&ntype);

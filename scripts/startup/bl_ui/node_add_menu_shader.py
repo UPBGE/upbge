@@ -332,6 +332,19 @@ class NODE_MT_category_shader_vector(Menu):
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
+###########UPBGE###########
+class NODE_MT_category_shader_upbge(Menu):
+    bl_idname = "NODE_MT_category_shader_upbge"
+    bl_label = "UPBGE"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        node_add_menu.add_node_type(layout, "ShaderNodeSpritesAnimation")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+############################
+
 
 class NODE_MT_category_shader_script(Menu):
     bl_idname = "NODE_MT_category_shader_script"
@@ -370,6 +383,8 @@ class NODE_MT_shader_node_add_all(Menu):
         layout.menu("NODE_MT_category_shader_texture")
         layout.menu("NODE_MT_category_shader_vector")
         layout.separator()
+        layout.menu("NODE_MT_category_shader_upbge") #UPBGE
+        layout.separator()
         layout.menu("NODE_MT_category_shader_script")
         layout.separator()
         layout.menu("NODE_MT_category_shader_group")
@@ -387,6 +402,7 @@ classes = (
     NODE_MT_category_shader_shader,
     NODE_MT_category_shader_texture,
     NODE_MT_category_shader_vector,
+    NODE_MT_category_shader_upbge, #upbge
     NODE_MT_category_shader_script,
     NODE_MT_category_shader_group,
 )

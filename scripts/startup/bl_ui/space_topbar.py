@@ -723,7 +723,7 @@ class TOPBAR_MT_help(Menu):
             "wm.url_open", text="Python API Reference", icon='URL',
         ).url = "https://upbge.org/docs/latest/api/index.html"
 
-        layout.operator("wm.url_open_preset", text="Report a Bug", icon='URL').type = 'BUG'
+        #layout.operator("wm.url_open_preset", text="Report a Bug", icon='URL').type = 'BUG'
         layout.operator("wm.sysinfo")
 
 
