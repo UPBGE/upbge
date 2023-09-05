@@ -37,10 +37,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ********************* PROPERTY ************************ */
 
 typedef struct bProperty {
@@ -64,7 +60,3 @@ typedef struct bProperty {
 #define PROP_DEBUG 1
 
 #define MAX_PROPSTRING 128
-
-#ifdef __cplusplus
-}
-#endif

@@ -35,10 +35,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Object;
 struct Material;
 
@@ -386,7 +382,3 @@ typedef struct bMovementSensor {
 #define SENS_DELAY_REPEAT 1
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */
 #define SENS_JOY_MAXINDEX 8
-
-#ifdef __cplusplus
-}
-#endif

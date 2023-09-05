@@ -42,10 +42,6 @@
 
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct PythonProxyProperty {
   struct PythonProxyProperty *next, *prev;
   char name[128]; /* 128 = MAX_PROPSTRING */
@@ -149,7 +145,3 @@ typedef struct PythonProxy {
   PT_DEF(World, world, WORLD)
 
 enum { COMPONENT_SHOW = (1 << 0) };
-
-#ifdef __cplusplus
-}
-#endif
