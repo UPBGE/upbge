@@ -42,7 +42,7 @@
 #include "BKE_layer.h"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
-#include "BKE_python_proxy.h"
+#include "BKE_python_proxy.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"

@@ -483,11 +483,11 @@ set(SRC
   BKE_pose_backup.h
   BKE_preferences.h
   BKE_preview_image.hh
-  BKE_property.h
-  BKE_python_proxy.h
+  BKE_property.hh
+  BKE_python_proxy.hh
   BKE_report.h
   BKE_rigidbody.h
-  BKE_sca.h
+  BKE_sca.hh
   BKE_scene.h
   BKE_screen.h
   BKE_sequencer_offscreen.h

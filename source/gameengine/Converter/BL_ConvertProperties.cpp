@@ -33,7 +33,7 @@
 
 #include <sstream>
 
-#include "BKE_property.h"
+#include "BKE_property.hh"
 #include "DNA_curve_types.h"
 
 #include "CM_Message.h"

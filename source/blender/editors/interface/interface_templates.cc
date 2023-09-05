@@ -65,7 +65,7 @@
 #include "BKE_packedFile.h"
 #include "BKE_particle.h"
 #include "BKE_report.h"
-#include "BKE_sca.h"
+#include "BKE_sca.hh"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_shader_fx.h"
