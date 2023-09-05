@@ -58,6 +58,7 @@
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_particle.h"
+#include "BKE_preview_image.hh"
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_shader_fx.h"
@@ -934,6 +935,7 @@ int main(int argc,
    * get triggered by the depsgraph. This is also done in background mode
    * for scripts that do background processing with preview icons. */
   BKE_icons_init(BIFICONID_LAST_STATIC);
+  BKE_preview_images_init();
 
   /* reports cant be initialized before the wm,
    * but keep before file reading, since that may report errors */
