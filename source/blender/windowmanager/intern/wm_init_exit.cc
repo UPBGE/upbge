@@ -50,6 +50,7 @@
 #include "BKE_main.h"
 #include "BKE_mball_tessellate.h"
 #include "BKE_node.hh"
+#include "BKE_preview_image.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -135,6 +136,8 @@ CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_KEYMAPS, "wm.keymap");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_TOOLS, "wm.tool");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_MSGBUS_PUB, "wm.msgbus.pub");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_MSGBUS_SUB, "wm.msgbus.sub");
+
+static void wm_init_scripts_extensions_once(bContext *C);
 
 static void wm_init_reports(bContext *C)
 {
@@ -258,10 +261,11 @@ void WM_init(bContext *C, int argc, const char **argv)
    * since versioning code may create new IDs. See #57066. */
   BLT_lang_set(nullptr);
 
-  /* Init icons before reading .blend files for preview icons, which can
+  /* Init icons & previews before reading .blend files for preview icons, which can
    * get triggered by the depsgraph. This is also done in background mode
    * for scripts that do background processing with preview icons. */
   BKE_icons_init(BIFICONID_LAST_STATIC);
+  BKE_preview_images_init();
 
   /* Reports can't be initialized before the window-manager,
    * but keep before file reading, since that may report errors */
@@ -359,6 +363,13 @@ void WM_init(bContext *C, int argc, const char **argv)
   wm_history_file_read();
 
   STRNCPY(G.lib, BKE_main_blendfile_path_from_global());
+
+  CTX_py_init_set(C, true);
+  WM_keyconfig_init(C);
+
+  /* Load add-ons after key-maps have been initialized (but before the blend file has been read),
+   * important to guarantee default key-maps have been declared & before post-read handlers run. */
+  wm_init_scripts_extensions_once(C);
 
   wm_homefile_read_post(C, params_file_read_post);
 }
@@ -506,6 +517,13 @@ bool WM_init_game(bContext *C)
 
     return false;
   }
+}
+
+/** Load add-ons & app-templates once on startup. */
+static void wm_init_scripts_extensions_once(bContext *C)
+{
+  const char *imports[] = {"bpy", nullptr};
+  BPY_run_string_eval(C, imports, "bpy.utils.load_scripts_extensions()");
 }
 
 /* free strings of open recent files */

@@ -268,6 +268,7 @@ set(SRC
   intern/pointcloud.cc
   intern/pose_backup.cc
   intern/preferences.cc
+  intern/preview_image.cc
   intern/property.cc
   intern/python_proxy.cc
   intern/report.cc
@@ -481,6 +482,7 @@ set(SRC
   BKE_pointcloud.h
   BKE_pose_backup.h
   BKE_preferences.h
+  BKE_preview_image.hh
   BKE_property.h
   BKE_python_proxy.h
   BKE_report.h
