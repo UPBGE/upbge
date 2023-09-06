@@ -59,7 +59,7 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h"  // for BKE_bproperty_object_get
+#include "BKE_property.hh"  // for BKE_bproperty_object_get
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_text.h" /* for txt_extended_ascii_as_utf8 */

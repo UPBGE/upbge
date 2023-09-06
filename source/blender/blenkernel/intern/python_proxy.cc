@@ -36,7 +36,7 @@
 #include "BKE_context.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_python_proxy.h"
+#include "BKE_python_proxy.hh"
 #include "BKE_report.h"
 #include "BKE_text.h"
 

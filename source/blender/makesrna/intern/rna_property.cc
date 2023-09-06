@@ -51,7 +51,7 @@ const EnumPropertyItem rna_enum_gameproperty_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_property.h"
+#  include "BKE_property.hh"
 
 static StructRNA *rna_GameProperty_refine(struct PointerRNA *ptr)
 {

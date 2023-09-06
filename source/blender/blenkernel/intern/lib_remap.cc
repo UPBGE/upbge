@@ -31,7 +31,7 @@
 #include "BKE_node.h"
 #include "BKE_node_tree_update.h"
 #include "BKE_object.h"
-#include "BKE_sca.h"
+#include "BKE_sca.hh"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"

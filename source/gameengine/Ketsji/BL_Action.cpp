@@ -473,8 +473,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         else {
           scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
         }
-        PointerRNA ptrrna;
-        RNA_id_pointer_create(&ob->id, &ptrrna);
+        PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
         animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
         actionIsUpdated = true;
         break;
@@ -495,8 +494,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           else {
             scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
           }
-          PointerRNA ptrrna;
-          RNA_id_pointer_create(&ob->id, &ptrrna);
+          PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
           actionIsUpdated = true;
           break;
@@ -517,8 +515,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           else {
             scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
           }
-          PointerRNA ptrrna;
-          RNA_id_pointer_create(&ob->id, &ptrrna);
+          PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
 
           m_obj->ForceIgnoreParentTx();
@@ -544,8 +541,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
             else {
               scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
             }
-            PointerRNA ptrrna;
-            RNA_id_pointer_create(&ob->id, &ptrrna);
+            PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
             animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
             actionIsUpdated = true;
             break;
@@ -572,8 +568,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         }
         if (isRightAction) {
           scene->AppendToIdsToUpdateInAllRenderPasses(&nodetree->id, (IDRecalcFlag)0);
-          PointerRNA ptrrna;
-          RNA_id_pointer_create(&nodetree->id, &ptrrna);
+          PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
           actionIsUpdated = true;
           break;
@@ -591,8 +586,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           scene->AppendToIdsToUpdateInAllRenderPasses(&me->id, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
-          PointerRNA ptrrna;
-          RNA_id_pointer_create(&key->id, &ptrrna);
+          PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
 
           // Handle blending between shape actions

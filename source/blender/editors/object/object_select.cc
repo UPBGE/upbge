@@ -45,7 +45,7 @@
 #include "BKE_object.h"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
-#include "BKE_property.h"
+#include "BKE_property.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_workspace.h"

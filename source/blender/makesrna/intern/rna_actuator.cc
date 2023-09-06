@@ -71,7 +71,7 @@ static const EnumPropertyItem actuator_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_sca.h"
+#  include "BKE_sca.hh"
 
 static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 {

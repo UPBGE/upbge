@@ -75,7 +75,7 @@
 #include "BKE_object.h"
 #include "BKE_pointcloud.h"
 #include "BKE_report.h"
-#include "BKE_sca.h"
+#include "BKE_sca.hh"
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
 #include "BKE_texture.h"

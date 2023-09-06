@@ -2282,9 +2282,9 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
   bController ***sens_from_links;
   uiBut *tmp_but;
 
-  uiLink *link = from->link;
+  PointerRNA props_ptr;
 
-  PointerRNA props_ptr, object_ptr;
+  uiLink *link = from->link;
 
   if (link->ppoin)
     sens_from_links = (bController ***)(link->ppoin);
@@ -2320,7 +2320,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     return;
 
   /* in case the linked controller is not the active one */
-  RNA_pointer_create((ID *)ob, &RNA_Object, ob, &object_ptr);
+  PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);
 
   WM_operator_properties_create(&props_ptr, "LOGIC_OT_controller_add");
   RNA_string_set(&props_ptr, "object", ob->id.name + 2);

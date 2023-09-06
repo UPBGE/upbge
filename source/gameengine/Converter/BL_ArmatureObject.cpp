@@ -433,8 +433,7 @@ void BL_ArmatureObject::ApplyPose()
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
-  PointerRNA ptrrna;
-  RNA_id_pointer_create(&m_objArma->id, &ptrrna);
+  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
 
   animsys_evaluate_action(&ptrrna, action, evalCtx, false);
 }

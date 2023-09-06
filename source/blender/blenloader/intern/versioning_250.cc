@@ -66,7 +66,7 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_sca.h"
+#include "BKE_sca.hh"
 #include "BKE_screen.h"
 #include "BKE_sound.h"
 #include "BKE_texture.h"
