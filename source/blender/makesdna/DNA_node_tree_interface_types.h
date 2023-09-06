@@ -53,6 +53,7 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_OUTPUT = 1 << 1,
   NODE_INTERFACE_SOCKET_HIDE_VALUE = 1 << 2,
   NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER = 1 << 3,
+  NODE_INTERFACE_SOCKET_COMPACT = 1 << 4,
 } NodeTreeInterfaceSocketFlag;
 ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER);
 
@@ -158,7 +159,10 @@ typedef struct bNodeTreeInterfacePanel {
    */
   bNodeTreeInterfacePanel *find_parent_recursive(const bNodeTreeInterfaceItem &item);
 
-  /** Create a copy of items in the span and add them to the interface. */
+  /**
+   * Create a copy of items in the span and add them to the interface.
+   * \note This does not generate new identifiers for items, use only for identical copies.
+   */
   void copy_from(blender::Span<const bNodeTreeInterfaceItem *> items_src, int flag);
   /** Remove all items from the panel. */
   void clear(bool do_id_user);

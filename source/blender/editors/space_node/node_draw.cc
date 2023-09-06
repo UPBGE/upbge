@@ -362,8 +362,7 @@ static bool node_update_basis_buttons(
     return false;
   }
 
-  PointerRNA nodeptr;
-  RNA_pointer_create(&ntree.id, &RNA_Node, &node, &nodeptr);
+  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
 
   /* Get "global" coordinates. */
   float2 loc = node_to_view(node, float2(0));
@@ -412,9 +411,8 @@ static bool node_update_basis_socket(const bContext &C,
   }
 
   const int topy = locy;
-  PointerRNA nodeptr, sockptr;
-  RNA_pointer_create(&ntree.id, &RNA_Node, &node, &nodeptr);
-  RNA_pointer_create(&ntree.id, &RNA_NodeSocket, &socket, &sockptr);
+  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA sockptr = RNA_pointer_create(&ntree.id, &RNA_NodeSocket, &socket);
 
   const eNodeSocketInOut in_out = eNodeSocketInOut(socket.in_out);
 
@@ -482,15 +480,19 @@ static void node_update_basis_from_declaration(
 
   BLI_assert(is_node_panels_supported(node));
   BLI_assert(node.runtime->panels.size() == node.num_panel_states);
-
   const nodes::NodeDeclaration &decl = *node.declaration();
-  const bool has_buttons = node_update_basis_buttons(C, ntree, node, block, locy);
+  /* Checked at various places to avoid adding duplicate spacers without anything in between. */
+  bool need_spacer_after_item = false;
+
+  /* Space at the top. */
+  locy -= NODE_DYS / 2;
+
+  need_spacer_after_item = node_update_basis_buttons(C, ntree, node, block, locy);
 
   bNodeSocket *current_input = static_cast<bNodeSocket *>(node.inputs.first);
   bNodeSocket *current_output = static_cast<bNodeSocket *>(node.outputs.first);
   bNodePanelState *current_panel_state = node.panel_states_array;
   bke::bNodePanelRuntime *current_panel_runtime = node.runtime->panels.begin();
-  bool has_sockets = false;
 
   /* The panel stack keeps track of the hierarchy of panels. When a panel declaration is found a
    * new #PanelUpdate is added to the stack. Items in the declaration are added to the top panel of
@@ -505,6 +507,7 @@ static void node_update_basis_from_declaration(
     bke::bNodePanelRuntime *runtime;
   };
 
+  bool is_first = true;
   Stack<PanelUpdate> panel_updates;
   for (const nodes::ItemDeclarationPtr &item_decl : decl.items) {
     bool is_parent_collapsed = false;
@@ -515,11 +518,6 @@ static void node_update_basis_from_declaration(
       is_parent_collapsed = parent_update->is_collapsed;
     }
 
-    /* Space after header and between items. */
-    if (!is_parent_collapsed) {
-      locy -= NODE_SOCKDY;
-    }
-
     if (nodes::PanelDeclaration *panel_decl = dynamic_cast<nodes::PanelDeclaration *>(
             item_decl.get())) {
       BLI_assert(node.panel_states().contains_ptr(current_panel_state));
@@ -527,6 +525,8 @@ static void node_update_basis_from_declaration(
 
       if (!is_parent_collapsed) {
         locy -= NODE_DY;
+        is_first = false;
+        need_spacer_after_item = true;
       }
 
       SET_FLAG_FROM_TEST(
@@ -554,8 +554,14 @@ static void node_update_basis_from_declaration(
             current_input->runtime->location = float2(locx, round(locy + NODE_DYS));
           }
           else {
-            has_sockets |= node_update_basis_socket(
-                C, ntree, node, *current_input, block, locx, locy);
+            /* Space between items. */
+            if (!is_first && current_input->is_visible()) {
+              locy -= NODE_SOCKDY;
+            }
+            if (node_update_basis_socket(C, ntree, node, *current_input, block, locx, locy)) {
+              is_first = false;
+              need_spacer_after_item = true;
+            }
           }
           current_input = current_input->next;
           break;
@@ -569,8 +575,14 @@ static void node_update_basis_from_declaration(
                                                        round(locy + NODE_DYS));
           }
           else {
-            has_sockets |= node_update_basis_socket(
-                C, ntree, node, *current_output, block, locx, locy);
+            /* Space between items. */
+            if (!is_first && current_output->is_visible()) {
+              locy -= NODE_SOCKDY;
+            }
+            if (node_update_basis_socket(C, ntree, node, *current_output, block, locx, locy)) {
+              is_first = false;
+              need_spacer_after_item = true;
+            }
           }
           current_output = current_output->next;
           break;
@@ -593,9 +605,9 @@ static void node_update_basis_from_declaration(
   /* Enough items should have been added to close all panels. */
   BLI_assert(panel_updates.is_empty());
 
-  /* Little bit of space in end. */
-  if (has_sockets || !has_buttons) {
+  if (need_spacer_after_item) {
     locy -= NODE_DYS / 2;
+    need_spacer_after_item = false;
   }
 }
 
@@ -659,9 +671,6 @@ static void node_update_basis(const bContext &C,
                               bNode &node,
                               uiBlock &block)
 {
-  PointerRNA nodeptr;
-  RNA_pointer_create(&ntree.id, &RNA_Node, &node, &nodeptr);
-
   /* Get "global" coordinates. */
   float2 loc = node_to_view(node, float2(0));
   /* Round the node origin because text contents are always pixel-aligned. */
@@ -1564,10 +1573,6 @@ static void node_draw_sockets(const View2D &v2d,
   if (node.input_sockets().is_empty() && node.output_sockets().is_empty()) {
     return;
   }
-
-  PointerRNA node_ptr;
-  RNA_pointer_create(
-      &const_cast<ID &>(ntree.id), &RNA_Node, &const_cast<bNode &>(node), &node_ptr);
 
   bool selected = false;
 

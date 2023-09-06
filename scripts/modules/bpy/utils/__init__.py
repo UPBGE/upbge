@@ -673,17 +673,18 @@ def preset_find(name, preset_path, *, display_name=False, ext=".py"):
 def keyconfig_init():
     # Key configuration initialization and refresh, called from the Blender
     # window manager on startup and refresh.
+    default_config = "Blender"
     active_config = _preferences.keymap.active_keyconfig
 
     # Load the default key configuration.
-    default_filepath = preset_find("Blender", "keyconfig")
-    keyconfig_set(default_filepath)
+    filepath = preset_find(default_config, "keyconfig")
+    keyconfig_set(filepath)
 
-    # Set the active key configuration if different
-    filepath = preset_find(active_config, "keyconfig")
-
-    if filepath and filepath != default_filepath:
-        keyconfig_set(filepath)
+    # Set the active key configuration if different.
+    if default_config != active_config:
+        filepath = preset_find(active_config, "keyconfig")
+        if filepath:
+            keyconfig_set(filepath)
 
 
 def keyconfig_set(filepath, *, report=None):
@@ -693,6 +694,10 @@ def keyconfig_set(filepath, *, report=None):
         print("loading preset:", filepath)
 
     keyconfigs = _bpy.context.window_manager.keyconfigs
+    name = splitext(basename(filepath))[0]
+
+    # Store the old key-configuration case of error, to know if it should be removed or not on failure.
+    kc_old = keyconfigs.get(name)
 
     try:
         error_msg = ""
@@ -701,14 +706,13 @@ def keyconfig_set(filepath, *, report=None):
         import traceback
         error_msg = traceback.format_exc()
 
-    name = splitext(basename(filepath))[0]
     kc_new = keyconfigs.get(name)
 
     if error_msg:
         if report is not None:
             report({'ERROR'}, error_msg)
         print(error_msg)
-        if kc_new is not None:
+        if (kc_new is not None) and (kc_new != kc_old):
             keyconfigs.remove(kc_new)
         return False
 
