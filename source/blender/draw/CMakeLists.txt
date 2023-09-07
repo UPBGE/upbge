@@ -166,31 +166,18 @@ set(SRC
   engines/eevee_next/eevee_view.cc
   engines/eevee_next/eevee_volume.cc
   engines/eevee_next/eevee_world.cc
-  engines/workbench/workbench_data.cc
   engines/workbench/workbench_effect_antialiasing.cc
-  engines/workbench/workbench_effect_antialiasing_c.cc
   engines/workbench/workbench_effect_cavity.cc
-  engines/workbench/workbench_effect_cavity_c.cc
   engines/workbench/workbench_effect_dof.cc
-  engines/workbench/workbench_effect_dof_c.cc
   engines/workbench/workbench_effect_outline.cc
-  engines/workbench/workbench_effect_outline_c.cc
   engines/workbench/workbench_engine.cc
-  engines/workbench/workbench_engine_c.cc
   engines/workbench/workbench_materials.cc
-  engines/workbench/workbench_materials_next.cc
   engines/workbench/workbench_mesh_passes.cc
-  engines/workbench/workbench_opaque.cc
-  engines/workbench/workbench_render.cc
   engines/workbench/workbench_resources.cc
-  engines/workbench/workbench_shader.cc
   engines/workbench/workbench_shader_cache.cc
   engines/workbench/workbench_shadow.cc
-  engines/workbench/workbench_shadow_c.cc
   engines/workbench/workbench_state.cc
-  engines/workbench/workbench_transparent.cc
   engines/workbench/workbench_volume.cc
-  engines/workbench/workbench_volume_next.cc
   engines/external/external_engine.cc
   engines/gpencil/gpencil_antialiasing.cc
   engines/gpencil/gpencil_cache_utils.cc
@@ -354,7 +341,6 @@ set(SRC
   engines/workbench/workbench_defines.hh
   engines/workbench/workbench_engine.h
   engines/workbench/workbench_enums.hh
-  engines/workbench/workbench_private.h
   engines/workbench/workbench_private.hh
   engines/workbench/workbench_shader_shared.h
 )
@@ -566,6 +552,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_shadow_tag_usage_lib.glsl
   engines/eevee_next/shaders/eevee_shadow_tag_usage_surfels_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tag_usage_vert.glsl
+  engines/eevee_next/shaders/eevee_shadow_tag_usage_volume_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_test.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_bounds_comp.glsl
   engines/eevee_next/shaders/eevee_shadow_tilemap_finalize_comp.glsl
@@ -600,9 +587,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_cavity_lib.glsl
   engines/workbench/shaders/workbench_common_lib.glsl
   engines/workbench/shaders/workbench_composite_frag.glsl
-  engines/workbench/shaders/workbench_next_composite_frag.glsl
   engines/workbench/shaders/workbench_curvature_lib.glsl
-  engines/workbench/shaders/workbench_effect_cavity_frag.glsl
   engines/workbench/shaders/workbench_effect_dof_frag.glsl
   engines/workbench/shaders/workbench_effect_outline_frag.glsl
   engines/workbench/shaders/workbench_effect_smaa_frag.glsl
@@ -612,8 +597,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_image_lib.glsl
   engines/workbench/shaders/workbench_matcap_lib.glsl
   engines/workbench/shaders/workbench_material_lib.glsl
-  engines/workbench/shaders/workbench_merge_infront_frag.glsl
-  engines/workbench/shaders/workbench_next_merge_depth_frag.glsl
+  engines/workbench/shaders/workbench_merge_depth_frag.glsl
   engines/workbench/shaders/workbench_overlay_depth_frag.glsl
   engines/workbench/shaders/workbench_prepass_frag.glsl
   engines/workbench/shaders/workbench_prepass_hair_vert.glsl

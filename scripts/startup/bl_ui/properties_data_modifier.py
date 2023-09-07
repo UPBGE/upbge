@@ -29,6 +29,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
 class OBJECT_MT_modifier_add(Menu):
     bl_label = "Add Modifier"
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
 
     def draw(self, context):
         layout = self.layout
@@ -36,6 +37,7 @@ class OBJECT_MT_modifier_add(Menu):
         geometry_nodes_supported = ob_type in {'MESH', 'CURVE', 'CURVES', 'FONT', 'SURFACE', 'VOLUME', 'POINTCLOUD'}
         if geometry_nodes_supported:
             layout.operator("object.modifier_add", text="Empty Modifier").type = 'NODES'
+            layout.separator()
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE', 'LATTICE'}:
             layout.menu("OBJECT_MT_modifier_add_edit")
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE', 'VOLUME'}:

@@ -168,6 +168,7 @@ struct uiBut {
   /** Pointer back to the layout item holding this button. */
   uiLayout *layout = nullptr;
   int flag = 0;
+  int flag2 = 0;
   int drawflag = 0;
   int upbgeflag = 0;
   eButType type = eButType(0);
@@ -871,6 +872,8 @@ struct uiPopupBlockHandle {
   bool is_grab;
   int grab_xy_prev[2];
   /* #endif */
+
+  char menu_idname[64];
 };
 
 /* -------------------------------------------------------------------- */

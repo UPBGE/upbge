@@ -225,6 +225,7 @@ class NODE_MT_add(bpy.types.Menu):
     bl_space_type = 'NODE_EDITOR'
     bl_label = "Add"
     bl_translation_context = i18n_contexts.operator_default
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
 
     def draw(self, context):
         import nodeitems_utils
@@ -234,27 +235,14 @@ class NODE_MT_add(bpy.types.Menu):
 
         snode = context.space_data
         if snode.tree_type == 'GeometryNodeTree':
-            props = layout.operator("node.add_search", text="Search...", icon='VIEWZOOM')
-            layout.separator()
             layout.menu_contents("NODE_MT_geometry_node_add_all")
         elif snode.tree_type == 'CompositorNodeTree':
-            props = layout.operator("node.add_search", text="Search...", icon='VIEWZOOM')
-            layout.separator()
             layout.menu_contents("NODE_MT_compositor_node_add_all")
         elif snode.tree_type == 'ShaderNodeTree':
-            props = layout.operator("node.add_search", text="Search...", icon='VIEWZOOM')
-            layout.separator()
             layout.menu_contents("NODE_MT_shader_node_add_all")
         elif snode.tree_type == 'TextureNodeTree':
-            props = layout.operator("node.add_search", text="Search...", icon='VIEWZOOM')
-            layout.separator()
             layout.menu_contents("NODE_MT_texture_node_add_all")
         elif nodeitems_utils.has_node_categories(context):
-            props = layout.operator("node.add_search", text="Search...", icon='VIEWZOOM')
-            props.use_transform = True
-
-            layout.separator()
-
             # Actual node sub-menus are defined by draw functions from node categories.
             nodeitems_utils.draw_node_categories_menu(self, context)
 
@@ -724,7 +712,7 @@ class NODE_PT_texture_mapping(Panel):
     bl_category = "Node"
     bl_label = "Texture Mapping"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'BLENDER_WORKBENCH_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
