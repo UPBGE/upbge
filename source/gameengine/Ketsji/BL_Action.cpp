@@ -582,7 +582,21 @@ void BL_Action::Update(float curtime, bool applyToObject)
       Mesh *me = (Mesh *)ob->data;
       if (ob->type == OB_MESH && me) {
         const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
-        if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
+        bool has_animdata = bHasShapeKey && me->key->adt;
+        bool play_normal_key_action = has_animdata && me->key->adt->action == m_action;
+        bool play_nla_key_action = false;
+        if (!play_normal_key_action && has_animdata) {
+          LISTBASE_FOREACH (NlaTrack *, track, &me->key->adt->nla_tracks) {
+            LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
+              if (strip->act == m_action) {
+                play_nla_key_action = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (play_normal_key_action || play_nla_key_action) {
           scene->AppendToIdsToUpdateInAllRenderPasses(&me->id, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
