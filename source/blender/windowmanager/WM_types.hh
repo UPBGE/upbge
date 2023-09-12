@@ -924,7 +924,7 @@ struct wmOperatorType {
   const char *idname;
   /** Translation context (must not exceed #BKE_ST_MAXNAME) */
   const char *translation_context;
-  /** Use for tool-tips and Python docs. */
+  /** Use for tooltips and Python docs. */
   const char *description;
   /** Identifier to group operators together. */
   const char *undo_group;
@@ -946,8 +946,8 @@ struct wmOperatorType {
   bool (*check)(bContext *, wmOperator *);
 
   /**
-   * For modal temporary operators, initially invoke is called. then
-   * any further events are handled in modal. if the operation is
+   * For modal temporary operators, initially invoke is called, then
+   * any further events are handled in #modal. If the operation is
    * canceled due to some external reason, cancel is called
    * See defines below for return values.
    */
@@ -960,21 +960,21 @@ struct wmOperatorType {
   void (*cancel)(bContext *, wmOperator *);
 
   /**
-   * Modal is used for operators which continuously run, eg:
-   * fly mode, knife tool, circle select are all examples of modal operators.
-   * Modal operators can handle events which would normally access other operators,
-   * they keep running until they don't return `OPERATOR_RUNNING_MODAL`.
+   * Modal is used for operators which continuously run. Fly mode, knife tool, circle select are
+   * all examples of modal operators. Modal operators can handle events which would normally invoke
+   * or execute other operators. They keep running until they don't return
+   * `OPERATOR_RUNNING_MODAL`.
    */
   int (*modal)(bContext *, wmOperator *, const wmEvent *) ATTR_WARN_UNUSED_RESULT;
 
   /**
-   * Verify if the operator can be executed in the current context, note
-   * that the operator might still fail to execute even if this return true.
+   * Verify if the operator can be executed in the current context. Note
+   * that the operator may still fail to execute even if this returns true.
    */
   bool (*poll)(bContext *) ATTR_WARN_UNUSED_RESULT;
 
   /**
-   * Use to check if properties should be displayed in auto-generated UI.
+   * Used to check if properties should be displayed in auto-generated UI.
    * Use 'check' callback to enforce refreshing.
    */
   bool (*poll_property)(const bContext *C,
@@ -986,22 +986,24 @@ struct wmOperatorType {
 
   /**
    * Return a different name to use in the user interface, based on property values.
-   * The returned string does not need to be freed.
    * The returned string is expected to be translated if needed.
+   *
+   * WARNING: This callback does not currently work as expected in most common usage cases (e.g.
+   * any definition of an operator button through the layout API will fail to execute it). See
+   * #112253 for details.
    */
   std::string (*get_name)(wmOperatorType *, PointerRNA *);
 
   /**
    * Return a different description to use in the user interface, based on property values.
-   * The returned string must be freed by the caller, unless NULL.
    * The returned string is expected to be translated if needed.
    */
   std::string (*get_description)(bContext *C, wmOperatorType *, PointerRNA *);
 
-  /** rna for properties */
+  /** RNA for properties */
   StructRNA *srna;
 
-  /** previous settings - for initializing on re-use */
+  /** Previous settings - for initializing on re-use. */
   IDProperty *last_properties;
 
   /**
@@ -1013,13 +1015,13 @@ struct wmOperatorType {
    */
   PropertyRNA *prop;
 
-  /**  wmOperatorTypeMacro */
+  /** wmOperatorTypeMacro */
   ListBase macro;
 
-  /** pointer to modal keymap, do not free! */
+  /** Pointer to modal keymap. Do not free! */
   wmKeyMap *modalkeymap;
 
-  /** python needs the operator type as well */
+  /** Python needs the operator type as well. */
   bool (*pyop_poll)(bContext *, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT;
 
   /** RNA integration */
