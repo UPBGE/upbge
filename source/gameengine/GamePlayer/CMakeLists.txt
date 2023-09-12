@@ -60,7 +60,6 @@ set(INC
   ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
   ../../../intern/clog
-  ../../../intern/ghost
   ../../../intern/memutil
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -83,6 +82,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  bf_intern_ghost
 )
 
 add_definitions(${GL_DEFINITIONS})
