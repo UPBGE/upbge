@@ -420,10 +420,6 @@ ccl_device void osl_closure_microfacet_setup(KernelGlobals kg,
   else if (closure->distribution == make_string("ashikhmin_shirley", 11318482998918370922ull)) {
     sd->flag |= bsdf_ashikhmin_shirley_setup(bsdf);
   }
-  /* Clearcoat */
-  else if (closure->distribution == make_string("clearcoat", 3490136178980547276ull)) {
-    sd->flag |= bsdf_microfacet_ggx_clearcoat_setup(kg, bsdf, sd);
-  }
   /* GGX (either single- or multi-scattering) */
   else {
     if (closure->refract == 1) {
@@ -744,23 +740,16 @@ ccl_device void osl_closure_bssrdf_setup(KernelGlobals kg,
     return;
   }
 
-  /* disable in case of diffuse ancestor, can't see it well then and
-   * adds considerably noise due to probabilities of continuing path
-   * getting lower and lower */
-  if (path_flag & PATH_RAY_DIFFUSE_ANCESTOR) {
-    bssrdf->radius = zero_spectrum();
-  }
-  else {
-    bssrdf->radius = closure->radius;
-  }
+  bssrdf->radius = closure->radius;
 
   /* create one closure per color channel */
   bssrdf->albedo = closure->albedo;
   bssrdf->N = closure->N;
-  bssrdf->roughness = closure->roughness;
-  bssrdf->anisotropy = clamp(closure->anisotropy, 0.0f, 0.9f);
+  bssrdf->alpha = sqr(closure->roughness);
+  bssrdf->ior = closure->ior;
+  bssrdf->anisotropy = closure->anisotropy;
 
-  sd->flag |= bssrdf_setup(sd, bssrdf, type, clamp(closure->ior, 1.01f, 3.8f));
+  sd->flag |= bssrdf_setup(sd, bssrdf, path_flag, type);
 }
 
 /* Hair */
