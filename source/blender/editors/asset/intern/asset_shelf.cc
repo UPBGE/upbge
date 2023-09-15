@@ -627,7 +627,7 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
   return but;
 }
 
-static void add_catalog_toggle_buttons(AssetShelfSettings &shelf_settings, uiLayout &layout)
+static void add_catalog_tabs(AssetShelfSettings &shelf_settings, uiLayout &layout)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
 
@@ -685,13 +685,16 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   PointerRNA shelf_ptr = shelf::active_shelf_ptr_from_context(C);
   AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data);
   if (shelf) {
-    add_catalog_toggle_buttons(shelf->settings, *layout);
+    add_catalog_tabs(shelf->settings, *layout);
   }
 
   uiItemSpacer(layout);
 
-  uiItemR(layout, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
   uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
+  uiLayout *sub = uiLayoutRow(layout, false);
+  /* Same as file/asset browser header. */
+  uiLayoutSetUnitsX(sub, 8);
+  uiItemR(sub, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
 void ED_asset_shelf_header_regiontype_register(ARegionType *region_type, const int space_type)
