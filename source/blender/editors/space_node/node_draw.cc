@@ -685,7 +685,13 @@ static void node_update_basis_from_declaration(
 
       /* Round the socket location to stop it from jiggling. */
       item.runtime->location_y = round(locy + NODE_DYS);
+      if (!is_collapsed) {
+        locy -= NODE_ITEM_SPACING_Y / 2; /* Space at bottom of panel header. */
+      }
       item.runtime->max_content_y = item.runtime->min_content_y = round(locy);
+      if (!is_collapsed) {
+        locy -= NODE_ITEM_SPACING_Y; /* Space at top of panel contents. */
+      }
     }
     else if (item.is_valid_socket()) {
       if (item.input) {
@@ -702,7 +708,7 @@ static void node_update_basis_from_declaration(
         else {
           /* Space between items. */
           if (!is_first && item.input->is_visible()) {
-            locy -= NODE_SOCKDY;
+            locy -= NODE_ITEM_SPACING_Y;
           }
         }
       }
@@ -715,7 +721,7 @@ static void node_update_basis_from_declaration(
         else {
           /* Space between items. */
           if (!is_first && item.output->is_visible()) {
-            locy -= NODE_SOCKDY;
+            locy -= NODE_ITEM_SPACING_Y;
           }
         }
       }
@@ -739,8 +745,14 @@ static void node_update_basis_from_declaration(
         /* Incomplete panel, continue adding items. */
         break;
       }
-      /* Finalize the vertical extent of the content. */
-      top_panel.runtime->min_content_y = round(locy - NODE_DYS / 4);
+
+      if (!top_panel.is_collapsed) {
+        /* Finalize the vertical extent of the content. */
+        locy -= 2 * NODE_ITEM_SPACING_Y; /* Space at bottom of panel contents. */
+        top_panel.runtime->min_content_y = round(locy);
+        locy -= NODE_ITEM_SPACING_Y / 2; /* Space at top of next panel header. */
+      }
+
       /* Close panel and continue checking parent. */
       panel_updates.pop();
     }
@@ -779,7 +791,7 @@ static void node_update_basis_from_socket_lists(
 
     if (node_update_basis_socket(C, ntree, node, nullptr, socket, block, locx, locy)) {
       if (socket->next) {
-        locy -= NODE_SOCKDY;
+        locy -= NODE_ITEM_SPACING_Y;
       }
       add_output_space = true;
     }
@@ -798,7 +810,7 @@ static void node_update_basis_from_socket_lists(
 
     if (node_update_basis_socket(C, ntree, node, socket, nullptr, block, locx, locy)) {
       if (socket->next) {
-        locy -= NODE_SOCKDY;
+        locy -= NODE_ITEM_SPACING_Y;
       }
     }
   }
@@ -2660,12 +2672,7 @@ static void node_draw_basis(const bContext &C,
   }
 
   /* Shadow. */
-  if (!ELEM(node.type,
-            GEO_NODE_SIMULATION_INPUT,
-            GEO_NODE_SIMULATION_OUTPUT,
-            GEO_NODE_REPEAT_INPUT,
-            GEO_NODE_REPEAT_OUTPUT))
-  {
+  if (!bke::all_zone_node_types().contains(node.type)) {
     node_draw_shadow(snode, node, BASIS_RAD, 1.0f);
   }
 
@@ -2974,12 +2981,8 @@ static void node_draw_basis(const bContext &C,
     else if (bke::node_type_is_undefined(&node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
-    else if (ELEM(node.type, GEO_NODE_SIMULATION_INPUT, GEO_NODE_SIMULATION_OUTPUT)) {
-      UI_GetThemeColor4fv(TH_NODE_ZONE_SIMULATION, color_outline);
-      color_outline[3] = 1.0f;
-    }
-    else if (ELEM(node.type, GEO_NODE_REPEAT_INPUT, GEO_NODE_REPEAT_OUTPUT)) {
-      UI_GetThemeColor4fv(TH_NODE_ZONE_REPEAT, color_outline);
+    else if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(node.type)) {
+      UI_GetThemeColor4fv(zone_type->theme_id, color_outline);
       color_outline[3] = 1.0f;
     }
     else {
@@ -3718,10 +3721,7 @@ static void node_draw_zones(TreeDrawContext & /*tree_draw_ctx*/,
 
   const auto get_theme_id = [&](const int zone_i) {
     const bNode *node = zones->zones[zone_i]->output_node;
-    if (node->type == GEO_NODE_SIMULATION_OUTPUT) {
-      return TH_NODE_ZONE_SIMULATION;
-    }
-    return TH_NODE_ZONE_REPEAT;
+    return bke::zone_type_by_node_type(node->type)->theme_id;
   };
 
   const uint pos = GPU_vertformat_attr_add(
