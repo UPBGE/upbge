@@ -204,6 +204,12 @@ void ANIM_armature_bonecoll_active_index_set(bArmature *armature, const int bone
   armature->runtime.active_collection = bcoll;
 }
 
+void ANIM_armature_bonecoll_active_name_set(bArmature *armature, const char *name)
+{
+  BoneCollection *bcoll = ANIM_armature_bonecoll_get_by_name(armature, name);
+  ANIM_armature_bonecoll_active_set(armature, bcoll);
+}
+
 bool ANIM_armature_bonecoll_is_editable(const bArmature *armature, const BoneCollection *bcoll)
 {
   const bool is_override = ID_IS_OVERRIDE_LIBRARY(armature);
@@ -280,6 +286,11 @@ BoneCollection *ANIM_armature_bonecoll_get_by_name(bArmature *armature, const ch
     }
   }
   return nullptr;
+}
+
+void ANIM_bonecoll_show(BoneCollection *bcoll)
+{
+  bcoll->flags |= BONE_COLLECTION_VISIBLE;
 }
 
 void ANIM_bonecoll_hide(BoneCollection *bcoll)
@@ -452,32 +463,19 @@ bool ANIM_bonecoll_is_visible_editbone(const bArmature * /*armature*/, const Edi
 void ANIM_armature_bonecoll_show_all(bArmature *armature)
 {
   LISTBASE_FOREACH (BoneCollection *, bcoll, &armature->collections) {
-    bcoll->flags |= BONE_COLLECTION_VISIBLE;
+    ANIM_bonecoll_show(bcoll);
   }
 }
 
 void ANIM_armature_bonecoll_hide_all(bArmature *armature)
 {
   LISTBASE_FOREACH (BoneCollection *, bcoll, &armature->collections) {
-    bcoll->flags &= ~BONE_COLLECTION_VISIBLE;
+    ANIM_bonecoll_hide(bcoll);
   }
 }
 
 /* ********************************* */
 /* Armature Layers transitional API. */
-
-void ANIM_armature_enable_layers(bArmature *armature, const int /*layers*/)
-{
-  // TODO: reimplement properly.
-  // armature->layer |= layers;
-  ANIM_armature_bonecoll_show_all(armature);
-}
-
-void ANIM_bone_set_layer_ebone(EditBone *ebone, const int layer)
-{
-  // TODO: reimplement for bone collections.
-  ebone->layer = layer;
-}
 
 void ANIM_armature_bonecoll_assign_active(const bArmature *armature, EditBone *ebone)
 {

@@ -262,8 +262,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
     }
     else if (field->format.style == UI_TIP_STYLE_IMAGE) {
 
-      bbox.ymax -= field->image_size[0];
-      bbox.ymin -= field->image_size[0];
+      bbox.ymax -= field->image_size[1];
 
       GPU_blend(GPU_BLEND_ALPHA_PREMULT);
       IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
@@ -821,7 +820,8 @@ static uiTooltipData *ui_tooltip_data_from_button_or_extra_icon(bContext *C,
 
   if (extra_icon) {
     if (is_label) {
-      UI_but_extra_icon_string_info_get(C, extra_icon, &but_tip_label, &enum_label, nullptr);
+      UI_but_extra_icon_string_info_get(
+          C, extra_icon, &but_tip_label, &but_label, &enum_label, nullptr);
     }
     else {
       UI_but_extra_icon_string_info_get(
@@ -830,7 +830,7 @@ static uiTooltipData *ui_tooltip_data_from_button_or_extra_icon(bContext *C,
   }
   else {
     if (is_label) {
-      UI_but_string_info_get(C, but, &but_tip_label, &enum_label, nullptr);
+      UI_but_string_info_get(C, but, &but_tip_label, &but_label, &enum_label, nullptr);
     }
     else {
       UI_but_string_info_get(C,
@@ -848,13 +848,19 @@ static uiTooltipData *ui_tooltip_data_from_button_or_extra_icon(bContext *C,
     }
   }
 
-  if (but_tip_label.strinfo &&
-      /* Buttons with dynamic tool-tips also don't get their default label here since they
-       * can already provide more accurate and specific tool-tip content. */
-      !but->tip_func)
-  {
+  /* Label: If there is a custom tooltip label, use that to override the label to display.
+   * Otherwise fallback to the regular label. */
+  if (but_tip_label.strinfo) {
     UI_tooltip_text_field_add(
         data, BLI_strdup(but_tip_label.strinfo), nullptr, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+  }
+  /* Regular (non-custom) label. Only show when the button doesn't already show the label. Check
+   * prefix instead of comparing because the button may include the shortcut. Buttons with dynamic
+   * tool-tips also don't get their default label here since they can already provide more accurate
+   * and specific tool-tip content. */
+  else if (but_label.strinfo && !STRPREFIX(but->drawstr, but_label.strinfo) && !but->tip_func) {
+    UI_tooltip_text_field_add(
+        data, BLI_strdup(but_label.strinfo), nullptr, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
   }
 
   /* Tip */
@@ -1251,7 +1257,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 
     if (field->format.style == UI_TIP_STYLE_IMAGE) {
       fonth += field->image_size[1];
-      w = field->image_size[0];
+      w = max_ii(w, field->image_size[0]);
     }
 
     fontw = max_ii(fontw, w);
