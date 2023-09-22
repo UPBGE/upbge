@@ -53,7 +53,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"

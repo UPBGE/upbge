@@ -15,7 +15,7 @@
 #include "GPU_capabilities.h"
 #include "GPU_debug.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "draw_debug.h"
 #include "draw_debug.hh"

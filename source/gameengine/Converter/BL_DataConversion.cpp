@@ -70,7 +70,7 @@
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
 #include "DNA_python_proxy_types.h"
 #include "wm_event_types.hh"

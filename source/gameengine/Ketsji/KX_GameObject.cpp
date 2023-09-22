@@ -42,7 +42,7 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DRW_render.h"
 #include "WM_api.hh"
 

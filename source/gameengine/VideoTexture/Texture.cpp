@@ -12,7 +12,7 @@
 #include "BKE_image.h"
 #include "BKE_node.h"
 #include "BLI_listbase.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_material_types.h"
 #include <epoxy/gl.h>
 #include "GPU_texture.h"

@@ -80,7 +80,7 @@
 #include "BPY_extern_python.h"
 #include "BPY_extern_run.h"
 #include "CLG_log.h"
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 #include "DNA_genfile.h"
 #include "DRW_engine.h"
 #include "ED_asset.hh"

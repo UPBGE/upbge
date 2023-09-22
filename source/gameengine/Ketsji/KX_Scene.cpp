@@ -42,7 +42,7 @@
 #include "BKE_object.h"
 #include "BKE_screen.h"
 #include "BLI_task.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_mesh_types.h"

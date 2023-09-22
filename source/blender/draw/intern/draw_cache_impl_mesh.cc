@@ -25,7 +25,7 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph_query.h"  // UPBGE
+#include "DEG_depsgraph_query.hh"  // UPBGE
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
