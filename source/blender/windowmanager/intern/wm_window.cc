@@ -488,7 +488,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
     const bool has_filepath = filepath[0] != '\0';
     const bool has_directory = has_filepath && (filepath != filename);
     SNPRINTF(str,
-             "%s %s%s%s%.*s%s - UPBGE %s",
+             "%s %s%s%s%.*s%s - UPBGE based on Blender %s",
              wm->file_saved ? "" : "*",
              has_filepath ? filename : IFACE_("(Unsaved)"),
              G_MAIN->recovered ? " (Recovered)" : "",
