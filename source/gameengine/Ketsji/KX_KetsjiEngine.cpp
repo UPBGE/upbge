@@ -1259,7 +1259,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
   // Framerate display
   if (m_flags & SHOW_FRAMERATE) {
-    debugDraw.RenderText2D("Frametime :", MT_Vector2(xcoord + const_xindent, ycoord), white);
+    debugDraw.RenderText2D("Frametime:", MT_Vector2(xcoord + const_xindent, ycoord), white);
 
     debugtxt = (boost::format("%5.2fms (%.1ffps)") % (tottime * 1000.0f) % (1.0f / tottime)).str();
     debugDraw.RenderText2D(

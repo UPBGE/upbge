@@ -145,16 +145,16 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     if (!debugDraw->m_texts2D.empty()) {
       short profile_size = KX_GetActiveScene()->GetBlenderScene()->gm.profileSize;
-      int fontSize = 11;
+      int fontSize = 10;
       switch (profile_size) {
         case 0: // Don't change defaut size
           break;
         case 1: {
-          fontSize = 16.5;
+          fontSize = 15;
           break;
         }
         case 2: {
-          fontSize = 22;
+          fontSize = 20;
           break;
         }
         default:
