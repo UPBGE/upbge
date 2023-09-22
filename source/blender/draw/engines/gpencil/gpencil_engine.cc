@@ -8,7 +8,7 @@
 
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BLI_listbase_wrapper.hh"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_shader_fx_types.h"
 #include "DRW_engine.h"
 #include "DRW_render.h"
@@ -108,7 +108,7 @@ class Instance {
     anti_aliasing.init(v3d, scene);
   }
 
-  void begin_sync(Manager & /* manager */)
+  void begin_sync(Manager & /*manager*/)
   {
     /* TODO(fclem): Remove global draw manager access. */
     View main_view("GPencil_MainView", DRW_view_default_get());
@@ -150,7 +150,7 @@ class Instance {
     }
   }
 
-  void end_sync(Manager & /* manager */)
+  void end_sync(Manager & /*manager*/)
   {
     objects.end_sync();
     layers.end_sync();

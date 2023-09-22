@@ -195,7 +195,7 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
 
   if (!tree.unassigned_assets.is_empty()) {
     uiItemS(layout);
-    uiItemM(layout, "OBJECT_MT_add_modifier_unassigned_assets", IFACE_("No Catalog"), ICON_NONE);
+    uiItemM(layout, "OBJECT_MT_add_modifier_unassigned_assets", IFACE_("Unassigned"), ICON_NONE);
   }
 }
 
@@ -291,7 +291,7 @@ static MenuType modifier_add_unassigned_assets_menu_type()
   type.flag = MenuTypeFlag::ContextDependent;
   type.description = N_(
       "Modifier node group assets not assigned to a catalog.\n"
-      "Catalogs can be assigned in the Asset Browser.");
+      "Catalogs can be assigned in the Asset Browser");
   return type;
 }
 

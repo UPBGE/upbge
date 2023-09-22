@@ -32,7 +32,7 @@
 #include "BKE_scene.h"
 #include "BKE_undo_system.h"
 
-#include "../depsgraph/DEG_depsgraph.h"
+#include "../depsgraph/DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

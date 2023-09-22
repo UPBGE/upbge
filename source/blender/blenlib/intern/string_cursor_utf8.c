@@ -111,6 +111,8 @@ static eStrCursorDelimType cursor_delim_type_utf8(const char *ch_utf8,
 bool BLI_str_cursor_step_next_utf8(const char *str, const int str_maxlen, int *pos)
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_next_utf32. */
+  BLI_assert(str_maxlen >= 0);
+  BLI_assert(*pos >= 0);
 
   if (*pos >= str_maxlen) {
     return false;
@@ -133,6 +135,8 @@ bool BLI_str_cursor_step_next_utf8(const char *str, const int str_maxlen, int *p
 bool BLI_str_cursor_step_prev_utf8(const char *str, const int str_maxlen, int *pos)
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_prev_utf32. */
+  BLI_assert(str_maxlen >= 0);
+  BLI_assert(*pos >= 0);
 
   if ((*pos > 0) && (*pos <= str_maxlen)) {
     const char *str_pos = str + *pos;
@@ -230,6 +234,7 @@ bool BLI_str_cursor_step_next_utf32(const char32_t *str, const int str_maxlen, i
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_next_utf8. */
   BLI_assert(str_maxlen >= 0);
+  BLI_assert(*pos >= 0);
 
   if (*pos >= str_maxlen) {
     return false;
@@ -245,6 +250,7 @@ bool BLI_str_cursor_step_prev_utf32(const char32_t *str, const int str_maxlen, i
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_prev_utf8. */
   BLI_assert(str_maxlen >= 0);
+  BLI_assert(*pos >= 0);
   UNUSED_VARS_NDEBUG(str_maxlen);
 
   if (*pos <= 0) {
@@ -346,13 +352,18 @@ void BLI_str_cursor_step_bounds_utf8(
   *r_start = pos;
   *r_end = pos;
 
-  if ((prev <= next) && (prev != STRCUR_DELIM_NONE)) {
-    /* Expand backward if we are between similar content. */
-    BLI_str_cursor_step_utf8(str, str_maxlen, r_start, STRCUR_DIR_PREV, STRCUR_JUMP_DELIM, false);
+  if (prev != STRCUR_DELIM_NONE) {
+    if ((prev <= next) || (next == STRCUR_DELIM_NONE)) {
+      /* Expand backward if we are between similar content. */
+      BLI_str_cursor_step_utf8(
+          str, str_maxlen, r_start, STRCUR_DIR_PREV, STRCUR_JUMP_DELIM, false);
+    }
   }
-  if ((prev >= next) && (next != STRCUR_DELIM_NONE)) {
-    /* Expand forward if we are between similar content. */
-    BLI_str_cursor_step_utf8(str, str_maxlen, r_end, STRCUR_DIR_NEXT, STRCUR_JUMP_DELIM, false);
+  if (next != STRCUR_DELIM_NONE) {
+    if ((next <= prev) || (prev == STRCUR_DELIM_NONE)) {
+      /* Expand forward if we are between similar content. */
+      BLI_str_cursor_step_utf8(str, str_maxlen, r_end, STRCUR_DIR_NEXT, STRCUR_JUMP_DELIM, false);
+    }
   }
 }
 
@@ -368,12 +379,17 @@ void BLI_str_cursor_step_bounds_utf32(
   *r_start = pos;
   *r_end = pos;
 
-  if ((prev <= next) && (prev != STRCUR_DELIM_NONE)) {
-    /* Expand backward if we are between similar content. */
-    BLI_str_cursor_step_utf32(str, str_maxlen, r_start, STRCUR_DIR_PREV, STRCUR_JUMP_DELIM, false);
+  if (prev != STRCUR_DELIM_NONE) {
+    if ((prev <= next) || (next == STRCUR_DELIM_NONE)) {
+      /* Expand backward if we are between similar content. */
+      BLI_str_cursor_step_utf32(
+          str, str_maxlen, r_start, STRCUR_DIR_PREV, STRCUR_JUMP_DELIM, false);
+    }
   }
-  if ((prev >= next) && (next != STRCUR_DELIM_NONE)) {
-    /* Expand forward if we are between similar content. */
-    BLI_str_cursor_step_utf32(str, str_maxlen, r_end, STRCUR_DIR_NEXT, STRCUR_JUMP_DELIM, false);
+  if (next != STRCUR_DELIM_NONE) {
+    if ((next <= prev) || (prev == STRCUR_DELIM_NONE)) {
+      /* Expand forward if we are between similar content. */
+      BLI_str_cursor_step_utf32(str, str_maxlen, r_end, STRCUR_DIR_NEXT, STRCUR_JUMP_DELIM, false);
+    }
   }
 }

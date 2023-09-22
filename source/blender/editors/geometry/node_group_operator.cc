@@ -37,8 +37,8 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -381,7 +381,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
   uiLayout *row = uiLayoutRow(layout, true);
-  uiLayoutSetPropDecorate(row, true);
+  uiLayoutSetPropDecorate(row, false);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -720,7 +720,7 @@ MenuType node_group_operator_assets_menu_unassigned()
   type.flag = MenuTypeFlag::ContextDependent;
   type.description = N_(
       "Tool node group assets not assigned to a catalog.\n"
-      "Catalogs can be assigned in the Asset Browser.");
+      "Catalogs can be assigned in the Asset Browser");
   return type;
 }
 
@@ -786,7 +786,7 @@ void ui_template_node_operator_asset_root_items(uiLayout &layout, bContext &C)
   if (!tree->unassigned_assets.is_empty()) {
     uiItemM(&layout,
             "GEO_MT_node_operator_catalog_assets_unassigned",
-            IFACE_("No Catalog"),
+            IFACE_("Unassigned"),
             ICON_NONE);
   }
 }

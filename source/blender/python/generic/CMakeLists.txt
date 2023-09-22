@@ -38,8 +38,8 @@ set(SRC
   py_capi_utils.h
 
   # header-only
-  python_utildefines.h
   python_compat.h
+  python_utildefines.h
 )
 
 set(LIB

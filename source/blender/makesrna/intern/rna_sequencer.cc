@@ -118,8 +118,8 @@ const EnumPropertyItem rna_enum_strip_color_items[] = {
 
 #  include "WM_api.hh"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 #  include "IMB_imbuf.h"
 
@@ -1596,7 +1596,7 @@ static char *rna_SeqTimelineChannel_path(const PointerRNA *ptr)
 }
 
 static EQCurveMappingData *rna_Sequence_SoundEqualizer_Curve_add(SoundEqualizerModifierData *semd,
-                                                                 bContext * /* C */,
+                                                                 bContext * /*C*/,
                                                                  float min_freq,
                                                                  float max_freq)
 {
@@ -1606,7 +1606,7 @@ static EQCurveMappingData *rna_Sequence_SoundEqualizer_Curve_add(SoundEqualizerM
 }
 
 static void rna_Sequence_SoundEqualizer_Curve_clear(SoundEqualizerModifierData *semd,
-                                                    bContext * /* C */)
+                                                    bContext * /*C*/)
 {
   SEQ_sound_equalizermodifier_free((SequenceModifierData *)semd);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
