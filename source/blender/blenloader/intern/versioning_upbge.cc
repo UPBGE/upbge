@@ -33,6 +33,9 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+/* Define macros in `DNA_genfile.h`. */
+#define DNA_GENFILE_VERSIONING_MACROS
+
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_genfile.h"
@@ -47,6 +50,8 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
+
+#undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_main.h"
 #include "BKE_node.h"
