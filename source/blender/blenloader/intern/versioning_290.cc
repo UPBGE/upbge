@@ -14,6 +14,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+/* Define macros in `DNA_genfile.h`. */
+#define DNA_GENFILE_VERSIONING_MACROS
+
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
@@ -39,6 +42,8 @@
 #include "DNA_text_types.h"
 #include "DNA_tracking_types.h"
 #include "DNA_workspace_types.h"
+
+#undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
@@ -1858,7 +1863,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 293, 14)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "diff_fac")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "diff_fac")) {
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
         light->diff_fac = 1.0f;
         light->volume_fac = 1.0f;
@@ -1916,7 +1921,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     /* Initialize the spread parameter for area lights. */
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "area_spread")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "area_spread")) {
       LISTBASE_FOREACH (Light *, la, &bmain->lights) {
         la->area_spread = DEG2RADF(180.0f);
       }

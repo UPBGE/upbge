@@ -59,6 +59,7 @@
 #include "ED_undo.hh"
 
 #include "UI_interface.hh"
+#include "UI_string_search.hh"
 #include "UI_view2d.hh"
 
 #include "BLF_api.h"
@@ -1261,6 +1262,8 @@ static void ui_apply_but_TEX(bContext *C, uiBut *but, uiHandleButtonData *data)
   if ((but->func_arg2 == nullptr) && (but->type == UI_BTYPE_SEARCH_MENU)) {
     uiButSearch *search_but = (uiButSearch *)but;
     but->func_arg2 = search_but->item_active;
+
+    blender::ui::string_search::add_recent_search(search_but->item_active_str);
   }
 
   ui_apply_but_func(C, but);
@@ -5230,8 +5233,8 @@ static float ui_numedit_apply_snapf(
     if (fac != 1.0f) {
       /* snap in unit-space */
       tempf /= fac;
-      /* softmin /= fac; */ /* UNUSED */
-      /* softmax /= fac; */ /* UNUSED */
+      // softmin /= fac; /* UNUSED */
+      // softmax /= fac; /* UNUSED */
       softrange /= fac;
     }
 

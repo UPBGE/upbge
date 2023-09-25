@@ -97,6 +97,7 @@ struct ID;
 struct ImBuf;
 struct bContext;
 struct bContextStore;
+struct GreasePencil;
 struct GreasePencilLayer;
 struct wmDrag;
 struct wmDropBox;
@@ -1152,6 +1153,7 @@ struct wmDragPath {
 };
 
 struct wmDragGreasePencilLayer {
+  GreasePencil *grease_pencil;
   GreasePencilLayer *layer;
 };
 

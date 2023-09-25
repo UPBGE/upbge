@@ -18,6 +18,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+/* Define macros in `DNA_genfile.h`. */
+#define DNA_GENFILE_VERSIONING_MACROS
+
 #include "DNA_defaults.h"
 
 #include "DNA_anim_types.h"
@@ -53,6 +56,8 @@
 #include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
+
+#undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_animsys.h"
 #include "BKE_blender.h"
@@ -1065,7 +1070,7 @@ static void displacement_principled_nodes(bNode *node)
     }
   }
   else if (node->type == SH_NODE_BSDF_PRINCIPLED) {
-    if (node->custom2 != SHD_SUBSURFACE_RANDOM_WALK) {
+    if (node->custom2 != SHD_SUBSURFACE_RANDOM_WALK_SKIN) {
       node->custom2 = SHD_SUBSURFACE_BURLEY;
     }
   }
@@ -3023,7 +3028,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 280, 2)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "cascade_max_dist")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "cascade_max_dist")) {
       LISTBASE_FOREACH (Light *, la, &bmain->lights) {
         la->cascade_max_dist = 1000.0f;
         la->cascade_count = 4;
@@ -3032,7 +3037,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "contact_dist")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "contact_dist")) {
       LISTBASE_FOREACH (Light *, la, &bmain->lights) {
         la->contact_dist = 0.2f;
         la->contact_bias = 0.03f;
@@ -3348,7 +3353,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 280, 13)) {
     /* Initialize specular factor. */
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "spec_fac")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "spec_fac")) {
       LISTBASE_FOREACH (Light *, la, &bmain->lights) {
         la->spec_fac = 1.0f;
       }
@@ -4322,7 +4327,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "att_dist")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "att_dist")) {
       LISTBASE_FOREACH (Light *, la, &bmain->lights) {
         la->att_dist = la->clipend;
       }
@@ -5036,23 +5041,23 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     /* init grease pencil brush gradients */
-    if (!DNA_struct_member_exists(fd->filesdna, "BrushGpencilSettings", "float", "hardeness")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "BrushGpencilSettings", "float", "hardness")) {
       LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
         if (brush->gpencil_settings != nullptr) {
           BrushGpencilSettings *gp = brush->gpencil_settings;
-          gp->hardeness = 1.0f;
+          gp->hardness = 1.0f;
           copy_v2_fl(gp->aspect_ratio, 1.0f);
         }
       }
     }
 
     /* init grease pencil stroke gradients */
-    if (!DNA_struct_member_exists(fd->filesdna, "bGPDstroke", "float", "hardeness")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bGPDstroke", "float", "hardness")) {
       LISTBASE_FOREACH (bGPdata *, gpd, &bmain->gpencils) {
         LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
           LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
             LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-              gps->hardeness = 1.0f;
+              gps->hardness = 1.0f;
               copy_v2_fl(gps->aspect_ratio, 1.0f);
             }
           }
@@ -5143,7 +5148,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     /* Split bbone_scalein/bbone_scaleout into x and y fields. */
-    if (!DNA_struct_member_exists(fd->filesdna, "bPoseChannel", "float", "scale_out_y")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bPoseChannel", "float", "scale_out_z")) {
       /* Update armature data and pose channels. */
       LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
         do_version_bones_split_bbone_scale(&arm->bonebase);
@@ -5248,7 +5253,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     /* Initializes sun lights with the new angular diameter property */
-    if (!DNA_struct_member_exists(fd->filesdna, "Lamp", "float", "sun_angle")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "sun_angle")) {
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
         light->sun_angle = 2.0f * atanf(light->area_size);
       }

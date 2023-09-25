@@ -12,6 +12,9 @@
 
 #include "CLG_log.h"
 
+/* Define macros in `DNA_genfile.h`. */
+#define DNA_GENFILE_VERSIONING_MACROS
+
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_light_types.h"
@@ -24,6 +27,8 @@
 #include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_particle_types.h"
+
+#undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
@@ -687,6 +692,19 @@ static void version_principled_bsdf_emission(bNodeTree *ntree)
   }
 }
 
+/* Rename various Principled BSDF sockets. */
+static void version_principled_bsdf_rename_sockets(bNodeTree *ntree)
+{
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Emission", "Emission Color");
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Specular", "Specular IOR Level");
+  version_node_input_socket_name(
+      ntree, SH_NODE_BSDF_PRINCIPLED, "Subsurface", "Subsurface Weight");
+  version_node_input_socket_name(
+      ntree, SH_NODE_BSDF_PRINCIPLED, "Transmission", "Transmission Weight");
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Coat", "Coat Weight");
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Sheen", "Sheen Weight");
+}
+
 /* Replace old Principled Hair BSDF as a variant in the new Principled Hair BSDF. */
 static void version_replace_principled_hair_model(bNodeTree *ntree)
 {
@@ -789,6 +807,65 @@ static void version_principled_bsdf_coat(bNodeTree *ntree)
       ntree, SH_NODE_BSDF_PRINCIPLED, "Clearcoat Roughness", "Coat Roughness");
   version_node_input_socket_name(
       ntree, SH_NODE_BSDF_PRINCIPLED, "Clearcoat Normal", "Coat Normal");
+}
+
+/* Convert specular tint in Principled BSDF. */
+static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+      continue;
+    }
+    bNodeSocket *specular_tint_sock = nodeFindSocket(node, SOCK_IN, "Specular Tint");
+    if (specular_tint_sock->type == SOCK_RGBA) {
+      /* Node is already updated. */
+      continue;
+    }
+
+    bNodeSocket *base_color_sock = nodeFindSocket(node, SOCK_IN, "Base Color");
+    float specular_tint_old = *version_cycles_node_socket_float_value(specular_tint_sock);
+    float *base_color = version_cycles_node_socket_rgba_value(base_color_sock);
+
+    /* Change socket type to Color. */
+    nodeModifySocketTypeStatic(ntree, node, specular_tint_sock, SOCK_RGBA, 0);
+
+    static float one[] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    /* If any of the two inputs is dynamic, we add a Mix node. */
+    if (base_color_sock->link || specular_tint_sock->link) {
+      bNode *mix = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX);
+      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
+      mix->locx = node->locx - 170;
+      mix->locy = node->locy - 120;
+
+      bNodeSocket *a_in = nodeFindSocket(mix, SOCK_IN, "A_Color");
+      bNodeSocket *b_in = nodeFindSocket(mix, SOCK_IN, "B_Color");
+      bNodeSocket *fac_in = nodeFindSocket(mix, SOCK_IN, "Factor_Float");
+      bNodeSocket *result_out = nodeFindSocket(mix, SOCK_OUT, "Result_Color");
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), one);
+      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), base_color);
+      *version_cycles_node_socket_float_value(fac_in) = specular_tint_old;
+
+      if (base_color_sock->link) {
+        nodeAddLink(
+            ntree, base_color_sock->link->fromnode, base_color_sock->link->fromsock, mix, b_in);
+      }
+      if (specular_tint_sock->link) {
+        nodeAddLink(ntree,
+                    specular_tint_sock->link->fromnode,
+                    specular_tint_sock->link->fromsock,
+                    mix,
+                    fac_in);
+        nodeRemLink(ntree, specular_tint_sock->link);
+      }
+      nodeAddLink(ntree, mix, result_out, node, specular_tint_sock);
+    }
+
+    float *specular_tint = version_cycles_node_socket_rgba_value(specular_tint_sock);
+    /* Mix the fixed values. */
+    interp_v4_v4v4(specular_tint, one, base_color, specular_tint_old);
+  }
 }
 
 static void version_copy_socket(bNodeTreeInterfaceSocket &dst,
@@ -1349,6 +1426,18 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         const int position = ntree->tree_interface.find_item_position(socket->item);
         bNodeTreeInterfacePanel *parent = ntree->tree_interface.find_item_parent(socket->item);
         version_node_group_split_socket(ntree->tree_interface, *socket, parent, position + 1);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 25)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        /* Convert specular tint on the Principled BSDF. */
+        version_principled_bsdf_specular_tint(ntree);
+        /* Rename some sockets. */
+        version_principled_bsdf_rename_sockets(ntree);
       }
     }
     FOREACH_NODETREE_END;

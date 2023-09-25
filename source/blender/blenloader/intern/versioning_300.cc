@@ -24,6 +24,9 @@
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
+/* Define macros in `DNA_genfile.h`. */
+#define DNA_GENFILE_VERSIONING_MACROS
+
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
@@ -46,6 +49,8 @@
 #include "DNA_text_types.h"
 #include "DNA_tracking_types.h"
 #include "DNA_workspace_types.h"
+
+#undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
@@ -1543,13 +1548,13 @@ static bool seq_meta_channels_ensure(Sequence *seq, void * /*user_data*/)
 static void do_version_subsurface_methods(bNode *node)
 {
   if (node->type == SH_NODE_SUBSURFACE_SCATTERING) {
-    if (!ELEM(node->custom1, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK)) {
-      node->custom1 = SHD_SUBSURFACE_RANDOM_WALK_FIXED_RADIUS;
+    if (!ELEM(node->custom1, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK_SKIN)) {
+      node->custom1 = SHD_SUBSURFACE_RANDOM_WALK;
     }
   }
   else if (node->type == SH_NODE_BSDF_PRINCIPLED) {
-    if (!ELEM(node->custom2, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK)) {
-      node->custom2 = SHD_SUBSURFACE_RANDOM_WALK_FIXED_RADIUS;
+    if (!ELEM(node->custom2, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK_SKIN)) {
+      node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
     }
   }
 }
@@ -2632,7 +2637,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 13)) {
     /* Convert Surface Deform to sparse-capable bind structure. */
     if (!DNA_struct_member_exists(
-            fd->filesdna, "SurfaceDeformModifierData", "int", "num_mesh_verts")) {
+            fd->filesdna, "SurfaceDeformModifierData", "int", "mesh_verts_num")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_SurfaceDeform) {

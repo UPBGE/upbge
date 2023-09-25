@@ -212,7 +212,7 @@ static int DNA_struct_find_nr_wrapper(const SDNA *sdna, const char *struct_name)
   struct_name = static_cast<const char *>(BLI_ghash_lookup_default(
       g_version_data.struct_map_static_from_alias, struct_name, (void *)struct_name));
 #endif
-  return DNA_struct_find(sdna, struct_name);
+  return DNA_struct_find_without_alias(sdna, struct_name);
 }
 
 StructDefRNA *rna_find_struct_def(StructRNA *srna)
@@ -688,14 +688,14 @@ BlenderRNA *RNA_create()
   DefRNA.error = false;
   DefRNA.preprocess = true;
 
-  DefRNA.sdna = DNA_sdna_from_data(DNAstr, DNAlen, false, false, &error_message);
+  /* We need both alias and static (on-disk) DNA names. */
+  const bool do_alias = true;
+
+  DefRNA.sdna = DNA_sdna_from_data(DNAstr, DNAlen, false, false, do_alias, &error_message);
   if (DefRNA.sdna == nullptr) {
     CLOG_ERROR(&LOG, "Failed to decode SDNA: %s.", error_message);
     DefRNA.error = true;
   }
-
-  /* We need both alias and static (on-disk) DNA names. */
-  DNA_sdna_alias_data_ensure(DefRNA.sdna);
 
 #ifndef RNA_RUNTIME
   DNA_alias_maps(
@@ -2750,7 +2750,7 @@ void RNA_def_property_string_sdna(PropertyRNA *prop, const char *structname, con
 
 void RNA_def_property_pointer_sdna(PropertyRNA *prop, const char *structname, const char *propname)
 {
-  /* PropertyDefRNA *dp; */
+  // PropertyDefRNA *dp;
   StructRNA *srna = DefRNA.laststruct;
 
   if (!DefRNA.preprocess) {
