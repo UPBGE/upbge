@@ -162,7 +162,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
   BHead *bhead;
   int tot = 0;
 
-  const int sdna_nr_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
+  const int sdna_nr_preview_image = DNA_struct_find(fd->filesdna, "PreviewImage");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_ENDB) {
@@ -265,7 +265,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
 {
   FileData *fd = (FileData *)bh;
   bool looking = false;
-  const int sdna_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
+  const int sdna_preview_image = DNA_struct_find(fd->filesdna, "PreviewImage");
 
   for (BHead *bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_DATA) {
@@ -335,7 +335,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
     }
     else if (bhead->code == BLO_CODE_DATA) {
       if (looking) {
-        if (bhead->SDNAnr == DNA_struct_find_nr(fd->filesdna, "PreviewImage")) {
+        if (bhead->SDNAnr == DNA_struct_find(fd->filesdna, "PreviewImage")) {
           prv = static_cast<PreviewImage *>(BLO_library_read_struct(fd, bhead, "PreviewImage"));
 
           if (prv) {
