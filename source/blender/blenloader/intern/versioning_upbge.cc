@@ -65,7 +65,7 @@
 void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
 {
   /* UPBGE hack to force defaults in files saved in normal blender2.8 */
-  if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
+  if (!DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm")) {
     LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
       /* game data */
       sce->gm.stereoflag = STEREO_NOSTEREO;
@@ -173,8 +173,9 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       collection->flag |= COLLECTION_IS_SPAWNED;
     }
   }
-  if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&
-      !DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
+  if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm") &&
+      !DNA_struct_member_exists(fd->filesdna, "Object", "float", "friction"))
+  {
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       if (ob->type == OB_MESH) {
         Mesh *me = (Mesh *)blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->data);
@@ -198,7 +199,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   /* printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,
    * main->upbgesubversionfile); */
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 0, 1)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bRaySensor", "int", "mask")) {
       bRaySensor *raySensor;
 
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
@@ -279,7 +280,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
             }
         }
 #endif
-    if (!DNA_struct_elem_find(fd->filesdna, "bMouseSensor", "int", "mask")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "bMouseSensor", "int", "mask")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (bSensor *, sensor, &ob->sensors) {
           if (sensor->type == SENS_MOUSE) {
@@ -294,7 +295,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 3, 0)) {
     /* In this case we check against GameData to maintain previous behaviour */
-    if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
+    if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm")) {
       LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
         sce->gm.flag |= GAME_USE_UNDO;
       }
@@ -302,12 +303,12 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 0)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "float", "timeScale")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->gm.timeScale = 1.0f;
       }
     }
-    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
         scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
@@ -315,7 +316,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
         scene->gm.pythonkeys[3] = EVT_TKEY;
       }
     }
-    if (!DNA_struct_elem_find(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         if (ob->bsoft) {
           ob->bsoft->margin = 0.1f;
@@ -338,7 +339,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 1)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "ccd_motion_threshold")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Object", "float", "ccd_motion_threshold")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         ob->ccd_motion_threshold = 1.0f;
         ob->ccd_swept_sphere_radius = 0.9f;
@@ -346,7 +347,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "erp")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "float", "erp")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->gm.erp = 0.2f;
         scene->gm.erp2 = 0.8f;
@@ -362,12 +363,12 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 4)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "lodfactor")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Object", "float", "lodfactor")) {
       LISTBASE_FOREACH (Object *, object, &bmain->objects) {
         object->lodfactor = 1.0f;
       }
     }
-    if (!DNA_struct_elem_find(fd->filesdna, "Camera", "float", "lodfactor")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Camera", "float", "lodfactor")) {
       LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
         camera->lodfactor = 1.0f;
       }
@@ -389,14 +390,14 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 8)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "samples_per_frame")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "samples_per_frame")) {
       LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
         sce->gm.samples_per_frame = 1;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 9)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "logLevel")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "logLevel")) {
       LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
         sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
       }

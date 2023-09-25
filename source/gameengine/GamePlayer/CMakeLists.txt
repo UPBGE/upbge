@@ -93,7 +93,7 @@ endif()
 
 if(WITH_USD)
   list(APPEND LIB
-    bf_usd
+    bf_io_usd
   )
   #add_definitions(-DWITH_USD)
 endif()

@@ -844,7 +844,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     /* hysteresis set to 10% but not activated */
-    if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
           level->obhysteresis = 10;
