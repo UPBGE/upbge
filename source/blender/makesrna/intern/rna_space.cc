@@ -558,7 +558,7 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 #  include "BKE_paint.hh"
 #  include "BKE_preferences.h"
 #  include "BKE_scene.h"
-#  include "BKE_screen.h"
+#  include "BKE_screen.hh"
 #  include "BKE_workspace.h"
 
 #  include "DEG_depsgraph.hh"
@@ -869,8 +869,6 @@ static bool rna_Space_show_region_asset_shelf_get(PointerRNA *ptr)
 static void rna_Space_show_region_asset_shelf_set(PointerRNA *ptr, bool value)
 {
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN, !value);
-  rna_Space_bool_from_region_flag_set_by_type(
-      ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN, !value);
 }
 static void rna_Space_show_region_asset_shelf_update(bContext *C, PointerRNA *ptr)
 {
@@ -2513,30 +2511,27 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
   ED_node_tree_start(snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
-static bool space_node_node_geometry_nodes_tool_poll(const SpaceNode &snode,
-                                                     const bNodeTree &ntree)
+static bool space_node_node_geometry_nodes_poll(const SpaceNode &snode, const bNodeTree &ntree)
 {
-  if (snode.geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
-    if (!ntree.id.asset_data) {
-      /* Only assets can be tools. */
-      return false;
-    }
-    if (!ntree.geometry_node_asset_traits ||
-        (ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0)
-    {
-      /* Only node groups specifically marked as tools can be tools. */
-      return false;
-    }
+  switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
+    case SNODE_GEOMETRY_MODIFIER:
+      if (!ntree.geometry_node_asset_traits) {
+        return false;
+      }
+      if ((ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_MODIFIER) == 0) {
+        return false;
+      }
+      return true;
+    case SNODE_GEOMETRY_TOOL:
+      if (!ntree.geometry_node_asset_traits) {
+        return false;
+      }
+      if ((ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0) {
+        return false;
+      }
+      return true;
   }
-  else {
-    if (ntree.geometry_node_asset_traits &&
-        ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL)
-    {
-      /* Tool node groups cannot be modifiers. */
-      return false;
-    }
-  }
-  return true;
+  return false;
 }
 
 static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA value)
@@ -2549,10 +2544,8 @@ static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA
     return false;
   }
   if (ntree->type == NTREE_GEOMETRY) {
-    if (snode->geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
-      if (!space_node_node_geometry_nodes_tool_poll(*snode, *ntree)) {
-        return false;
-      }
+    if (!space_node_node_geometry_nodes_poll(*snode, *ntree)) {
+      return false;
     }
   }
   return true;
@@ -2565,7 +2558,7 @@ static void rna_SpaceNodeEditor_geometry_nodes_type_update(Main * /*bmain*/,
   SpaceNode &snode = *static_cast<SpaceNode *>(ptr->data);
   if (snode.nodetree) {
     if (snode.nodetree->type == NTREE_GEOMETRY) {
-      if (!space_node_node_geometry_nodes_tool_poll(snode, *snode.nodetree)) {
+      if (!space_node_node_geometry_nodes_poll(snode, *snode.nodetree)) {
         snode.nodetree = nullptr;
       }
     }
@@ -6949,7 +6942,7 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem asset_import_type_items[] = {
+  static const EnumPropertyItem asset_import_method_items[] = {
       {FILE_ASSET_IMPORT_FOLLOW_PREFS,
        "FOLLOW_PREFS",
        0,
@@ -7000,11 +6993,11 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
                            "Filter Asset Types",
                            "Which asset types to show/hide, when browsing an asset library");
 
-  prop = RNA_def_property(srna, "import_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, asset_import_type_items);
+  prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, asset_import_method_items);
   RNA_def_property_ui_text(prop, "Import Method", "Determine how the asset will be imported");
   /* Asset drag info saved by buttons stores the import method, so the space must redraw when
-   * import type changes. */
+   * import method changes. */
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
 }
 

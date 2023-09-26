@@ -1459,7 +1459,7 @@ static IDProperty *object_asset_dimensions_property(Object *ob)
   return property;
 }
 
-static void object_asset_pre_save(void *asset_ptr, AssetMetaData *asset_data)
+static void object_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
 {
   Object *ob = (Object *)asset_ptr;
   BLI_assert(GS(ob->id.name) == ID_OB);
@@ -1472,7 +1472,8 @@ static void object_asset_pre_save(void *asset_ptr, AssetMetaData *asset_data)
 }
 
 static AssetTypeInfo AssetType_OB = {
-    /*pre_save_fn*/ object_asset_pre_save,
+    /*pre_save_fn*/ object_asset_metadata_ensure,
+    /*on_mark_asset_fn*/ object_asset_metadata_ensure,
 };
 
 IDTypeInfo IDType_ID_OB = {

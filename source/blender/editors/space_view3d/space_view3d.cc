@@ -49,7 +49,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_viewer_path.h"
 #include "BKE_workspace.h"
 
@@ -1626,6 +1626,11 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
           blender::ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
+        default:
+          if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
+            blender::ed::geometry::clear_operator_asset_trees();
+            ED_region_tag_redraw(region);
+          }
       }
       break;
     case NC_NODE:

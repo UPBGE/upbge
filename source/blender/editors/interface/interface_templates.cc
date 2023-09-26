@@ -66,7 +66,7 @@
 #include "BKE_report.h"
 #include "BKE_sca.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
 #include "DEG_depsgraph.hh"

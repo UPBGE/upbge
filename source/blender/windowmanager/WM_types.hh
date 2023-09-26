@@ -1118,7 +1118,7 @@ struct wmDragID {
 };
 
 struct wmDragAsset {
-  int import_method; /* eAssetImportType */
+  int import_method; /* eAssetImportMethod */
   const AssetRepresentationHandle *asset;
 };
 

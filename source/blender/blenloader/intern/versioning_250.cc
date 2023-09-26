@@ -67,7 +67,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_sca.hh"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_sound.h"
 #include "BKE_texture.h"
 
