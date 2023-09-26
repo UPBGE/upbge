@@ -60,7 +60,7 @@
 #include "BKE_particle.h"
 #include "BKE_preview_image.hh"
 #include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
 #include "BKE_studiolight.h"

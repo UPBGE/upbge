@@ -40,7 +40,7 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BLI_task.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
