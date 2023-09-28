@@ -1903,7 +1903,7 @@ def write_sphinx_conf_py(basepath):
     fw("import sys, os\n\n")
     fw("extensions = ['sphinx.ext.intersphinx']\n\n")
     fw("intersphinx_mapping = {'blender_manual': ('https://docs.blender.org/manual/en/dev/', None)}\n\n")
-    fw("project = 'UPBGE 0.3+ + Blender %s Python API'\n" % BLENDER_VERSION_STRING)
+    fw("project = 'UPBGE 0.4+ + Blender %s Python API'\n" % BLENDER_VERSION_STRING)
     fw("root_doc = 'index'\n")
     fw("copyright = 'Blender Authors'\n")
     fw("version = '%s'\n" % BLENDER_VERSION_DOTS)
@@ -1997,7 +1997,7 @@ def write_rst_index(basepath):
     file = open(filepath, "w", encoding="utf-8")
     fw = file.write
 
-    fw(title_string("UPBGE 0.3+ + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
+    fw(title_string("UPBGE 0.4+ + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
     fw("\n")
     fw("Welcome to the Python API documentation for `UPBGE <https://upbge.org>`__ and `Blender <https://www.blender.org>`__, ")
     fw("the free and open source 3D creation suite + integrated game engine.\n")
