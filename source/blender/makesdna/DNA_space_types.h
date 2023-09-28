@@ -632,6 +632,7 @@ typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
   /** Use #Sequence::color_tag */
   SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
+  SEQ_TIMELINE_SHOW_STRIP_RETIMING = (1 << 4),
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
   /** Draw all wave-forms. */
   SEQ_TIMELINE_ALL_WAVEFORMS = (1 << 7),
@@ -1639,6 +1640,13 @@ typedef struct SpaceNode {
    * #SpaceNodeGeometryNodesType.
    */
   char geometry_nodes_type;
+
+  /**
+   * Used as the editor's top-level node group for #SNODE_GEOMETRY_TOOL. This is stored in the
+   * node editor because it isn't part of the context otherwise, and it isn't meant to be set
+   * separately from the editor's regular node group.
+   */
+  struct bNodeTree *geometry_nodes_tool_tree;
 
   /** Grease-pencil data. */
   struct bGPdata *gpd;

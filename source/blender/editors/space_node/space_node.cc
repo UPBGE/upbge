@@ -363,10 +363,10 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
           break;
         }
         case GEO_NODE_REPEAT_OUTPUT: {
-          /* Only show data from the first iteration for now. */
-          const int repeat_iteration = 0;
+          const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(
+              zone->output_node->storage);
           compute_context_builder.push<bke::RepeatZoneComputeContext>(*zone->output_node,
-                                                                      repeat_iteration);
+                                                                      storage.inspection_index);
           break;
         }
       }
@@ -1252,6 +1252,8 @@ static void node_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, path->nodetree, IDWALK_CB_USER_ONE);
     }
   }
+
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, snode->geometry_nodes_tool_tree, IDWALK_CB_USER_ONE);
 
   /* Both `snode->id` and `snode->nodetree` have been remapped now, so their data can be
    * accessed. */

@@ -3534,7 +3534,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_snap_time_absolute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_anim", SCE_SNAP_ABS_TIME_STEP);
   RNA_def_property_ui_text(
-      prop, "Absolute Time Snap", "Absolute time alignment while translating");
+      prop, "Absolute Time Snap", "Absolute time alignment when transforming keyframes");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_anim_element", PROP_ENUM, PROP_NONE);
@@ -7425,8 +7425,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "pic");
   RNA_def_property_ui_text(prop,
                            "Output Path",
-                           "Directory/name to save animations, # characters defines the position "
-                           "and length of frame numbers");
+                           "Directory/name to save animations, # characters define the position "
+                           "and padding of frame numbers");
   RNA_def_property_flag(prop, PROP_PATH_OUTPUT);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
@@ -8762,6 +8762,27 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "shadow_ray_count", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_range(prop, 1, 4);
+  RNA_def_property_ui_text(
+      prop, "Shadow Ray Count", "Amount of shadow ray to trace for each light");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "shadow_step_count", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_range(prop, 1, 16);
+  RNA_def_property_ui_text(
+      prop, "Shadow Step Count", "Amount of shadow map sample per shadow ray");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "shadow_normal_bias", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001f, 0.1f, 0.001, 3);
+  RNA_def_property_ui_text(prop, "Shadow Normal Bias", "Move  along their normal");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "use_shadow_high_bitdepth", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_SHADOW_HIGH_BITDEPTH);
   RNA_def_property_ui_text(prop, "High Bit Depth", "Use 32-bit shadows");
@@ -8812,6 +8833,11 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "RaytraceEEVEE");
   RNA_def_property_ui_text(
       prop, "Refraction Trace Options", "EEVEE settings for tracing refractions");
+
+  prop = RNA_def_property(srna, "diffuse_options", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "RaytraceEEVEE");
+  RNA_def_property_ui_text(
+      prop, "Diffuse Trace Options", "EEVEE settings for tracing diffuse reflections");
 }
 
 static void rna_def_scene_gpencil(BlenderRNA *brna)

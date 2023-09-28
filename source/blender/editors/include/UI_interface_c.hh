@@ -462,6 +462,7 @@ enum eButType {
 
 /** Gradient types, for color picker #UI_BTYPE_HSVCUBE etc. */
 enum eButGradientType {
+  UI_GRAD_NONE = -1,
   UI_GRAD_SV = 0,
   UI_GRAD_HV = 1,
   UI_GRAD_HS = 2,
@@ -2686,7 +2687,9 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
                                       PointerRNA *ptr,
                                       const char *propname);
 
+#ifdef WITH_GREASE_PENCIL_V3
 void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C);
+#endif
 
 void uiTemplateNodeTreeInterface(struct uiLayout *layout, struct PointerRNA *ptr);
 

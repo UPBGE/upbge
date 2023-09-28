@@ -791,9 +791,7 @@ static void rna_uiLayout_template_node_operator_asset_menu_items(uiLayout *layou
                                                                  const char *catalog_path)
 {
   using namespace blender;
-  if (U.experimental.use_node_group_operators) {
-    ed::geometry::ui_template_node_operator_asset_menu_items(*layout, *C, StringRef(catalog_path));
-  }
+  ed::geometry::ui_template_node_operator_asset_menu_items(*layout, *C, StringRef(catalog_path));
 }
 
 static void rna_uiLayout_template_modifier_asset_menu_items(uiLayout *layout,
@@ -801,16 +799,12 @@ static void rna_uiLayout_template_modifier_asset_menu_items(uiLayout *layout,
                                                             const char *catalog_path)
 {
   using namespace blender;
-  if (U.experimental.use_node_group_operators) {
-    ed::object::ui_template_modifier_asset_menu_items(*layout, *C, StringRef(catalog_path));
-  }
+  ed::object::ui_template_modifier_asset_menu_items(*layout, *C, StringRef(catalog_path));
 }
 
 static void rna_uiLayout_template_node_operator_root_items(uiLayout *layout, bContext *C)
 {
-  if (U.experimental.use_node_group_operators) {
-    blender::ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
-  }
+  blender::ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
 }
 
 static int rna_ui_get_rnaptr_icon(bContext *C, PointerRNA *ptr_icon)
@@ -2114,10 +2108,12 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   api_ui_item_rna_common(func);
 
+#  ifdef WITH_GREASE_PENCIL_V3
   func = RNA_def_function(
       srna, "template_grease_pencil_layer_tree", "uiTemplateGreasePencilLayerTree");
   RNA_def_function_ui_description(func, "View of the active grease pencil layer tree");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+#  endif
 
   func = RNA_def_function(srna, "template_node_tree_interface", "uiTemplateNodeTreeInterface");
   RNA_def_function_ui_description(func, "Show a node tree interface");

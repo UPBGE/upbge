@@ -17,6 +17,7 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
@@ -25,6 +26,7 @@
 #include "DNA_world_types.h"
 
 #include "DNA_defaults.h"
+#include "DNA_defs.h"
 #include "DNA_genfile.h"
 #include "DNA_particle_types.h"
 
@@ -49,6 +51,9 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_scene.h"
 #include "BKE_tracking.h"
+
+#include "SEQ_retiming.hh"
+#include "SEQ_sequencer.h"
 
 #include "ANIM_armature_iter.hh"
 #include "ANIM_bone_collections.h"
@@ -1477,6 +1482,135 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->simulation_frame_start = scene->r.sfra;
       scene->simulation_frame_end = scene->r.efra;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 27)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = (SpaceSeq *)sl;
+            sseq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_RETIMING;
+          }
+        }
+      }
+    }
+
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "shadow_normal_bias")) {
+      SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->eevee.shadow_ray_count = default_scene_eevee.shadow_ray_count;
+        scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;
+        scene->eevee.shadow_normal_bias = default_scene_eevee.shadow_normal_bias;
+      }
+    }
+
+    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "shadow_softness_factor")) {
+      Light default_light = blender::dna::shallow_copy(*DNA_struct_default_get(Light));
+      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+        light->shadow_softness_factor = default_light.shadow_softness_factor;
+        light->shadow_trace_distance = default_light.shadow_trace_distance;
+      }
+    }
+
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "diffuse_options"))
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->eevee.diffuse_options = scene->eevee.reflection_options;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 28)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                       &sl->regionbase;
+          LISTBASE_FOREACH (ARegion *, region, regionbase) {
+            if (region->regiontype != RGN_TYPE_ASSET_SHELF) {
+              continue;
+            }
+
+            RegionAssetShelf *shelf_data = static_cast<RegionAssetShelf *>(region->regiondata);
+            if (shelf_data && shelf_data->active_shelf) {
+              AssetShelfSettings &settings = shelf_data->active_shelf->settings;
+              settings.asset_library_reference.custom_library_index = -1;
+              settings.asset_library_reference.type = ASSET_LIBRARY_ALL;
+            }
+
+            region->flag |= RGN_FLAG_HIDDEN;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 29)) {
+    /* Unhide all Reroute nodes. */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->is_reroute()) {
+          static_cast<bNodeSocket *>(node->inputs.first)->flag &= ~SOCK_HIDDEN;
+          static_cast<bNodeSocket *>(node->outputs.first)->flag &= ~SOCK_HIDDEN;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 30)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ToolSettings *ts = scene->toolsettings;
+      auto versioning_snap_to = [](short snap_to_old, bool is_node = false) {
+        short snap_to_new = SCE_SNAP_TO_NONE;
+        if (snap_to_old & (1 << 0)) {
+          snap_to_new |= is_node ? SCE_SNAP_TO_NODE_X : SCE_SNAP_TO_VERTEX;
+        }
+        if (snap_to_old & (1 << 1)) {
+          snap_to_new |= is_node ? SCE_SNAP_TO_NODE_Y : SCE_SNAP_TO_EDGE;
+        }
+        if (snap_to_old & (1 << 2)) {
+          snap_to_new |= SCE_SNAP_TO_FACE;
+        }
+        if (snap_to_old & (1 << 3)) {
+          snap_to_new |= SCE_SNAP_TO_VOLUME;
+        }
+        if (snap_to_old & (1 << 4)) {
+          snap_to_new |= SCE_SNAP_TO_EDGE_MIDPOINT;
+        }
+        if (snap_to_old & (1 << 5)) {
+          snap_to_new |= SCE_SNAP_TO_EDGE_PERPENDICULAR;
+        }
+        if (snap_to_old & (1 << 6)) {
+          snap_to_new |= SCE_SNAP_TO_INCREMENT;
+        }
+        if (snap_to_old & (1 << 7)) {
+          snap_to_new |= SCE_SNAP_TO_GRID;
+        }
+        if (snap_to_old & (1 << 8)) {
+          snap_to_new |= SCE_SNAP_INDIVIDUAL_PROJECT;
+        }
+        if (snap_to_old & (1 << 9)) {
+          snap_to_new |= SCE_SNAP_INDIVIDUAL_NEAREST;
+        }
+        if (snap_to_old & (1 << 10)) {
+          snap_to_new |= SCE_SNAP_TO_FRAME;
+        }
+        if (snap_to_old & (1 << 11)) {
+          snap_to_new |= SCE_SNAP_TO_SECOND;
+        }
+        if (snap_to_old & (1 << 12)) {
+          snap_to_new |= SCE_SNAP_TO_MARKERS;
+        }
+        return snap_to_new;
+      };
+
+      ts->snap_mode = versioning_snap_to(ts->snap_mode);
+      ts->snap_uv_mode = versioning_snap_to(ts->snap_uv_mode);
+      ts->snap_node_mode = versioning_snap_to(ts->snap_node_mode, true);
+      ts->snap_anim_mode = versioning_snap_to(ts->snap_anim_mode);
     }
   }
 

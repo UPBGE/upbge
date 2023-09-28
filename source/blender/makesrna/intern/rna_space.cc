@@ -2511,6 +2511,22 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
   ED_node_tree_start(snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
+static bool rna_SpaceNodeEditor_geometry_nodes_tool_tree_poll(PointerRNA * /*ptr*/,
+                                                              const PointerRNA value)
+{
+  const bNodeTree &ntree = *static_cast<const bNodeTree *>(value.data);
+  if (ntree.type != NTREE_GEOMETRY) {
+    return false;
+  }
+  if (!ntree.geometry_node_asset_traits) {
+    return false;
+  }
+  if ((ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0) {
+    return false;
+  }
+  return true;
+}
+
 static bool space_node_node_geometry_nodes_poll(const SpaceNode &snode, const bNodeTree &ntree)
 {
   switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
@@ -2549,20 +2565,6 @@ static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA
     }
   }
   return true;
-}
-
-static void rna_SpaceNodeEditor_geometry_nodes_type_update(Main * /*bmain*/,
-                                                           Scene * /*scene*/,
-                                                           PointerRNA *ptr)
-{
-  SpaceNode &snode = *static_cast<SpaceNode *>(ptr->data);
-  if (snode.nodetree) {
-    if (snode.nodetree->type == NTREE_GEOMETRY) {
-      if (!space_node_node_geometry_nodes_poll(snode, *snode.nodetree)) {
-        snode.nodetree = nullptr;
-      }
-    }
-  }
 }
 
 static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA * /*ptr*/)
@@ -5820,6 +5822,11 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Show Color Tags", "Display the strip color tags in the sequencer");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_strip_retiming", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TIMELINE_SHOW_STRIP_RETIMING);
+  RNA_def_property_ui_text(prop, "Show Retiming Keys", "Display retiming keys on top of strips");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 }
 
 static void rna_def_space_sequencer(BlenderRNA *brna)
@@ -7511,8 +7518,7 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, geometry_nodes_type_items);
   RNA_def_property_ui_text(prop, "Geometry Nodes Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
-  RNA_def_property_update(
-      prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_geometry_nodes_type_update");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
 
   prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -7559,6 +7565,13 @@ static void rna_def_space_node(BlenderRNA *brna)
       prop, "Backdrop", "Use active Viewer Node output as backdrop for compositing nodes");
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_NODE_VIEW, "rna_SpaceNodeEditor_show_backdrop_update");
+
+  prop = RNA_def_property(srna, "geometry_nodes_tool_tree", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_SpaceNodeEditor_geometry_nodes_tool_tree_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
+  RNA_def_property_ui_text(prop, "Node Tool Tree", "Node group to edit as node tool");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_update");
 
   prop = RNA_def_property(srna, "show_annotation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SNODE_SHOW_GPENCIL);
