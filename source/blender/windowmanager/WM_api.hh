@@ -1947,11 +1947,5 @@ XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const cha
 void WM_init_gpu_blenderplayer(void *ghost_system);
 void *WM_system_gpu_context_create_blenderplayer(void *ghost_system);
 
-void wm_file_read_pre(bool use_data, bool /*use_userdef*/);
-struct BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,  // UPBGE- not static
-                                                            Main *bmain,
-                                                            const bool is_read_homefile);
-void wm_file_read_setup_wm_finalize(bContext *C,  // UPBGE - not static
-                                    Main *bmain,
-                                    struct BlendFileReadWMSetupData *wm_setup_data);
+bool load_game_data2(bContext *C, char *filepath, Main *bmain);
 /* End of UPBGE */

@@ -185,9 +185,9 @@ bool wm_file_or_session_data_has_unsaved_changes(const Main *bmain, const wmWind
  * Clear several WM/UI runtime data that would make later complex WM handling impossible.
  *
  * Return data should be cleared by #wm_file_read_setup_wm_finalize. */
-BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C, //UPBGE- not static
-                                                     Main *bmain,
-                                                     const bool is_read_homefile)
+static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
+                                                            Main *bmain,
+                                                            const bool is_read_homefile)
 {
   BLI_assert(BLI_listbase_count_at_most(&bmain->wm, 2) <= 1);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
@@ -405,9 +405,9 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
  *
  * Counterpart of #wm_file_read_setup_wm_init.
  */
-void wm_file_read_setup_wm_finalize(bContext *C, //UPBGE - not static
-                                    Main *bmain,
-                                    BlendFileReadWMSetupData *wm_setup_data)
+static void wm_file_read_setup_wm_finalize(bContext *C,
+                                           Main *bmain,
+                                           BlendFileReadWMSetupData *wm_setup_data)
 {
   BLI_assert(BLI_listbase_count_at_most(&bmain->wm, 2) <= 1);
   BLI_assert(wm_setup_data != nullptr);
@@ -637,7 +637,7 @@ void wm_file_read_report(Main *bmain, wmWindow *win)
  * \note In the case of #WM_file_read the file may fail to load.
  * Change here shouldn't cause user-visible changes in that case.
  */
-void wm_file_read_pre(bool use_data, bool /*use_userdef*/) // UPBGE - not static
+static void wm_file_read_pre(bool use_data, bool /*use_userdef*/)
 {
   if (use_data) {
     BLI_timer_on_file_load();
@@ -4354,5 +4354,57 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
 
   return false;
 }
+
+/* UPBGE */
+bool load_game_data2(bContext *C, char *filepath, Main *bmain)
+{
+  bool success = false;
+
+  ReportList reports;
+
+  BKE_reports_init(&reports, RPT_STORE);
+
+  BlendFileReadReport bf_reports;
+  bf_reports.reports = &reports;
+
+  BlendFileReadParams params{};
+  params.is_startup = false;
+  /* Loading preferences when the user intended to load a regular file is a security
+   * risk, because the excluded path list is also loaded. Further it's just confusing
+   * if a user loads a file and various preferences change. */
+  params.skip_flags = BLO_READ_SKIP_USERDEF;
+  BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
+  if (bfd != nullptr) {
+    bool use_data = true;
+    bool use_userdef = false;
+
+    wm_file_read_pre(use_data, use_userdef);
+
+    /* Put WM into a stable state for post-readfile processes (kill jobs, removes event handlers,
+     * message bus, and so on). */
+    BlendFileReadWMSetupData *wm_setup_data = wm_file_read_setup_wm_init(C, bmain, false);
+
+    /* This flag is initialized by the operator but overwritten on read.
+     * need to re-enable it here else drivers and registered scripts won't work. */
+    const int G_f_orig = G.f;
+
+    /* Frees the current main and replaces it with the new one read from file. */
+    BKE_blendfile_read_setup_readfile(C, bfd, &params, wm_setup_data, &bf_reports, false, nullptr);
+    bmain = CTX_data_main(C);
+
+    /* Finalize handling of WM, using the read WM and/or the current WM depending on things like
+     * whether the UI is loaded from the .blend file or not, etc. */
+    wm_file_read_setup_wm_finalize(C, bmain, wm_setup_data);
+
+    if (G.f != G_f_orig) {
+      const int flags_keep = G_FLAG_ALL_RUNTIME;
+      G.f &= G_FLAG_ALL_READFILE;
+      G.f = (G.f & ~flags_keep) | (G_f_orig & flags_keep);
+    }
+    success = true;
+  }
+  return success;
+}
+/* End of UPBGE */
 
 /** \} */

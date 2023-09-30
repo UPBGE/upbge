@@ -35,7 +35,6 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "BKE_blendfile.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -141,53 +140,6 @@ static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *
   }
 }
 
-static void load_game_data2(bContext *C, char *filepath, Main *bmain)
-{
-
-  ReportList reports;
-
-  BKE_reports_init(&reports, RPT_STORE);
-
-  BlendFileReadReport bf_reports;
-  bf_reports.reports = &reports;
-
-  BlendFileReadParams params{};
-  params.is_startup = false;
-  /* Loading preferences when the user intended to load a regular file is a security
-   * risk, because the excluded path list is also loaded. Further it's just confusing
-   * if a user loads a file and various preferences change. */
-  params.skip_flags = BLO_READ_SKIP_USERDEF;
-  BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
-  if (bfd != nullptr) {
-    bool use_data = true;
-    bool use_userdef = false;
-
-    wm_file_read_pre(use_data, use_userdef);
-
-    /* Put WM into a stable state for post-readfile processes (kill jobs, removes event handlers,
-     * message bus, and so on). */
-    BlendFileReadWMSetupData *wm_setup_data = wm_file_read_setup_wm_init(C, bmain, false);
-
-    /* This flag is initialized by the operator but overwritten on read.
-     * need to re-enable it here else drivers and registered scripts won't work. */
-    const int G_f_orig = G.f;
-
-    /* Frees the current main and replaces it with the new one read from file. */
-    BKE_blendfile_read_setup_readfile(C, bfd, &params, wm_setup_data, &bf_reports, false, nullptr);
-    bmain = CTX_data_main(C);
-
-    /* Finalize handling of WM, using the read WM and/or the current WM depending on things like
-     * whether the UI is loaded from the .blend file or not, etc. */
-    wm_file_read_setup_wm_finalize(C, bmain, wm_setup_data);
-
-    if (G.f != G_f_orig) {
-      const int flags_keep = G_FLAG_ALL_RUNTIME;
-      G.f &= G_FLAG_ALL_READFILE;
-      G.f = (G.f & ~flags_keep) | (G_f_orig & flags_keep);
-    }
-  }
-}
-
 extern "C" void StartKetsjiShell(struct bContext *C,
                                  struct ARegion *ar,
                                  rcti *cam_frame,
@@ -287,8 +239,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       CTX_wm_manager(C)->undo_stack = nullptr;
 
       /* Replaces old file with the new one */
-      load_game_data2(C, basedpath, CTX_data_main(C));
-      blend_file_loaded = true;
+      blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
 
       // if it wasn't loaded, try it forced relative
       //if (!bfd) {
@@ -451,6 +402,15 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   if (startscene->gm.flag & GAME_USE_UNDO) {
     UndoStep *step_data_from_name = NULL;
     /* Restore undo stack from before bge runtime */
+    if (CTX_wm_manager(C)->undo_stack == nullptr) {
+      CTX_wm_manager(C)->undo_stack = BKE_undosys_stack_create();
+    }
+    else {
+      BKE_undosys_stack_clear(CTX_wm_manager(C)->undo_stack);
+    }
+    BKE_undosys_stack_init_from_main(CTX_wm_manager(C)->undo_stack, CTX_data_main(C));
+    BKE_undosys_stack_init_from_context(CTX_wm_manager(C)->undo_stack, C);
+
     CTX_wm_manager(C)->undo_stack = ustack_backup;
     step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
                                                         "bge_start");
