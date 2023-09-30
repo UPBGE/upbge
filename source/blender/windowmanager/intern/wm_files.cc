@@ -185,9 +185,9 @@ bool wm_file_or_session_data_has_unsaved_changes(const Main *bmain, const wmWind
  * Clear several WM/UI runtime data that would make later complex WM handling impossible.
  *
  * Return data should be cleared by #wm_file_read_setup_wm_finalize. */
-static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
-                                                            Main *bmain,
-                                                            const bool is_read_homefile)
+BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C, //UPBGE- not static
+                                                     Main *bmain,
+                                                     const bool is_read_homefile)
 {
   BLI_assert(BLI_listbase_count_at_most(&bmain->wm, 2) <= 1);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
@@ -405,9 +405,9 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
  *
  * Counterpart of #wm_file_read_setup_wm_init.
  */
-static void wm_file_read_setup_wm_finalize(bContext *C,
-                                           Main *bmain,
-                                           BlendFileReadWMSetupData *wm_setup_data)
+void wm_file_read_setup_wm_finalize(bContext *C, //UPBGE - not static
+                                    Main *bmain,
+                                    BlendFileReadWMSetupData *wm_setup_data)
 {
   BLI_assert(BLI_listbase_count_at_most(&bmain->wm, 2) <= 1);
   BLI_assert(wm_setup_data != nullptr);
@@ -637,7 +637,7 @@ void wm_file_read_report(Main *bmain, wmWindow *win)
  * \note In the case of #WM_file_read the file may fail to load.
  * Change here shouldn't cause user-visible changes in that case.
  */
-static void wm_file_read_pre(bool use_data, bool /*use_userdef*/)
+void wm_file_read_pre(bool use_data, bool /*use_userdef*/) // UPBGE - not static
 {
   if (use_data) {
     BLI_timer_on_file_load();
