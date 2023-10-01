@@ -3388,6 +3388,12 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   Object *ob = (Object *)id;
   ConvertBlenderObject(ob);
   KX_GameObject *newgameobj = m_sceneConverter->FindGameObject(ob);
+  if (!newgameobj) {
+    /* It can happen for example if we are trying to convert the same object several times
+     * or if we are trying to convert game_default_cam https://github.com/UPBGE/upbge/issues/1847 */
+    CM_Warning("Scene converter failed to convert: " << ob->id.name + 2);
+    Py_RETURN_NONE;
+  }
   return newgameobj->GetProxy();
 }
 
