@@ -241,6 +241,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       /* Replaces old file with the new one */
       blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
 
+      BKE_undosys_stack_clear(CTX_wm_manager(C)->undo_stack);
+
       // if it wasn't loaded, try it forced relative
       //if (!bfd) {
       //  // just add "//" in front of it
@@ -379,6 +381,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     load_game_data2(C, prevPathName, CTX_data_main(C));
     wmWindowManager *wm = CTX_wm_manager(C);
     CTX_wm_window_set(C, (wmWindow *)wm->windows.first);
+
+    BKE_undosys_stack_clear(CTX_wm_manager(C)->undo_stack);
+
     CTX_wm_manager(C)->undo_stack = ustack_backup;
   }
   else {
