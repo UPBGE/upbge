@@ -4415,6 +4415,8 @@ bool load_game_data2(bContext *C, char *filepath, Main *bmain)
 
     //bf_reports.duration.whole = PIL_check_seconds_timer() - bf_reports.duration.whole;
     //file_read_reports_finalize(&bf_reports);
+    BKE_undosys_stack_destroy(CTX_wm_manager(C)->undo_stack);
+
     BKE_reports_clear(&reports);
 
     success = true;

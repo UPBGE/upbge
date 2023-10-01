@@ -237,21 +237,23 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       // that happened to be loaded first
       BLI_path_abs(basedpath, pathname);
 
+      /* Hack to avoid freeing the pre-runtime undo stack */
       CTX_wm_manager(C)->undo_stack = nullptr;
+
       /* Replaces old file with the new one */
       blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
 
-      BKE_undosys_stack_destroy(CTX_wm_manager(C)->undo_stack);
-
       // if it wasn't loaded, try it forced relative
-      //if (!bfd) {
-      //  // just add "//" in front of it
-      //  char temppath[FILE_MAX] = "//";
-      //  BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
+      if (!blend_file_loaded) {
+        // just add "//" in front of it
+        char temppath[FILE_MAX] = "//";
+        BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 
-      //  BLI_path_abs(temppath, pathname);
-      //  bfd = load_game_data(temppath);
-      //}
+        BLI_path_abs(temppath, pathname);
+
+        /* Replaces old file with the new one */
+        blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
+      }
 
       // if we got a loaded blendfile, proceed
       if (blend_file_loaded) {
@@ -377,12 +379,13 @@ extern "C" void StartKetsjiShell(struct bContext *C,
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
   if (blend_file_loaded) {
+    /* Hack to avoid freeing the pre-runtime undo stack */
     CTX_wm_manager(C)->undo_stack = nullptr;
+
     load_game_data2(C, prevPathName, CTX_data_main(C));
+
     wmWindowManager *wm = CTX_wm_manager(C);
     CTX_wm_window_set(C, (wmWindow *)wm->windows.first);
-
-    BKE_undosys_stack_destroy(CTX_wm_manager(C)->undo_stack);
 
     CTX_wm_manager(C)->undo_stack = ustack_backup;
   }
