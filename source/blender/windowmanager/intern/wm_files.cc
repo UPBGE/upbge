@@ -4362,7 +4362,7 @@ bool load_game_data2(bContext *C, char *filepath, Main *bmain)
 
   ReportList reports;
 
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_PRINT);
 
   BlendFileReadReport bf_reports;
   bf_reports.reports = &reports;
@@ -4413,8 +4413,9 @@ bool load_game_data2(bContext *C, char *filepath, Main *bmain)
     read_file_post_params.is_alloc = false;
     wm_file_read_post(C, filepath, &read_file_post_params);
 
-    bf_reports.duration.whole = PIL_check_seconds_timer() - bf_reports.duration.whole;
+    //bf_reports.duration.whole = PIL_check_seconds_timer() - bf_reports.duration.whole;
     //file_read_reports_finalize(&bf_reports);
+    BKE_reports_clear(&reports);
 
     success = true;
   }
