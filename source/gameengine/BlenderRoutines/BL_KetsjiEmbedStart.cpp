@@ -184,7 +184,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   GlobalSettings gs;
   gs.glslflag = startscene->gm.flag;
 
-  if (startscene->gm.flag & GAME_USE_UNDO) {
+  bool use_undo_at_exit = startscene->gm.flag & GAME_USE_UNDO;
+
+  if (use_undo_at_exit) {
     BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
     /* Temp hack to fix issue with undo https://github.com/UPBGE/upbge/issues/1516 */
     /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
@@ -235,9 +237,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       // that happened to be loaded first
       BLI_path_abs(basedpath, pathname);
 
-      /* Set undo_stack to nullptr to avoid its removal */
       CTX_wm_manager(C)->undo_stack = nullptr;
-
       /* Replaces old file with the new one */
       blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
 
@@ -375,12 +375,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
   if (blend_file_loaded) {
-    /* Set undo_stack to nullptr to avoid its removal */
     CTX_wm_manager(C)->undo_stack = nullptr;
-
     load_game_data2(C, prevPathName, CTX_data_main(C));
     wmWindowManager *wm = CTX_wm_manager(C);
     CTX_wm_window_set(C, (wmWindow *)wm->windows.first);
+    CTX_wm_manager(C)->undo_stack = ustack_backup;
   }
   else {
     /* Fix for crash at exit when we have preferences window open */
@@ -399,19 +398,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   CTX_wm_view3d(C)->camera = backup_cam;
 
   /* Undo System */
-  if (startscene->gm.flag & GAME_USE_UNDO) {
+  if (use_undo_at_exit) {
     UndoStep *step_data_from_name = NULL;
-    /* Restore undo stack from before bge runtime */
-    if (CTX_wm_manager(C)->undo_stack == nullptr) {
-      CTX_wm_manager(C)->undo_stack = BKE_undosys_stack_create();
-    }
-    else {
-      BKE_undosys_stack_clear(CTX_wm_manager(C)->undo_stack);
-    }
-    BKE_undosys_stack_init_from_main(CTX_wm_manager(C)->undo_stack, CTX_data_main(C));
-    BKE_undosys_stack_init_from_context(CTX_wm_manager(C)->undo_stack, C);
 
-    CTX_wm_manager(C)->undo_stack = ustack_backup;
     step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
                                                         "bge_start");
     if (step_data_from_name) {

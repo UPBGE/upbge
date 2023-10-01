@@ -4401,6 +4401,21 @@ bool load_game_data2(bContext *C, char *filepath, Main *bmain)
       G.f &= G_FLAG_ALL_READFILE;
       G.f = (G.f & ~flags_keep) | (G_f_orig & flags_keep);
     }
+    WM_check(C); /* opens window(s), checks keymaps */
+
+    wmFileReadPost_Params read_file_post_params{};
+    read_file_post_params.use_data = use_data;
+    read_file_post_params.use_userdef = use_userdef;
+    read_file_post_params.is_startup_file = false;
+    read_file_post_params.is_factory_startup = false;
+    read_file_post_params.reset_app_template = false;
+    read_file_post_params.success = true;
+    read_file_post_params.is_alloc = false;
+    wm_file_read_post(C, filepath, &read_file_post_params);
+
+    bf_reports.duration.whole = PIL_check_seconds_timer() - bf_reports.duration.whole;
+    //file_read_reports_finalize(&bf_reports);
+
     success = true;
   }
   return success;
