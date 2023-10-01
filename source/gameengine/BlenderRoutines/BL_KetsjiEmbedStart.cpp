@@ -241,7 +241,12 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       CTX_wm_manager(C)->undo_stack = nullptr;
 
       /* Replaces old file with the new one */
-      blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
+      ReportList reports;
+      BKE_reports_init(&reports, RPT_PRINT);
+      blend_file_loaded = WM_file_read(C, basedpath, &reports);
+      BKE_reports_clear(&reports);
+
+      BKE_undosys_stack_destroy(CTX_wm_manager(C)->undo_stack);
 
       // if it wasn't loaded, try it forced relative
       if (!blend_file_loaded) {
@@ -252,7 +257,12 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         BLI_path_abs(temppath, pathname);
 
         /* Replaces old file with the new one */
-        blend_file_loaded = load_game_data2(C, basedpath, CTX_data_main(C));
+        ReportList reports;
+        BKE_reports_init(&reports, RPT_PRINT);
+        blend_file_loaded = WM_file_read(C, basedpath, &reports);
+        BKE_reports_clear(&reports);
+
+        BKE_undosys_stack_destroy(CTX_wm_manager(C)->undo_stack);
       }
 
       // if we got a loaded blendfile, proceed
@@ -382,7 +392,12 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     /* Hack to avoid freeing the pre-runtime undo stack */
     CTX_wm_manager(C)->undo_stack = nullptr;
 
-    load_game_data2(C, prevPathName, CTX_data_main(C));
+    ReportList reports;
+    BKE_reports_init(&reports, RPT_PRINT);
+    WM_file_read(C, prevPathName, &reports);
+    BKE_reports_clear(&reports);
+
+    BKE_undosys_stack_destroy(CTX_wm_manager(C)->undo_stack);
 
     wmWindowManager *wm = CTX_wm_manager(C);
     CTX_wm_window_set(C, (wmWindow *)wm->windows.first);

@@ -1946,6 +1946,4 @@ XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const cha
 /* UPBGE */
 void WM_init_gpu_blenderplayer(void *ghost_system);
 void *WM_system_gpu_context_create_blenderplayer(void *ghost_system);
-
-bool load_game_data2(bContext *C, char *filepath, Main *bmain);
 /* End of UPBGE */
