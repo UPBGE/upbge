@@ -131,7 +131,7 @@ static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *
   bScreen *screen = WM_window_get_active_screen(win);
   InitBlenderContextVariables(C, wm, scene);
 
-  WM_check(C);
+  //WM_check(C);
   ED_screen_change(C, screen);
   ED_screen_refresh(wm, win);
 
