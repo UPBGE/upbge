@@ -95,7 +95,7 @@
 #include "engines/gpencil/gpencil_engine.h"
 #include "engines/image/image_engine.h"
 #include "engines/overlay/overlay_engine.h"
-#include "engines/select/select_engine.h"
+#include "engines/select/select_engine.hh"
 #include "engines/workbench/workbench_engine.h"
 
 #include "GPU_context.h"
@@ -103,7 +103,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "DRW_select_buffer.h"
+#include "DRW_select_buffer.hh"
 
 /** Render State: No persistent data between draw calls. */
 DRWManager DST = {nullptr};
@@ -839,6 +839,7 @@ static bool id_type_can_have_drawdata(const short id_type)
     case ID_SCE:
     case ID_TE:
     case ID_MSK:
+    case ID_MC:
       return true;
 
     /* no DrawData */
@@ -2804,7 +2805,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d, cons
     /* Selection engine requires a viewport.
      * TODO(@germano): This should be done internally in the engine. */
     sel_ctx->is_dirty = true;
-    sel_ctx->objects_drawn_len = 0;
+    sel_ctx->objects_drawn.clear();
     sel_ctx->index_drawn_len = 1;
     return;
   }
@@ -2843,9 +2844,8 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d, cons
   {
     drw_engines_cache_init();
 
-    Object **obj = &sel_ctx->objects[0];
-    for (uint remaining = sel_ctx->objects_len; remaining--; obj++) {
-      Object *obj_eval = DEG_get_evaluated_object(depsgraph, *obj);
+    for (Object *obj : sel_ctx->objects) {
+      Object *obj_eval = DEG_get_evaluated_object(depsgraph, obj);
       drw_engines_cache_populate(obj_eval);
     }
 
