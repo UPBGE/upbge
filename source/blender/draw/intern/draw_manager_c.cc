@@ -3774,7 +3774,6 @@ void DRW_game_render_loop(bContext *C,
   }
   else {
     use_drw_engine(DRW_engine_viewport_workbench_type.draw_engine);
-    use_drw_engine(&draw_engine_overlay_type);
   }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
