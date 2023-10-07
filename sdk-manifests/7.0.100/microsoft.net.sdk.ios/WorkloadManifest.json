@@ -1,0 +1,90 @@
+{
+	"version": "16.4.7098",
+	"workloads": {
+		"ios": {
+			"description": ".NET SDK Workload for building iOS applications.",
+			"packs": [
+				"Microsoft.iOS.Sdk.net7",
+				"Microsoft.iOS.Sdk.net6",
+				"Microsoft.iOS.Windows.Sdk.Aliased.net7",
+				"Microsoft.iOS.Windows.Sdk.Aliased.net6",
+				"Microsoft.iOS.Ref",
+				"Microsoft.iOS.Runtime.ios-arm",
+				"Microsoft.iOS.Runtime.iossimulator-x86",
+				"Microsoft.iOS.Runtime.ios-arm64",
+				"Microsoft.iOS.Runtime.iossimulator-x64",
+				"Microsoft.iOS.Runtime.iossimulator-arm64",
+				"Microsoft.iOS.Templates.net7"
+			],
+			"extends": [
+				"microsoft-net-runtime-ios",
+				"microsoft-net-runtime-ios-net6",
+			]
+		},
+	},
+	"packs": {
+		"Microsoft.iOS.Sdk.net7": {
+			"kind": "sdk",
+			"version": "16.4.7098",
+			"alias-to": {
+				"any": "Microsoft.iOS.Sdk"
+			}
+		},
+		"Microsoft.iOS.Sdk.net6": {
+			"kind": "sdk",
+			"version": "16.4.60",
+			"alias-to": {
+				"any": "Microsoft.iOS.Sdk"
+			}
+		},
+		"Microsoft.iOS.Windows.Sdk.Aliased.net7": {
+			"kind": "sdk",
+			"version": "16.4.7098",
+			"alias-to": {
+				"win-x64": "Microsoft.iOS.Windows.Sdk",
+				"win-x86": "Microsoft.iOS.Windows.Sdk",
+				"win-arm64": "Microsoft.iOS.Windows.Sdk",
+			}
+		},
+		"Microsoft.iOS.Windows.Sdk.Aliased.net6": {
+			"kind": "sdk",
+			"version": "16.4.60",
+			"alias-to": {
+				"win-x64": "Microsoft.iOS.Windows.Sdk",
+				"win-x86": "Microsoft.iOS.Windows.Sdk",
+				"win-arm64": "Microsoft.iOS.Windows.Sdk",
+			}
+		},
+		"Microsoft.iOS.Ref": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.iOS.Runtime.ios-arm": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.iOS.Runtime.iossimulator-x86": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.iOS.Runtime.ios-arm64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.iOS.Runtime.iossimulator-x64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.iOS.Runtime.iossimulator-arm64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.iOS.Templates.net7": {
+			"kind": "template",
+			"version": "16.4.7098",
+			"alias-to": {
+				"any": "Microsoft.iOS.Templates",
+			}
+		}
+	}
+}

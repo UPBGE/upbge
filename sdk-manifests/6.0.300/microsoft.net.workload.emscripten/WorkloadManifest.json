@@ -1,0 +1,46 @@
+{
+  "version": "6.0.4",
+  "workloads": {
+    "microsoft-net-sdk-emscripten": {
+      "abstract": true,
+      "description": "Emscripten SDK compiler tooling",
+      "packs": [
+        "Microsoft.NET.Runtime.Emscripten.Node",
+        "Microsoft.NET.Runtime.Emscripten.Python",
+        "Microsoft.NET.Runtime.Emscripten.Sdk"
+      ],
+      "platforms": [ "win-x64", "linux-x64", "osx-x64", "osx-arm64" ]
+    }
+  },
+  "packs": {
+    "Microsoft.NET.Runtime.Emscripten.Node" : {
+      "kind": "Sdk",
+      "version": "6.0.4",
+      "alias-to": {
+        "win-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Node.win-x64",
+        "linux-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Node.linux-x64",
+        "osx-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Node.osx-x64",
+        "osx-arm64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Node.osx-x64"
+      }
+    },
+    "Microsoft.NET.Runtime.Emscripten.Python" : {
+      "kind": "Sdk",
+      "version": "6.0.4",
+      "alias-to": {
+        "win-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Python.win-x64",
+        "osx-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Python.osx-x64",
+        "osx-arm64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Python.osx-x64"
+      }
+    },
+    "Microsoft.NET.Runtime.Emscripten.Sdk" : {
+      "kind": "Sdk",
+      "version": "6.0.4",
+      "alias-to": {
+        "win-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Sdk.win-x64",
+        "linux-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Sdk.linux-x64",
+        "osx-x64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Sdk.osx-x64",
+        "osx-arm64": "Microsoft.NET.Runtime.Emscripten.2.0.23.Sdk.osx-x64"
+      }
+    }
+  }
+}

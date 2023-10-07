@@ -1,0 +1,65 @@
+{
+	"version": "15.4.303",
+	"workloads": {
+		"ios": {
+			"description": ".NET SDK Workload for building iOS applications.",
+			"packs": [
+				"Microsoft.iOS.Sdk",
+				"Microsoft.iOS.Windows.Sdk.Aliased",
+				"Microsoft.iOS.Ref",
+				"Microsoft.iOS.Runtime.ios-arm",
+				"Microsoft.iOS.Runtime.ios-arm64",
+				"Microsoft.iOS.Runtime.iossimulator-x86",
+				"Microsoft.iOS.Runtime.iossimulator-x64",
+				"Microsoft.iOS.Runtime.iossimulator-arm64",
+				"Microsoft.iOS.Templates"
+			],
+			"extends": [
+				"microsoft-net-runtime-ios"
+			]
+		}
+	},
+	"packs": {
+		"Microsoft.iOS.Sdk": {
+			"kind": "sdk",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Windows.Sdk.Aliased": {
+			"kind": "sdk",
+			"version": "15.4.303",
+			"alias-to": {
+				"win-x64": "Microsoft.iOS.Windows.Sdk",
+				"win-x86": "Microsoft.iOS.Windows.Sdk",
+				"win-arm64": "Microsoft.iOS.Windows.Sdk",
+			}
+		},
+		"Microsoft.iOS.Ref": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Runtime.ios-arm": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Runtime.ios-arm64": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Runtime.iossimulator-x86": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Runtime.iossimulator-x64": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Runtime.iossimulator-arm64": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.iOS.Templates": {
+			"kind": "template",
+			"version": "15.4.303"
+		}
+	}
+}

@@ -1,0 +1,55 @@
+{
+	"version": "16.4.7098",
+	"workloads": {
+		"maccatalyst": {
+			"description": ".NET SDK Workload for building MacCatalyst applications.",
+			"packs": [
+				"Microsoft.MacCatalyst.Sdk.net7",
+				"Microsoft.MacCatalyst.Sdk.net6",
+				"Microsoft.MacCatalyst.Ref",
+				"Microsoft.MacCatalyst.Runtime.maccatalyst-x64",
+				"Microsoft.MacCatalyst.Runtime.maccatalyst-arm64",
+				"Microsoft.MacCatalyst.Templates.net7"
+			],
+			"extends": [
+				"microsoft-net-runtime-maccatalyst",
+				"microsoft-net-runtime-maccatalyst-net6",
+			]
+		},
+	},
+	"packs": {
+		"Microsoft.MacCatalyst.Sdk.net7": {
+			"kind": "sdk",
+			"version": "16.4.7098",
+			"alias-to": {
+				"any": "Microsoft.MacCatalyst.Sdk"
+			}
+		},
+		"Microsoft.MacCatalyst.Sdk.net6": {
+			"kind": "sdk",
+			"version": "16.4.60",
+			"alias-to": {
+				"any": "Microsoft.MacCatalyst.Sdk"
+			}
+		},
+		"Microsoft.MacCatalyst.Ref": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.MacCatalyst.Runtime.maccatalyst-x64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.MacCatalyst.Runtime.maccatalyst-arm64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.MacCatalyst.Templates.net7": {
+			"kind": "template",
+			"version": "16.4.7098",
+			"alias-to": {
+				"any": "Microsoft.MacCatalyst.Templates",
+			}
+		}
+	}
+}
