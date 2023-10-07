@@ -480,7 +480,9 @@ BLI_INLINE PBVHNode *pbvh_bmesh_node_from_face(PBVH *pbvh, const BMFace *key)
 }
 
 static BMVert *pbvh_bmesh_vert_create(PBVH *pbvh,
-                                      int node_index,
+                                      const BMVert *v1,
+                                      const BMVert *v2,
+                                      const int node_index,
                                       const float co[3],
                                       const float no[3],
                                       const int cd_vert_mask_offset)
@@ -490,8 +492,9 @@ static BMVert *pbvh_bmesh_vert_create(PBVH *pbvh,
   BLI_assert((pbvh->nodes.size() == 1 || node_index) && node_index <= pbvh->nodes.size());
 
   /* avoid initializing customdata because its quite involved */
-  BMVert *v = BM_vert_create(pbvh->header.bm, co, nullptr, BM_CREATE_SKIP_CD);
-  CustomData_bmesh_set_default(&pbvh->header.bm->vdata, &v->head.data);
+  BMVert *v = BM_vert_create(pbvh->header.bm, co, nullptr, BM_CREATE_NOP);
+
+  BM_data_interp_from_verts(pbvh->header.bm, v1, v2, v, 0.5f);
 
   /* This value is logged below */
   copy_v3_v3(v->no, no);
@@ -1117,16 +1120,7 @@ static void pbvh_bmesh_split_edge(EdgeQueueContext *eq_ctx,
 
   int node_index = BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset);
   BMVert *v_new = pbvh_bmesh_vert_create(
-      pbvh, node_index, co_mid, no_mid, eq_ctx->cd_vert_mask_offset);
-
-  /* update paint mask */
-  if (eq_ctx->cd_vert_mask_offset != -1) {
-    float mask_v1 = BM_ELEM_CD_GET_FLOAT(e->v1, eq_ctx->cd_vert_mask_offset);
-    float mask_v2 = BM_ELEM_CD_GET_FLOAT(e->v2, eq_ctx->cd_vert_mask_offset);
-    float mask_v_new = 0.5f * (mask_v1 + mask_v2);
-
-    BM_ELEM_CD_SET_FLOAT(v_new, eq_ctx->cd_vert_mask_offset, mask_v_new);
-  }
+      pbvh, e->v1, e->v2, node_index, co_mid, no_mid, eq_ctx->cd_vert_mask_offset);
 
   /* For each face, add two new triangles and delete the original */
   for (int i = 0; i < edge_loops->count; i++) {
@@ -1507,8 +1501,6 @@ bool pbvh_bmesh_node_raycast(PBVHNode *node,
 {
   bool hit = false;
   float nearest_vertex_co[3] = {0.0f};
-
-  BLI_assert(!use_original || (BLI_gset_len(node->bm_faces) > 0 && node->bm_tot_ortri));
 
   use_original = use_original && node->bm_tot_ortri;
 
