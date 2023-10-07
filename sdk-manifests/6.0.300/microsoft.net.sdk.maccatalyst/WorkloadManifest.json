@@ -1,0 +1,40 @@
+{
+	"version": "15.4.303",
+	"workloads": {
+		"maccatalyst": {
+			"description": ".NET SDK Workload for building macOS applications with MacCatalyst.",
+			"packs": [
+				"Microsoft.MacCatalyst.Sdk",
+				"Microsoft.MacCatalyst.Ref",
+				"Microsoft.MacCatalyst.Runtime.maccatalyst-arm64",
+				"Microsoft.MacCatalyst.Runtime.maccatalyst-x64",
+				"Microsoft.MacCatalyst.Templates"
+			],
+			"extends": [ 
+				"microsoft-net-runtime-maccatalyst"
+			]
+		}
+	},
+	"packs": {
+		"Microsoft.MacCatalyst.Sdk": {
+			"kind": "sdk",
+			"version": "15.4.303"
+		},
+		"Microsoft.MacCatalyst.Ref": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.MacCatalyst.Runtime.maccatalyst-arm64": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.MacCatalyst.Runtime.maccatalyst-x64": {
+			"kind": "framework",
+			"version": "15.4.303"
+		},
+		"Microsoft.MacCatalyst.Templates": {
+			"kind": "template",
+			"version": "15.4.303"
+		}
+	}
+}

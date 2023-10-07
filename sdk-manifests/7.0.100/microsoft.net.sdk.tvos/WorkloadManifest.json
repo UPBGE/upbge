@@ -1,0 +1,60 @@
+{
+	"version": "16.4.7098",
+	"workloads": {
+		"tvos": {
+			"description": ".NET SDK Workload for building tvOS applications.",
+			"packs": [
+				"Microsoft.tvOS.Sdk.net7",
+				"Microsoft.tvOS.Sdk.net6",
+				"Microsoft.tvOS.Ref",
+				"Microsoft.tvOS.Runtime.tvos-arm64",
+				"Microsoft.tvOS.Runtime.tvossimulator-x64",
+				"Microsoft.tvOS.Runtime.tvossimulator-arm64",
+				"Microsoft.tvOS.Templates.net7"
+			],
+			"extends": [
+				"microsoft-net-runtime-tvos",
+				"microsoft-net-runtime-tvos-net6",
+			]
+		},
+	},
+	"packs": {
+		"Microsoft.tvOS.Sdk.net7": {
+			"kind": "sdk",
+			"version": "16.4.7098",
+			"alias-to": {
+				"any": "Microsoft.tvOS.Sdk"
+			}
+		},
+		"Microsoft.tvOS.Sdk.net6": {
+			"kind": "sdk",
+			"version": "16.4.60",
+			"alias-to": {
+				"any": "Microsoft.tvOS.Sdk"
+			}
+		},
+		"Microsoft.tvOS.Ref": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.tvOS.Runtime.tvos-arm64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.tvOS.Runtime.tvossimulator-x64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.tvOS.Runtime.tvossimulator-arm64": {
+			"kind": "framework",
+			"version": "16.4.7098"
+		},
+		"Microsoft.tvOS.Templates.net7": {
+			"kind": "template",
+			"version": "16.4.7098",
+			"alias-to": {
+				"any": "Microsoft.tvOS.Templates",
+			}
+		}
+	}
+}

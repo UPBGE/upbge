@@ -1,0 +1,15 @@
+<Project>
+	<ImportGroup Condition=" '$(TargetPlatformIdentifier)' == 'macOS' ">
+		<Import Project="Sdk.props" Sdk="Microsoft.$(TargetPlatformIdentifier).Sdk.net7" Condition=" $([MSBuild]::VersionEquals($(TargetFrameworkVersion), '7.0')) " />
+		<Import Project="Sdk.props" Sdk="Microsoft.$(TargetPlatformIdentifier).Sdk.net6" Condition=" $([MSBuild]::VersionEquals($(TargetFrameworkVersion), '6.0')) " />
+	</ImportGroup>
+
+	<ItemGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETCoreApp' and $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '6.0')) ">
+		<SdkSupportedTargetPlatformIdentifier Include="macos" DisplayName="macOS" />
+	</ItemGroup>
+
+	<PropertyGroup Condition=" '$(TargetPlatformIdentifier)' == 'macOS' and $([MSBuild]::VersionEquals($(TargetFrameworkVersion), '6.0')) ">
+		<_MultiTargetTargetsFile>$(_XamarinSdkRootDirectory)..\13.3.7098\targets\Xamarin.Shared.Sdk.MultiTarget.targets</_MultiTargetTargetsFile>
+		<AfterMicrosoftNETSdkTargets Condition="Exists('$(_MultiTargetTargetsFile)')">$(AfterMicrosoftNETSdkTargets);$(_MultiTargetTargetsFile)</AfterMicrosoftNETSdkTargets>
+	</PropertyGroup>
+</Project>
