@@ -85,7 +85,7 @@ void DEV_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
   m_device->ConvertButtonEvent(buttonData->button, down);
 }
 
-bool DEV_EventConsumer::processEvent(GHOST_IEvent *event)
+bool DEV_EventConsumer::processEvent(const GHOST_IEvent *event)
 {
   GHOST_TEventDataPtr eventData = ((GHOST_IEvent *)event)->getData();
   switch (event->getType()) {
