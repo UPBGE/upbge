@@ -351,13 +351,6 @@ if(UNIX AND NOT (APPLE OR HAIKU))
     option(WITH_GHOST_WAYLAND_LIBDECOR "Optionally build with LibDecor window decorations" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_LIBDECOR)
 
-    option(WITH_GHOST_WAYLAND_DBUS "\
-Optionally build with DBUS support (used for Cursor themes). \
-May hang on startup systems where DBUS is not used."
-      OFF
-    )
-    mark_as_advanced(WITH_GHOST_WAYLAND_DBUS)
-
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_DYNLOAD)
 
@@ -820,7 +813,7 @@ if(NOT APPLE)
     WITH_VULKAN_BACKEND
     WITH_VULKAN_GUARDEDALLOC
   )
-  if (NOT WITH_EXPERIMENTAL_FEATURES)
+  if(NOT WITH_EXPERIMENTAL_FEATURES)
     set(WITH_VULKAN_BACKEND OFF)
   endif()
 endif()
@@ -977,7 +970,10 @@ Include the files needed for debugging python scripts with visual studio 2017+."
   option(WITH_WINDOWS_SCCACHE "Use sccache to speed up builds (Ninja builder only)" OFF)
   mark_as_advanced(WITH_WINDOWS_SCCACHE)
 
-  option(WITH_WINDOWS_RELEASE_PDB "Generate a pdb file for client side stacktraces for release builds" ON)
+  option(WITH_WINDOWS_RELEASE_PDB "\
+Generate a pdb file for client side stacktraces for release builds"
+    ON
+  )
   mark_as_advanced(WITH_WINDOWS_RELEASE_PDB)
 
   option(WITH_WINDOWS_RELEASE_STRIPPED_PDB "Use a stripped PDB file for release builds" ON)
@@ -1183,18 +1179,19 @@ if(WITH_INSTALL_PORTABLE)
   set(CMAKE_SKIP_BUILD_RPATH TRUE)
 endif()
 
-if(WITH_GHOST_SDL OR WITH_HEADLESS)
-  message(STATUS "Disabling Ghost Wayland, X11, Input IME, and OpenXR")
-  set(WITH_GHOST_WAYLAND OFF)
-  set(WITH_GHOST_X11     OFF)
-  set(WITH_X11_XINPUT    OFF)
-  set(WITH_X11_XINERAMA  OFF)
-  set(WITH_X11_XF86VMODE OFF)
-  set(WITH_X11_XFIXES    OFF)
-  set(WITH_GHOST_XDND    OFF)
-  set(WITH_INPUT_IME     OFF)
-  set(WITH_XR_OPENXR     OFF)
+if(UNIX AND NOT (APPLE OR HAIKU))
+  set_and_warn_incompatible(WITH_HEADLESS WITH_GHOST_WAYLAND OFF)
+  set_and_warn_incompatible(WITH_HEADLESS WITH_GHOST_X11 OFF)
 endif()
+set_and_warn_incompatible(WITH_HEADLESS WITH_GHOST_SDL OFF)
+
+if(WIN32 OR APPLE)
+  set_and_warn_incompatible(WITH_HEADLESS WITH_INPUT_IME OFF)
+  set_and_warn_incompatible(WITH_GHOST_SDL WITH_INPUT_IME OFF)
+endif()
+
+set_and_warn_incompatible(WITH_HEADLESS WITH_XR_OPENXR OFF)
+set_and_warn_incompatible(WITH_GHOST_SDL WITH_XR_OPENXR OFF)
 
 if(WITH_BUILDINFO)
   find_package(Git)
@@ -1416,23 +1413,27 @@ if(WITH_CPU_SIMD)
       endif()
     endif()
   endif()
+endif()
 
-  # Print instructions used
-  if(SUPPORT_NEON_BUILD)
-    if(SSE2NEON_FOUND)
-      message(STATUS "Neon SIMD instructions enabled")
+# Print instructions used on first run.
+if(FIRST_RUN)
+  if(WITH_CPU_SIMD)
+    if(SUPPORT_NEON_BUILD)
+      if(SSE2NEON_FOUND)
+        message(STATUS "Neon SIMD instructions enabled")
+      else()
+        message(STATUS "Neon SIMD instructions detected but unused, requires sse2neon")
+      endif()
+    elseif(SUPPORT_SSE2_BUILD)
+      message(STATUS "SSE2 SIMD instructions enabled")
+    elseif(SUPPORT_SSE_BUILD)
+      message(STATUS "SSE SIMD instructions enabled")
     else()
-      message(STATUS "Neon SIMD instructions detected but unused, requires sse2neon")
+      message(STATUS "No SIMD instructions detected")
     endif()
-  elseif(SUPPORT_SSE2_BUILD)
-    message(STATUS "SSE2 SIMD instructions enabled")
-  elseif(SUPPORT_SSE_BUILD)
-    message(STATUS "SSE SIMD instructions enabled")
   else()
-    message(STATUS "No SIMD instructions detected")
+    message(STATUS "SIMD instructions disabled")
   endif()
-else()
-  message(STATUS "SIMD instructions disabled")
 endif()
 
 # set the endian define
@@ -1571,13 +1572,8 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure Python
 
-if(WITH_PYTHON_MODULE)
-  # Not currently supported due to different required Python link flags.
-  if(WITH_GTESTS)
-    message(STATUS "GTests not compatible with Python module, disabling WITH_GTESTS")
-    set(WITH_GTESTS OFF)
-  endif()
-endif()
+# Not currently supported due to different required Python link flags.
+set_and_warn_incompatible(WITH_PYTHON_MODULE WITH_GTESTS OFF)
 
 
 # -----------------------------------------------------------------------------
@@ -2342,7 +2338,6 @@ if(FIRST_RUN)
     if(WITH_GHOST_WAYLAND)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
       info_cfg_option(WITH_GHOST_WAYLAND_LIBDECOR)
-      info_cfg_option(WITH_GHOST_WAYLAND_DBUS)
     endif()
   endif()
 

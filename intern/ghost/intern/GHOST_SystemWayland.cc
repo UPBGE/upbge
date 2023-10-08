@@ -37,10 +37,12 @@
 #  include <wayland_dynload_API.h> /* For `ghost_wl_dynload_libraries`. */
 #endif
 
-#ifdef WITH_GHOST_WAYLAND_DYNLOAD
-#  include <wayland_dynload_egl.h>
-#endif
-#include <wayland-egl.h>
+#ifdef WITH_OPENGL_BACKEND
+#  ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#    include <wayland_dynload_egl.h>
+#  endif
+#  include <wayland-egl.h>
+#endif /* WITH_OPENGL_BACKEND */
 
 #include <algorithm>
 #include <atomic>
@@ -53,8 +55,6 @@
 #  include <wayland_dynload_cursor.h>
 #endif
 #include <wayland-cursor.h>
-
-#include "GHOST_WaylandCursorSettings.hh"
 
 #include <xkbcommon/xkbcommon.h>
 
@@ -392,7 +392,7 @@ struct GWL_Cursor {
   /** The size of `custom_data` in bytes. */
   size_t custom_data_size = 0;
   /**
-   * The name of the theme (loaded by DBUS, depends on #WITH_GHOST_WAYLAND_DBUS).
+   * The name of the theme (set by an environment variable).
    * When disabled, leave as an empty string and the default theme will be used.
    */
   std::string theme_name;
@@ -1005,7 +1005,7 @@ struct GWL_Display {
    * Events added from the event reading thread.
    * Added into the main event queue when on #GHOST_SystemWayland::processEvents.
    */
-  std::vector<GHOST_IEvent *> events_pending;
+  std::vector<const GHOST_IEvent *> events_pending;
   /** Guard against multiple threads accessing `events_pending` at once. */
   std::mutex events_pending_mutex;
 
@@ -1081,7 +1081,7 @@ static void gwl_display_destroy(GWL_Display *display)
     display->ghost_timer_manager = nullptr;
   }
   /* Pending events may be left unhandled. */
-  for (GHOST_IEvent *event : display->events_pending) {
+  for (const GHOST_IEvent *event : display->events_pending) {
     delete event;
   }
 
@@ -4326,7 +4326,7 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
   seat->cursor.wl.surface_cursor = wl_compositor_create_surface(seat->system->wl_compositor_get());
   seat->cursor.visible = true;
   seat->cursor.wl.buffer = nullptr;
-  if (!get_cursor_settings(seat->cursor.theme_name, seat->cursor.theme_size)) {
+  {
     /* Use environment variables, falling back to defaults.
      * These environment variables are used by enough WAYLAND applications
      * that it makes sense to check them (see `Xcursor` man page). */
@@ -5737,7 +5737,7 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
 
   {
     std::lock_guard lock{display_->events_pending_mutex};
-    for (GHOST_IEvent *event : display_->events_pending) {
+    for (const GHOST_IEvent *event : display_->events_pending) {
 
       /* Perform actions that aren't handled in a thread. */
       switch (event->getType()) {
@@ -7264,16 +7264,16 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
 
   /* Ignore, if the required protocols are not supported. */
   if (UNLIKELY(!display_->wp.relative_pointer_manager || !display_->wp.pointer_constraints)) {
-    return GHOST_kFailure;
+    return false;
   }
 
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
   if (UNLIKELY(!seat)) {
-    return GHOST_kFailure;
+    return false;
   }
   /* No change, success. */
   if (mode == mode_current) {
-    return GHOST_kSuccess;
+    return true;
   }
 
 #ifdef USE_GNOME_CONFINE_HACK
@@ -7440,7 +7440,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
   seat->use_pointer_software_confine = use_software_confine;
 #endif
 
-  return GHOST_kSuccess;
+  return true;
 }
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
@@ -7464,7 +7464,11 @@ bool ghost_wl_dynload_libraries_init()
 
   if (wayland_dynload_client_init(verbose) && /* `libwayland-client`. */
       wayland_dynload_cursor_init(verbose) && /* `libwayland-cursor`. */
-      wayland_dynload_egl_init(verbose)       /* `libwayland-egl`. */
+#  ifdef WITH_OPENGL_BACKEND
+      wayland_dynload_egl_init(verbose) /* `libwayland-egl`. */
+#  else
+      true
+#  endif
   )
   {
 #  ifdef WITH_GHOST_WAYLAND_LIBDECOR
@@ -7475,7 +7479,9 @@ bool ghost_wl_dynload_libraries_init()
 
   wayland_dynload_client_exit();
   wayland_dynload_cursor_exit();
+#  ifdef WITH_OPENGL_BACKEND
   wayland_dynload_egl_exit();
+#  endif
 
   return false;
 }
@@ -7484,7 +7490,9 @@ void ghost_wl_dynload_libraries_exit()
 {
   wayland_dynload_client_exit();
   wayland_dynload_cursor_exit();
+#  ifdef WITH_OPENGL_BACKEND
   wayland_dynload_egl_exit();
+#  endif
 #  ifdef WITH_GHOST_WAYLAND_LIBDECOR
   wayland_dynload_libdecor_exit();
 #  endif
