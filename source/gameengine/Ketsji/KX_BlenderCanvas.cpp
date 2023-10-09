@@ -144,8 +144,20 @@ void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bo
     y = _y;
   }
 
-  r_x = x - m_viewportArea.GetLeft() - 1;
-  r_y = -y + m_viewportArea.GetTop() - 1;
+  /* Before https://github.com/UPBGE/upbge/commit/fc78182cc84ef45aa2f2d303a887419a39e9d2c2
+   * it was following commented code.
+   * but bug here: https://github.com/UPBGE/upbge/issues/1851
+  //r_x = x - m_viewportArea.GetLeft() - 1;
+  //r_y = -y + m_viewportArea.GetTop() - 1;
+
+  /* After, attempt to fix: */
+  wmEvent event;
+  int xy[2] = {x, y};
+  copy_v2_v2_int(event.xy, xy);
+  wm_cursor_position_from_ghost_screen_coords(m_win, &event.xy[0], &event.xy[1]);
+
+  r_x = event.xy[0] - m_viewportArea.GetLeft() - 1;
+  r_y = -event.xy[1] + m_viewportArea.GetTop() - 1;
 }
 
 void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
