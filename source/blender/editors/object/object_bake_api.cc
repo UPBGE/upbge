@@ -1916,13 +1916,13 @@ finally:
   return result;
 }
 
-static void bake_startjob(void *bkv, bool * /*stop*/, bool *do_update, float *progress)
+static void bake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
 {
   BakeAPIRender *bkr = (BakeAPIRender *)bkv;
 
   /* setup new render */
-  bkr->do_update = do_update;
-  bkr->progress = progress;
+  bkr->do_update = &worker_status->do_update;
+  bkr->progress = &worker_status->progress;
 
   RE_SetReports(bkr->render, bkr->reports);
 
