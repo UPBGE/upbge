@@ -39,7 +39,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_screen.hh"
 #include "BLI_task.h"
 #include "DEG_depsgraph_query.hh"

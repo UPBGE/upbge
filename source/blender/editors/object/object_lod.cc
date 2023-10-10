@@ -43,7 +43,7 @@
 #include "ED_screen.hh"
 
 #ifdef WITH_GAMEENGINE
-#  include "BKE_object.h"
+#  include "BKE_object.hh"
 
 #  include "RNA_enum_types.hh"
 #endif

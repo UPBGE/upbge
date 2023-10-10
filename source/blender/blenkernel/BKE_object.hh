@@ -681,3 +681,18 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data);
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob);
 
 bool BKE_object_supports_material_slots(Object *ob);
+
+/* UPBGE */
+void BKE_object_lod_add(Object *ob);
+void BKE_object_lod_sort(Object *ob);
+bool BKE_object_lod_remove(Object *ob, int level);
+void BKE_object_lod_update(Object *ob, const float camera_position[3]);
+bool BKE_object_lod_is_usable(Object *ob);
+Object *BKE_object_lod_meshob_get(Object *ob);
+//struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer);
+
+
+struct BulletSoftBody *copy_bulletsoftbody(const struct BulletSoftBody *sb, const int flag);
+void BKE_object_free_bulletsoftbody(Object *ob);
+
+/*********/

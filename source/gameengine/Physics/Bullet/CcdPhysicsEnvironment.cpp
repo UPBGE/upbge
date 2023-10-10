@@ -21,7 +21,7 @@
 
 #include "CcdPhysicsEnvironment.h"
 
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
