@@ -19,7 +19,7 @@
 #include "BKE_icons.h"
 #include "BKE_lib_id.h"
 #include "BKE_main_namemap.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -1095,7 +1095,7 @@ static ID *rna_ID_make_local(ID *self, Main *bmain, bool /*clear_proxy*/)
     BKE_lib_id_make_local(bmain, self, 0);
   }
   else if (ID_IS_OVERRIDE_LIBRARY_REAL(self)) {
-    BKE_lib_override_library_make_local(self);
+    BKE_lib_override_library_make_local(bmain, self);
   }
 
   ID *ret_id = self->newid ? self->newid : self;

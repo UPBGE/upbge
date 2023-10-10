@@ -30,7 +30,7 @@
 #include "BKE_multires.hh"
 #include "BKE_node.h"
 #include "BKE_node_tree_update.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_sca.hh"
 
 #include "DEG_depsgraph.hh"

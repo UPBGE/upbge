@@ -20,14 +20,13 @@ void main()
   uvec2 tile_coord = unpackUvec2x16(tiles_coord_buf[gl_WorkGroupID.x]);
   ivec2 texel = ivec2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
-  ivec2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
-                        uniform_buf.raytrace.resolution_bias;
-
-  float depth = texelFetch(depth_tx, texel_fullres, 0).r;
-  vec2 uv = (vec2(texel_fullres) + 0.5) * uniform_buf.raytrace.full_resolution_inv;
-
   vec4 ray_data = imageLoad(ray_data_img, texel);
   float ray_pdf_inv = ray_data.w;
+
+  if (ray_pdf_inv < 0.0) {
+    /* Ray destined to planar trace. */
+    return;
+  }
 
   if (ray_pdf_inv == 0.0) {
     /* Invalid ray or pixels without ray. Do not trace. */
@@ -35,6 +34,12 @@ void main()
     imageStore(ray_radiance_img, texel, vec4(0.0));
     return;
   }
+
+  ivec2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
+                        uniform_buf.raytrace.resolution_bias;
+
+  float depth = texelFetch(depth_tx, texel_fullres, 0).r;
+  vec2 uv = (vec2(texel_fullres) + 0.5) * uniform_buf.raytrace.full_resolution_inv;
 
   vec3 P = get_world_space_from_depth(uv, depth);
   vec3 V = cameraVec(P);

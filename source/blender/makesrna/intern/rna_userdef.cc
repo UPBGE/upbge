@@ -170,7 +170,7 @@ static const EnumPropertyItem rna_enum_preference_gpu_backend_items[] = {
 #  include "BKE_image.h"
 #  include "BKE_main.h"
 #  include "BKE_mesh_runtime.hh"
-#  include "BKE_object.h"
+#  include "BKE_object.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_preferences.h"
 #  include "BKE_screen.hh"
@@ -3960,17 +3960,20 @@ static void rna_def_userdef_theme_colorset(BlenderRNA *brna)
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Regular", "Color used for the surface of bones");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   prop = RNA_def_property(srna, "select", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "select");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Select", "Color used for selected bones");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   prop = RNA_def_property(srna, "active", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Active", "Color used for active bones");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   prop = RNA_def_property(srna, "show_colored_constraints", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", TH_WIRECOLOR_CONSTCOLS);

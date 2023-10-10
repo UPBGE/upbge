@@ -145,8 +145,6 @@ class DATA_PT_lightprobe_eevee_next(DataButtonsPanel, Panel):
             col.prop(probe, "grid_capture_emission")
 
         elif probe.type == 'CUBEMAP':
-            col = layout.column()
-            col.prop(probe, "resolution")
             sub = layout.column(align=True)
             sub.prop(probe, "clip_start", text="Clipping Start")
             sub.prop(probe, "clip_end", text="End")
@@ -155,6 +153,7 @@ class DATA_PT_lightprobe_eevee_next(DataButtonsPanel, Panel):
             col = layout.column()
             row = col.row()
             col.prop(probe, "clip_start", text="Clipping Offset")
+            col.prop(probe, "influence_distance", text="Distance")
             pass
         else:
             # Currently unsupported
