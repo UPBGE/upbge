@@ -39,6 +39,7 @@ struct View3DShading;
 struct WorkSpace;
 struct bContext;
 struct bScreen;
+struct uiBlock;
 struct uiLayout;
 struct uiList;
 struct wmGizmoMap;
@@ -338,6 +339,27 @@ enum {
   /** Don't search panels with this type during property search. */
   PANEL_TYPE_NO_SEARCH = (1 << 7),
 };
+
+typedef struct Panel_Runtime {
+  /* Applied to Panel.ofsx, but saved separately so we can track changes between redraws. */
+  int region_ofsx = 0;
+
+  /**
+   * Pointer for storing which data the panel corresponds to.
+   * Useful when there can be multiple instances of the same panel type.
+   *
+   * \note A panel and its sub-panels share the same custom data pointer.
+   * This avoids freeing the same pointer twice when panels are removed.
+   */
+  PointerRNA *custom_data_ptr = nullptr;
+
+  /* Pointer to the panel's block. Useful when changes to panel #uiBlocks
+   * need some context from traversal of the panel "tree". */
+  uiBlock *block = nullptr;
+
+  /* Non-owning pointer. The context is stored in the block. */
+  bContextStore *context = nullptr;
+} Panel_Runtime;
 
 /* #uiList types. */
 
