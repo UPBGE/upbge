@@ -1093,9 +1093,6 @@ int main(int argc,
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
 
-  /* Need to be after WM init so that userpref are loaded. */
-  RE_engines_init_experimental();
-
   /* Call again to set from userpreferences... */
   BLT_lang_set("");
 
