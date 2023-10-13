@@ -1657,6 +1657,14 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
     strwidth = BLF_width(fstyle->uifont_id, str, max_len);
   }
 
+  /* The following assert is meant to catch code changes that break this function's result, but
+   * some wriggle room is fine and needed. Just a couple pixels for large sizes and with some
+   * settings like "Full" hinting which can move features both left and right a pixel. We could
+   * probably reduce this to one pixel if we consolodate text output with length measuring. But
+   * our text string lengths include the last character's right-side bearing anyway, so a string
+   * can be longer by that amount and still fit visibly in the required space.
+   */
+
   BLI_assert((strwidth <= (okwidth + 2)) || (okwidth <= 0.0f));
 
   return strwidth;
@@ -4288,10 +4296,10 @@ static void widget_list_itembut(uiBut *but,
   if (but->type == UI_BTYPE_VIEW_ITEM) {
     uiButViewItem *item_but = static_cast<uiButViewItem *>(but);
     if (item_but->draw_width > 0) {
-      BLI_rcti_resize_x(&draw_rect, item_but->draw_width);
+      BLI_rcti_resize_x(&draw_rect, zoom * item_but->draw_width);
     }
     if (item_but->draw_height > 0) {
-      BLI_rcti_resize_y(&draw_rect, item_but->draw_height);
+      BLI_rcti_resize_y(&draw_rect, zoom * item_but->draw_height);
     }
   }
 

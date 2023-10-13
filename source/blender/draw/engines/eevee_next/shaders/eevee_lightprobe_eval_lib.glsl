@@ -13,7 +13,7 @@
 #pragma BLENDER_REQUIRE(eevee_lightprobe_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_spherical_harmonics_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_reflection_probe_eval_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
 
 /**
  * Return the brick coordinate inside the grid.
@@ -300,7 +300,6 @@ vec3 lightprobe_eval(
     LightProbeSample samp, ClosureReflection reflection, vec3 P, vec3 V, vec2 noise)
 {
   vec3 L = lightprobe_specular_dominant_dir(reflection.N, V, reflection.roughness);
-  /* TODO: Right now generate a dependency hell. */
   // vec3 L = ray_generate_direction(noise, reflection, V, pdf);
 
   float lod = lightprobe_roughness_to_lod(reflection.roughness);
