@@ -688,22 +688,6 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
-static void wm_init_reports(bContext *C)
-{
-  ReportList *reports = CTX_wm_reports(C);
-
-  BLI_assert(!reports || BLI_listbase_is_empty(&reports->list));
-
-  BKE_reports_init(reports, RPT_STORE);
-}
-
-static void wm_free_reports(bContext *C)
-{
-  ReportList *reports = CTX_wm_reports(C);
-
-  BKE_reports_clear(reports);
-}
-
 static void callback_clg_fatal(void *fp)
 {
   BLI_system_backtrace((FILE *)fp);
@@ -936,10 +920,6 @@ int main(int argc,
    * for scripts that do background processing with preview icons. */
   BKE_icons_init(BIFICONID_LAST_STATIC);
   BKE_preview_images_init();
-
-  /* reports cant be initialized before the wm,
-   * but keep before file reading, since that may report errors */
-  wm_init_reports(C);
 
   WM_msgbus_types_init();
 
@@ -1859,11 +1839,6 @@ int main(int argc,
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
   ED_preview_restart_queue_free();
   ED_assetlist_storage_exit();
-
-  if (CTX_wm_manager(C)) {
-    /* Before BKE_blender_free! - since the ListBases get freed there. */
-    wm_free_reports(C);
-  }
 
   SEQ_clipboard_free(); /* sequencer.c */
   BKE_tracking_clipboard_free();
