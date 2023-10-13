@@ -28,6 +28,7 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "ANIM_keyframing.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 
@@ -299,7 +300,7 @@ static int add_keyingset_button_exec(bContext *C, wmOperator *op)
 
     keyingflag |= ANIM_get_keyframing_flags(scene, false);
 
-    if (IS_AUTOKEY_FLAG(scene, XYZ2RGB)) {
+    if (blender::animrig::is_autokey_flag(scene, AUTOKEY_FLAG_XYZ2RGB)) {
       keyingflag |= INSERTKEY_XYZ2RGB;
     }
 
@@ -704,10 +705,12 @@ KeyingSet *ANIM_get_keyingset_for_autokeying(const Scene *scene, const char *tra
    * - use the active KeyingSet if defined (and user wants to use it for all autokeying),
    *   or otherwise key transforms only
    */
-  if (IS_AUTOKEY_FLAG(scene, ONLYKEYINGSET) && (scene->active_keyingset)) {
+  if (blender::animrig::is_autokey_flag(scene, AUTOKEY_FLAG_ONLYKEYINGSET) &&
+      (scene->active_keyingset))
+  {
     return ANIM_scene_get_active_keyingset(scene);
   }
-  if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL)) {
+  if (blender::animrig::is_autokey_flag(scene, AUTOKEY_FLAG_INSERTAVAIL)) {
     return ANIM_builtin_keyingset_get_named(nullptr, ANIM_KS_AVAILABLE_ID);
   }
   return ANIM_builtin_keyingset_get_named(nullptr, transformKSName);
@@ -1039,8 +1042,7 @@ static eInsertKeyFlags keyingset_apply_keying_flags(const eInsertKeyFlags base_f
   return result;
 }
 
-int ANIM_apply_keyingset(
-    bContext *C, ListBase *dsources, bAction *act, KeyingSet *ks, short mode, float cfra)
+int ANIM_apply_keyingset(bContext *C, ListBase *dsources, KeyingSet *ks, short mode, float cfra)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1142,20 +1144,21 @@ int ANIM_apply_keyingset(
     for (; i < arraylen; i++) {
       /* action to take depends on mode */
       if (mode == MODIFYKEY_MODE_INSERT) {
-        num_channels += insert_keyframe(bmain,
-                                        reports,
-                                        ksp->id,
-                                        act,
-                                        groupname,
-                                        ksp->rna_path,
-                                        i,
-                                        &anim_eval_context,
-                                        eBezTriple_KeyframeType(keytype),
-                                        &nla_cache,
-                                        kflag2);
+        num_channels += blender::animrig::insert_keyframe(bmain,
+                                                          reports,
+                                                          ksp->id,
+                                                          nullptr,
+                                                          groupname,
+                                                          ksp->rna_path,
+                                                          i,
+                                                          &anim_eval_context,
+                                                          eBezTriple_KeyframeType(keytype),
+                                                          &nla_cache,
+                                                          kflag2);
       }
       else if (mode == MODIFYKEY_MODE_DELETE) {
-        num_channels += delete_keyframe(bmain, reports, ksp->id, act, ksp->rna_path, i, cfra);
+        num_channels += blender::animrig::delete_keyframe(
+            bmain, reports, ksp->id, nullptr, ksp->rna_path, i, cfra);
       }
     }
 

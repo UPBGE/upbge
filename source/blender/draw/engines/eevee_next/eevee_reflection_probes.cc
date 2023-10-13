@@ -214,7 +214,7 @@ void ReflectionProbeModule::begin_sync()
     pass.shader_set(instance_.shaders.static_shader_get(REFLECTION_PROBE_SELECT));
     pass.push_constant("reflection_probe_count", &reflection_probe_count_);
     pass.bind_ssbo("reflection_probe_buf", &data_buf_);
-    instance_.irradiance_cache.bind_resources(&pass);
+    instance_.irradiance_cache.bind_resources(pass);
     pass.dispatch(&dispatch_probe_select_);
     pass.barrier(GPU_BARRIER_UNIFORM);
   }
@@ -293,7 +293,9 @@ void ReflectionProbeModule::sync_object(Object *ob, ObjectHandle &ob_handle)
   }
 
   bool use_custom_parallax = (light_probe.flag & LIGHTPROBE_FLAG_CUSTOM_PARALLAX) != 0;
-  float parallax_distance = use_custom_parallax ? light_probe.distpar : light_probe.distinf;
+  float parallax_distance = use_custom_parallax ?
+                                max_ff(light_probe.distpar, light_probe.distinf) :
+                                light_probe.distinf;
   float influence_distance = light_probe.distinf;
   float influence_falloff = light_probe.falloff;
   probe.influence_shape = (light_probe.attenuation_type == LIGHTPROBE_SHAPE_BOX) ? SHAPE_CUBOID :

@@ -3326,8 +3326,7 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
         continue;
       }
     }
-    if (!U.experimental.use_grease_pencil_version3 &&
-        item->value == ATTR_DOMAIN_GREASE_PENCIL_LAYER) {
+    if (!U.experimental.use_grease_pencil_version3 && item->value == ATTR_DOMAIN_LAYER) {
       continue;
     }
     if (item->value == ATTR_DOMAIN_POINT &&

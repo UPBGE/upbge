@@ -37,6 +37,8 @@
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
 
+#include "ANIM_keyframing.hh"
+
 #include "armature_intern.h"
 
 /* *********************************************** */
@@ -261,7 +263,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
       continue;
     }
 
-    if (autokeyframe_cfra_can_key(scene, &ob->id)) {
+    if (blender::animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
       ob->id.tag |= LIB_TAG_DOIT;
       skip = false;
     }
@@ -292,7 +294,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
   }
 
   /* insert keyframes for all relevant bones in one go */
-  ANIM_apply_keyingset(C, &dsources, nullptr, ks, MODIFYKEY_MODE_INSERT, cframe);
+  ANIM_apply_keyingset(C, &dsources, ks, MODIFYKEY_MODE_INSERT, cframe);
   BLI_freelistN(&dsources);
 
   /* do the bone paths
