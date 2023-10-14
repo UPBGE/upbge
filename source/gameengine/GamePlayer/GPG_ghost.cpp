@@ -640,7 +640,7 @@ static BlendFileData *load_game_data(const char *progname,
     }
   }
 
-  BKE_reports_clear(&reports);
+  BKE_reports_free(&reports);
 
   return bfd;
 }

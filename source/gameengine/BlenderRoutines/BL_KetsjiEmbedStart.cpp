@@ -81,7 +81,7 @@ static BlendFileData *load_game_data(const char *filename)
     BKE_reports_print(&reports, RPT_ERROR);
   }
 
-  BKE_reports_clear(&reports);
+  BKE_reports_free(&reports);
 
   return bfd;
 }
