@@ -98,7 +98,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   search_link_ops_for_declarations(params, declaration.outputs.as_span().take_front(1));
 
   const bNodeType &node_type = params.node_type();
-  const std::optional<eCustomDataType> type = node_data_type_to_custom_data_type(
+  const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(
       eNodeSocketDatatype(params.other_socket().type));
   if (type && *type != CD_PROP_STRING) {
     if (params.in_out() == SOCK_OUT) {
@@ -199,22 +199,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   switch (data_type) {
     case CD_PROP_FLOAT:
-      field = params.get_input<Field<float>>(input_identifier);
+      field = params.extract_input<GField>(input_identifier);
       break;
     case CD_PROP_FLOAT3:
-      field = params.get_input<Field<float3>>(input_identifier);
+      field = params.extract_input<GField>(input_identifier);
       break;
     case CD_PROP_COLOR:
-      field = params.get_input<Field<ColorGeometry4f>>(input_identifier);
+      field = params.extract_input<GField>(input_identifier);
       break;
     case CD_PROP_BOOL:
-      field = params.get_input<Field<bool>>(input_identifier);
+      field = params.extract_input<GField>(input_identifier);
       break;
     case CD_PROP_INT32:
-      field = params.get_input<Field<int>>(input_identifier);
+      field = params.extract_input<GField>(input_identifier);
       break;
     case CD_PROP_QUATERNION:
-      field = params.get_input<Field<math::Quaternion>>(input_identifier);
+      field = params.extract_input<GField>(input_identifier);
       break;
     default:
       break;
