@@ -968,7 +968,7 @@ class RENDER_PT_eevee_next_sampling_viewport(RenderButtonsPanel, Panel):
         col.prop(props, "taa_samples", text="Samples")
         col.prop(props, "use_taa_reprojection", text="Temporal Reprojection")
 
-        # Add sss sample count here
+        # Add SSS sample count here.
 
 
 class RENDER_PT_eevee_next_sampling_render(RenderButtonsPanel, Panel):
@@ -991,7 +991,7 @@ class RENDER_PT_eevee_next_sampling_render(RenderButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(props, "taa_render_samples", text="Samples")
 
-        # Add sss sample count here
+        # Add SSS sample count here.
 
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):

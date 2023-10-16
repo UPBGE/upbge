@@ -52,6 +52,18 @@
 /* Logging, use `ghost.wl.*` prefix. */
 #include "CLG_log.h"
 
+/**
+ * NOTE(@ideasman42): Workaround a bug with fractional scaling with LIBDECOR.
+ * When fractional scaling is used the GHOST window uses a buffer-scale of 1
+ * with the actual scale compensated for by a #wp_viewport.
+ *
+ * This causes various glitches between the GHOST window and LIBDECOR.
+ * While this hack doesn't resolve all of them it does fix the problem where a new windows
+ * decorations don't match the window, sometimes causing a delayed decrease in the windows size.
+ * See #109194 for related issues.
+ */
+#define USE_LIBDECOR_FRACTIONAL_SCALE_HACK
+
 static const xdg_activation_token_v1_listener *xdg_activation_listener_get();
 
 static constexpr size_t base_dpi = 96;
@@ -519,6 +531,20 @@ static bool gwl_window_viewport_set(GWL_Window *win,
     else {
       wl_surface_commit(win->wl.surface);
     }
+
+#if defined(WITH_GHOST_WAYLAND_LIBDECOR) && defined(USE_LIBDECOR_FRACTIONAL_SCALE_HACK)
+    /* NOTE(@ideasman42): it's important this only runs when enabling the viewport
+     * since there is a bug with LIBDECOR not supporting the switch from non-fractional
+     * to fractional scaled surfaces. */
+    if (use_libdecor) {
+      WGL_LibDecor_Window &decor = *win->libdecor;
+      libdecor_state *state = libdecor_state_new(
+          gwl_window_fractional_from_viewport_round(win->frame, win->frame.size[0]),
+          gwl_window_fractional_from_viewport_round(win->frame, win->frame.size[1]));
+      libdecor_frame_commit(decor.frame, state, nullptr);
+      libdecor_state_free(state);
+    }
+#endif
   }
 
   return true;
@@ -1215,9 +1241,9 @@ static void libdecor_frame_handle_commit(libdecor_frame * /*frame*/, void *data)
 
 /* NOTE: cannot be `const` because of the LIBDECOR API. */
 static libdecor_frame_interface libdecor_frame_iface = {
-    libdecor_frame_handle_configure,
-    libdecor_frame_handle_close,
-    libdecor_frame_handle_commit,
+    /*configure*/ libdecor_frame_handle_configure,
+    /*close*/ libdecor_frame_handle_close,
+    /*commit*/ libdecor_frame_handle_commit,
 };
 
 #  undef LOG
@@ -1390,14 +1416,18 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
    * known once #surface_enter callback runs (which isn't guaranteed to run at all).
    *
    * Using the maximum scale is best as it results in the window first being smaller,
-   * avoiding a large window flashing before it's made smaller. */
-  int fractional_scale = 0;
+   * avoiding a large window flashing before it's made smaller.
+   *
+   * For fractional scaling the buffer will eventually be 1. Setting it to 1 now
+   * (to avoid window size rounding and buffer size switching) has some down-sides.
+   * It means the window will be drawn larger for a moment then smaller once fractional scaling
+   * is detected and enabled. Unfortunately, it doesn't seem possible to receive the
+   * #wp_fractional_scale_v1_listener::preferred_scale information before the window is created
+   * So leave the buffer scaled up because there is no *guarantee* the fractional scaling support
+   * will run which could result in an incorrect buffer scale.
+   * Leaving the buffer scale is necessary for #USE_LIBDECOR_FRACTIONAL_SCALE_HACK to work too. */
   window_->frame.buffer_scale = outputs_uniform_scale_or_default(
-      system_->outputs_get(), 1, &fractional_scale);
-
-  if (fractional_scale / FRACTIONAL_DENOMINATOR != window_->frame.buffer_scale) {
-    window_->frame.buffer_scale = 1;
-  }
+      system_->outputs_get(), 1, nullptr);
   window_->frame_pending.buffer_scale = window_->frame.buffer_scale;
 
   window_->frame.size[0] = int32_t(width);

@@ -11056,8 +11056,8 @@ static int ui_handle_menu_event(bContext *C,
               (event->flag & WM_EVENT_IS_REPEAT) == 0)
           {
 
-            /* Menu search if spacebar or SearchOnKeyPress. */
-            MenuType *mt = WM_menutype_find(menu->menu_idname, false);
+            /* Menu search if space-bar or #MenuTypeFlag::SearchOnKeyPress. */
+            MenuType *mt = WM_menutype_find(menu->menu_idname, true);
             if ((mt && bool(mt->flag & MenuTypeFlag::SearchOnKeyPress)) ||
                 event->type == EVT_SPACEKEY) {
               if ((level != 0) && (but == nullptr || !menu->menu_idname[0])) {
