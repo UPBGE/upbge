@@ -403,7 +403,7 @@ void KX_GameObject::ReplicateBlenderObject()
             }
           }
         }
-        GetScene()->ResetLastReplicatedParentObject();
+        //GetScene()->ResetLastReplicatedParentObject();
       }
     }
 
