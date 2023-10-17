@@ -392,27 +392,6 @@ void KX_GameObject::ReplicateBlenderObject()
       }
     }
 
-    if (ob->parent) {
-      if (GetScene()->GetLastReplicatedParentObject()) {
-        newob->parent = GetScene()->GetLastReplicatedParentObject();
-        if (ob->parent && ob->parent->type == OB_ARMATURE) {
-          ModifierData *mod;
-          for (mod = (ModifierData *)newob->modifiers.first; mod; mod = mod->next) {
-            if (mod->type == eModifierType_Armature) {
-              ((ArmatureModifierData *)mod)->object = newob->parent;
-            }
-          }
-        }
-        //GetScene()->ResetLastReplicatedParentObject();
-      }
-    }
-
-    // To check again
-    const NodeList &children = GetSGNode()->GetSGChildren();
-    if (children.size() > 0) {
-      GetScene()->SetLastReplicatedParentObject(newob);
-    }
-
     DEG_relations_tag_update(bmain);
 
     m_pBlenderObject = newob;

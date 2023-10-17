@@ -122,7 +122,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
 
  protected:
   /***************EEVEE INTEGRATION*****************/
-  Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
   std::vector<struct Collection *> m_overlay_collections;
   struct GPUViewport *m_currentGPUViewport;
@@ -338,10 +337,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                               bool is_overlay_pass,
                               bool is_last_render_pass);
   void RenderAfterCameraSetupImageRender(KX_Camera *cam, const struct rcti *window);
-
-  void SetLastReplicatedParentObject(Object *ob);
-  Object *GetLastReplicatedParentObject();
-  void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
   void ReinitBlenderContextVariables();
   void ConfigureOverlays();

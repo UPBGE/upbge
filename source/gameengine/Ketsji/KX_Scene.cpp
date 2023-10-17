@@ -136,7 +136,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : KX_PythonProxy(),
-      m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
@@ -457,21 +456,6 @@ KX_Scene::~KX_Scene()
     Py_CLEAR(m_drawCallbacks[i]);
   }
 #endif
-}
-
-void KX_Scene::SetLastReplicatedParentObject(Object *ob)
-{
-  m_lastReplicatedParentObject = ob;
-}
-
-Object *KX_Scene::GetLastReplicatedParentObject()
-{
-  return m_lastReplicatedParentObject;
-}
-
-void KX_Scene::ResetLastReplicatedParentObject()
-{
-  m_lastReplicatedParentObject = nullptr;
 }
 
 /*******************EEVEE INTEGRATION******************/
@@ -1981,6 +1965,24 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
   }
 }
 
+static void remap_parents_recursive(KX_GameObject *parent)
+{
+  std::vector<KX_GameObject *>children = parent->GetChildren();
+  for (KX_GameObject *child : children) {
+    child->GetBlenderObject()->parent = parent->GetBlenderObject();
+    if (parent->GetBlenderObject()->type == OB_ARMATURE) {
+      ModifierData *mod;
+      for (mod = (ModifierData *)child->GetBlenderObject()->modifiers.first; mod; mod = mod->next)
+      {
+        if (mod->type == eModifierType_Armature) {
+          ((ArmatureModifierData *)mod)->object = child->GetBlenderObject()->parent;
+        }
+      }
+    }
+    remap_parents_recursive(child);
+  }
+}
+
 KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
                                           KX_GameObject *referenceobject,
                                           float lifespan)
@@ -2076,6 +2078,8 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   for (KX_GameObject *gameobj : duplilist) {
     DupliGroupRecurse(gameobj, 0);
   }
+
+  remap_parents_recursive(replica);
 
   //	don't release replica here because we are returning it, not done with it...
   return replica;
