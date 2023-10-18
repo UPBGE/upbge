@@ -665,6 +665,7 @@ static void nearest_world_tree_co(BVHTree *tree,
                                   BVHTree_NearestPointCallback nearest_cb,
                                   void *treedata,
                                   const float3 &co,
+                                  const blender::float4x4 &obmat,
                                   BVHTreeNearest *r_nearest)
 {
   r_nearest->index = -1;
@@ -673,28 +674,32 @@ static void nearest_world_tree_co(BVHTree *tree,
 
   BLI_bvhtree_find_nearest(tree, co, r_nearest, nearest_cb, treedata);
 
-  float diff[3];
-  sub_v3_v3v3(diff, co, r_nearest->co);
-  r_nearest->dist_sq = len_squared_v3(diff);
+  float3 vec = float3(r_nearest->co) - co;
+  r_nearest->dist_sq = math::length(math::transform_direction(obmat, vec));
 }
 
 bool nearest_world_tree(SnapObjectContext *sctx,
                         BVHTree *tree,
                         BVHTree_NearestPointCallback nearest_cb,
-                        const float3 &init_co,
-                        const float3 &curr_co,
+                        const blender::float4x4 &obmat,
                         void *treedata,
                         BVHTreeNearest *r_nearest)
 {
+  float4x4 imat = math::invert(obmat);
+  float3 init_co = math::transform_point(imat, sctx->runtime.init_co);
+  float3 curr_co = math::transform_point(imat, sctx->runtime.curr_co);
+
   BVHTreeNearest nearest{};
+  float original_distance;
   if (sctx->runtime.params.keep_on_same_target) {
-    nearest_world_tree_co(tree, nearest_cb, treedata, init_co, &nearest);
+    nearest_world_tree_co(tree, nearest_cb, treedata, init_co, obmat, &nearest);
+    original_distance = nearest.dist_sq;
   }
   else {
     /* NOTE: when `params->face_nearest_steps == 1`, the return variables of function below contain
      * the answer.  We could return immediately after updating r_loc, r_no, r_index, but that would
      * also complicate the code. Foregoing slight optimization for code clarity. */
-    nearest_world_tree_co(tree, nearest_cb, treedata, curr_co, &nearest);
+    nearest_world_tree_co(tree, nearest_cb, treedata, curr_co, obmat, &nearest);
   }
 
   if (r_nearest->dist_sq <= nearest.dist_sq) {
@@ -710,11 +715,14 @@ bool nearest_world_tree(SnapObjectContext *sctx,
   float3 co = init_co;
   for (int i = 0; i < sctx->runtime.params.face_nearest_steps; i++) {
     co += delta;
-    nearest_world_tree_co(tree, nearest_cb, treedata, co, &nearest);
+    nearest_world_tree_co(tree, nearest_cb, treedata, co, obmat, &nearest);
     co = nearest.co;
   }
 
   *r_nearest = nearest;
+  if (sctx->runtime.params.keep_on_same_target) {
+    r_nearest->dist_sq = original_distance;
+  }
   return true;
 }
 
@@ -899,58 +907,59 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
                              bool is_object_active,
                              bool use_hide)
 {
-  eSnapMode retval = SCE_SNAP_TO_NONE;
-
   if (ob_data == nullptr && (ob_eval->type == OB_MESH)) {
-    retval = snap_object_editmesh(
+    return snap_object_editmesh(
         sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
   }
-  else if (ob_data == nullptr) {
-    retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+
+  if (ob_data == nullptr) {
+    return snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
   }
-  else {
-    switch (ob_eval->type) {
-      case OB_MESH: {
-        if (ob_eval->dt == OB_BOUNDBOX) {
-          /* Do not snap to objects that are in bounding box display mode */
-          return SCE_SNAP_TO_NONE;
-        }
-        if (GS(ob_data->name) == ID_ME) {
-          retval = snap_object_mesh(
-              sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
-        }
-        break;
-      }
-      case OB_ARMATURE:
-        retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
-        break;
-      case OB_CURVES_LEGACY:
-      case OB_SURF:
-        if (ob_eval->type == OB_CURVES_LEGACY || BKE_object_is_in_editmode(ob_eval)) {
-          retval = snapCurve(sctx, ob_eval, obmat);
-          if (sctx->runtime.params.edit_mode_type != SNAP_GEOM_FINAL) {
-            break;
-          }
-        }
-        ATTR_FALLTHROUGH;
-      case OB_FONT: {
-        const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
-        if (mesh_eval) {
-          retval |= snap_object_mesh(
-              sctx, ob_eval, (ID *)mesh_eval, obmat, sctx->runtime.snap_to_flag, use_hide);
-        }
-        break;
-      }
-      case OB_EMPTY:
-      case OB_GPENCIL_LEGACY:
-      case OB_LAMP:
-        retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-        break;
-      case OB_CAMERA:
-        retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-        break;
+
+  if (ob_eval->dt == OB_BOUNDBOX) {
+    /* Do not snap to objects that are in bounding box display mode */
+    return SCE_SNAP_TO_NONE;
+  }
+
+  if (GS(ob_data->name) == ID_ME) {
+    return snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
+  }
+
+  eSnapMode retval = SCE_SNAP_TO_NONE;
+  switch (ob_eval->type) {
+    case OB_MESH: {
+      break;
     }
+    case OB_ARMATURE:
+      retval = snapArmature(sctx, ob_eval, obmat, is_object_active);
+      break;
+    case OB_CURVES_LEGACY:
+    case OB_SURF:
+      if (ob_eval->type == OB_CURVES_LEGACY || BKE_object_is_in_editmode(ob_eval)) {
+        retval = snapCurve(sctx, ob_eval, obmat);
+        if (sctx->runtime.params.edit_mode_type != SNAP_GEOM_FINAL) {
+          break;
+        }
+      }
+      ATTR_FALLTHROUGH;
+    case OB_FONT: {
+      const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+      if (mesh_eval) {
+        retval |= snap_object_mesh(
+            sctx, ob_eval, (ID *)mesh_eval, obmat, sctx->runtime.snap_to_flag, use_hide);
+      }
+      break;
+    }
+    case OB_EMPTY:
+    case OB_GPENCIL_LEGACY:
+    case OB_LAMP:
+      retval = snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+      break;
+    case OB_CAMERA:
+      retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+      break;
   }
+
   return retval;
 }
 
