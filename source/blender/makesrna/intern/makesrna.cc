@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 #include "MEM_guardedalloc.h"
 
@@ -645,6 +646,12 @@ static void rna_float_print(FILE *f, float num)
   }
   else if ((fabsf(num) < float(INT64_MAX)) && (int64_t(num) == num)) {
     fprintf(f, "%.1ff", num);
+  }
+  else if (num == std::numeric_limits<float>::infinity()) {
+    fprintf(f, "std::numeric_limits<float>::infinity()");
+  }
+  else if (num == -std::numeric_limits<float>::infinity()) {
+    fprintf(f, "-std::numeric_limits<float>::infinity()");
   }
   else {
     fprintf(f, "%.10ff", num);
@@ -4819,6 +4826,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
   fprintf(f, "#include <float.h>\n");
   fprintf(f, "#include <stdio.h>\n");
   fprintf(f, "#include <limits.h>\n");
+  fprintf(f, "#include <limits>\n");
   fprintf(f, "#include <string.h>\n\n");
   fprintf(f, "#include <stddef.h>\n\n");
 

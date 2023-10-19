@@ -3847,7 +3847,11 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
   data->undo_stack_text = nullptr;
 
 #ifdef WITH_INPUT_IME
-  if (win->ime_data) {
+  /* See #wm_window_IME_end code-comments for details. */
+#  if defined(WIN32) || defined(__APPLE__)
+  if (win->ime_data)
+#  endif
+  {
     ui_textedit_ime_end(win, but);
   }
 #endif
@@ -4260,13 +4264,15 @@ static void ui_do_but_textedit(
   }
 
 #ifdef WITH_INPUT_IME
-  if (ELEM(event->type, WM_IME_COMPOSITE_START, WM_IME_COMPOSITE_EVENT)) {
+  if (event->type == WM_IME_COMPOSITE_START) {
     changed = true;
-
-    if (event->type == WM_IME_COMPOSITE_START && but->selend > but->selsta) {
+    if (but->selend > but->selsta) {
       ui_textedit_delete_selection(but, data);
     }
-    if (event->type == WM_IME_COMPOSITE_EVENT && ime_data->result_len) {
+  }
+  else if (event->type == WM_IME_COMPOSITE_EVENT) {
+    changed = true;
+    if (ime_data->result_len) {
       if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER) &&
           STREQ(ime_data->str_result, "\xE3\x80\x82"))
       {

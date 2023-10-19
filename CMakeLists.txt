@@ -528,7 +528,7 @@ Boost uses ICU library (required for linking with static Boost built with libicu
 endif()
 
 # Misc
-if(WIN32 OR APPLE)
+if(WIN32 OR APPLE OR ((UNIX AND (NOT HAIKU)) AND WITH_GHOST_WAYLAND))
   option(WITH_INPUT_IME "Enable Input Method Editor (IME) for complex Asian character input" ON)
 else()
   set(WITH_INPUT_IME OFF)
@@ -664,7 +664,7 @@ if(NOT APPLE)
     gfx900 gfx90c gfx902
     gfx1010 gfx1011 gfx1012
     gfx1030 gfx1031 gfx1032 gfx1034 gfx1035 gfx1036
-    gfx1100 gfx1101 gfx1102
+    gfx1100 gfx1101 gfx1102 gfx1103
     CACHE STRING "AMD HIP architectures to build binaries for"
   )
   mark_as_advanced(WITH_CYCLES_DEVICE_HIP)
@@ -863,6 +863,12 @@ Build and link against address sanitizer (only for Debug & RelWithDebInfo target
   OFF
 )
 mark_as_advanced(WITH_COMPILER_ASAN)
+option(WITH_COMPILER_ASAN_EXTERN "\
+Build `extern` dependencies with address sanitizer when WITH_COMPILER_ASAN is on. \
+Can cause linking issues due to too large binary size."
+  OFF
+)
+mark_as_advanced(WITH_EXTERN_ASAN)
 
 # GCCFilter, if appliciable
 if(CMAKE_COMPILER_IS_GNUCC)
