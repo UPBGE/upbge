@@ -2973,8 +2973,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   // Get bounds information
   float bounds_center[3], bounds_extends[3];
-  const BoundBox *bb = BKE_object_boundbox_get(blenderobject);
-  if (bb == nullptr) {
+  const std::optional<BoundBox> bb = BKE_object_boundbox_get(blenderobject);
+  if (bb == std::nullopt) {
     bounds_center[0] = bounds_center[1] = bounds_center[2] = 0.0f;
     bounds_extends[0] = bounds_extends[1] = bounds_extends[2] = 1.0f;
   }
