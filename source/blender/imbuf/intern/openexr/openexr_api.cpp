@@ -66,7 +66,7 @@
 #include <openexr_api.h>
 
 #if defined(WIN32)
-#  include "utfconv.h"
+#  include "utfconv.hh"
 #  include <io.h>
 #else
 #  include <unistd.h>
@@ -78,7 +78,7 @@
 #include "BLI_fileops.h"
 #include "BLI_math_color.h"
 #include "BLI_mmap.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 
 #include "BKE_idprop.h"

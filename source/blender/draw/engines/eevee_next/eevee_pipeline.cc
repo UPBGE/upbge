@@ -191,7 +191,9 @@ void ShadowPipeline::sync()
     }
     inst_.bind_uniform_data(&pass);
     inst_.sampling.bind_resources(pass);
-    surface_ps_ = &pass;
+    surface_double_sided_ps_ = &pass.sub("Shadow.Surface.Double-Sided");
+    surface_single_sided_ps_ = &pass.sub("Shadow.Surface.Single-Sided");
+    surface_single_sided_ps_->state_set(state | DRW_STATE_CULL_BACK);
   }
 
   if (shadow_update_tbdr) {
@@ -214,9 +216,12 @@ void ShadowPipeline::sync()
   }
 }
 
-PassMain::Sub *ShadowPipeline::surface_material_add(GPUMaterial *gpumat)
+PassMain::Sub *ShadowPipeline::surface_material_add(::Material *material, GPUMaterial *gpumat)
 {
-  return &surface_ps_->sub(GPU_material_get_name(gpumat));
+  PassMain::Sub *pass = (material->blend_flag & MA_BL_CULL_BACKFACE_SHADOW) ?
+                            surface_single_sided_ps_ :
+                            surface_double_sided_ps_;
+  return &pass->sub(GPU_material_get_name(gpumat));
 }
 
 void ShadowPipeline::render(View &view)
@@ -326,6 +331,11 @@ PassMain::Sub *ForwardPipeline::prepass_opaque_add(::Material *blender_mat,
                                           prepass_single_sided_static_ps_) :
                             (has_motion ? prepass_double_sided_moving_ps_ :
                                           prepass_double_sided_static_ps_);
+
+  /* If material is fully additive or transparent, we can skip the opaque prepass. */
+  /* TODO(fclem): To skip it, we need to know if the transparent BSDF is fully white AND if there
+   * is no mix shader (could do better constant folding but that's expensive). */
+
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
@@ -1291,7 +1301,7 @@ PassMain::Sub *CapturePipeline::surface_material_add(::Material *blender_mat, GP
   GPUPass *gpupass = GPU_material_get_pass(gpumat);
   sub_pass.shader_set(GPU_pass_shader_get(gpupass));
   sub_pass.push_constant("is_double_sided",
-                         !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE_PROBE));
+                         !(blender_mat->blend_flag & MA_BL_LIGHTPROBE_VOLUME_DOUBLE_SIDED));
   return &sub_pass;
 }
 

@@ -13,6 +13,8 @@
 #  include <shlwapi.h>
 #  include <stdio.h>
 #  include <stdlib.h>
+#  define COBJMACROS /* Remove this when converting to C++ */
+#  include <dxgi.h>
 
 #  include "MEM_guardedalloc.h"
 
@@ -23,8 +25,8 @@
 #  include "BLI_utildefines.h"
 #  include "BLI_winstuff.h"
 
-#  include "utf_winfunc.h"
-#  include "utfconv.h"
+#  include "utf_winfunc.hh"
+#  include "utfconv.hh"
 
 /* FILE_MAXDIR + FILE_MAXFILE */
 
@@ -449,6 +451,35 @@ void BLI_windows_get_default_root_dir(char root[4])
       }
     }
   }
+}
+
+bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
+                                            long long *r_driverVersion)
+{
+  IDXGIFactory *pFactory = NULL;
+  IDXGIAdapter *pAdapter = NULL;
+  if (CreateDXGIFactory(__uuidof(IDXGIFactory), (void **)&pFactory) == S_OK) {
+    for (UINT i = 0; pFactory->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+      LARGE_INTEGER version;
+      if (pAdapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &version) == S_OK) {
+        DXGI_ADAPTER_DESC desc;
+        if (pAdapter->GetDesc(&desc) == S_OK) {
+          if (wcsstr(desc.Description, deviceSubString)) {
+            *r_driverVersion = version.QuadPart;
+
+            pAdapter->Release();
+            pFactory->Release();
+            return true;
+          }
+        }
+      }
+
+      pAdapter->Release();
+    }
+    pFactory->Release();
+  }
+
+  return false;
 }
 
 #else
