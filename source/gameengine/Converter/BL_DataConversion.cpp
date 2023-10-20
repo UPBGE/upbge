@@ -411,38 +411,11 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
-  float3 *loop_nors_dst = nullptr;
+  blender::Span<float3> loop_nors_dst;
   float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->loop_data, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
-    loop_nors_dst = static_cast<float3 *>(CustomData_add_layer(
-        &final_me->loop_data, CD_NORMAL, CD_SET_DEFAULT, final_me->totloop));
-    CustomData_set_layer_flag(&final_me->loop_data, CD_NORMAL, CD_FLAG_TEMPORARY);
-
-    const bool use_split_nors = (final_me->flag & ME_AUTOSMOOTH) != 0;
-    const float split_angle = final_me->smoothresh;
-    const bool *sharp_edges = static_cast<const bool *>(
-        CustomData_get_layer_named(&final_me->edge_data, CD_PROP_BOOL, "sharp_edge"));
-    const bool *sharp_faces = static_cast<const bool *>(
-        CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
-    const blender::short2 *clnors = static_cast<const blender::short2 *>(
-        CustomData_get_layer(&final_me->loop_data, CD_CUSTOMLOOPNORMAL));
-
-    bke::mesh::normals_calc_loop(final_me->vert_positions(),
-                                 final_me->edges(),
-                                 final_me->faces(),
-                                 final_me->corner_verts(),
-                                 final_me->corner_edges(),
-                                 {},
-                                 final_me->vert_normals(),
-                                 final_me->face_normals(),
-                                 sharp_edges,
-                                 sharp_faces,
-                                 clnors,
-                                 use_split_nors,
-                                 split_angle,
-                                 nullptr,
-                                 {loop_nors_dst, final_me->corner_verts().size()});
+    loop_nors_dst = final_me->corner_normals();
   }
 
   float(*tangent)[4] = nullptr;

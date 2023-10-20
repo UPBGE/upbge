@@ -139,7 +139,7 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #  if defined(_MSC_VER) && defined(_M_X64)
 #    include <math.h> /* needed for _set_FMA3_enable */
 #  endif
-#  include "utfconv.h"
+#  include "utfconv.hh"
 #endif  // WIN32
 
 #ifdef WITH_SDL_DYNLOAD

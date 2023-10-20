@@ -26,7 +26,7 @@
 
 #include "BLI_path_util.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
 #include "DNA_python_proxy_types.h"
 #include "DNA_windowmanager_types.h"
