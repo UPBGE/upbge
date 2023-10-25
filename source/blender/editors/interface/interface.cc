@@ -719,7 +719,7 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
   else if (line->flag & UI_SELECT)
     rgba_float_args_set_ch(color, 120, 120, 120, 255);
   else if (highlightActiveLines &&
-           ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
+           ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER)))
     UI_GetThemeColor4fv(TH_TEXT_HI, color);
   else
     rgba_float_args_set_ch(color, 100, 100, 100, 255);
@@ -741,7 +741,7 @@ static void ui_draw_links(uiBlock *block)
   for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
     if (but->type == UI_BTYPE_LINK && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
-        if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
+        if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (line->deactive)
             ui_draw_linkline(line, 0, true);
         }
@@ -758,7 +758,7 @@ static void ui_draw_links(uiBlock *block)
   for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
     if (but->type == UI_BTYPE_LINK && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
-        if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
+        if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (!line->deactive)
             ui_draw_linkline(line, 0, false);
         }
@@ -772,7 +772,7 @@ static void ui_draw_links(uiBlock *block)
     for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
       if (but->type == UI_BTYPE_LINK && but->link) {
         for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
-          if ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))
+          if ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER))
             ui_draw_linkline(line, !found_selectline, false);
         }
       }
