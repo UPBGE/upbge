@@ -186,7 +186,7 @@ void ED_view3d_stop_render_preview(wmWindowManager *wm, ARegion *region)
   }
 
   /* A bit overkill but this make sure the viewport is reset completely. (fclem) */
-  WM_draw_region_free(region, false);
+  WM_draw_region_free(region);
 }
 
 void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area)
@@ -237,6 +237,7 @@ static SpaceLink *view3d_create(const ScrArea * /*area*/, const Scene *scene)
   BLI_addtail(&v3d->regionbase, region);
   region->regiontype = RGN_TYPE_ASSET_SHELF;
   region->alignment = RGN_ALIGN_BOTTOM;
+  region->flag |= RGN_FLAG_HIDDEN;
 
   /* asset shelf header */
   region = MEM_cnew<ARegion>("asset shelf header for view3d");
