@@ -268,16 +268,13 @@ static void do_draw_face_sets_brush_bmesh(Object *ob, const Brush *brush, PBVHNo
       continue;
     }
 
-    bool is_face_fully_covered = true;
-
     float3 face_center;
     BM_face_calc_center_median(f, face_center);
 
     const BMLoop *l_iter = f->l_first = BM_FACE_FIRST_LOOP(f);
     do {
       if (!sculpt_brush_test_sq_fn(&test, l_iter->v->co)) {
-        is_face_fully_covered = false;
-        break;
+        continue;
       }
 
       BMVert *vert = l_iter->v;
@@ -304,17 +301,15 @@ static void do_draw_face_sets_brush_bmesh(Object *ob, const Brush *brush, PBVHNo
                                                       &automask_data);
 
       if (fade <= FACE_SET_BRUSH_MIN_FADE) {
-        is_face_fully_covered = false;
-        break;
+        continue;
       }
 
-    } while ((l_iter = l_iter->next) != f->l_first);
-
-    if (is_face_fully_covered) {
       int &fset = *static_cast<int *>(POINTER_OFFSET(f->head.data, cd_offset));
       fset = ss->cache->paint_face_set;
       changed = true;
-    }
+      break;
+
+    } while ((l_iter = l_iter->next) != f->l_first);
   }
 
   if (changed) {
@@ -399,12 +394,6 @@ void SCULPT_do_draw_face_sets_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nod
   using namespace blender;
   SculptSession *ss = ob->sculpt;
   Brush *brush = BKE_paint_brush(&sd->paint);
-
-  if (ss->pbvh) {
-    Mesh *mesh = BKE_mesh_from_object(ob);
-    BKE_pbvh_face_sets_color_set(
-        ss->pbvh, mesh->face_sets_color_seed, mesh->face_sets_color_default);
-  }
 
   BKE_curvemapping_init(brush->curve);
 
@@ -534,8 +523,6 @@ static int sculpt_face_set_create_exec(bContext *C, wmOperator *op)
 
     if (all_visible) {
       mesh->face_sets_color_default = next_face_set;
-      BKE_pbvh_face_sets_color_set(
-          ss->pbvh, mesh->face_sets_color_seed, mesh->face_sets_color_default);
     }
 
     for (int i = 0; i < tot_vert; i++) {
@@ -1110,7 +1097,6 @@ static int sculpt_face_sets_randomize_colors_exec(bContext *C, wmOperator * /*op
                                      max_ii(0, ss->totfaces - 1));
     mesh->face_sets_color_default = ss->face_sets[random_index];
   }
-  BKE_pbvh_face_sets_color_set(pbvh, mesh->face_sets_color_seed, mesh->face_sets_color_default);
 
   Vector<PBVHNode *> nodes = blender::bke::pbvh::search_gather(pbvh, {});
   for (PBVHNode *node : nodes) {
