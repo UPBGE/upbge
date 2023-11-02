@@ -39,7 +39,7 @@ class Image(Widget):
     self.width, self.height = self.image.size
 
     # The shader.
-    self.shader = gpu.shader.from_builtin('2D_IMAGE')
+    self.shader = gpu.shader.from_builtin('IMAGE')
 
   @property
   def image_size(self):

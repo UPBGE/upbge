@@ -53,8 +53,8 @@ class Frame(Widget):
     else:
       self.border = self.theme['BorderSize']
 
-    self.line_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-    self.shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
+    self.line_shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    self.shader = gpu.shader.from_builtin('SMOOTH_COLOR')
 
   def _draw(self):
     """Draw the frame"""
