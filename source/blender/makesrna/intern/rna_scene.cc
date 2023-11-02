@@ -11,6 +11,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_modifier_types.h"
@@ -877,6 +878,19 @@ static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
 
   ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
 }
+
+#  ifdef WITH_GREASE_PENCIL_V3
+static void rna_active_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  Object *active_object = CTX_data_active_object(C);
+  if (!active_object || active_object->type != OB_GREASE_PENCIL) {
+    return;
+  }
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(active_object->data);
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
+}
+#  endif
 
 /* Read-only Iterator of all the scene objects. */
 
@@ -3802,6 +3816,16 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_segment_update");
+
+#  ifdef WITH_GREASE_PENCIL_V3
+  prop = RNA_def_property(srna, "use_grease_pencil_multi_frame_editing", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gpencil_flags", GP_USE_MULTI_FRAME_EDITING);
+  RNA_def_property_ui_text(prop, "Multi-frame Editing", "Enable multi-frame editing");
+  RNA_def_property_ui_icon(prop, ICON_GP_MULTIFRAME_EDITING, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_active_grease_pencil_update");
+#  endif
 
   /* Annotations - 2D Views Stroke Placement */
   prop = RNA_def_property(srna, "annotation_stroke_placement_view2d", PROP_ENUM, PROP_NONE);
@@ -8301,37 +8325,40 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_range(prop, 1.0f, 8.0f);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
-  prop = RNA_def_property(srna, "gi_show_irradiance", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_SHOW_IRRADIANCE);
-  RNA_def_property_ui_icon(prop, ICON_HIDE_ON, 1);
-  RNA_def_property_ui_text(
-      prop, "Show Irradiance Cache", "Display irradiance samples in the viewport");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  /* TODO(Miguel Pozo): Remove once EEVEE is fully replaced. */
+  {
+    prop = RNA_def_property(srna, "gi_show_irradiance", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_SHOW_IRRADIANCE);
+    RNA_def_property_ui_icon(prop, ICON_HIDE_ON, 1);
+    RNA_def_property_ui_text(
+        prop, "Show Irradiance Cache", "Display irradiance samples in the viewport");
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "gi_show_cubemaps", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_SHOW_CUBEMAPS);
-  RNA_def_property_ui_icon(prop, ICON_HIDE_ON, 1);
-  RNA_def_property_ui_text(
-      prop, "Show Cubemap Cache", "Display captured cubemaps in the viewport");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+    prop = RNA_def_property(srna, "gi_show_cubemaps", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_SHOW_CUBEMAPS);
+    RNA_def_property_ui_icon(prop, ICON_HIDE_ON, 1);
+    RNA_def_property_ui_text(
+        prop, "Show Cubemap Cache", "Display captured cubemaps in the viewport");
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "gi_irradiance_display_size", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_float_sdna(prop, nullptr, "gi_irradiance_draw_size");
-  RNA_def_property_range(prop, 0.0f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.01f, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop,
-                           "Irradiance Display Size",
-                           "Size of the irradiance sample spheres to debug captured light");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+    prop = RNA_def_property(srna, "gi_irradiance_display_size", PROP_FLOAT, PROP_DISTANCE);
+    RNA_def_property_float_sdna(prop, nullptr, "gi_irradiance_draw_size");
+    RNA_def_property_range(prop, 0.0f, FLT_MAX);
+    RNA_def_property_ui_range(prop, 0.01f, 1.0f, 1, 3);
+    RNA_def_property_ui_text(prop,
+                             "Irradiance Display Size",
+                             "Size of the irradiance sample spheres to debug captured light");
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "gi_cubemap_display_size", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_float_sdna(prop, nullptr, "gi_cubemap_draw_size");
-  RNA_def_property_range(prop, 0.05f, 10.0f);
-  RNA_def_property_ui_text(
-      prop, "Cubemap Display Size", "Size of the cubemap spheres to debug captured light");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+    prop = RNA_def_property(srna, "gi_cubemap_display_size", PROP_FLOAT, PROP_DISTANCE);
+    RNA_def_property_float_sdna(prop, nullptr, "gi_cubemap_draw_size");
+    RNA_def_property_range(prop, 0.05f, 10.0f);
+    RNA_def_property_ui_text(
+        prop, "Cubemap Display Size", "Size of the cubemap spheres to debug captured light");
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  }
 
   prop = RNA_def_property(srna, "gi_auto_bake", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_GI_AUTOBAKE);
@@ -8577,6 +8604,34 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       prop, "Distance", "Distance of object that contribute to the ambient occlusion effect");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1, 3);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  /* Horizon Scan */
+
+  prop = RNA_def_property(srna, "horizon_thickness", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "gtao_thickness");
+  RNA_def_property_ui_text(prop,
+                           "Thickness",
+                           "Constant thickness of the surfaces considered when doing horizon scan "
+                           "and by extension ambient occlusion");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1, 3);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "horizon_quality", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "gtao_quality");
+  RNA_def_property_ui_text(prop, "Trace Precision", "Precision of the horizon scan");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "horizon_bias", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "gtao_focus");
+  RNA_def_property_ui_text(
+      prop, "Bias", "Bias the horizon angles to reduce self intersection artifacts");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 

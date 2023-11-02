@@ -43,6 +43,8 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
+#include "BKE_anim_data.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_attribute.h"
 #include "BKE_curve.h"
@@ -242,6 +244,60 @@ static void version_bonegroups_to_bonecollections(Main *bmain)
   }
 }
 
+static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntree)
+{
+  ID *id = &ntree->id;
+  AnimData *adt = BKE_animdata_from_id(id);
+
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+      continue;
+    }
+
+    char node_name_escaped[MAX_NAME * 2];
+    BLI_str_escape(node_name_escaped, node->name, sizeof(node_name_escaped));
+    std::string prefix = "nodes[\"" + std::string(node_name_escaped) + "\"].inputs";
+
+    /* Remove animdata for inputs 18 (Transmission Roughness) and 3 (Subsurface Color). */
+    BKE_animdata_fix_paths_remove(id, (prefix + "[18]").c_str());
+    BKE_animdata_fix_paths_remove(id, (prefix + "[3]").c_str());
+
+    /* Order is important here: If we e.g. want to change A->B and B->C, but perform A->B first,
+     * then later we don't know whether a B entry is an original B (and therefore should be
+     * changed to C) or used to be A and was already handled.
+     * In practice, going reverse mostly works, the two notable dependency chains are:
+     * - 8->13, then 2->8, then 9->2 (13 was changed before)
+     * - 1->9, then 6->1 (9 was changed before)
+     * - 4->10, then 21->4 (10 was changed before)
+     *
+     * 0 (Base Color) and 17 (Transmission) are fine as-is. */
+    std::pair<int, int> remap_table[] = {
+        {20, 27}, /* Emission Strength */
+        {19, 26}, /* Emission */
+        {16, 3},  /* IOR */
+        {15, 19}, /* Clearcoat Roughness */
+        {14, 18}, /* Clearcoat */
+        {13, 25}, /* Sheen Tint */
+        {12, 23}, /* Sheen */
+        {11, 15}, /* Anisotropic Rotation */
+        {10, 14}, /* Anisotropic */
+        {8, 13},  /* Specular Tint */
+        {2, 8},   /* Subsurface Radius */
+        {9, 2},   /* Roughness */
+        {7, 12},  /* Specular */
+        {1, 9},   /* Subsurface Scale */
+        {6, 1},   /* Metallic */
+        {5, 11},  /* Subsurface Anisotropy */
+        {4, 10},  /* Subsurface IOR */
+        {21, 4}   /* Alpha */
+    };
+    for (const auto &entry : remap_table) {
+      BKE_animdata_fix_paths_rename(
+          id, adt, owner_id, prefix.c_str(), nullptr, nullptr, entry.first, entry.second, false);
+    }
+  }
+}
+
 void do_versions_after_linking_400(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
@@ -310,6 +366,16 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       version_bonelayers_to_bonecollections(bmain);
       version_bonegroups_to_bonecollections(bmain);
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 24)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        /* Convert animdata on the Principled BSDF sockets. */
+        version_principled_bsdf_update_animdata(id, ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
@@ -1758,6 +1824,21 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             region->alignment |= RGN_ALIGN_HIDE_WITH_PREV;
           }
         }
+      }
+    }
+
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "gtao_thickness")) {
+      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->eevee.gtao_thickness = default_eevee.gtao_thickness;
+        scene->eevee.gtao_focus = default_eevee.gtao_focus;
+      }
+    }
+
+    if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "data_display_size")) {
+      LightProbe default_probe = *DNA_struct_default_get(LightProbe);
+      LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
+        probe->data_display_size = default_probe.data_display_size;
       }
     }
   }

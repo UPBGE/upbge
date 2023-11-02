@@ -2030,6 +2030,8 @@ typedef struct SceneEEVEE {
   float gtao_distance;
   float gtao_factor;
   float gtao_quality;
+  float gtao_thickness;
+  float gtao_focus;
 
   float bokeh_overblur;
   float bokeh_max_size;
@@ -2877,6 +2879,8 @@ enum {
 
 /** #ToolSettings::gpencil_flags */
 typedef enum eGPencil_Flags {
+  /** Enables multi-frame editing. */
+  GP_USE_MULTI_FRAME_EDITING = (1 << 0),
   /** When creating new frames, the last frame gets used as the basis for the new one. */
   GP_TOOL_FLAG_RETAIN_LAST = (1 << 1),
   /** Add the strokes below all strokes in the layer. */
