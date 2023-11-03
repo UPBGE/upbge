@@ -107,7 +107,7 @@
 #include "RE_pipeline.h"
 #include "RE_texture.h"
 #include "RNA_define.hh"
-#include "SEQ_clipboard.h"
+#include "SEQ_clipboard.hh"
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "WM_api.hh"
