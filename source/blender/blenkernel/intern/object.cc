@@ -148,7 +148,7 @@
 #include "BLO_read_write.hh"
 #include "BLO_readfile.h"
 
-#include "SEQ_sequencer.h"
+#include "SEQ_sequencer.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"

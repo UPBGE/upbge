@@ -54,7 +54,9 @@ void VKTexture::generate_mipmap()
 
   layout_ensure(context,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 VK_ACCESS_MEMORY_WRITE_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_ACCESS_TRANSFER_READ_BIT);
 
   for (int src_mipmap : IndexRange(mipmaps_ - 1)) {
@@ -81,7 +83,9 @@ void VKTexture::generate_mipmap()
                   IndexRange(src_mipmap, 1),
                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                  VK_PIPELINE_STAGE_TRANSFER_BIT,
                   VK_ACCESS_TRANSFER_WRITE_BIT,
+                  VK_PIPELINE_STAGE_TRANSFER_BIT,
                   VK_ACCESS_TRANSFER_READ_BIT);
 
     VkImageBlit image_blit = {};
@@ -111,12 +115,14 @@ void VKTexture::generate_mipmap()
                 IndexRange(mipmaps_ - 1, 1),
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 VK_ACCESS_MEMORY_READ_BIT);
   current_layout_set(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 }
 
-void VKTexture::copy_to(VKTexture &dst_texture, VkImageAspectFlagBits vk_image_aspect)
+void VKTexture::copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect)
 {
   VKContext &context = *VKContext::get();
   layout_ensure(context, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -374,17 +380,16 @@ bool VKTexture::is_texture_view() const
   return source_texture_ != nullptr;
 }
 
-static VkImageUsageFlagBits to_vk_image_usage(const eGPUTextureUsage usage,
-                                              const eGPUTextureFormatFlag format_flag)
+static VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
+                                           const eGPUTextureFormatFlag format_flag)
 {
-  VkImageUsageFlagBits result = static_cast<VkImageUsageFlagBits>(VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                                                                  VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                                                                  VK_IMAGE_USAGE_SAMPLED_BIT);
+  VkImageUsageFlags result = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                             VK_IMAGE_USAGE_SAMPLED_BIT;
   if (usage & GPU_TEXTURE_USAGE_SHADER_READ) {
-    result = static_cast<VkImageUsageFlagBits>(result | VK_IMAGE_USAGE_STORAGE_BIT);
+    result |= VK_IMAGE_USAGE_STORAGE_BIT;
   }
   if (usage & GPU_TEXTURE_USAGE_SHADER_WRITE) {
-    result = static_cast<VkImageUsageFlagBits>(result | VK_IMAGE_USAGE_STORAGE_BIT);
+    result |= VK_IMAGE_USAGE_STORAGE_BIT;
   }
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
     if (format_flag & GPU_FORMAT_COMPRESSED) {
@@ -393,44 +398,43 @@ static VkImageUsageFlagBits to_vk_image_usage(const eGPUTextureUsage usage,
     }
     else {
       if (format_flag & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL)) {
-        result = static_cast<VkImageUsageFlagBits>(result |
-                                                   VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
       }
       else {
-        result = static_cast<VkImageUsageFlagBits>(result | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
       }
     }
   }
   if (usage & GPU_TEXTURE_USAGE_HOST_READ) {
-    result = static_cast<VkImageUsageFlagBits>(result | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+    result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
   }
 
   /* Disable some usages based on the given format flag to support more devices. */
   if (format_flag & GPU_FORMAT_SRGB) {
     /* NVIDIA devices don't create SRGB textures when it storage bit is set. */
-    result = static_cast<VkImageUsageFlagBits>(result & ~VK_IMAGE_USAGE_STORAGE_BIT);
+    result &= ~VK_IMAGE_USAGE_STORAGE_BIT;
   }
   if (format_flag & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL)) {
     /* NVIDIA devices don't create depth textures when it storage bit is set. */
-    result = static_cast<VkImageUsageFlagBits>(result & ~VK_IMAGE_USAGE_STORAGE_BIT);
+    result &= ~VK_IMAGE_USAGE_STORAGE_BIT;
   }
 
   return result;
 }
 
-static VkImageCreateFlagBits to_vk_image_create(const eGPUTextureType texture_type,
-                                                const eGPUTextureFormatFlag format_flag,
-                                                const eGPUTextureUsage usage)
+static VkImageCreateFlags to_vk_image_create(const eGPUTextureType texture_type,
+                                             const eGPUTextureFormatFlag format_flag,
+                                             const eGPUTextureUsage usage)
 {
-  VkImageCreateFlagBits result = static_cast<VkImageCreateFlagBits>(0);
+  VkImageCreateFlags result = 0;
 
   if (ELEM(texture_type, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY)) {
-    result = static_cast<VkImageCreateFlagBits>(result | VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT);
+    result |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
   }
 
   /* sRGB textures needs to be mutable as they can be used as non-sRGB frame-buffer attachments. */
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT && format_flag & GPU_FORMAT_SRGB) {
-    result = static_cast<VkImageCreateFlagBits>(result | VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT);
+    result |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
   }
 
   return result;
@@ -536,8 +540,10 @@ void VKTexture::current_layout_set(const VkImageLayout new_layout)
 
 void VKTexture::layout_ensure(VKContext &context,
                               const VkImageLayout requested_layout,
-                              const VkAccessFlagBits src_access,
-                              const VkAccessFlagBits dst_access)
+                              const VkPipelineStageFlags src_stage,
+                              const VkAccessFlags src_access,
+                              const VkPipelineStageFlags dst_stage,
+                              const VkAccessFlags dst_access)
 {
   if (is_texture_view()) {
     source_texture_->layout_ensure(context, requested_layout);
@@ -551,7 +557,9 @@ void VKTexture::layout_ensure(VKContext &context,
                 IndexRange(0, VK_REMAINING_MIP_LEVELS),
                 current_layout,
                 requested_layout,
+                src_stage,
                 src_access,
+                dst_stage,
                 dst_access);
   current_layout_set(requested_layout);
 }
@@ -560,8 +568,10 @@ void VKTexture::layout_ensure(VKContext &context,
                               const IndexRange mipmap_range,
                               const VkImageLayout current_layout,
                               const VkImageLayout requested_layout,
-                              const VkAccessFlagBits src_access,
-                              const VkAccessFlagBits dst_access)
+                              const VkPipelineStageFlags src_stages,
+                              const VkAccessFlags src_access,
+                              const VkPipelineStageFlags dst_stages,
+                              const VkAccessFlags dst_access)
 {
   BLI_assert(vk_image_ != VK_NULL_HANDLE);
   VkImageMemoryBarrier barrier{};
@@ -576,7 +586,8 @@ void VKTexture::layout_ensure(VKContext &context,
   barrier.subresourceRange.levelCount = uint32_t(mipmap_range.size());
   barrier.subresourceRange.baseArrayLayer = 0;
   barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-  context.command_buffers_get().pipeline_barrier(Span<VkImageMemoryBarrier>(&barrier, 1));
+  context.command_buffers_get().pipeline_barrier(
+      src_stages, dst_stages, Span<VkImageMemoryBarrier>(&barrier, 1));
 }
 
 /** \} */

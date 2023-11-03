@@ -61,7 +61,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "SEQ_iterator.h"
+#include "SEQ_iterator.hh"
 
 #include "BLO_read_write.hh"
 

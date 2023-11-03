@@ -39,8 +39,6 @@ struct NlaKeyframingContext;
 /** \name Key-Framing Management
  * \{ */
 
-blender::Vector<float> ANIM_setting_get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
-
 /**
  * Get the active settings for key-framing settings from context (specifically the given scene)
  * \param use_autokey_mode: include settings from key-framing mode in the result
@@ -55,23 +53,6 @@ eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, bool use_autokey_mode);
  * Animation Data block, given an ID block where the Animation Data should reside.
  */
 bAction *ED_id_action_ensure(Main *bmain, ID *id);
-
-/**
- * Get (or add relevant data to be able to do so) F-Curve from the Active Action,
- * for the given Animation Data block. This assumes that all the destinations are valid.
- */
-FCurve *ED_action_fcurve_ensure(Main *bmain,
-                                bAction *act,
-                                const char group[],
-                                PointerRNA *ptr,
-                                const char rna_path[],
-                                int array_index);
-
-/**
- * Find the F-Curve from the Active Action,
- * for the given Animation Data block. This assumes that all the destinations are valid.
- */
-FCurve *ED_action_fcurve_find(bAction *act, const char rna_path[], int array_index);
 
 /* -------- */
 
