@@ -1733,18 +1733,13 @@ static int sequencer_delete_exec(bContext *C, wmOperator *op)
 
   SEQ_prefetch_stop(scene);
 
-  SeqCollection *selected_strips = selected_strips_from_context(C);
-  Sequence *seq;
-
-  SEQ_ITERATOR_FOREACH (seq, selected_strips) {
+  for (Sequence *seq : selected_strips_from_context(C)) {
     SEQ_edit_flag_for_removal(scene, seqbasep, seq);
     if (delete_data) {
       sequencer_delete_strip_data(C, seq);
     }
   }
   SEQ_edit_remove_flagged_sequences(scene, seqbasep);
-
-  SEQ_collection_free(selected_strips);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
@@ -1901,7 +1896,7 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
         seq_new->start = start_ofs;
         seq_new->type = SEQ_TYPE_IMAGE;
         seq_new->len = 1;
-        seq->flag |= SEQ_SINGLE_FRAME_CONTENT;
+        seq_new->flag |= SEQ_SINGLE_FRAME_CONTENT;
         seq_new->endofs = 1 - step;
 
         /* New strip. */
