@@ -158,7 +158,7 @@ static void drw_curves_cache_update_compute(CurvesEvalCache *cache,
   const int max_strands_per_call = GPU_max_work_group_count(0);
   int strands_start = 0;
   while (strands_start < strands_len) {
-    int batch_strands_len = MIN2(strands_len - strands_start, max_strands_per_call);
+    int batch_strands_len = std::min(strands_len - strands_start, max_strands_per_call);
     DRWShadingGroup *subgroup = DRW_shgroup_create_sub(shgrp);
     DRW_shgroup_uniform_int_copy(subgroup, "hairStrandOffset", strands_start);
     DRW_shgroup_call_compute(subgroup, batch_strands_len, cache->final[subdiv].strands_res, 1);
@@ -509,7 +509,7 @@ void DRW_curves_update()
     GPUFrameBuffer *temp_fb = nullptr;
     GPUFrameBuffer *prev_fb = nullptr;
     if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY, GPU_BACKEND_METAL)) {
-      if (!(GPU_compute_shader_support())) {
+      if (!GPU_compute_shader_support()) {
         prev_fb = GPU_framebuffer_active_get();
         char errorOut[256];
         /* if the frame-buffer is invalid we need a dummy frame-buffer to be bound. */

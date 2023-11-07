@@ -20,7 +20,9 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/action.cc
   intern/anim_rna.cc
+  intern/animdata.cc
   intern/bone_collections.cc
   intern/bonecolor.cc
   intern/fcurve.cc
@@ -28,6 +30,8 @@ set(SRC
   intern/keyframing_auto.cc
   intern/visualkey.cc
 
+  ANIM_action.hh
+  ANIM_animdata.hh
   ANIM_armature_iter.hh
   ANIM_bone_collections.h
   ANIM_bone_collections.hh

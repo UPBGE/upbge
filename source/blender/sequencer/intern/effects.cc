@@ -938,13 +938,13 @@ static void do_drop_effect_byte(float fac, int x, int y, uchar *rect2i, uchar *r
     for (int j = xoff; j < x; j++) {
       int temp_fac2 = ((temp_fac * rt2[3]) >> 8);
 
-      *(out++) = MAX2(0, *rt1 - temp_fac2);
+      *(out++) = std::max(0, *rt1 - temp_fac2);
       rt1++;
-      *(out++) = MAX2(0, *rt1 - temp_fac2);
+      *(out++) = std::max(0, *rt1 - temp_fac2);
       rt1++;
-      *(out++) = MAX2(0, *rt1 - temp_fac2);
+      *(out++) = std::max(0, *rt1 - temp_fac2);
       rt1++;
-      *(out++) = MAX2(0, *rt1 - temp_fac2);
+      *(out++) = std::max(0, *rt1 - temp_fac2);
       rt1++;
       rt2 += 4;
     }
@@ -972,13 +972,13 @@ static void do_drop_effect_float(
     for (int j = xoff; j < x; j++) {
       float temp_fac2 = temp_fac * rt2[3];
 
-      *(out++) = MAX2(0.0f, *rt1 - temp_fac2);
+      *(out++) = std::max(0.0f, *rt1 - temp_fac2);
       rt1++;
-      *(out++) = MAX2(0.0f, *rt1 - temp_fac2);
+      *(out++) = std::max(0.0f, *rt1 - temp_fac2);
       rt1++;
-      *(out++) = MAX2(0.0f, *rt1 - temp_fac2);
+      *(out++) = std::max(0.0f, *rt1 - temp_fac2);
       rt1++;
-      *(out++) = MAX2(0.0f, *rt1 - temp_fac2);
+      *(out++) = std::max(0.0f, *rt1 - temp_fac2);
       rt1++;
       rt2 += 4;
     }
@@ -3251,10 +3251,19 @@ void SEQ_effect_text_font_load(TextVars *data, const bool do_id_user)
   else {
     char filepath[FILE_MAX];
     STRNCPY(filepath, vfont->filepath);
-    BLI_assert(BLI_thread_is_main());
-    BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&vfont->id));
+    if (BLI_thread_is_main()) {
+      /* FIXME: This is a band-aid fix. A proper solution has to be worked on by the VSE team.
+       *
+       * This code can be called from non-main thread, e.g. when copying sequences as part of
+       * depsgraph CoW copy of the evaluated scene. Just skip font loading in that case, BLF code
+       * is not thread-safe, and if this happens from threaded context, it almost certainly means
+       * that a previous atempt to load the font already failed, e.g. because font filepath is
+       * invalid. Propoer fix would likely be to not attempt to reload a failed-to-load font every
+       * time. */
+      BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&vfont->id));
 
-    data->text_blf_id = BLF_load(filepath);
+      data->text_blf_id = BLF_load(filepath);
+    }
   }
 }
 

@@ -721,6 +721,10 @@ file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
       DESTINATION "./share/applications"
     )
     install(
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/org.blender.Blender.metainfo.xml
+      DESTINATION "./share/metainfo"
+    )
+    install(
       FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
       DESTINATION "./share/icons/hicolor/scalable/apps"
     )

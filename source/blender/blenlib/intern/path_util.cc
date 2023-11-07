@@ -7,6 +7,7 @@
  * Various string, file, list operations.
  */
 
+#include <algorithm> /* For `min/max`. */
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,7 +77,7 @@ int BLI_path_sequence_decode(const char *path,
   const char *const lslash = BLI_path_slash_rfind(path);
   const char *const extension = BLI_path_extension_or_end(lslash ? lslash : path);
   const uint lslash_len = lslash != nullptr ? int(lslash - path) : 0;
-  const uint name_end = (uint)(extension - path);
+  const uint name_end = uint(extension - path);
 
   for (i = name_end - 1; i >= int(lslash_len); i--) {
     if (isdigit(path[i])) {
@@ -108,7 +109,7 @@ int BLI_path_sequence_decode(const char *path,
       if (r_digits_len) {
         *r_digits_len = nume - nums + 1;
       }
-      return (int)ret;
+      return int(ret);
     }
   }
 
@@ -135,7 +136,7 @@ void BLI_path_sequence_encode(char *path,
 {
   BLI_string_debug_size(path, path_maxncpy);
 
-  BLI_snprintf(path, path_maxncpy, "%s%.*d%s", head, numlen, MAX2(0, pic), tail);
+  BLI_snprintf(path, path_maxncpy, "%s%.*d%s", head, numlen, std::max(0, pic), tail);
 }
 
 /**
@@ -963,7 +964,7 @@ bool BLI_path_frame(char *path, size_t path_maxncpy, int frame, int digits)
 
   if (path_frame_chars_find_range(path, &ch_sta, &ch_end)) {
     char frame_str[FILENAME_FRAME_CHARS_MAX + 1]; /* One for null. */
-    const int ch_span = MIN2(ch_end - ch_sta, FILENAME_FRAME_CHARS_MAX);
+    const int ch_span = std::min(ch_end - ch_sta, FILENAME_FRAME_CHARS_MAX);
     SNPRINTF(frame_str, "%.*d", ch_span, frame);
     BLI_string_replace_range(path, path_maxncpy, ch_sta, ch_end, frame_str);
     return true;
@@ -983,7 +984,7 @@ bool BLI_path_frame_range(char *path, size_t path_maxncpy, int sta, int end, int
 
   if (path_frame_chars_find_range(path, &ch_sta, &ch_end)) {
     char frame_str[(FILENAME_FRAME_CHARS_MAX * 2) + 1 + 1]; /* One for null, one for the '-' */
-    const int ch_span = MIN2(ch_end - ch_sta, FILENAME_FRAME_CHARS_MAX);
+    const int ch_span = std::min(ch_end - ch_sta, FILENAME_FRAME_CHARS_MAX);
     SNPRINTF(frame_str, "%.*d-%.*d", ch_span, sta, ch_span, end);
     BLI_string_replace_range(path, path_maxncpy, ch_sta, ch_end, frame_str);
     return true;
@@ -1166,7 +1167,7 @@ bool BLI_path_abs(char path[FILE_MAX], const char *basepath)
 
     if (lslash) {
       /* Length up to and including last `/`. */
-      const int baselen = (int)(lslash - base) + 1;
+      const int baselen = int(lslash - base) + 1;
       /* Use path for temp storage here, we copy back over it right away. */
       BLI_strncpy(path, tmp + 2, FILE_MAX); /* Strip `//` prefix. */
 
@@ -1581,7 +1582,7 @@ void BLI_path_split_dir_file(const char *filepath,
   const char *basename = BLI_path_basename(filepath);
   if (basename != filepath) {
     const size_t dir_size = (basename - filepath) + 1;
-    BLI_strncpy(dir, filepath, MIN2(dir_maxncpy, dir_size));
+    BLI_strncpy(dir, filepath, std::min(dir_maxncpy, dir_size));
   }
   else {
     dir[0] = '\0';
@@ -1595,7 +1596,7 @@ void BLI_path_split_dir_part(const char *filepath, char *dir, const size_t dir_m
   const char *basename = BLI_path_basename(filepath);
   if (basename != filepath) {
     const size_t dir_size = (basename - filepath) + 1;
-    BLI_strncpy(dir, filepath, MIN2(dir_maxncpy, dir_size));
+    BLI_strncpy(dir, filepath, std::min(dir_maxncpy, dir_size));
   }
   else {
     dir[0] = '\0';

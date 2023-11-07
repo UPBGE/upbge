@@ -140,10 +140,6 @@ set(LIB
 
 if(WITH_MATERIALX)
   add_definitions(-DWITH_MATERIALX)
-  list(APPEND INC
-    ${USD_INCLUDE_DIRS}
-    ${BOOST_INCLUDE_DIR}
-  )
   list(APPEND SRC
     materialx/group_nodes.cc
     materialx/material.cc
@@ -159,6 +155,14 @@ if(WITH_MATERIALX)
     MaterialXCore
     MaterialXFormat
   )
+
+  if(WITH_USD)
+    add_definitions(-DWITH_USD)
+    list(APPEND INC_SYS
+      ${USD_INCLUDE_DIRS}
+      ${BOOST_INCLUDE_DIR}
+    )
+  endif()
 endif()
 
 if(WITH_FREESTYLE)

@@ -43,6 +43,8 @@
 
 #include "UI_view2d.hh"
 
+#include "ANIM_animdata.hh"
+#include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
 #include "ED_anim_api.hh"
 #include "ED_gpencil_legacy.hh"
@@ -794,7 +796,7 @@ static void insert_grease_pencil_key(bAnimContext *ac,
   bool changed = false;
   if (hold_previous) {
     const FramesMapKey active_frame_number = layer->frame_key_at(current_frame_number);
-    if ((active_frame_number == -1) || (layer->frames().lookup(active_frame_number).is_null())) {
+    if ((active_frame_number == -1) || layer->frames().lookup(active_frame_number).is_null()) {
       /* There is no active frame to hold to, or it's a null frame. Therefore just insert a blank
        * frame. */
       changed = grease_pencil->insert_blank_frame(
@@ -859,7 +861,7 @@ static void insert_fcurve_key(bAnimContext *ac,
     }
 
     const float curval = evaluate_fcurve(fcu, cfra);
-    insert_vert_fcurve(
+    blender::animrig::insert_vert_fcurve(
         fcu, cfra, curval, eBezTriple_KeyframeType(ts->keyframe_type), eInsertKeyFlags(0));
   }
 
@@ -1109,7 +1111,7 @@ static bool delete_action_keys(bAnimContext *ac)
 
       /* Only delete curve too if it won't be doing anything anymore */
       if (BKE_fcurve_is_empty(fcu)) {
-        ANIM_fcurve_delete_from_animdata(ac, adt, fcu);
+        blender::animrig::animdata_fcurve_delete(ac, adt, fcu);
         ale->key_data = nullptr;
       }
     }

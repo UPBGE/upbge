@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -22,8 +22,6 @@
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
-
-#include "ED_keyframing.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"

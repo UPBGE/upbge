@@ -79,7 +79,7 @@ void SEQ_iterator_set_expand(const Scene *scene,
   }
 
   /* Merge all expanded results in provided VectorSet. */
-  query_matches.add_multiple(query_matches);
+  strips.add_multiple(query_matches);
 }
 
 static void query_all_strips_recursive(ListBase *seqbase, VectorSet<Sequence *> &strips)
@@ -94,20 +94,14 @@ static void query_all_strips_recursive(ListBase *seqbase, VectorSet<Sequence *> 
 
 VectorSet<Sequence *> SEQ_query_all_strips_recursive(ListBase *seqbase)
 {
-  static VectorSet<Sequence *> strips;
-  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
-    if (seq->type == SEQ_TYPE_META) {
-      query_all_strips_recursive(&seq->seqbase, strips);
-    }
-    strips.add(seq);
-  }
-
+  VectorSet<Sequence *> strips;
+  query_all_strips_recursive(seqbase, strips);
   return strips;
 }
 
 VectorSet<Sequence *> SEQ_query_all_strips(ListBase *seqbase)
 {
-  static VectorSet<Sequence *> strips;
+  VectorSet<Sequence *> strips;
   LISTBASE_FOREACH (Sequence *, strip, seqbase) {
     strips.add(strip);
   }
