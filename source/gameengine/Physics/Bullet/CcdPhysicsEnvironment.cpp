@@ -2102,6 +2102,15 @@ void CcdPhysicsEnvironment::CallbackTriggers()
       continue;
     }
 
+    // Bullet does not refresh the manifold contact point for object without contact response
+    // may need to remove this when a newer Bullet version is integrated
+    if (!dispatcher->needsResponse(col0, col1)) {
+      // Refresh algorithm fails sometimes when there is penetration
+      // (usuall the case with ghost and sensor objects)
+      // Let's just clear the manifold, in any case, it is recomputed on each frame.
+      manifold->clearManifold();  // refreshContactPoints(rb0->getCenterOfMassTransform(),rb1->getCenterOfMassTransform());
+    }
+
     const CcdCollData *coll_data = new CcdCollData(manifold);
     m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE], ctrl0, ctrl1, coll_data, first);
   }
