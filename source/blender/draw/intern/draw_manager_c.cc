@@ -1684,13 +1684,6 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  /* UPBGE */
-  Scene *sce_orig = (Scene *)DEG_get_original_id(&scene->id);
-  if (sce_orig && sce_orig->flag & SCE_INTERACTIVE) {
-    printf("Warning: DRW_draw_render_loop_ex called whereas SCE_INTERACTIVE!\n");
-  }
-  /*********/
-
   BKE_view_layer_synced_ensure(scene, view_layer);
   DST.draw_ctx = {};
   DST.draw_ctx.region = region;
