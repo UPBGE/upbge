@@ -40,7 +40,7 @@
 
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DRW_render.h"

@@ -28,7 +28,7 @@
 
 #include "BKE_action.h"
 #include "BKE_context.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_node.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
