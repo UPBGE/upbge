@@ -1831,7 +1831,7 @@ void UI_but_func_tooltip_custom_set(uiBut *but,
  * \param text: Allocated text (transfer ownership to `data`) or null.
  * \param suffix: Allocated text (transfer ownership to `data`) or null.
  */
-void UI_tooltip_text_field_add(struct uiTooltipData *data,
+void UI_tooltip_text_field_add(uiTooltipData *data,
                                char *text,
                                char *suffix,
                                const uiTooltipStyle style,
@@ -1842,9 +1842,8 @@ void UI_tooltip_text_field_add(struct uiTooltipData *data,
  * \param image: Image buffer (duplicated, ownership is *not* transferred to `data`).
  * \param image_size: Display size for the image (pixels without UI scale applied).
  */
-void UI_tooltip_image_field_add(struct uiTooltipData *data,
-                                const struct ImBuf *image,
-                                const short image_size[2]) ATTR_NONNULL(1, 2, 3);
+void UI_tooltip_image_field_add(uiTooltipData *data, const ImBuf *image, const short image_size[2])
+    ATTR_NONNULL(1, 2, 3);
 
 /**
  * Recreate tool-tip (use to update dynamic tips)
@@ -2704,7 +2703,7 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
 void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C);
 #endif
 
-void uiTemplateNodeTreeInterface(struct uiLayout *layout, struct PointerRNA *ptr);
+void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr);
 
 /**
  * \return: A RNA pointer for the operator properties.
