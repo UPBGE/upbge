@@ -31,7 +31,7 @@
 
 #include "KX_BlenderCanvas.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BLI_path_util.h"

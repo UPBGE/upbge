@@ -22,6 +22,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_curve.hh" // UPBGE
 
 #include "RNA_access.hh"
 

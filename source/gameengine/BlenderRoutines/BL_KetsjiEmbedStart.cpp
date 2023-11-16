@@ -35,7 +35,7 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_report.h"

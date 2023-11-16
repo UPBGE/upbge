@@ -33,7 +33,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_appdir.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_python_proxy.hh"

@@ -27,7 +27,7 @@
 
 #include "KX_NavMeshObject.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mesh.h"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BLI_sort.h"

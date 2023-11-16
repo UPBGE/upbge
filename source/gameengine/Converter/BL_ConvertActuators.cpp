@@ -42,7 +42,7 @@
 
 /* This little block needed for linking to Blender... */
 #include "BLI_math_rotation.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_text.h"
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
