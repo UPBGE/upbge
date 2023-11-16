@@ -121,6 +121,7 @@
 #include "BKE_multires.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -189,6 +190,7 @@ static void object_init_data(ID *id)
 
   ob->trackflag = OB_POSY;
   ob->upflag = OB_POSZ;
+  ob->runtime = MEM_cnew<blender::bke::ObjectRuntime>(__func__);
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
@@ -199,7 +201,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   Object *ob_dst = (Object *)id_dst;
   const Object *ob_src = (const Object *)id_src;
 
-  /* Do not copy runtime data. */
+  ob_dst->runtime = MEM_new<blender::bke::ObjectRuntime>(__func__, *ob_src->runtime);
   BKE_object_runtime_reset_on_copy(ob_dst, flag);
 
   /* We never handle user-count here for own data. */
@@ -222,8 +224,8 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
     ob_dst->iuser = (ImageUser *)MEM_dupallocN(ob_src->iuser);
   }
 
-  if (ob_src->runtime.bb) {
-    ob_dst->runtime.bb = (BoundBox *)MEM_dupallocN(ob_src->runtime.bb);
+  if (ob_src->runtime->bb) {
+    ob_dst->runtime->bb = (BoundBox *)MEM_dupallocN(ob_src->runtime->bb);
   }
 
   BLI_listbase_clear(&ob_dst->shader_fx);
@@ -328,7 +330,7 @@ static void object_free_data(ID *id)
   MEM_SAFE_FREE(ob->mat);
   MEM_SAFE_FREE(ob->matbits);
   MEM_SAFE_FREE(ob->iuser);
-  MEM_SAFE_FREE(ob->runtime.bb);
+  MEM_SAFE_FREE(ob->runtime->bb);
 
   if (ob->pose) {
     BKE_pose_free_ex(ob->pose, false);
@@ -367,13 +369,13 @@ static void object_free_data(ID *id)
   BLI_freelistN(&ob->pc_ids);
 
   /* Free runtime curves data. */
-  if (ob->runtime.curve_cache) {
-    BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
-    if (ob->runtime.curve_cache->anim_path_accum_length) {
-      MEM_freeN((void *)ob->runtime.curve_cache->anim_path_accum_length);
+  if (ob->runtime->curve_cache) {
+    BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
+    if (ob->runtime->curve_cache->anim_path_accum_length) {
+      MEM_freeN((void *)ob->runtime->curve_cache->anim_path_accum_length);
     }
-    MEM_freeN(ob->runtime.curve_cache);
-    ob->runtime.curve_cache = nullptr;
+    MEM_freeN(ob->runtime->curve_cache);
+    ob->runtime->curve_cache = nullptr;
   }
 
   BKE_previewimg_free(&ob->preview);
@@ -382,6 +384,8 @@ static void object_free_data(ID *id)
   MEM_SAFE_FREE(ob->light_linking);
 
   BKE_lightprobe_cache_free(ob);
+
+  MEM_delete(ob->runtime);
 }
 
 static void library_foreach_sensorsObjectLooper(bSensor */*sensor*/,
@@ -902,7 +906,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   const bool is_undo = BLO_write_is_undo(writer);
 
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
-  BKE_object_runtime_reset(ob);
+  ob->runtime = nullptr;
 
   if (is_undo) {
     /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
@@ -1005,6 +1009,8 @@ static void direct_link_nlastrips(BlendDataReader *reader, ListBase *strips)
 static void object_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Object *ob = (Object *)id;
+
+  ob->runtime = MEM_cnew<blender::bke::ObjectRuntime>(__func__);
 
   PartEff *paf;
 
@@ -1270,7 +1276,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_object_empty_draw_type_set(ob, ob->empty_drawtype);
   }
 
-  BKE_object_runtime_reset(ob);
   BLO_read_list(reader, &ob->pc_ids);
 
   /* in case this value changes in future, clamp else we get undefined behavior */
@@ -1537,15 +1542,15 @@ void BKE_object_free_bulletsoftbody(Object *ob)
 
 void BKE_object_free_curve_cache(Object *ob)
 {
-  if (ob->runtime.curve_cache) {
-    BKE_displist_free(&ob->runtime.curve_cache->disp);
-    BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
-    if (ob->runtime.curve_cache->anim_path_accum_length) {
-      MEM_freeN((void *)ob->runtime.curve_cache->anim_path_accum_length);
+  if (ob->runtime->curve_cache) {
+    BKE_displist_free(&ob->runtime->curve_cache->disp);
+    BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
+    if (ob->runtime->curve_cache->anim_path_accum_length) {
+      MEM_freeN((void *)ob->runtime->curve_cache->anim_path_accum_length);
     }
-    BKE_nurbList_free(&ob->runtime.curve_cache->deformed_nurbs);
-    MEM_freeN(ob->runtime.curve_cache);
-    ob->runtime.curve_cache = nullptr;
+    BKE_nurbList_free(&ob->runtime->curve_cache->deformed_nurbs);
+    MEM_freeN(ob->runtime->curve_cache);
+    ob->runtime->curve_cache = nullptr;
   }
 }
 
@@ -1951,7 +1956,7 @@ static void object_update_from_subsurf_ccg(Object *object)
    * (happens on dependency graph free where order of CoW-ed IDs free is undefined).
    *
    * Good news is: such mesh does not have modifiers applied, so no need to worry about CCG. */
-  if (!object->runtime.is_data_eval_owned) {
+  if (!object->runtime->is_data_eval_owned) {
     return;
   }
   /* Object was never evaluated, so can not have CCG subdivision surface. If it were evaluated, do
@@ -2005,7 +2010,7 @@ static void object_update_from_subsurf_ccg(Object *object)
    *
    * mesh_cow is a copy-on-written version of `object_orig->data`.
    */
-  Mesh *mesh_cow = (Mesh *)object->runtime.data_orig;
+  Mesh *mesh_cow = (Mesh *)object->runtime->data_orig;
   copy_ccg_data(mesh_cow, mesh_orig, CD_MDISPS);
   copy_ccg_data(mesh_cow, mesh_orig, CD_GRID_PAINT_MASK);
   /* Everything is now up-to-date. */
@@ -2016,7 +2021,7 @@ static void object_update_from_subsurf_ccg(Object *object)
 void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_owned)
 {
   BLI_assert(object_eval->id.tag & LIB_TAG_COPIED_ON_WRITE);
-  BLI_assert(object_eval->runtime.data_eval == nullptr);
+  BLI_assert(object_eval->runtime->data_eval == nullptr);
   BLI_assert(data_eval->tag & LIB_TAG_NO_MAIN);
 
   if (is_owned) {
@@ -2025,8 +2030,8 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
   }
 
   /* Assigned evaluated data. */
-  object_eval->runtime.data_eval = data_eval;
-  object_eval->runtime.is_data_eval_owned = is_owned;
+  object_eval->runtime->data_eval = data_eval;
+  object_eval->runtime->is_data_eval_owned = is_owned;
 
   /* Overwrite data of evaluated object, if the data-block types match. */
   ID *data = (ID *)object_eval->data;
@@ -2039,25 +2044,25 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
   }
 
   /* Is set separately currently. */
-  object_eval->runtime.geometry_set_eval = nullptr;
+  object_eval->runtime->geometry_set_eval = nullptr;
 }
 
 void BKE_object_free_derived_caches(Object *ob)
 {
-  MEM_SAFE_FREE(ob->runtime.bb);
+  MEM_SAFE_FREE(ob->runtime->bb);
 
   object_update_from_subsurf_ccg(ob);
 
-  if (ob->runtime.editmesh_eval_cage &&
-      ob->runtime.editmesh_eval_cage != reinterpret_cast<Mesh *>(ob->runtime.data_eval))
+  if (ob->runtime->editmesh_eval_cage &&
+      ob->runtime->editmesh_eval_cage != reinterpret_cast<Mesh *>(ob->runtime->data_eval))
   {
-    BKE_mesh_eval_delete(ob->runtime.editmesh_eval_cage);
+    BKE_mesh_eval_delete(ob->runtime->editmesh_eval_cage);
   }
-  ob->runtime.editmesh_eval_cage = nullptr;
+  ob->runtime->editmesh_eval_cage = nullptr;
 
-  if (ob->runtime.data_eval != nullptr) {
-    if (ob->runtime.is_data_eval_owned) {
-      ID *data_eval = ob->runtime.data_eval;
+  if (ob->runtime->data_eval != nullptr) {
+    if (ob->runtime->is_data_eval_owned) {
+      ID *data_eval = ob->runtime->data_eval;
       if (GS(data_eval->name) == ID_ME) {
         BKE_mesh_eval_delete((Mesh *)data_eval);
       }
@@ -2067,18 +2072,18 @@ void BKE_object_free_derived_caches(Object *ob)
         MEM_freeN(data_eval);
       }
     }
-    ob->runtime.data_eval = nullptr;
+    ob->runtime->data_eval = nullptr;
   }
-  if (ob->runtime.mesh_deform_eval != nullptr) {
-    Mesh *mesh_deform_eval = ob->runtime.mesh_deform_eval;
+  if (ob->runtime->mesh_deform_eval != nullptr) {
+    Mesh *mesh_deform_eval = ob->runtime->mesh_deform_eval;
     BKE_mesh_eval_delete(mesh_deform_eval);
-    ob->runtime.mesh_deform_eval = nullptr;
+    ob->runtime->mesh_deform_eval = nullptr;
   }
 
   /* Restore initial pointer for copy-on-write data-blocks, object->data
    * might be pointing to an evaluated data-block data was just freed above. */
-  if (ob->runtime.data_orig != nullptr) {
-    ob->data = ob->runtime.data_orig;
+  if (ob->runtime->data_orig != nullptr) {
+    ob->data = ob->runtime->data_orig;
   }
 
   BKE_object_to_mesh_clear(ob);
@@ -2089,17 +2094,17 @@ void BKE_object_free_derived_caches(Object *ob)
   BKE_crazyspace_api_eval_clear(ob);
 
   /* Clear grease pencil data. */
-  if (ob->runtime.gpd_eval != nullptr) {
-    BKE_gpencil_eval_delete(ob->runtime.gpd_eval);
-    ob->runtime.gpd_eval = nullptr;
+  if (ob->runtime->gpd_eval != nullptr) {
+    BKE_gpencil_eval_delete(ob->runtime->gpd_eval);
+    ob->runtime->gpd_eval = nullptr;
   }
 
-  if (ob->runtime.geometry_set_eval != nullptr) {
-    delete ob->runtime.geometry_set_eval;
-    ob->runtime.geometry_set_eval = nullptr;
+  if (ob->runtime->geometry_set_eval != nullptr) {
+    delete ob->runtime->geometry_set_eval;
+    ob->runtime->geometry_set_eval = nullptr;
   }
 
-  MEM_SAFE_FREE(ob->runtime.editmesh_bb_cage);
+  MEM_SAFE_FREE(ob->runtime->editmesh_bb_cage);
 }
 
 void BKE_object_free_caches(Object *object)
@@ -3583,10 +3588,10 @@ static bool ob_parcurve(Object *ob, Object *par, float r_mat[4][4])
    * TODO(sergey): Some of the legit looking cases like #56619 need to be
    * looked into, and maybe curve cache (and other dependencies) are to be
    * evaluated prior to conversion. */
-  if (par->runtime.curve_cache == nullptr) {
+  if (par->runtime->curve_cache == nullptr) {
     return false;
   }
-  if (par->runtime.curve_cache->anim_path_accum_length == nullptr) {
+  if (par->runtime->curve_cache->anim_path_accum_length == nullptr) {
     return false;
   }
 
@@ -3745,8 +3750,8 @@ static void give_parvert(Object *par, int nr, float vec[3])
 
     /* It is possible that a cycle in the dependency graph was resolved in a way that caused this
      * object to be evaluated before its dependencies. In this case the curve cache may be null. */
-    if (par->runtime.curve_cache && par->runtime.curve_cache->deformed_nurbs.first != nullptr) {
-      nurb = &par->runtime.curve_cache->deformed_nurbs;
+    if (par->runtime->curve_cache && par->runtime->curve_cache->deformed_nurbs.first != nullptr) {
+      nurb = &par->runtime->curve_cache->deformed_nurbs;
     }
     else {
       Curve *cu = (Curve *)par->data;
@@ -3757,8 +3762,8 @@ static void give_parvert(Object *par, int nr, float vec[3])
   }
   else if (par->type == OB_LATTICE) {
     Lattice *latt = (Lattice *)par->data;
-    DispList *dl = par->runtime.curve_cache ?
-                       BKE_displist_find(&par->runtime.curve_cache->disp, DL_VERTS) :
+    DispList *dl = par->runtime->curve_cache ?
+                       BKE_displist_find(&par->runtime->curve_cache->disp, DL_VERTS) :
                        nullptr;
     float(*co)[3] = dl ? (float(*)[3])dl->verts : nullptr;
     int tot;
@@ -3882,10 +3887,10 @@ static void solve_parenting(
   /* origin, for help line */
   if (set_origin) {
     if ((ob->partype & PARTYPE) == PARSKEL) {
-      copy_v3_v3(ob->runtime.parent_display_origin, par->object_to_world[3]);
+      copy_v3_v3(ob->runtime->parent_display_origin, par->object_to_world[3]);
     }
     else {
-      copy_v3_v3(ob->runtime.parent_display_origin, totmat[3]);
+      copy_v3_v3(ob->runtime->parent_display_origin, totmat[3]);
     }
   }
 }
@@ -4178,6 +4183,14 @@ std::optional<BoundBox> BKE_object_boundbox_get(Object *ob)
   return std::nullopt;
 }
 
+std::optional<BoundBox> BKE_object_boundbox_eval_cached_get(Object *ob)
+{
+  if (ob->runtime->bb) {
+    return *ob->runtime->bb;
+  }
+  return BKE_object_boundbox_get(ob);
+}
+
 void BKE_object_boundbox_calc_from_mesh(Object *ob, const Mesh *me_eval)
 {
   float3 min(FLT_MAX);
@@ -4188,13 +4201,13 @@ void BKE_object_boundbox_calc_from_mesh(Object *ob, const Mesh *me_eval)
     max = float3(0);
   }
 
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>("DM-BoundBox");
+  if (ob->runtime->bb == nullptr) {
+    ob->runtime->bb = MEM_cnew<BoundBox>("DM-BoundBox");
   }
 
-  BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
+  BKE_boundbox_init_from_minmax(ob->runtime->bb, min, max);
 
-  ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
+  ob->runtime->bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob)
@@ -4202,8 +4215,8 @@ bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob)
   using namespace blender;
 
   std::optional<Bounds<float3>> bounds;
-  if (ob->runtime.geometry_set_eval) {
-    bounds = ob->runtime.geometry_set_eval->compute_boundbox_without_instances();
+  if (ob->runtime->geometry_set_eval) {
+    bounds = ob->runtime->geometry_set_eval->compute_boundbox_without_instances();
   }
   else if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob)) {
     Bounds<float3> mesh_bounds{float3(std::numeric_limits<float>::max()),
@@ -4216,17 +4229,17 @@ bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob)
     return false;
   }
 
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
+  if (ob->runtime->bb == nullptr) {
+    ob->runtime->bb = MEM_cnew<BoundBox>(__func__);
   }
   if (bounds) {
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, bounds->min, bounds->max);
+    BKE_boundbox_init_from_minmax(ob->runtime->bb, bounds->min, bounds->max);
   }
   else {
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, float3(0), float3(0));
+    BKE_boundbox_init_from_minmax(ob->runtime->bb, float3(0), float3(0));
   }
 
-  ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
+  ob->runtime->bb->flag &= ~BOUNDBOX_DIRTY;
 
   return true;
 }
@@ -4239,9 +4252,11 @@ bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob)
  * \warning Setting dimensions is prone to feedback loops in evaluation.
  * \{ */
 
-void BKE_object_dimensions_get(Object *ob, float r_vec[3])
+static void boundbox_to_dimensions(const Object *ob,
+                                   const std::optional<BoundBox> bb,
+                                   float r_vec[3])
 {
-  if (const std::optional<BoundBox> bb = BKE_object_boundbox_get(ob)) {
+  if (bb) {
     float3 scale;
     mat4_to_size(scale, ob->object_to_world);
 
@@ -4252,6 +4267,16 @@ void BKE_object_dimensions_get(Object *ob, float r_vec[3])
   else {
     zero_v3(r_vec);
   }
+}
+
+void BKE_object_dimensions_get(Object *ob, float r_vec[3])
+{
+  boundbox_to_dimensions(ob, BKE_object_boundbox_get(ob), r_vec);
+}
+
+void BKE_object_dimensions_eval_cached_get(Object *ob, float r_vec[3])
+{
+  boundbox_to_dimensions(ob, BKE_object_boundbox_eval_cached_get(ob), r_vec);
 }
 
 void BKE_object_dimensions_set_ex(Object *ob,
@@ -4540,7 +4565,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
                              const bool use_hidden)
 {
   bool ok = false;
-  if ((ob->transflag & OB_DUPLI) == 0 && ob->runtime.geometry_set_eval == nullptr) {
+  if ((ob->transflag & OB_DUPLI) == 0 && ob->runtime->geometry_set_eval == nullptr) {
     return ok;
   }
 
@@ -4551,8 +4576,11 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
     }
     else {
       Object temp_ob = blender::dna::shallow_copy(*dob->ob);
+      blender::bke::ObjectRuntime runtime = *dob->ob->runtime;
+      temp_ob.runtime = &runtime;
+
       /* Do not modify the original bounding-box. */
-      temp_ob.runtime.bb = nullptr;
+      temp_ob.runtime->bb = nullptr;
       BKE_object_replace_data_on_shallow_copy(&temp_ob, dob->ob_data);
       if (const std::optional<BoundBox> bb = BKE_object_boundbox_get(&temp_ob)) {
         int i;
@@ -4565,7 +4593,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
         ok = true;
       }
 
-      MEM_SAFE_FREE(temp_ob.runtime.bb);
+      MEM_SAFE_FREE(temp_ob.runtime->bb);
     }
   }
   free_object_duplilist(lb); /* does restore */
@@ -4622,8 +4650,8 @@ void BKE_object_foreach_display_point(Object *ob,
     BKE_gpencil_visible_stroke_iter(
         (bGPdata *)ob->data, nullptr, foreach_display_point_gpencil_stroke_fn, &iter_data);
   }
-  else if (ob->runtime.curve_cache && ob->runtime.curve_cache->disp.first) {
-    LISTBASE_FOREACH (DispList *, dl, &ob->runtime.curve_cache->disp) {
+  else if (ob->runtime->curve_cache && ob->runtime->curve_cache->disp.first) {
+    LISTBASE_FOREACH (DispList *, dl, &ob->runtime->curve_cache->disp) {
       const float *v3 = dl->verts;
       int totvert = dl->nr;
       int i;
@@ -4835,7 +4863,7 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
 {
   /* First attempt to retrieve the evaluated mesh from the evaluated geometry set. Most
    * object types either store it there or add a reference to it if it's owned elsewhere. */
-  blender::bke::GeometrySet *geometry_set_eval = object->runtime.geometry_set_eval;
+  blender::bke::GeometrySet *geometry_set_eval = object->runtime->geometry_set_eval;
   if (geometry_set_eval) {
     /* Some areas expect to be able to modify the evaluated mesh in limited ways. Theoretically
      * this should be avoided, or at least protected with a lock, so a const mesh could be returned
@@ -4850,7 +4878,7 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
   /* Some object types do not yet add the evaluated mesh to an evaluated geometry set, if they do
    * not support evaluating to multiple data types. Eventually this should be removed, when all
    * object types use #geometry_set_eval. */
-  ID *data_eval = object->runtime.data_eval;
+  ID *data_eval = object->runtime->data_eval;
   if (data_eval && GS(data_eval->name) == ID_ME) {
     return reinterpret_cast<Mesh *>(data_eval);
   }
@@ -4874,11 +4902,11 @@ Mesh *BKE_object_get_evaluated_mesh(const Object *object)
 
 Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
 {
-  if (object->type == OB_MESH && object->runtime.data_orig != nullptr) {
+  if (object->type == OB_MESH && object->runtime->data_orig != nullptr) {
     BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_WRITE);
     BLI_assert(object->id.orig_id != nullptr);
-    BLI_assert(object->runtime.data_orig->orig_id == ((Object *)object->id.orig_id)->data);
-    Mesh *result = (Mesh *)object->runtime.data_orig;
+    BLI_assert(object->runtime->data_orig->orig_id == ((Object *)object->id.orig_id)->data);
+    Mesh *result = (Mesh *)object->runtime->data_orig;
     BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
     BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT) == 0);
     return result;
@@ -4916,7 +4944,7 @@ Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
     return nullptr;
   }
 
-  return reinterpret_cast<Mesh *>(object->runtime.data_eval);
+  return reinterpret_cast<Mesh *>(object->runtime->data_eval);
 }
 
 Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
@@ -4928,7 +4956,7 @@ Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
   BLI_assert(mesh->edit_mesh != nullptr);
   UNUSED_VARS_NDEBUG(mesh);
 
-  return object->runtime.editmesh_eval_cage;
+  return object->runtime->editmesh_eval_cage;
 }
 
 Lattice *BKE_object_get_lattice(const Object *object)
@@ -4948,7 +4976,7 @@ Lattice *BKE_object_get_lattice(const Object *object)
 
 Lattice *BKE_object_get_evaluated_lattice(const Object *object)
 {
-  ID *data_eval = object->runtime.data_eval;
+  ID *data_eval = object->runtime->data_eval;
 
   if (data_eval == nullptr || GS(data_eval->name) != ID_LT) {
     return nullptr;
@@ -5556,12 +5584,12 @@ bool BKE_object_supports_material_slots(Object *ob)
 
 void BKE_object_runtime_reset(Object *object)
 {
-  memset(&object->runtime, 0, sizeof(object->runtime));
+  *object->runtime = {};
 }
 
 void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
 {
-  Object_Runtime *runtime = &object->runtime;
+  blender::bke::ObjectRuntime *runtime = object->runtime;
   runtime->data_eval = nullptr;
   runtime->gpd_eval = nullptr;
   runtime->mesh_deform_eval = nullptr;
@@ -5738,8 +5766,8 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       Mesh *me = (Mesh *)ob->data;
       uint i;
 
-      Mesh *me_eval = ob->runtime.mesh_deform_eval ? ob->runtime.mesh_deform_eval :
-                                                     BKE_object_get_evaluated_mesh(ob);
+      Mesh *me_eval = ob->runtime->mesh_deform_eval ? ob->runtime->mesh_deform_eval :
+                                                      BKE_object_get_evaluated_mesh(ob);
       const int *index;
 
       if (me_eval &&
@@ -5975,7 +6003,7 @@ void BKE_object_update_select_id(Main *bmain)
   Object *ob = (Object *)bmain->objects.first;
   int select_id = 1;
   while (ob) {
-    ob->runtime.select_id = select_id++;
+    ob->runtime->select_id = select_id++;
     ob = (Object *)ob->id.next;
   }
 }
@@ -5991,17 +6019,17 @@ Mesh *BKE_object_to_mesh(Depsgraph *depsgraph, Object *object, bool preserve_all
   BKE_object_to_mesh_clear(object);
 
   Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, preserve_all_data_layers, false);
-  object->runtime.object_as_temp_mesh = mesh;
+  object->runtime->object_as_temp_mesh = mesh;
   return mesh;
 }
 
 void BKE_object_to_mesh_clear(Object *object)
 {
-  if (object->runtime.object_as_temp_mesh == nullptr) {
+  if (object->runtime->object_as_temp_mesh == nullptr) {
     return;
   }
-  BKE_id_free(nullptr, object->runtime.object_as_temp_mesh);
-  object->runtime.object_as_temp_mesh = nullptr;
+  BKE_id_free(nullptr, object->runtime->object_as_temp_mesh);
+  object->runtime->object_as_temp_mesh = nullptr;
 }
 
 Curve *BKE_object_to_curve(Object *object, Depsgraph *depsgraph, bool apply_modifiers)
@@ -6009,17 +6037,17 @@ Curve *BKE_object_to_curve(Object *object, Depsgraph *depsgraph, bool apply_modi
   BKE_object_to_curve_clear(object);
 
   Curve *curve = BKE_curve_new_from_object(object, depsgraph, apply_modifiers);
-  object->runtime.object_as_temp_curve = curve;
+  object->runtime->object_as_temp_curve = curve;
   return curve;
 }
 
 void BKE_object_to_curve_clear(Object *object)
 {
-  if (object->runtime.object_as_temp_curve == nullptr) {
+  if (object->runtime->object_as_temp_curve == nullptr) {
     return;
   }
-  BKE_id_free(nullptr, object->runtime.object_as_temp_curve);
-  object->runtime.object_as_temp_curve = nullptr;
+  BKE_id_free(nullptr, object->runtime->object_as_temp_curve);
+  object->runtime->object_as_temp_curve = nullptr;
 }
 
 void BKE_object_check_uuids_unique_and_report(const Object *object)
@@ -6047,10 +6075,10 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
 {
   ob->type = BKE_object_obdata_to_type(new_data);
   ob->data = (void *)new_data;
-  ob->runtime.geometry_set_eval = nullptr;
-  ob->runtime.data_eval = new_data;
-  if (ob->runtime.bb != nullptr) {
-    ob->runtime.bb->flag |= BOUNDBOX_DIRTY;
+  ob->runtime->geometry_set_eval = nullptr;
+  ob->runtime->data_eval = new_data;
+  if (ob->runtime->bb != nullptr) {
+    ob->runtime->bb->flag |= BOUNDBOX_DIRTY;
   }
   ob->id.py_instance = nullptr;
 }
