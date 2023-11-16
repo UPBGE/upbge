@@ -431,6 +431,8 @@ typedef struct Object {
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache;
 
+  ObjectRuntimeHandle *runtime;
+
 
   /************UPBGE**************/
 
