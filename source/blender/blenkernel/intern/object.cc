@@ -69,26 +69,26 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_DerivedMesh.h"
+#include "BKE_DerivedMesh.hh"
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_anim_path.h"
 #include "BKE_anim_visualization.h"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"
-#include "BKE_asset.h"
+#include "BKE_armature.hh"
+#include "BKE_asset.hh"
 #include "BKE_bpath.h"
 #include "BKE_bullet.h"
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_crazyspace.hh"
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
 #include "BKE_duplilist.h"
-#include "BKE_editmesh.h"
+#include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
@@ -104,7 +104,7 @@
 #include "BKE_idtype.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
-#include "BKE_lattice.h"
+#include "BKE_lattice.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
@@ -139,7 +139,7 @@
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
 #include "BKE_vfont.h"
-#include "BKE_volume.h"
+#include "BKE_volume.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -190,7 +190,7 @@ static void object_init_data(ID *id)
 
   ob->trackflag = OB_POSY;
   ob->upflag = OB_POSZ;
-  ob->runtime = MEM_cnew<blender::bke::ObjectRuntime>(__func__);
+  ob->runtime = MEM_new<blender::bke::ObjectRuntime>(__func__);
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
@@ -1010,7 +1010,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Object *ob = (Object *)id;
 
-  ob->runtime = MEM_cnew<blender::bke::ObjectRuntime>(__func__);
+  ob->runtime = MEM_new<blender::bke::ObjectRuntime>(__func__);
 
   PartEff *paf;
 
@@ -2103,8 +2103,6 @@ void BKE_object_free_derived_caches(Object *ob)
     delete ob->runtime->geometry_set_eval;
     ob->runtime->geometry_set_eval = nullptr;
   }
-
-  MEM_SAFE_FREE(ob->runtime->editmesh_bb_cage);
 }
 
 void BKE_object_free_caches(Object *object)
@@ -3970,7 +3968,9 @@ void BKE_object_where_is_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 void BKE_object_workob_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob, Object *workob)
 {
+  blender::bke::ObjectRuntime workob_runtime;
   BKE_object_workob_clear(workob);
+  workob->runtime = &workob_runtime;
 
   unit_m4(workob->object_to_world);
   unit_m4(workob->parentinv);
@@ -5599,8 +5599,8 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
   runtime->object_as_temp_curve = nullptr;
   runtime->geometry_set_eval = nullptr;
 
-  runtime->crazyspace_deform_imats = nullptr;
-  runtime->crazyspace_deform_cos = nullptr;
+  runtime->crazyspace_deform_imats = {};
+  runtime->crazyspace_deform_cos = {};
 }
 
 void BKE_object_runtime_free_data(Object *object)
