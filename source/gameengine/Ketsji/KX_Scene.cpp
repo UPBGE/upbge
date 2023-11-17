@@ -784,6 +784,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
+  /* When we call wm_draw_update, bContext variables are unset,
+   * then we need to set it again correctly to render the next frame.
+   * wm_draw_update can also be called when playing dragging or resizing
+   * blender window */
+  ReinitBlenderContextVariables();
+
   /* Here we'll render directly the scene with viewport code. */
   if (useViewportRender) {
     /* Viewport render mode doesn't support several render passes then exit here
@@ -796,10 +802,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
     /* Don't need any background framebuffer as everything will be redrawn */
     GPU_framebuffer_restore();
-
-    /* When we call wm_draw_update, bContext variables are unset,
-     * then we need to set it again correctly to render the next frame. */
-    ReinitBlenderContextVariables();
 
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
