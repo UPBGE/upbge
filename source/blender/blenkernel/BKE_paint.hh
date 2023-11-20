@@ -9,6 +9,7 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_bitmap.h"
 #include "BLI_compiler_compat.h"
 #include "BLI_math_matrix_types.hh"
@@ -388,7 +389,7 @@ struct SculptPersistentBase {
 
 struct SculptVertexInfo {
   /* Indexed by base mesh vertex index, stores if that vertex is a boundary. */
-  BLI_bitmap *boundary;
+  blender::BitVector<> boundary;
 };
 
 struct SculptBoundaryEditInfo {
@@ -583,8 +584,6 @@ struct SculptSession {
 
   eAttrDomain vcol_domain;
   eCustomDataType vcol_type;
-
-  const float *vmask;
 
   /* Mesh connectivity maps. */
   /* Vertices to adjacent polys. */
@@ -866,10 +865,10 @@ bool *BKE_sculpt_hide_poly_ensure(Mesh *mesh);
  *
  * \note always call *before* #BKE_sculpt_update_object_for_edit.
  */
-int BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
-                                  Main *bmain,
-                                  Object *ob,
-                                  MultiresModifierData *mmd);
+void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
+                                   Main *bmain,
+                                   Object *ob,
+                                   MultiresModifierData *mmd);
 void BKE_sculpt_toolsettings_data_ensure(Scene *scene);
 
 PBVH *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob);
@@ -884,11 +883,6 @@ void BKE_sculpt_sync_face_visibility_to_grids(Mesh *mesh, SubdivCCG *subdiv_ccg)
  * drawing the mesh and all updates that come with it.
  */
 bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d);
-
-enum {
-  SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),
-  SCULPT_MASK_LAYER_CALC_LOOP = (1 << 1),
-};
 
 /* paint_vertex.cc */
 
