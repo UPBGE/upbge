@@ -345,7 +345,7 @@ KX_Scene::~KX_Scene()
          * is not executed then we free it now.
          */
         GPU_viewport_free(m_initMaterialsGPUViewport);
-        DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+        //DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
     DRW_game_gpu_viewport_set(nullptr);
