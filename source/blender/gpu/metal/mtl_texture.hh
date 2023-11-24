@@ -625,7 +625,7 @@ inline MTLTextureUsage mtl_usage_from_gpu(eGPUTextureUsage usage)
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
     mtl_usage = mtl_usage | MTLTextureUsageRenderTarget;
   }
-  if (usage & GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW) {
+  if (usage & GPU_TEXTURE_USAGE_FORMAT_VIEW) {
     mtl_usage = mtl_usage | MTLTextureUsagePixelFormatView;
   }
 #if defined(MAC_OS_VERSION_14_0)
@@ -655,7 +655,7 @@ inline eGPUTextureUsage gpu_usage_from_mtl(MTLTextureUsage mtl_usage)
     usage = usage | GPU_TEXTURE_USAGE_ATTACHMENT;
   }
   if (mtl_usage & MTLTextureUsagePixelFormatView) {
-    usage = usage | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
+    usage = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
   }
   return usage;
 }

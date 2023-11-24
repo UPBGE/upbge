@@ -4,7 +4,6 @@
 
 set(INC
   .
-  ../blenfont
   ../blenkernel
   ../blentranslation
   ../depsgraph
@@ -17,7 +16,6 @@ set(INC
   ../render
   ../sequencer
   ../windowmanager
-  ../../../intern/clog
   ../bmesh
 
   # RNA_prototypes.h
@@ -64,9 +62,11 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::blenfont
   bf_blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )
 

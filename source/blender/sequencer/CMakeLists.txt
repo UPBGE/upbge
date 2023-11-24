@@ -5,7 +5,6 @@
 set(INC
   .
   intern
-  ../blenfont
   ../blenkernel
   ../blenloader
   ../blentranslation
@@ -14,7 +13,6 @@ set(INC
   ../makesrna
   ../render
   ../windowmanager
-  ../../../intern/clog
 
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -82,10 +80,12 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   bf_blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )
 
