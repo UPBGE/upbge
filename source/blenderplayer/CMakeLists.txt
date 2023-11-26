@@ -30,6 +30,7 @@ list(APPEND LIB
   bf_asset_system
   bf_intern_guardedalloc
   PRIVATE bf::blenlib
+  PRIVATE bf::imbuf
   bf_intern_memutil
   bf_dna_blenlib
   bf_blenloader
