@@ -41,17 +41,14 @@ set(INC
   ../SceneGraph
   ../../blender
   ../../blender/asset_system
-  ../../blender/blenfont
   ../../blender/blenkernel
   ../../blender/blenloader
   ../../blender/blentranslation
   ../../blender/bmesh
-  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
   ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/python
   ../../blender/render
@@ -59,7 +56,6 @@ set(INC
   ../../blender/windowmanager
   ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
-  ../../../intern/clog
   ../../../intern/memutil
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -79,8 +75,12 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_ghost
 )

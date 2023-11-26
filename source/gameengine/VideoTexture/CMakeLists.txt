@@ -15,13 +15,11 @@ set(INC
   ../../blender/blenkernel
   ../../blender/blentranslation
   ../../blender/bmesh
-  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee
   ../../blender/editors/include
   ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
@@ -82,7 +80,9 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   ge_scenegraph
 )

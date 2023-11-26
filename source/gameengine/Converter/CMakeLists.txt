@@ -44,12 +44,10 @@ set(INC
   ../../blender/blenkernel
   ../../blender/blenloader
   ../../blender/blentranslation
-  ../../blender/depsgraph
   ../../blender/draw/engines/eevee
   ../../blender/draw/intern
   ../../blender/gpu
   ../../blender/ikplugin
-  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/render
   ../../blender/windowmanager
@@ -99,7 +97,9 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   ge_physics_dummy
   ge_physics_bullet
