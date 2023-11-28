@@ -55,12 +55,7 @@ if(WITH_BULLET)
   add_subdirectory(rigidbody)
 endif()
 
-# only windows needs utf16 converter
-# gpudirect is a runtime interface to the nVidia's DVP driver, only for windows
-if(WIN32)
-	add_subdirectory(utfconv)
-	add_subdirectory(gpudirect)
-endif()
+add_subdirectory(utfconv)
 
 if(WITH_MOD_FLUID)
   add_subdirectory(mantaflow)
