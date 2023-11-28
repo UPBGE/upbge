@@ -40,7 +40,7 @@ if(WITH_IK_ITASC)
 endif()
 
 if(WITH_GAMEENGINE)
-	add_subdirectory(moto)
+  add_subdirectory(moto)
 endif()
 
 if(WITH_CYCLES)
@@ -56,6 +56,7 @@ if(WITH_BULLET)
 endif()
 
 add_subdirectory(utfconv)
+add_subdirectory(gpudirect)
 
 if(WITH_MOD_FLUID)
   add_subdirectory(mantaflow)

@@ -22,6 +22,7 @@
 #include "CcdPhysicsEnvironment.h"
 
 #include "BKE_object.hh"
+#include "BLI_bounds_types.hh"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
@@ -2776,6 +2777,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                                           bool isCompoundChild,
                                           bool hasCompoundChildren)
 {
+  using namespace blender;
   Object *blenderobject = gameobj->GetBlenderObject();
 
   bool isbulletdyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
@@ -2982,19 +2984,21 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   // Get bounds information
   float bounds_center[3], bounds_extends[3];
-  const std::optional<BoundBox> bb = BKE_object_boundbox_get(blenderobject);
-  if (bb == std::nullopt) {
-    bounds_center[0] = bounds_center[1] = bounds_center[2] = 0.0f;
-    bounds_extends[0] = bounds_extends[1] = bounds_extends[2] = 1.0f;
+  if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_eval_cached_get(
+          blenderobject)) {
+    BoundBox bb;
+    BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
+    bounds_extends[0] = 0.5f * fabsf(bb.vec[0][0] - bb.vec[4][0]);
+    bounds_extends[1] = 0.5f * fabsf(bb.vec[0][1] - bb.vec[2][1]);
+    bounds_extends[2] = 0.5f * fabsf(bb.vec[0][2] - bb.vec[1][2]);
+
+    bounds_center[0] = 0.5f * (bb.vec[0][0] + bb.vec[4][0]);
+    bounds_center[1] = 0.5f * (bb.vec[0][1] + bb.vec[2][1]);
+    bounds_center[2] = 0.5f * (bb.vec[0][2] + bb.vec[1][2]);
   }
   else {
-    bounds_extends[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
-    bounds_extends[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
-    bounds_extends[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
-
-    bounds_center[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
-    bounds_center[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
-    bounds_center[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
+    bounds_center[0] = bounds_center[1] = bounds_center[2] = 0.0f;
+    bounds_extends[0] = bounds_extends[1] = bounds_extends[2] = 1.0f;
   }
 
   switch (bounds) {
