@@ -2984,10 +2984,10 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   // Get bounds information
   float bounds_center[3], bounds_extends[3];
-  if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_eval_cached_get(
+  if (const std::optional<Bounds<float3>> bl_bounds = BKE_object_boundbox_eval_cached_get(
           blenderobject)) {
     BoundBox bb;
-    BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
+    BKE_boundbox_init_from_minmax(&bb, bl_bounds->min, bl_bounds->max);
     bounds_extends[0] = 0.5f * fabsf(bb.vec[0][0] - bb.vec[4][0]);
     bounds_extends[1] = 0.5f * fabsf(bb.vec[0][1] - bb.vec[2][1]);
     bounds_extends[2] = 0.5f * fabsf(bb.vec[0][2] - bb.vec[1][2]);
