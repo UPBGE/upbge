@@ -379,7 +379,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   BKE_mesh_tessface_ensure(final_me);
 
-  const float(*positions)[3] = BKE_mesh_vert_positions(final_me);
+  const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->totvert;
 
   const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata_legacy, CD_MFACE);
@@ -424,7 +424,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       short tangent_mask = 0;
       const Span<MLoopTri> looptris = final_me->looptris();
       BKE_mesh_calc_loop_tangent_ex(
-          positions,
+          reinterpret_cast<const float(*)[3]>(positions.data()),
           final_me->faces(),
           final_me->corner_verts().data(),
           looptris.data(),

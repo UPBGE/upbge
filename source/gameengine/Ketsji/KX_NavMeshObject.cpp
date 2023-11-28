@@ -28,7 +28,7 @@
 #include "KX_NavMeshObject.h"
 
 #include "BKE_context.hh"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BLI_sort.h"
 #include "DEG_depsgraph_query.hh"
@@ -160,7 +160,8 @@ static int buildRawVertIndicesData(Mesh *me,
     return 0;
   }
 
-  float(*v)[3] = BKE_mesh_vert_coords_alloc(me, nullptr);
+  float(*v)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * me->totvert, __func__);
+  blender::MutableSpan(reinterpret_cast<blender::float3 *>(v), me->totvert).copy_from(me->vert_positions());
   verts = (float *)v;
 
   /* flip coordinates */

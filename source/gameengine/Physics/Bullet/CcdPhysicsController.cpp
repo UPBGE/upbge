@@ -2041,7 +2041,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   /* No need to call again ensure_tessface as it was called in BL_DataConversion */
 
-  const float(*positions)[3] = BKE_mesh_vert_positions(me);
+  const blender::Span<blender::float3> positions = me->vert_positions();
   const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
   numverts = me->totvert;
   const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
@@ -2389,7 +2389,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
      * Mesh Update
      *
      * */
-    const float(*positions)[3] = BKE_mesh_vert_positions(me);
+    const blender::Span<blender::float3> positions = me->vert_positions();
     MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
     numpolys = me->totface_legacy;
     numverts = me->totvert;
