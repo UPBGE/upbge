@@ -88,7 +88,9 @@ set(LIB
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
-  list(APPEND INC ../../../intern/utfconv)
+  list(APPEND LIB
+    PRIVATE bf::intern::utfconv
+  )
 endif()
 
 if(WITH_USD)
