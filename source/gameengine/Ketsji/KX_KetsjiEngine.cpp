@@ -139,6 +139,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_previousAnimTime(0.0f),
       m_timescale(1.0f),
       m_previousRealTime(0.0f),
+      m_previous_deltaTime(0.0f),
+      m_firstEngineFrame(true),
       m_maxLogicFrame(5),
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
@@ -384,8 +386,31 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
     m_clockTime = m_clock.GetTimeSecond();
   }
 
+  // if it's the first frame of the game, put m_previousRealTime = m_clockTime to avoid problems.
+  if (m_firstEngineFrame) {
+    m_previousRealTime = m_clockTime;
+    m_firstEngineFrame = false;
+  }
+
   // Get elapsed time.
-  const double dt = m_clockTime - m_previousRealTime;
+  double dt = m_clockTime - m_previousRealTime;
+
+  // Fix strange behavior of deltaTime and physics.
+  const double averageFrameRate = GetAverageFrameRate();
+  double maxDeltaTime = 1.5f;
+
+  // Below 1fps, deltaTime tends to be close to 1, there is no need to adjust.
+  if (averageFrameRate >= 1.5f) {
+    maxDeltaTime = (averageFrameRate < 15.0f) ? m_previous_deltaTime + 0.5f :
+                                                m_previous_deltaTime + 0.05f;  // Max dt
+  }
+  m_previous_deltaTime = dt;
+
+  // If it exceeds the maximum value, adjust it to the maximum value, this prevents objects from
+  // having sudden movements.
+  if (dt > maxDeltaTime) {
+    dt = maxDeltaTime;  // set deltaTime to max value.
+  }
 
   // Time of a frame (without scale).
   double timestep;
