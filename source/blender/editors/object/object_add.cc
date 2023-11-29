@@ -89,7 +89,7 @@
 #include "BKE_sca.hh"
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
 #include "DEG_depsgraph.hh"

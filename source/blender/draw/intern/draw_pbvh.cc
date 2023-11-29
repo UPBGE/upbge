@@ -358,7 +358,7 @@ struct PBVHBatches {
         break;
       }
       case PBVH_GRIDS: {
-        count = BKE_pbvh_count_grid_quads((BLI_bitmap **)args.grid_hidden,
+        count = BKE_pbvh_count_grid_quads(args.grid_hidden,
                                           args.grid_indices.data(),
                                           args.grid_indices.size(),
                                           args.ccg_key.grid_size,
@@ -583,7 +583,7 @@ struct PBVHBatches {
             [&](int /*x*/, int /*y*/, int grid_index, CCGElem * /*elems*/[4], int /*i*/) {
               uchar face_set_color[4] = {UCHAR_MAX, UCHAR_MAX, UCHAR_MAX, UCHAR_MAX};
 
-              const int face_index = BKE_subdiv_ccg_grid_to_face_index(args.subdiv_ccg,
+              const int face_index = BKE_subdiv_ccg_grid_to_face_index(*args.subdiv_ccg,
                                                                        grid_index);
               const int fset = face_sets_span[face_index];
 
@@ -1058,6 +1058,7 @@ struct PBVHBatches {
 
   void create_index_faces(const PBVH_GPU_Args &args)
   {
+    using namespace blender;
     const int *mat_index = static_cast<const int *>(
         CustomData_get_layer_named(args.face_data, CD_PROP_INT32, "material_index"));
 
@@ -1077,18 +1078,16 @@ struct PBVHBatches {
         continue;
       }
 
-      const MLoopTri *lt = &args.mlooptri[looptri_i];
-      int r_edges[3];
-      BKE_mesh_looptri_get_real_edges(
-          edges.data(), args.corner_verts.data(), args.corner_edges.data(), lt, r_edges);
+      const blender::int3 real_edges = bke::mesh::looptri_get_real_edges(
+          edges, args.corner_verts, args.corner_edges, args.mlooptri[looptri_i]);
 
-      if (r_edges[0] != -1) {
+      if (real_edges[0] != -1) {
         edge_count++;
       }
-      if (r_edges[1] != -1) {
+      if (real_edges[1] != -1) {
         edge_count++;
       }
-      if (r_edges[2] != -1) {
+      if (real_edges[2] != -1) {
         edge_count++;
       }
     }
@@ -1103,18 +1102,16 @@ struct PBVHBatches {
         continue;
       }
 
-      const MLoopTri *lt = &args.mlooptri[looptri_i];
-      int r_edges[3];
-      BKE_mesh_looptri_get_real_edges(
-          edges.data(), args.corner_verts.data(), args.corner_edges.data(), lt, r_edges);
+      const blender::int3 real_edges = bke::mesh::looptri_get_real_edges(
+          edges, args.corner_verts, args.corner_edges, args.mlooptri[looptri_i]);
 
-      if (r_edges[0] != -1) {
+      if (real_edges[0] != -1) {
         GPU_indexbuf_add_line_verts(&elb_lines, vertex_i, vertex_i + 1);
       }
-      if (r_edges[1] != -1) {
+      if (real_edges[1] != -1) {
         GPU_indexbuf_add_line_verts(&elb_lines, vertex_i + 1, vertex_i + 2);
       }
-      if (r_edges[2] != -1) {
+      if (real_edges[2] != -1) {
         GPU_indexbuf_add_line_verts(&elb_lines, vertex_i + 2, vertex_i);
       }
 
@@ -1154,7 +1151,7 @@ struct PBVHBatches {
         CustomData_get_layer_named(args.face_data, CD_PROP_INT32, "material_index"));
 
     if (mat_index && !args.grid_indices.is_empty()) {
-      int face_i = BKE_subdiv_ccg_grid_to_face_index(args.subdiv_ccg, args.grid_indices[0]);
+      int face_i = BKE_subdiv_ccg_grid_to_face_index(*args.subdiv_ccg, args.grid_indices[0]);
       material_index = mat_index[face_i];
     }
 
@@ -1173,7 +1170,7 @@ struct PBVHBatches {
 
     for (const int grid_index : args.grid_indices) {
       bool smooth = !args.grid_flag_mats[grid_index].sharp;
-      BLI_bitmap *gh = args.grid_hidden[grid_index];
+      const BLI_bitmap *gh = args.grid_hidden[grid_index];
 
       for (int y = 0; y < gridsize - 1; y += skip) {
         for (int x = 0; x < gridsize - 1; x += skip) {
@@ -1197,11 +1194,8 @@ struct PBVHBatches {
 
     const CCGKey *key = &args.ccg_key;
 
-    uint visible_quad_len = BKE_pbvh_count_grid_quads((BLI_bitmap **)args.grid_hidden,
-                                                      args.grid_indices.data(),
-                                                      totgrid,
-                                                      key->grid_size,
-                                                      display_gridsize);
+    uint visible_quad_len = BKE_pbvh_count_grid_quads(
+        args.grid_hidden, args.grid_indices.data(), totgrid, key->grid_size, display_gridsize);
 
     GPU_indexbuf_init(&elb, GPU_PRIM_TRIS, 2 * visible_quad_len, INT_MAX);
     GPU_indexbuf_init(&elb_lines,
@@ -1216,7 +1210,7 @@ struct PBVHBatches {
         uint v0, v1, v2, v3;
         bool grid_visible = false;
 
-        BLI_bitmap *gh = args.grid_hidden[args.grid_indices[i]];
+        const BLI_bitmap *gh = args.grid_hidden[args.grid_indices[i]];
 
         for (int j = 0; j < gridsize - skip; j += skip) {
           for (int k = 0; k < gridsize - skip; k += skip) {
@@ -1254,7 +1248,7 @@ struct PBVHBatches {
 
       for (int i = 0; i < totgrid; i++, offset += grid_vert_len) {
         bool grid_visible = false;
-        BLI_bitmap *gh = args.grid_hidden[args.grid_indices[i]];
+        const BLI_bitmap *gh = args.grid_hidden[args.grid_indices[i]];
 
         uint v0, v1, v2, v3;
         for (int j = 0; j < gridsize - skip; j += skip) {

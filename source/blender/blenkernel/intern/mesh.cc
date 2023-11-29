@@ -278,7 +278,9 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->loop_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
-    mesh_sculpt_mask_to_legacy(vert_layers);
+    if (!is_undo) {
+      mesh_sculpt_mask_to_legacy(vert_layers);
+    }
   }
 
   mesh->runtime = nullptr;
@@ -1076,27 +1078,6 @@ void BKE_mesh_sharp_edges_set_from_angle(Mesh *me, const float angle)
                                         angle,
                                         sharp_edges.span);
   sharp_edges.finish();
-}
-
-void BKE_mesh_looptri_get_real_edges(const blender::int2 *edges,
-                                     const int *corner_verts,
-                                     const int *corner_edges,
-                                     const MLoopTri *tri,
-                                     int r_edges[3])
-{
-  for (int i = 2, i_next = 0; i_next < 3; i = i_next++) {
-    const int corner_1 = tri->tri[i];
-    const int corner_2 = tri->tri[i_next];
-    const int vert_1 = corner_verts[corner_1];
-    const int vert_2 = corner_verts[corner_2];
-    const int edge_i = corner_edges[corner_1];
-    const blender::int2 &edge = edges[edge_i];
-
-    bool is_real = (vert_1 == edge[0] && vert_2 == edge[1]) ||
-                   (vert_1 == edge[1] && vert_2 == edge[0]);
-
-    r_edges[i] = is_real ? edge_i : -1;
-  }
 }
 
 std::optional<blender::Bounds<blender::float3>> Mesh::bounds_min_max() const

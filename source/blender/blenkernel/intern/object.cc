@@ -138,7 +138,7 @@
 #include "BKE_speaker.h"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
 #include "DEG_depsgraph.hh"

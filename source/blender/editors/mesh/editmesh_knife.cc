@@ -39,7 +39,7 @@
 #include "BKE_layer.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
@@ -3022,7 +3022,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
     else {
       /* This vertex isn't used so remove from `kfvs`.
        * This is useful to detect KnifeEdges that can be skipped.
-       * And it optimizes smallhash_iternext a little bit. */
+       * And it optimizes iteration a little bit. */
       kfvs.remove(v);
     }
   }

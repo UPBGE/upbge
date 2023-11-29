@@ -115,19 +115,6 @@ void BKE_mesh_ensure_default_orig_index_customdata(struct Mesh *mesh);
  */
 void BKE_mesh_ensure_default_orig_index_customdata_no_check(struct Mesh *mesh);
 
-#ifdef __cplusplus
-
-/**
- * Sets each output array element to the edge index if it is a real edge, or -1.
- */
-void BKE_mesh_looptri_get_real_edges(const blender::int2 *edges,
-                                     const int *corner_verts,
-                                     const int *corner_edges,
-                                     const struct MLoopTri *tri,
-                                     int r_edges[3]);
-
-#endif
-
 /**
  * Free (or release) any data used by this mesh (does not free the mesh itself).
  * Only use for undo, in most cases `BKE_id_free(nullptr, me)` should be used.
@@ -544,16 +531,6 @@ bool BKE_mesh_validate_material_indices(struct Mesh *me);
  * Validate the mesh, \a do_fixes requires \a mesh to be non-null.
  *
  * \return false if no changes needed to be made.
- *
- * Vertex Normals
- * ==============
- *
- * While zeroed normals are checked, these checks aren't comprehensive.
- * Technically, to detect errors here a normal recalculation and comparison is necessary.
- * However this function is mainly to prevent severe errors in geometry
- * (invalid data that will crash Blender, or cause some features to behave incorrectly),
- * not to detect subtle differences in the resulting normals which could be caused
- * by importers that load normals (for example).
  */
 bool BKE_mesh_validate_arrays(struct Mesh *me,
                               float (*vert_positions)[3],
