@@ -66,7 +66,7 @@
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
 #include "BKE_tracking.h"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
