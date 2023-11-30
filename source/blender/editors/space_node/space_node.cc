@@ -28,7 +28,7 @@
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_zones.hh"
@@ -1155,6 +1155,11 @@ static void node_id_remap_cb(ID *old_id, ID *new_id, void *user_data)
     }
   }
   else if (GS(old_id->name) == ID_NT) {
+
+    if (&snode->geometry_nodes_tool_tree->id == old_id) {
+      snode->geometry_nodes_tool_tree = reinterpret_cast<bNodeTree *>(new_id);
+    }
+
     bNodeTreePath *path, *path_next;
 
     for (path = (bNodeTreePath *)snode->treepath.first; path; path = path->next) {

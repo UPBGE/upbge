@@ -27,7 +27,7 @@
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
 #include "BKE_object.hh"
 #include "BKE_preview_image.hh"
@@ -1049,8 +1049,10 @@ static void collection_gobject_hash_ensure(Collection *collection)
   collection_gobject_assert_internal_consistency(collection, true);
 }
 
-/** Similar to #collection_gobject_hash_ensure/#collection_gobject_hash_create, but does fix
- * inconsistencies in the collection objects list. */
+/**
+ * Similar to #collection_gobject_hash_ensure/#collection_gobject_hash_create, but does fix
+ * inconsistencies in the collection objects list.
+ */
 static void collection_gobject_hash_ensure_fix(Collection *collection)
 {
   bool changed = false;
