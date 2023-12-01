@@ -36,7 +36,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 /* UNUSED */
 #include "BKE_text.h" /* txt_to_buf */
 

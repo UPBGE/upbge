@@ -44,7 +44,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_context.hh"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_python_proxy.hh"
 #include "BKE_sca.hh"
 

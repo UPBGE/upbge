@@ -53,7 +53,7 @@
 
 #undef DNA_GENFILE_VERSIONING_MACROS
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_node.h"
 
 #include "BLI_listbase.h"
