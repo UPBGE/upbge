@@ -28,7 +28,7 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
@@ -36,7 +36,7 @@
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_workspace.h"
 
 #include "WM_api.hh"
@@ -58,7 +58,7 @@
 #  include "BPY_extern_run.h"
 #endif
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /* ****************************************************** */
 
@@ -69,12 +69,13 @@ static void window_manager_free_data(ID *id)
 
 static void window_manager_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  wmWindowManager *wm = (wmWindowManager *)id;
+  wmWindowManager *wm = reinterpret_cast<wmWindowManager *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, win->scene, IDWALK_CB_USER_ONE);
 
-    /* This pointer can be nullptr during old files reading, better be safe than sorry. */
+    /* This pointer can be nullptr during old files reading. */
     if (win->workspace_hook != nullptr) {
       ID *workspace = (ID *)BKE_workspace_active_get(win->workspace_hook);
       BKE_lib_query_foreachid_process(data, &workspace, IDWALK_CB_USER);
@@ -87,11 +88,15 @@ static void window_manager_foreach_id(ID *id, LibraryForeachIDData *data)
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, win->unpinned_scene, IDWALK_CB_NOP);
 
-    if (BKE_lib_query_foreachid_process_flags_get(data) & IDWALK_INCLUDE_UI) {
+    if (flag & IDWALK_INCLUDE_UI) {
       LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
         BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
                                                 BKE_screen_foreach_id_screen_area(data, area));
       }
+    }
+
+    if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, win->screen, IDWALK_CB_NOP);
     }
   }
 
@@ -162,10 +167,12 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->ghostwin = nullptr;
     win->gpuctx = nullptr;
     win->eventstate = nullptr;
+    win->eventstate_prev_press_time_ms = 0;
     win->event_last_handled = nullptr;
     win->cursor_keymap_status = nullptr;
 #if defined(WIN32) || defined(__APPLE__)
     win->ime_data = nullptr;
+    win->ime_data_is_composing = false;
 #endif
 
     BLI_listbase_clear(&win->event_queue);
@@ -223,43 +230,14 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   wm->is_interface_locked = 0;
 }
 
-static void lib_link_wm_xr_data(BlendLibReader *reader, ID *parent_id, wmXrData *xr_data)
+static void window_manager_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 {
-  BLO_read_id_address(reader, parent_id, &xr_data->session_settings.base_pose_object);
-}
-
-static void lib_link_workspace_instance_hook(BlendLibReader *reader,
-                                             WorkSpaceInstanceHook *hook,
-                                             ID *id)
-{
-  WorkSpace *workspace = BKE_workspace_active_get(hook);
-  BLO_read_id_address(reader, id, &workspace);
-
-  BKE_workspace_active_set(hook, workspace);
-}
-
-static void window_manager_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  wmWindowManager *wm = (wmWindowManager *)id;
+  wmWindowManager *wm = reinterpret_cast<wmWindowManager *>(id);
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (win->workspace_hook) { /* nullptr for old files */
-      lib_link_workspace_instance_hook(reader, win->workspace_hook, id);
-    }
-    BLO_read_id_address(reader, id, &win->scene);
-    /* deprecated, but needed for versioning (will be nullptr'ed then) */
-    BLO_read_id_address(reader, id, &win->screen);
-
-    /* The unpinned scene is a UI->Scene-data pointer, and should be nullptr'ed on linking (like
-     * WorkSpace.pin_scene). But the WindowManager ID (owning the window) is never linked. */
-    BLI_assert(!ID_IS_LINKED(id));
-    BLO_read_id_address(reader, id, &win->unpinned_scene);
-
     LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
-      BKE_screen_area_blend_read_lib(reader, id, area);
+      BKE_screen_area_blend_read_after_liblink(reader, id, area);
     }
-
-    lib_link_wm_xr_data(reader, id, &wm->xr);
   }
 }
 
@@ -269,7 +247,7 @@ IDTypeInfo IDType_ID_WM = {
     /*main_listbase_index*/ INDEX_ID_WM,
     /*struct_size*/ sizeof(wmWindowManager),
     /*name*/ "WindowManager",
-    /*name_plural*/ "window_managers",
+    /*name_plural*/ N_("window_managers"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WINDOWMANAGER,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA |
         IDTYPE_FLAGS_NO_MEMFILE_UNDO,
@@ -286,8 +264,7 @@ IDTypeInfo IDType_ID_WM = {
 
     /*blend_write*/ window_manager_blend_write,
     /*blend_read_data*/ window_manager_blend_read_data,
-    /*blend_read_lib*/ window_manager_blend_read_lib,
-    /*blend_read_expand*/ nullptr,
+    /*blend_read_after_liblink*/ window_manager_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -316,7 +293,7 @@ void WM_operator_free(wmOperator *op)
   }
 
   if (op->reports && (op->reports->flag & RPT_FREE)) {
-    BKE_reports_clear(op->reports);
+    BKE_reports_free(op->reports);
     MEM_freeN(op->reports);
   }
 
@@ -367,7 +344,7 @@ void WM_operator_type_set(wmOperator *op, wmOperatorType *ot)
 
 static void wm_reports_free(wmWindowManager *wm)
 {
-  BKE_reports_clear(&wm->reports);
+  BKE_reports_free(&wm->reports);
   WM_event_timer_remove(wm, nullptr, wm->reports.reporttimer);
 }
 
@@ -471,7 +448,7 @@ void WM_keyconfig_init(bContext *C)
     if (!G.background) {
       WM_keyconfig_update_tag(nullptr, nullptr);
     }
-    WM_keyconfig_update(wm);
+    /* Don't call #WM_keyconfig_update here because add-ons have not yet been registered yet. */
 
     wm->init_flag |= WM_INIT_FLAG_KEYCONFIG;
   }
@@ -546,6 +523,8 @@ void wm_add_default(Main *bmain, bContext *C)
   bScreen *screen = CTX_wm_screen(C); /* XXX from file read hrmf */
   WorkSpace *workspace;
   WorkSpaceLayout *layout = BKE_workspace_layout_find_global(bmain, screen, &workspace);
+
+  BKE_reports_init(&wm->reports, RPT_STORE);
 
   CTX_wm_manager_set(C, wm);
   win = wm_window_new(bmain, wm, nullptr, false);

@@ -1,9 +1,9 @@
 
-  This version of Blender has been originally released at www.blender.org.
+  This version of UPBGE has been originally released at upbge.org.
   It is subject to the GNU GPL license, which is part of this download.
 
-    Blender, the free and open source 3D creation suite
-    Copyright (C) 2023  Blender Foundation
+    UPBGE, the free and open source 3D game engine creation suite
+    based on Blender 3D creation suite (www.blender.org).
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,21 +19,16 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-  The Blender project uses code and libraries which are licensed under terms of
+  The UPBGE project uses code and libraries which are licensed under terms of
   licenses which are compatible with the GNU GPL 3 or later.
 
-  The license of each individual Blender source file can be found in the first
+  The license of each individual UPBGE source file can be found in the first
   few lines after "SPDX-License-Identifier:". The license text of every such
   license can be found in license/.
 
   The complete overview of copyright and licenses of third-party libraries used
-  by Blender can be found in THIRD-PARTY-LICENSES.txt.
+  by UPBGE can be found in THIRD-PARTY-LICENSES.txt.
 
-  Stichting Blender Foundation
-  Amsterdam
-  the Netherlands
-  Chamber of Commerce: 34176425
-
-  http://www.blender.org
-  foundation@blender.org
+  http://upbge.org
+  upbge_team@upbge.org
 

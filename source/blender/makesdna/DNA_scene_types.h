@@ -28,10 +28,6 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimData;
 struct Brush;
 struct Collection;
@@ -1685,13 +1681,6 @@ typedef enum eSeqOverlapMode {
   SEQ_OVERLAP_SHUFFLE,
 } eSeqOverlapMode;
 
-typedef enum eSeqImageFitMethod {
-  SEQ_SCALE_TO_FIT,
-  SEQ_SCALE_TO_FILL,
-  SEQ_STRETCH_TO_FILL,
-  SEQ_USE_ORIGINAL_SIZE,
-} eSeqImageFitMethod;
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1809,15 +1798,17 @@ typedef struct ToolSettings {
   char transform_pivot_point;
   char transform_flag;
   /** Snap elements (per space-type), #eSnapMode. */
-  char _pad1[1];
-  short snap_mode;
   char snap_node_mode;
-  char snap_uv_mode;
+  short snap_mode;
+  short snap_uv_mode;
+  short snap_anim_mode;
   /** Generic flags (per space-type), #eSnapFlag. */
   short snap_flag;
   short snap_flag_node;
   short snap_flag_seq;
+  short snap_flag_anim;
   short snap_uv_flag;
+  char _pad[4];
   /** Default snap source, #eSnapSourceOP. */
   /**
    * TODO(@gfxcoder): Rename `snap_target` to `snap_source` to avoid previous ambiguity of
@@ -1986,6 +1977,8 @@ typedef struct RaytraceEEVEE {
   float screen_trace_quality;
   /** Thickness in world space each surface will have during screen space tracing. */
   float screen_trace_thickness;
+  /** Maximum roughness before using horizon scan. */
+  float screen_trace_max_roughness;
   /** Resolution downscale factor. */
   int resolution_scale;
   /** Maximum intensity a ray can have. */
@@ -1994,6 +1987,8 @@ typedef struct RaytraceEEVEE {
   int flag;
   /** #RaytraceEEVEE_DenoiseStages. */
   int denoise_stages;
+
+  char _pad0[4];
 } RaytraceEEVEE;
 
 typedef struct SceneEEVEE {
@@ -2027,10 +2022,13 @@ typedef struct SceneEEVEE {
   float volumetric_sample_distribution;
   float volumetric_light_clamp;
   int volumetric_shadow_samples;
+  int volumetric_ray_depth;
 
   float gtao_distance;
   float gtao_factor;
   float gtao_quality;
+  float gtao_thickness;
+  float gtao_focus;
 
   float bokeh_overblur;
   float bokeh_max_size;
@@ -2056,12 +2054,16 @@ typedef struct SceneEEVEE {
   int shadow_cube_size;
   int shadow_cascade_size;
   int shadow_pool_size;
+  int shadow_ray_count;
+  int shadow_step_count;
+  float shadow_normal_bias;
 
   int ray_split_settings;
   int ray_tracing_method;
 
   struct RaytraceEEVEE reflection_options;
   struct RaytraceEEVEE refraction_options;
+  struct RaytraceEEVEE diffuse_options;
 
   struct LightCache *light_cache DNA_DEPRECATED;
   struct LightCache *light_cache_data;
@@ -2116,7 +2118,10 @@ typedef struct Scene {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /** Runtime (must be immediately after id for utilities to use it). */
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
   DrawDataList drawdata;
 
   struct Object *camera;
@@ -2228,6 +2233,13 @@ typedef struct Scene {
 
   /** Settings to be override by work-spaces. */
   IDProperty *layer_properties;
+
+  /**
+   * Frame range used for simulations in geometry nodes by default, if SCE_CUSTOM_SIMULATION_RANGE
+   * is set. Individual simulations can overwrite this though.
+   */
+  int simulation_frame_start;
+  int simulation_frame_end;
 
   struct SceneDisplay display;
   struct SceneEEVEE eevee;
@@ -2411,8 +2423,8 @@ enum {
 
 /** #RenderData::engine (scene.cc) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
+extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 extern const char *RE_engine_id_BLENDER_WORKBENCH;
-extern const char *RE_engine_id_BLENDER_WORKBENCH_NEXT;
 extern const char *RE_engine_id_CYCLES;
 
 /** \} */
@@ -2506,6 +2518,8 @@ typedef enum eSnapFlag {
   /** Was `SCE_SNAP_NO_SELF`, but self should be active. */
   SCE_SNAP_NOT_TO_ACTIVE = (1 << 4),
   SCE_SNAP_ABS_GRID = (1 << 5),
+  /* Same value with different name to make it easier to understand in time based code. */
+  SCE_SNAP_ABS_TIME_STEP = (1 << 5),
   SCE_SNAP_BACKFACE_CULLING = (1 << 6),
   SCE_SNAP_KEEP_ON_SAME_OBJECT = (1 << 7),
   /** see #eSnapTargetOP */
@@ -2549,23 +2563,27 @@ typedef enum eSnapMode {
   SCE_SNAP_TO_NODE_X = (1 << 0),
   SCE_SNAP_TO_NODE_Y = (1 << 1),
 
+  /** #ToolSettings::snap_anim_mode */
+  SCE_SNAP_TO_FRAME = (1 << 0),
+  SCE_SNAP_TO_SECOND = (1 << 1),
+  SCE_SNAP_TO_MARKERS = (1 << 2),
+
   /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
   SCE_SNAP_TO_POINT = (1 << 0),
-  /* Even with the same value, there is a distinction between point and endpoint in the snap code.
-   * Therefore, use different enums for better code readability. */
-  SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 0),
-  SCE_SNAP_TO_EDGE = (1 << 1),
-  SCE_SNAP_TO_FACE = (1 << 2),
-  SCE_SNAP_TO_VOLUME = (1 << 3),
-  SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 4),
-  SCE_SNAP_TO_EDGE_PERPENDICULAR = (1 << 5),
-  SCE_SNAP_TO_INCREMENT = (1 << 6),
+  SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 1),
+  SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 2),
+  SCE_SNAP_TO_EDGE_PERPENDICULAR = (1 << 3),
+  SCE_SNAP_TO_EDGE = (1 << 4),
+  SCE_SNAP_TO_FACE = (1 << 5),
+  SCE_SNAP_TO_VOLUME = (1 << 6),
   SCE_SNAP_TO_GRID = (1 << 7),
+  SCE_SNAP_TO_INCREMENT = (1 << 8),
 
   /** For snap individual elements. */
-  SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 8),
-  SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 9),
+  SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
+  SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
 } eSnapMode;
+
 /* Due to dependency conflicts with Cycles, header cannot directly include `BLI_utildefines.h`. */
 /* TODO: move this macro to a more general place. */
 #ifdef ENUM_OPERATORS
@@ -2575,8 +2593,8 @@ ENUM_OPERATORS(eSnapMode, SCE_SNAP_INDIVIDUAL_PROJECT)
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
 #define SCE_SNAP_TO_GEOM \
-  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_EDGE_PERPENDICULAR | \
-   SCE_SNAP_TO_EDGE_MIDPOINT)
+  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_EDGE_MIDPOINT | \
+   SCE_SNAP_TO_EDGE_PERPENDICULAR)
 
 /** #SequencerToolSettings::snap_mode */
 enum {
@@ -2663,10 +2681,12 @@ enum {
   SCE_FRAME_DROP = 1 << 3,
   SCE_KEYS_NO_SELONLY = 1 << 4,
   SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK = 1 << 5,
-  SCE_INTERACTIVE = 1 << 6,
-  SCE_IS_BLENDERPLAYER = 1 << 7,
-  SCE_IS_GAME_XR_SESSION = 1 << 8,
-  SCE_INTERACTIVE_VIEWPORT = 1 << 9,
+  SCE_CUSTOM_SIMULATION_RANGE = 1 << 6,
+
+  SCE_INTERACTIVE = 1 << 11,
+  SCE_IS_BLENDERPLAYER = 1 << 12,
+  SCE_IS_GAME_XR_SESSION = 1 << 13,
+  SCE_INTERACTIVE_VIEWPORT = 1 << 14,
 };
 
 /* Return flag BKE_scene_base_iter_next functions. */
@@ -2856,6 +2876,8 @@ enum {
 
 /** #ToolSettings::gpencil_flags */
 typedef enum eGPencil_Flags {
+  /** Enables multi-frame editing. */
+  GP_USE_MULTI_FRAME_EDITING = (1 << 0),
   /** When creating new frames, the last frame gets used as the basis for the new one. */
   GP_TOOL_FLAG_RETAIN_LAST = (1 << 1),
   /** Add the strokes below all strokes in the layer. */
@@ -3070,7 +3092,3 @@ enum {
 };
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

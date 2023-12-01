@@ -26,19 +26,19 @@
 
 #include "BKE_brush.hh"
 #include "BKE_colortools.h"
-#include "BKE_context.h"
-#include "BKE_customdata.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
 #include "BKE_image.h"
 #include "BKE_layer.h"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -62,7 +62,7 @@
 #include "BLI_sys_types.h"
 #include "ED_mesh.hh" /* for face mask functions */
 
-#include "DRW_select_buffer.h"
+#include "DRW_select_buffer.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -270,15 +270,13 @@ static void imapaint_pick_uv(const Mesh *me_eval,
                              const int xy[2],
                              float uv[2])
 {
-  int i, findex;
   float p[2], w[3], absw, minabsw;
   float matrix[4][4], proj[4][4];
   int view[4];
   const ePaintCanvasSource mode = ePaintCanvasSource(scene->toolsettings->imapaint.mode);
 
   const blender::Span<MLoopTri> tris = me_eval->looptris();
-  const int tottri = BKE_mesh_runtime_looptri_len(me_eval);
-  const int *looptri_faces = BKE_mesh_runtime_looptri_faces_ensure(me_eval);
+  const blender::Span<int> looptri_faces = me_eval->looptri_faces();
 
   const blender::Span<blender::float3> positions = me_eval->vert_positions();
   const blender::Span<int> corner_verts = me_eval->corner_verts();
@@ -301,9 +299,9 @@ static void imapaint_pick_uv(const Mesh *me_eval,
 
   /* test all faces in the derivedmesh with the original index of the picked face */
   /* face means poly here, not triangle, indeed */
-  for (i = 0; i < tottri; i++) {
+  for (const int i : tris.index_range()) {
     const int face_i = looptri_faces[i];
-    findex = index_mp_to_orig ? index_mp_to_orig[face_i] : face_i;
+    const int findex = index_mp_to_orig ? index_mp_to_orig[face_i] : face_i;
 
     if (findex == faceindex) {
       const float(*mloopuv)[2];
@@ -416,13 +414,12 @@ void paint_sample_color(
       const int *material_indices = (const int *)CustomData_get_layer_named(
           &me_eval->face_data, CD_PROP_INT32, "material_index");
 
-      ViewContext vc;
       const int mval[2] = {x, y};
       uint faceindex;
       uint faces_num = me->faces_num;
 
       if (CustomData_has_layer(&me_eval->loop_data, CD_PROP_FLOAT2)) {
-        ED_view3d_viewcontext_init(C, &vc, depsgraph);
+        ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
         view3d_operator_needs_opengl(C);
 

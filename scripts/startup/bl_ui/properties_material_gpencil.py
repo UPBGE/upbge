@@ -15,33 +15,45 @@ from bl_ui.properties_grease_pencil_common import (
 class GPENCIL_MT_material_context_menu(Menu):
     bl_label = "Material Specials"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        if context.preferences.experimental.use_grease_pencil_version3:
+            layout.operator("grease_pencil.material_reveal", icon='RESTRICT_VIEW_OFF', text="Show All")
+            layout.operator("grease_pencil.material_hide", icon='RESTRICT_VIEW_ON', text="Hide Others").invert = True
 
-        layout.operator("gpencil.material_reveal", icon='RESTRICT_VIEW_OFF', text="Show All")
-        layout.operator("gpencil.material_hide", icon='RESTRICT_VIEW_ON', text="Hide Others").unselected = True
+            layout.separator()
 
-        layout.separator()
+            layout.operator("grease_pencil.material_lock_all", icon='LOCKED', text="Lock All")
+            layout.operator("grease_pencil.material_unlock_all", icon='UNLOCKED', text="Unlock All")
+            layout.operator("grease_pencil.material_lock_unselected", text="Lock Unselected")
+            layout.operator("grease_pencil.material_lock_unused", text="Lock Unused")
+        else:
+            layout.operator("gpencil.material_reveal", icon='RESTRICT_VIEW_OFF', text="Show All")
+            layout.operator("gpencil.material_hide", icon='RESTRICT_VIEW_ON', text="Hide Others").unselected = True
 
-        layout.operator("gpencil.material_lock_all", icon='LOCKED', text="Lock All")
-        layout.operator("gpencil.material_unlock_all", icon='UNLOCKED', text="Unlock All")
+            layout.separator()
 
-        layout.operator("gpencil.material_lock_unused", text="Lock Unselected")
-        layout.operator("gpencil.lock_layer", text="Lock Unused")
+            layout.operator("gpencil.material_lock_all", icon='LOCKED', text="Lock All")
+            layout.operator("gpencil.material_unlock_all", icon='UNLOCKED', text="Unlock All")
 
-        layout.separator()
+            layout.operator("gpencil.material_lock_unused", text="Lock Unselected")
+            layout.operator("gpencil.lock_layer", text="Lock Unused")
 
-        layout.operator("gpencil.material_to_vertex_color", text="Convert Materials to Color Attribute")
-        layout.operator("gpencil.extract_palette_vertex", text="Extract Palette from Color Attribute")
+            layout.separator()
 
-        layout.separator()
+            layout.operator("gpencil.material_to_vertex_color", text="Convert Materials to Color Attribute")
+            layout.operator("gpencil.extract_palette_vertex", text="Extract Palette from Color Attribute")
 
-        layout.operator("gpencil.materials_copy_to_object", text="Copy Material to Selected").only_active = True
-        layout.operator("gpencil.materials_copy_to_object", text="Copy All Materials to Selected").only_active = False
+            layout.separator()
 
-        layout.separator()
+            layout.operator("gpencil.materials_copy_to_object", text="Copy Material to Selected").only_active = True
+            layout.operator("gpencil.materials_copy_to_object",
+                            text="Copy All Materials to Selected").only_active = False
 
-        layout.operator("gpencil.stroke_merge_material", text="Merge Similar")
+            layout.separator()
+
+            layout.operator("gpencil.stroke_merge_material", text="Merge Similar")
+
         layout.operator("object.material_slot_remove_unused")
 
 
@@ -115,7 +127,7 @@ class MATERIAL_PT_gpencil_surface(GPMaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
     bl_label = "Stroke"
-    bl_parent_id = 'MATERIAL_PT_gpencil_surface'
+    bl_parent_id = "MATERIAL_PT_gpencil_surface"
 
     def draw_header(self, context):
         ma = context.material
@@ -164,7 +176,7 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
     bl_label = "Fill"
-    bl_parent_id = 'MATERIAL_PT_gpencil_surface'
+    bl_parent_id = "MATERIAL_PT_gpencil_surface"
 
     def draw_header(self, context):
         ma = context.material
@@ -231,7 +243,7 @@ class MATERIAL_PT_gpencil_preview(GPMaterialButtonsPanel, Panel):
 
 
 class MATERIAL_PT_gpencil_custom_props(GPMaterialButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'BLENDER_WORKBENCH_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
     _context_path = "object.active_material"
     _property_type = bpy.types.Material
 

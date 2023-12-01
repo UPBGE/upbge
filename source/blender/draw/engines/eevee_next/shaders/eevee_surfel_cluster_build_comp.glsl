@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Takes scene surfel representation and build list of surfels inside 3D cells.
@@ -12,7 +15,7 @@
 void main()
 {
   int surfel_index = int(gl_GlobalInvocationID.x);
-  if (surfel_index >= capture_info_buf.surfel_len) {
+  if (surfel_index >= int(capture_info_buf.surfel_len)) {
     return;
   }
 

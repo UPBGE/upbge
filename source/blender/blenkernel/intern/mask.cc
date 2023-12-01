@@ -20,7 +20,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -29,7 +29,7 @@
 #include "DNA_mask_types.h"
 
 #include "BKE_animsys.h"
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_idtype.h"
 
 #include "BKE_anim_data.h"
@@ -41,11 +41,11 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_build.hh"
 
 #include "DRW_engine.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 static CLG_LogRef LOG = {"bke.mask"};
 
@@ -181,59 +181,13 @@ static void mask_blend_read_data(BlendDataReader *reader, ID *id)
   }
 }
 
-static void lib_link_mask_parent(BlendLibReader *reader, Mask *mask, MaskParent *parent)
-{
-  BLO_read_id_address(reader, &mask->id, &parent->id);
-}
-
-static void mask_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Mask *mask = (Mask *)id;
-  LISTBASE_FOREACH (MaskLayer *, masklay, &mask->masklayers) {
-    MaskSpline *spline = static_cast<MaskSpline *>(masklay->splines.first);
-    while (spline) {
-      for (int i = 0; i < spline->tot_point; i++) {
-        MaskSplinePoint *point = &spline->points[i];
-
-        lib_link_mask_parent(reader, mask, &point->parent);
-      }
-
-      lib_link_mask_parent(reader, mask, &spline->parent);
-
-      spline = spline->next;
-    }
-  }
-}
-
-static void expand_mask_parent(BlendExpander *expander, MaskParent *parent)
-{
-  if (parent->id) {
-    BLO_expand(expander, parent->id);
-  }
-}
-
-static void mask_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Mask *mask = (Mask *)id;
-  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-    LISTBASE_FOREACH (MaskSpline *, spline, &mask_layer->splines) {
-      for (int i = 0; i < spline->tot_point; i++) {
-        MaskSplinePoint *point = &spline->points[i];
-        expand_mask_parent(expander, &point->parent);
-      }
-
-      expand_mask_parent(expander, &spline->parent);
-    }
-  }
-}
-
 IDTypeInfo IDType_ID_MSK = {
     /*id_code*/ ID_MSK,
     /*id_filter*/ FILTER_ID_MSK,
     /*main_listbase_index*/ INDEX_ID_MSK,
     /*struct_size*/ sizeof(Mask),
     /*name*/ "Mask",
-    /*name_plural*/ "masks",
+    /*name_plural*/ N_("masks"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_MASK,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -249,8 +203,7 @@ IDTypeInfo IDType_ID_MSK = {
 
     /*blend_write*/ mask_blend_write,
     /*blend_read_data*/ mask_blend_read_data,
-    /*blend_read_lib*/ mask_blend_read_lib,
-    /*blend_read_expand*/ mask_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -1877,7 +1830,7 @@ void BKE_mask_layer_shape_changed_add(MaskLayer *masklay,
     const int pi_next = (spline_point_index + 1) % spline->tot_point;
 
     const int index_offset = index - spline_point_index;
-    /* const int pi_curr_abs = index; */
+    // const int pi_curr_abs = index;
     const int pi_prev_abs = pi_prev + index_offset;
     const int pi_next_abs = pi_next + index_offset;
 

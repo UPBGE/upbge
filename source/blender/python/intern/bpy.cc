@@ -16,7 +16,7 @@
 #include <Python.h>
 
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
@@ -49,6 +49,7 @@
 #include "bpy_utils_units.h"
 
 #include "../generic/py_capi_utils.h"
+#include "../generic/python_compat.h"
 #include "../generic/python_utildefines.h"
 
 /* external util modules */
@@ -122,6 +123,7 @@ static PyObject *bpy_blend_paths(PyObject * /*self*/, PyObject *args, PyObject *
 
   static const char *_keywords[] = {"absolute", "packed", "local", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O&" /* `absolute` */
       "O&" /* `packed` */
@@ -185,6 +187,7 @@ static PyObject *bpy_flip_name(PyObject * /*self*/, PyObject *args, PyObject *kw
 
   static const char *_keywords[] = {"", "strip_digits", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "s#" /* `name` */
       "|$" /* Optional, keyword only arguments. */
       "O&" /* `strip_digits` */
@@ -226,6 +229,7 @@ static PyObject *bpy_user_resource(PyObject * /*self*/, PyObject *args, PyObject
 
   static const char *_keywords[] = {"type", "path", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "|$" /* Optional keyword only arguments. */
       "O&" /* `path` */
@@ -275,6 +279,7 @@ static PyObject *bpy_system_resource(PyObject * /*self*/, PyObject *args, PyObje
 
   static const char *_keywords[] = {"type", "path", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "|$" /* Optional keyword only arguments. */
       "O&" /* `path` */
@@ -328,6 +333,7 @@ static PyObject *bpy_resource_path(PyObject * /*self*/, PyObject *args, PyObject
 
   static const char *_keywords[] = {"type", "major", "minor", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "|$" /* Optional keyword only arguments. */
       "i"  /* `major` */
@@ -368,6 +374,7 @@ static PyObject *bpy_driver_secure_code_test(PyObject * /*self*/, PyObject *args
   const bool verbose = false;
   static const char *_keywords[] = {"code", "namespace", "verbose", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O!" /* `expression` */
       "|$" /* Optional keyword only arguments. */
       "O!" /* `namespace` */
@@ -548,8 +555,8 @@ static PyObject *bpy_rna_enum_items_static(PyObject * /*self*/)
     const int items_count = RNA_enum_items_count(items);
     PyObject *value = PyTuple_New(items_count);
     for (int item_index = 0; item_index < items_count; item_index++) {
-      PointerRNA ptr;
-      RNA_pointer_create(nullptr, &RNA_EnumPropertyItem, (void *)&items[item_index], &ptr);
+      PointerRNA ptr = RNA_pointer_create(
+          nullptr, &RNA_EnumPropertyItem, (void *)&items[item_index]);
       PyTuple_SET_ITEM(value, item_index, pyrna_struct_CreatePyObject(&ptr));
     }
     PyDict_SetItemString(result, enum_info[i].id, value);
@@ -634,7 +641,6 @@ static PyObject *bpy_import_test(const char *modname)
 
 void BPy_init_modules(bContext *C)
 {
-  PointerRNA ctx_ptr;
   PyObject *mod;
 
   /* Needs to be first since this dir is needed for future modules */
@@ -683,7 +689,7 @@ void BPy_init_modules(bContext *C)
   PyModule_AddObject(mod, "_utils_previews", BPY_utils_previews_module());
   PyModule_AddObject(mod, "msgbus", BPY_msgbus_module());
 
-  RNA_pointer_create(nullptr, &RNA_Context, C, &ctx_ptr);
+  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
   bpy_context_module = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ctx_ptr);
   /* odd that this is needed, 1 ref on creation and another for the module
    * but without we get a crash on exit */

@@ -41,17 +41,14 @@ set(INC
   ../SceneGraph
   ../../blender
   ../../blender/asset_system
-  ../../blender/blenfont
   ../../blender/blenkernel
   ../../blender/blenloader
   ../../blender/blentranslation
   ../../blender/bmesh
-  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
   ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/python
   ../../blender/render
@@ -59,8 +56,6 @@ set(INC
   ../../blender/windowmanager
   ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
-  ../../../intern/clog
-  ../../../intern/ghost
   ../../../intern/memutil
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -80,20 +75,27 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  bf_intern_ghost
 )
 
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
-  list(APPEND INC ../../../intern/utfconv)
+  list(APPEND LIB
+    PRIVATE bf::intern::utfconv
+  )
 endif()
 
 if(WITH_USD)
   list(APPEND LIB
-    bf_usd
+    bf_io_usd
   )
   #add_definitions(-DWITH_USD)
 endif()

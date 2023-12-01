@@ -61,18 +61,22 @@ ccl_device_inline float4 color_uchar4_to_float4(uchar4 c)
 
 ccl_device float color_srgb_to_linear(float c)
 {
-  if (c < 0.04045f)
+  if (c < 0.04045f) {
     return (c < 0.0f) ? 0.0f : c * (1.0f / 12.92f);
-  else
+  }
+  else {
     return powf((c + 0.055f) * (1.0f / 1.055f), 2.4f);
+  }
 }
 
 ccl_device float color_linear_to_srgb(float c)
 {
-  if (c < 0.0031308f)
+  if (c < 0.0031308f) {
     return (c < 0.0f) ? 0.0f : c * 12.92f;
-  else
+  }
+  else {
     return 1.055f * powf(c, 1.0f / 2.4f) - 0.055f;
+  }
 }
 
 ccl_device float3 rgb_to_hsv(float3 rgb)
@@ -98,17 +102,21 @@ ccl_device float3 rgb_to_hsv(float3 rgb)
     float3 cmax3 = make_float3(cmax, cmax, cmax);
     c = (cmax3 - rgb) / cdelta;
 
-    if (rgb.x == cmax)
+    if (rgb.x == cmax) {
       h = c.z - c.y;
-    else if (rgb.y == cmax)
+    }
+    else if (rgb.y == cmax) {
       h = 2.0f + c.x - c.z;
-    else
+    }
+    else {
       h = 4.0f + c.y - c.x;
+    }
 
     h /= 6.0f;
 
-    if (h < 0.0f)
+    if (h < 0.0f) {
       h += 1.0f;
+    }
   }
   else {
     h = 0.0f;
@@ -127,8 +135,9 @@ ccl_device float3 hsv_to_rgb(float3 hsv)
   v = hsv.z;
 
   if (s != 0.0f) {
-    if (h == 1.0f)
+    if (h == 1.0f) {
       h = 0.0f;
+    }
 
     h *= 6.0f;
     i = floorf(h);
@@ -138,18 +147,24 @@ ccl_device float3 hsv_to_rgb(float3 hsv)
     q = v * (1.0f - (s * f));
     t = v * (1.0f - (s * (1.0f - f)));
 
-    if (i == 0.0f)
+    if (i == 0.0f) {
       rgb = make_float3(v, t, p);
-    else if (i == 1.0f)
+    }
+    else if (i == 1.0f) {
       rgb = make_float3(q, v, p);
-    else if (i == 2.0f)
+    }
+    else if (i == 2.0f) {
       rgb = make_float3(p, v, t);
-    else if (i == 3.0f)
+    }
+    else if (i == 3.0f) {
       rgb = make_float3(p, q, v);
-    else if (i == 4.0f)
+    }
+    else if (i == 4.0f) {
       rgb = make_float3(t, p, v);
-    else
+    }
+    else {
       rgb = make_float3(v, p, q);
+    }
   }
   else {
     rgb = make_float3(v, v, v);
@@ -212,15 +227,19 @@ ccl_device float3 xyY_to_xyz(float x, float y, float Y)
 {
   float X, Z;
 
-  if (y != 0.0f)
+  if (y != 0.0f) {
     X = (x / y) * Y;
-  else
+  }
+  else {
     X = 0.0f;
+  }
 
-  if (y != 0.0f && Y != 0.0f)
+  if (y != 0.0f && Y != 0.0f) {
     Z = (1.0f - x - y) / y * Y;
-  else
+  }
+  else {
     Z = 0.0f;
+  }
 
   return make_float3(X, Y, Z);
 }
@@ -234,7 +253,7 @@ ccl_device float3 xyY_to_xyz(float x, float y, float Y)
  * exp = exponent, encoded as uint32_t
  * e2coeff = 2^(127/exponent - 127) * bias_coeff^(1/exponent), encoded as uint32_t
  */
-template<unsigned exp, unsigned e2coeff> ccl_device_inline float4 fastpow(const float4 &arg)
+template<unsigned exp, unsigned e2coeff> ccl_device_inline float4 fastpow_sse2(const float4 &arg)
 {
   float4 ret = arg * cast(make_int4(e2coeff));
   ret = make_float4(cast(ret));
@@ -244,7 +263,7 @@ template<unsigned exp, unsigned e2coeff> ccl_device_inline float4 fastpow(const 
 }
 
 /* Improve x ^ 1.0f/5.0f solution with Newton-Raphson method */
-ccl_device_inline float4 improve_5throot_solution(const float4 &old_result, const float4 &x)
+ccl_device_inline float4 improve_5throot_solution_sse2(const float4 &old_result, const float4 &x)
 {
   float4 approx2 = old_result * old_result;
   float4 approx4 = approx2 * approx2;
@@ -254,7 +273,7 @@ ccl_device_inline float4 improve_5throot_solution(const float4 &old_result, cons
 }
 
 /* Calculate powf(x, 2.4). Working domain: 1e-10 < x < 1e+10 */
-ccl_device_inline float4 fastpow24(const float4 &arg)
+ccl_device_inline float4 fastpow24_sse2(const float4 &arg)
 {
   /* max, avg and |avg| errors were calculated in gcc without FMA instructions
    * The final precision should be better than powf in glibc */
@@ -262,27 +281,27 @@ ccl_device_inline float4 fastpow24(const float4 &arg)
   /* Calculate x^4/5, coefficient 0.994 was constructed manually to minimize avg error */
   /* 0x3F4CCCCD = 4/5 */
   /* 0x4F55A7FB = 2^(127/(4/5) - 127) * 0.994^(1/(4/5)) */
-  float4 x = fastpow<0x3F4CCCCD, 0x4F55A7FB>(
+  float4 x = fastpow_sse2<0x3F4CCCCD, 0x4F55A7FB>(
       arg);  // error max = 0.17  avg = 0.0018    |avg| = 0.05
   float4 arg2 = arg * arg;
   float4 arg4 = arg2 * arg2;
 
   /* error max = 0.018     avg = 0.0031    |avg| = 0.0031 */
-  x = improve_5throot_solution(x, arg4);
+  x = improve_5throot_solution_sse2(x, arg4);
   /* error max = 0.00021   avg = 1.6e-05   |avg| = 1.6e-05 */
-  x = improve_5throot_solution(x, arg4);
+  x = improve_5throot_solution_sse2(x, arg4);
   /* error max = 6.1e-07   avg = 5.2e-08   |avg| = 1.1e-07 */
-  x = improve_5throot_solution(x, arg4);
+  x = improve_5throot_solution_sse2(x, arg4);
 
   return x * (x * x);
 }
 
-ccl_device float4 color_srgb_to_linear(const float4 &c)
+ccl_device float4 color_srgb_to_linear_sse2(const float4 &c)
 {
   int4 cmp = c < make_float4(0.04045f);
   float4 lt = max(c * make_float4(1.0f / 12.92f), make_float4(0.0f));
   float4 gtebase = (c + make_float4(0.055f)) * make_float4(1.0f / 1.055f); /* fma */
-  float4 gte = fastpow24(gtebase);
+  float4 gte = fastpow24_sse2(gtebase);
   return select(cmp, lt, gte);
 }
 #endif /* __KERNEL_SSE2__ */
@@ -309,7 +328,7 @@ ccl_device float4 color_srgb_to_linear_v4(float4 c)
 {
 #ifdef __KERNEL_SSE2__
   float4 r = c;
-  r = color_srgb_to_linear(r);
+  r = color_srgb_to_linear_sse2(r);
   r.w = c.w;
   return r;
 #else

@@ -49,5 +49,5 @@ class DEV_EventConsumer : public GHOST_IEventConsumer {
   virtual ~DEV_EventConsumer();
 
   /// Function called by GHOST to process all events.
-  virtual bool processEvent(GHOST_IEvent *event);
+  virtual bool processEvent(const GHOST_IEvent *event);
 };

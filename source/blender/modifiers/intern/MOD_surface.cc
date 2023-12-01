@@ -19,11 +19,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_context.h"
+#include "BKE_bvhutils.hh"
+#include "BKE_context.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -31,14 +31,14 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -89,8 +89,7 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int /*verts_num*/)
+                         blender::MutableSpan<blender::float3> positions)
 {
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
   const int cfra = int(DEG_get_ctime(ctx->depsgraph));
@@ -119,7 +118,8 @@ static void deform_verts(ModifierData *md,
     uint mesh_verts_num = 0, i = 0;
     int init = 0;
 
-    BKE_mesh_vert_coords_apply(surmd->runtime.mesh, vertexCos);
+    surmd->runtime.mesh->vert_positions_for_write().copy_from(positions);
+    BKE_mesh_tag_positions_changed(surmd->runtime.mesh);
 
     mesh_verts_num = surmd->runtime.mesh->totvert;
 
@@ -207,7 +207,7 @@ ModifierTypeInfo modifierType_Surface = {
     /*struct_name*/ "SurfaceModifierData",
     /*struct_size*/ sizeof(SurfaceModifierData),
     /*srna*/ &RNA_SurfaceModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_NoUserAdd,
     /*icon*/ ICON_MOD_PHYSICS,

@@ -33,10 +33,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct bActuator;
 struct Text;
 struct bSensor;
@@ -95,7 +91,3 @@ typedef struct bController {
 /* pyctrl->mode */
 #define CONT_PY_SCRIPT 0
 #define CONT_PY_MODULE 1
-
-#ifdef __cplusplus
-}
-#endif

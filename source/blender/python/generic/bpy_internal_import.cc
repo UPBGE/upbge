@@ -41,6 +41,7 @@
 #include "BKE_text.h" /* txt_to_buf */
 
 #include "py_capi_utils.h"
+#include "python_compat.h"
 
 #include "bpy_internal_import.h" /* own include */
 
@@ -210,7 +211,18 @@ static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw
   PyObject *newmodule;
 
   static const char *_keywords[] = {"name", "globals", "locals", "fromlist", "level", nullptr};
-  static _PyArg_Parser _parser = {"s|OOOi:bpy_import_meth", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "s"  /* name */
+      "|"  /* Optional */
+      "O"  /* globals */
+      "O"  /* locals */
+      "O"  /* fromlist */
+      "i"  /* level */
+      ":bpy_import_meth",
+      _keywords,
+      nullptr,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kw, &_parser, &name, &globals, &locals, &fromlist, &level)) {
     return nullptr;

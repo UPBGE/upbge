@@ -27,13 +27,13 @@
 
 #include "BIF_glutil.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "GHOST_C-api.h"
 
@@ -67,6 +67,9 @@ static ListBase dropboxes = {nullptr, nullptr};
 static void wm_drag_free_asset_data(wmDragAsset **asset_data);
 static void wm_drag_free_path_data(wmDragPath **path_data);
 
+wmDragActiveDropState::wmDragActiveDropState() = default;
+wmDragActiveDropState::~wmDragActiveDropState() = default;
+
 /* drop box maps are stored global for now */
 /* these are part of blender's UI/space specs, and not like keymaps */
 /* when editors become configurable, they can add own dropbox definitions */
@@ -90,7 +93,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid)
   }
 
   wmDropBoxMap *dm = MEM_cnew<wmDropBoxMap>(__func__);
-  STRNCPY(dm->idname, idname);
+  STRNCPY_UTF8(dm->idname, idname);
   dm->spaceid = spaceid;
   dm->regionid = regionid;
   BLI_addtail(&dropboxes, dm);
@@ -169,7 +172,7 @@ static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
     }
     LISTBASE_FOREACH (wmDropBox *, drop, &dm->dropboxes) {
       if (drag->drop_state.ui_context) {
-        CTX_store_set(C, drag->drop_state.ui_context);
+        CTX_store_set(C, drag->drop_state.ui_context.get());
       }
 
       if (drop->on_drag_start) {
@@ -183,7 +186,7 @@ static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
 wmDrag *WM_drag_data_create(
     bContext *C, int icon, eWM_DragDataType type, void *poin, double value, uint flags)
 {
-  wmDrag *drag = MEM_cnew<wmDrag>(__func__);
+  wmDrag *drag = MEM_new<wmDrag>(__func__);
 
   /* Keep track of future multi-touch drag too, add a mouse-pointer id or so. */
   /* if multiple drags are added, they're drawn as list */
@@ -211,13 +214,13 @@ wmDrag *WM_drag_data_create(
       /* The asset-list case is special: We get multiple assets from context and attach them to the
        * drag item. */
     case WM_DRAG_ASSET_LIST: {
-      ListBase asset_file_links = CTX_data_collection_get(C, "selected_asset_files");
-      LISTBASE_FOREACH (const CollectionPointerLink *, link, &asset_file_links) {
-        const FileDirEntry *asset_file = static_cast<const FileDirEntry *>(link->ptr.data);
-        const AssetHandle asset_handle = {asset_file};
-        WM_drag_add_asset_list_item(drag, ED_asset_handle_get_representation(&asset_handle));
+      ListBase asset_links = CTX_data_collection_get(C, "selected_assets");
+      LISTBASE_FOREACH (const CollectionPointerLink *, link, &asset_links) {
+        const AssetRepresentationHandle *asset = static_cast<const AssetRepresentationHandle *>(
+            link->ptr.data);
+        WM_drag_add_asset_list_item(drag, asset);
       }
-      BLI_freelistN(&asset_file_links);
+      BLI_freelistN(&asset_links);
       break;
     }
     default:
@@ -252,8 +255,8 @@ void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
   }
 
   /* Active area should always redraw, even if cancelled. */
-  int r_mval[2];
-  wmWindow *target_win = WM_window_find_under_cursor(win, win->eventstate->xy, &r_mval[0]);
+  int event_xy_target[2];
+  wmWindow *target_win = WM_window_find_under_cursor(win, win->eventstate->xy, event_xy_target);
   if (target_win) {
     const bScreen *screen = WM_window_get_active_screen(target_win);
     ED_region_tag_redraw_no_rebuild(screen->active_region);
@@ -264,28 +267,19 @@ void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
   }
 }
 
-static bContextStore *wm_drop_ui_context_create(const bContext *C)
+static std::unique_ptr<bContextStore> wm_drop_ui_context_create(const bContext *C)
 {
   uiBut *active_but = UI_region_active_but_get(CTX_wm_region(C));
   if (!active_but) {
     return nullptr;
   }
 
-  bContextStore *but_context = UI_but_context_get(active_but);
+  const bContextStore *but_context = UI_but_context_get(active_but);
   if (!but_context) {
     return nullptr;
   }
 
-  return CTX_store_copy(but_context);
-}
-
-static void wm_drop_ui_context_free(bContextStore **context_store)
-{
-  if (!*context_store) {
-    return;
-  }
-  CTX_store_free(*context_store);
-  *context_store = nullptr;
+  return std::make_unique<bContextStore>(*but_context);
 }
 
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
@@ -321,13 +315,13 @@ void WM_drag_data_free(eWM_DragDataType dragtype, void *poin)
 
 void WM_drag_free(wmDrag *drag)
 {
-  if (drag->drop_state.active_dropbox && drag->drop_state.active_dropbox->draw_deactivate) {
-    drag->drop_state.active_dropbox->draw_deactivate(drag->drop_state.active_dropbox, drag);
+  if (drag->drop_state.active_dropbox && drag->drop_state.active_dropbox->on_exit) {
+    drag->drop_state.active_dropbox->on_exit(drag->drop_state.active_dropbox, drag);
   }
   if (drag->flags & WM_DRAG_FREE_DATA) {
     WM_drag_data_free(drag->type, drag->poin);
   }
-  wm_drop_ui_context_free(&drag->drop_state.ui_context);
+  drag->drop_state.ui_context.reset();
   if (drag->drop_state.free_disabled_info) {
     MEM_SAFE_FREE(drag->drop_state.disabled_info);
   }
@@ -338,7 +332,7 @@ void WM_drag_free(wmDrag *drag)
     }
     BLI_freelinkN(&drag->asset_items, asset_item);
   }
-  MEM_freeN(drag);
+  MEM_delete(drag);
 }
 
 void WM_drag_free_list(ListBase *lb)
@@ -378,7 +372,7 @@ static wmDropBox *dropbox_active(bContext *C,
       if (handler->dropboxes) {
         LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
           if (drag->drop_state.ui_context) {
-            CTX_store_set(C, drag->drop_state.ui_context);
+            CTX_store_set(C, drag->drop_state.ui_context.get());
           }
 
           if (!drop->poll(C, drag, event)) {
@@ -450,18 +444,18 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
   }
 
   /* Update UI context, before polling so polls can query this context. */
-  wm_drop_ui_context_free(&drag->drop_state.ui_context);
+  drag->drop_state.ui_context.reset();
   drag->drop_state.ui_context = wm_drop_ui_context_create(C);
 
   wmDropBox *drop_prev = drag->drop_state.active_dropbox;
   wmDropBox *drop = wm_dropbox_active(C, drag, event);
   if (drop != drop_prev) {
-    if (drop_prev && drop_prev->draw_deactivate) {
-      drop_prev->draw_deactivate(drop_prev, drag);
+    if (drop_prev && drop_prev->on_exit) {
+      drop_prev->on_exit(drop_prev, drag);
       BLI_assert(drop_prev->draw_data == nullptr);
     }
-    if (drop && drop->draw_activate) {
-      drop->draw_activate(drop, drag);
+    if (drop && drop->on_enter) {
+      drop->on_enter(drop, drag);
     }
     drag->drop_state.active_dropbox = drop;
     drag->drop_state.area_from = drop ? CTX_wm_area(C) : nullptr;
@@ -469,7 +463,7 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
   }
 
   if (!drag->drop_state.active_dropbox) {
-    wm_drop_ui_context_free(&drag->drop_state.ui_context);
+    drag->drop_state.ui_context.reset();
   }
 }
 
@@ -478,7 +472,7 @@ void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
   const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
 
   if (drag->drop_state.ui_context) {
-    CTX_store_set(C, drag->drop_state.ui_context);
+    CTX_store_set(C, drag->drop_state.ui_context.get());
   }
 
   /* Optionally copy drag information to operator properties. Don't call it if the
@@ -577,12 +571,12 @@ bool WM_drag_is_ID_type(const wmDrag *drag, int idcode)
 }
 
 wmDragAsset *WM_drag_create_asset_data(const blender::asset_system::AssetRepresentation *asset,
-                                       int import_type)
+                                       int import_method)
 {
   wmDragAsset *asset_drag = MEM_new<wmDragAsset>(__func__);
 
   asset_drag->asset = asset;
-  asset_drag->import_method = import_type;
+  asset_drag->import_method = import_method;
 
   return asset_drag;
 }
@@ -1014,13 +1008,13 @@ void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int
 
 void wm_drags_draw(bContext *C, wmWindow *win)
 {
-  int xy[2];
-  if (ELEM(win->grabcursor, GHOST_kGrabWrap, GHOST_kGrabHide)) {
-    wm_cursor_position_get(win, &xy[0], &xy[1]);
-  }
-  else {
-    xy[0] = win->eventstate->xy[0];
-    xy[1] = win->eventstate->xy[1];
+  const int *xy = win->eventstate->xy;
+
+  int xy_buf[2];
+  if (ELEM(win->grabcursor, GHOST_kGrabWrap, GHOST_kGrabHide) &&
+      wm_cursor_position_get(win, &xy_buf[0], &xy_buf[1]))
+  {
+    xy = xy_buf;
   }
 
   bScreen *screen = CTX_wm_screen(C);
@@ -1039,7 +1033,7 @@ void wm_drags_draw(bContext *C, wmWindow *win)
     if (drag->drop_state.active_dropbox) {
       CTX_wm_area_set(C, drag->drop_state.area_from);
       CTX_wm_region_set(C, drag->drop_state.region_from);
-      CTX_store_set(C, drag->drop_state.ui_context);
+      CTX_store_set(C, drag->drop_state.ui_context.get());
 
       if (region && drag->drop_state.active_dropbox->draw_in_view) {
         wmViewport(&region->winrct);

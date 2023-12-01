@@ -11,6 +11,7 @@
 
 #include "eevee_private.h"
 
+#include "CM_Message.h"
 #include "EXP_PythonCallBack.h"
 #include "KX_Globals.h"
 #include "RAS_IVertex.h"
@@ -131,16 +132,22 @@ bool ImageRender::Render()
 {
   RAS_FrameFrustum frustum;
 
-  if (!m_render || m_camera->GetViewport() ||  // camera must be inactive
-      m_camera == m_scene->GetActiveCamera() || m_camera == m_scene->GetOverlayCamera()) {
+  if (!m_render) {
     // no need to compute texture in non texture rendering
+    return false;
+  }
+  if (m_camera->GetViewport() ||  // camera must be inactive
+      m_camera == m_scene->GetActiveCamera() || m_camera == m_scene->GetOverlayCamera())
+  {
+    CM_Warning("ImageRender: You are trying to use a non valid camera named  "
+               << m_camera->GetName());
     return false;
   }
 
   /* Viewport render mode doesn't support ImageRender then exit here
    * if we are trying to use not supported features. */
   if (KX_GetActiveEngine()->UseViewportRender()) {
-    std::cout << "Warning: Viewport Render mode doesn't support ImageRender" << std::endl;
+    CM_Warning("Viewport Render mode doesn't support ImageRender");
     return false;
   }
 

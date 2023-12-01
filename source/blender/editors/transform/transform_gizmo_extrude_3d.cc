@@ -12,7 +12,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_scene.h"
 
@@ -477,8 +477,8 @@ static void gizmo_mesh_extrude_message_subscribe(const bContext *C,
 
   {
     Scene *scene = CTX_data_scene(C);
-    PointerRNA toolsettings_ptr;
-    RNA_pointer_create(&scene->id, &RNA_ToolSettings, scene->toolsettings, &toolsettings_ptr);
+    PointerRNA toolsettings_ptr = RNA_pointer_create(
+        &scene->id, &RNA_ToolSettings, scene->toolsettings);
     const PropertyRNA *props[] = {
         &rna_ToolSettings_workspace_tool_type,
     };

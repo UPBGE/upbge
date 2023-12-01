@@ -20,10 +20,11 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_appdir.h"
+#include "BKE_context.hh"
 #include "BKE_main.h"
 #include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -106,15 +107,13 @@ static int toggle_pin_exec(bContext *C, wmOperator * /*op*/)
   sbuts->flag ^= SB_PIN_CONTEXT;
 
   /* Create the properties space pointer. */
-  PointerRNA sbuts_ptr;
   bScreen *screen = CTX_wm_screen(C);
-  RNA_pointer_create(&screen->id, &RNA_SpaceProperties, sbuts, &sbuts_ptr);
+  PointerRNA sbuts_ptr = RNA_pointer_create(&screen->id, &RNA_SpaceProperties, sbuts);
 
   /* Create the new ID pointer and set the pin ID with RNA
    * so we can use the property's RNA update functionality. */
   ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(C) : nullptr;
-  PointerRNA new_id_ptr;
-  RNA_id_pointer_create(new_id, &new_id_ptr);
+  PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
 
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -331,6 +330,32 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
       /* Annoying exception!, if we're dealing with the user preferences,
        * default relative to be off. */
       RNA_property_boolean_set(op->ptr, prop_relpath, is_relative);
+    }
+  }
+
+  if (!path[0]) {
+    /* Defaults if the path is empty. */
+    const char *prop_id = RNA_property_identifier(prop);
+    /* NOTE: relying on built-in names isn't useful for add-on authors.
+     * The property itself should support this kind of meta-data. */
+    if (STR_ELEM(prop_id, "font_path_ui", "font_path_ui_mono", "font_directory")) {
+      if (!U.fontdir[0]) {
+        char fonts_dir[FILE_MAXDIR];
+        BKE_appdir_font_folder_default(fonts_dir, ARRAY_SIZE(fonts_dir));
+        BLI_path_slash_ensure(fonts_dir, ARRAY_SIZE(fonts_dir));
+        path = BLI_strdup(fonts_dir);
+      }
+      else {
+        MEM_freeN(path);
+        path = BLI_strdup(U.fontdir);
+      }
+      RNA_boolean_set(op->ptr, "filter_font", true);
+      RNA_enum_set(op->ptr, "display_type", FILE_IMGDISPLAY);
+      RNA_enum_set(op->ptr, "sort_method", FILE_SORT_ALPHA);
+    }
+    else {
+      MEM_freeN(path);
+      path = BLI_strdup(BKE_appdir_folder_default_or_root());
     }
   }
 

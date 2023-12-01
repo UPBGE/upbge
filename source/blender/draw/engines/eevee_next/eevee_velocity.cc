@@ -12,9 +12,9 @@
  */
 
 #include "BKE_duplilist.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BLI_map.hh"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
@@ -26,6 +26,8 @@
 #include "eevee_shader.hh"
 #include "eevee_shader_shared.hh"
 #include "eevee_velocity.hh"
+
+#include "draw_common.hh"
 
 namespace blender::eevee {
 
@@ -76,7 +78,8 @@ static void step_object_sync_render(void *instance,
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
   ResourceHandle resource_handle(0);
-  ObjectHandle &ob_handle = inst.sync.sync_object(ob);
+  ObjectRef ob_ref = DRW_object_ref_get(ob);
+  ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
     auto sync_hair =
@@ -100,7 +103,17 @@ void VelocityModule::step_sync(eVelocityStep step, float time)
   step_ = step;
   object_steps_usage[step_] = 0;
   step_camera_sync();
+
+  draw::hair_init();
+  draw::curves_init();
+
   DRW_render_object_iter(&inst_, inst_.render, inst_.depsgraph, step_object_sync_render);
+
+  draw::hair_update(*inst_.manager);
+  draw::curves_update(*inst_.manager);
+  draw::hair_free();
+  draw::curves_free();
+
   geometry_steps_fill();
 }
 
@@ -121,8 +134,8 @@ bool VelocityModule::step_object_sync(Object *ob,
                                       ObjectKey &object_key,
                                       ResourceHandle resource_handle,
                                       int /*IDRecalcFlag*/ recalc,
-                                      ModifierData *modifier_data /*= nullptr*/,
-                                      ParticleSystem *particle_sys /*= nullptr*/)
+                                      ModifierData *modifier_data /*=nullptr*/,
+                                      ParticleSystem *particle_sys /*=nullptr*/)
 {
   bool has_motion = object_has_velocity(ob) || (recalc & ID_RECALC_TRANSFORM);
   /* NOTE: Fragile. This will only work with 1 frame of lag since we can't record every geometry
@@ -142,7 +155,7 @@ bool VelocityModule::step_object_sync(Object *ob,
   VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
   vel.obj.ofs[step_] = object_steps_usage[step_]++;
   vel.obj.resource_id = resource_handle.resource_index();
-  vel.id = particle_sys ? &particle_sys->part->id : &ob->id;
+  vel.id = object_key.hash();
   object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = float4x4_view(ob->object_to_world);
   if (step_ == STEP_CURRENT) {
     /* Replace invalid steps. Can happen if object was hidden in one of those steps. */
@@ -163,12 +176,22 @@ bool VelocityModule::step_object_sync(Object *ob,
     auto add_cb = [&]() {
       VelocityGeometryData data;
       if (particle_sys) {
-        data.pos_buf = DRW_hair_pos_buffer_get(ob, particle_sys, modifier_data);
+        if (inst_.is_viewport()) {
+          data.pos_buf = DRW_hair_pos_buffer_get(ob, particle_sys, modifier_data);
+        }
+        else {
+          data.pos_buf = draw::hair_pos_buffer_get(inst_.scene, ob, particle_sys, modifier_data);
+        }
         return data;
       }
       switch (ob->type) {
         case OB_CURVES:
-          data.pos_buf = DRW_curves_pos_buffer_get(ob);
+          if (inst_.is_viewport()) {
+            data.pos_buf = DRW_curves_pos_buffer_get(ob);
+          }
+          else {
+            data.pos_buf = draw::curves_pos_buffer_get(inst_.scene, ob);
+          }
           break;
         case OB_POINTCLOUD:
           data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);
@@ -237,13 +260,34 @@ void VelocityModule::geometry_steps_fill()
    * `tot_len * sizeof(float4)` is greater than max SSBO size. */
   geometry_steps[step_]->resize(max_ii(16, dst_ofs));
 
+  PassSimple copy_ps("Velocity Copy Pass");
+  copy_ps.init();
+  copy_ps.state_set(DRW_STATE_NO_DRAW);
+  copy_ps.shader_set(inst_.shaders.static_shader_get(VERTEX_COPY));
+  copy_ps.bind_ssbo("out_buf", *geometry_steps[step_]);
+
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[step_],
-                                         geom.pos_buf,
-                                         geom.ofs * sizeof(float4),
-                                         0,
-                                         geom.len * sizeof(float4));
+    const GPUVertFormat *format = GPU_vertbuf_get_format(geom.pos_buf);
+    if (format->stride == 16) {
+      GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[step_],
+                                           geom.pos_buf,
+                                           geom.ofs * sizeof(float4),
+                                           0,
+                                           geom.len * sizeof(float4));
+    }
+    else {
+      BLI_assert(format->stride % 4 == 0);
+      copy_ps.bind_ssbo("in_buf", geom.pos_buf);
+      copy_ps.push_constant("start_offset", geom.ofs);
+      copy_ps.push_constant("vertex_stride", int(format->stride / 4));
+      copy_ps.push_constant("vertex_count", geom.len);
+      copy_ps.dispatch(int3(divide_ceil_u(geom.len, VERTEX_COPY_GROUP_SIZE), 1, 1));
+    }
   }
+
+  copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
+  inst_.manager->submit(copy_ps);
+
   /* Copy back the #VelocityGeometryIndex into #VelocityObjectData which are
    * indexed using persistent keys (unlike geometries which are indexed by volatile ID). */
   for (VelocityObjectData &vel : velocity_map.values()) {
@@ -251,7 +295,7 @@ void VelocityModule::geometry_steps_fill()
     vel.geo.len[step_] = geom.len;
     vel.geo.ofs[step_] = geom.ofs;
     /* Avoid reuse. */
-    vel.id = nullptr;
+    vel.id = 0;
   }
 
   geometry_map.clear();
@@ -263,7 +307,6 @@ void VelocityModule::geometry_steps_fill()
  */
 void VelocityModule::step_swap()
 {
-
   auto swap_steps = [&](eVelocityStep step_a, eVelocityStep step_b) {
     std::swap(object_steps[step_a], object_steps[step_b]);
     std::swap(geometry_steps[step_a], geometry_steps[step_b]);
@@ -306,7 +349,7 @@ void VelocityModule::end_sync()
 {
   Vector<ObjectKey, 0> deleted_obj;
 
-  uint32_t max_resource_id_ = 1u;
+  uint32_t max_resource_id_ = 0u;
 
   for (MapItem<ObjectKey, VelocityObjectData> item : velocity_map.items()) {
     if (item.value.obj.resource_id == uint32_t(-1)) {
@@ -329,7 +372,7 @@ void VelocityModule::end_sync()
     velocity_map.remove(key);
   }
 
-  indirection_buf.resize(ceil_to_multiple_u(max_resource_id_, 128));
+  indirection_buf.resize(ceil_to_multiple_u(max_resource_id_ + 1, 128));
 
   /* Avoid uploading more data to the GPU as well as an extra level of
    * indirection on the GPU by copying back offsets the to VelocityIndex. */
@@ -344,8 +387,9 @@ void VelocityModule::end_sync()
                           (vel.geo.len[STEP_PREVIOUS] == GPU_vertbuf_get_vertex_len(pos_buf));
     }
     else {
-      vel.geo.do_deform = (vel.geo.len[STEP_PREVIOUS] == vel.geo.len[STEP_CURRENT]) &&
-                          (vel.geo.len[STEP_NEXT] == vel.geo.len[STEP_CURRENT]);
+      vel.geo.do_deform = (vel.geo.len[STEP_CURRENT] != 0) &&
+                          (vel.geo.len[STEP_CURRENT] == vel.geo.len[STEP_PREVIOUS]) &&
+                          (vel.geo.len[STEP_CURRENT] == vel.geo.len[STEP_NEXT]);
     }
     indirection_buf[vel.obj.resource_id] = vel;
     /* Reset for next sync. */

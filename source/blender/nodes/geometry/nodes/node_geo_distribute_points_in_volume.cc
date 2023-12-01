@@ -12,7 +12,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_pointcloud.h"
-#include "BKE_volume.h"
+#include "BKE_volume.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include "NOD_rna_define.hh"
@@ -20,7 +20,9 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
+
+#include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
 
@@ -252,6 +254,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     point_radii.span.fill(0.05f);
     point_radii.finish();
+
+    geometry::debug_randomize_point_order(pointcloud);
 
     geometry_set.replace_pointcloud(pointcloud);
     geometry_set.keep_only_during_modify({GeometryComponent::Type::PointCloud});

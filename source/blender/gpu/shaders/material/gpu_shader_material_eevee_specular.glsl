@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 void node_eevee_specular(vec4 diffuse,
                          vec4 specular,
@@ -13,9 +16,17 @@ void node_eevee_specular(vec4 diffuse,
                          const float use_clearcoat,
                          out Closure result)
 {
+  diffuse = max(diffuse, vec4(0));
+  specular = max(specular, vec4(0));
+  roughness = saturate(roughness);
+  emissive = max(emissive, vec4(0));
   N = safe_normalize(N);
+  clearcoat = saturate(clearcoat);
+  clearcoat_roughness = saturate(clearcoat_roughness);
   CN = safe_normalize(CN);
-  vec3 V = cameraVec(g_data.P);
+  occlusion = saturate(occlusion);
+
+  vec3 V = coordinate_incoming(g_data.P);
 
   ClosureEmission emission_data;
   emission_data.weight = weight;

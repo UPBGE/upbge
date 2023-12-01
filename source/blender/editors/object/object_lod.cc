@@ -31,7 +31,7 @@
 
 #include "DNA_object_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -43,7 +43,7 @@
 #include "ED_screen.hh"
 
 #ifdef WITH_GAMEENGINE
-#  include "BKE_object.h"
+#  include "BKE_object.hh"
 
 #  include "RNA_enum_types.hh"
 #endif

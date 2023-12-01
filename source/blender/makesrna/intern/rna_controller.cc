@@ -29,7 +29,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -54,7 +54,7 @@ const EnumPropertyItem rna_enum_controller_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_sca.h"
+#  include "BKE_sca.hh"
 #  include "DNA_actuator_types.h"
 
 static StructRNA *rna_Controller_refine(struct PointerRNA *ptr)

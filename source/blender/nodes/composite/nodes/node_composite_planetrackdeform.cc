@@ -9,12 +9,13 @@
 #include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_id.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
@@ -93,18 +94,15 @@ static void node_composit_buts_planetrackdeform(uiLayout *layout, bContext *C, P
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object;
     uiLayout *col;
-    PointerRNA tracking_ptr;
-
-    RNA_pointer_create(&clip->id, &RNA_MovieTracking, tracking, &tracking_ptr);
+    PointerRNA tracking_ptr = RNA_pointer_create(&clip->id, &RNA_MovieTracking, tracking);
 
     col = uiLayoutColumn(layout, false);
     uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
     if (tracking_object) {
-      PointerRNA object_ptr;
-
-      RNA_pointer_create(&clip->id, &RNA_MovieTrackingObject, tracking_object, &object_ptr);
+      PointerRNA object_ptr = RNA_pointer_create(
+          &clip->id, &RNA_MovieTrackingObject, tracking_object);
 
       uiItemPointerR(
           col, ptr, "plane_track_name", &object_ptr, "plane_tracks", "", ICON_ANIM_DATA);
@@ -147,7 +145,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
 
     const Array<float4x4> homography_matrices = compute_homography_matrices(plane_track);
 
-    GPUShader *shader = shader_manager().get("compositor_plane_deform_motion_blur");
+    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());

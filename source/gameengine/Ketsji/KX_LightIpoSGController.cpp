@@ -31,7 +31,7 @@
 
 #include "KX_LightIpoSGController.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_light_types.h"
 #include "WM_api.hh"
 

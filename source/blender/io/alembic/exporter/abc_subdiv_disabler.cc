@@ -7,8 +7,8 @@
 
 #include "BLI_listbase.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
@@ -16,7 +16,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_layer.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 
 namespace blender::io::alembic {
 

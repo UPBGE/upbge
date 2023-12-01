@@ -35,7 +35,7 @@
 
 #include "BL_Converter.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"

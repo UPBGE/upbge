@@ -27,8 +27,8 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
@@ -50,8 +50,8 @@
 
 #include "ANIM_bone_collections.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "gpencil_intern.h"
 
@@ -591,13 +591,13 @@ static int gpencil_generate_weights_exec(bContext *C, wmOperator *op)
     GpencilModifierData *md = BKE_gpencil_modifiers_findby_type(ob_eval,
                                                                 eGpencilModifierType_Armature);
     if (md == nullptr) {
-      BKE_report(op->reports, RPT_ERROR, "The grease pencil object need an Armature modifier");
+      BKE_report(op->reports, RPT_ERROR, "The grease pencil object needs an Armature modifier");
       return OPERATOR_CANCELLED;
     }
 
     ArmatureGpencilModifierData *mmd = (ArmatureGpencilModifierData *)md;
     if (mmd->object == nullptr) {
-      BKE_report(op->reports, RPT_ERROR, "Armature modifier is not valid or wrong defined");
+      BKE_report(op->reports, RPT_ERROR, "The Armature modifier is invalid");
       return OPERATOR_CANCELLED;
     }
 
@@ -631,7 +631,7 @@ static const EnumPropertyItem *gpencil_armatures_enum_itemf(bContext *C,
   int i = 0;
 
   if (C == nullptr) {
-    return DummyRNA_DEFAULT_items;
+    return rna_enum_dummy_DEFAULT_items;
   }
 
   /* add default */
@@ -682,7 +682,7 @@ void GPENCIL_OT_generate_weights(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "mode", mode_type, 0, "Mode", "");
 
   prop = RNA_def_enum(
-      ot->srna, "armature", DummyRNA_DEFAULT_items, 0, "Armature", "Armature to use");
+      ot->srna, "armature", rna_enum_dummy_DEFAULT_items, 0, "Armature", "Armature to use");
   RNA_def_enum_funcs(prop, gpencil_armatures_enum_itemf);
 
   RNA_def_float(ot->srna,

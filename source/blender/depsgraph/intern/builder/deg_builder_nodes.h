@@ -11,11 +11,11 @@
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph_type.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 struct CacheFile;
 struct Camera;
@@ -156,7 +156,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
 
   OperationNode *find_operation_node(const OperationKey &key);
 
-  virtual void build_id(ID *id);
+  virtual void build_id(ID *id, bool force_be_visible = false);
 
   /* Build function for ID types that do not need their own build_xxx() function. */
   virtual void build_generic_id(ID *id);
@@ -195,6 +195,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_object_transform(Object *object);
   virtual void build_object_constraints(Object *object);
   virtual void build_object_pointcache(Object *object);
+  virtual void build_object_shading(Object *object);
 
   virtual void build_object_light_linking(Object *object);
   virtual void build_light_linking_collection(Collection *collection);
@@ -246,6 +247,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_rig(Object *object);
   virtual void build_armature(bArmature *armature);
   virtual void build_armature_bones(ListBase *bones);
+  virtual void build_armature_bone_collections(ListBase *collections);
   virtual void build_shapekeys(Key *key);
   virtual void build_camera(Camera *camera);
   virtual void build_light(Light *lamp);

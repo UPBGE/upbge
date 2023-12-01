@@ -22,9 +22,9 @@
 #include "BLT_translation.h"
 
 #include "BKE_blender_user_menu.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_idprop.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -278,8 +278,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
         PointerRNA ptr = CTX_data_pointer_get(C, umi_pr->context_data_path);
         if (ptr.type == nullptr) {
-          PointerRNA ctx_ptr;
-          RNA_pointer_create(nullptr, &RNA_Context, (void *)C, &ctx_ptr);
+          PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, (void *)C);
           if (!RNA_path_resolve_full(&ctx_ptr, umi_pr->context_data_path, &ptr, nullptr, nullptr))
           {
             ptr.type = nullptr;

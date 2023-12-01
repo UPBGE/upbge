@@ -39,10 +39,10 @@
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_grease_pencil.hh"
@@ -51,15 +51,15 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "ED_node.hh"
 #include "ED_object.hh"
@@ -83,8 +83,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "SEQ_relations.h"
-#include "SEQ_sequencer.h"
+#include "SEQ_relations.hh"
+#include "SEQ_sequencer.hh"
 
 #include "outliner_intern.hh"
 #include "tree/tree_element_grease_pencil_node.hh"
@@ -393,6 +393,15 @@ static void unlink_collection_fn(bContext *C,
     return;
   }
 
+  if (tsep && (ID_IS_LINKED(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id))) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Cannot unlink collection '%s' parented to another linked collection '%s'",
+                collection->id.name + 2,
+                tsep->id->name + 2);
+    return;
+  }
+
   if (tsep) {
     if (GS(tsep->id->name) == ID_OB) {
       Object *ob = (Object *)tsep->id;
@@ -464,9 +473,18 @@ static void unlink_object_fn(bContext *C,
         DEG_relations_tag_update(bmain);
       }
       else if (GS(tsep->id->name) == ID_SCE) {
+        /* Following execution is expected to happen exclusively in the Outliner scene view. */
+#ifdef NDEBUG
+        BLI_assert(CTX_wm_space_outliner(C)->outlinevis == SO_SCENES);
+#endif
+
         Scene *scene = (Scene *)tsep->id;
-        Collection *parent = scene->master_collection;
-        BKE_collection_object_remove(bmain, parent, ob, true);
+        FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
+          if (BKE_collection_has_object(collection, ob)) {
+            BKE_collection_object_remove(bmain, collection, ob, true);
+          }
+        }
+        FOREACH_SCENE_COLLECTION_END;
         DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE | ID_RECALC_HIERARCHY);
         DEG_relations_tag_update(bmain);
       }
@@ -1002,7 +1020,7 @@ static void id_local_fn(bContext *C,
     }
   }
   else if (ID_IS_OVERRIDE_LIBRARY_REAL(tselem->id)) {
-    BKE_lib_override_library_make_local(tselem->id);
+    BKE_lib_override_library_make_local(CTX_data_main(C), tselem->id);
   }
 }
 
@@ -1682,10 +1700,9 @@ static void singleuser_action_fn(bContext *C,
 
   if (id) {
     IdAdtTemplate *iat = (IdAdtTemplate *)tsep->id;
-    PointerRNA ptr = {nullptr};
     PropertyRNA *prop;
 
-    RNA_pointer_create(&iat->id, &RNA_AnimData, iat->adt, &ptr);
+    PointerRNA ptr = RNA_pointer_create(&iat->id, &RNA_AnimData, iat->adt);
     prop = RNA_struct_find_property(&ptr, "action");
 
     id_single_user(C, id, &ptr, prop);
@@ -1705,10 +1722,9 @@ static void singleuser_world_fn(bContext *C,
   /* need to use parent scene not just scene, otherwise may end up getting wrong one */
   if (id) {
     Scene *parscene = (Scene *)tsep->id;
-    PointerRNA ptr = {nullptr};
     PropertyRNA *prop;
 
-    RNA_id_pointer_create(&parscene->id, &ptr);
+    PointerRNA ptr = RNA_id_pointer_create(&parscene->id);
     prop = RNA_struct_find_property(&ptr, "world");
 
     id_single_user(C, id, &ptr, prop);
@@ -2163,7 +2179,7 @@ static void ebone_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
 static void sequence_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, void *scene_ptr)
 {
   TreeElementSequence *te_seq = tree_element_cast<TreeElementSequence>(te);
-  Sequence *seq = &te_seq->getSequence();
+  Sequence *seq = &te_seq->get_sequence();
   Scene *scene = (Scene *)scene_ptr;
   Editing *ed = SEQ_editing_get(scene);
   if (BLI_findindex(ed->seqbasep, seq) != -1) {
@@ -2241,7 +2257,7 @@ static void data_select_linked_fn(int event,
   }
 
   if (event == OL_DOP_SELECT_LINKED) {
-    const PointerRNA &ptr = te_rna_struct->getPointerRNA();
+    const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
     if (RNA_struct_is_ID(ptr.type)) {
       bContext *C = (bContext *)C_v;
       ID *id = static_cast<ID *>(ptr.data);
@@ -2282,7 +2298,7 @@ static void constraint_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/
       /* there's no active constraint now, so make sure this is the case */
       BKE_constraints_active_set(&ob->constraints, nullptr);
 
-      /* needed to set the flags on posebones correctly */
+      /* Needed to set the flags on pose-bones correctly. */
       ED_object_constraint_update(bmain, ob);
 
       WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
@@ -2594,7 +2610,7 @@ void OUTLINER_OT_object_operation(wmOperatorType *ot)
 
 using OutlinerDeleteFn = void (*)(bContext *C, ReportList *reports, Scene *scene, Object *ob);
 
-using ObjectEditData = struct ObjectEditData {
+struct ObjectEditData {
   GSet *objects_set;
   bool is_liboverride_allowed;
   bool is_liboverride_hierarchy_root_allowed;
@@ -3268,7 +3284,7 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
 
   /* props */
   /* TODO: this would be nicer as an ID-pointer... */
-  prop = RNA_def_enum(ot->srna, "action", DummyRNA_NULL_items, 0, "Action", "");
+  prop = RNA_def_enum(ot->srna, "action", rna_enum_dummy_NULL_items, 0, "Action", "");
   RNA_def_enum_funcs(prop, RNA_action_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
@@ -3581,17 +3597,17 @@ static const EnumPropertyItem *outliner_data_op_sets_enum_item_fn(bContext *C,
 {
   /* Check for invalid states. */
   if (C == nullptr) {
-    return DummyRNA_DEFAULT_items;
+    return rna_enum_dummy_DEFAULT_items;
   }
 
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (space_outliner == nullptr) {
-    return DummyRNA_DEFAULT_items;
+    return rna_enum_dummy_DEFAULT_items;
   }
 
   TreeElement *te = get_target_element(space_outliner);
   if (te == nullptr) {
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
   }
 
   TreeStoreElem *tselem = TREESTORE(te);
@@ -3627,7 +3643,7 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 
   ot->flag = 0;
 
-  ot->prop = RNA_def_enum(ot->srna, "type", DummyRNA_DEFAULT_items, 0, "Data Operation", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_dummy_DEFAULT_items, 0, "Data Operation", "");
   RNA_def_enum_funcs(ot->prop, outliner_data_op_sets_enum_item_fn);
 }
 
@@ -3643,7 +3659,7 @@ static int outliner_operator_menu(bContext *C, const char *opname)
   uiPopupMenu *pup = UI_popup_menu_begin(C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  /* set this so the default execution context is the same as submenus */
+  /* Set this so the default execution context is the same as sub-menus. */
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_REGION_WIN);
 
   if (WM_operator_poll(C, ot)) {
@@ -3734,7 +3750,7 @@ static int do_outliner_operation_event(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
-static int outliner_operation(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static int outliner_operation_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -3764,7 +3780,7 @@ void OUTLINER_OT_operation(wmOperatorType *ot)
   ot->idname = "OUTLINER_OT_operation";
   ot->description = "Context menu for item operations";
 
-  ot->invoke = outliner_operation;
+  ot->invoke = outliner_operation_invoke;
 
   ot->poll = ED_operator_outliner_active;
 }

@@ -13,25 +13,21 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_edge_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Edge Index"))
+  b.add_input<decl::Int>("Edge Index")
       .implicit_field(implicit_field_inputs::index)
-      .description(N_("The edge to retrieve data from. Defaults to the edge from the context"));
-  b.add_input<decl::Float>(N_("Weights"))
-      .supports_field()
-      .hide_value()
-      .description(N_("Values that sort the corners attached to the edge"));
-  b.add_input<decl::Int>(N_("Sort Index"))
+      .description("The edge to retrieve data from. Defaults to the edge from the context");
+  b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
+      "Values that sort the corners attached to the edge");
+  b.add_input<decl::Int>("Sort Index")
       .min(0)
       .supports_field()
-      .description(N_("Which of the sorted corners to output"));
-  b.add_output<decl::Int>(N_("Corner Index"))
+      .description("Which of the sorted corners to output");
+  b.add_output<decl::Int>("Corner Index")
       .field_source_reference_all()
       .description(
-          N_("A corner of the input edge in its face's winding order, chosen by the sort index"));
-  b.add_output<decl::Int>(N_("Total"))
-      .field_source()
-      .reference_pass({0})
-      .description(N_("The number of faces or corners connected to each edge"));
+          "A corner of the input edge in its face's winding order, chosen by the sort index");
+  b.add_output<decl::Int>("Total").field_source().reference_pass({0}).description(
+      "The number of faces or corners connected to each edge");
 }
 
 class CornersOfEdgeInput final : public bke::MeshFieldInput {
@@ -109,7 +105,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
            * when accessing values in the sort weights. However, it means a separate array of
            * indices within the compressed array is necessary for sorting. */
           sort_indices.reinitialize(corners.size());
-          std::iota(sort_indices.begin(), sort_indices.end(), 0);
+          array_utils::fill_index_range<int>(sort_indices);
           std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
             return sort_weights[a] < sort_weights[b];
           });

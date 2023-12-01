@@ -28,22 +28,22 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_context.h"
+#include "BKE_bvhutils.hh"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
@@ -67,7 +67,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "PIL_time_utildefines.h"
 
@@ -206,7 +206,7 @@ int PE_minmax(
   }
 
   if (!ok) {
-    BKE_object_minmax(ob, min, max, true);
+    BKE_object_minmax(ob, min, max);
     ok = 1;
   }
 
@@ -497,7 +497,7 @@ struct PEData {
 
 static void PE_set_data(bContext *C, PEData *data)
 {
-  memset(data, 0, sizeof(*data));
+  *data = {};
 
   data->context = C;
   data->bmain = CTX_data_main(C);
@@ -512,7 +512,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 {
   PE_set_data(C, data);
 
-  ED_view3d_viewcontext_init(C, &data->vc, data->depsgraph);
+  data->vc = ED_view3d_viewcontext_init(C, data->depsgraph);
 
   if (!XRAY_ENABLED(data->vc.v3d)) {
     ED_view3d_depth_override(data->depsgraph,
@@ -529,7 +529,7 @@ static bool PE_create_shape_tree(PEData *data, Object *shapeob)
   Object *shapeob_eval = DEG_get_evaluated_object(data->depsgraph, shapeob);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(shapeob_eval);
 
-  memset(&data->shape_bvh, 0, sizeof(data->shape_bvh));
+  data->shape_bvh = {};
 
   if (!mesh) {
     return false;
@@ -3540,7 +3540,7 @@ static void PE_mirror_x(Depsgraph *depsgraph, Scene *scene, Object *ob, int tagg
   }
 
   const bool use_dm_final_indices = (psys->part->use_modifier_stack &&
-                                     !BKE_mesh_is_deformed_only(psmd_eval->mesh_final));
+                                     !psmd_eval->mesh_final->runtime->deformed_only);
 
   /* NOTE: this is not nice to use tessfaces but hard to avoid since pa->num uses tessfaces */
   BKE_mesh_tessface_ensure(me);
@@ -4363,7 +4363,7 @@ static void brush_add_count_iter(void *__restrict iter_data_v,
                               0,
                               nullptr))
   {
-    if (psys->part->use_modifier_stack && !BKE_mesh_is_deformed_only(psmd_eval->mesh_final)) {
+    if (psys->part->use_modifier_stack && !psmd_eval->mesh_final->runtime->deformed_only) {
       add_pars[iter].num = add_pars[iter].num_dmcache;
       add_pars[iter].num_dmcache = DMCACHE_ISCHILD;
     }
@@ -4441,7 +4441,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
 
   timestep = psys_get_timestep(&sim);
 
-  if (psys->part->use_modifier_stack || BKE_mesh_is_deformed_only(psmd_eval->mesh_final)) {
+  if (psys->part->use_modifier_stack || psmd_eval->mesh_final->runtime->deformed_only) {
     mesh = psmd_eval->mesh_final;
   }
   else {

@@ -26,7 +26,7 @@
 
 #include "LA_BlenderLauncher.h"
 
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
 #include "GPU_context.h"

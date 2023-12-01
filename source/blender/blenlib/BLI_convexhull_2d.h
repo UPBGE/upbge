@@ -21,9 +21,8 @@ extern "C" {
  * \return The number of indices in r_points.
  *
  * \note Performance is `O(n.log(n))`, same as `qsort`.
- *
  */
-int BLI_convexhull_2d(const float (*points)[2], int n, int r_points[/* n */]);
+int BLI_convexhull_2d(const float (*points)[2], int n, int r_points[/*n*/]);
 
 /**
  * \return The best angle for fitting the points to an axis aligned bounding box.

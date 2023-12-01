@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
@@ -67,7 +70,7 @@ float gpencil_stroke_thickness_modulate(float thickness, vec4 ndc_pos, vec4 view
   thickness = max(1.0, thickness * gpThicknessScale + gpThicknessOffset);
 
   if (gpThicknessIsScreenSpace) {
-    /* Multiply offset by view Z so that offset is constant in screenspace.
+    /* Multiply offset by view Z so that offset is constant in screen-space.
      * (e.i: does not change with the distance to camera) */
     thickness *= ndc_pos.w;
   }
@@ -231,7 +234,7 @@ vec4 gpencil_vertex(vec4 viewport_size,
     vec2 ss_adj = gpencil_project_to_screenspace(ndc_adj, viewport_size);
     vec2 ss1 = gpencil_project_to_screenspace(ndc1, viewport_size);
     vec2 ss2 = gpencil_project_to_screenspace(ndc2, viewport_size);
-    /* Screenspace Lines tangents. */
+    /* Screen-space Lines tangents. */
     float line_len;
     vec2 line = safe_normalize_len(ss2 - ss1, line_len);
     vec2 line_adj = safe_normalize((use_curr) ? (ss1 - ss_adj) : (ss_adj - ss2));
@@ -269,8 +272,8 @@ vec4 gpencil_vertex(vec4 viewport_size,
       float uv_rot = gpencil_decode_uvrot(uvrot1);
       float rot_sin = sqrt(max(0.0, 1.0 - uv_rot * uv_rot)) * sign(uv_rot);
       float rot_cos = abs(uv_rot);
-      /* TODO(@fclem): Optimize these 2 matrix mul into one by only having one rotation angle and
-       * using a cosine approximation. */
+      /* TODO(@fclem): Optimize these 2 matrix multiply into one by only having one rotation angle
+       * and using a cosine approximation. */
       x_axis = mat2(rot_cos, -rot_sin, rot_sin, rot_cos) * x_axis;
       x_axis = mat2(alignment_rot.x, -alignment_rot.y, alignment_rot.y, alignment_rot.x) * x_axis;
       /* Rotate 90 degrees counter-clockwise. */

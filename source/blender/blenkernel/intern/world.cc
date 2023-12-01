@@ -30,17 +30,18 @@
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_preview_image.hh"
 #include "BKE_world.h"
 
 #include "BLT_translation.h"
 
 #include "DRW_engine.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "GPU_material.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /** Free (or release) any data used by this world (does not free the world itself). */
 static void world_free_data(ID *id)
@@ -119,12 +120,17 @@ static void world_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
 
 static void world_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  World *world = (World *)id;
+  World *world = reinterpret_cast<World *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   if (world->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data, BKE_library_foreach_ID_embedded(data, (ID **)&world->nodetree));
+  }
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, world->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -170,25 +176,13 @@ static void world_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_data_address(reader, &wrld->lightgroup);
 }
 
-static void world_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  World *wrld = (World *)id;
-  BLO_read_id_address(reader, id, &wrld->ipo); /* XXX deprecated, old animation system */
-}
-
-static void world_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  World *wrld = (World *)id;
-  BLO_expand(expander, wrld->ipo); /* XXX deprecated, old animation system */
-}
-
 IDTypeInfo IDType_ID_WO = {
     /*id_code*/ ID_WO,
     /*id_filter*/ FILTER_ID_WO,
     /*main_listbase_index*/ INDEX_ID_WO,
     /*struct_size*/ sizeof(World),
     /*name*/ "World",
-    /*name_plural*/ "worlds",
+    /*name_plural*/ N_("worlds"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WORLD,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -204,8 +198,7 @@ IDTypeInfo IDType_ID_WO = {
 
     /*blend_write*/ world_blend_write,
     /*blend_read_data*/ world_blend_read_data,
-    /*blend_read_lib*/ world_blend_read_lib,
-    /*blend_read_expand*/ world_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 

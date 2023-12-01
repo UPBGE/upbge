@@ -44,19 +44,20 @@
 #include "BKE_global.h"
 #include "BKE_idtype.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_packedFile.h"
 #include "BKE_scene.h"
 #include "BKE_sound.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
-#include "SEQ_sequencer.h"
-#include "SEQ_sound.h"
-#include "SEQ_time.h"
+#include "SEQ_sequencer.hh"
+#include "SEQ_sound.hh"
+#include "SEQ_time.hh"
 
 static void sound_free_audio(bSound *sound);
 
@@ -101,6 +102,16 @@ static void sound_free_data(ID *id)
     BLI_spin_end(static_cast<SpinLock *>(sound->spinlock));
     MEM_freeN(sound->spinlock);
     sound->spinlock = nullptr;
+  }
+}
+
+static void sound_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  bSound *sound = reinterpret_cast<bSound *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, sound->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -178,26 +189,13 @@ static void sound_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_packedfile_blend_read(reader, &sound->newpackedfile);
 }
 
-static void sound_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  bSound *sound = (bSound *)id;
-  /* XXX: deprecated - old animation system. */
-  BLO_read_id_address(reader, id, &sound->ipo);
-}
-
-static void sound_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  bSound *snd = (bSound *)id;
-  BLO_expand(expander, snd->ipo); /* XXX deprecated - old animation system */
-}
-
 IDTypeInfo IDType_ID_SO = {
     /*id_code*/ ID_SO,
     /*id_filter*/ FILTER_ID_SO,
     /*main_listbase_index*/ INDEX_ID_SO,
     /*struct_size*/ sizeof(bSound),
     /*name*/ "Sound",
-    /*name_plural*/ "sounds",
+    /*name_plural*/ N_("sounds"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_SOUND,
     /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -207,15 +205,14 @@ IDTypeInfo IDType_ID_SO = {
     /*copy_data*/ sound_copy_data,
     /*free_data*/ sound_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
+    /*foreach_id*/ sound_foreach_id,
     /*foreach_cache*/ sound_foreach_cache,
     /*foreach_path*/ sound_foreach_path,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ sound_blend_write,
     /*blend_read_data*/ sound_blend_read_data,
-    /*blend_read_lib*/ sound_blend_read_lib,
-    /*blend_read_expand*/ sound_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -262,7 +259,7 @@ bSound *BKE_sound_new_file(Main *bmain, const char *filepath)
 
   sound = static_cast<bSound *>(BKE_libblock_alloc(bmain, ID_SO, BLI_path_basename(filepath), 0));
   STRNCPY(sound->filepath, filepath);
-  /* sound->type = SOUND_TYPE_FILE; */ /* XXX unused currently */
+  // sound->type = SOUND_TYPE_FILE; /* UNUSED. */
 
   /* Extract sound specs for bSound */
   SoundInfo info;
@@ -791,6 +788,19 @@ void BKE_sound_update_scene_sound(void *handle, bSound *sound)
 {
   AUD_SequenceEntry_setSound(handle, sound->playback_handle);
 }
+
+#endif /* WITH_AUDASPACE */
+
+void BKE_sound_update_sequence_handle(void *handle, void *sound_handle)
+{
+#ifdef WITH_AUDASPACE
+  AUD_SequenceEntry_setSound(handle, sound_handle);
+#else
+  UNUSED_VARS(handle, sound_handle);
+#endif
+}
+
+#ifdef WITH_AUDASPACE
 
 void BKE_sound_set_cfra(int cfra)
 {

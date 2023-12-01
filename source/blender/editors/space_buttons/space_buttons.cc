@@ -15,12 +15,12 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_modifier_legacy.h" /* Types for registering panels. */
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_lib_remap.hh"
+#include "BKE_modifier.hh"
+#include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
 #include "ED_buttons.hh"
@@ -39,7 +39,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "buttons_intern.h" /* own include */
 
@@ -146,7 +146,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Property Editor", SPACE_PROPERTIES, 0);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
@@ -542,7 +542,7 @@ static void buttons_operatortypes()
 
 static void buttons_keymap(wmKeyConfig *keyconf)
 {
-  WM_keymap_ensure(keyconf, "Property Editor", SPACE_PROPERTIES, 0);
+  WM_keymap_ensure(keyconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
 }
 
 /** \} */
@@ -700,6 +700,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
         case ND_POSE:
         case ND_BONE_ACTIVE:
         case ND_BONE_SELECT:
+        case ND_BONE_COLLECTION:
           buttons_area_redraw(area, BCONTEXT_BONE);
           buttons_area_redraw(area, BCONTEXT_BONE_CONSTRAINT);
           buttons_area_redraw(area, BCONTEXT_DATA);
@@ -887,7 +888,7 @@ static void buttons_id_remap(ScrArea * /*area*/, SpaceLink *slink, const IDRemap
           break;
         }
         case ID_REMAP_RESULT_SOURCE_REMAPPED: {
-          RNA_id_pointer_create(path->ptr[i].owner_id, &path->ptr[i]);
+          path->ptr[i] = RNA_id_pointer_create(path->ptr[i].owner_id);
           /* There is no easy way to check/make path downwards valid, just nullify it.
            * Next redraw will rebuild this anyway. */
           i++;
@@ -954,10 +955,12 @@ static void buttons_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLin
   sbuts->runtime = nullptr;
 }
 
-static void buttons_space_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
+static void buttons_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
+                                                   ID * /*parent_id*/,
+                                                   SpaceLink *sl)
 {
-  SpaceProperties *sbuts = (SpaceProperties *)sl;
-  BLO_read_id_address(reader, parent_id, &sbuts->pinid);
+  SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
+
   if (sbuts->pinid == nullptr) {
     sbuts->flag &= ~SB_PIN_CONTEXT;
   }
@@ -993,7 +996,7 @@ void ED_spacetype_buttons()
   st->id_remap = buttons_id_remap;
   st->foreach_id = buttons_foreach_id;
   st->blend_read_data = buttons_space_blend_read_data;
-  st->blend_read_lib = buttons_space_blend_read_lib;
+  st->blend_read_after_liblink = buttons_space_blend_read_after_liblink;
   st->blend_write = buttons_space_blend_write;
 
   /* regions: main window */

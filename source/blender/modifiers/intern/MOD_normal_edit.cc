@@ -25,12 +25,12 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_mesh.hh"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -38,7 +38,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -477,22 +477,6 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
     return mesh;
   }
 
-  /* XXX TODO(Rohan Rathi):
-   * Once we fully switch to Mesh evaluation of modifiers,
-   * we can expect to get that flag from the COW copy.
-   * But for now, it is lost in the DM intermediate step,
-   * so we need to directly check orig object's data. */
-#if 0
-  if (!(mesh->flag & ME_AUTOSMOOTH))
-#else
-  if (!(((Mesh *)ob->data)->flag & ME_AUTOSMOOTH))
-#endif
-  {
-    BKE_modifier_set_error(
-        ob, (ModifierData *)enmd, "Enable 'Auto Smooth' in Object Data Properties");
-    return mesh;
-  }
-
   Mesh *result;
   if (mesh->edges().data() == ((Mesh *)ob->data)->edges().data()) {
     /* We need to duplicate data here, otherwise setting custom normals
@@ -534,14 +518,12 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
                                           faces,
                                           corner_verts,
                                           corner_edges,
-                                          {},
+                                          result->corner_to_face_map(),
                                           result->vert_normals(),
                                           result->face_normals(),
                                           sharp_edges.span.data(),
                                           sharp_faces,
                                           clnors,
-                                          true,
-                                          result->smoothresh,
                                           nullptr,
                                           loop_normals);
   }
@@ -738,7 +720,7 @@ ModifierTypeInfo modifierType_NormalEdit = {
     /*struct_name*/ "NormalEditModifierData",
     /*struct_size*/ sizeof(NormalEditModifierData),
     /*srna*/ &RNA_NormalEditModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_NORMALEDIT,

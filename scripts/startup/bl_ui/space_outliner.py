@@ -100,7 +100,7 @@ class OUTLINER_MT_editor_menus(Menu):
 
 
 class OUTLINER_MT_context_menu(Menu):
-    bl_label = "Outliner Context Menu"
+    bl_label = "Outliner"
 
     @staticmethod
     def draw_common_operators(layout):
@@ -108,7 +108,7 @@ class OUTLINER_MT_context_menu(Menu):
 
         layout.separator()
 
-        layout.menu("OUTLINER_MT_liboverride")
+        layout.menu("OUTLINER_MT_liboverride", icon='LIBRARY_DATA_OVERRIDE')
 
         layout.separator()
 
@@ -140,7 +140,8 @@ class OUTLINER_MT_context_menu_view(Menu):
 
         layout.separator()
 
-        layout.operator("outliner.show_hierarchy")
+        layout.operator("outliner.expanded_toggle")
+        layout.operator("outliner.show_hierarchy", text="Show Object Hierarchy")
         layout.operator("outliner.show_one_level", text="Show One Level")
         layout.operator("outliner.show_one_level", text="Hide One Level").open = False
 
@@ -344,7 +345,7 @@ class OUTLINER_MT_asset(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("asset.mark")
+        layout.operator("asset.mark", icon='ASSET_MANAGER')
         layout.operator("asset.clear", text="Clear Asset").set_fake_user = False
         layout.operator("asset.clear", text="Clear Asset (Set Fake User)").set_fake_user = True
 

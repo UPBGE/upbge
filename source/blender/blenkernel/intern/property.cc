@@ -46,7 +46,7 @@
 
 #include "BLI_blenlib.h"
 
-#include "BKE_property.h"
+#include "BKE_property.hh"
 
 void BKE_bproperty_free(bProperty *prop)
 {

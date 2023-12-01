@@ -22,10 +22,10 @@
 #include "DNA_object_types.h"
 
 #include "BLI_compiler_compat.h"
-#include "BLI_edgehash.h"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_ordered_edge.hh"
 
 #include "BLT_translation.h"
 
@@ -34,8 +34,8 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 
 using Alembic::Abc::FloatArraySamplePtr;
 using Alembic::Abc::Int32ArraySamplePtr;
@@ -289,7 +289,6 @@ static void process_loop_normals(CDStreamConfig &config, const N3fArraySamplePtr
     }
   }
 
-  mesh->flag |= ME_AUTOSMOOTH;
   BKE_mesh_set_custom_normals(mesh, lnors);
 
   MEM_freeN(lnors);
@@ -312,7 +311,6 @@ static void process_vertex_normals(CDStreamConfig &config,
     copy_zup_from_yup(vert_normals[index], vertex_normals[index].getValue());
   }
 
-  config.mesh->flag |= ME_AUTOSMOOTH;
   BKE_mesh_set_custom_normals_from_verts(config.mesh, vert_normals);
   MEM_freeN(vert_normals);
 }
@@ -994,37 +992,26 @@ static void read_edge_creases(Mesh *mesh,
   }
 
   MutableSpan<int2> edges = mesh->edges_for_write();
-  EdgeHash *edge_hash = BLI_edgehash_new_ex(__func__, edges.size());
+  Map<OrderedEdge, int> edge_hash;
+  edge_hash.reserve(edges.size());
 
   float *creases = static_cast<float *>(CustomData_add_layer_named(
       &mesh->edge_data, CD_PROP_FLOAT, CD_SET_DEFAULT, edges.size(), "crease_edge"));
 
   for (const int i : edges.index_range()) {
-    int2 &edge = edges[i];
-    BLI_edgehash_insert(edge_hash, edge[0], edge[1], &edge);
+    edge_hash.add(edges[i], i);
   }
 
   for (int i = 0, s = 0, e = indices->size(); i < e; i += 2, s++) {
     int v1 = (*indices)[i];
     int v2 = (*indices)[i + 1];
-
-    if (v2 < v1) {
-      /* It appears to be common to store edges with the smallest index first, in which case this
-       * prevents us from doing the second search below. */
-      std::swap(v1, v2);
+    const int *index = edge_hash.lookup_ptr({v1, v2});
+    if (!index) {
+      continue;
     }
 
-    int2 *edge = static_cast<int2 *>(BLI_edgehash_lookup(edge_hash, v1, v2));
-    if (edge == nullptr) {
-      edge = static_cast<int2 *>(BLI_edgehash_lookup(edge_hash, v2, v1));
-    }
-
-    if (edge) {
-      creases[edge - edges.data()] = unit_float_to_uchar_clamp((*sharpnesses)[s]);
-    }
+    creases[*index] = unit_float_to_uchar_clamp((*sharpnesses)[s]);
   }
-
-  BLI_edgehash_free(edge_hash, nullptr);
 }
 
 /* ************************************************************************** */

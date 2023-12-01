@@ -96,7 +96,7 @@ struct SpaceNode_Runtime {
   bool recalc_auto_compositing;
 
   /**
-   * Indicates that the compositing int the space  tree needs to be re-evaluated using
+   * Indicates that the compositing int the space tree needs to be re-evaluated using
    * regular compositing pipeline.
    */
   bool recalc_regular_compositing;
@@ -139,7 +139,7 @@ ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
 #define BASIS_RAD (0.2f * U.widget_unit)
 #define NODE_DYS (U.widget_unit / 2)
 #define NODE_DY U.widget_unit
-#define NODE_SOCKDY (0.1f * U.widget_unit)
+#define NODE_ITEM_SPACING_Y (0.1f * U.widget_unit)
 #define NODE_WIDTH(node) (node.width * UI_SCALE_FAC)
 #define NODE_HEIGHT(node) (node.height * UI_SCALE_FAC)
 #define NODE_MARGIN_X (1.2f * U.widget_unit)
@@ -158,6 +158,9 @@ ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
 float2 space_node_group_offset(const SpaceNode &snode);
 
 int node_get_resize_cursor(NodeResizeDirection directions);
+
+/* `node_draw.cc` */
+
 /**
  * Usual convention here would be #node_socket_get_color(),
  * but that's already used (for setting a color property socket).
@@ -168,19 +171,23 @@ void node_socket_color_get(const bContext &C,
                            const bNodeSocket &sock,
                            float r_color[4]);
 
-/* `node_draw.cc` */
+const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label);
 
 void node_draw_space(const bContext &C, ARegion &region);
 
 void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
 
 /**
- * Sort nodes by selection: unselected nodes first, then selected,
+ * Update node draw order nodes based on selection: unselected nodes first, then selected,
  * then the active node at the very end. Relative order is kept intact.
  */
-void node_sort(bNodeTree &ntree);
+void tree_draw_order_update(bNodeTree &ntree);
+/** Return the nodes in draw order, with the top nodes at the end. */
+Array<bNode *> tree_draw_order_calc_nodes(bNodeTree &ntree);
+/** Return the nodes in reverse draw order, with the top nodes at the start. */
+Array<bNode *> tree_draw_order_calc_nodes_reversed(bNodeTree &ntree);
 
-void node_set_cursor(wmWindow &win, SpaceNode &snode, const float2 &cursor);
+void node_set_cursor(wmWindow &win, ARegion &region, SpaceNode &snode, const float2 &cursor);
 /* DPI scaled coords */
 float2 node_to_view(const bNode &node, const float2 &co);
 void node_to_updated_rect(const bNode &node, rctf &r_rect);
@@ -283,13 +290,13 @@ bNode *add_node(const bContext &C, StringRef idname, const float2 &location);
 bNode *add_static_node(const bContext &C, int type, const float2 &location);
 
 void NODE_OT_add_reroute(wmOperatorType *ot);
-void NODE_OT_add_search(wmOperatorType *ot);
 void NODE_OT_add_group(wmOperatorType *ot);
 void NODE_OT_add_group_asset(wmOperatorType *ot);
 void NODE_OT_add_object(wmOperatorType *ot);
 void NODE_OT_add_collection(wmOperatorType *ot);
 void NODE_OT_add_file(wmOperatorType *ot);
 void NODE_OT_add_mask(wmOperatorType *ot);
+void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
 
 /* `node_group.cc` */
@@ -343,6 +350,7 @@ void node_set_hidden_sockets(bNode *node, int set);
 bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const bNode &node);
 int node_render_changed_exec(bContext *, wmOperator *);
 bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
+                                        ARegion &region,
                                         const float2 &cursor,
                                         eNodeSocketInOut in_out);
 float node_link_dim_factor(const View2D &v2d, const bNodeLink &link);
@@ -378,12 +386,6 @@ void NODE_OT_switch_view_update(wmOperatorType *ot);
 void NODE_OT_clipboard_copy(wmOperatorType *ot);
 void NODE_OT_clipboard_paste(wmOperatorType *ot);
 
-void NODE_OT_tree_socket_add(wmOperatorType *ot);
-void NODE_OT_tree_socket_remove(wmOperatorType *ot);
-void NODE_OT_tree_socket_change_type(wmOperatorType *ot);
-void NODE_OT_tree_socket_change_subtype(wmOperatorType *ot);
-void NODE_OT_tree_socket_move(wmOperatorType *ot);
-
 void NODE_OT_shader_script_update(wmOperatorType *ot);
 
 void NODE_OT_viewer_border(wmOperatorType *ot);
@@ -417,13 +419,10 @@ void invoke_node_link_drag_add_menu(bContext &C,
                                     bNodeSocket &socket,
                                     const float2 &cursor);
 
-/* `add_node_search.cc` */
-
-void invoke_add_node_search_menu(bContext &C, const float2 &cursor, bool use_transform);
-
 /* `add_menu_assets.cc` */
 
 MenuType add_catalog_assets_menu_type();
+MenuType add_unassigned_assets_menu_type();
 MenuType add_root_catalogs_menu_type();
 
 }  // namespace blender::ed::space_node

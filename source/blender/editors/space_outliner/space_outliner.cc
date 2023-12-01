@@ -18,11 +18,11 @@
 #include "BLI_mempool.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_outliner_treehash.hh"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -39,7 +39,7 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "outliner_intern.hh"
 #include "tree/tree_display.hh"
@@ -70,7 +70,7 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Outliner", SPACE_OUTLINER, 0);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 
   /* Add dropboxes */
@@ -156,6 +156,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
           break;
         case ND_BONE_ACTIVE:
         case ND_BONE_SELECT:
+        case ND_BONE_COLLECTION:
         case ND_DRAW:
         case ND_PARENT:
         case ND_OB_SHADING:
@@ -513,9 +514,11 @@ static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *s
   space_outliner->runtime = nullptr;
 }
 
-static void outliner_space_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
+static void outliner_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
+                                                    ID * /*parent_id*/,
+                                                    SpaceLink *sl)
 {
-  SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
+  SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(sl);
 
   if (space_outliner->treestore) {
     TreeStoreElem *tselem;
@@ -523,10 +526,7 @@ static void outliner_space_blend_read_lib(BlendLibReader *reader, ID *parent_id,
 
     BLI_mempool_iternew(space_outliner->treestore, &iter);
     while ((tselem = static_cast<TreeStoreElem *>(BLI_mempool_iterstep(&iter)))) {
-      if (TSE_IS_REAL_ID(tselem)) {
-        BLO_read_id_address(reader, parent_id, &tselem->id);
-      }
-      else {
+      if (!TSE_IS_REAL_ID(tselem)) {
         tselem->id = nullptr;
       }
     }
@@ -618,9 +618,8 @@ void ED_spacetype_outliner()
   st->id_remap = outliner_id_remap;
   st->foreach_id = outliner_foreach_id;
   st->deactivate = outliner_deactivate;
-  st->context = outliner_context;
   st->blend_read_data = outliner_space_blend_read_data;
-  st->blend_read_lib = outliner_space_blend_read_lib;
+  st->blend_read_after_liblink = outliner_space_blend_read_after_liblink;
   st->blend_write = outliner_space_blend_write;
 
   /* regions: main window */
@@ -633,6 +632,7 @@ void ED_spacetype_outliner()
   art->free = outliner_main_region_free;
   art->listener = outliner_main_region_listener;
   art->message_subscribe = outliner_main_region_message_subscribe;
+  art->context = outliner_main_region_context;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */

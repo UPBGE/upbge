@@ -1,6 +1,9 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * For every irradiance probe sample, compute the incomming radiance from both side.
+ * For every irradiance probe sample, compute the incoming radiance from both side.
  * This is the same as the surfel ray but we do not actually transport the light, we only capture
  * the irradiance as spherical harmonic coefficients.
  *
@@ -13,7 +16,6 @@
 #pragma BLENDER_REQUIRE(eevee_surfel_list_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_lightprobe_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_reflection_probe_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
 
 void irradiance_capture(vec3 L, vec3 irradiance, float visibility, inout SphericalHarmonicL1 sh)
 {
@@ -34,6 +36,11 @@ void irradiance_capture_surfel(Surfel surfel, vec3 P, inout SphericalHarmonicL1 
 
   vec4 irradiance_vis = vec4(0.0);
   irradiance_vis += facing ? surfel.radiance_direct.front : surfel.radiance_direct.back;
+
+  /* Clamped brightness. */
+  float luma = max(1e-8, reduce_max(irradiance_vis.rgb));
+  irradiance_vis.rgb *= 1.0 - max(0.0, luma - capture_info_buf.clamp_direct) / luma;
+
   /* NOTE: The indirect radiance is already normalized and this is wanted, because we are not
    * integrating the same signal and we would have the SH lagging behind the surfel integration
    * otherwise. */
@@ -45,7 +52,7 @@ void irradiance_capture_surfel(Surfel surfel, vec3 P, inout SphericalHarmonicL1 
 void validity_capture_surfel(Surfel surfel, vec3 P, inout float validity)
 {
   vec3 L = safe_normalize(surfel.position - P);
-  bool facing = dot(-L, surfel.normal) > 0.0;
+  bool facing = surfel.double_sided || dot(-L, surfel.normal) > 0.0;
   validity += float(facing);
 }
 
@@ -60,7 +67,14 @@ void irradiance_capture_world(vec3 L, inout SphericalHarmonicL1 sh)
   float visibility = 0.0;
 
   if (capture_info_buf.capture_world_direct) {
-    radiance = reflection_probes_world_sample(L, 0.0).rgb;
+    ReflectionProbeAtlasCoordinate atlas_coord = reinterpret_as_atlas_coord(
+        capture_info_buf.world_atlas_coord);
+
+    radiance = reflection_probes_sample(L, 0.0, atlas_coord).rgb;
+
+    /* Clamped brightness. */
+    float luma = max(1e-8, reduce_max(radiance));
+    radiance *= 1.0 - max(0.0, luma - capture_info_buf.clamp_direct) / luma;
   }
 
   if (capture_info_buf.capture_visibility_direct) {
@@ -102,7 +116,7 @@ void main()
     surfel_prev = surfel_next;
   }
 
-  vec3 sky_L = cameraVec(P);
+  vec3 sky_L = drw_world_incident_vector(P);
 
   SphericalHarmonicL1 sh;
   sh.L0.M0 = imageLoad(irradiance_L0_img, grid_coord);

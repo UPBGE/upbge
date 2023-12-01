@@ -9,10 +9,10 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_query.h"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_texture.h"
-#include "BKE_volume.h"
+#include "BKE_volume.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include "BLT_translation.h"
@@ -24,13 +24,13 @@
 #include "DNA_texture_types.h"
 #include "DNA_volume_types.h"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -318,7 +318,7 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*struct_name*/ "VolumeDisplaceModifierData",
     /*struct_size*/ sizeof(VolumeDisplaceModifierData),
     /*srna*/ &RNA_VolumeDisplaceModifier,
-    /*type*/ eModifierTypeType_NonGeometrical,
+    /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ static_cast<ModifierTypeFlag>(0),
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */
 

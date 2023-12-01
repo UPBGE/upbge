@@ -17,10 +17,12 @@
 #include "intern/gpu_shader_create_info.hh"
 
 #include "../generic/py_capi_utils.h"
+#include "../generic/python_compat.h"
 
 #include "gpu_py_shader.h" /* own include */
+#include "gpu_py_texture.h"
 
-//#define USE_PYGPU_SHADER_INFO_IMAGE_METHOD
+#define USE_PYGPU_SHADER_INFO_IMAGE_METHOD
 
 using blender::gpu::shader::DualBlend;
 using blender::gpu::shader::Frequency;
@@ -154,6 +156,53 @@ static const PyC_StringEnumItems pygpu_dualblend_items[] = {
     {int(DualBlend::SRC_1), "SRC_1"},
     {0, nullptr},
 };
+
+#define PYDOC_TEX_FORMAT_ITEMS \
+  "      - ``RGBA8UI``\n" \
+  "      - ``RGBA8I``\n" \
+  "      - ``RGBA8``\n" \
+  "      - ``RGBA32UI``\n" \
+  "      - ``RGBA32I``\n" \
+  "      - ``RGBA32F``\n" \
+  "      - ``RGBA16UI``\n" \
+  "      - ``RGBA16I``\n" \
+  "      - ``RGBA16F``\n" \
+  "      - ``RGBA16``\n" \
+  "      - ``RG8UI``\n" \
+  "      - ``RG8I``\n" \
+  "      - ``RG8``\n" \
+  "      - ``RG32UI``\n" \
+  "      - ``RG32I``\n" \
+  "      - ``RG32F``\n" \
+  "      - ``RG16UI``\n" \
+  "      - ``RG16I``\n" \
+  "      - ``RG16F``\n" \
+  "      - ``RG16``\n" \
+  "      - ``R8UI``\n" \
+  "      - ``R8I``\n" \
+  "      - ``R8``\n" \
+  "      - ``R32UI``\n" \
+  "      - ``R32I``\n" \
+  "      - ``R32F``\n" \
+  "      - ``R16UI``\n" \
+  "      - ``R16I``\n" \
+  "      - ``R16F``\n" \
+  "      - ``R16``\n" \
+  "      - ``R11F_G11F_B10F``\n" \
+  "      - ``DEPTH32F_STENCIL8``\n" \
+  "      - ``DEPTH24_STENCIL8``\n" \
+  "      - ``SRGB8_A8``\n" \
+  "      - ``RGB16F``\n" \
+  "      - ``SRGB8_A8_DXT1``\n" \
+  "      - ``SRGB8_A8_DXT3``\n" \
+  "      - ``SRGB8_A8_DXT5``\n" \
+  "      - ``RGBA8_DXT1``\n" \
+  "      - ``RGBA8_DXT3``\n" \
+  "      - ``RGBA8_DXT5``\n" \
+  "      - ``DEPTH_COMPONENT32F``\n" \
+  "      - ``DEPTH_COMPONENT24``\n" \
+  "      - ``DEPTH_COMPONENT16``\n"
+extern const PyC_StringEnumItems pygpu_tex_format_items[];
 
 /* -------------------------------------------------------------------- */
 /** \name GPUStageInterfaceInfo Methods
@@ -321,7 +370,7 @@ static PyObject *pygpu_interface_info__tp_new(PyTypeObject * /*type*/,
   StageInterfaceInfo *interface = new StageInterfaceInfo(name, "");
   GPUStageInterfaceInfo *interface_info = reinterpret_cast<GPUStageInterfaceInfo *>(interface);
 
-  auto *self = BPyGPUStageInterfaceInfo_CreatePyObject(interface_info);
+  PyObject *self = BPyGPUStageInterfaceInfo_CreatePyObject(interface_info);
 
 #ifdef USE_GPU_PY_REFERENCES
   PyObject *py_name = PyTuple_GET_ITEM(args, 0);
@@ -528,6 +577,7 @@ static PyObject *pygpu_shader_info_fragment_out(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "type", "name", "blend", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "O&" /* `type` */
       "s"  /* `name` */
@@ -605,7 +655,7 @@ PyDoc_STRVAR(
     "   :arg slot: The image resource index.\n"
     "   :type slot: int\n"
     "   :arg format: The GPUTexture format that is passed to the shader. Possible values are:\n"
-    "" PYDOC_TEX_FORMAT_ITEMS
+    "\n" PYDOC_TEX_FORMAT_ITEMS
     "   :type format: str\n"
     "   :arg type: The data type describing how the image is to be read in the shader. "
     "Possible values are:\n"
@@ -632,6 +682,7 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "format", "type", "name", "qualifiers", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "O&" /* `format` */
       "O&" /* `type` */
@@ -723,12 +774,20 @@ static int constant_type_size(Type type)
     case Type::UINT:
     case Type::UCHAR4:
     case Type::CHAR4:
-    case blender::gpu::shader::Type::VEC3_101010I2:
+    case Type::VEC3_101010I2:
+    case Type::USHORT2:
+    case Type::SHORT2:
       return 4;
+      break;
+    case Type::USHORT3:
+    case Type::SHORT3:
+      return 6;
       break;
     case Type::VEC2:
     case Type::UVEC2:
     case Type::IVEC2:
+    case Type::USHORT4:
+    case Type::SHORT4:
       return 8;
       break;
     case Type::VEC3:
@@ -746,16 +805,18 @@ static int constant_type_size(Type type)
     case Type::MAT4:
       return 64;
       break;
-    case blender::gpu::shader::Type::UCHAR:
-    case blender::gpu::shader::Type::CHAR:
+    case Type::UCHAR:
+    case Type::CHAR:
       return 1;
       break;
-    case blender::gpu::shader::Type::UCHAR2:
-    case blender::gpu::shader::Type::CHAR2:
+    case Type::UCHAR2:
+    case Type::CHAR2:
+    case Type::USHORT:
+    case Type::SHORT:
       return 2;
       break;
-    case blender::gpu::shader::Type::UCHAR3:
-    case blender::gpu::shader::Type::CHAR3:
+    case Type::UCHAR3:
+    case Type::CHAR3:
       return 3;
       break;
   }
@@ -815,6 +876,7 @@ static PyObject *pygpu_shader_info_push_constant(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"type", "name", "size", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "s"  /* `name` */
       "|"  /* Optional arguments. */
@@ -884,6 +946,51 @@ static PyObject *pygpu_shader_info_vertex_source(BPyGPUShaderCreateInfo *self, P
   ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
   info->vertex_source("common_colormanagement_lib.glsl");
   info->vertex_source_generated = vertex_source;
+
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    pygpu_shader_info_compute_source_doc,
+    ".. method:: compute_source(source)\n"
+    "\n"
+    "   compute shader source code written in GLSL.\n"
+    "\n"
+    "   Example:\n"
+    "\n"
+    "   .. code-block:: python\n"
+    "\n"
+    "      \"\"\"void main() {\n"
+    "         int2 index = int2(gl_GlobalInvocationID.xy);\n"
+    "         vec4 color = vec4(0.0, 0.0, 0.0, 1.0);\n"
+    "         imageStore(img_output, index, color);\n"
+    "      }\"\"\"\n"
+    "\n"
+    "   :arg source: The compute shader source code.\n"
+    "   :type source: str\n"
+    "\n"
+    "   .. seealso:: `GLSL Cross Compilation "
+    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__\n");
+static PyObject *pygpu_shader_info_compute_source(BPyGPUShaderCreateInfo *self, PyObject *o)
+{
+  const char *compute_source = PyUnicode_AsUTF8(o);
+  if (compute_source == nullptr) {
+    PyErr_Format(PyExc_ValueError, "expected a string, got %s", Py_TYPE(o)->tp_name);
+    return nullptr;
+  }
+
+#ifdef USE_GPU_PY_REFERENCES
+  if (self->compute_source) {
+    Py_DECREF(self->compute_source);
+  }
+
+  self->compute_source = o;
+  Py_INCREF(o);
+#endif
+
+  ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
+  info->compute_source("common_colormanagement_lib.glsl");
+  info->compute_source_generated = compute_source;
 
   Py_RETURN_NONE;
 }
@@ -1011,6 +1118,31 @@ static PyObject *pygpu_shader_info_define(BPyGPUShaderCreateInfo *self, PyObject
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(pygpu_shader_info_local_group_size_doc,
+             ".. method:: local_group_size(x, y=-1, z=-1)\n"
+             "\n"
+             "   Specify the local group size for compute shaders.\n"
+             "\n"
+             "   :arg x: The local group size in the x dimension.\n"
+             "   :type x: int\n"
+             "   :arg y: The local group size in the y dimension. Optional. Defaults to -1.\n"
+             "   :type y: int\n"
+             "   :arg z: The local group size in the z dimension. Optional. Defaults to -1.\n"
+             "   :type z: int\n");
+static PyObject *pygpu_shader_info_local_group_size(BPyGPUShaderCreateInfo *self, PyObject *args)
+{
+  int x = -1, y = -1, z = -1;
+
+  if (!PyArg_ParseTuple(args, "i|ii:local_group_size", &x, &y, &z)) {
+    return nullptr;
+  }
+
+  ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
+  info->local_group_size(x, y, z);
+
+  Py_RETURN_NONE;
+}
+
 static PyMethodDef pygpu_shader_info__tp_methods[] = {
     {"vertex_in",
      (PyCFunction)pygpu_shader_info_vertex_in,
@@ -1050,11 +1182,19 @@ static PyMethodDef pygpu_shader_info__tp_methods[] = {
      (PyCFunction)pygpu_shader_info_fragment_source,
      METH_O,
      pygpu_shader_info_fragment_source_doc},
+    {"compute_source",
+     (PyCFunction)pygpu_shader_info_compute_source,
+     METH_O,
+     pygpu_shader_info_compute_source_doc},
     {"typedef_source",
      (PyCFunction)pygpu_shader_info_typedef_source,
      METH_O,
      pygpu_shader_info_typedef_source_doc},
     {"define", (PyCFunction)pygpu_shader_info_define, METH_VARARGS, pygpu_shader_info_define_doc},
+    {"local_group_size",
+     (PyCFunction)pygpu_shader_info_local_group_size,
+     METH_VARARGS,
+     pygpu_shader_info_local_group_size_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -1084,6 +1224,7 @@ static int pygpu_shader_info__tp_traverse(PyObject *self, visitproc visit, void 
   BPyGPUShaderCreateInfo *py_info = reinterpret_cast<BPyGPUShaderCreateInfo *>(self);
   Py_VISIT(py_info->vertex_source);
   Py_VISIT(py_info->fragment_source);
+  Py_VISIT(py_info->compute_source);
   Py_VISIT(py_info->references);
   return 0;
 }
@@ -1093,6 +1234,7 @@ static int pygpu_shader_info__tp_clear(PyObject *self)
   BPyGPUShaderCreateInfo *py_info = reinterpret_cast<BPyGPUShaderCreateInfo *>(self);
   Py_CLEAR(py_info->vertex_source);
   Py_CLEAR(py_info->fragment_source);
+  Py_CLEAR(py_info->compute_source);
   Py_CLEAR(py_info->references);
   return 0;
 }
@@ -1111,8 +1253,10 @@ static void pygpu_shader_info__tp_dealloc(PyObject *self)
     pygpu_shader_info__tp_clear(self);
     Py_XDECREF(py_info->vertex_source);
     Py_XDECREF(py_info->fragment_source);
+    Py_XDECREF(py_info->compute_source);
     Py_XDECREF(py_info->references);
   }
+
 #endif
 
   Py_TYPE(self)->tp_free((PyObject *)self);
@@ -1217,6 +1361,7 @@ PyObject *BPyGPUShaderCreateInfo_CreatePyObject(GPUShaderCreateInfo *info)
   self = (BPyGPUShaderCreateInfo *)_PyObject_GC_New(&BPyGPUShaderCreateInfo_Type);
   self->vertex_source = nullptr;
   self->fragment_source = nullptr;
+  self->compute_source = nullptr;
   self->typedef_source = nullptr;
   self->references = PyList_New(0);
 #else

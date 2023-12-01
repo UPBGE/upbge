@@ -197,8 +197,10 @@ BVHTreeOverlap *BLI_bvhtree_overlap(const BVHTree *tree1,
                                     unsigned int *r_overlap_num,
                                     BVHTree_OverlapCallback callback,
                                     void *userdata);
-/** Compute overlaps of the tree with itself. This is faster than BLI_bvhtree_overlap
- *  because it only tests and returns each symmetrical pair once. */
+/**
+ * Compute overlaps of the tree with itself. This is faster than #BLI_bvhtree_overlap
+ * because it only tests and returns each symmetrical pair once.
+ */
 BVHTreeOverlap *BLI_bvhtree_overlap_self(const BVHTree *tree,
                                          unsigned int *r_overlap_num,
                                          BVHTree_OverlapCallback callback,
@@ -307,7 +309,7 @@ int BLI_bvhtree_find_nearest_projected(const BVHTree *tree,
                                        float projmat[4][4],
                                        float winsize[2],
                                        float mval[2],
-                                       float clip_planes[6][4],
+                                       float (*clip_planes)[4],
                                        int clip_plane_len,
                                        BVHTreeNearest *nearest,
                                        BVHTree_NearestProjectedCallback callback,

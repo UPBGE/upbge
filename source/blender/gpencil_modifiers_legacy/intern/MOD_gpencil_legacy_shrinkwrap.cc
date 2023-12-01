@@ -23,16 +23,16 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_shrinkwrap.h"
+#include "BKE_screen.hh"
+#include "BKE_shrinkwrap.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -45,9 +45,9 @@
 #include "MOD_gpencil_legacy_ui_common.h"
 #include "MOD_gpencil_legacy_util.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 static void init_data(GpencilModifierData *md)
 {
@@ -206,7 +206,7 @@ static void update_depsgraph(GpencilModifierData *md,
   CustomData_MeshMasks mask = {0};
 
   if (BKE_shrinkwrap_needs_normals(mmd->shrink_type, mmd->shrink_mode)) {
-    mask.lmask |= CD_MASK_NORMAL | CD_MASK_CUSTOMLOOPNORMAL;
+    mask.lmask |= CD_MASK_CUSTOMLOOPNORMAL;
   }
 
   if (mmd->target != nullptr) {

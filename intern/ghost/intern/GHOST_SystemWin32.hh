@@ -13,6 +13,10 @@
 #  error WIN32 only!
 #endif /* WIN32 */
 
+#ifndef NOMINMAX
+#  define NOMINMAX
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 #include <ole2.h> /* For drag-n-drop. */
 #include <windows.h>
@@ -150,6 +154,12 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \return Indication of success.
    */
   static GHOST_TSuccess disposeContextD3D(GHOST_ContextD3D *context);
+
+  /**
+   * Get the Window under the mouse cursor. Location obtained from the OS.
+   * \return The window under the cursor or nullptr if none.
+   */
+  GHOST_IWindow *getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/);
 
   /***************************************************************************************
    ** Event management functionality

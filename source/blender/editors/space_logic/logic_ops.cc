@@ -38,15 +38,15 @@
 #include "DNA_sensor_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_main.h"
-#include "BKE_python_proxy.h"
-#include "BKE_sca.h"
+#include "BKE_python_proxy.hh"
+#include "BKE_sca.hh"
 
 #include "ED_logic.hh"
 #include "ED_object.hh"
@@ -317,7 +317,6 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   bSensor *sens;
-  PointerRNA sens_ptr;
   PropertyRNA *prop;
   const char *sens_name;
   char name[MAX_NAME];
@@ -331,7 +330,7 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->sensors), sens);
 
   /* set the sensor name based on rna type enum */
-  RNA_pointer_create((ID *)ob, &RNA_Sensor, sens, &sens_ptr);
+  PointerRNA sens_ptr = RNA_pointer_create((ID *)ob, &RNA_Sensor, sens);
   prop = RNA_struct_find_property(&sens_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -373,7 +372,7 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
 
   /* properties */
   ot->prop = prop = RNA_def_enum(
-      ot->srna, "type", DummyRNA_NULL_items, SENS_ALWAYS, "Type", "Type of sensor to add");
+      ot->srna, "type", rna_enum_dummy_NULL_items, SENS_ALWAYS, "Type", "Type of sensor to add");
   RNA_def_enum_funcs(prop, rna_Sensor_type_itemf);
   prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Sensor to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -430,7 +429,6 @@ static int controller_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   bController *cont;
-  PointerRNA cont_ptr;
   PropertyRNA *prop;
   const char *cont_name;
   int bit;
@@ -445,7 +443,7 @@ static int controller_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->controllers), cont);
 
   /* set the controller name based on rna type enum */
-  RNA_pointer_create((ID *)ob, &RNA_Controller, cont, &cont_ptr);
+  PointerRNA cont_ptr = RNA_pointer_create((ID *)ob, &RNA_Controller, cont);
   prop = RNA_struct_find_property(&cont_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -565,7 +563,6 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   bActuator *act;
-  PointerRNA act_ptr;
   PropertyRNA *prop;
   const char *act_name;
   char name[MAX_NAME];
@@ -579,7 +576,7 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->actuators), act);
 
   /* set the actuator name based on rna type enum */
-  RNA_pointer_create((ID *)ob, &RNA_Actuator, act, &act_ptr);
+  PointerRNA act_ptr = RNA_pointer_create((ID *)ob, &RNA_Actuator, act);
   prop = RNA_struct_find_property(&act_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -620,8 +617,12 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
-  ot->prop = prop = RNA_def_enum(
-      ot->srna, "type", DummyRNA_NULL_items, CONT_LOGIC_AND, "Type", "Type of actuator to add");
+  ot->prop = prop = RNA_def_enum(ot->srna,
+                                 "type",
+                                 rna_enum_dummy_NULL_items,
+                                 CONT_LOGIC_AND,
+                                 "Type",
+                                 "Type of actuator to add");
   RNA_def_enum_funcs(prop, rna_Actuator_type_itemf);
   prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Actuator to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);

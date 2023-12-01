@@ -128,7 +128,7 @@ Mouse event states:
 
       Move a widget to a new position over a number of frames.
 
-      :arg positon: The new position
+      :arg position: The new position
       :arg time: The time in milliseconds to take doing the move
       :arg callback: An optional callback that is called when he animation is complete
 

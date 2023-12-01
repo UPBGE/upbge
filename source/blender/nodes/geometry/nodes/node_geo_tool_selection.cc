@@ -53,7 +53,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!check_tool_context_and_error(params)) {
     return;
   }
-  params.set_output("Selection", Field<bool>(std::make_shared<ToolSelectionFieldInput>()));
+  if (params.user_data()->call_data->operator_data->mode == OB_MODE_OBJECT) {
+    params.set_output("Selection", true);
+  }
+  else {
+    params.set_output("Selection", Field<bool>(std::make_shared<ToolSelectionFieldInput>()));
+  }
 }
 
 static void node_register()
@@ -62,7 +67,6 @@ static void node_register()
   geo_node_type_base(&ntype, GEO_NODE_TOOL_SELECTION, "Selection", NODE_CLASS_INPUT);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.gather_add_node_search_ops = search_link_ops_for_for_tool_node;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;
   nodeRegisterType(&ntype);
 }

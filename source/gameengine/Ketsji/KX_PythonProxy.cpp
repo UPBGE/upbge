@@ -22,7 +22,7 @@
 
 #include "KX_PythonProxy.h"
 
-#include "BKE_python_proxy.h"
+#include "BKE_python_proxy.hh"
 #include "CM_Message.h"
 #include "DNA_python_proxy_types.h"
 

@@ -27,14 +27,14 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -48,7 +48,7 @@
 
 #include "WM_api.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 static void init_data(GpencilModifierData *md)
 {
@@ -102,7 +102,7 @@ static int remap_time(GpencilModifierData *md,
     offset = abs(efra - sfra + offset + 1);
   }
   /* Avoid inverse ranges. */
-  if (efra <= sfra) {
+  if (efra < sfra) {
     return cfra;
   }
 
@@ -346,11 +346,9 @@ static void panel_draw(const bContext *C, Panel *panel)
 
     TimeGpencilModifierData *gpmd = static_cast<TimeGpencilModifierData *>(ptr->data);
     if (gpmd->segment_active_index >= 0 && gpmd->segment_active_index < gpmd->segments_len) {
-      PointerRNA ds_ptr;
-      RNA_pointer_create(ptr->owner_id,
-                         &RNA_TimeGpencilModifierSegment,
-                         &gpmd->segments[gpmd->segment_active_index],
-                         &ds_ptr);
+      PointerRNA ds_ptr = RNA_pointer_create(ptr->owner_id,
+                                             &RNA_TimeGpencilModifierSegment,
+                                             &gpmd->segments[gpmd->segment_active_index]);
 
       sub = uiLayoutColumn(layout, true);
       uiItemR(sub, &ds_ptr, "seg_mode", UI_ITEM_NONE, nullptr, ICON_NONE);

@@ -17,7 +17,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -38,13 +38,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_armature.h"
-#include "BKE_bvhutils.h" /* bvh tree */
+#include "BKE_armature.hh"
+#include "BKE_bvhutils.hh" /* bvh tree */
 #include "BKE_collection.h"
 #include "BKE_collision.h"
 #include "BKE_colorband.h"
 #include "BKE_constraint.h"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_deform.h"
 #include "BKE_dynamicpaint.h"
 #include "BKE_effect.h"
@@ -56,14 +56,14 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 /* for image output */
 #include "IMB_imbuf.h"
@@ -3464,9 +3464,9 @@ static void mesh_tris_spherecast_dp(void *userdata,
                                     BVHTreeRayHit *hit)
 {
   const BVHTreeFromMesh *data = (BVHTreeFromMesh *)userdata;
-  const float(*positions)[3] = data->vert_positions;
-  const MLoopTri *looptris = data->looptri;
-  const int *corner_verts = data->corner_verts;
+  const blender::Span<blender::float3> positions = data->vert_positions;
+  const MLoopTri *looptris = data->looptris.data();
+  const int *corner_verts = data->corner_verts.data();
 
   const float *t0, *t1, *t2;
   float dist;
@@ -3496,9 +3496,9 @@ static void mesh_tris_nearest_point_dp(void *userdata,
                                        BVHTreeNearest *nearest)
 {
   const BVHTreeFromMesh *data = (BVHTreeFromMesh *)userdata;
-  const float(*positions)[3] = data->vert_positions;
-  const MLoopTri *looptris = data->looptri;
-  const int *corner_verts = data->corner_verts;
+  const blender::Span<blender::float3> positions = data->vert_positions;
+  const MLoopTri *looptris = data->looptris.data();
+  const int *corner_verts = data->corner_verts.data();
   float nearest_tmp[3], dist_sq;
 
   const float *t0, *t1, *t2;
@@ -5710,7 +5710,7 @@ static void dynamic_paint_wave_step_cb(void *__restrict userdata,
     wPoint->height = (dt * wave_speed * avg_n_height + wPoint->height * avg_dist) /
                      (avg_dist + dt * wave_speed);
   }
-  /* else do wave eq */
+  /* Else do wave equation. */
   else {
     /* add force towards zero height based on average dist */
     if (avg_dist) {

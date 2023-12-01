@@ -38,7 +38,7 @@
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_sca.h"
+#  include "BKE_sca.hh"
 #  include "DNA_actuator_types.h"
 #  include "DNA_controller_types.h"
 

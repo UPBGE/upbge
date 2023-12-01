@@ -21,10 +21,9 @@ extern "C" {
  */
 
 /** Blender major and minor version. */
-#define BLENDER_VERSION 400
+#define BLENDER_VERSION 401
 
-#define UPBGE_VERSION 40
-
+#define UPBGE_VERSION 41
 
 /** Blender patch version for bug-fix releases. */
 #define BLENDER_VERSION_PATCH 0
@@ -37,7 +36,7 @@ extern "C" {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 16
+#define BLENDER_FILE_SUBVERSION 9
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
@@ -49,11 +48,14 @@ extern "C" {
  *
  * See https://wiki.blender.org/wiki/Process/Compatibility_Handling for details. */
 #define BLENDER_FILE_MIN_VERSION 306
-#define BLENDER_FILE_MIN_SUBVERSION 11
+#define BLENDER_FILE_MIN_SUBVERSION 13
 
 /** User readable version string. */
 const char *BKE_blender_version_string(void);
 const char *BKE_upbge_version_string(void);
+
+/** As above but does not show patch version. */
+const char *BKE_blender_version_string_compact(void);
 
 /** Returns true when version cycle is alpha, otherwise (beta, rc) returns false. */
 bool BKE_blender_version_is_alpha(void);
@@ -62,10 +64,10 @@ bool BKE_blender_version_is_alpha(void);
  * Fill in given string buffer with user-readable formatted file version and subversion (if
  * provided).
  *
- * \param str_buff a char buffer where the formatted string is written, minimal recommended size is
- * 8, or 16 if subversion is provided.
+ * \param str_buff: a char buffer where the formatted string is written,
+ * minimal recommended size is 8, or 16 if subversion is provided.
  *
- * \param file_subversion the file subversion, if given value < 0, it is ignored, and only the
+ * \param file_subversion: the file subversion, if given value < 0, it is ignored, and only the
  * `file_version` is used.
  */
 void BKE_blender_version_blendfile_string_from_values(char *str_buff,

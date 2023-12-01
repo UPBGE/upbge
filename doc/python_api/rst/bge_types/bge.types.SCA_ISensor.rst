@@ -52,7 +52,7 @@ base class --- :class:`~bge.types.SCA_ILogicBrick`
 
       When enabled only sensors that are just activated will send a positive event,
       after this they will be detected as negative by the controllers.
-      This will make a key thats held act as if its only tapped for an instant.
+      This will make a key that's held act as if its only tapped for an instant.
       note: mutually exclusive with :attr:`level`, enabling will disable :attr:`level`.
 
       :type: boolean

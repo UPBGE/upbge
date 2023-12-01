@@ -34,7 +34,7 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_colortools.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
@@ -47,7 +47,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "GPU_state.h"
 
@@ -322,7 +322,7 @@ static void image_view_all(SpaceImage *sima, ARegion *region, wmOperator *op)
 bool space_image_main_region_poll(bContext *C)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
-  /* XXX ARegion *region = CTX_wm_region(C); */
+  // ARegion *region = CTX_wm_region(C); /* XXX. */
 
   if (sima) {
     return true; /* XXX (region && region->type->regionid == RGN_TYPE_WINDOW); */
@@ -1271,8 +1271,6 @@ static void image_open_cancel(bContext * /*C*/, wmOperator *op)
 static Image *image_open_single(Main *bmain,
                                 wmOperator *op,
                                 ImageFrameRange *range,
-                                const char *relbase,
-                                bool is_relative_path,
                                 bool use_multiview)
 {
   bool exists = false;
@@ -1293,38 +1291,38 @@ static Image *image_open_single(Main *bmain,
     return nullptr;
   }
 
-  if (!exists) {
-    /* only image path after save, never ibuf */
-    if (is_relative_path) {
-      BLI_path_rel(ima->filepath, relbase);
-    }
+  /* If image already exists, update its file path based on relative path property, see: #109561.
+   */
+  if (exists) {
+    STRNCPY(ima->filepath, range->filepath);
+    return ima;
+  }
 
-    /* handle multiview images */
-    if (use_multiview) {
-      ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
-      ImageFormatData *imf = &iod->im_format;
+  /* handle multiview images */
+  if (use_multiview) {
+    ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
+    ImageFormatData *imf = &iod->im_format;
 
-      ima->flag |= IMA_USE_VIEWS;
-      ima->views_format = imf->views_format;
-      *ima->stereo3d_format = imf->stereo3d_format;
-    }
-    else {
-      ima->flag &= ~IMA_USE_VIEWS;
-      BKE_image_free_views(ima);
-    }
+    ima->flag |= IMA_USE_VIEWS;
+    ima->views_format = imf->views_format;
+    *ima->stereo3d_format = imf->stereo3d_format;
+  }
+  else {
+    ima->flag &= ~IMA_USE_VIEWS;
+    BKE_image_free_views(ima);
+  }
 
-    if (ima->source == IMA_SRC_FILE) {
-      if (range->udims_detected && range->udim_tiles.first) {
-        ima->source = IMA_SRC_TILED;
-        ImageTile *first_tile = static_cast<ImageTile *>(ima->tiles.first);
-        first_tile->tile_number = range->offset;
-        LISTBASE_FOREACH (LinkData *, node, &range->udim_tiles) {
-          BKE_image_add_tile(ima, POINTER_AS_INT(node->data), nullptr);
-        }
+  if (ima->source == IMA_SRC_FILE) {
+    if (range->udims_detected && range->udim_tiles.first) {
+      ima->source = IMA_SRC_TILED;
+      ImageTile *first_tile = static_cast<ImageTile *>(ima->tiles.first);
+      first_tile->tile_number = range->offset;
+      LISTBASE_FOREACH (LinkData *, node, &range->udim_tiles) {
+        BKE_image_add_tile(ima, POINTER_AS_INT(node->data), nullptr);
       }
-      else if (range->length > 1) {
-        ima->source = IMA_SRC_SEQUENCE;
-      }
+    }
+    else if (range->length > 1) {
+      ima->source = IMA_SRC_SEQUENCE;
     }
   }
 
@@ -1341,7 +1339,6 @@ static int image_open_exec(bContext *C, wmOperator *op)
   int frame_seq_len = 0;
   int frame_ofs = 1;
 
-  const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
   const bool use_multiview = RNA_boolean_get(op->ptr, "use_multiview");
   const bool use_udim = RNA_boolean_get(op->ptr, "use_udim_detecting");
 
@@ -1351,8 +1348,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
   ListBase ranges = ED_image_filesel_detect_sequences(bmain, op, use_udim);
   LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
-    Image *ima_range = image_open_single(
-        bmain, op, range, BKE_main_blendfile_path(bmain), is_relative_path, use_multiview);
+    Image *ima_range = image_open_single(bmain, op, range, use_multiview);
 
     /* take the first image */
     if ((ima == nullptr) && ima_range) {
@@ -1377,8 +1373,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
      * pointer use also increases user, so this compensates it */
     id_us_min(&ima->id);
 
-    PointerRNA imaptr;
-    RNA_id_pointer_create(&ima->id, &imaptr);
+    PointerRNA imaptr = RNA_id_pointer_create(&ima->id);
     RNA_property_pointer_set(&iod->pprop.ptr, iod->pprop.prop, imaptr, nullptr);
     RNA_property_update(C, &iod->pprop.ptr, iod->pprop.prop);
   }
@@ -1510,7 +1505,6 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ImageFormatData *imf = &iod->im_format;
-  PointerRNA imf_ptr;
 
   /* main draw call */
   uiDefAutoButsRNA(layout,
@@ -1522,7 +1516,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
                    false);
 
   /* image template */
-  RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, imf, &imf_ptr);
+  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, imf);
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
@@ -1598,9 +1592,8 @@ static int image_file_browse_exec(bContext *C, wmOperator *op)
     BKE_image_ensure_tile_token(filepath, sizeof(filepath));
   }
 
-  PointerRNA imaptr;
   PropertyRNA *imaprop;
-  RNA_id_pointer_create(&ima->id, &imaptr);
+  PointerRNA imaptr = RNA_id_pointer_create(&ima->id);
   imaprop = RNA_struct_find_property(&imaptr, "filepath");
 
   RNA_property_string_set(&imaptr, imaprop, filepath);
@@ -1861,7 +1854,7 @@ static bool save_image_op(
   WM_cursor_wait(false);
 
   /* Remember file path for next save. */
-  STRNCPY(G.ima, opts->filepath);
+  STRNCPY(G.filepath_last_image, opts->filepath);
 
   WM_main_add_notifier(NC_IMAGE | NA_EDITED, ima);
 
@@ -2000,7 +1993,6 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
-  PointerRNA imf_ptr;
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
@@ -2019,7 +2011,7 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
 
   /* Image format settings. */
-  RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format, &imf_ptr);
+  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
   uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
@@ -2313,9 +2305,9 @@ static bool image_should_be_saved_when_modified(Image *ima)
   return !ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE);
 }
 
-static bool image_should_be_saved(Image *ima, bool *is_format_writable)
+static bool image_should_be_saved(Image *ima, bool *r_is_format_writable)
 {
-  if (BKE_image_is_dirty_writable(ima, is_format_writable) &&
+  if (BKE_image_is_dirty_writable(ima, r_is_format_writable) &&
       ELEM(ima->source, IMA_SRC_FILE, IMA_SRC_GENERATED, IMA_SRC_TILED))
   {
     return image_should_be_saved_when_modified(ima);
@@ -2344,7 +2336,7 @@ bool ED_image_should_save_modified(const Main *bmain)
   uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
   bool should_save = modified_images_count || !BLI_listbase_is_empty(&reports.list);
 
-  BKE_reports_clear(&reports);
+  BKE_reports_free(&reports);
 
   return should_save;
 }
@@ -2605,8 +2597,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
      * pointer use also increases user, so this compensates it */
     id_us_min(&ima->id);
 
-    PointerRNA imaptr;
-    RNA_id_pointer_create(&ima->id, &imaptr);
+    PointerRNA imaptr = RNA_id_pointer_create(&ima->id);
     RNA_property_pointer_set(&data->pprop.ptr, data->pprop.prop, imaptr, nullptr);
     RNA_property_update(C, &data->pprop.ptr, data->pprop.prop);
   }
@@ -3343,7 +3334,10 @@ void IMAGE_OT_unpack(wmOperatorType *ot)
 /** \name Sample Image Operator
  * \{ */
 
-bool ED_space_image_get_position(SpaceImage *sima, ARegion *region, int mval[2], float fpos[2])
+bool ED_space_image_get_position(SpaceImage *sima,
+                                 ARegion *region,
+                                 const int mval[2],
+                                 float r_fpos[2])
 {
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
@@ -3353,7 +3347,7 @@ bool ED_space_image_get_position(SpaceImage *sima, ARegion *region, int mval[2],
     return false;
   }
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &fpos[0], &fpos[1]);
+  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
 
   ED_space_image_release_buffer(sima, ibuf, lock);
   return true;

@@ -10,14 +10,14 @@
 
 #include "BLI_string.h"
 
-#include "BKE_editmesh.h"
-#include "BKE_editmesh_tangent.h"
+#include "BKE_editmesh.hh"
+#include "BKE_editmesh_tangent.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_tangent.hh"
 
 #include "extract_mesh.hh"
 
-#include "draw_subdivision.h"
+#include "draw_subdivision.hh"
 
 namespace blender::draw {
 
@@ -93,7 +93,7 @@ static void extract_tan_init_common(const MeshRenderData &mr,
         copy_v3_v3(orco_allocated[v], mr.vert_positions[v]);
       }
     }
-    BKE_mesh_orco_verts_transform(mr.me, orco_allocated, mr.vert_len, 0);
+    BKE_mesh_orco_verts_transform(mr.me, orco_allocated, mr.vert_len, false);
     orco = orco_allocated;
   }
 

@@ -24,7 +24,7 @@
 #include "../generic/python_utildefines.h"
 #include "../mathutils/mathutils.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
 #include "DNA_meshdata_types.h"
 
@@ -94,8 +94,6 @@ PyDoc_STRVAR(
     "Accessor for :class:`BMLoopUV` UV (as a 2D Vector).\n\ntype: :class:`BMLayerCollection`");
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__skin_doc,
              "Accessor for skin layer.\n\ntype: :class:`BMLayerCollection`");
-PyDoc_STRVAR(bpy_bmlayeraccess_collection__paint_mask_doc,
-             "Accessor for paint mask layer.\n\ntype: :class:`BMLayerCollection`");
 #ifdef WITH_FREESTYLE
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__freestyle_edge_doc,
              "Accessor for Freestyle edge layer.\n\ntype: :class:`BMLayerCollection`");
@@ -205,11 +203,6 @@ static PyGetSetDef bpy_bmlayeraccess_vert_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__skin_doc,
      (void *)CD_MVERT_SKIN},
-    {"paint_mask",
-     (getter)bpy_bmlayeraccess_collection_get,
-     (setter) nullptr,
-     bpy_bmlayeraccess_collection__paint_mask_doc,
-     (void *)CD_PAINT_MASK},
 
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
@@ -1106,8 +1099,7 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
       ret = BPy_BMDeformVert_CreatePyObject(static_cast<MDeformVert *>(value));
       break;
     }
-    case CD_PROP_FLOAT:
-    case CD_PAINT_MASK: {
+    case CD_PROP_FLOAT: {
       ret = PyFloat_FromDouble(*(float *)value);
       break;
     }
@@ -1172,8 +1164,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
       ret = BPy_BMDeformVert_AssignPyObject(static_cast<MDeformVert *>(value), py_value);
       break;
     }
-    case CD_PROP_FLOAT:
-    case CD_PAINT_MASK: {
+    case CD_PROP_FLOAT: {
       const float tmp_val = PyFloat_AsDouble(py_value);
       if (UNLIKELY(tmp_val == -1 && PyErr_Occurred())) {
         PyErr_Format(

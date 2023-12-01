@@ -14,10 +14,10 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_lattice.h"
+#include "BKE_lattice.hh"
 #include "BKE_particle.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};

@@ -8,7 +8,7 @@
  * Core routines for how the Depsgraph works.
  */
 
-#include "intern/depsgraph.h" /* own include */
+#include "intern/depsgraph.hh" /* own include */
 
 #include <algorithm>
 #include <cstring>
@@ -23,22 +23,22 @@
 #include "BKE_idtype.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_debug.hh"
 
-#include "intern/depsgraph_physics.h"
-#include "intern/depsgraph_registry.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/depsgraph_update.h"
+#include "intern/depsgraph_physics.hh"
+#include "intern/depsgraph_registry.hh"
+#include "intern/depsgraph_relation.hh"
+#include "intern/depsgraph_update.hh"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
 
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
-#include "intern/node/deg_node_time.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
+#include "intern/node/deg_node_time.hh"
 
 namespace deg = blender::deg;
 
@@ -62,7 +62,8 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
       use_visibility_optimization(true),
       is_evaluating(false),
       is_render_pipeline_depsgraph(false),
-      use_editors_update(false)
+      use_editors_update(false),
+      update_count(0)
 {
   BLI_spin_init(&lock);
   memset(id_type_updated, 0, sizeof(id_type_updated));
@@ -343,4 +344,10 @@ void DEG_disable_visibility_optimization(Depsgraph *depsgraph)
 {
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(depsgraph);
   deg_graph->use_visibility_optimization = false;
+}
+
+uint64_t DEG_get_update_count(const Depsgraph *depsgraph)
+{
+  const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+  return deg_graph->update_count;
 }

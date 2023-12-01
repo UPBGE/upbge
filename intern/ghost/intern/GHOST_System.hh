@@ -285,7 +285,7 @@ class GHOST_System : public GHOST_ISystem {
    * Do not delete the event!
    * \param event: The event to push on the stack.
    */
-  GHOST_TSuccess pushEvent(GHOST_IEvent *event);
+  GHOST_TSuccess pushEvent(const GHOST_IEvent *event);
 
   /**
    * \return The timer manager.
@@ -327,7 +327,6 @@ class GHOST_System : public GHOST_ISystem {
    * Returns the selection buffer
    * \param selection: Only used on X11.
    * \return Returns the clipboard data
-   *
    */
   virtual char *getClipboard(bool selection) const = 0;
 

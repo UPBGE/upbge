@@ -54,7 +54,7 @@ base class --- :class:`~bge.types.EXP_PropValue`
 
    .. method:: from_id(id)
 
-      This is a funtion especially for the game engine to return a value with a spesific id.
+      This is a function especially for the game engine to return a value with a specific id.
 
       Since object names are not always unique, the id of an object can be used to get an object from the CValueList.
 

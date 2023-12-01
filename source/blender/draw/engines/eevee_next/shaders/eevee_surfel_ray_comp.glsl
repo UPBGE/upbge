@@ -1,6 +1,9 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * For every surfel, compute the incomming radiance from both side.
+ * For every surfel, compute the incoming radiance from both side.
  * For that, walk the ray surfel linked-list and gather the light from the neighbor surfels.
  * This shader is dispatched for a random ray in a uniform hemisphere as we evaluate the
  * radiance in both directions.
@@ -8,11 +11,11 @@
  * Dispatched as 1 thread per surfel.
  */
 
+#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
+#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_reflection_probe_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
 
 float avg_albedo(vec3 albedo)
 {
@@ -21,6 +24,10 @@ float avg_albedo(vec3 albedo)
 
 void radiance_transfer(inout Surfel surfel, vec3 in_radiance, float in_visibility, vec3 L)
 {
+  /* Clamped brightness. */
+  float luma = max(1e-8, reduce_max(in_radiance));
+  in_radiance *= 1.0 - max(0.0, luma - capture_info_buf.clamp_indirect) / luma;
+
   float NL = dot(surfel.normal, L);
   /* Lambertian BSDF. Albedo applied later depending on which side of the surfel was hit. */
   const float bsdf = M_1_PI;
@@ -81,7 +88,10 @@ void radiance_transfer_world(inout Surfel receiver, vec3 L)
   float visibility = 0.0;
 
   if (capture_info_buf.capture_world_indirect) {
-    radiance = reflection_probes_world_sample(L, 0.0).rgb;
+    ReflectionProbeAtlasCoordinate atlas_coord = reinterpret_as_atlas_coord(
+        capture_info_buf.world_atlas_coord);
+
+    radiance = reflection_probes_sample(L, 0.0, atlas_coord).rgb;
   }
 
   if (capture_info_buf.capture_visibility_indirect) {
@@ -100,7 +110,7 @@ void main()
 
   Surfel surfel = surfel_buf[surfel_index];
 
-  vec3 sky_L = cameraVec(surfel.position);
+  vec3 sky_L = drw_world_incident_vector(surfel.position);
 
   if (surfel.next > -1) {
     Surfel surfel_next = surfel_buf[surfel.next];

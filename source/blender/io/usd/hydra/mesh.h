@@ -17,6 +17,7 @@
 namespace blender::io::hydra {
 
 class MeshData : public ObjectData {
+ public:
   struct SubMesh {
     pxr::VtVec3fArray vertices;
     pxr::VtIntArray face_vertex_counts;
@@ -28,7 +29,7 @@ class MeshData : public ObjectData {
   };
 
  private:
-  std::vector<SubMesh> submeshes_;
+  Vector<SubMesh> submeshes_;
   int submeshes_count_ = 0;
 
  public:

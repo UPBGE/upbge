@@ -10,8 +10,9 @@
 #include <cstdlib>
 
 #include "DNA_object_types.h"
+#include "DNA_space_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 
@@ -28,6 +29,7 @@
 
 void ED_operatortypes_object()
 {
+  using namespace blender::ed::object;
   WM_operatortype_append(OBJECT_OT_location_clear);
   WM_operatortype_append(OBJECT_OT_rotation_clear);
   WM_operatortype_append(OBJECT_OT_scale_clear);
@@ -43,6 +45,7 @@ void ED_operatortypes_object()
   WM_operatortype_append(OBJECT_OT_editmode_toggle);
   WM_operatortype_append(OBJECT_OT_posemode_toggle);
   WM_operatortype_append(OBJECT_OT_shade_smooth);
+  WM_operatortype_append(OBJECT_OT_shade_smooth_by_angle);
   WM_operatortype_append(OBJECT_OT_shade_flat);
   WM_operatortype_append(OBJECT_OT_paths_calculate);
   WM_operatortype_append(OBJECT_OT_paths_update);
@@ -265,6 +268,8 @@ void ED_operatortypes_object()
   WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_calculate_to_frame);
   WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_bake);
   WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_delete);
+  WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_bake_single);
+  WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_delete_single);
   WM_operatortype_append(OBJECT_OT_drop_named_material);
   WM_operatortype_append(OBJECT_OT_drop_geometry_nodes);
   WM_operatortype_append(OBJECT_OT_unlink_data);
@@ -299,6 +304,8 @@ void ED_operatortypes_object()
   WM_operatortype_append(OBJECT_OT_light_linking_blockers_link);
 
   WM_operatortype_append(OBJECT_OT_light_linking_unlink_from_collection);
+
+  object_modifier_add_asset_register();
 }
 
 void ED_operatormacros_object()
@@ -340,10 +347,10 @@ void ED_keymap_object(wmKeyConfig *keyconf)
   wmKeyMap *keymap;
 
   /* Objects, Regardless of Mode -------------------------------------------------- */
-  keymap = WM_keymap_ensure(keyconf, "Object Non-modal", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Object Non-modal", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
   /* Object Mode ---------------------------------------------------------------- */
   /* NOTE: this keymap gets disabled in non-object-mode. */
-  keymap = WM_keymap_ensure(keyconf, "Object Mode", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = object_mode_poll;
 }

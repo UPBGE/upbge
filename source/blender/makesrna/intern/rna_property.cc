@@ -30,7 +30,7 @@
 #include "DNA_property_types.h"
 
 #include "BLI_path_util.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
 #include "BLT_translation.h"
 
@@ -51,7 +51,7 @@ const EnumPropertyItem rna_enum_gameproperty_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_property.h"
+#  include "BKE_property.hh"
 
 static StructRNA *rna_GameProperty_refine(struct PointerRNA *ptr)
 {

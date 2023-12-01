@@ -6,6 +6,7 @@
  * \ingroup modifiers
  */
 
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -18,10 +19,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_mesh.hh"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -29,7 +30,9 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
+
+#include "GEO_randomize.hh"
 
 #include "bmesh.h"
 #include "bmesh_tools.h"
@@ -206,6 +209,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   BM_mesh_free(bm);
 
+  blender::geometry::debug_randomize_mesh_order(result);
+
 #ifdef USE_TIMEIT
   TIMEIT_END(decim);
 #endif
@@ -274,7 +279,7 @@ ModifierTypeInfo modifierType_Decimate = {
     /*struct_name*/ "DecimateModifierData",
     /*struct_size*/ sizeof(DecimateModifierData),
     /*srna*/ &RNA_DecimateModifier,
-    /*type*/ eModifierTypeType_Nonconstructive,
+    /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_DECIM,
 

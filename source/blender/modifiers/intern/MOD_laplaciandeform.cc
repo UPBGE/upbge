@@ -22,21 +22,21 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
-#include "BKE_editmesh.h"
+#include "BKE_editmesh.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_particle.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -747,11 +747,13 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
-  LaplacianDeformModifier_do(
-      (LaplacianDeformModifierData *)md, ctx->object, mesh, vertexCos, verts_num);
+  LaplacianDeformModifier_do((LaplacianDeformModifierData *)md,
+                             ctx->object,
+                             mesh,
+                             reinterpret_cast<float(*)[3]>(positions.data()),
+                             positions.size());
 }
 
 static void free_data(ModifierData *md)
@@ -836,7 +838,7 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
     /*struct_name*/ "LaplacianDeformModifierData",
     /*struct_size*/ sizeof(LaplacianDeformModifierData),
     /*srna*/ &RNA_LaplacianDeformModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_MESHDEFORM,
     /*copy_data*/ copy_data,

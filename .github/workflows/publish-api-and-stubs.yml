@@ -85,6 +85,7 @@ jobs:
                  -DWITH_INSTALL_PORTABLE=ON \
                  -DWITH_MOD_OCEANSIM=OFF \
                  -DWITH_CYCLES=OFF \
+                 -DWITH_HYDRA=OFF \
                  -DWITH_GHOST_WAYLAND=OFF \
                  -DPYTHON_VERSION=${{env.PYTHON_VERSION}}
 

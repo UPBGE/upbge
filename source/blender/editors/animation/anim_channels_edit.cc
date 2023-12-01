@@ -14,6 +14,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_listbase.h"
+#include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -25,10 +26,11 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_path.hh"
 
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_gpencil_legacy.h"
@@ -38,21 +40,23 @@
 #include "BKE_mask.h"
 #include "BKE_nla.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
+#include "BKE_workspace.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "UI_interface.hh"
 #include "UI_view2d.hh"
 
-#include "ED_anim_api.hh"
 #include "ED_armature.hh"
 #include "ED_keyframes_edit.hh" /* XXX move the select modes out of there! */
 #include "ED_markers.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
+
+#include "ANIM_animdata.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -62,8 +66,10 @@
  * \{ */
 
 static bool get_normalized_fcurve_bounds(FCurve *fcu,
-                                         bAnimContext *ac,
-                                         const bAnimListElem *ale,
+                                         AnimData *anim_data,
+                                         SpaceLink *space_link,
+                                         Scene *scene,
+                                         ID *id,
                                          const bool include_handles,
                                          const float range[2],
                                          rctf *r_bounds)
@@ -76,11 +82,10 @@ static bool get_normalized_fcurve_bounds(FCurve *fcu,
     return false;
   }
 
-  const short mapping_flag = ANIM_get_normalization_flags(ac);
+  const short mapping_flag = ANIM_get_normalization_flags(space_link);
 
   float offset;
-  const float unit_fac = ANIM_unit_mapping_get_factor(
-      ac->scene, ale->id, fcu, mapping_flag, &offset);
+  const float unit_fac = ANIM_unit_mapping_get_factor(scene, id, fcu, mapping_flag, &offset);
 
   r_bounds->ymin = (r_bounds->ymin + offset) * unit_fac;
   r_bounds->ymax = (r_bounds->ymax + offset) * unit_fac;
@@ -91,6 +96,9 @@ static bool get_normalized_fcurve_bounds(FCurve *fcu,
     r_bounds->ymin -= (min_height - height) / 2;
     r_bounds->ymax += (min_height - height) / 2;
   }
+  r_bounds->xmin = BKE_nla_tweakedit_remap(anim_data, r_bounds->xmin, NLATIME_CONVERT_MAP);
+  r_bounds->xmax = BKE_nla_tweakedit_remap(anim_data, r_bounds->xmax, NLATIME_CONVERT_MAP);
+
   return true;
 }
 
@@ -120,6 +128,39 @@ static bool get_gpencil_bounds(bGPDlayer *gpl, const float range[2], rctf *r_bou
   return found_start;
 }
 
+static bool get_grease_pencil_layer_bounds(const GreasePencilLayer *gplayer,
+                                           const float range[2],
+                                           rctf *r_bounds)
+{
+  using namespace blender::bke::greasepencil;
+  const Layer &layer = gplayer->wrap();
+
+  bool found_start = false;
+  int start_frame = 0;
+  int end_frame = 1;
+
+  for (const FramesMapKey key : layer.sorted_keys()) {
+    if (key < range[0]) {
+      continue;
+    }
+    if (key > range[1]) {
+      break;
+    }
+
+    if (!found_start) {
+      start_frame = key;
+      found_start = true;
+    }
+    end_frame = key;
+  }
+  r_bounds->xmin = start_frame;
+  r_bounds->xmax = end_frame;
+  r_bounds->ymin = 0;
+  r_bounds->ymax = 1;
+
+  return found_start;
+}
+
 static bool get_channel_bounds(bAnimContext *ac,
                                bAnimListElem *ale,
                                const float range[2],
@@ -133,9 +174,16 @@ static bool get_channel_bounds(bAnimContext *ac,
       found_bounds = get_gpencil_bounds(gpl, range, r_bounds);
       break;
     }
+    case ALE_GREASE_PENCIL_CEL:
+      found_bounds = get_grease_pencil_layer_bounds(
+          static_cast<const GreasePencilLayer *>(ale->data), range, r_bounds);
+      break;
+
     case ALE_FCURVE: {
       FCurve *fcu = (FCurve *)ale->key_data;
-      found_bounds = get_normalized_fcurve_bounds(fcu, ac, ale, include_handles, range, r_bounds);
+      AnimData *anim_data = ANIM_nla_mapping_get(ac, ale);
+      found_bounds = get_normalized_fcurve_bounds(
+          fcu, anim_data, ac->sl, ac->scene, ale->id, include_handles, range, r_bounds);
       break;
     }
   }
@@ -154,6 +202,7 @@ static void add_region_padding(bContext *C, ARegion *region, rctf *bounds)
                                UI_MARKER_MARGIN_Y;
   BLI_rctf_pad_y(bounds, region->winy, pad_bottom, pad_top);
 }
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -850,81 +899,6 @@ void ANIM_frame_channel_y_extents(bContext *C, bAnimContext *ac)
 
   ANIM_animdata_freelist(&anim_data);
 }
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Public F-Curves API
- * \{ */
-
-void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *fcu)
-{
-  /* - if no AnimData, we've got nowhere to remove the F-Curve from
-   *   (this doesn't guarantee that the F-Curve is in there, but at least we tried
-   * - if no F-Curve, there is nothing to remove
-   */
-  if (ELEM(nullptr, adt, fcu)) {
-    return;
-  }
-
-  /* remove from whatever list it came from
-   * - Action Group
-   * - Action
-   * - Drivers
-   * - TODO... some others?
-   */
-  if ((ac) && (ac->datatype == ANIMCONT_DRIVERS)) {
-    /* driver F-Curve */
-    BLI_remlink(&adt->drivers, fcu);
-  }
-  else if (adt->action) {
-    bAction *act = adt->action;
-
-    /* remove from group or action, whichever one "owns" the F-Curve */
-    if (fcu->grp) {
-      bActionGroup *agrp = fcu->grp;
-
-      /* remove F-Curve from group+action */
-      action_groups_remove_channel(act, fcu);
-
-      /* if group has no more channels, remove it too,
-       * otherwise can have many dangling groups #33541.
-       */
-      if (BLI_listbase_is_empty(&agrp->channels)) {
-        BLI_freelinkN(&act->groups, agrp);
-      }
-    }
-    else {
-      BLI_remlink(&act->curves, fcu);
-    }
-
-    /* if action has no more F-Curves as a result of this, unlink it from
-     * AnimData if it did not come from a NLA Strip being tweaked.
-     *
-     * This is done so that we don't have dangling Object+Action entries in
-     * channel list that are empty, and linger around long after the data they
-     * are for has disappeared (and probably won't come back).
-     */
-    ANIM_remove_empty_action_from_animdata(adt);
-  }
-
-  /* free the F-Curve itself */
-  BKE_fcurve_free(fcu);
-}
-
-bool ANIM_remove_empty_action_from_animdata(AnimData *adt)
-{
-  if (adt->action != nullptr) {
-    bAction *act = adt->action;
-
-    if (BLI_listbase_is_empty(&act->curves) && (adt->flag & ADT_NLA_EDIT_ON) == 0) {
-      id_us_min(&act->id);
-      adt->action = nullptr;
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /** \} */
 
@@ -1366,7 +1340,7 @@ static bool rearrange_animchannel_islands(ListBase *list,
  * ! NLA tracks are displayed in opposite order, so directions need care
  * mode: REARRANGE_ANIMCHAN_*
  */
-static void rearrange_nla_channels(bAnimContext *ac, AnimData *adt, eRearrangeAnimChan_Mode mode)
+static void rearrange_nla_tracks(bAnimContext *ac, AnimData *adt, eRearrangeAnimChan_Mode mode)
 {
   AnimChanRearrangeFp rearrange_func;
   ListBase anim_data_visible = {nullptr, nullptr};
@@ -1650,6 +1624,51 @@ static void rearrange_nla_control_channels(bAnimContext *ac,
 
 /* ------------------- */
 
+static void rearrange_grease_pencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode mode)
+{
+  using namespace blender::bke::greasepencil;
+  ListBase anim_data = {nullptr, nullptr};
+  blender::Vector<Layer *> layer_list;
+  int filter = ANIMFILTER_DATA_VISIBLE;
+
+  ANIM_animdata_filter(
+      ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
+
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(ale->id);
+    Layer *layer = static_cast<Layer *>(ale->data);
+
+    switch (mode) {
+      case REARRANGE_ANIMCHAN_TOP: {
+        if (layer->is_selected()) {
+          grease_pencil.move_node_top(layer->as_node());
+        }
+        break;
+      }
+      case REARRANGE_ANIMCHAN_UP: {
+        if (layer->is_selected()) {
+          grease_pencil.move_node_up(layer->as_node());
+        }
+        break;
+      }
+      case REARRANGE_ANIMCHAN_DOWN: {
+        if (layer->is_selected()) {
+          grease_pencil.move_node_down(layer->as_node());
+        }
+        break;
+      }
+      case REARRANGE_ANIMCHAN_BOTTOM: {
+        if (layer->is_selected()) {
+          grease_pencil.move_node_bottom(layer->as_node());
+        }
+        break;
+      }
+    }
+  }
+
+  BLI_freelistN(&anim_data);
+}
+
 static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode mode)
 {
   ListBase anim_data = {nullptr, nullptr};
@@ -1720,7 +1739,12 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
   /* method to move channels depends on the editor */
   if (ac.datatype == ANIMCONT_GPENCIL) {
     /* Grease Pencil channels */
-    rearrange_gpencil_channels(&ac, mode);
+    if (U.experimental.use_grease_pencil_version3) {
+      rearrange_grease_pencil_channels(&ac, mode);
+    }
+    else {
+      rearrange_gpencil_channels(&ac, mode);
+    }
   }
   else if (ac.datatype == ANIMCONT_MASK) {
     /* Grease Pencil channels */
@@ -1749,7 +1773,7 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
 
       switch (ac.datatype) {
         case ANIMCONT_NLA: /* NLA-tracks only */
-          rearrange_nla_channels(&ac, adt, mode);
+          rearrange_nla_tracks(&ac, adt, mode);
           DEG_id_tag_update(ale->id, ID_RECALC_ANIMATION);
           break;
 
@@ -2156,7 +2180,7 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
         FCurve *fcu = (FCurve *)ale->data;
 
         /* try to free F-Curve */
-        ANIM_fcurve_delete_from_animdata(&ac, adt, fcu);
+        blender::animrig::animdata_fcurve_delete(&ac, adt, fcu);
         tag_update_animation_element(ale);
         break;
       }
@@ -2190,6 +2214,25 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
         /* try to delete the layer's data and the layer itself */
         BKE_gpencil_layer_delete(gpd, gpl);
         ale->update = ANIM_UPDATE_DEPS;
+
+        /* Free Grease Pencil data block when last annotation layer is removed, see: #112683. */
+        if (gpd->flag & GP_DATA_ANNOTATIONS && gpd->layers.first == nullptr) {
+          BKE_gpencil_free_data(gpd, true);
+
+          Scene *scene = CTX_data_scene(C);
+          scene->gpd = nullptr;
+
+          Main *bmain = CTX_data_main(C);
+          BKE_id_free_us(bmain, gpd);
+        }
+        break;
+      }
+      case ANIMTYPE_GREASE_PENCIL_LAYER: {
+        using namespace blender::bke::greasepencil;
+        GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
+        Layer *layer = static_cast<Layer *>(ale->data);
+        grease_pencil->remove_layer(*layer);
+        DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
         break;
       }
       case ANIMTYPE_MASKLAYER: {
@@ -2929,14 +2972,18 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
   UI_view2d_region_to_view(v2d, rect->xmax, rect->ymax - 2, &rectf.xmax, &rectf.ymax);
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
-            ANIMFILTER_FCURVESONLY);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+
+  if (!ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac->datatype))) {
+    filter |= ANIMFILTER_FCURVESONLY;
+  }
+
   ANIM_animdata_filter(
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   float ymax;
   if (ac->datatype == ANIMCONT_NLA) {
-    ymax = NLACHANNEL_FIRST_TOP(ac);
+    ymax = NLATRACK_FIRST_TOP(ac);
   }
   else {
     ymax = ANIM_UI_get_first_channel_top(v2d);
@@ -2952,7 +2999,7 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
     }
 
     if (ac->datatype == ANIMCONT_NLA) {
-      ymin = ymax - NLACHANNEL_STEP(snla);
+      ymin = ymax - NLATRACK_STEP(snla);
     }
     else {
       ymin = ymax - ANIM_UI_get_channel_step();
@@ -3162,10 +3209,10 @@ static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
 
   if (ac->datatype == ANIMCONT_NLA) {
     SpaceNla *snla = (SpaceNla *)ac->sl;
-    UI_view2d_listview_view_to_cell(NLACHANNEL_NAMEWIDTH,
-                                    NLACHANNEL_STEP(snla),
+    UI_view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
+                                    NLATRACK_STEP(snla),
                                     0,
-                                    NLACHANNEL_FIRST_TOP(ac),
+                                    NLATRACK_FIRST_TOP(ac),
                                     x,
                                     y,
                                     nullptr,
@@ -3647,6 +3694,19 @@ static int click_select_channel_grease_pencil_datablock(bAnimListElem *ale)
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
+static int click_select_channel_grease_pencil_layer_group(bAnimListElem *ale)
+{
+  GreasePencilLayerTreeGroup *layer_group = static_cast<GreasePencilLayerTreeGroup *>(ale->data);
+
+  /* Toggle expand:
+   * - Although the triangle widget already allows this,
+   *   the whole channel can also be used for this purpose.
+   */
+  layer_group->base.flag ^= GP_LAYER_TREE_NODE_EXPANDED;
+
+  return (ND_ANIMCHAN | NA_EDITED);
+}
+
 static int click_select_channel_grease_pencil_layer(bContext *C,
                                                     bAnimContext *ac,
                                                     bAnimListElem *ale,
@@ -3761,7 +3821,7 @@ static int mouse_anim_channels(bContext *C,
   }
 
   /* action to take depends on what channel we've got */
-  /* WARNING: must keep this in sync with the equivalent function in `nla_channels.cc`. */
+  /* WARNING: must keep this in sync with the equivalent function in `nla_tracks.cc`. */
   switch (ale->type) {
     case ANIMTYPE_SCENE:
       notifierFlags |= click_select_channel_scene(ale, selectmode);
@@ -3814,6 +3874,9 @@ static int mouse_anim_channels(bContext *C,
       break;
     case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       notifierFlags |= click_select_channel_grease_pencil_datablock(ale);
+      break;
+    case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+      notifierFlags |= click_select_channel_grease_pencil_layer_group(ale);
       break;
     case ANIMTYPE_GREASE_PENCIL_LAYER:
       notifierFlags |= click_select_channel_grease_pencil_layer(C, ac, ale, selectmode, filter);
@@ -4247,6 +4310,239 @@ static void ANIM_OT_channel_view_pick(wmOperatorType *ot)
                              "Ignore frames outside of the preview range");
 }
 
+/* Find a Graph Editor area and modify the given context to be the window region of it. */
+static bool move_context_to_graph_editor(bContext *C)
+{
+  bool found_graph_editor = false;
+  LISTBASE_FOREACH (wmWindow *, win, &CTX_wm_manager(C)->windows) {
+    bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
+
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->spacetype != SPACE_GRAPH) {
+        continue;
+      }
+      ARegion *window_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+
+      if (!window_region) {
+        continue;
+      }
+
+      CTX_wm_window_set(C, win);
+      CTX_wm_screen_set(C, screen);
+      CTX_wm_area_set(C, area);
+      CTX_wm_region_set(C, window_region);
+      found_graph_editor = true;
+      break;
+    }
+
+    if (found_graph_editor) {
+      break;
+    }
+  }
+  return found_graph_editor;
+}
+
+static void deselect_all_fcurves(bAnimContext *ac, const bool hide)
+{
+  ListBase anim_data = {nullptr, nullptr};
+  const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE |
+                                    ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
+  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
+
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    FCurve *fcu = (FCurve *)ale->key_data;
+    fcu->flag &= ~FCURVE_SELECTED;
+    fcu->flag &= ~FCURVE_ACTIVE;
+    if (hide) {
+      fcu->flag &= ~FCURVE_VISIBLE;
+    }
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
+static rctf calculate_selection_fcurve_bounds_and_unhide(
+    bContext *C,
+    ListBase /* CollectionPointerLink */ *selection,
+    PropertyRNA *prop,
+    char *id_to_prop_path,
+    const int index,
+    const bool whole_array)
+{
+  rctf bounds;
+  bounds.xmin = INFINITY;
+  bounds.xmax = -INFINITY;
+  bounds.ymin = INFINITY;
+  bounds.ymax = -INFINITY;
+
+  SpaceLink *ge_space_link = CTX_wm_space_data(C);
+  if (ge_space_link->spacetype != SPACE_GRAPH) {
+    return bounds;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+  float frame_range[2];
+  get_view_range(scene, true, frame_range);
+  const bool include_handles = false;
+
+  LISTBASE_FOREACH (CollectionPointerLink *, selected, selection) {
+    ID *selected_id = selected->ptr.owner_id;
+    if (!BKE_animdata_id_is_animated(selected_id)) {
+      continue;
+    }
+    PointerRNA resolved_ptr;
+    PropertyRNA *resolved_prop;
+    if (id_to_prop_path != nullptr) {
+      const bool resolved = RNA_path_resolve_property(
+          &selected->ptr, id_to_prop_path, &resolved_ptr, &resolved_prop);
+      if (!resolved) {
+        continue;
+      }
+    }
+    else {
+      resolved_ptr = selected->ptr;
+      resolved_prop = prop;
+    }
+    char *path = RNA_path_from_ID_to_property(&resolved_ptr, resolved_prop);
+
+    AnimData *anim_data = BKE_animdata_from_id(selected_id);
+    blender::Vector<FCurve *> fcurves;
+    if (RNA_property_array_check(prop) && whole_array) {
+      const int length = RNA_property_array_length(&selected->ptr, prop);
+      for (int i = 0; i < length; i++) {
+        FCurve *fcurve = BKE_animadata_fcurve_find_by_rna_path(
+            anim_data, path, i, nullptr, nullptr);
+        if (fcurve != nullptr) {
+          fcurves.append(fcurve);
+        }
+      }
+    }
+    else {
+      FCurve *fcurve = BKE_animadata_fcurve_find_by_rna_path(
+          anim_data, path, index, nullptr, nullptr);
+      if (fcurve != nullptr) {
+        fcurves.append(fcurve);
+      }
+    }
+
+    MEM_freeN(path);
+
+    for (FCurve *fcurve : fcurves) {
+      fcurve->flag |= (FCURVE_SELECTED | FCURVE_VISIBLE);
+      rctf fcu_bounds;
+      float mapped_frame_range[2];
+      mapped_frame_range[0] = BKE_nla_tweakedit_remap(
+          anim_data, frame_range[0], NLATIME_CONVERT_UNMAP);
+      mapped_frame_range[1] = BKE_nla_tweakedit_remap(
+          anim_data, frame_range[1], NLATIME_CONVERT_UNMAP);
+      get_normalized_fcurve_bounds(fcurve,
+                                   anim_data,
+                                   ge_space_link,
+                                   scene,
+                                   selected_id,
+                                   include_handles,
+                                   mapped_frame_range,
+                                   &fcu_bounds);
+      BLI_rctf_union(&bounds, &fcu_bounds);
+    }
+  }
+
+  return bounds;
+}
+
+static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
+{
+  PointerRNA ptr = {nullptr};
+  PropertyRNA *prop = nullptr;
+  uiBut *but;
+  int index;
+
+  if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
+    /* Pass event on if no active button found. */
+    return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+  }
+
+  ListBase selection = {nullptr, nullptr};
+
+  bool path_from_id;
+  char *id_to_prop_path;
+  const bool selected_list_success = UI_context_copy_to_selected_list(
+      C, &ptr, prop, &selection, &path_from_id, &id_to_prop_path);
+
+  if (BLI_listbase_is_empty(&selection) || !selected_list_success) {
+    WM_report(RPT_ERROR, "Nothing selected");
+    BLI_freelistN(&selection);
+    return OPERATOR_CANCELLED;
+  }
+
+  const bool found_graph_editor = move_context_to_graph_editor(C);
+
+  if (!found_graph_editor) {
+    WM_report(RPT_WARNING, "No open Graph Editor window found");
+    return OPERATOR_CANCELLED;
+  }
+
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    /* This might never be called since we are manually setting the Graph Editor just before. */
+    WM_report(RPT_ERROR, "Cannot create the Animation Context");
+    return OPERATOR_CANCELLED;
+  }
+
+  const bool isolate = RNA_boolean_get(op->ptr, "isolate");
+  deselect_all_fcurves(&ac, isolate);
+
+  const bool whole_array = RNA_boolean_get(op->ptr, "all");
+
+  rctf bounds = calculate_selection_fcurve_bounds_and_unhide(
+      C, &selection, prop, id_to_prop_path, index, whole_array);
+
+  BLI_freelistN(&selection);
+
+  if (id_to_prop_path != nullptr) {
+    MEM_freeN(id_to_prop_path);
+  }
+
+  if (!BLI_rctf_is_valid(&bounds)) {
+    WM_report(RPT_ERROR, "F-Curves have no valid size");
+    return OPERATOR_CANCELLED;
+  }
+
+  ARegion *region = CTX_wm_region(C);
+  add_region_padding(C, region, &bounds);
+
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  UI_view2d_smooth_view(C, region, &bounds, smooth_viewtx);
+
+  /* This ensures the channel list updates. */
+  ED_area_tag_redraw(CTX_wm_area(C));
+
+  return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_view_curve_in_graph_editor(wmOperatorType *ot)
+{
+  /* Identifiers */
+  ot->name = "View In Graph Editor";
+  ot->idname = "ANIM_OT_view_curve_in_graph_editor";
+  ot->description = "Frame the property under the cursor in the Graph Editor";
+
+  /* API callbacks */
+  ot->exec = view_curve_in_graph_editor_exec;
+
+  RNA_def_boolean(ot->srna,
+                  "all",
+                  false,
+                  "Show All",
+                  "Frame the whole array property instead of only the index under the cursor");
+
+  RNA_def_boolean(ot->srna,
+                  "isolate",
+                  false,
+                  "Isolate",
+                  "Hides all other F-Curves other than the ones being framed");
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -4270,6 +4566,7 @@ void ED_operatortypes_animchannels()
 
   WM_operatortype_append(ANIM_OT_channel_view_pick);
   WM_operatortype_append(ANIM_OT_channels_view_selected);
+  WM_operatortype_append(ANIM_OT_view_curve_in_graph_editor);
 
   WM_operatortype_append(ANIM_OT_channels_delete);
 
@@ -4293,7 +4590,7 @@ void ED_keymap_animchannels(wmKeyConfig *keyconf)
 {
   /* TODO: check on a poll callback for this, to get hotkeys into menus. */
 
-  WM_keymap_ensure(keyconf, "Animation Channels", 0, 0);
+  WM_keymap_ensure(keyconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
 }
 
 /** \} */

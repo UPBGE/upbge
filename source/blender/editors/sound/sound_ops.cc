@@ -22,7 +22,7 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
@@ -37,8 +37,8 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.h"
 
-#include "SEQ_iterator.h"
-#include "SEQ_utils.h"
+#include "SEQ_iterator.hh"
+#include "SEQ_utils.hh"
 
 #include "UI_interface.hh"
 
@@ -49,7 +49,7 @@
 #  include <AUD_Special.h>
 #endif
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_sound.hh"
 #include "ED_util.hh"
@@ -77,7 +77,6 @@ static int sound_open_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   bSound *sound;
   PropertyPointerRNA *pprop;
-  PointerRNA idptr;
   Main *bmain = CTX_data_main(C);
 
   RNA_string_get(op->ptr, "filepath", filepath);
@@ -103,7 +102,7 @@ static int sound_open_exec(bContext *C, wmOperator *op)
      * pointer use also increases user, so this compensates it */
     id_us_min(&sound->id);
 
-    RNA_id_pointer_create(&sound->id, &idptr);
+    PointerRNA idptr = RNA_id_pointer_create(&sound->id);
     RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
     RNA_property_update(C, &pprop->ptr, pprop->prop);
   }
@@ -358,7 +357,7 @@ static int sound_mixdown_exec(bContext *C, wmOperator *op)
 
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  const double fps = (double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base));
+  const double fps = double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base);
   const int start_frame = scene_eval->r.sfra;
   const int end_frame = scene_eval->r.efra;
 
@@ -550,7 +549,6 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
 
   uiLayout *layout = op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
-  PointerRNA ptr;
   PropertyRNA *prop_format;
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
@@ -648,7 +646,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       break;
   }
 
-  RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
+  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
 
   /* main draw call */
   uiDefAutoButsRNA(layout,

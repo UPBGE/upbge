@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <array>
 #include <cstdlib>
 
 #include "BLI_math_matrix.h"
@@ -20,7 +21,7 @@
 
 #include "DNA_object_types.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #define STATS_MAX_SIZE 16384
 
@@ -35,12 +36,12 @@
 #  include "RNA_access.hh"
 
 #  include "BKE_duplilist.h"
-#  include "BKE_object.h"
+#  include "BKE_object.hh"
 #  include "BKE_scene.h"
 
-#  include "DEG_depsgraph_build.h"
-#  include "DEG_depsgraph_debug.h"
-#  include "DEG_depsgraph_query.h"
+#  include "DEG_depsgraph_build.hh"
+#  include "DEG_depsgraph_debug.hh"
+#  include "DEG_depsgraph_query.hh"
 
 #  include "MEM_guardedalloc.h"
 
@@ -312,8 +313,7 @@ static void rna_Depsgraph_update(Depsgraph *depsgraph, Main *bmain, ReportList *
 static void rna_Depsgraph_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   iter->internal.custom = MEM_callocN(sizeof(BLI_Iterator), __func__);
-  DEGObjectIterData *data = static_cast<DEGObjectIterData *>(
-      MEM_callocN(sizeof(DEGObjectIterData), __func__));
+  DEGObjectIterData *data = MEM_new<DEGObjectIterData>(__func__);
   DEGObjectIterSettings *deg_iter_settings = static_cast<DEGObjectIterSettings *>(
       MEM_callocN(sizeof(DEGObjectIterSettings), __func__));
   deg_iter_settings->depsgraph = (Depsgraph *)ptr->data;
@@ -340,7 +340,7 @@ static void rna_Depsgraph_objects_end(CollectionPropertyIterator *iter)
   DEGObjectIterData *data = (DEGObjectIterData *)((BLI_Iterator *)iter->internal.custom)->data;
   DEG_iterator_objects_end(static_cast<BLI_Iterator *>(iter->internal.custom));
   MEM_freeN(data->settings);
-  MEM_freeN(((BLI_Iterator *)iter->internal.custom)->data);
+  MEM_delete(data);
   MEM_freeN(iter->internal.custom);
 }
 
@@ -368,8 +368,7 @@ struct RNA_Depsgraph_Instances_Iterator {
 
 static void rna_Depsgraph_object_instances_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  RNA_Depsgraph_Instances_Iterator *di_it = static_cast<RNA_Depsgraph_Instances_Iterator *>(
-      MEM_callocN(sizeof(*di_it), __func__));
+  RNA_Depsgraph_Instances_Iterator *di_it = MEM_new<RNA_Depsgraph_Instances_Iterator>(__func__);
   iter->internal.custom = di_it;
   DEGObjectIterSettings *deg_iter_settings = static_cast<DEGObjectIterSettings *>(
       MEM_callocN(sizeof(DEGObjectIterSettings), __func__));
@@ -395,9 +394,7 @@ static void rna_Depsgraph_object_instances_next(CollectionPropertyIterator *iter
 
   /* We need to copy current iterator status to next one being worked on. */
   di_it->iterators[(di_it->counter + 1) % 2].iter = di_it->iterators[di_it->counter % 2].iter;
-  memcpy(static_cast<void *>(&di_it->deg_data[(di_it->counter + 1) % 2]),
-         static_cast<void *>(&di_it->deg_data[di_it->counter % 2]),
-         sizeof(DEGObjectIterData));
+  di_it->deg_data[(di_it->counter + 1) % 2] = di_it->deg_data[di_it->counter % 2];
   di_it->counter++;
 
   di_it->iterators[di_it->counter % 2].iter.data = &di_it->deg_data[di_it->counter % 2];
@@ -436,7 +433,7 @@ static void rna_Depsgraph_object_instances_end(CollectionPropertyIterator *iter)
 #  endif
   }
 
-  MEM_freeN(di_it);
+  MEM_delete(di_it);
 }
 
 static PointerRNA rna_Depsgraph_object_instances_get(CollectionPropertyIterator *iter)
@@ -513,8 +510,7 @@ static PointerRNA rna_Depsgraph_scene_get(PointerRNA *ptr)
 {
   Depsgraph *depsgraph = (Depsgraph *)ptr->data;
   Scene *scene = DEG_get_input_scene(depsgraph);
-  PointerRNA newptr;
-  RNA_pointer_create(&scene->id, &RNA_Scene, scene, &newptr);
+  PointerRNA newptr = RNA_pointer_create(&scene->id, &RNA_Scene, scene);
   return newptr;
 }
 
@@ -523,8 +519,7 @@ static PointerRNA rna_Depsgraph_view_layer_get(PointerRNA *ptr)
   Depsgraph *depsgraph = (Depsgraph *)ptr->data;
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
-  PointerRNA newptr;
-  RNA_pointer_create(&scene->id, &RNA_ViewLayer, view_layer, &newptr);
+  PointerRNA newptr = RNA_pointer_create(&scene->id, &RNA_ViewLayer, view_layer);
   return newptr;
 }
 
@@ -532,8 +527,7 @@ static PointerRNA rna_Depsgraph_scene_eval_get(PointerRNA *ptr)
 {
   Depsgraph *depsgraph = (Depsgraph *)ptr->data;
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  PointerRNA newptr;
-  RNA_pointer_create(&scene_eval->id, &RNA_Scene, scene_eval, &newptr);
+  PointerRNA newptr = RNA_pointer_create(&scene_eval->id, &RNA_Scene, scene_eval);
   return newptr;
 }
 
@@ -542,8 +536,7 @@ static PointerRNA rna_Depsgraph_view_layer_eval_get(PointerRNA *ptr)
   Depsgraph *depsgraph = (Depsgraph *)ptr->data;
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
-  PointerRNA newptr;
-  RNA_pointer_create(&scene_eval->id, &RNA_ViewLayer, view_layer_eval, &newptr);
+  PointerRNA newptr = RNA_pointer_create(&scene_eval->id, &RNA_ViewLayer, view_layer_eval);
   return newptr;
 }
 

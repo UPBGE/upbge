@@ -24,10 +24,6 @@ struct wmTimer;
 #include "DNA_view3d_enums.h"
 #include "DNA_viewer_path_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct RegionView3D {
 
   /** GL_PROJECTION matrix. */
@@ -40,7 +36,7 @@ typedef struct RegionView3D {
   float persmat[4][4];
   /** Inverse of persmat. */
   float persinv[4][4];
-  /** Offset/scale for camera glsl texcoords. */
+  /** Offset/scale for camera GLSL texture-coordinates. */
   float viewcamtexcofac[4];
 
   /** viewmat/persmat multiplied with object matrix, while drawing and selection. */
@@ -252,6 +248,7 @@ typedef enum eHandleDisplay {
 typedef struct View3D_Runtime {
   /** Nkey panel stores stuff here. */
   void *properties_storage;
+  void (*properties_storage_free)(void *properties_storage);
   /** Runtime only flags. */
   int flag;
 
@@ -590,7 +587,7 @@ enum {
 
   V3D_OVERLAY_EDIT_WEIGHT = (1 << 4),
 
-  V3D_OVERLAY_EDIT_EDGES = (1 << 5),
+  V3D_OVERLAY_EDIT_EDGES_DEPRECATED = (1 << 5),
   V3D_OVERLAY_EDIT_FACES = (1 << 6),
   V3D_OVERLAY_EDIT_FACE_DOT = (1 << 7),
 
@@ -721,7 +718,3 @@ typedef enum {
 /** #BKE_screen_view3d_zoom_to_fac() values above */
 #define RV3D_CAMZOOM_MIN_FACTOR 0.1657359312880714853f
 #define RV3D_CAMZOOM_MAX_FACTOR 44.9852813742385702928f
-
-#ifdef __cplusplus
-}
-#endif

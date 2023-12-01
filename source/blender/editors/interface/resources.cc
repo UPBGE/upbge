@@ -130,9 +130,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           ts = &btheme->space_node;
           break;
         case SPACE_LOGIC:
-          btheme->tlogic = btheme->space_node;
           ts = &btheme->tlogic;
-          rgba_uchar_args_set(btheme->tlogic.back, 40, 40, 40, 255);
           break;
         case SPACE_CLIP:
           ts = &btheme->space_clip;
@@ -396,6 +394,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDGE_SELECT:
           cp = ts->edge_select;
           break;
+        case TH_EDGE_MODE_SELECT:
+          cp = ts->edge_mode_select;
+          break;
         case TH_EDGE_SEAM:
           cp = ts->edge_seam;
           break;
@@ -419,6 +420,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_FACE_SELECT:
           cp = ts->face_select;
+          break;
+        case TH_FACE_MODE_SELECT:
+          cp = ts->face_mode_select;
           break;
         case TH_FACE_RETOPOLOGY:
           cp = ts->face_retopology;

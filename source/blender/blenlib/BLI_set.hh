@@ -511,7 +511,7 @@ class Set {
   /**
    * Print common statistics like size and collision count. This is useful for debugging purposes.
    */
-  void print_stats(StringRef name = "") const
+  void print_stats(const char *name) const
   {
     HashTableStats stats(*this, *this);
     stats.print(name);
@@ -787,6 +787,7 @@ class Set {
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return;
       }
@@ -801,6 +802,7 @@ class Set {
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return true;
       }
@@ -852,6 +854,7 @@ class Set {
       }
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.key();
       }

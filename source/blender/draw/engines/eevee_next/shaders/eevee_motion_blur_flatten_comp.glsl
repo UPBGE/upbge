@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Shaders that down-sample velocity buffer into squared tile of MB_TILE_DIVISOR pixels wide.
@@ -11,7 +14,7 @@
  * Adapted from G3D Innovation Engine implementation.
  */
 
-#pragma BLENDER_REQUIRE(common_math_geom_lib.glsl)
+#pragma BLENDER_REQUIRE(draw_math_geom_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
 
 shared uint payload_prev;

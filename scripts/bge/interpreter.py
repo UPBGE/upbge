@@ -16,10 +16,8 @@ if os.isatty(sys.stdin.fileno()):
 
 	if sys.platform.startswith("win"):
 		print("Python interpreter started. Press Ctrl+C or Ctrl+Z+Enter to quit.")
-	elif sys.platform.startswith("linux"):
-		print("Python interpreter started. Press Ctrl+D to quit.")
 	else:
-		print("Python interpreter started.") #TODO: find OSX shortcut.
+		print("Python interpreter started. Press Ctrl+D to quit.")
 
 	# Launch interactive console with current locals.
 	code.interact(local=locals())

@@ -38,11 +38,11 @@
 
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "BKE_screen.hh"
 #include "BLI_task.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_mesh_types.h"
@@ -136,7 +136,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : KX_PythonProxy(),
-      m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
@@ -346,7 +345,7 @@ KX_Scene::~KX_Scene()
          * is not executed then we free it now.
          */
         GPU_viewport_free(m_initMaterialsGPUViewport);
-        DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+        //DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
     DRW_game_gpu_viewport_set(nullptr);
@@ -457,21 +456,6 @@ KX_Scene::~KX_Scene()
     Py_CLEAR(m_drawCallbacks[i]);
   }
 #endif
-}
-
-void KX_Scene::SetLastReplicatedParentObject(Object *ob)
-{
-  m_lastReplicatedParentObject = ob;
-}
-
-Object *KX_Scene::GetLastReplicatedParentObject()
-{
-  return m_lastReplicatedParentObject;
-}
-
-void KX_Scene::ResetLastReplicatedParentObject()
-{
-  m_lastReplicatedParentObject = nullptr;
 }
 
 /*******************EEVEE INTEGRATION******************/
@@ -800,6 +784,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
+  /* When we call wm_draw_update, bContext variables are unset,
+   * then we need to set it again correctly to render the next frame.
+   * wm_draw_update can also be called when playing dragging or resizing
+   * blender window */
+  ReinitBlenderContextVariables();
+
   /* Here we'll render directly the scene with viewport code. */
   if (useViewportRender) {
     /* Viewport render mode doesn't support several render passes then exit here
@@ -812,10 +802,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
     /* Don't need any background framebuffer as everything will be redrawn */
     GPU_framebuffer_restore();
-
-    /* When we call wm_draw_update, bContext variables are unset,
-     * then we need to set it again correctly to render the next frame. */
-    ReinitBlenderContextVariables();
 
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
@@ -899,7 +885,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
+  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
   GPUTexture *color = GPU_viewport_color_texture(m_currentGPUViewport, 0);
   GPUAttachment config[] = {
@@ -1981,6 +1967,24 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
   }
 }
 
+static void remap_parents_recursive(KX_GameObject *parent)
+{
+  std::vector<KX_GameObject *>children = parent->GetChildren();
+  for (KX_GameObject *child : children) {
+    child->GetBlenderObject()->parent = parent->GetBlenderObject();
+    if (parent->GetBlenderObject()->type == OB_ARMATURE) {
+      ModifierData *mod;
+      for (mod = (ModifierData *)child->GetBlenderObject()->modifiers.first; mod; mod = mod->next)
+      {
+        if (mod->type == eModifierType_Armature) {
+          ((ArmatureModifierData *)mod)->object = child->GetBlenderObject()->parent;
+        }
+      }
+    }
+    remap_parents_recursive(child);
+  }
+}
+
 KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
                                           KX_GameObject *referenceobject,
                                           float lifespan)
@@ -2076,6 +2080,8 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   for (KX_GameObject *gameobj : duplilist) {
     DupliGroupRecurse(gameobj, 0);
   }
+
+  remap_parents_recursive(replica);
 
   //	don't release replica here because we are returning it, not done with it...
   return replica;
@@ -3388,6 +3394,12 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   Object *ob = (Object *)id;
   ConvertBlenderObject(ob);
   KX_GameObject *newgameobj = m_sceneConverter->FindGameObject(ob);
+  if (!newgameobj) {
+    /* It can happen for example if we are trying to convert the same object several times
+     * or if we are trying to convert game_default_cam https://github.com/UPBGE/upbge/issues/1847 */
+    CM_Warning("Scene converter failed to convert: " << ob->id.name + 2);
+    Py_RETURN_NONE;
+  }
   return newgameobj->GetProxy();
 }
 

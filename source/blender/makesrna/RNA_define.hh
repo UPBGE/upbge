@@ -27,7 +27,9 @@
 
 /* Blender RNA */
 
-BlenderRNA *RNA_create(void);
+struct Scene;
+
+BlenderRNA *RNA_create();
 void RNA_define_free(BlenderRNA *brna);
 void RNA_free(BlenderRNA *brna);
 
@@ -53,8 +55,8 @@ void RNA_define_fallback_property_update(int noteflag, const char *updatefunc);
  */
 void RNA_define_lib_overridable(bool make_overridable);
 
-void RNA_init(void);
-void RNA_exit(void);
+void RNA_init();
+void RNA_exit();
 
 /* Struct */
 
@@ -449,10 +451,10 @@ void RNA_def_property_override_funcs(PropertyRNA *prop,
                                      const char *store,
                                      const char *apply);
 
-typedef void (*RNAPropertyUpdateFunc)(struct Main *, struct Scene *, struct PointerRNA *);
-typedef void (*RNAPropertyUpdateFuncWithContextAndProperty)(struct bContext *C,
-                                                            struct PointerRNA *ptr,
-                                                            struct PropertyRNA *prop);
+typedef void (*RNAPropertyUpdateFunc)(Main *, Scene *, PointerRNA *);
+typedef void (*RNAPropertyUpdateFuncWithContextAndProperty)(bContext *C,
+                                                            PointerRNA *ptr,
+                                                            PropertyRNA *prop);
 
 void RNA_def_property_update_runtime(PropertyRNA *prop, RNAPropertyUpdateFunc func);
 void RNA_def_property_update_runtime_with_context_and_property(

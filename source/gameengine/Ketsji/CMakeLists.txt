@@ -38,18 +38,15 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
-  ../../blender/blenfont
   ../../blender/blenkernel
   ../../blender/blenloader
   ../../blender/blentranslation
   ../../blender/bmesh
-  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee
   ../../blender/editors/include
   ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
@@ -58,7 +55,6 @@ set(INC
   ../../blender/render/
   ../../blender/windowmanager
   ../../blender/render/intern/
-  ../../../intern/clog
   ../../../intern/ghost
 )
 
@@ -182,8 +178,12 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   ge_converter
   ge_logic_bricks

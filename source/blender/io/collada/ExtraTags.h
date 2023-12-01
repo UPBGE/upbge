@@ -38,6 +38,9 @@ class ExtraTags {
   bool setData(std::string tag, char *data);
   std::string setData(std::string tag, std::string &data);
 
+  /** Get a string from the data, and split it by newlines. */
+  std::vector<std::string> dataSplitString(const std::string &tag);
+
   /** Return true if the extra tags is for specified profile. */
   bool isProfile(std::string profile);
 
@@ -54,9 +57,9 @@ class ExtraTags {
   std::map<std::string, std::string> tags;
 
   /** Get text data for tag as an int. */
-  int asInt(std::string tag, bool *ok);
+  int asInt(std::string tag, bool *r_ok);
   /** Get text data for tag as a float. */
-  float asFloat(std::string tag, bool *ok);
+  float asFloat(std::string tag, bool *r_ok);
   /** Get text data for tag as a string. */
-  std::string asString(std::string tag, bool *ok);
+  std::string asString(std::string tag, bool *r_ok);
 };

@@ -35,9 +35,9 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "ED_screen.hh"
 
@@ -107,8 +107,6 @@ static void ui_popover_create_block(bContext *C,
       uiLayoutContextCopy(pup->layout, pup->but->context);
     }
   }
-
-  pup->block->flag |= UI_BLOCK_NO_FLIP;
 }
 
 static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
@@ -257,7 +255,7 @@ uiPopupBlockHandle *ui_popover_panel_create(
     const int ui_units_x = (panel_type->ui_units_x == 0) ? UI_POPOVER_WIDTH_UNITS :
                                                            panel_type->ui_units_x;
     /* Scale width by changes to Text Style point size. */
-    const int text_points_max = MAX2(style->widget.points, style->widgetlabel.points);
+    const int text_points_max = std::max(style->widget.points, style->widgetlabel.points);
     pup->ui_size_x = ui_units_x * U.widget_unit *
                      (text_points_max / float(UI_DEFAULT_TEXT_POINTS));
   }
@@ -415,9 +413,6 @@ void UI_popover_end(bContext *C, uiPopover *pup, wmKeyMap *keymap)
    * The begin/end stype of calling popups doesn't allow 'can_refresh' to be set.
    * For now close this style of popovers when accessed. */
   UI_block_flag_disable(pup->block, UI_BLOCK_KEEP_OPEN);
-
-  /* Panels are created flipped (from event handling POV). */
-  pup->block->flag ^= UI_BLOCK_IS_FLIP;
 }
 
 uiLayout *UI_popover_layout(uiPopover *pup)

@@ -11,10 +11,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
-#include "BKE_screen.h"
+#include "BKE_context.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "BKE_screen.hh"
 
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -113,7 +113,7 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
   BLI_assert(RNA_struct_is_a(ptr->type, &RNA_Modifier));
 
   if (r_ob_ptr != nullptr) {
-    RNA_pointer_create(ptr->owner_id, &RNA_Object, ptr->owner_id, r_ob_ptr);
+    *r_ob_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Object, ptr->owner_id);
   }
 
   uiBlock *block = uiLayoutGetBlock(panel->layout);
@@ -134,7 +134,7 @@ void modifier_vgroup_ui(uiLayout *layout,
   bool has_vertex_group = RNA_string_length(ptr, vgroup_prop) != 0;
 
   uiLayout *row = uiLayoutRow(layout, true);
-  uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_NONE);
+  uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop != nullptr) {
     uiLayout *sub = uiLayoutRow(row, true);
     uiLayoutSetActive(sub, has_vertex_group);
@@ -198,9 +198,8 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   uiLayout *row;
   ModifierData *md = (ModifierData *)md_v;
 
-  PointerRNA ptr;
   Object *ob = ED_object_active_context(C);
-  RNA_pointer_create(&ob->id, &RNA_Modifier, md, &ptr);
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
   uiLayoutSetContextPointer(layout, "modifier", &ptr);
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
@@ -223,10 +222,11 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
 
     uiItemBooleanO(layout,
                    CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Save as Shape Key"),
-                   ICON_SHAPEKEY_DATA,
+                   ICON_NONE,
                    "OBJECT_OT_modifier_apply_as_shapekey",
                    "keep_modifier",
                    true);
+    uiItemS(layout);
   }
 
   /* Duplicate. */
@@ -281,6 +281,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   }
 
   if (md->type == eModifierType_Nodes) {
+    uiItemS(layout);
     uiItemFullO(layout,
                 "OBJECT_OT_geometry_nodes_move_to_nodes",
                 nullptr,
@@ -289,6 +290,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
                 WM_OP_INVOKE_DEFAULT,
                 UI_ITEM_NONE,
                 &op_ptr);
+    uiItemR(layout, &ptr, "show_group_selector", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
 
@@ -393,7 +395,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
           but, TIP_("This modifier can only deform control points, not the filled curve/surface"));
       buttons_number++;
     }
-    else if (mti->type != eModifierTypeType_Constructive) {
+    else if (mti->type != ModifierTypeType::Constructive) {
       /* Constructive modifiers tessellates curve before applying. */
       uiItemR(row, ptr, "use_apply_on_spline", UI_ITEM_NONE, "", ICON_NONE);
       buttons_number++;

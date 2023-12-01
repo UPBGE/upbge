@@ -4,11 +4,9 @@
 
 set(INC
   ../include
-  ../../blenfont
   ../../blenkernel
   ../../blentranslation
   ../../bmesh
-  ../../depsgraph
   ../../gpu
   ../../ikplugin
   ../../makesrna
@@ -32,6 +30,7 @@ set(SRC
   transform_convert_curves.cc
   transform_convert_gpencil_legacy.cc
   transform_convert_graph.cc
+  transform_convert_grease_pencil.cc
   transform_convert_lattice.cc
   transform_convert_mask.cc
   transform_convert_mball.cc
@@ -49,6 +48,7 @@ set(SRC
   transform_convert_sculpt.cc
   transform_convert_sequencer.cc
   transform_convert_sequencer_image.cc
+  transform_convert_sequencer_retiming.cc
   transform_convert_tracking.cc
   transform_convert_tracking_curves.cc
   transform_draw_cursors.cc
@@ -116,10 +116,11 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_blenfont
+  PRIVATE bf::blenfont
   bf_blenkernel
   PRIVATE bf::blenlib
   bf_bmesh
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_mask
   bf_gpu

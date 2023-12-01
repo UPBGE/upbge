@@ -3,7 +3,7 @@ USD Hook Example
 ++++++++++++++++
 
 This example shows an implementation of ``USDHook`` to extend USD
-export functionalty.
+export functionality.
 
 One may optionally define one or both of the following callback functions
 in the ``USDHook`` subclass.
@@ -35,7 +35,7 @@ The hook functions should return ``True`` on success or ``False`` if the operati
 otherwise failed to complete.  Exceptions raised by these functions will be reported in Blender, with
 the exception details printed to the console.
 
-The ``USDHookExample`` class in this example impements an ``on_export()`` function to add custom data to
+The ``USDHookExample`` class in this example implements an ``on_export()`` function to add custom data to
 the stage's root layer and an ``on_material_export()`` function to create a simple ``MaterialX`` shader
 on the USD material.
 

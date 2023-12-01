@@ -36,15 +36,15 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "DNA_gpencil_legacy_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_lib_id.h"
-#include "BKE_lib_remap.h"
-#include "BKE_screen.h"
+#include "BKE_lib_remap.hh"
+#include "BKE_screen.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -313,11 +313,11 @@ static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   }
 }
 
-static void logic_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
-{
-  SpaceLogic *slogic = (SpaceLogic *)sl;
-  BLO_read_id_address(reader, parent_id, &slogic->gpd);
-}
+//static void logic_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
+//{
+//  SpaceLogic *slogic = (SpaceLogic *)sl;
+//  BLO_read_id_address(reader, parent_id, &slogic->gpd);
+//}
 
 static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
@@ -344,7 +344,7 @@ void ED_spacetype_logic()
   st->id_remap = logic_id_remap;
 
   st->blend_read_data = logic_blend_read_data;
-  st->blend_read_lib = logic_blend_read_lib;
+  st->blend_read_after_liblink = nullptr/*logic_blend_read_lib*/;
   st->blend_write = logic_blend_write;
 
   /* regions: main window */

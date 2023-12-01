@@ -22,6 +22,8 @@
  * the wanted viewlayer/pass for each previewed node.
  */
 
+#include "BLI_string.h"
+
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
 #include "DNA_world_types.h"
@@ -31,7 +33,7 @@
 
 #include "BKE_colortools.h"
 #include "BKE_compute_contexts.hh"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
@@ -39,10 +41,10 @@
 #include "BKE_material.h"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "IMB_imbuf.h"
 
@@ -101,7 +103,11 @@ static void ensure_nodetree_previews(const bContext &C,
 static std::optional<ComputeContextHash> get_compute_context_hash_for_node_editor(
     const SpaceNode &snode)
 {
-  Vector<const bNodeTreePath *> treepath = snode.treepath;
+  Vector<const bNodeTreePath *> treepath;
+  LISTBASE_FOREACH (const bNodeTreePath *, item, &snode.treepath) {
+    treepath.append(item);
+  }
+
   if (treepath.is_empty()) {
     return std::nullopt;
   }
@@ -114,13 +120,14 @@ static std::optional<ComputeContextHash> get_compute_context_hash_for_node_edito
   ComputeContextBuilder compute_context_builder;
   for (const int i : treepath.index_range().drop_back(1)) {
     /* The tree path contains the name of the node but not its ID. */
-    const bNode *node = nodeFindNodebyName(treepath[i]->nodetree, treepath[i + 1]->node_name);
+    bNodeTree *tree = treepath[i]->nodetree;
+    const bNode *node = nodeFindNodebyName(tree, treepath[i + 1]->node_name);
     if (node == nullptr) {
       /* The current tree path is invalid, probably because some parent group node has been
        * deleted. */
       return std::nullopt;
     }
-    compute_context_builder.push<bke::NodeGroupComputeContext>(*node);
+    compute_context_builder.push<bke::GroupNodeComputeContext>(*node, *tree);
   }
   return compute_context_builder.hash();
 }
@@ -255,7 +262,7 @@ static bNodeSocket *node_find_preview_socket(bNodeTree &ntree, bNode &node)
   if (socket == nullptr) {
     socket = get_main_socket(ntree, node, SOCK_IN);
     if (socket != nullptr && socket->link == nullptr) {
-      if (!(ELEM(socket->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA))) {
+      if (!ELEM(socket->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA)) {
         /* We can not preview a socket with no link and no manual value. */
         return nullptr;
       }
@@ -376,7 +383,8 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
       output_node->flag |= NODE_DO_OUTPUT;
     }
 
-    ntreeAddSocketInterface(nested_nt, SOCK_OUT, nested_socket_iter->idname, route_name);
+    nested_nt->tree_interface.add_socket(
+        route_name, "", nested_socket_iter->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
     BKE_ntree_update_main_tree(G.pr_main, nested_nt, nullptr);
     bNodeSocket *out_socket = blender::bke::node_find_enabled_input_socket(*output_node,
                                                                            route_name);
@@ -454,8 +462,8 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
     bNodeSocket *socket_preview = nodesocket.second;
 
     bNode *aov_node = nodeAddStaticNode(nullptr, main_nt, SH_NODE_OUTPUT_AOV);
-    strcpy(reinterpret_cast<NodeShaderOutputAOV *>(aov_node->storage)->name,
-           nodesocket.first->name);
+    STRNCPY(reinterpret_cast<NodeShaderOutputAOV *>(aov_node->storage)->name,
+            nodesocket.first->name);
     if (socket_preview == nullptr) {
       continue;
     }
@@ -468,18 +476,18 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
         PointerRNA ptr;
         switch (socket_preview->type) {
           case SOCK_FLOAT:
-            RNA_pointer_create((ID *)active_nt, &RNA_NodeSocket, socket_preview, &ptr);
+            ptr = RNA_pointer_create((ID *)active_nt, &RNA_NodeSocket, socket_preview);
             vec[0] = RNA_float_get(&ptr, "default_value");
             vec[1] = vec[0];
             vec[2] = vec[0];
             break;
           case SOCK_VECTOR:
           case SOCK_RGBA:
-            RNA_pointer_create((ID *)active_nt, &RNA_NodeSocket, socket_preview, &ptr);
+            ptr = RNA_pointer_create((ID *)active_nt, &RNA_NodeSocket, socket_preview);
             RNA_float_get_array(&ptr, "default_value", vec);
             break;
         }
-        RNA_pointer_create((ID *)active_nt, &RNA_NodeSocket, aov_socket, &ptr);
+        ptr = RNA_pointer_create((ID *)active_nt, &RNA_NodeSocket, aov_socket);
         RNA_float_set_array(&ptr, "default_value", vec);
         continue;
       }
@@ -600,11 +608,11 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
   for (NodeSocketPair nodesocket_iter : job_data.shader_nodes) {
     ViewLayer *vl = BKE_view_layer_add(
         scene, nodesocket_iter.first->name, AOV_layer, VIEWLAYER_ADD_COPY);
-    strcpy(vl->name, nodesocket_iter.first->name);
+    STRNCPY(vl->name, nodesocket_iter.first->name);
   }
   for (NodeSocketPair nodesocket_iter : job_data.AOV_nodes) {
     ViewLayerAOV *aov = BKE_view_layer_add_aov(AOV_layer);
-    strcpy(aov->name, nodesocket_iter.first->name);
+    STRNCPY(aov->name, nodesocket_iter.first->name);
   }
   scene->r.xsch = job_data.tree_previews->preview_size;
   scene->r.ysch = job_data.tree_previews->preview_size;
@@ -682,39 +690,35 @@ static void update_needed_flag(NestedTreePreviews &tree_previews,
   }
 }
 
-static void shader_preview_startjob(void *customdata,
-                                    bool *stop,
-                                    bool *do_update,
-                                    float * /*progress*/)
+static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   ShaderNodesPreviewJob *job_data = static_cast<ShaderNodesPreviewJob *>(customdata);
 
-  job_data->stop = stop;
-  job_data->do_update = do_update;
-  *do_update = true;
+  job_data->stop = &worker_status->stop;
+  job_data->do_update = &worker_status->do_update;
+  worker_status->do_update = true;
   bool size_changed = job_data->tree_previews->preview_size != U.node_preview_res;
   if (size_changed) {
     job_data->tree_previews->preview_size = U.node_preview_res;
+  }
+
+  for (bNode *node_iter : job_data->mat_copy->nodetree->all_nodes()) {
+    if (node_iter->flag & NODE_DO_OUTPUT) {
+      node_iter->flag &= ~NODE_DO_OUTPUT;
+      bNodeSocket *disp_socket = nodeFindSocket(node_iter, SOCK_IN, "Displacement");
+      if (disp_socket != nullptr && disp_socket->link != nullptr) {
+        job_data->mat_displacement_copy = std::make_pair(disp_socket->link->fromnode,
+                                                         disp_socket->link->fromsock);
+      }
+      break;
+    }
   }
 
   /* Add a new output node used only for the previews. This is useful to keep the previously
    * connected links (for previewing the output nodes for example). */
   job_data->mat_output_copy = nodeAddStaticNode(
       nullptr, job_data->mat_copy->nodetree, SH_NODE_OUTPUT_MATERIAL);
-  bNode *active_user_output_node = nullptr;
-  for (bNode *node_iter : job_data->mat_copy->nodetree->all_nodes()) {
-    if (node_iter->flag & NODE_DO_OUTPUT) {
-      node_iter->flag &= ~NODE_DO_OUTPUT;
-      active_user_output_node = node_iter;
-    }
-  }
   job_data->mat_output_copy->flag |= NODE_DO_OUTPUT;
-
-  bNodeSocket *disp_socket = nodeFindSocket(active_user_output_node, SOCK_IN, "Displacement");
-  if (disp_socket != nullptr && disp_socket->link != nullptr) {
-    job_data->mat_displacement_copy = std::make_pair(disp_socket->link->fromnode,
-                                                     disp_socket->link->fromsock);
-  }
 
   bNodeTree *active_nodetree = job_data->treepath_copy.last()->nodetree;
   for (bNode *node : active_nodetree->all_nodes()) {
@@ -780,9 +784,7 @@ static void ensure_nodetree_previews(const bContext &C,
     return;
   }
   if (tree_previews.rendering) {
-    WM_jobs_stop(CTX_wm_manager(&C),
-                 CTX_wm_space_node(&C),
-                 reinterpret_cast<void *>(shader_preview_startjob));
+    WM_jobs_stop(CTX_wm_manager(&C), CTX_wm_space_node(&C), shader_preview_startjob);
     return;
   }
   tree_previews.rendering = true;
@@ -834,7 +836,7 @@ static void ensure_nodetree_previews(const bContext &C,
 
 void stop_preview_job(wmWindowManager &wm)
 {
-  WM_jobs_stop(&wm, nullptr, reinterpret_cast<void *>(shader_preview_startjob));
+  WM_jobs_stop(&wm, nullptr, shader_preview_startjob);
 }
 
 void free_previews(wmWindowManager &wm, SpaceNode &snode)

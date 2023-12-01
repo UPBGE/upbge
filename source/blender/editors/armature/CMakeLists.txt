@@ -5,15 +5,12 @@
 set(INC
   ../include
   ../../asset_system
-  ../../blenfont
   ../../blenkernel
   ../../blenloader
   ../../blentranslation
-  ../../depsgraph
   ../../gpu
   ../../makesrna
   ../../windowmanager
-  ../../../../intern/clog
   ../../../../intern/eigen
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -31,10 +28,10 @@ set(SRC
   armature_select.cc
   armature_skinning.cc
   armature_utils.cc
+  bone_collections.cc
   editarmature_undo.cc
   meshlaplacian.cc
   pose_edit.cc
-  pose_group.cc
   pose_lib_2.cc
   pose_select.cc
   pose_slide.cc
@@ -47,9 +44,12 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::blenfont
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )
 

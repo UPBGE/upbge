@@ -18,10 +18,10 @@
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_vfont.h"
+#  include "BKE_vfont.hh"
 #  include "DNA_object_types.h"
 
-#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph.hh"
 
 #  include "WM_api.hh"
 

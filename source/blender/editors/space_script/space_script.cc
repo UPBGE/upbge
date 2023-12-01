@@ -14,9 +14,9 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_query.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -26,7 +26,7 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #ifdef WITH_PYTHON
 #endif
@@ -97,7 +97,7 @@ static void script_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Script", SPACE_SCRIPT, 0);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Script", SPACE_SCRIPT, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 }
 
@@ -154,15 +154,15 @@ static void script_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scpt->script, IDWALK_CB_NOP);
 }
 
-static void script_space_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
+static void script_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
+                                                  ID * /*parent_id*/,
+                                                  SpaceLink *sl)
 {
-  SpaceScript *scpt = (SpaceScript *)sl;
+  SpaceScript *scpt = reinterpret_cast<SpaceScript *>(sl);
+
   /*scpt->script = nullptr; - 2.45 set to null, better re-run the script */
   if (scpt->script) {
-    BLO_read_id_address(reader, parent_id, &scpt->script);
-    if (scpt->script) {
-      SCRIPT_SET_NULL(scpt->script);
-    }
+    SCRIPT_SET_NULL(scpt->script);
   }
 }
 
@@ -188,7 +188,7 @@ void ED_spacetype_script()
   st->operatortypes = script_operatortypes;
   st->keymap = script_keymap;
   st->foreach_id = script_foreach_id;
-  st->blend_read_lib = script_space_blend_read_lib;
+  st->blend_read_after_liblink = script_space_blend_read_after_liblink;
   st->blend_write = script_space_blend_write;
 
   /* regions: main window */

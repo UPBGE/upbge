@@ -61,15 +61,11 @@ set(INC
   ../../blenloader
   ../../blentranslation
   ../../bmesh
-  ../../depsgraph
   ../../editors/include
-  ../../imbuf
   ../../makesrna
   ../../nodes
   ../../python/intern
   ../../windowmanager
-  ../../../../intern/utfconv
-  ../../../../intern/clog
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -107,14 +103,14 @@ set(SRC
   intern/usd_reader_nurbs.cc
   intern/usd_reader_prim.cc
   intern/usd_reader_shape.cc
+  intern/usd_reader_skeleton.cc
   intern/usd_reader_stage.cc
   intern/usd_reader_volume.cc
   intern/usd_reader_xform.cc
-  intern/usd_reader_skeleton.cc
   intern/usd_skel_convert.cc
 
-  usd.hh
   usd.h
+  usd.hh
 
   intern/usd_asset_utils.h
   intern/usd_exporter_context.h
@@ -141,16 +137,15 @@ set(SRC
   intern/usd_reader_nurbs.h
   intern/usd_reader_prim.h
   intern/usd_reader_shape.h
+  intern/usd_reader_skeleton.h
   intern/usd_reader_stage.h
   intern/usd_reader_volume.h
   intern/usd_reader_xform.h
-  intern/usd_reader_skeleton.h
   intern/usd_skel_convert.h
 )
 
 if(WITH_HYDRA)
   list(APPEND SRC
-    hydra/camera.cc
     hydra/curves.cc
     hydra/hydra_scene_delegate.cc
     hydra/id.cc
@@ -165,7 +160,6 @@ if(WITH_HYDRA)
     hydra/volume_modifier.cc
     hydra/world.cc
 
-    hydra/camera.h
     hydra/curves.h
     hydra/hydra_scene_delegate.h
     hydra/id.h
@@ -185,9 +179,13 @@ endif()
 set(LIB
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_imbuf
+  PRIVATE bf::animrig
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::utfconv
   bf_io_common
 )
 
@@ -209,13 +207,18 @@ if(WITH_OPENVDB)
   )
 endif()
 
-blender_add_lib(bf_usd "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+if(WITH_MATERIALX)
+  add_definitions(-DWITH_MATERIALX)
+  list(APPEND LIB MaterialXCore)
+endif()
+
+blender_add_lib(bf_io_usd "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.h
-add_dependencies(bf_usd bf_rna)
+add_dependencies(bf_io_usd bf_rna)
 
 if(COMMAND target_precompile_headers)
-  target_precompile_headers(bf_usd PRIVATE intern/usd_precomp.h)
+  target_precompile_headers(bf_io_usd PRIVATE intern/usd_precomp.h)
 endif()
 
 if(WITH_GTESTS)

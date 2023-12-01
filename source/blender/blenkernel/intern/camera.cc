@@ -31,22 +31,23 @@
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_camera.h"
+#include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "BLT_translation.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Camera Data-Block
@@ -94,18 +95,110 @@ static void camera_free_data(ID *id)
 
 static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Camera *camera = (Camera *)id;
+  Camera *camera = reinterpret_cast<Camera *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof.focus_object, IDWALK_CB_NOP);
   LISTBASE_FOREACH (CameraBGImage *, bgpic, &camera->bg_images) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, bgpic->ima, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, bgpic->clip, IDWALK_CB_USER);
   }
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, camera->ipo, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof_ob, IDWALK_CB_NOP);
+  }
+}
+
+struct CameraCyclesCompatibilityData {
+  IDProperty *idprop_prev = nullptr;
+  IDProperty *idprop_temp = nullptr;
+};
+
+static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_create(ID *id)
+{
+  auto cycles_data_ensure = [](IDProperty *group) {
+    IDProperty *prop = IDP_GetPropertyTypeFromGroup(group, "cycles", IDP_GROUP);
+    if (prop) {
+      return prop;
+    }
+    IDPropertyTemplate val = {0};
+    prop = IDP_New(IDP_GROUP, &val, "cycles");
+    IDP_AddToGroup(group, prop);
+    return prop;
+  };
+
+  auto cycles_property_int_set = [](IDProperty *idprop, const char *name, int value) {
+    IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT);
+    if (prop) {
+      IDP_Int(prop) = value;
+    }
+    else {
+      IDPropertyTemplate val = {0};
+      val.i = value;
+      IDP_AddToGroup(idprop, IDP_New(IDP_INT, &val, name));
+    }
+  };
+
+  auto cycles_property_float_set = [](IDProperty *idprop, const char *name, float value) {
+    IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT);
+    if (prop) {
+      IDP_Float(prop) = value;
+    }
+    else {
+      IDPropertyTemplate val = {0};
+      val.f = value;
+      IDP_AddToGroup(idprop, IDP_New(IDP_FLOAT, &val, name));
+    }
+  };
+
+  /* For forward compatibility, still write panoramic properties as ID properties for
+   * previous blender versions. */
+  IDProperty *idprop_prev = IDP_GetProperties(id);
+  /* Make a copy to avoid modifying the original. */
+  IDProperty *idprop_temp = idprop_prev ? IDP_CopyProperty(idprop_prev) : IDP_EnsureProperties(id);
+
+  Camera *cam = (Camera *)id;
+  IDProperty *cycles_cam = cycles_data_ensure(idprop_temp);
+  cycles_property_int_set(cycles_cam, "panorama_type", cam->panorama_type);
+  cycles_property_float_set(cycles_cam, "fisheye_fov", cam->fisheye_fov);
+  cycles_property_float_set(cycles_cam, "fisheye_lens", cam->fisheye_lens);
+  cycles_property_float_set(cycles_cam, "latitude_min", cam->latitude_min);
+  cycles_property_float_set(cycles_cam, "latitude_max", cam->latitude_max);
+  cycles_property_float_set(cycles_cam, "longitude_min", cam->longitude_min);
+  cycles_property_float_set(cycles_cam, "longitude_max", cam->longitude_max);
+  cycles_property_float_set(cycles_cam, "fisheye_polynomial_k0", cam->fisheye_polynomial_k0);
+  cycles_property_float_set(cycles_cam, "fisheye_polynomial_k1", cam->fisheye_polynomial_k1);
+  cycles_property_float_set(cycles_cam, "fisheye_polynomial_k2", cam->fisheye_polynomial_k2);
+  cycles_property_float_set(cycles_cam, "fisheye_polynomial_k3", cam->fisheye_polynomial_k3);
+  cycles_property_float_set(cycles_cam, "fisheye_polynomial_k4", cam->fisheye_polynomial_k4);
+
+  id->properties = idprop_temp;
+
+  return {idprop_prev, idprop_temp};
+}
+
+static void camera_write_cycles_compatibility_data_clear(ID *id,
+                                                         CameraCyclesCompatibilityData &data)
+{
+  id->properties = data.idprop_prev;
+  data.idprop_prev = nullptr;
+
+  if (data.idprop_temp) {
+    IDP_FreeProperty(data.idprop_temp);
+    data.idprop_temp = nullptr;
+  }
 }
 
 static void camera_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
+  const bool is_undo = BLO_write_is_undo(writer);
   Camera *cam = (Camera *)id;
+
+  CameraCyclesCompatibilityData cycles_data;
+  if (!is_undo) {
+    cycles_data = camera_write_cycles_compatibility_data_create(id);
+  }
 
   /* write LibData */
   BLO_write_id_struct(writer, Camera, id_address, &cam->id);
@@ -113,6 +206,10 @@ static void camera_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
     BLO_write_struct(writer, CameraBGImage, bgpic);
+  }
+
+  if (!is_undo) {
+    camera_write_cycles_compatibility_data_clear(id, cycles_data);
   }
 }
 
@@ -132,38 +229,13 @@ static void camera_blend_read_data(BlendDataReader *reader, ID *id)
   }
 }
 
-static void camera_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Camera *ca = (Camera *)id;
-  BLO_read_id_address(reader, id, &ca->ipo); /* deprecated, for versioning */
-
-  BLO_read_id_address(reader, id, &ca->dof_ob); /* deprecated, for versioning */
-  BLO_read_id_address(reader, id, &ca->dof.focus_object);
-
-  LISTBASE_FOREACH (CameraBGImage *, bgpic, &ca->bg_images) {
-    BLO_read_id_address(reader, id, &bgpic->ima);
-    BLO_read_id_address(reader, id, &bgpic->clip);
-  }
-}
-
-static void camera_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Camera *ca = (Camera *)id;
-  BLO_expand(expander, ca->ipo);  // XXX deprecated - old animation system
-
-  LISTBASE_FOREACH (CameraBGImage *, bgpic, &ca->bg_images) {
-    BLO_expand(expander, bgpic->ima);
-    BLO_expand(expander, bgpic->clip);
-  }
-}
-
 IDTypeInfo IDType_ID_CA = {
     /*id_code*/ ID_CA,
     /*id_filter*/ FILTER_ID_CA,
     /*main_listbase_index*/ INDEX_ID_CA,
     /*struct_size*/ sizeof(Camera),
     /*name*/ "Camera",
-    /*name_plural*/ "cameras",
+    /*name_plural*/ N_("cameras"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_CAMERA,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -179,8 +251,7 @@ IDTypeInfo IDType_ID_CA = {
 
     /*blend_write*/ camera_blend_write,
     /*blend_read_data*/ camera_blend_read_data,
-    /*blend_read_lib*/ camera_blend_read_lib,
-    /*blend_read_expand*/ camera_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 

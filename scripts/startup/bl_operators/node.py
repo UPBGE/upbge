@@ -166,8 +166,6 @@ class NodeAddZoneOperator(NodeAddOperator):
         space = context.space_data
         tree = space.edit_tree
 
-        props = self.properties
-
         self.deselect_nodes(context)
         input_node = self.create_node(context, self.input_node_type)
         output_node = self.create_node(context, self.output_node_type)
@@ -260,6 +258,131 @@ class NODE_OT_tree_path_parent(Operator):
         return {'FINISHED'}
 
 
+class NodeInterfaceOperator():
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        if not space or space.type != 'NODE_EDITOR' or not space.edit_tree:
+            return False
+        if space.edit_tree.is_embedded_data:
+            return False
+        return True
+
+
+class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
+    '''Add a new item to the interface'''
+    bl_idname = "node.interface_item_new"
+    bl_label = "New Item"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    item_type: EnumProperty(
+        name="Item Type",
+        description="Type of the item to create",
+        items=(
+            ('INPUT', "Input", ""),
+            ('OUTPUT', "Output", ""),
+            ('PANEL', "Panel", ""),
+        ),
+        default='INPUT',
+    )
+
+    # Returns a valid socket type for the given tree or None.
+    @staticmethod
+    def find_valid_socket_type(tree):
+        socket_type = 'NodeSocketFloat'
+        # Socket type validation function is only available for custom
+        # node trees. Assume that 'NodeSocketFloat' is valid for
+        # built-in node tree types.
+        if not hasattr(tree, "valid_socket_type") or tree.valid_socket_type(socket_type):
+            return socket_type
+        # Custom nodes may not support float sockets, search all
+        # registered socket subclasses.
+        types_to_check = [bpy.types.NodeSocket]
+        while types_to_check:
+            t = types_to_check.pop()
+            idname = getattr(t, "bl_idname", "")
+            if tree.valid_socket_type(idname):
+                return idname
+            # Test all subclasses
+            types_to_check.extend(t.__subclasses__())
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+
+        # Remember active item and position to determine target position.
+        active_item = interface.active
+        active_pos = active_item.position if active_item else -1
+
+        if self.item_type == 'INPUT':
+            item = interface.new_socket("Socket", socket_type=self.find_valid_socket_type(tree), in_out='INPUT')
+        elif self.item_type == 'OUTPUT':
+            item = interface.new_socket("Socket", socket_type=self.find_valid_socket_type(tree), in_out='OUTPUT')
+        elif self.item_type == 'PANEL':
+            item = interface.new_panel("Panel")
+        else:
+            return {'CANCELLED'}
+
+        if active_item:
+            # Insert into active panel if possible, otherwise insert after active item.
+            if active_item.item_type == 'PANEL' and item.item_type != 'PANEL':
+                interface.move_to_parent(item, active_item, len(active_item.interface_items))
+            else:
+                interface.move_to_parent(item, active_item.parent, active_pos + 1)
+        interface.active = item
+
+        return {'FINISHED'}
+
+
+class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
+    '''Add a copy of the active item to the interface'''
+    bl_idname = "node.interface_item_duplicate"
+    bl_label = "Duplicate Item"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not super().poll(context):
+            return False
+
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        return interface.active is not None
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        item = interface.active
+
+        if item:
+            item_copy = interface.copy(item)
+            interface.active = item_copy
+
+        return {'FINISHED'}
+
+
+class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
+    '''Remove active item from the interface'''
+    bl_idname = "node.interface_item_remove"
+    bl_label = "Remove Item"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        item = interface.active
+
+        if item:
+            interface.remove(item)
+            interface.active_index = min(interface.active_index, len(interface.items_tree) - 1)
+
+        return {'FINISHED'}
+
+
 classes = (
     NodeSetting,
 
@@ -267,5 +390,8 @@ classes = (
     NODE_OT_add_simulation_zone,
     NODE_OT_add_repeat_zone,
     NODE_OT_collapse_hide_unused_toggle,
+    NODE_OT_interface_item_new,
+    NODE_OT_interface_item_duplicate,
+    NODE_OT_interface_item_remove,
     NODE_OT_tree_path_parent,
 )

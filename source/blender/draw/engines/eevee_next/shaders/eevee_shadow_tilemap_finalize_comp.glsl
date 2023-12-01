@@ -1,19 +1,23 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Virtual shadowmapping: Tilemap to texture conversion.
+ * Virtual shadow-mapping: Tile-map to texture conversion.
  *
- * For all visible light tilemaps, copy page coordinate to a texture.
+ * For all visible light tile-maps, copy page coordinate to a texture.
  * This avoids one level of indirection when evaluating shadows and allows
  * to use a sampler instead of a SSBO bind.
  */
 
 #pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
 
-shared ivec2 rect_min;
-shared ivec2 rect_max;
+shared int rect_min_x;
+shared int rect_min_y;
+shared int rect_max_x;
+shared int rect_max_y;
 shared int view_index;
 
 /**
@@ -65,8 +69,10 @@ void main()
 
     /* Compute update area. */
     if (all(equal(gl_LocalInvocationID, uvec3(0)))) {
-      rect_min = ivec2(SHADOW_TILEMAP_RES);
-      rect_max = ivec2(0);
+      rect_min_x = SHADOW_TILEMAP_RES;
+      rect_min_y = SHADOW_TILEMAP_RES;
+      rect_max_x = 0;
+      rect_max_y = 0;
       view_index = -1;
     }
 
@@ -75,13 +81,16 @@ void main()
     bool lod_valid_thread = all(equal(tile_co, tile_co_lod << lod));
     bool do_page_render = tile.is_used && tile.do_update && lod_valid_thread;
     if (do_page_render) {
-      atomicMin(rect_min.x, tile_co_lod.x);
-      atomicMin(rect_min.y, tile_co_lod.y);
-      atomicMax(rect_max.x, tile_co_lod.x + 1);
-      atomicMax(rect_max.y, tile_co_lod.y + 1);
+      atomicMin(rect_min_x, tile_co_lod.x);
+      atomicMin(rect_min_y, tile_co_lod.y);
+      atomicMax(rect_max_x, tile_co_lod.x + 1);
+      atomicMax(rect_max_y, tile_co_lod.y + 1);
     }
 
     barrier();
+
+    ivec2 rect_min = ivec2(rect_min_x, rect_min_y);
+    ivec2 rect_max = ivec2(rect_max_x, rect_max_y);
 
     int viewport_index = viewport_select(rect_max - rect_min);
     ivec2 viewport_size = viewport_size_get(viewport_index);
@@ -110,20 +119,15 @@ void main()
           float clip_far = tilemaps_clip_buf[clip_index].clip_far_stored;
           float clip_near = tilemaps_clip_buf[clip_index].clip_near_stored;
 
+          view_start = view_start * tilemap_data.half_size + tilemap_data.center_offset;
+          view_end = view_end * tilemap_data.half_size + tilemap_data.center_offset;
+
           mat4x4 winmat;
           if (tilemap_data.projection_type != SHADOW_PROJECTION_CUBEFACE) {
-            view_start *= tilemap_data.half_size;
-            view_end *= tilemap_data.half_size;
-            view_start += tilemap_data.center_offset;
-            view_end += tilemap_data.center_offset;
-
             winmat = projection_orthographic(
                 view_start.x, view_end.x, view_start.y, view_end.y, clip_near, clip_far);
           }
           else {
-            view_start *= clip_near;
-            view_end *= clip_near;
-
             winmat = projection_perspective(
                 view_start.x, view_end.x, view_start.y, view_end.y, clip_near, clip_far);
           }
@@ -141,7 +145,7 @@ void main()
       /* Tile coordinate relative to chosen viewport origin. */
       ivec2 viewport_tile_co = tile_co_lod - rect_min;
       /* We need to add page indirection to the render map for the whole viewport even if this one
-       * might extend outside of the shadowmap range. To this end, we need to wrap the threads to
+       * might extend outside of the shadow-map range. To this end, we need to wrap the threads to
        * always cover the whole mip. This is because the viewport cannot be bigger than the mip
        * level itself. */
       int lod_res = SHADOW_TILEMAP_RES >> lod;
@@ -155,9 +159,14 @@ void main()
         if (do_page_render) {
           /* Tag tile as rendered. There is a barrier after the read. So it is safe. */
           tiles_buf[tile_index] |= SHADOW_IS_RENDERED;
-          /* Add page to clear list. */
-          uint clear_page_index = atomicAdd(clear_dispatch_buf.num_groups_z, 1u);
-          clear_list_buf[clear_page_index] = page_packed;
+          /* Add page to clear dispatch. */
+          uint page_index = atomicAdd(clear_dispatch_buf.num_groups_z, 1u);
+          /* Add page to tile processing. */
+          atomicAdd(tile_draw_buf.vertex_len, 6u);
+          /* Add page mapping for indexing the page position in atlas and in the frame-buffer. */
+          dst_coord_buf[page_index] = page_packed;
+          src_coord_buf[page_index] = packUvec4x8(
+              uvec4(relative_tile_co.x, relative_tile_co.y, view_index, 0));
           /* Statistics. */
           atomicAdd(statistics_buf.page_rendered_count, 1);
         }

@@ -17,7 +17,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_volume_types.h"
 
-#include "BKE_volume.h"
+#include "BKE_volume.hh"
 
 #include "BLI_math_base.h"
 #include "BLI_string_utf8_symbols.h"
@@ -45,8 +45,8 @@ const EnumPropertyItem rna_enum_volume_grid_data_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"

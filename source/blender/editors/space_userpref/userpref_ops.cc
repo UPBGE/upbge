@@ -18,7 +18,7 @@
 #include "BLI_path_util.h"
 
 #include "BKE_callbacks.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_main.h"
 #include "BKE_preferences.h"
 
@@ -282,7 +282,7 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
 {
   ot->name = "Add Extension Repository";
   ot->idname = "PREFERENCES_OT_extension_repo_add";
-  ot->description = "Add a directory to be used as a local extensions repository";
+  ot->description = "Add a directory to be used as a local extension repository";
 
   ot->exec = preferences_extension_repo_add_exec;
   ot->invoke = preferences_extension_repo_add_invoke;
@@ -343,7 +343,7 @@ static void PREFERENCES_OT_extension_repo_remove(wmOperatorType *ot)
 {
   ot->name = "Remove Extension Repository";
   ot->idname = "PREFERENCES_OT_extension_repo_remove";
-  ot->description = "Remove an extensions repository";
+  ot->description = "Remove an extension repository";
 
   ot->exec = preferences_extension_repo_remove_exec;
   ot->poll = preferences_extension_repo_remove_poll;

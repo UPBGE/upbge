@@ -22,7 +22,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_array.h"
 #include "BLI_array.hh"
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
@@ -32,23 +31,23 @@
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_context.h"
-#include "BKE_customdata.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
 #include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lattice.h"
+#include "BKE_editmesh.hh"
+#include "BKE_lattice.hh"
 #include "BKE_layer.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_report.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLT_translation.h"
 
@@ -789,7 +788,7 @@ static void vgroup_operator_subset_select_props(wmOperatorType *ot, bool use_act
 
   prop = RNA_def_enum(ot->srna,
                       "group_select_mode",
-                      DummyRNA_NULL_items,
+                      rna_enum_dummy_NULL_items,
                       use_active ? WT_VGROUP_ACTIVE : WT_VGROUP_ALL,
                       "Subset",
                       "Define which subset of groups shall be used");
@@ -1006,8 +1005,8 @@ float ED_vgroup_vert_weight(Object *ob, bDeformGroup *dg, int vertnum)
 
 void ED_vgroup_select_by_name(Object *ob, const char *name)
 {
-  /* NOTE: actdef==0 signals on painting to create a new one,
-   * if a bone in posemode is selected */
+  /* NOTE: `actdef == 0` signals on painting to create a new one,
+   * if a bone in pose-mode is selected. */
   BKE_object_defgroup_active_index_set(ob, BKE_object_defgroup_name_index(ob, name) + 1);
 }
 
@@ -2888,14 +2887,40 @@ void OBJECT_OT_vertex_group_normalize(wmOperatorType *ot)
 /** \name Vertex Group Normalize All Operator
  * \{ */
 
+/*
+ * For a given object, determine which target vertex group to normalize.
+ */
+static eVGroupSelect normalize_vertex_group_target(Object *ob)
+{
+  /* Default to All Groups. */
+  eVGroupSelect target_group = WT_VGROUP_ALL;
+
+  /* If armature is present, and armature is actively deforming the object
+  (i.e armature modifier isn't disabled) use BONE DEFORM. */
+  if (BKE_modifiers_is_deformed_by_armature(ob)) {
+
+    int defgroup_tot = BKE_object_defgroup_count(ob);
+    bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, defgroup_tot);
+
+    for (int i = 0; i < defgroup_tot; i++) {
+      if (defgroup_validmap[i] == true) {
+        target_group = WT_VGROUP_BONE_DEFORM;
+        break;
+      }
+    }
+    MEM_freeN(defgroup_validmap);
+  }
+
+  return target_group;
+}
+
 static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_context(C);
 
-  /* If armature is present, default to `Deform Bones` otherwise `All Groups`. */
-  RNA_enum_set(op->ptr,
-               "group_select_mode",
-               BKE_modifiers_is_deformed_by_armature(ob) ? WT_VGROUP_BONE_DEFORM : WT_VGROUP_ALL);
+  eVGroupSelect target_group = normalize_vertex_group_target(ob);
+
+  RNA_enum_set(op->ptr, "group_select_mode", target_group);
 
   bool lock_active = RNA_boolean_get(op->ptr, "lock_active");
   eVGroupSelect subset_type = static_cast<eVGroupSelect>(
@@ -2966,7 +2991,7 @@ static int vertex_group_lock_exec(bContext *C, wmOperator *op)
 }
 
 static std::string vertex_group_lock_description(bContext * /*C*/,
-                                                 wmOperatorType * /*op*/,
+                                                 wmOperatorType * /*ot*/,
                                                  PointerRNA *params)
 {
   int action = RNA_enum_get(params, "action");
@@ -3500,7 +3525,7 @@ static const EnumPropertyItem *vgroup_itemf(bContext *C,
                                             bool *r_free)
 {
   if (C == nullptr) {
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
   }
 
   Object *ob = ED_object_context(C);
@@ -3510,7 +3535,7 @@ static const EnumPropertyItem *vgroup_itemf(bContext *C,
   int a, totitem = 0;
 
   if (!ob) {
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
   }
 
   const ListBase *defbase = BKE_object_defgroup_list(ob);
@@ -3547,7 +3572,7 @@ void OBJECT_OT_vertex_group_set_active(wmOperatorType *ot)
 
   /* properties */
   prop = RNA_def_enum(
-      ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "Vertex group to set as active");
+      ot->srna, "group", rna_enum_dummy_NULL_items, 0, "Group", "Vertex group to set as active");
   RNA_def_enum_funcs(prop, vgroup_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;

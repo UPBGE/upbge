@@ -273,6 +273,28 @@ class GPENCIL_MT_layer_active(Menu):
                 layout.operator("gpencil.layer_active", text=gpl.info, icon=icon).layer = i
                 i -= 1
 
+class GREASE_PENCIL_MT_layer_active(Menu):
+    bl_label = "Change Active Layer"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        obd = context.active_object.data
+        if not obd.layers:
+            return
+
+        nlop = layout.operator("grease_pencil.layer_add", text="New Layer", icon='ADD')
+        nlop.new_layer_name = "Layer"
+
+        layout.separator()
+
+        for i in range(len(obd.layers) - 1,  -1,  -1):
+            layer = obd.layers[i]
+            if layer == obd.layers.active:
+                icon = 'GREASEPENCIL'
+            else:
+                icon = 'NONE'
+            layout.operator("grease_pencil.layer_active", text=layer.name, icon=icon).layer = i
 
 class GPENCIL_MT_material_active(Menu):
     bl_label = "Change Active Material"
@@ -517,7 +539,7 @@ class GreasePencilMaterialsPanel:
 
             row.template_list("GPENCIL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=rows)
 
-            # if topbar popover and brush pinned, disable
+            # if top-bar popover and brush pinned, disable.
             if is_view3d and brush is not None:
                 gp_settings = brush.gpencil_settings
                 if gp_settings.use_material_pin:
@@ -554,9 +576,12 @@ class GreasePencilMaterialsPanel:
                     icon_link = 'MESH_DATA' if slot.link == 'DATA' else 'OBJECT_DATA'
                     row.prop(slot, "link", icon=icon_link, icon_only=True)
 
-                if not is_grease_pencil_version3 and ob.data.use_stroke_edit_mode:
+                if is_grease_pencil_version3 and ob.mode == 'EDIT':
                     row = layout.row(align=True)
-                    row.operator("gpencil.stroke_change_color", text="Assign")
+                    row.operator("grease_pencil.stroke_material_set", text="Assign")
+                elif not is_grease_pencil_version3 and ob.data.use_stroke_edit_mode:
+                    row = layout.row(align=True)
+                    row.operator("gpencil.stroke_material_set", text="Assign")
                     row.operator("gpencil.material_select", text="Select").deselect = False
                     row.operator("gpencil.material_select", text="Deselect").deselect = True
         # stroke color
@@ -913,6 +938,8 @@ classes = (
     GPENCIL_UL_annotation_layer,
     GPENCIL_UL_layer,
     GPENCIL_UL_masks,
+
+    GREASE_PENCIL_MT_layer_active,
 
     GreasePencilFlipTintColors,
 )

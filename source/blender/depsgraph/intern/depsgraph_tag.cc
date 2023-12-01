@@ -8,7 +8,7 @@
  * Core routines for how the Depsgraph works.
  */
 
-#include "intern/depsgraph_tag.h"
+#include "intern/depsgraph_tag.hh"
 
 #include <cstdio>
 #include <cstring> /* required for memset */
@@ -31,27 +31,28 @@
 #include "BKE_anim_data.h"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
+#include "BKE_lib_override.hh"
 #include "BKE_node.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_workspace.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_debug.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_debug.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_registry.h"
-#include "intern/depsgraph_update.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_registry.hh"
+#include "intern/depsgraph_update.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/eval/deg_eval_flush.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
-#include "intern/node/deg_node_time.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
+#include "intern/node/deg_node_time.hh"
 
 namespace deg = blender::deg;
 
@@ -634,6 +635,10 @@ void id_tag_update(Main *bmain, ID *id, uint flags, eUpdateSource update_source)
   graph_id_tag_update(bmain, nullptr, id, flags, update_source);
   for (deg::Depsgraph *depsgraph : deg::get_all_registered_graphs(bmain)) {
     graph_id_tag_update(bmain, depsgraph, id, flags, update_source);
+  }
+
+  if (update_source & DEG_UPDATE_SOURCE_USER_EDIT) {
+    BKE_lib_override_id_tag_on_deg_tag_from_user(id);
   }
 
   /* Accumulate all tags for an ID between two undo steps, so they can be

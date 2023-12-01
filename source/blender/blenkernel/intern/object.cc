@@ -69,26 +69,26 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_DerivedMesh.h"
+#include "BKE_DerivedMesh.hh"
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_anim_path.h"
 #include "BKE_anim_visualization.h"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"
-#include "BKE_asset.h"
+#include "BKE_armature.hh"
+#include "BKE_asset.hh"
 #include "BKE_bpath.h"
 #include "BKE_bullet.h"
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
-#include "BKE_crazyspace.h"
-#include "BKE_curve.h"
+#include "BKE_crazyspace.hh"
+#include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
 #include "BKE_duplilist.h"
-#include "BKE_editmesh.h"
+#include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
@@ -100,16 +100,15 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
-#include "BKE_lattice.h"
+#include "BKE_lattice.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_light.h"
 #include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
@@ -118,37 +117,39 @@
 #include "BKE_mball.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_node.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_pointcloud.h"
 #include "BKE_pose_backup.h"
-#include "BKE_property.h"
-#include "BKE_python_proxy.h"
+#include "BKE_preview_image.hh"
+#include "BKE_property.hh"
+#include "BKE_python_proxy.hh"
 #include "BKE_rigidbody.h"
-#include "BKE_sca.h"
+#include "BKE_sca.hh"
 #include "BKE_scene.h"
 #include "BKE_shader_fx.h"
 #include "BKE_softbody.h"
 #include "BKE_speaker.h"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
-#include "BKE_vfont.h"
-#include "BKE_volume.h"
+#include "BKE_vfont.hh"
+#include "BKE_volume.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "DRW_engine.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 #include "BLO_readfile.h"
 
-#include "SEQ_sequencer.h"
+#include "SEQ_sequencer.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -157,6 +158,7 @@
 #include "CCGSubSurf.h"
 #include "atomic_ops.h"
 
+using blender::Bounds;
 using blender::float3;
 using blender::MutableSpan;
 using blender::Span;
@@ -189,6 +191,7 @@ static void object_init_data(ID *id)
 
   ob->trackflag = OB_POSY;
   ob->upflag = OB_POSZ;
+  ob->runtime = MEM_new<blender::bke::ObjectRuntime>(__func__);
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
@@ -199,7 +202,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   Object *ob_dst = (Object *)id_dst;
   const Object *ob_src = (const Object *)id_src;
 
-  /* Do not copy runtime data. */
+  ob_dst->runtime = MEM_new<blender::bke::ObjectRuntime>(__func__, *ob_src->runtime);
   BKE_object_runtime_reset_on_copy(ob_dst, flag);
 
   /* We never handle user-count here for own data. */
@@ -220,10 +223,6 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
 
   if (ob_src->iuser) {
     ob_dst->iuser = (ImageUser *)MEM_dupallocN(ob_src->iuser);
-  }
-
-  if (ob_src->runtime.bb) {
-    ob_dst->runtime.bb = (BoundBox *)MEM_dupallocN(ob_src->runtime.bb);
   }
 
   BLI_listbase_clear(&ob_dst->shader_fx);
@@ -328,7 +327,6 @@ static void object_free_data(ID *id)
   MEM_SAFE_FREE(ob->mat);
   MEM_SAFE_FREE(ob->matbits);
   MEM_SAFE_FREE(ob->iuser);
-  MEM_SAFE_FREE(ob->runtime.bb);
 
   if (ob->pose) {
     BKE_pose_free_ex(ob->pose, false);
@@ -367,13 +365,13 @@ static void object_free_data(ID *id)
   BLI_freelistN(&ob->pc_ids);
 
   /* Free runtime curves data. */
-  if (ob->runtime.curve_cache) {
-    BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
-    if (ob->runtime.curve_cache->anim_path_accum_length) {
-      MEM_freeN((void *)ob->runtime.curve_cache->anim_path_accum_length);
+  if (ob->runtime->curve_cache) {
+    BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
+    if (ob->runtime->curve_cache->anim_path_accum_length) {
+      MEM_freeN((void *)ob->runtime->curve_cache->anim_path_accum_length);
     }
-    MEM_freeN(ob->runtime.curve_cache);
-    ob->runtime.curve_cache = nullptr;
+    MEM_freeN(ob->runtime->curve_cache);
+    ob->runtime->curve_cache = nullptr;
   }
 
   BKE_previewimg_free(&ob->preview);
@@ -382,6 +380,8 @@ static void object_free_data(ID *id)
   MEM_SAFE_FREE(ob->light_linking);
 
   BKE_lightprobe_cache_free(ob);
+
+  MEM_delete(ob->runtime);
 }
 
 static void library_foreach_sensorsObjectLooper(bSensor */*sensor*/,
@@ -473,7 +473,8 @@ static void library_foreach_particlesystemsObjectLooper(ParticleSystem * /*psys*
 
 static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Object *object = (Object *)id;
+  Object *object = reinterpret_cast<Object *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   /* object data special case */
   if (object->type == OB_EMPTY) {
@@ -490,20 +491,16 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->parent, IDWALK_CB_NEVER_SELF);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->track, IDWALK_CB_NEVER_SELF);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->poselib, IDWALK_CB_USER);
-
   for (int i = 0; i < object->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->mat[i], IDWALK_CB_USER);
   }
 
-  /* Note that `ob->gpd` is deprecated, so no need to handle it here. */
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->instance_collection, IDWALK_CB_USER);
 
   if (object->pd) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->pd->tex, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->pd->f_source, IDWALK_CB_NOP);
   }
-  /* Note that ob->effect is deprecated, so no need to handle it here. */
 
   if (object->pose) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
@@ -518,7 +515,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
           data,
           BKE_constraints_id_loop(
-              &pchan->constraints, library_foreach_constraintObjectLooper, data));
+              &pchan->constraints, library_foreach_constraintObjectLooper, flag, data));
     }
   }
 
@@ -537,7 +534,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
           object, library_foreach_gpencil_modifiersForeachIDLink, data));
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
       data,
-      BKE_constraints_id_loop(&object->constraints, library_foreach_constraintObjectLooper, data));
+      BKE_constraints_id_loop(
+          &object->constraints, library_foreach_constraintObjectLooper, flag, data));
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
       data, BKE_shaderfx_foreach_ID_link(object, library_foreach_shaderfxForeachIDLink, data));
 
@@ -577,6 +575,44 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
         data, object->light_linking->receiver_collection, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(
         data, object->light_linking->blocker_collection, IDWALK_CB_USER);
+  }
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, object->ipo, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->action, IDWALK_CB_USER);
+
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->poselib, IDWALK_CB_USER);
+
+    LISTBASE_FOREACH (bConstraintChannel *, chan, &object->constraintChannels) {
+      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, chan->ipo, IDWALK_CB_USER);
+    }
+
+    LISTBASE_FOREACH (bActionStrip *, strip, &object->nlastrips) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->object, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->act, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, strip->ipo, IDWALK_CB_USER);
+      LISTBASE_FOREACH (bActionModifier *, amod, &strip->modifiers) {
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, amod->ob, IDWALK_CB_NOP);
+      }
+    }
+
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->gpd, IDWALK_CB_USER);
+
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->proxy, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->proxy_group, IDWALK_CB_NOP);
+    /* Note that `proxy_from` is purposefully skipped here, as this should be considered as pure
+     * runtime data. */
+
+    PartEff *paf = BKE_object_do_version_give_parteff_245(object);
+    if (paf && paf->group) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, paf->group, IDWALK_CB_USER);
+    }
+
+    FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(
+        BKE_modifiers_findby_type(object, eModifierType_Fluidsim));
+    if (fluidmd && fluidmd->fss) {
+      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, fluidmd->fss->ipo, IDWALK_CB_USER);
+    }
   }
 }
 
@@ -866,7 +902,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   const bool is_undo = BLO_write_is_undo(writer);
 
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
-  BKE_object_runtime_reset(ob);
+  ob->runtime = nullptr;
 
   if (is_undo) {
     /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
@@ -970,6 +1006,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Object *ob = (Object *)id;
 
+  ob->runtime = MEM_new<blender::bke::ObjectRuntime>(__func__);
+
   PartEff *paf;
 
   /* XXX This should not be needed - but seems like it can happen in some cases,
@@ -999,6 +1037,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   /* Only for versioning, vertex group names are now stored on object data. */
   BLO_read_list(reader, &ob->defbase);
+  BLO_read_list(reader, &ob->fmaps);
 
   /* XXX deprecated - old animation system <<< */
   direct_link_nlastrips(reader, &ob->nlastrips);
@@ -1233,7 +1272,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_object_empty_draw_type_set(ob, ob->empty_drawtype);
   }
 
-  BKE_object_runtime_reset(ob);
   BLO_read_list(reader, &ob->pc_ids);
 
   /* in case this value changes in future, clamp else we get undefined behavior */
@@ -1259,69 +1297,26 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   }
 }
 
-/* XXX deprecated - old animation system */
-static void lib_link_nlastrips(BlendLibReader *reader, ID *id, ListBase *striplist)
+static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 {
-  LISTBASE_FOREACH (bActionStrip *, strip, striplist) {
-    BLO_read_id_address(reader, id, &strip->object);
-    BLO_read_id_address(reader, id, &strip->act);
-    BLO_read_id_address(reader, id, &strip->ipo);
-    LISTBASE_FOREACH (bActionModifier *, amod, &strip->modifiers) {
-      BLO_read_id_address(reader, id, &amod->ob);
-    }
-  }
-}
-
-/* XXX deprecated - old animation system */
-static void lib_link_constraint_channels(BlendLibReader *reader, ID *id, ListBase *chanbase)
-{
-  LISTBASE_FOREACH (bConstraintChannel *, chan, chanbase) {
-    BLO_read_id_address(reader, id, &chan->ipo);
-  }
-}
-
-static void object_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Object *ob = (Object *)id;
+  Object *ob = reinterpret_cast<Object *>(id);
 
   Main *bmain = BLO_read_lib_get_main(reader);
   BlendFileReadReport *reports = BLO_read_lib_reports(reader);
 
-  /* XXX deprecated - old animation system <<< */
-  BLO_read_id_address(reader, id, &ob->ipo);
-  BLO_read_id_address(reader, id, &ob->action);
-  /* >>> XXX deprecated - old animation system */
+  if (ob->data == nullptr && ob->type != OB_EMPTY) {
+    /* NOTE: This case is not expected to happen anymore, since in when a linked ID disappears, an
+     * empty placeholder is created for it by readfile code. Only some serious corruption of data
+     * should be able to trigger this code nowadays. */
 
-  BLO_read_id_address(reader, id, &ob->parent);
-  BLO_read_id_address(reader, id, &ob->track);
-
-  /* XXX deprecated - old pose library, deprecated in Blender 3.5. */
-  BLO_read_id_address(reader, id, &ob->poselib);
-
-  BLO_read_id_address(reader, id, &ob->instance_collection);
-
-  /* XXX deprecated - old proxy system. <<< */
-  BLO_read_id_address(reader, id, &ob->proxy);
-  BLO_read_id_address(reader, id, &ob->proxy_group);
-  /* >>> XXX deprecated - old proxy system . */
-
-  void *poin = ob->data;
-  BLO_read_id_address(reader, id, &ob->data);
-
-  if (ob->data == nullptr && poin != nullptr) {
     ob->type = OB_EMPTY;
 
     if (ob->pose) {
-      /* we can't call #BKE_pose_free() here because of library linking
-       * freeing will recurse down into every pose constraints ID pointers
-       * which are not always valid, so for now free directly and suffer
-       * some leaked memory rather than crashing immediately
-       * while bad this _is_ an exceptional case - campbell */
-#if 0
-      BKE_pose_free(ob->pose);
-#else
-      MEM_freeN(ob->pose);
-#endif
+      /* This code is now executed after _all_ ID pointers have been lib-linked,so it's safe to do
+       * a proper cleanup. Further more, since user count of IDs is not done in read-code anymore,
+       * `BKE_pose_free_ex(ob->pose, false)` can be called (instead of
+       * `BKE_pose_free_ex(ob->pose)`), avoiding any access to other IDs altogether. */
+      BKE_pose_free_ex(ob->pose, false);
       ob->pose = nullptr;
       ob->mode &= ~OB_MODE_POSE;
     }
@@ -1338,241 +1333,34 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
     reports->count.missing_obdata++;
   }
-  for (int a = 0; a < ob->totcol; a++) {
-    BLO_read_id_address(reader, id, &ob->mat[a]);
-  }
 
   /* When the object is local and the data is library its possible
    * the material list size gets out of sync. #22663. */
-  if (ob->data && ob->id.lib != ((ID *)ob->data)->lib) {
-    BKE_object_materials_test(bmain, ob, (ID *)ob->data);
+  if (ob->data && ob->id.lib != static_cast<ID *>(ob->data)->lib) {
+    BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
   }
 
-  BLO_read_id_address(reader, id, &ob->gpd);
+  /* Performs quite extensive rebuilding & validation of object-level Pose data from the Armature
+   * obdata. */
+  BKE_pose_blend_read_after_liblink(reader, ob, ob->pose);
 
-  /* if id.us==0 a new base will be created later on */
-
-  /* WARNING! Also check expand_object(), should reflect the stuff below. */
-  BKE_pose_blend_read_lib(reader, ob, ob->pose);
-  BKE_constraint_blend_read_lib(reader, &ob->id, &ob->constraints);
-
-  /* XXX deprecated - old animation system <<< */
-  lib_link_constraint_channels(reader, &ob->id, &ob->constraintChannels);
-  lib_link_nlastrips(reader, &ob->id, &ob->nlastrips);
-  /* >>> XXX deprecated - old animation system */
-
-  LISTBASE_FOREACH (PartEff *, paf, &ob->effect) {
-    if (paf->type == EFF_PARTICLE) {
-      BLO_read_id_address(reader, id, &paf->group);
-    }
-  }
+  BKE_particle_system_blend_read_after_liblink(reader, ob, &ob->id, &ob->particlesystem);
 
   /* UPBGE */
   for (bSensor *sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
-    for (int a = 0; a < sens->totlinks; a++)
+    for (int a = 0; a < sens->totlinks; a++) {
       sens->links[a] = (bController *)BLO_read_get_new_globaldata_address(reader, sens->links[a]);
-
-    if (sens->type == SENS_MESSAGE) {
-      bMessageSensor *ms = (bMessageSensor *)sens->data;
-      BLO_read_id_address(reader, &ob->id, &ms->fromObject);
     }
   }
 
   for (bController *cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
-    for (int a = 0; a < cont->totlinks; a++)
+    for (int a = 0; a < cont->totlinks; a++) {
       cont->links[a] = (bActuator *)BLO_read_get_new_globaldata_address(reader, cont->links[a]);
-
-    if (cont->type == CONT_PYTHON) {
-      bPythonCont *pc = (bPythonCont *)cont->data;
-      BLO_read_id_address(reader, &ob->id, &pc->text);
-      BLO_read_id_address(reader, &ob->id, &pc->module_script);
     }
     cont->slinks = nullptr;
     cont->totslinks = 0;
   }
-
-  for (bActuator *act = (bActuator *)ob->actuators.first; act; act = act->next) {
-    switch (act->type) {
-      case ACT_SOUND: {
-        bSoundActuator *sa = (bSoundActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &sa->sound);
-        break;
-      }
-      case ACT_GAME:
-        /* bGameActuator *ga= act->data; */
-        break;
-      case ACT_CAMERA: {
-        bCameraActuator *ca = (bCameraActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &ca->ob);
-        break;
-      }
-      /* leave this one, it's obsolete but necessary to read for conversion */
-      case ACT_ADD_OBJECT: {
-        bAddObjectActuator *eoa = (bAddObjectActuator *)act->data;
-        if (eoa)
-          BLO_read_id_address(reader, &ob->id, &eoa->ob);
-        break;
-      }
-      case ACT_OBJECT: {
-        bObjectActuator *oa = (bObjectActuator *)act->data;
-        if (oa == nullptr) {
-          BKE_sca_init_actuator(act);
-        }
-        else {
-          BLO_read_id_address(reader, &ob->id, &oa->reference);
-        }
-        break;
-      }
-      case ACT_EDIT_OBJECT: {
-        bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
-        if (eoa == nullptr) {
-          BKE_sca_init_actuator(act);
-        }
-        else {
-          BLO_read_id_address(reader, &ob->id, &eoa->ob);
-          BLO_read_id_address(reader, &ob->id, &eoa->me);
-        }
-        break;
-      }
-      case ACT_SCENE: {
-        bSceneActuator *sa = (bSceneActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &sa->camera);
-        BLO_read_id_address(reader, &ob->id, &sa->scene);
-        break;
-      }
-      case ACT_COLLECTION: {
-        bCollectionActuator *ca = (bCollectionActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &ca->collection);
-        BLO_read_id_address(reader, &ob->id, &ca->camera);
-        break;
-      }
-      case ACT_ACTION: {
-        bActionActuator *aa = (bActionActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &aa->act);
-        break;
-      }
-      case ACT_SHAPEACTION: {
-        bActionActuator *aa = (bActionActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &aa->act);
-        break;
-      }
-      case ACT_PROPERTY: {
-        bPropertyActuator *pa = (bPropertyActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &pa->ob);
-        break;
-      }
-      case ACT_MESSAGE: {
-        bMessageActuator *ma = (bMessageActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &ma->toObject);
-        break;
-      }
-      case ACT_2DFILTER: {
-        bTwoDFilterActuator *_2dfa = (bTwoDFilterActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &_2dfa->text);
-        break;
-      }
-      case ACT_PARENT: {
-        bParentActuator *parenta = (bParentActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &parenta->ob);
-        break;
-      }
-      case ACT_STATE:
-        /* bStateActuator *statea = act->data; */
-        break;
-      case ACT_ARMATURE: {
-        bArmatureActuator *arma = (bArmatureActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &arma->target);
-        BLO_read_id_address(reader, &ob->id, &arma->subtarget);
-        break;
-      }
-      case ACT_STEERING: {
-        bSteeringActuator *steeringa = (bSteeringActuator *)act->data;
-        BLO_read_id_address(reader, &ob->id, &steeringa->target);
-        BLO_read_id_address(reader, &ob->id, &steeringa->navmesh);
-        break;
-      }
-      case ACT_MOUSE:
-        /* bMouseActuator *moa = act->data; */
-        break;
-    }
-  }
-
-  LISTBASE_FOREACH (PythonProxy *, proxy, &ob->components) {
-    LISTBASE_FOREACH (PythonProxyProperty *, prop, &proxy->properties) {
-#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, &ob->id, &prop->lower);
-      POINTER_TYPES
-#undef PT_DEF
-    }
-  }
-
-  if (ob->custom_object) {
-    LISTBASE_FOREACH (PythonProxyProperty *, prop, &ob->custom_object->properties) {
-#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, &ob->id, &prop->lower);
-      POINTER_TYPES
-#undef PT_DEF
-    }
-  }
-
-  LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
-    BLO_read_id_address(reader, &ob->id, &level->source);
-    if (!level->source && level == ob->lodlevels.first) {
-      level->source = ob;
-    }
-  }
   /* End of UPBGE */
-
-  {
-    FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
-        ob, eModifierType_Fluidsim);
-
-    if (fluidmd && fluidmd->fss) {
-      /* XXX: deprecated - old animation system. */
-      BLO_read_id_address(reader, id, &fluidmd->fss->ipo);
-    }
-  }
-
-  /* texture field */
-  if (ob->pd) {
-    BKE_particle_partdeflect_blend_read_lib(reader, &ob->id, ob->pd);
-  }
-
-  if (ob->soft) {
-    BLO_read_id_address(reader, id, &ob->soft->collision_group);
-
-    BLO_read_id_address(reader, id, &ob->soft->effector_weights->group);
-  }
-
-  BKE_particle_system_blend_read_lib(reader, ob, &ob->id, &ob->particlesystem);
-  BKE_modifier_blend_read_lib(reader, ob);
-  BKE_gpencil_modifier_blend_read_lib(reader, ob);
-  BKE_shaderfx_blend_read_lib(reader, ob);
-
-  if (ob->rigidbody_constraint) {
-    BLO_read_id_address(reader, id, &ob->rigidbody_constraint->ob1);
-    BLO_read_id_address(reader, id, &ob->rigidbody_constraint->ob2);
-  }
-
-  if (ob->light_linking) {
-    BLO_read_id_address(reader, id, &ob->light_linking->receiver_collection);
-    BLO_read_id_address(reader, id, &ob->light_linking->blocker_collection);
-  }
-}
-
-/* XXX deprecated - old animation system */
-static void expand_constraint_channels(BlendExpander *expander, ListBase *chanbase)
-{
-  LISTBASE_FOREACH (bConstraintChannel *, chan, chanbase) {
-    BLO_expand(expander, chan->ipo);
-  }
-}
-
-static void expand_object_expandModifiers(void *user_data,
-                                          Object * /*ob*/,
-                                          ID **idpoin,
-                                          int /*cb_flag*/)
-{
-  BlendExpander *expander = (BlendExpander *)user_data;
-  BLO_expand(expander, *idpoin);
 }
 
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
@@ -1587,201 +1375,6 @@ PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
     paf = paf->next;
   }
   return nullptr;
-}
-
-static void object_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Object *ob = (Object *)id;
-
-  BLO_expand(expander, ob->data);
-
-  BLO_expand(expander, ob->parent);
-
-  /* expand_object_expandModifier() */
-  if (ob->modifiers.first) {
-    BKE_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, expander);
-  }
-
-  /* expand_object_expandModifier() */
-  if (ob->greasepencil_modifiers.first) {
-    BKE_gpencil_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, expander);
-  }
-
-  /* expand_object_expandShaderFx() */
-  if (ob->shader_fx.first) {
-    BKE_shaderfx_foreach_ID_link(ob, expand_object_expandModifiers, expander);
-  }
-
-  BKE_pose_blend_read_expand(expander, ob->pose);
-  BLO_expand(expander, ob->poselib);
-  BKE_constraint_blend_read_expand(expander, &ob->constraints);
-
-  BLO_expand(expander, ob->gpd);
-
-  /* XXX deprecated - old animation system (for version patching only) */
-  BLO_expand(expander, ob->ipo);
-  BLO_expand(expander, ob->action);
-
-  expand_constraint_channels(expander, &ob->constraintChannels);
-
-  LISTBASE_FOREACH (bActionStrip *, strip, &ob->nlastrips) {
-    BLO_expand(expander, strip->object);
-    BLO_expand(expander, strip->act);
-    BLO_expand(expander, strip->ipo);
-  }
-  /* XXX deprecated - old animation system (for version patching only) */
-
-  for (int a = 0; a < ob->totcol; a++) {
-    BLO_expand(expander, ob->mat[a]);
-  }
-
-  PartEff *paf = BKE_object_do_version_give_parteff_245(ob);
-  if (paf && paf->group) {
-    BLO_expand(expander, paf->group);
-  }
-
-  if (ob->instance_collection) {
-    BLO_expand(expander, ob->instance_collection);
-  }
-
-  if (ob->proxy) {
-    BLO_expand(expander, ob->proxy);
-  }
-  if (ob->proxy_group) {
-    BLO_expand(expander, ob->proxy_group);
-  }
-
-  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-    BLO_expand(expander, psys->part);
-  }
-
-  /* UPBGE */
-  bSensor *sens;
-  bController *cont;
-  bActuator *act;
-
-  for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
-    if (sens->type == SENS_MESSAGE) {
-      bMessageSensor *ms = (bMessageSensor *)sens->data;
-      BLO_expand(expander, ms->fromObject);
-    }
-  }
-
-  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
-    if (cont->type == CONT_PYTHON) {
-      bPythonCont *pc = (bPythonCont *)cont->data;
-      BLO_expand(expander, pc->text);
-      BLO_expand(expander, pc->module_script);
-    }
-  }
-
-  for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
-    if (act->type == ACT_SOUND) {
-      bSoundActuator *sa = (bSoundActuator *)act->data;
-      BLO_expand(expander, sa->sound);
-    }
-    else if (act->type == ACT_CAMERA) {
-      bCameraActuator *ca = (bCameraActuator *)act->data;
-      BLO_expand(expander, ca->ob);
-    }
-    else if (act->type == ACT_EDIT_OBJECT) {
-      bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
-      if (eoa) {
-        BLO_expand(expander, eoa->ob);
-        BLO_expand(expander, eoa->me);
-      }
-    }
-    else if (act->type == ACT_OBJECT) {
-      bObjectActuator *oa = (bObjectActuator *)act->data;
-      BLO_expand(expander, oa->reference);
-    }
-    else if (act->type == ACT_ADD_OBJECT) {
-      bAddObjectActuator *aoa = (bAddObjectActuator *)act->data;
-      BLO_expand(expander, aoa->ob);
-    }
-    else if (act->type == ACT_SCENE) {
-      bSceneActuator *sa = (bSceneActuator *)act->data;
-      BLO_expand(expander, sa->camera);
-      BLO_expand(expander, sa->scene);
-    }
-    else if (act->type == ACT_COLLECTION) {
-      bCollectionActuator *ca = (bCollectionActuator *)act->data;
-      BLO_expand(expander, ca->collection);
-      BLO_expand(expander, ca->camera);
-    }
-    else if (act->type == ACT_2DFILTER) {
-      bTwoDFilterActuator *tdfa = (bTwoDFilterActuator *)act->data;
-      BLO_expand(expander, tdfa->text);
-    }
-    else if (act->type == ACT_ACTION) {
-      bActionActuator *aa = (bActionActuator *)act->data;
-      BLO_expand(expander, aa->act);
-    }
-    else if (act->type == ACT_SHAPEACTION) {
-      bActionActuator *aa = (bActionActuator *)act->data;
-      BLO_expand(expander, aa->act);
-    }
-    else if (act->type == ACT_PROPERTY) {
-      bPropertyActuator *pa = (bPropertyActuator *)act->data;
-      BLO_expand(expander, pa->ob);
-    }
-    else if (act->type == ACT_MESSAGE) {
-      bMessageActuator *ma = (bMessageActuator *)act->data;
-      BLO_expand(expander, ma->toObject);
-    }
-    else if (act->type == ACT_PARENT) {
-      bParentActuator *pa = (bParentActuator *)act->data;
-      BLO_expand(expander, pa->ob);
-    }
-    else if (act->type == ACT_ARMATURE) {
-      bArmatureActuator *arma = (bArmatureActuator *)act->data;
-      BLO_expand(expander, arma->target);
-    }
-    else if (act->type == ACT_STEERING) {
-      bSteeringActuator *sta = (bSteeringActuator *)act->data;
-      BLO_expand(expander, sta->target);
-      BLO_expand(expander, sta->navmesh);
-    }
-  }
-
-  LISTBASE_FOREACH (PythonProxy *, proxy, &ob->components) {
-    LISTBASE_FOREACH (PythonProxyProperty *, prop, &proxy->properties) {
-#define PT_DEF(name, lower, upper) BLO_expand(expander, prop->lower);
-      POINTER_TYPES
-#undef PT_DEF
-    }
-  }
-
-  if (ob->currentlod) {
-    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
-      BLO_expand(expander, level->source);
-    }
-  }
-  /* End of UPBGE */
-
-  if (ob->pd) {
-    BLO_expand(expander, ob->pd->tex);
-    BLO_expand(expander, ob->pd->f_source);
-  }
-
-  if (ob->soft) {
-    BLO_expand(expander, ob->soft->collision_group);
-
-    if (ob->soft->effector_weights) {
-      BLO_expand(expander, ob->soft->effector_weights->group);
-    }
-  }
-
-  if (ob->rigidbody_constraint) {
-    BLO_expand(expander, ob->rigidbody_constraint->ob1);
-    BLO_expand(expander, ob->rigidbody_constraint->ob2);
-  }
-
-  /* Light and shadow linking. */
-  if (ob->light_linking) {
-    BLO_expand(expander, ob->light_linking->receiver_collection);
-    BLO_expand(expander, ob->light_linking->blocker_collection);
-  }
 }
 
 static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
@@ -1868,7 +1461,7 @@ static IDProperty *object_asset_dimensions_property(Object *ob)
   return property;
 }
 
-static void object_asset_pre_save(void *asset_ptr, AssetMetaData *asset_data)
+static void object_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
 {
   Object *ob = (Object *)asset_ptr;
   BLI_assert(GS(ob->id.name) == ID_OB);
@@ -1881,7 +1474,8 @@ static void object_asset_pre_save(void *asset_ptr, AssetMetaData *asset_data)
 }
 
 static AssetTypeInfo AssetType_OB = {
-    /*pre_save_fn*/ object_asset_pre_save,
+    /*pre_save_fn*/ object_asset_metadata_ensure,
+    /*on_mark_asset_fn*/ object_asset_metadata_ensure,
 };
 
 IDTypeInfo IDType_ID_OB = {
@@ -1890,7 +1484,7 @@ IDTypeInfo IDType_ID_OB = {
     /*main_listbase_index*/ INDEX_ID_OB,
     /*struct_size*/ sizeof(Object),
     /*name*/ "Object",
-    /*name_plural*/ "objects",
+    /*name_plural*/ N_("objects"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_OBJECT,
     /*flags*/ 0,
     /*asset_type_info*/ &AssetType_OB,
@@ -1906,8 +1500,7 @@ IDTypeInfo IDType_ID_OB = {
 
     /*blend_write*/ object_blend_write,
     /*blend_read_data*/ object_blend_read_data,
-    /*blend_read_lib*/ object_blend_read_lib,
-    /*blend_read_expand*/ object_blend_read_expand,
+    /*blend_read_after_liblink*/ object_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -1945,15 +1538,15 @@ void BKE_object_free_bulletsoftbody(Object *ob)
 
 void BKE_object_free_curve_cache(Object *ob)
 {
-  if (ob->runtime.curve_cache) {
-    BKE_displist_free(&ob->runtime.curve_cache->disp);
-    BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
-    if (ob->runtime.curve_cache->anim_path_accum_length) {
-      MEM_freeN((void *)ob->runtime.curve_cache->anim_path_accum_length);
+  if (ob->runtime->curve_cache) {
+    BKE_displist_free(&ob->runtime->curve_cache->disp);
+    BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
+    if (ob->runtime->curve_cache->anim_path_accum_length) {
+      MEM_freeN((void *)ob->runtime->curve_cache->anim_path_accum_length);
     }
-    BKE_nurbList_free(&ob->runtime.curve_cache->deformed_nurbs);
-    MEM_freeN(ob->runtime.curve_cache);
-    ob->runtime.curve_cache = nullptr;
+    BKE_nurbList_free(&ob->runtime->curve_cache->deformed_nurbs);
+    MEM_freeN(ob->runtime->curve_cache);
+    ob->runtime->curve_cache = nullptr;
   }
 }
 
@@ -2359,7 +1952,7 @@ static void object_update_from_subsurf_ccg(Object *object)
    * (happens on dependency graph free where order of CoW-ed IDs free is undefined).
    *
    * Good news is: such mesh does not have modifiers applied, so no need to worry about CCG. */
-  if (!object->runtime.is_data_eval_owned) {
+  if (!object->runtime->is_data_eval_owned) {
     return;
   }
   /* Object was never evaluated, so can not have CCG subdivision surface. If it were evaluated, do
@@ -2413,7 +2006,7 @@ static void object_update_from_subsurf_ccg(Object *object)
    *
    * mesh_cow is a copy-on-written version of `object_orig->data`.
    */
-  Mesh *mesh_cow = (Mesh *)object->runtime.data_orig;
+  Mesh *mesh_cow = (Mesh *)object->runtime->data_orig;
   copy_ccg_data(mesh_cow, mesh_orig, CD_MDISPS);
   copy_ccg_data(mesh_cow, mesh_orig, CD_GRID_PAINT_MASK);
   /* Everything is now up-to-date. */
@@ -2424,7 +2017,7 @@ static void object_update_from_subsurf_ccg(Object *object)
 void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_owned)
 {
   BLI_assert(object_eval->id.tag & LIB_TAG_COPIED_ON_WRITE);
-  BLI_assert(object_eval->runtime.data_eval == nullptr);
+  BLI_assert(object_eval->runtime->data_eval == nullptr);
   BLI_assert(data_eval->tag & LIB_TAG_NO_MAIN);
 
   if (is_owned) {
@@ -2433,8 +2026,8 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
   }
 
   /* Assigned evaluated data. */
-  object_eval->runtime.data_eval = data_eval;
-  object_eval->runtime.is_data_eval_owned = is_owned;
+  object_eval->runtime->data_eval = data_eval;
+  object_eval->runtime->is_data_eval_owned = is_owned;
 
   /* Overwrite data of evaluated object, if the data-block types match. */
   ID *data = (ID *)object_eval->data;
@@ -2447,25 +2040,25 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
   }
 
   /* Is set separately currently. */
-  object_eval->runtime.geometry_set_eval = nullptr;
+  object_eval->runtime->geometry_set_eval = nullptr;
 }
 
 void BKE_object_free_derived_caches(Object *ob)
 {
-  MEM_SAFE_FREE(ob->runtime.bb);
+  ob->runtime->bounds_eval.reset();
 
   object_update_from_subsurf_ccg(ob);
 
-  if (ob->runtime.editmesh_eval_cage &&
-      ob->runtime.editmesh_eval_cage != reinterpret_cast<Mesh *>(ob->runtime.data_eval))
+  if (ob->runtime->editmesh_eval_cage &&
+      ob->runtime->editmesh_eval_cage != reinterpret_cast<Mesh *>(ob->runtime->data_eval))
   {
-    BKE_mesh_eval_delete(ob->runtime.editmesh_eval_cage);
+    BKE_mesh_eval_delete(ob->runtime->editmesh_eval_cage);
   }
-  ob->runtime.editmesh_eval_cage = nullptr;
+  ob->runtime->editmesh_eval_cage = nullptr;
 
-  if (ob->runtime.data_eval != nullptr) {
-    if (ob->runtime.is_data_eval_owned) {
-      ID *data_eval = ob->runtime.data_eval;
+  if (ob->runtime->data_eval != nullptr) {
+    if (ob->runtime->is_data_eval_owned) {
+      ID *data_eval = ob->runtime->data_eval;
       if (GS(data_eval->name) == ID_ME) {
         BKE_mesh_eval_delete((Mesh *)data_eval);
       }
@@ -2475,18 +2068,18 @@ void BKE_object_free_derived_caches(Object *ob)
         MEM_freeN(data_eval);
       }
     }
-    ob->runtime.data_eval = nullptr;
+    ob->runtime->data_eval = nullptr;
   }
-  if (ob->runtime.mesh_deform_eval != nullptr) {
-    Mesh *mesh_deform_eval = ob->runtime.mesh_deform_eval;
+  if (ob->runtime->mesh_deform_eval != nullptr) {
+    Mesh *mesh_deform_eval = ob->runtime->mesh_deform_eval;
     BKE_mesh_eval_delete(mesh_deform_eval);
-    ob->runtime.mesh_deform_eval = nullptr;
+    ob->runtime->mesh_deform_eval = nullptr;
   }
 
   /* Restore initial pointer for copy-on-write data-blocks, object->data
    * might be pointing to an evaluated data-block data was just freed above. */
-  if (ob->runtime.data_orig != nullptr) {
-    ob->data = ob->runtime.data_orig;
+  if (ob->runtime->data_orig != nullptr) {
+    ob->data = ob->runtime->data_orig;
   }
 
   BKE_object_to_mesh_clear(ob);
@@ -2497,17 +2090,15 @@ void BKE_object_free_derived_caches(Object *ob)
   BKE_crazyspace_api_eval_clear(ob);
 
   /* Clear grease pencil data. */
-  if (ob->runtime.gpd_eval != nullptr) {
-    BKE_gpencil_eval_delete(ob->runtime.gpd_eval);
-    ob->runtime.gpd_eval = nullptr;
+  if (ob->runtime->gpd_eval != nullptr) {
+    BKE_gpencil_eval_delete(ob->runtime->gpd_eval);
+    ob->runtime->gpd_eval = nullptr;
   }
 
-  if (ob->runtime.geometry_set_eval != nullptr) {
-    delete ob->runtime.geometry_set_eval;
-    ob->runtime.geometry_set_eval = nullptr;
+  if (ob->runtime->geometry_set_eval != nullptr) {
+    delete ob->runtime->geometry_set_eval;
+    ob->runtime->geometry_set_eval = nullptr;
   }
-
-  MEM_SAFE_FREE(ob->runtime.editmesh_bb_cage);
 }
 
 void BKE_object_free_caches(Object *object)
@@ -3632,6 +3223,7 @@ Object *BKE_object_duplicate(Main *bmain,
       }
       break;
     case OB_GPENCIL_LEGACY:
+    case OB_GREASE_PENCIL:
       if (dupflag & USER_DUP_GPENCIL) {
         id_new = BKE_id_copy_for_duplicate(bmain, id_old, dupflag, copy_flags);
       }
@@ -3990,10 +3582,10 @@ static bool ob_parcurve(Object *ob, Object *par, float r_mat[4][4])
    * TODO(sergey): Some of the legit looking cases like #56619 need to be
    * looked into, and maybe curve cache (and other dependencies) are to be
    * evaluated prior to conversion. */
-  if (par->runtime.curve_cache == nullptr) {
+  if (par->runtime->curve_cache == nullptr) {
     return false;
   }
-  if (par->runtime.curve_cache->anim_path_accum_length == nullptr) {
+  if (par->runtime->curve_cache->anim_path_accum_length == nullptr) {
     return false;
   }
 
@@ -4152,8 +3744,8 @@ static void give_parvert(Object *par, int nr, float vec[3])
 
     /* It is possible that a cycle in the dependency graph was resolved in a way that caused this
      * object to be evaluated before its dependencies. In this case the curve cache may be null. */
-    if (par->runtime.curve_cache && par->runtime.curve_cache->deformed_nurbs.first != nullptr) {
-      nurb = &par->runtime.curve_cache->deformed_nurbs;
+    if (par->runtime->curve_cache && par->runtime->curve_cache->deformed_nurbs.first != nullptr) {
+      nurb = &par->runtime->curve_cache->deformed_nurbs;
     }
     else {
       Curve *cu = (Curve *)par->data;
@@ -4164,8 +3756,8 @@ static void give_parvert(Object *par, int nr, float vec[3])
   }
   else if (par->type == OB_LATTICE) {
     Lattice *latt = (Lattice *)par->data;
-    DispList *dl = par->runtime.curve_cache ?
-                       BKE_displist_find(&par->runtime.curve_cache->disp, DL_VERTS) :
+    DispList *dl = par->runtime->curve_cache ?
+                       BKE_displist_find(&par->runtime->curve_cache->disp, DL_VERTS) :
                        nullptr;
     float(*co)[3] = dl ? (float(*)[3])dl->verts : nullptr;
     int tot;
@@ -4289,10 +3881,10 @@ static void solve_parenting(
   /* origin, for help line */
   if (set_origin) {
     if ((ob->partype & PARTYPE) == PARSKEL) {
-      copy_v3_v3(ob->runtime.parent_display_origin, par->object_to_world[3]);
+      copy_v3_v3(ob->runtime->parent_display_origin, par->object_to_world[3]);
     }
     else {
-      copy_v3_v3(ob->runtime.parent_display_origin, totmat[3]);
+      copy_v3_v3(ob->runtime->parent_display_origin, totmat[3]);
     }
   }
 }
@@ -4372,7 +3964,9 @@ void BKE_object_where_is_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 void BKE_object_workob_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob, Object *workob)
 {
+  blender::bke::ObjectRuntime workob_runtime;
   BKE_object_workob_clear(workob);
+  workob->runtime = &workob_runtime;
 
   unit_m4(workob->object_to_world);
   unit_m4(workob->parentinv);
@@ -4553,99 +4147,55 @@ void BKE_boundbox_minmax(const BoundBox *bb,
   }
 }
 
-const BoundBox *BKE_object_boundbox_get(Object *ob)
+std::optional<blender::Bounds<blender::float3>> BKE_object_boundbox_get(const Object *ob)
 {
-  BoundBox *bb = nullptr;
-
   switch (ob->type) {
     case OB_MESH:
-      bb = BKE_mesh_boundbox_get(ob);
-      break;
+      return static_cast<const Mesh *>(ob->data)->bounds_min_max();
     case OB_CURVES_LEGACY:
     case OB_SURF:
     case OB_FONT:
-      bb = BKE_curve_boundbox_get(ob);
-      break;
+      return BKE_curve_minmax(static_cast<const Curve *>(ob->data), true);
     case OB_MBALL:
-      bb = BKE_mball_boundbox_get(ob);
-      break;
+      return BKE_object_evaluated_geometry_bounds(ob);
     case OB_LATTICE:
-      bb = BKE_lattice_boundbox_get(ob);
-      break;
+      return BKE_lattice_minmax(static_cast<const Lattice *>(ob->data));
     case OB_ARMATURE:
-      bb = BKE_armature_boundbox_get(ob);
-      break;
+      return BKE_armature_min_max(ob->pose);
     case OB_GPENCIL_LEGACY:
-      bb = BKE_gpencil_boundbox_get(ob);
-      break;
+      return BKE_gpencil_data_minmax(static_cast<const bGPdata *>(ob->data));
     case OB_CURVES:
-      bb = BKE_curves_boundbox_get(ob);
-      break;
+      return static_cast<const Curves *>(ob->data)->geometry.wrap().bounds_min_max();
     case OB_POINTCLOUD:
-      bb = BKE_pointcloud_boundbox_get(ob);
-      break;
+      return static_cast<const PointCloud *>(ob->data)->bounds_min_max();
     case OB_VOLUME:
-      bb = BKE_volume_boundbox_get(ob);
-      break;
+      return BKE_volume_min_max(static_cast<const Volume *>(ob->data));
     case OB_GREASE_PENCIL:
-      bb = BKE_grease_pencil_boundbox_get(ob);
-    default:
-      break;
+      return static_cast<const GreasePencil *>(ob->data)->bounds_min_max_eval();
   }
-  return bb;
+  return std::nullopt;
 }
 
-void BKE_object_boundbox_calc_from_mesh(Object *ob, const Mesh *me_eval)
+std::optional<Bounds<float3>> BKE_object_boundbox_eval_cached_get(const Object *ob)
 {
-  float3 min(FLT_MAX);
-  float3 max(-FLT_MAX);
-
-  if (!BKE_mesh_wrapper_minmax(me_eval, min, max)) {
-    min = float3(0);
-    max = float3(0);
+  if (ob->runtime->bounds_eval) {
+    return *ob->runtime->bounds_eval;
   }
-
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>("DM-BoundBox");
-  }
-
-  BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
-
-  ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
+  return BKE_object_boundbox_get(ob);
 }
 
-bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob)
+std::optional<Bounds<float3>> BKE_object_evaluated_geometry_bounds(const Object *ob)
 {
-  using namespace blender;
-
-  std::optional<Bounds<float3>> bounds;
-  if (ob->runtime.geometry_set_eval) {
-    bounds = ob->runtime.geometry_set_eval->compute_boundbox_without_instances();
+  if (const blender::bke::GeometrySet *geometry = ob->runtime->geometry_set_eval) {
+    return geometry->compute_boundbox_without_instances();
   }
-  else if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob)) {
-    Bounds<float3> mesh_bounds{float3(std::numeric_limits<float>::max()),
-                               float3(std::numeric_limits<float>::lowest())};
-    if (BKE_mesh_wrapper_minmax(mesh_eval, mesh_bounds.min, mesh_bounds.max)) {
-      bounds = bounds::merge(bounds, {mesh_bounds});
-    }
+  if (const CurveCache *curve_cache = ob->runtime->curve_cache) {
+    float3 min(std::numeric_limits<float>::max());
+    float3 max(std::numeric_limits<float>::lowest());
+    BKE_displist_minmax(&curve_cache->disp, min, max);
+    return Bounds<float3>{min, max};
   }
-  else {
-    return false;
-  }
-
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
-  }
-  if (bounds) {
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, bounds->min, bounds->max);
-  }
-  else {
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, float3(0), float3(0));
-  }
-
-  ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
-
-  return true;
+  return std::nullopt;
 }
 
 /** \} */
@@ -4656,20 +4206,24 @@ bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob)
  * \warning Setting dimensions is prone to feedback loops in evaluation.
  * \{ */
 
+static float3 boundbox_to_dimensions(const Object *ob, const std::optional<Bounds<float3>> bounds)
+{
+  using namespace blender;
+  if (!bounds) {
+    return float3(0);
+  }
+  const float3 scale = math::to_scale(float4x4(ob->object_to_world));
+  return scale * (bounds->max - bounds->min);
+}
+
 void BKE_object_dimensions_get(Object *ob, float r_vec[3])
 {
-  const BoundBox *bb = BKE_object_boundbox_get(ob);
-  if (bb) {
-    float3 scale;
-    mat4_to_size(scale, ob->object_to_world);
+  copy_v3_v3(r_vec, boundbox_to_dimensions(ob, BKE_object_boundbox_get(ob)));
+}
 
-    r_vec[0] = fabsf(scale[0]) * (bb->vec[4][0] - bb->vec[0][0]);
-    r_vec[1] = fabsf(scale[1]) * (bb->vec[2][1] - bb->vec[0][1]);
-    r_vec[2] = fabsf(scale[2]) * (bb->vec[1][2] - bb->vec[0][2]);
-  }
-  else {
-    zero_v3(r_vec);
-  }
+void BKE_object_dimensions_eval_cached_get(Object *ob, float r_vec[3])
+{
+  copy_v3_v3(r_vec, boundbox_to_dimensions(ob, BKE_object_boundbox_eval_cached_get(ob)));
 }
 
 void BKE_object_dimensions_set_ex(Object *ob,
@@ -4678,12 +4232,8 @@ void BKE_object_dimensions_set_ex(Object *ob,
                                   const float ob_scale_orig[3],
                                   const float ob_obmat_orig[4][4])
 {
-  const BoundBox *bb = BKE_object_boundbox_get(ob);
-  if (bb) {
-    float3 len;
-    len.x = bb->vec[4][0] - bb->vec[0][0];
-    len.y = bb->vec[2][1] - bb->vec[0][1];
-    len.z = bb->vec[1][2] - bb->vec[0][2];
+  if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_eval_cached_get(ob)) {
+    float3 len = bounds->max - bounds->min;
 
     for (int i = 0; i < 3; i++) {
       if (((1 << i) & axis_mask) == 0) {
@@ -4709,108 +4259,31 @@ void BKE_object_dimensions_set(Object *ob, const float value[3], int axis_mask)
   BKE_object_dimensions_set_ex(ob, value, axis_mask, nullptr, nullptr);
 }
 
-void BKE_object_minmax(Object *ob, float r_min[3], float r_max[3], const bool use_hidden)
+void BKE_object_minmax(Object *ob, float r_min[3], float r_max[3])
 {
-  bool changed = false;
+  using namespace blender;
+  if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(ob)) {
+    copy_v3_v3(r_min, math::transform_point(float4x4(ob->object_to_world), bounds->min));
+    copy_v3_v3(r_max, math::transform_point(float4x4(ob->object_to_world), bounds->max));
+    return;
+  }
+  float3 size = ob->scale;
 
-  switch (ob->type) {
-    case OB_CURVES_LEGACY:
-    case OB_FONT:
-    case OB_SURF: {
-      const BoundBox bb = *BKE_curve_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
-    case OB_MESH: {
-      const BoundBox bb = *BKE_mesh_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
-    case OB_GPENCIL_LEGACY: {
-      const BoundBox bb = *BKE_gpencil_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
-    case OB_LATTICE: {
-      Lattice *lt = (Lattice *)ob->data;
-      BPoint *bp = lt->def;
-      int u, v, w;
-
-      for (w = 0; w < lt->pntsw; w++) {
-        for (v = 0; v < lt->pntsv; v++) {
-          for (u = 0; u < lt->pntsu; u++, bp++) {
-            float3 vec;
-            mul_v3_m4v3(vec, ob->object_to_world, bp->vec);
-            minmax_v3v3_v3(r_min, r_max, vec);
-          }
-        }
-      }
-      changed = true;
-      break;
-    }
-    case OB_ARMATURE: {
-      changed = BKE_pose_minmax(ob, r_min, r_max, use_hidden, false);
-      break;
-    }
-    case OB_MBALL: {
-      float ob_min[3], ob_max[3];
-
-      changed = BKE_mball_minmax_ex(
-          (const MetaBall *)ob->data, ob_min, ob_max, ob->object_to_world, 0);
-      if (changed) {
-        minmax_v3v3_v3(r_min, r_max, ob_min);
-        minmax_v3v3_v3(r_min, r_max, ob_max);
-      }
-      break;
-    }
-    case OB_CURVES: {
-      const BoundBox bb = *BKE_curves_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
-    case OB_POINTCLOUD: {
-      const BoundBox bb = *BKE_pointcloud_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
-    case OB_VOLUME: {
-      const BoundBox bb = *BKE_volume_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
-    case OB_GREASE_PENCIL: {
-      const BoundBox bb = *BKE_grease_pencil_boundbox_get(ob);
-      BKE_boundbox_minmax(&bb, ob->object_to_world, r_min, r_max);
-      changed = true;
-      break;
-    }
+  copy_v3_v3(size, ob->scale);
+  if (ob->type == OB_EMPTY) {
+    size *= ob->empty_drawsize;
   }
 
-  if (changed == false) {
-    float3 size = ob->scale;
+  minmax_v3v3_v3(r_min, r_max, ob->object_to_world[3]);
 
-    copy_v3_v3(size, ob->scale);
-    if (ob->type == OB_EMPTY) {
-      size *= ob->empty_drawsize;
-    }
+  float3 vec;
+  copy_v3_v3(vec, ob->object_to_world[3]);
+  add_v3_v3(vec, size);
+  minmax_v3v3_v3(r_min, r_max, vec);
 
-    minmax_v3v3_v3(r_min, r_max, ob->object_to_world[3]);
-
-    float3 vec;
-    copy_v3_v3(vec, ob->object_to_world[3]);
-    add_v3_v3(vec, size);
-    minmax_v3v3_v3(r_min, r_max, vec);
-
-    copy_v3_v3(vec, ob->object_to_world[3]);
-    sub_v3_v3(vec, size);
-    minmax_v3v3_v3(r_min, r_max, vec);
-  }
+  copy_v3_v3(vec, ob->object_to_world[3]);
+  sub_v3_v3(vec, size);
+  minmax_v3v3_v3(r_min, r_max, vec);
 }
 
 void BKE_object_empty_draw_type_set(Object *ob, const int value)
@@ -4928,7 +4401,8 @@ bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_
     }
     case OB_EMPTY_IMAGE: {
       const float *ofs = ob->ima_ofs;
-      /* NOTE: this is the best approximation that can be calculated without loading the image. */
+      /* NOTE: this is the best approximation that can be calculated without loading the image.
+       */
       min[0] = ofs[0] * radius;
       min[1] = ofs[1] * radius;
       max[0] = radius + (ofs[0] * radius);
@@ -4958,8 +4432,9 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
                              float r_max[3],
                              const bool use_hidden)
 {
+  using namespace blender;
   bool ok = false;
-  if ((ob->transflag & OB_DUPLI) == 0 && ob->runtime.geometry_set_eval == nullptr) {
+  if ((ob->transflag & OB_DUPLI) == 0 && ob->runtime->geometry_set_eval == nullptr) {
     return ok;
   }
 
@@ -4970,23 +4445,24 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
     }
     else {
       Object temp_ob = blender::dna::shallow_copy(*dob->ob);
-      /* Do not modify the original bounding-box. */
-      temp_ob.runtime.bb = nullptr;
-      BKE_object_replace_data_on_shallow_copy(&temp_ob, dob->ob_data);
-      const BoundBox *bb = BKE_object_boundbox_get(&temp_ob);
+      blender::bke::ObjectRuntime runtime = *dob->ob->runtime;
+      temp_ob.runtime = &runtime;
 
-      if (bb) {
+      /* Do not modify the original bounding-box. */
+      temp_ob.runtime->bounds_eval.reset();
+      BKE_object_replace_data_on_shallow_copy(&temp_ob, dob->ob_data);
+      if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(&temp_ob)) {
+        BoundBox bb;
+        BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
         int i;
         for (i = 0; i < 8; i++) {
           float3 vec;
-          mul_v3_m4v3(vec, dob->mat, bb->vec[i]);
+          mul_v3_m4v3(vec, dob->mat, bb.vec[i]);
           minmax_v3v3_v3(r_min, r_max, vec);
         }
 
         ok = true;
       }
-
-      MEM_SAFE_FREE(temp_ob.runtime.bb);
     }
   }
   free_object_duplilist(lb); /* does restore */
@@ -5043,8 +4519,8 @@ void BKE_object_foreach_display_point(Object *ob,
     BKE_gpencil_visible_stroke_iter(
         (bGPdata *)ob->data, nullptr, foreach_display_point_gpencil_stroke_fn, &iter_data);
   }
-  else if (ob->runtime.curve_cache && ob->runtime.curve_cache->disp.first) {
-    LISTBASE_FOREACH (DispList *, dl, &ob->runtime.curve_cache->disp) {
+  else if (ob->runtime->curve_cache && ob->runtime->curve_cache->disp.first) {
+    LISTBASE_FOREACH (DispList *, dl, &ob->runtime->curve_cache->disp) {
       const float *v3 = dl->verts;
       int totvert = dl->nr;
       int i;
@@ -5256,12 +4732,12 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
 {
   /* First attempt to retrieve the evaluated mesh from the evaluated geometry set. Most
    * object types either store it there or add a reference to it if it's owned elsewhere. */
-  blender::bke::GeometrySet *geometry_set_eval = object->runtime.geometry_set_eval;
+  blender::bke::GeometrySet *geometry_set_eval = object->runtime->geometry_set_eval;
   if (geometry_set_eval) {
     /* Some areas expect to be able to modify the evaluated mesh in limited ways. Theoretically
-     * this should be avoided, or at least protected with a lock, so a const mesh could be returned
-     * from this function. We use a const_cast instead of #get_mesh_for_write, because that might
-     * result in a copy of the mesh when it is shared. */
+     * this should be avoided, or at least protected with a lock, so a const mesh could be
+     * returned from this function. We use a const_cast instead of #get_mesh_for_write, because
+     * that might result in a copy of the mesh when it is shared. */
     Mesh *mesh = const_cast<Mesh *>(geometry_set_eval->get_mesh());
     if (mesh) {
       return mesh;
@@ -5271,7 +4747,7 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
   /* Some object types do not yet add the evaluated mesh to an evaluated geometry set, if they do
    * not support evaluating to multiple data types. Eventually this should be removed, when all
    * object types use #geometry_set_eval. */
-  ID *data_eval = object->runtime.data_eval;
+  ID *data_eval = object->runtime->data_eval;
   if (data_eval && GS(data_eval->name) == ID_ME) {
     return reinterpret_cast<Mesh *>(data_eval);
   }
@@ -5295,11 +4771,11 @@ Mesh *BKE_object_get_evaluated_mesh(const Object *object)
 
 Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
 {
-  if (object->type == OB_MESH && object->runtime.data_orig != nullptr) {
+  if (object->type == OB_MESH && object->runtime->data_orig != nullptr) {
     BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_WRITE);
     BLI_assert(object->id.orig_id != nullptr);
-    BLI_assert(object->runtime.data_orig->orig_id == ((Object *)object->id.orig_id)->data);
-    Mesh *result = (Mesh *)object->runtime.data_orig;
+    BLI_assert(object->runtime->data_orig->orig_id == ((Object *)object->id.orig_id)->data);
+    Mesh *result = (Mesh *)object->runtime->data_orig;
     BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
     BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT) == 0);
     return result;
@@ -5337,7 +4813,7 @@ Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
     return nullptr;
   }
 
-  return reinterpret_cast<Mesh *>(object->runtime.data_eval);
+  return reinterpret_cast<Mesh *>(object->runtime->data_eval);
 }
 
 Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
@@ -5349,7 +4825,7 @@ Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
   BLI_assert(mesh->edit_mesh != nullptr);
   UNUSED_VARS_NDEBUG(mesh);
 
-  return object->runtime.editmesh_eval_cage;
+  return object->runtime->editmesh_eval_cage;
 }
 
 Lattice *BKE_object_get_lattice(const Object *object)
@@ -5369,7 +4845,7 @@ Lattice *BKE_object_get_lattice(const Object *object)
 
 Lattice *BKE_object_get_evaluated_lattice(const Object *object)
 {
-  ID *data_eval = object->runtime.data_eval;
+  ID *data_eval = object->runtime->data_eval;
 
   if (data_eval == nullptr || GS(data_eval->name) != ID_LT) {
     return nullptr;
@@ -5401,8 +4877,8 @@ static int pc_cmp(const void *a, const void *b)
 
 /* TODO: Review the usages of this function, currently with COW it will be called for orig object
  * and then again for COW copies of it, think this is bad since there is no guarantee that we get
- * the same stack index in both cases? Order is important since this index is used for filenames on
- * disk. */
+ * the same stack index in both cases? Order is important since this index is used for filenames
+ * on disk. */
 int BKE_object_insert_ptcache(Object *ob)
 {
   LinkData *link = nullptr;
@@ -5893,7 +5369,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
        md = md->next)
   {
     const ModifierTypeInfo *mti = BKE_modifier_get_info((const ModifierType)md->type);
-    bool can_deform = mti->type == eModifierTypeType_OnlyDeform || is_modifier_animated;
+    bool can_deform = mti->type == ModifierTypeType::OnlyDeform || is_modifier_animated;
 
     if (!can_deform) {
       can_deform = constructive_modifier_is_deform_modified(ob, md);
@@ -5977,12 +5453,12 @@ bool BKE_object_supports_material_slots(Object *ob)
 
 void BKE_object_runtime_reset(Object *object)
 {
-  memset(&object->runtime, 0, sizeof(object->runtime));
+  *object->runtime = {};
 }
 
 void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
 {
-  Object_Runtime *runtime = &object->runtime;
+  blender::bke::ObjectRuntime *runtime = object->runtime;
   runtime->data_eval = nullptr;
   runtime->gpd_eval = nullptr;
   runtime->mesh_deform_eval = nullptr;
@@ -5992,8 +5468,8 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
   runtime->object_as_temp_curve = nullptr;
   runtime->geometry_set_eval = nullptr;
 
-  runtime->crazyspace_deform_imats = nullptr;
-  runtime->crazyspace_deform_cos = nullptr;
+  runtime->crazyspace_deform_imats = {};
+  runtime->crazyspace_deform_cos = {};
 }
 
 void BKE_object_runtime_free_data(Object *object)
@@ -6159,8 +5635,8 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       Mesh *me = (Mesh *)ob->data;
       uint i;
 
-      Mesh *me_eval = ob->runtime.mesh_deform_eval ? ob->runtime.mesh_deform_eval :
-                                                     BKE_object_get_evaluated_mesh(ob);
+      Mesh *me_eval = ob->runtime->mesh_deform_eval ? ob->runtime->mesh_deform_eval :
+                                                      BKE_object_get_evaluated_mesh(ob);
       const int *index;
 
       if (me_eval &&
@@ -6396,7 +5872,7 @@ void BKE_object_update_select_id(Main *bmain)
   Object *ob = (Object *)bmain->objects.first;
   int select_id = 1;
   while (ob) {
-    ob->runtime.select_id = select_id++;
+    ob->runtime->select_id = select_id++;
     ob = (Object *)ob->id.next;
   }
 }
@@ -6412,17 +5888,17 @@ Mesh *BKE_object_to_mesh(Depsgraph *depsgraph, Object *object, bool preserve_all
   BKE_object_to_mesh_clear(object);
 
   Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, preserve_all_data_layers, false);
-  object->runtime.object_as_temp_mesh = mesh;
+  object->runtime->object_as_temp_mesh = mesh;
   return mesh;
 }
 
 void BKE_object_to_mesh_clear(Object *object)
 {
-  if (object->runtime.object_as_temp_mesh == nullptr) {
+  if (object->runtime->object_as_temp_mesh == nullptr) {
     return;
   }
-  BKE_id_free(nullptr, object->runtime.object_as_temp_mesh);
-  object->runtime.object_as_temp_mesh = nullptr;
+  BKE_id_free(nullptr, object->runtime->object_as_temp_mesh);
+  object->runtime->object_as_temp_mesh = nullptr;
 }
 
 Curve *BKE_object_to_curve(Object *object, Depsgraph *depsgraph, bool apply_modifiers)
@@ -6430,33 +5906,23 @@ Curve *BKE_object_to_curve(Object *object, Depsgraph *depsgraph, bool apply_modi
   BKE_object_to_curve_clear(object);
 
   Curve *curve = BKE_curve_new_from_object(object, depsgraph, apply_modifiers);
-  object->runtime.object_as_temp_curve = curve;
+  object->runtime->object_as_temp_curve = curve;
   return curve;
 }
 
 void BKE_object_to_curve_clear(Object *object)
 {
-  if (object->runtime.object_as_temp_curve == nullptr) {
+  if (object->runtime->object_as_temp_curve == nullptr) {
     return;
   }
-  BKE_id_free(nullptr, object->runtime.object_as_temp_curve);
-  object->runtime.object_as_temp_curve = nullptr;
+  BKE_id_free(nullptr, object->runtime->object_as_temp_curve);
+  object->runtime->object_as_temp_curve = nullptr;
 }
 
 void BKE_object_check_uuids_unique_and_report(const Object *object)
 {
   BKE_pose_check_uuids_unique_and_report(object->pose);
   BKE_modifier_check_uuids_unique_and_report(object);
-}
-
-void BKE_object_modifiers_lib_link_common(void *user_data, Object *ob, ID **idpoin, int cb_flag)
-{
-  BlendLibReader *reader = (BlendLibReader *)user_data;
-
-  BLO_read_id_address(reader, &ob->id, idpoin);
-  if (*idpoin != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
-    id_us_plus_no_lib(*idpoin);
-  }
 }
 
 SubsurfModifierData *BKE_object_get_last_subsurf_modifier(const Object *ob)
@@ -6478,11 +5944,9 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
 {
   ob->type = BKE_object_obdata_to_type(new_data);
   ob->data = (void *)new_data;
-  ob->runtime.geometry_set_eval = nullptr;
-  ob->runtime.data_eval = new_data;
-  if (ob->runtime.bb != nullptr) {
-    ob->runtime.bb->flag |= BOUNDBOX_DIRTY;
-  }
+  ob->runtime->geometry_set_eval = nullptr;
+  ob->runtime->data_eval = new_data;
+  ob->runtime->bounds_eval.reset();
   ob->id.py_instance = nullptr;
 }
 

@@ -18,7 +18,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -294,15 +294,15 @@ static int view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
       }
 
       if (deltax != 0) {
-        RNA_int_set(op->ptr, "deltax", deltax);
         vpd->lastx = event->xy[0];
       }
       if (deltay != 0) {
-        RNA_int_set(op->ptr, "deltay", deltay);
         vpd->lasty = event->xy[1];
       }
 
       if (deltax || deltay) {
+        RNA_int_set(op->ptr, "deltax", deltax);
+        RNA_int_set(op->ptr, "deltay", deltay);
         view_pan_apply(C, op);
       }
       break;
@@ -394,8 +394,8 @@ static int view_edge_pan_modal(bContext *C, wmOperator *op, const wmEvent *event
   View2DEdgePanData *vpd = static_cast<View2DEdgePanData *>(op->customdata);
 
   wmWindow *source_win = CTX_wm_window(C);
-  int r_mval[2];
-  wmWindow *target_win = WM_window_find_under_cursor(source_win, event->xy, &r_mval[0]);
+  int event_xy_target[2];
+  wmWindow *target_win = WM_window_find_under_cursor(source_win, event->xy, &event_xy_target[0]);
 
   /* Exit if we release the mouse button, hit escape, or enter a different window. */
   if (event->val == KM_RELEASE || event->type == EVT_ESCKEY || source_win != target_win) {
@@ -1701,7 +1701,7 @@ static int view2d_smoothview_invoke(bContext *C, wmOperator * /*op*/, const wmEv
 
   float step;
   if (sms->time_allowed != 0.0) {
-    step = float((v2d->smooth_timer->duration) / sms->time_allowed);
+    step = float((v2d->smooth_timer->time_duration) / sms->time_allowed);
   }
   else {
     step = 1.0f;
@@ -1868,17 +1868,17 @@ static short mouse_in_scroller_handle(int mouse, int sc_min, int sc_max, int sh_
 
 static bool scroller_activate_poll(bContext *C)
 {
+  const wmWindow *win = CTX_wm_window(C);
+  if (!(win && win->eventstate)) {
+    return false;
+  }
   if (!view2d_poll(C)) {
     return false;
   }
-
-  wmWindow *win = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
   View2D *v2d = &region->v2d;
-  wmEvent *event = win->eventstate;
-
   /* Check if mouse in scroll-bars, if they're enabled. */
-  return (UI_view2d_mouse_in_scrollers(region, v2d, event->xy) != 0);
+  return (UI_view2d_mouse_in_scrollers(region, v2d, win->eventstate->xy) != 0);
 }
 
 /* Initialize #wmOperator.customdata for scroller manipulation operator. */
@@ -1906,7 +1906,12 @@ static void scroller_activate_init(bContext *C,
    * - zooming must be allowed on this axis, otherwise, default to pan
    */
   View2DScrollers scrollers;
-  view2d_scrollers_calc(v2d, nullptr, &scrollers);
+  /* Some Editors like the File-browser or Spreadsheet already set up custom masks for scroll-bars
+   * (they don't cover the whole region width or height), these need to be considered, otherwise
+   * coords for `mouse_in_scroller_handle` later are not compatible. */
+  rcti scroller_mask = v2d->hor;
+  BLI_rcti_union(&scroller_mask, &v2d->vert);
+  view2d_scrollers_calc(v2d, &scroller_mask, &scrollers);
 
   /* Use a union of 'cur' & 'tot' in case the current view is far outside 'tot'. In this cases
    * moving the scroll bars has far too little effect and the view can get stuck #31476. */
@@ -2344,7 +2349,7 @@ void ED_operatortypes_view2d()
 
 void ED_keymap_view2d(wmKeyConfig *keyconf)
 {
-  WM_keymap_ensure(keyconf, "View2D", 0, 0);
+  WM_keymap_ensure(keyconf, "View2D", SPACE_EMPTY, RGN_TYPE_WINDOW);
 }
 
 /** \} */

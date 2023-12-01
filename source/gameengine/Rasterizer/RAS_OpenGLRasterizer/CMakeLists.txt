@@ -34,11 +34,9 @@ set(INC
   ../../Physics/Common
   # >>>
   ../../SceneGraph
-  ../../../blender/blenfont
   ../../../blender/blenkernel
   ../../../blender/blentranslation
   ../../../blender/bmesh
-  ../../../blender/depsgraph
   ../../../blender/draw/intern
   ../../../blender/draw/engines/eevee/
   ../../../blender/gpu
@@ -62,7 +60,9 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

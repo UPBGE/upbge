@@ -23,7 +23,7 @@
 #include "BKE_main.h"
 #include "BKE_report.h"
 
-#include "BLO_writefile.h"
+#include "BLO_writefile.hh"
 
 #include "RNA_types.hh"
 
@@ -32,6 +32,7 @@
 #include "bpy_rna.h"
 
 #include "../generic/py_capi_utils.h"
+#include "../generic/python_compat.h"
 
 PyDoc_STRVAR(
     bpy_lib_write_doc,
@@ -86,6 +87,7 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
       nullptr,
   };
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `filepath` */
       "O!" /* `datablocks` */
       "|$" /* Optional keyword only arguments. */
@@ -185,16 +187,17 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
 
   if (retval) {
     BKE_reports_print(&reports, RPT_ERROR_ALL);
-    BKE_reports_clear(&reports);
     ret = Py_None;
     Py_INCREF(ret);
   }
   else {
-    if (BPy_reports_to_error(&reports, PyExc_IOError, true) == 0) {
+    if (BPy_reports_to_error(&reports, PyExc_IOError, false) == 0) {
       PyErr_SetString(PyExc_IOError, "Unknown error writing library data");
     }
     ret = nullptr;
   }
+
+  BKE_reports_free(&reports);
 
 finally:
 

@@ -16,15 +16,15 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_collection.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_report.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -56,7 +56,7 @@ static const EnumPropertyItem *collection_object_active_itemf(bContext *C,
   int totitem = 0;
 
   if (C == nullptr) {
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
   }
 
   ob = ED_object_context(C);
@@ -190,7 +190,7 @@ void COLLECTION_OT_objects_add_active(wmOperatorType *ot)
   /* properties */
   prop = RNA_def_enum(ot->srna,
                       "collection",
-                      DummyRNA_NULL_items,
+                      rna_enum_dummy_NULL_items,
                       0,
                       "Collection",
                       "The collection to add other selected objects to");
@@ -264,7 +264,7 @@ void COLLECTION_OT_objects_remove_active(wmOperatorType *ot)
   /* properties */
   prop = RNA_def_enum(ot->srna,
                       "collection",
-                      DummyRNA_NULL_items,
+                      rna_enum_dummy_NULL_items,
                       0,
                       "Collection",
                       "The collection to remove other selected objects from");
@@ -366,7 +366,7 @@ void COLLECTION_OT_objects_remove(wmOperatorType *ot)
   /* properties */
   prop = RNA_def_enum(ot->srna,
                       "collection",
-                      DummyRNA_NULL_items,
+                      rna_enum_dummy_NULL_items,
                       0,
                       "Collection",
                       "The collection to remove this object from");
@@ -524,7 +524,7 @@ void OBJECT_OT_collection_link(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_enum(ot->srna, "collection", DummyRNA_NULL_items, 0, "Collection", "");
+  prop = RNA_def_enum(ot->srna, "collection", rna_enum_dummy_NULL_items, 0, "Collection", "");
   RNA_def_enum_funcs(prop, RNA_collection_local_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;

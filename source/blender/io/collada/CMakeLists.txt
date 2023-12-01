@@ -23,12 +23,10 @@ set(INC
   .
   ../../blenkernel
   ../../blentranslation
-  ../../depsgraph
   ../../editors/include
-  ../../imbuf
+  ../../ikplugin
   ../../makesrna
   ../../windowmanager
-  ../../ikplugin
   ../../../../intern/iksolver/extern
   ../../bmesh
 )
@@ -116,7 +114,9 @@ set(LIB
   ${XML2_LIBRARIES}
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
 )
 
@@ -124,4 +124,4 @@ if(WITH_BUILDINFO)
   add_definitions(-DWITH_BUILDINFO)
 endif()
 
-blender_add_lib(bf_collada "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(bf_io_collada "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

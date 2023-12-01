@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_math_matrix.h"
+#include "BLI_string.h"
 
 #include "DNA_collection_types.h"
 
@@ -88,7 +89,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       children_objects.append(collection_object->ob);
     }
 
-    instances->reserve(children_collections.size() + children_objects.size());
     Vector<InstanceListEntry> entries;
     entries.reserve(children_collections.size() + children_objects.size());
 

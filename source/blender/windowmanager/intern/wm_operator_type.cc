@@ -24,7 +24,7 @@
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_idprop.h"
 
 #include "RNA_access.hh"
@@ -95,7 +95,7 @@ static wmOperatorType *wm_operatortype_append__begin()
   BLI_assert(ot_prop_basic_count == -1);
 
   ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
-  RNA_def_struct_property_tags(ot->srna, rna_enum_operator_property_tags);
+  RNA_def_struct_property_tags(ot->srna, rna_enum_operator_property_tag_items);
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
   RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
@@ -607,7 +607,7 @@ std::string WM_operatortype_description_or_name(bContext *C,
   if (text.empty()) {
     const std::string text_orig = WM_operatortype_name(ot, properties);
     if (!text_orig.empty()) {
-      text = BLI_strdup(text_orig.c_str());
+      text = BLI_strdupn(text_orig.c_str(), text_orig.size());
     }
   }
   return text;

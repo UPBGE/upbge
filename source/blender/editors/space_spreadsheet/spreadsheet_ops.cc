@@ -1,7 +1,7 @@
 /* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "DNA_space_types.h"
 
@@ -11,7 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"

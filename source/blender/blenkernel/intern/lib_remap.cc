@@ -10,33 +10,34 @@
 
 #include "CLG_log.h"
 
+#include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_collection.h"
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mball.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_node.h"
-#include "BKE_node_tree_update.h"
-#include "BKE_object.h"
-#include "BKE_sca.h"
+#include "BKE_node_tree_update.hh"
+#include "BKE_object.hh"
+#include "BKE_sca.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
-#include "lib_intern.h" /* own include */
+#include "lib_intern.hh" /* own include */
 
 static CLG_LogRef LOG = {"bke.lib_remap"};
 
@@ -736,23 +737,21 @@ void BKE_libblock_unlink(Main *bmain,
 
 struct LibBlockRelinkMultipleUserData {
   Main *bmain;
-  LinkNode *ids;
+  blender::Span<ID *> ids;
 };
 
 static void libblock_relink_foreach_idpair_cb(ID *old_id, ID *new_id, void *user_data)
 {
   LibBlockRelinkMultipleUserData *data = static_cast<LibBlockRelinkMultipleUserData *>(user_data);
   Main *bmain = data->bmain;
-  LinkNode *ids = data->ids;
+  const blender::Span<ID *> ids = data->ids;
 
   BLI_assert(old_id != nullptr);
   BLI_assert((new_id == nullptr) || GS(old_id->name) == GS(new_id->name));
   BLI_assert(old_id != new_id);
 
   bool is_object_update_processed = false;
-  for (LinkNode *ln_iter = ids; ln_iter != nullptr; ln_iter = ln_iter->next) {
-    ID *id_iter = static_cast<ID *>(ln_iter->link);
-
+  for (ID *id_iter : ids) {
     /* Some after-process updates.
      * This is a bit ugly, but cannot see a way to avoid it.
      * Maybe we should do a per-ID callback for this instead?
@@ -796,15 +795,14 @@ static void libblock_relink_foreach_idpair_cb(ID *old_id, ID *new_id, void *user
 }
 
 void BKE_libblock_relink_multiple(Main *bmain,
-                                  LinkNode *ids,
+                                  const blender::Span<ID *> ids,
                                   const eIDRemapType remap_type,
                                   IDRemapper *id_remapper,
                                   const int remap_flags)
 {
   BLI_assert(remap_type == ID_REMAP_TYPE_REMAP || BKE_id_remapper_is_empty(id_remapper));
 
-  for (LinkNode *ln_iter = ids; ln_iter != nullptr; ln_iter = ln_iter->next) {
-    ID *id_iter = static_cast<ID *>(ln_iter->link);
+  for (ID *id_iter : ids) {
     libblock_remap_data(bmain, id_iter, remap_type, id_remapper, remap_flags);
   }
 
@@ -814,18 +812,14 @@ void BKE_libblock_relink_multiple(Main *bmain,
 
   switch (remap_type) {
     case ID_REMAP_TYPE_REMAP: {
-      LibBlockRelinkMultipleUserData user_data = {nullptr};
-      user_data.bmain = bmain;
-      user_data.ids = ids;
+      LibBlockRelinkMultipleUserData user_data = {bmain, ids};
 
       BKE_id_remapper_iter(id_remapper, libblock_relink_foreach_idpair_cb, &user_data);
       break;
     }
     case ID_REMAP_TYPE_CLEANUP: {
       bool is_object_update_processed = false;
-      for (LinkNode *ln_iter = ids; ln_iter != nullptr; ln_iter = ln_iter->next) {
-        ID *id_iter = static_cast<ID *>(ln_iter->link);
-
+      for (ID *id_iter : ids) {
         switch (GS(id_iter->name)) {
           case ID_SCE:
           case ID_GR: {
@@ -871,9 +865,7 @@ void BKE_libblock_relink_ex(
   ID *id = static_cast<ID *>(idv);
   ID *old_id = static_cast<ID *>(old_idv);
   ID *new_id = static_cast<ID *>(new_idv);
-  LinkNode ids{};
-  ids.next = nullptr;
-  ids.link = idv;
+  blender::Array<ID *> ids = {id};
 
   /* No need to lock here, we are only affecting given ID, not bmain database. */
   IDRemapper *id_remapper = BKE_id_remapper_create();
@@ -891,13 +883,13 @@ void BKE_libblock_relink_ex(
     remap_type = ID_REMAP_TYPE_CLEANUP;
   }
 
-  BKE_libblock_relink_multiple(bmain, &ids, remap_type, id_remapper, remap_flags);
+  BKE_libblock_relink_multiple(bmain, ids, remap_type, id_remapper, remap_flags);
 
   BKE_id_remapper_free(id_remapper);
 }
 
 struct RelinkToNewIDData {
-  LinkNode *ids;
+  blender::Vector<ID *> ids;
   IDRemapper *id_remapper;
 };
 
@@ -939,7 +931,7 @@ static void libblock_relink_to_newid_prepare_data(Main *bmain,
   }
 
   id->tag &= ~LIB_TAG_NEW;
-  BLI_linklist_prepend(&relink_data->ids, id);
+  relink_data->ids.append(id);
   BKE_library_foreach_ID_link(bmain, id, id_relink_to_newid_looper, relink_data, 0);
 }
 
@@ -952,7 +944,6 @@ void BKE_libblock_relink_to_newid(Main *bmain, ID *id, const int remap_flag)
   BLI_assert(bmain->relations == nullptr);
 
   RelinkToNewIDData relink_data{};
-  relink_data.ids = nullptr;
   relink_data.id_remapper = BKE_id_remapper_create();
 
   libblock_relink_to_newid_prepare_data(bmain, id, &relink_data);
@@ -963,5 +954,4 @@ void BKE_libblock_relink_to_newid(Main *bmain, ID *id, const int remap_flag)
       bmain, relink_data.ids, ID_REMAP_TYPE_REMAP, relink_data.id_remapper, remap_flag_final);
 
   BKE_id_remapper_free(relink_data.id_remapper);
-  BLI_linklist_free(relink_data.ids, nullptr);
 }

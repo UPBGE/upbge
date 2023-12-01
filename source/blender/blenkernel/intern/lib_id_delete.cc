@@ -20,22 +20,23 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_vector.hh"
 
 #include "BKE_anim_data.h"
-#include "BKE_asset.h"
+#include "BKE_asset.hh"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_override.hh"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
-#include "BKE_main_namemap.h"
+#include "BKE_main_namemap.hh"
 
-#include "lib_intern.h"
+#include "lib_intern.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -81,7 +82,7 @@ void BKE_libblock_free_datablock(ID *id, const int /*flag*/)
   BLI_assert_msg(0, "IDType Missing IDTypeInfo");
 }
 
-void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
+static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
 {
   ID *id = static_cast<ID *>(idv);
 
@@ -129,7 +130,7 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
   }
 
   if ((flag & LIB_ID_FREE_NO_MAIN) == 0 && key != nullptr) {
-    BKE_id_free_ex(bmain, &key->id, flag, use_flag_from_idtag);
+    id_free(bmain, &key->id, flag, use_flag_from_idtag);
   }
 
   BKE_libblock_free_datablock(id, flag);
@@ -168,6 +169,23 @@ void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_i
 
   if ((flag & LIB_ID_FREE_NOT_ALLOCATED) == 0) {
     MEM_freeN(id);
+  }
+
+  return flag;
+}
+
+void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
+{
+  /* ViewLayer resync needs to be delayed during Scene freeing, since internal relationships
+   * between the Scene's master collection and its view_layers become invalid
+   * (due to remapping). */
+  BKE_layer_collection_resync_forbid();
+
+  flag = id_free(bmain, idv, flag, use_flag_from_idtag);
+
+  BKE_layer_collection_resync_allow();
+  if (bmain && (flag & LIB_ID_FREE_NO_MAIN) == 0) {
+    BKE_main_collection_sync_remap(bmain);
   }
 }
 
@@ -256,6 +274,19 @@ static size_t id_delete(Main *bmain,
              * code has some specific handling of 'no main' IDs that would be a problem in that
              * case). */
             id->tag |= tag;
+
+            /* Forcefully also delete shapekeys of the deleted ID if any, 'orphaned' shapekeys are
+             * not allowed in Blender and will cause lots of problem in modern code (liboverrides,
+             * warning on write & read, etc.). */
+            Key *shape_key = BKE_key_from_id(id);
+            if (shape_key && (shape_key->id.tag & tag) == 0) {
+              BLI_remlink(&bmain->shapekeys, &shape_key->id);
+              BKE_main_namemap_remove_name(bmain, &shape_key->id, shape_key->id.name + 2);
+              BLI_addtail(&tagged_deleted_ids, &shape_key->id);
+              BKE_id_remapper_add(id_remapper, &shape_key->id, nullptr);
+              shape_key->id.tag |= tag;
+            }
+
             keep_looping = true;
           }
         }
@@ -272,10 +303,10 @@ static size_t id_delete(Main *bmain,
     }
 
     /* Since we removed IDs from Main, their own other IDs usages need to be removed 'manually'. */
-    LinkNode *cleanup_ids = nullptr;
+    blender::Vector<ID *> cleanup_ids;
     for (ID *id = static_cast<ID *>(tagged_deleted_ids.first); id;
          id = static_cast<ID *>(id->next)) {
-      BLI_linklist_prepend(&cleanup_ids, id);
+      cleanup_ids.append(id);
     }
     BKE_libblock_relink_multiple(bmain,
                                  cleanup_ids,
@@ -283,9 +314,8 @@ static size_t id_delete(Main *bmain,
                                  id_remapper,
                                  ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS |
                                      ID_REMAP_SKIP_USER_CLEAR);
-
+    cleanup_ids.clear();
     BKE_id_remapper_free(id_remapper);
-    BLI_linklist_free(cleanup_ids, nullptr);
 
     BKE_layer_collection_resync_allow();
     BKE_main_collection_sync_remap(bmain);
@@ -340,6 +370,11 @@ static size_t id_delete(Main *bmain,
 
   BKE_main_unlock(bmain);
 
+  /* ViewLayer resync needs to be delayed during Scene freeing, since internal relationships
+   * between the Scene's master collection and its view_layers become invalid
+   * (due to remapping). */
+  BKE_layer_collection_resync_forbid();
+
   /* In usual reversed order, such that all usage of a given ID, even 'never nullptr' ones,
    * have been already cleared when we reach it
    * (e.g. Objects being processed before meshes, they'll have already released their 'reference'
@@ -363,11 +398,14 @@ static size_t id_delete(Main *bmain,
                      ID_REAL_USERS(id),
                      (id->tag & LIB_TAG_EXTRAUSER_SET) != 0 ? 1 : 0);
         }
-        BKE_id_free_ex(bmain, id, free_flag, !do_tagged_deletion);
+        id_free(bmain, id, free_flag, !do_tagged_deletion);
         ++num_datablocks_deleted;
       }
     }
   }
+
+  BKE_layer_collection_resync_allow();
+  BKE_main_collection_sync_remap(bmain);
 
   bmain->is_memfile_undo_written = false;
   return num_datablocks_deleted;

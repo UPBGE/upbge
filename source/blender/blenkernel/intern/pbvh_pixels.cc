@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_pbvh_api.hh"
@@ -14,15 +14,15 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
+
 #include "PIL_time.h"
 
 #include "BKE_global.h"
 #include "BKE_image_wrappers.hh"
-
-#include "bmesh.h"
 
 #include "pbvh_intern.hh"
 #include "pbvh_pixels_copy.hh"
@@ -173,7 +173,7 @@ static void split_pixel_node(
       continue;
     }
 
-    const float(*vert_cos)[3] = BKE_pbvh_get_vert_positions(pbvh);
+    const Span<float3> vert_cos = BKE_pbvh_get_vert_positions(pbvh);
     PBVHData &pbvh_data = BKE_pbvh_pixels_data_get(*pbvh);
 
     for (const PackedPixelRow &row : tile.pixel_rows) {

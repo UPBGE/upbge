@@ -481,7 +481,7 @@ struct ID *BKE_id_copy_for_use_in_bmain(struct Main *bmain, const struct ID *id)
  * \param bmain: May be NULL, in which case there is no guarantee that internal remapping of ID
  * pointers to themselves will be complete (regarding depsgraph and/or runtime data updates).
  * \param do_self_remap: Whether to remap internal pointers to itself or not.
- * \param self_remap_flags: Flags controlling self remapping, see BKE_lib_remap.h.
+ * \param self_remap_flags: Flags controlling self remapping, see BKE_lib_remap.hh.
  */
 void BKE_lib_id_swap(struct Main *bmain,
                      struct ID *id_a,
@@ -518,7 +518,8 @@ void BKE_lib_id_expand_local(struct Main *bmain, struct ID *id, int flags);
 /**
  * Ensures given ID has a unique name in given listbase.
  *
- * Only for local IDs (linked ones already have a unique ID in their library).
+ * Uniqueness is only ensured within the ID's library (nullptr for local ones), libraries act as
+ * some kind of namespace for IDs.
  *
  * \param name: The new name of the given ID, if NULL the current given ID name is used instead.
  * \param do_linked_data: if true, also ensure a unique name in case the given \a id is linked

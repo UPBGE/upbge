@@ -43,30 +43,31 @@
 #include "BKE_brush.hh"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
-#include "BKE_cpp_types.h"
+#include "BKE_cpp_types.hh"
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.h"
 #include "BKE_image.h"
 #include "BKE_keyconfig.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
 #include "BKE_mask.h"
 #include "BKE_material.h"
 #include "BKE_mball_tessellate.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_node.h"
 #include "BKE_particle.h"
+#include "BKE_preview_image.hh"
 #include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
 #include "BKE_tracking.h"
-#include "BKE_vfont.h"
-#include "BKE_volume.h"
+#include "BKE_vfont.hh"
+#include "BKE_volume.hh"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
@@ -74,12 +75,12 @@
 #include "BLI_task.h"
 #include "BLI_timer.h"
 #include "BLO_readfile.h"
-#include "BLO_runtime.h"
+#include "BLO_runtime.hh"
 #include "BLT_lang.h"
 #include "BPY_extern_python.h"
 #include "BPY_extern_run.h"
 #include "CLG_log.h"
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 #include "DNA_genfile.h"
 #include "DRW_engine.h"
 #include "ED_asset.hh"
@@ -106,7 +107,7 @@
 #include "RE_pipeline.h"
 #include "RE_texture.h"
 #include "RNA_define.hh"
-#include "SEQ_clipboard.h"
+#include "SEQ_clipboard.hh"
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "WM_api.hh"
@@ -138,7 +139,7 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #  if defined(_MSC_VER) && defined(_M_X64)
 #    include <math.h> /* needed for _set_FMA3_enable */
 #  endif
-#  include "utfconv.h"
+#  include "utfconv.hh"
 #endif  // WIN32
 
 #ifdef WITH_SDL_DYNLOAD
@@ -639,7 +640,7 @@ static BlendFileData *load_game_data(const char *progname,
     }
   }
 
-  BKE_reports_clear(&reports);
+  BKE_reports_free(&reports);
 
   return bfd;
 }
@@ -686,22 +687,6 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 }
 
 #endif  // WITH_GAMEENGINE_BPPLAYER
-
-static void wm_init_reports(bContext *C)
-{
-  ReportList *reports = CTX_wm_reports(C);
-
-  BLI_assert(!reports || BLI_listbase_is_empty(&reports->list));
-
-  BKE_reports_init(reports, RPT_STORE);
-}
-
-static void wm_free_reports(bContext *C)
-{
-  ReportList *reports = CTX_wm_reports(C);
-
-  BKE_reports_clear(reports);
-}
 
 static void callback_clg_fatal(void *fp)
 {
@@ -934,10 +919,7 @@ int main(int argc,
    * get triggered by the depsgraph. This is also done in background mode
    * for scripts that do background processing with preview icons. */
   BKE_icons_init(BIFICONID_LAST_STATIC);
-
-  /* reports cant be initialized before the wm,
-   * but keep before file reading, since that may report errors */
-  wm_init_reports(C);
+  BKE_preview_images_init();
 
   WM_msgbus_types_init();
 
@@ -1090,9 +1072,6 @@ int main(int argc,
 
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
-
-  /* Need to be after WM init so that userpref are loaded. */
-  RE_engines_init_experimental();
 
   /* Call again to set from userpreferences... */
   BLT_lang_set("");
@@ -1861,17 +1840,13 @@ int main(int argc,
   ED_preview_restart_queue_free();
   ED_assetlist_storage_exit();
 
-  if (CTX_wm_manager(C)) {
-    /* Before BKE_blender_free! - since the ListBases get freed there. */
-    wm_free_reports(C);
-  }
-
   SEQ_clipboard_free(); /* sequencer.c */
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
   ED_node_clipboard_free();
   UV_clipboard_free();
+  wm_clipboard_free();
 
 #ifdef WITH_COMPOSITOR_CPU
   COM_deinitialize();
@@ -1924,7 +1899,7 @@ int main(int argc,
   ANIM_keyingset_infos_exit();
 
 #ifdef WITH_PYTHON
-  BPY_python_end();
+  BPY_python_end(true);
 #endif
 
   ED_file_exit(); /* for fsmenu */

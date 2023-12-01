@@ -8,7 +8,7 @@
 
 #include "DNA_node_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "ED_node.hh" /* own include */
 #include "ED_screen.hh"
@@ -77,13 +77,13 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_backimage_fit);
   WM_operatortype_append(NODE_OT_backimage_sample);
 
-  WM_operatortype_append(NODE_OT_add_search);
   WM_operatortype_append(NODE_OT_add_group);
   WM_operatortype_append(NODE_OT_add_group_asset);
   WM_operatortype_append(NODE_OT_add_object);
   WM_operatortype_append(NODE_OT_add_collection);
   WM_operatortype_append(NODE_OT_add_file);
   WM_operatortype_append(NODE_OT_add_mask);
+  WM_operatortype_append(NODE_OT_add_material);
 
   WM_operatortype_append(NODE_OT_new_node_tree);
 
@@ -106,12 +106,6 @@ void node_operatortypes()
 
   WM_operatortype_append(NODE_OT_switch_view_update);
 
-  WM_operatortype_append(NODE_OT_tree_socket_add);
-  WM_operatortype_append(NODE_OT_tree_socket_remove);
-  WM_operatortype_append(NODE_OT_tree_socket_change_type);
-  WM_operatortype_append(NODE_OT_tree_socket_change_subtype);
-  WM_operatortype_append(NODE_OT_tree_socket_move);
-
   WM_operatortype_append(NODE_OT_cryptomatte_layer_add);
   WM_operatortype_append(NODE_OT_cryptomatte_layer_remove);
 }
@@ -119,10 +113,10 @@ void node_operatortypes()
 void node_keymap(wmKeyConfig *keyconf)
 {
   /* Entire Editor only ----------------- */
-  WM_keymap_ensure(keyconf, "Node Generic", SPACE_NODE, 0);
+  WM_keymap_ensure(keyconf, "Node Generic", SPACE_NODE, RGN_TYPE_WINDOW);
 
   /* Main Region only ----------------- */
-  WM_keymap_ensure(keyconf, "Node Editor", SPACE_NODE, 0);
+  WM_keymap_ensure(keyconf, "Node Editor", SPACE_NODE, RGN_TYPE_WINDOW);
 
   node_link_modal_keymap(keyconf);
 }

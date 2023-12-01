@@ -16,7 +16,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h" /* XXX: BKE_pose_channel_find_name */
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_idtype.h"
 #include "BKE_main.h"
 
@@ -27,12 +27,12 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
-#include "intern/node/deg_node_id.h"
+#include "intern/node/deg_node_id.hh"
 
 namespace blender::deg {
 
@@ -256,8 +256,7 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
      * common types too above (e.g. modifiers) */
     char *path = RNA_path_from_ID_to_struct(ptr);
     if (path) {
-      PointerRNA cow_id_ptr;
-      RNA_id_pointer_create(cow_id, &cow_id_ptr);
+      PointerRNA cow_id_ptr = RNA_id_pointer_create(cow_id);
       if (!RNA_path_resolve(&cow_id_ptr, path, r_ptr_eval, nullptr)) {
         /* Couldn't find COW copy of data */
         fprintf(stderr,

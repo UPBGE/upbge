@@ -29,13 +29,20 @@ ccl_device int bsdf_sheen_setup(KernelGlobals kg,
   bsdf->type = CLOSURE_BSDF_SHEEN_ID;
 
   bsdf->roughness = clamp(bsdf->roughness, 1e-3f, 1.0f);
-  make_orthonormals_tangent(bsdf->N, sd->wi, &bsdf->T, &bsdf->B);
+  make_orthonormals_safe_tangent(bsdf->N, sd->wi, &bsdf->T, &bsdf->B);
   float cosNI = dot(bsdf->N, sd->wi);
 
   int offset = kernel_data.tables.sheen_ltc;
   bsdf->transformA = lookup_table_read_2D(kg, cosNI, bsdf->roughness, offset, 32, 32);
   bsdf->transformB = lookup_table_read_2D(kg, cosNI, bsdf->roughness, offset + 32 * 32, 32, 32);
   float albedo = lookup_table_read_2D(kg, cosNI, bsdf->roughness, offset + 2 * 32 * 32, 32, 32);
+
+  /* If the given roughness and angle result in an invalid LTC, skip the closure. */
+  if (fabsf(bsdf->transformA) < 1e-5f || albedo < 1e-5f) {
+    bsdf->type = CLOSURE_NONE_ID;
+    bsdf->sample_weight = 0.0f;
+    return 0;
+  }
 
   bsdf->weight *= albedo;
   bsdf->sample_weight *= albedo;
@@ -82,9 +89,9 @@ ccl_device int bsdf_sheen_sample(ccl_private const ShaderClosure *sc,
   const float3 N = bsdf->N, T = bsdf->T, B = bsdf->B;
   float a = bsdf->transformA, b = bsdf->transformB;
 
-  float2 disk = concentric_sample_disk(rand);
+  float2 disk = sample_uniform_disk(rand);
   float diskZ = safe_sqrtf(1.0f - dot(disk, disk));
-  float3 localO = normalize(make_float3((disk.x - diskZ * b) / a, disk.y / a, diskZ));
+  float3 localO = normalize(make_float3((disk.x - diskZ * b), disk.y, diskZ * a));
 
   *wo = localO.x * T + localO.y * B + localO.z * N;
 

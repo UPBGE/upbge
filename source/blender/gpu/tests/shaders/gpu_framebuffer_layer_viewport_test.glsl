@@ -1,8 +1,11 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifdef GPU_VERTEX_SHADER
 void main()
 {
-  /* Fullscreen triangle. */
+  /* Full-screen triangle. */
   int v = gl_VertexID % 3;
   float x = -1.0 + float((v & 1) << 2);
   float y = -1.0 + float((v & 2) << 1);

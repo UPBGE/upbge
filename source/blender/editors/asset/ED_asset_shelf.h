@@ -15,10 +15,12 @@ extern "C" {
 struct ARegion;
 struct ARegionType;
 struct AssetShelfSettings;
+struct AssetShelfType;
 struct bContext;
 struct bContextDataResult;
 struct BlendDataReader;
 struct BlendWriter;
+struct Main;
 struct wmWindowManager;
 struct RegionPollParams;
 
@@ -41,6 +43,7 @@ void *ED_asset_shelf_region_duplicate(void *regiondata);
 void ED_asset_shelf_region_free(struct ARegion *region);
 void ED_asset_shelf_region_init(struct wmWindowManager *wm, struct ARegion *region);
 int ED_asset_shelf_region_snap(const struct ARegion *region, int size, int axis);
+void ED_asset_shelf_region_on_user_resize(const struct ARegion *region);
 void ED_asset_shelf_region_listen(const struct wmRegionListenerParams *params);
 void ED_asset_shelf_region_layout(const bContext *C, struct ARegion *region);
 void ED_asset_shelf_region_draw(const bContext *C, struct ARegion *region);
@@ -58,6 +61,8 @@ void ED_asset_shelf_header_regiontype_register(struct ARegionType *region_type,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+
+void ED_asset_shelf_type_unlink(const struct Main &bmain, const struct AssetShelfType &shelf_type);
 
 int ED_asset_shelf_tile_width(const struct AssetShelfSettings &settings);
 int ED_asset_shelf_tile_height(const struct AssetShelfSettings &settings);

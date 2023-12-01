@@ -44,6 +44,31 @@ enum eMeshWrapperType {
 namespace blender::bke {
 
 /**
+ * The complexity requirement of attribute domains needed to process normals.
+ * See #Mesh::normals_domain().
+ */
+enum class MeshNormalDomain : int8_t {
+  /**
+   * The mesh is completely smooth shaded; either all faces or edges are sharp.
+   * Only #Mesh::face_normals() is necessary. This case is generally the best
+   * for performance, since no mixing is necessary and multithreading is simple.
+   */
+  Face = 0,
+  /**
+   * The mesh is completely smooth shaded; there are no sharp face or edges. Only
+   * #Mesh::vert_normals() is necessary. Calculating face normals is still necessary though,
+   * since they have to be mixed to become vertex normals.
+   */
+  Point = 1,
+  /**
+   * The mesh has mixed smooth and sharp shading. In order to split the normals on each side of
+   * sharp edges, they need to be processed per-face-corner. Normals can be retrieved with
+   * #Mesh::corner_normals().
+   */
+  Corner = 2,
+};
+
+/**
  * Cache of a mesh's loose edges, accessed with #Mesh::loose_edges(). *
  */
 struct LooseGeomCache {
@@ -71,10 +96,6 @@ struct MeshRuntime {
    * Since modifier stack evaluation is threaded on object level we need some synchronization. */
   Mesh *mesh_eval = nullptr;
   std::mutex eval_mutex;
-
-  /* A separate mutex is needed for normal calculation, because sometimes
-   * the normals are needed while #eval_mutex is already locked. */
-  std::mutex normals_mutex;
 
   /** Needed to ensure some thread-safety during render data pre-processing. */
   std::mutex render_mutex;
@@ -120,7 +141,7 @@ struct MeshRuntime {
    * Copied from edit-mesh (hint, draw with edit-mesh data when true).
    *
    * Modifiers that edit the mesh data in-place must set this to false
-   * (most #eModifierTypeType_NonGeometrical modifiers). Otherwise the edit-mesh
+   * (most #ModifierTypeType::NonGeometrical modifiers). Otherwise the edit-mesh
    * data will be used for drawing, missing changes from modifiers. See #79517.
    */
   bool is_original_bmesh = false;
@@ -140,16 +161,22 @@ struct MeshRuntime {
    */
   SubsurfRuntimeData *subsurf_runtime_data = nullptr;
 
-  /**
-   * Caches for lazily computed vertex and face normals. These are stored here rather than in
-   * #CustomData because they can be calculated on a `const` mesh, and adding custom data layers on
-   * a `const` mesh is not thread-safe.
-   */
-  bool vert_normals_dirty = true;
-  bool face_normals_dirty = true;
-  mutable Vector<float3> vert_normals;
-  mutable Vector<float3> face_normals;
+  /** Caches for lazily computed normals. */
+  SharedCache<Vector<float3>> vert_normals_cache;
+  SharedCache<Vector<float3>> face_normals_cache;
+  SharedCache<Vector<float3>> corner_normals_cache;
 
+  /**
+   * Cache of offsets for vert to face/corner maps. The same offsets array is used to group
+   * indices for both the vertex to face and vertex to corner maps.
+   */
+  SharedCache<Array<int>> vert_to_face_offset_cache;
+  /** Cache of indices for vert to face map. */
+  SharedCache<Array<int>> vert_to_face_map_cache;
+  /** Cache of indices for vert to corner map. */
+  SharedCache<Array<int>> vert_to_corner_map_cache;
+  /** Cache of face indices for each face corner. */
+  SharedCache<Array<int>> corner_to_face_map_cache;
   /** Cache of data about edges not used by faces. See #Mesh::loose_edges(). */
   SharedCache<LooseEdgeCache> loose_edges_cache;
   /** Cache of data about vertices not used by edges. See #Mesh::loose_verts(). */

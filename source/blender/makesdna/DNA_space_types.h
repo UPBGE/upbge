@@ -25,10 +25,6 @@
 #include "DNA_view2d_types.h"
 #include "DNA_viewer_path_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct BLI_mempool;
 struct FileLayout;
 struct FileList;
@@ -489,11 +485,8 @@ typedef struct SpaceGraph {
 
   /** Mode for the Graph editor (eGraphEdit_Mode). */
   short mode;
-  /**
-   * Time-transform auto-snapping settings for Graph editor
-   * (eAnimEdit_AutoSnap in DNA_action_types.h).
-   */
-  short autosnap;
+  /* Snapping now lives on the Scene. */
+  short autosnap DNA_DEPRECATED;
   /** Settings for Graph editor (eGraphEdit_Flag). */
   int flag;
 
@@ -579,8 +572,8 @@ typedef struct SpaceNla {
   char _pad0[6];
   /* End 'SpaceLink' header. */
 
-  /** This uses the same settings as autosnap for Action Editor. */
-  short autosnap;
+  /* Snapping now lives on the Scene. */
+  short autosnap DNA_DEPRECATED;
   short flag;
   char _pad[4];
 
@@ -639,6 +632,7 @@ typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
   /** Use #Sequence::color_tag */
   SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
+  SEQ_TIMELINE_SHOW_STRIP_RETIMING = (1 << 4),
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
   /** Draw all wave-forms. */
   SEQ_TIMELINE_ALL_WAVEFORMS = (1 << 7),
@@ -868,11 +862,11 @@ typedef struct FileAssetSelectParams {
    * catalog to show. */
   bUUID catalog_id;
 
-  short import_type; /* eFileAssetImportType */
+  short import_method; /* eFileAssetImportMethod */
   char _pad2[6];
 } FileAssetSelectParams;
 
-typedef enum eFileAssetImportType {
+typedef enum eFileAssetImportMethod {
   /** Regular data-block linking. */
   FILE_ASSET_IMPORT_LINK = 0,
   /** Regular data-block appending (basically linking + "Make Local"). */
@@ -883,7 +877,7 @@ typedef enum eFileAssetImportType {
   FILE_ASSET_IMPORT_APPEND_REUSE = 2,
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
-} eFileAssetImportType;
+} eFileAssetImportMethod;
 
 /**
  * A wrapper to store previous and next folder lists (#FolderList) for a specific browse mode
@@ -1495,7 +1489,6 @@ typedef enum eSpaceText_Flags {
   ST_SHOW_MARGIN = (1 << 7),
   ST_MATCH_CASE = (1 << 8),
 
-  ST_FIND_ACTIVATE = (1 << 9),
 } eSpaceText_Flags;
 
 /* SpaceText.findstr/replacestr */
@@ -1647,6 +1640,13 @@ typedef struct SpaceNode {
    */
   char geometry_nodes_type;
 
+  /**
+   * Used as the editor's top-level node group for #SNODE_GEOMETRY_TOOL. This is stored in the
+   * node editor because it isn't part of the context otherwise, and it isn't meant to be set
+   * separately from the editor's regular node group.
+   */
+  struct bNodeTree *geometry_nodes_tool_tree;
+
   /** Grease-pencil data. */
   struct bGPdata *gpd;
 
@@ -1669,8 +1669,7 @@ typedef enum eSpaceNode_Flag {
   SNODE_FLAG_UNUSED_10 = (1 << 10), /* cleared */
   SNODE_FLAG_UNUSED_11 = (1 << 11), /* cleared */
   SNODE_PIN = (1 << 12),
-  /** automatically offset following nodes in a chain on insertion */
-  SNODE_SKIP_INSOFFSET = (1 << 13),
+  SNODE_FLAG_UNUSED_12 = (1 << 13),
 } eSpaceNode_Flag;
 
 /** #SpaceNode.texfrom */
@@ -2019,9 +2018,12 @@ typedef struct SpaceSpreadsheet {
   uint8_t attribute_domain;
   /* eSpaceSpreadsheet_ObjectEvalState. */
   uint8_t object_eval_state;
+  /* Active grease pencil layer index for grease pencil component. */
+  int active_layer_index;
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
+  char _pad1[4];
 
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;
@@ -2156,7 +2158,3 @@ typedef enum eSpace_Type {
 #define IMG_SIZE_FALLBACK 256
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

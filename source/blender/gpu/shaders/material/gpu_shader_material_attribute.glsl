@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma BLENDER_REQUIRE(gpu_shader_common_math.glsl)
 
 void node_attribute_color(vec4 attr, out vec4 out_attr)
 {
@@ -25,7 +30,7 @@ void node_attribute_flame(vec4 attr, out float out_attr)
 
 void node_attribute_uniform(vec4 attr, const float attr_hash, out vec4 out_attr)
 {
-  /* Temporary solution to support both old UBO attribs and new SSBO loading.
+  /* Temporary solution to support both old UBO attributes and new SSBO loading.
    * Old UBO load is already done through `attr` and will just be passed through. */
   out_attr = attr_load_uniform(attr, floatBitsToUint(attr_hash));
 }
@@ -60,6 +65,6 @@ void node_attribute(
 {
   outcol = vec4(attr.xyz, 1.0);
   outvec = attr.xyz;
-  outf = avg(attr.xyz);
+  outf = math_average(attr.xyz);
   outalpha = attr.w;
 }

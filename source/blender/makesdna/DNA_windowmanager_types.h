@@ -15,7 +15,10 @@
 #include "DNA_ID.h"
 
 #ifdef __cplusplus
-extern "C" {
+#  include <mutex>
+using std_mutex_type = std::mutex;
+#else
+#  define std_mutex_type void
 #endif
 
 /* Defined here: */
@@ -102,6 +105,9 @@ typedef struct ReportList {
   int flag;
   char _pad[4];
   struct wmTimer *reporttimer;
+
+  /** Mutex for thread-safety, runtime only. */
+  std_mutex_type *lock;
 } ReportList;
 
 /* Timer custom-data to control reports display. */
@@ -109,8 +115,8 @@ typedef struct ReportList {
 #
 #
 typedef struct ReportTimerInfo {
-  float col[4];
   float widthfac;
+  float flash_progress;
 } ReportTimerInfo;
 
 //#ifdef WITH_XR_OPENXR
@@ -166,6 +172,7 @@ typedef struct wmWindowManager {
    * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
    */
   struct GSet *notifier_queue_set;
+  void *_pad1;
 
   /** Information and error reports. */
   struct ReportList reports;
@@ -179,8 +186,12 @@ typedef struct wmWindowManager {
   /** Active dragged items. */
   ListBase drags;
 
-  /** Known key configurations. */
+  /**
+   * Known key configurations.
+   * This includes all the #wmKeyConfig members (`defaultconf`, `addonconf`, etc).
+   */
   ListBase keyconfigs;
+
   /** Default configuration. */
   struct wmKeyConfig *defaultconf;
   /** Addon configuration. */
@@ -206,6 +217,8 @@ typedef struct wmWindowManager {
   wmXrData xr;
   //#endif
 } wmWindowManager;
+
+#define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
 
 /** #wmWindowManager.init_flag */
 enum {
@@ -356,7 +369,9 @@ typedef struct wmWindow {
    * Input Method Editor data - complex character input (especially for Asian character input)
    * Currently WIN32 and APPLE, runtime-only data.
    */
-  struct wmIMEData *ime_data;
+  const struct wmIMEData *ime_data;
+  char ime_data_is_composing;
+  char _pad1[7];
 
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue;
@@ -376,6 +391,13 @@ typedef struct wmWindow {
 
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status;
+
+  /**
+   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * Used to detect double-click events.
+   */
+  uint64_t eventstate_prev_press_time_ms;
+
 } wmWindow;
 
 #ifdef ime_data
@@ -661,7 +683,3 @@ enum {
    */
   OP_IS_MODAL_CURSOR_REGION = (1 << 3),
 };
-
-#ifdef __cplusplus
-}
-#endif

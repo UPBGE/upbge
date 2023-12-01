@@ -6,7 +6,7 @@
  * \ingroup bke
  * Implementation of CustomData.
  *
- * BKE_customdata.h contains the function prototypes for this file.
+ * BKE_customdata.hh contains the function prototypes for this file.
  */
 
 #include "MEM_guardedalloc.h"
@@ -33,7 +33,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #ifndef NDEBUG
@@ -43,7 +43,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_anonymous_attribute_id.hh"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_customdata_file.h"
 #include "BKE_deform.h"
 #include "BKE_main.h"
@@ -52,7 +52,7 @@
 #include "BKE_multires.hh"
 #include "BKE_subsurf.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "bmesh.h"
 
@@ -765,27 +765,6 @@ static void layerFree_bmesh_elem_py_ptr(void *data, const int count, const int s
       bpy_bm_generic_invalidate(static_cast<BPy_BMGeneric *>(*ptr));
     }
   }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Callbacks for (`float`, #CD_PAINT_MASK)
- * \{ */
-
-static void layerInterp_paint_mask(const void **sources,
-                                   const float *weights,
-                                   const float * /*sub_weights*/,
-                                   int count,
-                                   void *dest)
-{
-  float mask = 0.0f;
-  for (int i = 0; i < count; i++) {
-    const float interp_weight = weights[i];
-    const float *src = static_cast<const float *>(sources[i]);
-    mask += (*src) * interp_weight;
-  }
-  *(float *)dest = mask;
 }
 
 /** \} */
@@ -1757,7 +1736,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
     {sizeof(MRecast), "MRecast", 1, N_("Recast"), nullptr, nullptr, nullptr, nullptr},
     /* 25: CD_MPOLY */ /* DEPRECATED */
     {sizeof(MPoly), "MPoly", 1, N_("NGon Face"), nullptr, nullptr, nullptr, nullptr, nullptr},
-    /* 26: CD_MLOOP */ /* DEPRECATED*/
+    /* 26: CD_MLOOP */ /* DEPRECATED */
     {sizeof(MLoop),
      "MLoop",
      1,
@@ -1821,8 +1800,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
      nullptr,
      nullptr,
      nullptr},
-    /* 34: CD_PAINT_MASK */
-    {sizeof(float), "", 0, nullptr, nullptr, nullptr, layerInterp_paint_mask, nullptr, nullptr},
+    /* 34: CD_PAINT_MASK */ /* DEPRECATED */
+    {sizeof(float), "", 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     /* 35: CD_GRID_PAINT_MASK */
     {sizeof(GridPaintMask),
      "GridPaintMask",
@@ -2038,8 +2017,7 @@ const CustomData_MeshMasks CD_MASK_BAREMESH_ORIGINDEX = {
     /*lmask*/ CD_MASK_PROP_INT32,
 };
 const CustomData_MeshMasks CD_MASK_MESH = {
-    /*vmask*/ (CD_MASK_PROP_FLOAT3 | CD_MASK_MDEFORMVERT | CD_MASK_MVERT_SKIN |
-               CD_MASK_PAINT_MASK | CD_MASK_PROP_ALL),
+    /*vmask*/ (CD_MASK_PROP_FLOAT3 | CD_MASK_MDEFORMVERT | CD_MASK_MVERT_SKIN | CD_MASK_PROP_ALL),
     /*emask*/
     (CD_MASK_FREESTYLE_EDGE | CD_MASK_PROP_ALL),
     /*fmask*/ 0,
@@ -2051,7 +2029,7 @@ const CustomData_MeshMasks CD_MASK_MESH = {
 
 const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     /*vmask*/ (CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT | CD_MASK_SHAPEKEY | CD_MASK_MVERT_SKIN |
-               CD_MASK_PAINT_MASK | CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_PROP_ALL),
+               CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_PROP_ALL),
     /*emask*/
     (CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_EDGE | CD_MASK_PROP_ALL),
     /*fmask*/ (CD_MASK_ORIGINDEX | CD_MASK_ORIGSPACE | CD_MASK_PREVIEW_MCOL | CD_MASK_TANGENT),
@@ -2063,7 +2041,7 @@ const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
 };
 const CustomData_MeshMasks CD_MASK_BMESH = {
     /*vmask*/ (CD_MASK_MDEFORMVERT | CD_MASK_MVERT_SKIN | CD_MASK_SHAPEKEY |
-               CD_MASK_SHAPE_KEYINDEX | CD_MASK_PAINT_MASK | CD_MASK_PROP_ALL),
+               CD_MASK_SHAPE_KEYINDEX | CD_MASK_PROP_ALL),
     /*emask*/ (CD_MASK_FREESTYLE_EDGE | CD_MASK_PROP_ALL),
     /*fmask*/ 0,
     /*pmask*/
@@ -2074,7 +2052,7 @@ const CustomData_MeshMasks CD_MASK_BMESH = {
 const CustomData_MeshMasks CD_MASK_EVERYTHING = {
     /*vmask*/ (CD_MASK_BM_ELEM_PYPTR | CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT |
                CD_MASK_MVERT_SKIN | CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_SHAPEKEY |
-               CD_MASK_SHAPE_KEYINDEX | CD_MASK_PAINT_MASK | CD_MASK_PROP_ALL),
+               CD_MASK_SHAPE_KEYINDEX | CD_MASK_PROP_ALL),
     /*emask*/
     (CD_MASK_BM_ELEM_PYPTR | CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_EDGE | CD_MASK_PROP_ALL),
     /*fmask*/
@@ -2231,7 +2209,9 @@ static bool customdata_merge_internal(const CustomData *source,
     const int src_layer_flag = src_layer.flag;
 
     if (type != last_type) {
-      current_type_layer_count = 0;
+      /* Don't exceed layer count on destination. */
+      const int layernum_dst = CustomData_number_of_layers(dest, type);
+      current_type_layer_count = layernum_dst;
       max_current_type_layer_count = CustomData_layertype_layers_max(type);
       last_active = src_layer.active;
       last_render = src_layer.active_rnd;
@@ -2413,7 +2393,30 @@ static void ensure_layer_data_is_mutable(CustomDataLayer &layer, const int totel
   }
 }
 
-void CustomData_realloc(CustomData *data, const int old_size, const int new_size)
+[[maybe_unused]] static bool layer_is_mutable(CustomDataLayer &layer)
+{
+  if (layer.sharing_info == nullptr) {
+    return true;
+  }
+  return layer.sharing_info->is_mutable();
+}
+
+void CustomData_ensure_data_is_mutable(CustomDataLayer *layer, const int totelem)
+{
+  ensure_layer_data_is_mutable(*layer, totelem);
+}
+
+void CustomData_ensure_layers_are_mutable(CustomData *data, int totelem)
+{
+  for (const int i : IndexRange(data->totlayer)) {
+    ensure_layer_data_is_mutable(data->layers[i], totelem);
+  }
+}
+
+void CustomData_realloc(CustomData *data,
+                        const int old_size,
+                        const int new_size,
+                        const eCDAllocType alloctype)
 {
   BLI_assert(new_size >= 0);
   for (int i = 0; i < data->totlayer; i++) {
@@ -2446,10 +2449,25 @@ void CustomData_realloc(CustomData *data, const int old_size, const int new_size
     }
 
     if (new_size > old_size) {
-      /* Initialize new values for non-trivial types. */
-      if (typeInfo->construct) {
-        const int new_elements_num = new_size - old_size;
-        typeInfo->construct(POINTER_OFFSET(layer->data, old_size_in_bytes), new_elements_num);
+      const int new_elements_num = new_size - old_size;
+      void *new_elements_begin = POINTER_OFFSET(layer->data, old_size_in_bytes);
+      switch (alloctype) {
+        case CD_CONSTRUCT: {
+          /* Initialize new values for non-trivial types. */
+          if (typeInfo->construct) {
+            typeInfo->construct(new_elements_begin, new_elements_num);
+          }
+          break;
+        }
+        case CD_SET_DEFAULT: {
+          if (typeInfo->set_default_value) {
+            typeInfo->set_default_value(new_elements_begin, new_elements_num);
+          }
+          else {
+            memset(new_elements_begin, 0, typeInfo->size * new_elements_num);
+          }
+          break;
+        }
       }
     }
   }
@@ -3220,38 +3238,6 @@ int CustomData_number_of_layers_typemask(const CustomData *data, const eCustomDa
   return number;
 }
 
-void CustomData_free_temporary(CustomData *data, const int totelem)
-{
-  int i, j;
-  bool changed = false;
-  for (i = 0, j = 0; i < data->totlayer; i++) {
-    CustomDataLayer *layer = &data->layers[i];
-
-    if (i != j) {
-      data->layers[j] = data->layers[i];
-    }
-
-    if ((layer->flag & CD_FLAG_TEMPORARY) == CD_FLAG_TEMPORARY) {
-      customData_free_layer__internal(layer, totelem);
-      changed = true;
-    }
-    else {
-      j++;
-    }
-  }
-
-  data->totlayer = j;
-
-  if (data->totlayer <= data->maxlayer - CUSTOMDATA_GROW) {
-    customData_resize(data, -CUSTOMDATA_GROW);
-    changed = true;
-  }
-
-  if (changed) {
-    customData_update_offsets(data);
-  }
-}
-
 void CustomData_set_only_copy(const CustomData *data, const eCustomDataMask mask)
 {
   for (int i = 0; i < data->totlayer; i++) {
@@ -3285,6 +3271,8 @@ void CustomData_copy_data_layer(const CustomData *source,
                                 const int count)
 {
   const LayerTypeInfo *typeInfo;
+
+  BLI_assert(layer_is_mutable(dest->layers[dst_layer_index]));
 
   const void *src_data = source->layers[src_layer_index].data;
   void *dst_data = dest->layers[dst_layer_index].data;
@@ -3401,6 +3389,7 @@ void CustomData_free_elem(CustomData *data, const int index, const int count)
 
     if (typeInfo->free) {
       size_t offset = size_t(index) * typeInfo->size;
+      BLI_assert(layer_is_mutable(data->layers[i]));
 
       typeInfo->free(POINTER_OFFSET(data->layers[i].data, offset), count, typeInfo->size);
     }

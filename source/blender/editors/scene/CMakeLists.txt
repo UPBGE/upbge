@@ -6,7 +6,6 @@ set(INC
   ../include
   ../../blenkernel
   ../../blentranslation
-  ../../depsgraph
   ../../makesrna
   ../../sequencer
   ../../windowmanager
@@ -18,11 +17,13 @@ set(INC_SYS
 
 set(SRC
   scene_edit.cc
+  scene_fps.cc
 )
 
 set(LIB
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

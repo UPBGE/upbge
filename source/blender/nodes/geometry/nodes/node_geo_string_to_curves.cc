@@ -5,11 +5,11 @@
 #include "DNA_curve_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 
 #include "BLI_bounds.hh"
 #include "BLI_hash.h"
@@ -19,6 +19,8 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
+#include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
 
@@ -233,7 +235,8 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
     layout.positions.append(float2(ct.xof, ct.yof) * layout.final_font_size);
 
     if ((info[i].flag & CU_CHINFO_OVERFLOW) && (cu.overflow == CU_OVERFLOW_TRUNCATE)) {
-      const int offset = BLI_str_utf8_offset_from_index(layout.text.c_str(), i + 1);
+      const int offset = BLI_str_utf8_offset_from_index(
+          layout.text.c_str(), layout.text.size(), i + 1);
       layout.truncated_text = layout.text.substr(offset);
       layout.text = layout.text.substr(0, offset);
       break;
@@ -294,6 +297,8 @@ static Map<int, int> create_curve_instances(GeoNodeExecParams &params,
 
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     BKE_nurbList_free(&cu.nurb);
+
+    geometry::debug_randomize_curve_order(&curves);
 
     float4x4 size_matrix = math::from_scale<float4x4>(float3(layout.final_font_size));
     curves.transform(size_matrix);

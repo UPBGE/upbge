@@ -25,14 +25,14 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,7 +40,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -100,7 +100,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
   float time;
 
   /* -------------------------------------------------------------------- */
-  /* Interpret Time (the reading functions also do some of this ) */
+  /* Interpret Time (the reading functions also do some of this). */
   if (mcmd->play_mode == MOD_MESHCACHE_PLAY_CFEA) {
     const float ctime = BKE_scene_ctime_get(scene);
 
@@ -278,13 +278,17 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
 
-  meshcache_do(mcmd, scene, ctx->object, mesh, vertexCos, verts_num);
+  meshcache_do(mcmd,
+               scene,
+               ctx->object,
+               mesh,
+               reinterpret_cast<float(*)[3]>(positions.data()),
+               positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -374,7 +378,7 @@ ModifierTypeInfo modifierType_MeshCache = {
     /*struct_name*/ "MeshCacheModifierData",
     /*struct_size*/ sizeof(MeshCacheModifierData),
     /*srna*/ &RNA_MeshCacheModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */

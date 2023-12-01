@@ -5,14 +5,13 @@
 set(INC
   .
   intern
-  ../blenfont
   ../blenkernel
   ../blentranslation
   ../bmesh
-  ../depsgraph
   ../editors/include
   ../makesrna
   ../render
+  ../render/intern
   ../windowmanager
   ../../../intern/eigen
 
@@ -88,7 +87,9 @@ list(APPEND LIB
 endif()
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

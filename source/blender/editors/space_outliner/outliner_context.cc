@@ -8,7 +8,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "DNA_space_types.h"
 
@@ -35,9 +35,9 @@ static const char *outliner_context_dir[] = {
     nullptr,
 };
 
-int /*eContextResult*/ outliner_context(const bContext *C,
-                                        const char *member,
-                                        bContextDataResult *result)
+int /*eContextResult*/ outliner_main_region_context(const bContext *C,
+                                                    const char *member,
+                                                    bContextDataResult *result)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 

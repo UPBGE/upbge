@@ -1,10 +1,13 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Dilate motion vector tiles until we covered maximum velocity.
  * Outputs the largest intersecting motion vector in the neighborhood.
  */
 
-#pragma BLENDER_REQUIRE(common_math_geom_lib.glsl)
+#pragma BLENDER_REQUIRE(draw_math_geom_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_motion_blur_lib.glsl)
 
 #define DEBUG_BYPASS_DILATION 0
@@ -19,7 +22,7 @@ MotionRect compute_motion_rect(ivec2 tile, vec2 motion)
 #if DEBUG_BYPASS_DILATION
   return MotionRect(tile, ivec2(1));
 #endif
-  /* Ceil to number of tile touched. */
+  /* `ceil()` to number of tile touched. */
   ivec2 point1 = tile + ivec2(sign(motion) * ceil(abs(motion) / float(MOTION_BLUR_TILE_SIZE)));
   ivec2 point2 = tile;
 

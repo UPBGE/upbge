@@ -21,14 +21,14 @@
 #include "DNA_volume_types.h"
 
 #include "BKE_global.h"
-#include "BKE_volume.h"
-#include "BKE_volume_render.h"
+#include "BKE_volume.hh"
+#include "BKE_volume_render.hh"
 
 #include "GPU_batch.h"
 #include "GPU_capabilities.h"
 #include "GPU_texture.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "DRW_render.h"
 
@@ -312,8 +312,7 @@ static DRWVolumeGrid *volume_grid_cache_get(const Volume *volume,
                                                 UNPACK3(dense_grid.resolution),
                                                 1,
                                                 format,
-                                                GPU_TEXTURE_USAGE_SHADER_READ |
-                                                    GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW,
+                                                GPU_TEXTURE_USAGE_SHADER_READ,
                                                 dense_grid.voxels);
     /* The texture can be null if the resolution along one axis is larger than
      * GL_MAX_3D_TEXTURE_SIZE. */

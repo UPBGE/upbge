@@ -28,14 +28,14 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_layer.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -46,7 +46,7 @@
 
 #include "ANIM_bone_collections.h"
 
-#include "SEQ_select.h"
+#include "SEQ_select.hh"
 
 #include "transform.hh"
 #include "transform_orientations.hh"
@@ -633,7 +633,7 @@ short ED_transform_calc_orientation_from_type_ex(const Scene *scene,
 
       if (ob) {
         if (ob->mode & OB_MODE_POSE) {
-          const bPoseChannel *pchan = BKE_pose_channel_active_if_layer_visible(ob);
+          const bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
           if (pchan && gimbal_axis_pose(ob, pchan, r_mat)) {
             break;
           }
@@ -1361,7 +1361,7 @@ int getTransformOrientation_ex(const Scene *scene,
     float imat[3][3], mat[3][3];
     bool ok = false;
 
-    if (activeOnly && (pchan = BKE_pose_channel_active_if_layer_visible(ob))) {
+    if (activeOnly && (pchan = BKE_pose_channel_active_if_bonecoll_visible(ob))) {
       add_v3_v3(normal, pchan->pose_mat[2]);
       add_v3_v3(plane, pchan->pose_mat[1]);
       ok = true;

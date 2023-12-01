@@ -24,7 +24,7 @@
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "DNA_ID.h"
 #include "DNA_layer_types.h"
@@ -78,9 +78,10 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
    * `pxr::UsdStage::CreateNew` function). */
   const pxr::SdfLayerHandle root_layer = stage_->GetRootLayer();
   const std::string export_file_path = root_layer->GetRealPath();
+  auto get_time_code = [this]() { return this->export_time_; };
 
   return USDExporterContext{
-      bmain_, depsgraph_, stage_, path, export_time_, params_, export_file_path};
+      bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path};
 }
 
 AbstractHierarchyWriter *USDHierarchyIterator::create_transform_writer(

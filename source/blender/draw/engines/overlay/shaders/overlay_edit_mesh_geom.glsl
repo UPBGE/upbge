@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
@@ -14,7 +17,7 @@ void do_vertex(vec4 color, vec4 pos, float coord, vec2 offset)
 #if 0
   view_clipping_distances_set(gl_in[i]);
 #endif
-  EmitVertex();
+  gpu_EmitVertex();
 }
 
 void main()
@@ -52,7 +55,7 @@ void main()
   half_size += (geometry_flat_out.finalColorOuter.a > 0.0) ? max(sizeEdge, 1.0) : 0.0;
 
   if (do_smooth_wire) {
-    /* Add 1 px for AA */
+    /* Add 1px for AA */
     half_size += 0.5;
   }
 

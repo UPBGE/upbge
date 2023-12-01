@@ -18,7 +18,7 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_tracking.h"
 
 #include "WM_api.hh"
@@ -34,7 +34,7 @@
 
 #include "UI_view2d.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "clip_intern.h"         /* own include */
 #include "tracking_ops_intern.h" /* own include */

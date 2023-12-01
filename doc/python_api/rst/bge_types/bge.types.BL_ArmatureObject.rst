@@ -28,9 +28,9 @@ base class --- :class:`~bge.types.KX_GameObject`
 
       Ensures that the armature will be updated on next graphic frame.
 
-      This action is unecessary if a KX_ArmatureActuator with mode run is active
+      This action is unnecessary if a KX_ArmatureActuator with mode run is active
       or if an action is playing. Use this function in other cases. It must be called
-      on each frame to ensure that the armature is updated continously.
+      on each frame to ensure that the armature is updated continuously.
 
    .. method:: draw()
 

@@ -12,6 +12,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
@@ -23,7 +24,6 @@
 
 struct ARegion;
 struct AssetFilterSettings;
-struct AssetRepresentation;
 struct AutoComplete;
 struct EnumPropertyItem;
 struct FileSelectParams;
@@ -74,6 +74,7 @@ struct uiBut;
 struct uiButExtraOpIcon;
 struct uiLayout;
 struct uiPopupBlockHandle;
+struct uiTooltipData;
 /* C handle for C++ #ui::AbstractView type. */
 struct uiViewHandle;
 /* C handle for C++ #ui::AbstractViewItem type. */
@@ -118,17 +119,21 @@ struct uiViewItemHandle;
 
 /** #uiBlock.emboss and #uiBut.emboss */
 enum eUIEmbossType {
-  UI_EMBOSS = 0,          /* use widget style for drawing */
-  UI_EMBOSS_NONE = 1,     /* Nothing, only icon and/or text */
-  UI_EMBOSS_PULLDOWN = 2, /* Pull-down menu style */
-  UI_EMBOSS_RADIAL = 3,   /* Pie Menu */
+  /** Use widget style for drawing. */
+  UI_EMBOSS = 0,
+  /** Nothing, only icon and/or text */
+  UI_EMBOSS_NONE = 1,
+  /** Pull-down menu style */
+  UI_EMBOSS_PULLDOWN = 2,
+  /** Pie Menu */
+  UI_EMBOSS_RADIAL = 3,
   /**
    * The same as #UI_EMBOSS_NONE, unless the button has
    * a coloring status like an animation state or red alert.
    */
   UI_EMBOSS_NONE_OR_STATUS = 4,
-
-  UI_EMBOSS_UNDEFINED = 255, /* For layout engine, use emboss from block. */
+  /** For layout engine, use emboss from block. */
+  UI_EMBOSS_UNDEFINED = 255,
 };
 
 /** #uiBlock::direction */
@@ -146,23 +151,19 @@ enum {
 /** #uiBlock.flag (controls) */
 enum {
   UI_BLOCK_LOOP = 1 << 0,
-  /** Indicate that items in a popup are drawn with inverted order. Used for arrow key navigation
-   *  so that it knows to invert the navigation direction to match the drawing order. */
-  UI_BLOCK_IS_FLIP = 1 << 1,
-  UI_BLOCK_NO_FLIP = 1 << 2,
-  UI_BLOCK_NUMSELECT = 1 << 3,
+  UI_BLOCK_NUMSELECT = 1 << 1,
   /** Don't apply window clipping. */
-  UI_BLOCK_NO_WIN_CLIP = 1 << 4,
-  UI_BLOCK_CLIPBOTTOM = 1 << 5,
-  UI_BLOCK_CLIPTOP = 1 << 6,
-  UI_BLOCK_MOVEMOUSE_QUIT = 1 << 7,
-  UI_BLOCK_KEEP_OPEN = 1 << 8,
-  UI_BLOCK_POPUP = 1 << 9,
-  UI_BLOCK_OUT_1 = 1 << 10,
-  UI_BLOCK_SEARCH_MENU = 1 << 11,
-  UI_BLOCK_POPUP_MEMORY = 1 << 12,
+  UI_BLOCK_NO_WIN_CLIP = 1 << 2,
+  UI_BLOCK_CLIPBOTTOM = 1 << 3,
+  UI_BLOCK_CLIPTOP = 1 << 4,
+  UI_BLOCK_MOVEMOUSE_QUIT = 1 << 5,
+  UI_BLOCK_KEEP_OPEN = 1 << 6,
+  UI_BLOCK_POPUP = 1 << 7,
+  UI_BLOCK_OUT_1 = 1 << 8,
+  UI_BLOCK_SEARCH_MENU = 1 << 9,
+  UI_BLOCK_POPUP_MEMORY = 1 << 10,
   /** Stop handling mouse events. */
-  UI_BLOCK_CLIP_EVENTS = 1 << 13,
+  UI_BLOCK_CLIP_EVENTS = 1 << 11,
 
   /* #uiBlock::flags bits 14-17 are identical to #uiBut::drawflag bits. */
 
@@ -180,6 +181,8 @@ enum {
   UI_BLOCK_SEARCH_ONLY = 1 << 25,
   /** Hack for quick setup (splash screen) to draw text centered. */
   UI_BLOCK_QUICK_SETUP = 1 << 26,
+  /** Don't accelerator keys for the items in the block. */
+  UI_BLOCK_NO_ACCELERATOR_KEYS = 1 << 27,
 };
 
 /** #uiPopupBlockHandle.menuretval */
@@ -250,6 +253,15 @@ enum {
 
   /** RNA property of the button is overridden from linked reference data. */
   UI_BUT_OVERRIDDEN = 1u << 31u,
+};
+
+enum {
+  /**
+   * This is used when `UI_BUT_ACTIVATE_ON_INIT` is used, which is used to activate e.g. a search
+   * box as soon as a popup opens. Usually, the text in the search box is selected by default.
+   * However, sometimes this behavior is not desired, so it can be disabled with this flag.
+   */
+  UI_BUT2_ACTIVATE_ON_INIT_NO_SELECT = 1 << 0,
 };
 
 /** #uiBut.dragflag */
@@ -338,10 +350,10 @@ enum {
   /** This but is "inside" a box item (currently used to change theme colors). */
   UI_BUT_BOX_ITEM = 1 << 20,
 
-  /** Active left part of number button */
-  UI_BUT_ACTIVE_LEFT = 1 << 21,
-  /** Active right part of number button */
-  UI_BUT_ACTIVE_RIGHT = 1 << 22,
+  /** Mouse is hovering left part of number button */
+  UI_BUT_HOVER_LEFT = 1 << 21,
+  /** Mouse is hovering right part of number button */
+  UI_BUT_HOVER_RIGHT = 1 << 22,
 
   /** Reverse order of consecutive off/on icons */
   UI_BUT_ICON_REVERSE = 1 << 23,
@@ -454,6 +466,7 @@ enum eButType {
 
 /** Gradient types, for color picker #UI_BTYPE_HSVCUBE etc. */
 enum eButGradientType {
+  UI_GRAD_NONE = -1,
   UI_GRAD_SV = 0,
   UI_GRAD_HV = 1,
   UI_GRAD_HS = 2,
@@ -489,7 +502,8 @@ void UI_draw_roundbox_4fv_ex(const rctf *rect,
 int UI_draw_roundbox_corner_get();
 #endif
 
-void UI_draw_box_shadow(const rctf *rect, unsigned char alpha);
+void ui_draw_dropshadow(const rctf *rct, float radius, float width, float aspect, float alpha);
+
 void UI_draw_text_underline(int pos_x, int pos_y, int len, int height, const float color[4]);
 
 /**
@@ -559,8 +573,10 @@ using uiButHandleNFunc = void (*)(bContext *C, void *argN, void *arg2);
 using uiButHandleHoldFunc = void (*)(bContext *C, ARegion *butregion, uiBut *but);
 using uiButCompleteFunc = int (*)(bContext *C, char *str, void *arg);
 
-/** Function to compare the identity of two buttons over redraws, to check if they represent the
- * same data, and thus should be considered the same button over redraws. */
+/**
+ * Function to compare the identity of two buttons over redraws, to check if they represent the
+ * same data, and thus should be considered the same button over redraws.
+ */
 using uiButIdentityCompareFunc = bool (*)(const uiBut *a, const uiBut *b);
 
 /* Search types. */
@@ -582,6 +598,8 @@ using uiButSearchListenFn = void (*)(const wmRegionListenerParams *params, void 
 
 /** Must return an allocated string. */
 using uiButToolTipFunc = char *(*)(bContext *C, void *argN, const char *tip);
+
+using uiButToolTipCustomFunc = void (*)(bContext *C, uiTooltipData *data, void *argN);
 
 using uiBlockHandleFunc = void (*)(bContext *C, void *arg, int event);
 
@@ -838,6 +856,25 @@ void UI_block_region_set(uiBlock *block, ARegion *region);
 void UI_block_lock_set(uiBlock *block, bool val, const char *lockstr);
 void UI_block_lock_clear(uiBlock *block);
 
+#define UI_BUTTON_SECTION_MERGE_DISTANCE (UI_UNIT_X * 3)
+/* Separator line between regions if the #uiButtonSectionsAlign is not #None. */
+#define UI_BUTTON_SECTION_SEPERATOR_LINE_WITH (U.pixelsize * 2)
+
+enum class uiButtonSectionsAlign : int8_t { None = 1, Top, Bottom };
+/**
+ * Draw a background with rounded corners behind each visual group of buttons. The visual groups
+ * are separated by spacer buttons (#uiItemSpacer()). Button groups that are closer than
+ * #UI_BUTTON_SECTION_MERGE_DISTANCE will be merged into one visual section. If the group is closer
+ * than that to a region edge, it will also be extended to that, and the rounded corners will be
+ * removed on that edge.
+ *
+ * \note This currently only works well for horizontal, header like regions.
+ */
+void UI_region_button_sections_draw(const ARegion *region,
+                                    int /*THemeColorID*/ colorid,
+                                    uiButtonSectionsAlign align);
+bool UI_region_button_sections_is_inside_x(const ARegion *region, const int mval_x);
+
 /**
  * Automatic aligning, horizontal or vertical.
  */
@@ -883,7 +920,6 @@ void UI_block_direction_set(uiBlock *block, char direction);
 /**
  * This call escapes if there's alignment flags.
  */
-void UI_block_order_flip(uiBlock *block);
 void UI_block_flag_enable(uiBlock *block, int flag);
 void UI_block_flag_disable(uiBlock *block, int flag);
 void UI_block_translate(uiBlock *block, int x, int y);
@@ -901,6 +937,7 @@ bool UI_but_active_drop_color(bContext *C);
 void UI_but_flag_enable(uiBut *but, int flag);
 void UI_but_flag_disable(uiBut *but, int flag);
 bool UI_but_flag_is_set(uiBut *but, int flag);
+void UI_but_flag2_enable(uiBut *but, int flag);
 
 void UI_but_drawflag_enable(uiBut *but, int flag);
 void UI_but_drawflag_disable(uiBut *but, int flag);
@@ -911,6 +948,11 @@ void UI_but_dragflag_disable(uiBut *but, int flag);
 void UI_but_disable(uiBut *but, const char *disabled_hint);
 
 void UI_but_type_set_menu_from_pulldown(uiBut *but);
+
+/**
+ * Set at hint that describes the expected value when empty.
+ */
+void UI_but_placeholder_set(uiBut *but, const char *placeholder_text) ATTR_NONNULL(1);
 
 /**
  * Special button case, only draw it when used actively, for outliner etc.
@@ -1374,7 +1416,7 @@ void UI_but_context_ptr_set(uiBlock *block, uiBut *but, const char *name, const 
 const PointerRNA *UI_but_context_ptr_get(const uiBut *but,
                                          const char *name,
                                          const StructRNA *type CPP_ARG_DEFAULT(nullptr));
-bContextStore *UI_but_context_get(const uiBut *but);
+const bContextStore *UI_but_context_get(const uiBut *but);
 
 void UI_but_unit_type_set(uiBut *but, int unit_type);
 int UI_but_unit_type_get(const uiBut *but);
@@ -1384,9 +1426,8 @@ enum uiStringInfoType {
   BUT_GET_RNASTRUCT_IDENTIFIER,
   BUT_GET_RNAENUM_IDENTIFIER,
   BUT_GET_LABEL,
-  /** Sometimes the button doesn't have a label itself, but provides one for the tooltip. This can
-   * be displayed in a quick tooltip, appearing after a smaller timeout and expanding to the full
-   * tooltip after the regular timeout. */
+  /** Query the result of #uiBut::tip_label_func(). Meant to allow overriding the label to be
+   * displayed in the tooltip. */
   BUT_GET_TIP_LABEL,
   BUT_GET_RNA_LABEL,
   BUT_GET_RNAENUM_LABEL,
@@ -1759,7 +1800,54 @@ void UI_but_func_drawextra_set(uiBlock *block,
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func);
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
+/**
+ * Enable a custom quick tooltip label. That is, a short tooltip that appears faster than the full
+ * one and only shows the label string returned by \a func. After a short delay the full tooltip is
+ * shown, including the same label.
+ */
 void UI_but_func_tooltip_label_set(uiBut *but, std::function<std::string(const uiBut *but)> func);
+
+typedef enum uiTooltipStyle {
+  UI_TIP_STYLE_NORMAL = 0, /* Regular text. */
+  UI_TIP_STYLE_HEADER,     /* Header text. */
+  UI_TIP_STYLE_MONO,       /* Mono-spaced text. */
+  UI_TIP_STYLE_IMAGE,      /* Image field. */
+  UI_TIP_STYLE_SPACER,     /* Padding to separate sections. */
+} uiTooltipStyle;
+
+typedef enum uiTooltipColorID {
+  UI_TIP_LC_MAIN = 0, /* Color of primary text. */
+  UI_TIP_LC_VALUE,    /* Color for the value of buttons (also shortcuts). */
+  UI_TIP_LC_ACTIVE,   /* Color of titles of active enum values. */
+  UI_TIP_LC_NORMAL,   /* Color of regular text. */
+  UI_TIP_LC_PYTHON,   /* Color of python snippets. */
+  UI_TIP_LC_ALERT,    /* Warning text color, eg: why operator can't run. */
+  UI_TIP_LC_MAX
+} uiTooltipColorID;
+
+void UI_but_func_tooltip_custom_set(uiBut *but,
+                                    uiButToolTipCustomFunc func,
+                                    void *arg,
+                                    uiFreeArgFunc free_arg);
+
+/**
+ * \param text: Allocated text (transfer ownership to `data`) or null.
+ * \param suffix: Allocated text (transfer ownership to `data`) or null.
+ */
+void UI_tooltip_text_field_add(uiTooltipData *data,
+                               char *text,
+                               char *suffix,
+                               const uiTooltipStyle style,
+                               const uiTooltipColorID color_id,
+                               const bool is_pad = false) ATTR_NONNULL(1);
+
+/**
+ * \param image: Image buffer (duplicated, ownership is *not* transferred to `data`).
+ * \param image_size: Display size for the image (pixels without UI scale applied).
+ */
+void UI_tooltip_image_field_add(uiTooltipData *data, const ImBuf *image, const short image_size[2])
+    ATTR_NONNULL(1, 2, 3);
+
 /**
  * Recreate tool-tip (use to update dynamic tips)
  */
@@ -1835,7 +1923,7 @@ void UI_but_drag_attach_image(uiBut *but, const ImBuf *imb, float scale);
  */
 void UI_but_drag_set_asset(uiBut *but,
                            const blender::asset_system::AssetRepresentation *asset,
-                           int import_type, /* eAssetImportType */
+                           int import_method, /* eAssetImportMethod */
                            int icon,
                            const ImBuf *imb,
                            float scale);
@@ -1889,6 +1977,9 @@ void UI_panel_header_buttons_begin(Panel *panel);
 void UI_panel_header_buttons_end(Panel *panel);
 void UI_panel_end(Panel *panel, int width, int height);
 
+/** Set the name that should be drawn in the UI. Should be a translated string. */
+void UI_panel_drawname_set(Panel *panel, blender::StringRef name);
+
 /**
  * Set a context for this entire panel and its current layout. This should be used whenever panel
  * callbacks that are called outside of regular drawing might require context. Currently it affects
@@ -1919,9 +2010,12 @@ bool UI_panel_can_be_pinned(const Panel *panel);
 bool UI_panel_category_is_visible(const ARegion *region);
 void UI_panel_category_add(ARegion *region, const char *name);
 PanelCategoryDyn *UI_panel_category_find(const ARegion *region, const char *idname);
+int UI_panel_category_index_find(ARegion *region, const char *idname);
 PanelCategoryStack *UI_panel_category_active_find(ARegion *region, const char *idname);
 const char *UI_panel_category_active_get(ARegion *region, bool set_fallback);
 void UI_panel_category_active_set(ARegion *region, const char *idname);
+/** \param index: index of item _in #ARegion.panels_category list_. */
+void UI_panel_category_index_active_set(ARegion *region, const int index);
 void UI_panel_category_active_set_default(ARegion *region, const char *idname);
 void UI_panel_category_clear_all(ARegion *region);
 /**
@@ -2130,7 +2224,7 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout);
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, PointerRNA *ptr);
 bContextStore *uiLayoutGetContextStore(uiLayout *layout);
-void uiLayoutContextCopy(uiLayout *layout, bContextStore *context);
+void uiLayoutContextCopy(uiLayout *layout, const bContextStore *context);
 
 /**
  * Set tooltip function for all buttons in the layout.
@@ -2434,7 +2528,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C);
 void UI_but_func_operator_search(uiBut *but);
 void uiTemplateOperatorSearch(uiLayout *layout);
 
-void UI_but_func_menu_search(uiBut *but);
+void UI_but_func_menu_search(uiBut *but, const char *single_menu_idname = nullptr);
 void uiTemplateMenuSearch(uiLayout *layout);
 
 /**
@@ -2550,7 +2644,6 @@ void uiTemplateNodeLink(
     uiLayout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input);
 void uiTemplateNodeView(
     uiLayout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input);
-void uiTemplateNodeAssetMenuItems(uiLayout *layout, bContext *C, const char *catalog_path);
 void uiTemplateTextureUser(uiLayout *layout, bContext *C);
 /**
  * Button to quickly show texture in Properties Editor texture tab.
@@ -2604,9 +2697,16 @@ void uiTemplateAssetView(uiLayout *layout,
                          const char *drag_opname,
                          PointerRNA *r_drag_op_properties);
 
-void uiTemplateLightLinkingCollection(uiLayout *layout, PointerRNA *ptr, const char *propname);
+void uiTemplateLightLinkingCollection(uiLayout *layout,
+                                      uiLayout *context_layout,
+                                      PointerRNA *ptr,
+                                      const char *propname);
 
+#ifdef WITH_GREASE_PENCIL_V3
 void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C);
+#endif
+
+void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr);
 
 /**
  * \return: A RNA pointer for the operator properties.
@@ -2715,7 +2815,8 @@ void uiItemFullR(uiLayout *layout,
                  int value,
                  eUI_Item_Flag flag,
                  const char *name,
-                 int icon);
+                 int icon,
+                 const char *placeholder = nullptr);
 /**
  * Use a wrapper function since re-implementing all the logic in this function would be messy.
  */
@@ -2773,16 +2874,24 @@ void uiItemPointerR(uiLayout *layout,
                     const char *searchpropname,
                     const char *name,
                     int icon);
+
+/**
+* Create a list of enum items.
+
+ * \param active: an optional item to highlight.
+*/
 void uiItemsFullEnumO(uiLayout *layout,
                       const char *opname,
                       const char *propname,
                       IDProperty *properties,
                       wmOperatorCallContext context,
-                      eUI_Item_Flag flag);
+                      eUI_Item_Flag flag,
+                      const int active = -1);
 /**
  * Create UI items for enum items in \a item_array.
  *
  * A version of #uiItemsFullEnumO that takes pre-calculated item array.
+ * \param active: if not -1, will highlight that item.
  */
 void uiItemsFullEnumO_items(uiLayout *layout,
                             wmOperatorType *ot,
@@ -2792,7 +2901,8 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                             wmOperatorCallContext context,
                             eUI_Item_Flag flag,
                             const EnumPropertyItem *item_array,
-                            int totitem);
+                            int totitem,
+                            int active = -1);
 
 struct uiPropertySplitWrapper {
   uiLayout *label_column;
@@ -3204,6 +3314,7 @@ ARegion *UI_tooltip_create_from_search_item_generic(
 
 /* Typical UI text */
 #define UI_FSTYLE_WIDGET (const uiFontStyle *)&(UI_style_get()->widget)
+#define UI_FSTYLE_WIDGET_LABEL (const uiFontStyle *)&(UI_style_get()->widgetlabel)
 
 /**
  * Returns the best "UI" precision for given floating value,

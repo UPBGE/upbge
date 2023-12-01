@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma USE_SSBO_VERTEX_FETCH(TriangleList, 6)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
@@ -95,7 +98,7 @@ void main()
   half_size += (lineStyle == OVERLAY_UV_LINE_STYLE_OUTLINE) ?
                    max(sizeEdge * (doSmoothWire ? 1.0 : 3.0), 1.0) :
                    0.0;
-  /* Add 1 px for AA */
+  /* Add 1px for AA */
   if (doSmoothWire) {
     half_size += 0.5;
   }

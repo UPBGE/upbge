@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_string.h"
+
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
@@ -32,30 +34,30 @@ static void node_declare(NodeDeclarationBuilder &b)
           "the brownish to black color of eumelanin");
   b.add_input<decl::Color>("Tint")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .description("Additional color used for dyeing the hair.");
+      .description("Additional color used for dyeing the hair");
   b.add_input<decl::Vector>("Absorption Coefficient")
       .default_value({0.245531f, 0.52f, 1.365f})
       .min(0.0f)
       .max(1000.0f)
       .description(
           "Specifies energy absorption per unit length as light passes through the hair. A higher "
-          "value leads to a darker color.");
+          "value leads to a darker color");
   b.add_input<decl::Float>("Aspect Ratio")
       .default_value(0.85f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description(
-          "For elliptical hair cross-section, the aspect ratio is the ratio of the minor axis to "
-          "the major axis (the major axis is aligned with the curve normal). Recommended values "
-          "are 0.8~1 for Asian hair, 0.65~0.9 for Caucasian hair, 0.5~0.65 for African hair. Set "
-          "this to 1 for circular cross-section");
+          "The ratio of the minor axis to the major axis of an elliptical cross-section. "
+          "Recommended values are 0.8~1 for Asian hair, 0.65~0.9 for Caucasian hair, 0.5~0.65 for "
+          "African hair. The major axis is aligned with the curve normal, which is not supported "
+          "in particle hair");
   b.add_input<decl::Float>("Roughness")
       .default_value(0.3f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .description("Hair roughness. A low value leads to a metallic look.");
+      .description("Hair roughness. A low value leads to a metallic look");
   b.add_input<decl::Float>("Radial Roughness")
       .default_value(0.3f)
       .min(0.0f)
@@ -69,7 +71,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Simulate a shiny coat by reducing the roughness to the given factor only for the first "
           "light bounce (diffuse). Range [0, 1] is equivalent to a reduction of [0%, 100%] of the "
-          "original roughness.");
+          "original roughness");
   b.add_input<decl::Float>("IOR").default_value(1.55f).min(0.0f).max(1000.0f).description(
       "Index of refraction determines how much the ray is bent. At 1.0 rays pass straight through "
       "like in a transparent material; higher values cause larger deflection in angle. Default "
@@ -136,7 +138,7 @@ static void node_shader_init_hair_principled(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeShaderHairPrincipled *data = MEM_cnew<NodeShaderHairPrincipled>(__func__);
 
-  data->model = SHD_PRINCIPLED_HAIR_HUANG;
+  data->model = SHD_PRINCIPLED_HAIR_CHIANG;
   data->parametrization = SHD_PRINCIPLED_HAIR_REFLECTANCE;
 
   node->storage = data;
@@ -184,9 +186,7 @@ static void node_shader_update_hair_principled(bNodeTree *ntree, bNode *node)
     else if (STREQ(sock->name, "Aspect Ratio")) {
       bke::nodeSetSocketAvailability(ntree, sock, model == SHD_PRINCIPLED_HAIR_HUANG);
     }
-    else if (STREQ(sock->name, "Reflection") || STREQ(sock->name, "Transmission") ||
-             STREQ(sock->name, "Secondary Reflection"))
-    {
+    else if (STR_ELEM(sock->name, "Reflection", "Transmission", "Secondary Reflection")) {
       bke::nodeSetSocketAvailability(ntree, sock, model == SHD_PRINCIPLED_HAIR_HUANG);
     }
   }

@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_string.h"
+
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -113,6 +115,9 @@ bool Float::can_connect(const bNodeSocket &socket) const
 {
   if (!sockets_can_connect(*this, socket)) {
     return false;
+  }
+  if (this->in_out == SOCK_OUT && socket.type == SOCK_ROTATION) {
+    return true;
   }
   return basic_types_can_connect(*this, socket);
 }
@@ -252,6 +257,9 @@ bool Vector::can_connect(const bNodeSocket &socket) const
 {
   if (!sockets_can_connect(*this, socket)) {
     return false;
+  }
+  if (socket.type == SOCK_ROTATION) {
+    return true;
   }
   return basic_types_can_connect(*this, socket);
 }
@@ -409,7 +417,10 @@ bool Rotation::can_connect(const bNodeSocket &socket) const
   if (!sockets_can_connect(*this, socket)) {
     return false;
   }
-  return socket.type == SOCK_ROTATION;
+  if (this->in_out == SOCK_IN) {
+    return ELEM(socket.type, SOCK_ROTATION, SOCK_FLOAT, SOCK_VECTOR);
+  }
+  return ELEM(socket.type, SOCK_ROTATION, SOCK_VECTOR);
 }
 
 bNodeSocket &Rotation::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
@@ -568,26 +579,46 @@ bool Geometry::only_instances() const
 
 GeometryBuilder &GeometryBuilder::supported_type(bke::GeometryComponent::Type supported_type)
 {
-  decl_->supported_types_ = {supported_type};
+  if (decl_in_) {
+    decl_in_->supported_types_ = {supported_type};
+  }
+  if (decl_out_) {
+    decl_out_->supported_types_ = {supported_type};
+  }
   return *this;
 }
 
 GeometryBuilder &GeometryBuilder::supported_type(
     blender::Vector<bke::GeometryComponent::Type> supported_types)
 {
-  decl_->supported_types_ = std::move(supported_types);
+  if (decl_in_) {
+    decl_in_->supported_types_ = supported_types;
+  }
+  if (decl_out_) {
+    decl_out_->supported_types_ = supported_types;
+  }
   return *this;
 }
 
 GeometryBuilder &GeometryBuilder::only_realized_data(bool value)
 {
-  decl_->only_realized_data_ = value;
+  if (decl_in_) {
+    decl_in_->only_realized_data_ = value;
+  }
+  if (decl_out_) {
+    decl_out_->only_realized_data_ = value;
+  }
   return *this;
 }
 
 GeometryBuilder &GeometryBuilder::only_instances(bool value)
 {
-  decl_->only_instances_ = value;
+  if (decl_in_) {
+    decl_in_->only_instances_ = value;
+  }
+  if (decl_out_) {
+    decl_out_->only_instances_ = value;
+  }
   return *this;
 }
 
@@ -680,6 +711,9 @@ bNodeSocket &Custom::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *nodeAddSocket(
       &ntree, &node, this->in_out, idname_, this->identifier.c_str(), this->name.c_str());
+  if (this->init_socket_fn) {
+    this->init_socket_fn(node, socket, "interface");
+  }
   return socket;
 }
 

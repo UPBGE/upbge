@@ -14,7 +14,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_layer.h"
 #include "BKE_nla.h"
@@ -240,7 +240,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
     return;
   }
 
-  anim_map_flag |= ANIM_get_normalization_flags(&ac);
+  anim_map_flag |= ANIM_get_normalization_flags(ac.sl);
 
   /* filter data */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVE_VISIBLE |
@@ -654,9 +654,9 @@ static void flushTransGraphData(TransInfo *t)
   TransDataGraph *tdg;
   int a;
 
-  const short autosnap = getAnimEdit_SnapMode(t);
-  TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+  eSnapMode snap_mode = t->tsnap.mode;
 
+  TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   /* flush to 2d vector from internally used 3d vector */
   for (a = 0,
       td = tc->data,
@@ -675,8 +675,8 @@ static void flushTransGraphData(TransInfo *t)
      * - Only apply to keyframes (but never to handles).
      * - Don't do this when canceling, or else these changes won't go away.
      */
-    if ((autosnap != SACTSNAP_OFF) && (t->state != TRANS_CANCEL) && !(td->flag & TD_NOTIMESNAP)) {
-      transform_snap_anim_flush_data(t, td, eAnimEdit_AutoSnap(autosnap), td->loc);
+    if ((t->tsnap.flag & SCE_SNAP) && (t->state != TRANS_CANCEL) && !(td->flag & TD_NOTIMESNAP)) {
+      transform_snap_anim_flush_data(t, td, snap_mode, td->loc);
     }
 
     /* we need to unapply the nla-mapping from the time in some situations */
@@ -989,7 +989,7 @@ static void special_aftertrans_update__graph(bContext *C, TransInfo *t)
   const bool use_handle = (sipo->flag & SIPO_NOHANDLES) == 0;
 
   const bool canceled = (t->state == TRANS_CANCEL);
-  const bool duplicate = (t->flag & T_AUTOMERGE) != 0;
+  const bool duplicate = (t->flag & T_DUPLICATED_KEYFRAMES) != 0;
 
   /* initialize relevant anim-context 'context' data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {

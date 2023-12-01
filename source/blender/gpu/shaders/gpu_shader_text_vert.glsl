@@ -1,9 +1,14 @@
+/* SPDX-FileCopyrightText: 2016-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 void main()
 {
   color_flat = col;
   glyph_offset = offset;
   glyph_dim = abs(glyph_size);
+  glyph_mode = mode;
+  glyph_depth = depth;
   interp_size = int(glyph_size.x < 0) + int(glyph_size.y < 0);
 
   /* Quad expansion using instanced rendering. */

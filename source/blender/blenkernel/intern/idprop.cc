@@ -6,12 +6,12 @@
  * \ingroup bke
  */
 
+#include <cfloat>
 #include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <float.h>
 
 #include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
@@ -27,7 +27,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "BLI_strict_flags.h"
 
@@ -783,13 +783,14 @@ void IDP_CopyPropertyContent(IDProperty *dst, const IDProperty *src)
   IDP_FreeProperty(idprop_tmp);
 }
 
-IDProperty *IDP_GetProperties(ID *id, const bool create_if_needed)
+IDProperty *IDP_GetProperties(ID *id)
 {
-  if (id->properties) {
-    return id->properties;
-  }
+  return id->properties;
+}
 
-  if (create_if_needed) {
+IDProperty *IDP_EnsureProperties(ID *id)
+{
+  if (id->properties == nullptr) {
     id->properties = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty"));
     id->properties->type = IDP_GROUP;
     /* NOTE(@ideasman42): Don't overwrite the data's name and type
@@ -1306,6 +1307,10 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader);
 static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
 {
   BLO_read_data_address(reader, &prop->ui_data);
+  if (!prop->ui_data) {
+    /* Can happen when opening more recent files with unknown types of IDProperties. */
+    return;
+  }
   BLO_read_data_address(reader, &prop->ui_data->description);
 
   switch (IDP_ui_data_type(prop)) {
@@ -1475,68 +1480,6 @@ void IDP_BlendReadData_impl(BlendDataReader *reader, IDProperty **prop, const ch
       // IDP_FreePropertyContent(*prop);
       *prop = nullptr;
     }
-  }
-}
-
-void IDP_BlendReadLib(BlendLibReader *reader, ID *self_id, IDProperty *prop)
-{
-  if (!prop) {
-    return;
-  }
-
-  switch (prop->type) {
-    case IDP_ID: /* PointerProperty */
-    {
-      void *newaddr = BLO_read_get_new_id_address(
-          reader, self_id, ID_IS_LINKED(self_id), IDP_Id(prop));
-      if (IDP_Id(prop) && !newaddr && G.debug) {
-        printf("Error while loading \"%s\". Data not found in file!\n", prop->name);
-      }
-      prop->data.pointer = newaddr;
-      break;
-    }
-    case IDP_IDPARRAY: /* CollectionProperty */
-    {
-      IDProperty *idp_array = IDP_IDPArray(prop);
-      for (int i = 0; i < prop->len; i++) {
-        IDP_BlendReadLib(reader, self_id, &(idp_array[i]));
-      }
-      break;
-    }
-    case IDP_GROUP: /* PointerProperty */
-    {
-      LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
-        IDP_BlendReadLib(reader, self_id, loop);
-      }
-      break;
-    }
-    default:
-      break; /* Nothing to do for other IDProps. */
-  }
-}
-
-void IDP_BlendReadExpand(BlendExpander *expander, IDProperty *prop)
-{
-  if (!prop) {
-    return;
-  }
-
-  switch (prop->type) {
-    case IDP_ID:
-      BLO_expand(expander, IDP_Id(prop));
-      break;
-    case IDP_IDPARRAY: {
-      IDProperty *idp_array = IDP_IDPArray(prop);
-      for (int i = 0; i < prop->len; i++) {
-        IDP_BlendReadExpand(expander, &idp_array[i]);
-      }
-      break;
-    }
-    case IDP_GROUP:
-      LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
-        IDP_BlendReadExpand(expander, loop);
-      }
-      break;
   }
 }
 

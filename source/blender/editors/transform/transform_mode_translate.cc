@@ -18,10 +18,10 @@
 #include "BLI_string.h"
 #include "BLI_task.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_report.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
 #include "ED_node.hh"
 #include "ED_screen.hh"
@@ -153,7 +153,7 @@ static void transdata_elem_translate(const TransInfo *t,
     add_v3_v3v3(td->loc, td->iloc, tvec);
   }
 
-  constraintTransLim(t, td);
+  constraintTransLim(t, tc, td);
 }
 
 static void transdata_elem_translate_fn(void *__restrict iter_data_v,
@@ -212,10 +212,10 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       /* WORKAROUND:
        * Special case where snapping is done in #recalData.
        * Update the header based on the #center_local. */
-      const short autosnap = getAnimEdit_SnapMode(t);
+      eSnapMode autosnap = t->tsnap.mode;
       float ival = TRANS_DATA_CONTAINER_FIRST_OK(t)->center_local[0];
       float val = ival + dvec[0];
-      snapFrameTransform(t, eAnimEdit_AutoSnap(autosnap), ival, val, &val);
+      snapFrameTransform(t, autosnap, ival, val, &val);
       dvec[0] = val - ival;
     }
 
@@ -299,25 +299,12 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
   else {
     if (t->spacetype == SPACE_NODE) {
       SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
-      if ((snode->flag & SNODE_SKIP_INSOFFSET) == 0) {
+      if (U.uiflag & USER_NODE_AUTO_OFFSET) {
         const char *str_dir = (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT) ?
                                   TIP_("right") :
                                   TIP_("left");
-        char str_dir_km[64];
-        WM_modalkeymap_items_to_string(
-            t->keymap, TFM_MODAL_INSERTOFS_TOGGLE_DIR, true, str_dir_km, sizeof(str_dir_km));
-        ofs += BLI_snprintf_rlen(str,
-                                 UI_MAX_DRAW_STR,
-                                 TIP_("%s: Toggle auto-offset direction (%s)"),
-                                 str_dir_km,
-                                 str_dir);
+        ofs += BLI_snprintf_rlen(str, UI_MAX_DRAW_STR, TIP_("Auto-offset direction: %s"), str_dir);
       }
-
-      char str_attach_km[64];
-      WM_modalkeymap_items_to_string(
-          t->keymap, TFM_MODAL_NODE_ATTACH_OFF, true, str_attach_km, sizeof(str_attach_km));
-      ofs += BLI_snprintf_rlen(
-          str + ofs, UI_MAX_DRAW_STR - ofs, TIP_(", %s: Toggle auto-attach"), str_attach_km);
     }
     else {
       if (t->flag & T_2D_EDIT) {
@@ -577,7 +564,7 @@ static bool clip_uv_transform_translation(TransInfo *t, float vec[2])
 
 static void applyTranslation(TransInfo *t)
 {
-  char str[UI_MAX_DRAW_STR];
+  char str[UI_MAX_DRAW_STR] = "";
   float global_dir[3] = {0.0f};
 
   if (t->flag & T_INPUT_IS_VALUES_FINAL) {
@@ -642,10 +629,7 @@ static void applyTranslation(TransInfo *t)
   if (t->flag & T_CLIP_UV && clip_uv_transform_translation(t, global_dir)) {
     applyTranslationValue(t, global_dir);
 
-    /* In proportional edit it can happen that */
-    /* vertices in the radius of the brush end */
-    /* outside the clipping area               */
-    /* XXX HACK - dg */
+    /* Not ideal, see #clipUVData code-comment. */
     if (t->flag & T_PROP_EDIT) {
       clipUVData(t);
     }
@@ -656,7 +640,7 @@ static void applyTranslation(TransInfo *t)
   headerTranslation(t, (t->con.mode & CON_APPLY) ? t->values_final : global_dir, str);
 
   recalc_data(t);
-  ED_area_status_text(t->area, str);
+  ED_area_status_text(t->area, (str[0] == '\0') ? nullptr : str);
 }
 
 static void applyTranslationMatrix(TransInfo *t, float mat_xform[4][4])

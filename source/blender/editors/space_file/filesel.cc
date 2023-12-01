@@ -42,7 +42,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_appdir.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_idtype.h"
 #include "BKE_main.h"
 #include "BKE_preferences.h"
@@ -110,7 +110,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
     asset_params->base_params.details_flags = U_default.file_space_data.details_flags;
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
-    asset_params->import_type = FILE_ASSET_IMPORT_FOLLOW_PREFS;
+    asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
   }
 
   FileSelectParams *base_params = &asset_params->base_params;
@@ -519,12 +519,12 @@ int ED_fileselect_asset_import_method_get(const SpaceFile *sfile, const FileDirE
 
   const FileAssetSelectParams *params = ED_fileselect_get_asset_params(sfile);
 
-  if (params->import_type == FILE_ASSET_IMPORT_FOLLOW_PREFS) {
+  if (params->import_method == FILE_ASSET_IMPORT_FOLLOW_PREFS) {
     std::optional import_method = file->asset->get_import_method();
     return import_method ? *import_method : -1;
   }
 
-  switch (eFileAssetImportType(params->import_type)) {
+  switch (eFileAssetImportMethod(params->import_method)) {
     case FILE_ASSET_IMPORT_LINK:
       return ASSET_IMPORT_LINK;
     case FILE_ASSET_IMPORT_APPEND:
@@ -623,15 +623,15 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
  * may also be remembered, but only conditionally. */
 #define PARAMS_FLAGS_REMEMBERED (FILE_HIDE_DOT)
 
-void ED_fileselect_window_params_get(const wmWindow *win, int win_size[2], bool *is_maximized)
+void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {
   /* Get DPI/pixel-size independent size to be stored in preferences. */
   WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
 
-  win_size[0] = WM_window_pixels_x(win) / UI_SCALE_FAC;
-  win_size[1] = WM_window_pixels_y(win) / UI_SCALE_FAC;
+  r_win_size[0] = WM_window_pixels_x(win) / UI_SCALE_FAC;
+  r_win_size[1] = WM_window_pixels_y(win) / UI_SCALE_FAC;
 
-  *is_maximized = WM_window_is_maximized(win);
+  *r_is_maximized = WM_window_is_maximized(win);
 }
 
 static bool file_select_use_default_display_type(const SpaceFile *sfile)
@@ -893,16 +893,18 @@ bool file_attribute_column_header_is_inside(const View2D *v2d,
 }
 
 bool file_attribute_column_type_enabled(const FileSelectParams *params,
-                                        FileAttributeColumnType column)
+                                        FileAttributeColumnType column,
+                                        const FileLayout *layout)
 {
   switch (column) {
     case COLUMN_NAME:
       /* Always enabled */
       return true;
     case COLUMN_DATETIME:
-      return (params->details_flags & FILE_DETAILS_DATETIME) != 0;
+      return ((params->details_flags & FILE_DETAILS_DATETIME) != 0) &&
+             !FILE_LAYOUT_HIDE_DATE(layout);
     case COLUMN_SIZE:
-      return (params->details_flags & FILE_DETAILS_SIZE) != 0;
+      return ((params->details_flags & FILE_DETAILS_SIZE) != 0) && !FILE_LAYOUT_HIDE_SIZE(layout);
     default:
       return false;
   }
@@ -932,7 +934,7 @@ FileAttributeColumnType file_attribute_column_type_find_isect(const View2D *v2d,
          column < ATTRIBUTE_COLUMN_MAX;
          column = FileAttributeColumnType(int(column) + 1))
     {
-      if (!file_attribute_column_type_enabled(params, column)) {
+      if (!file_attribute_column_type_enabled(params, column, layout)) {
         continue;
       }
       const int width = layout->attribute_columns[column].width;
@@ -974,18 +976,17 @@ float file_font_pointsize()
 static void file_attribute_columns_widths(const FileSelectParams *params, FileLayout *layout)
 {
   FileAttributeColumn *columns = layout->attribute_columns;
-  const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
-  const int pad = small_size ? 0 : ATTRIBUTE_COLUMN_PADDING * 2;
+  const int pad = ATTRIBUTE_COLUMN_PADDING * 2;
+  const bool compact = FILE_LAYOUT_COMPACT(layout);
 
   for (int i = 0; i < ATTRIBUTE_COLUMN_MAX; i++) {
     layout->attribute_columns[i].width = 0;
   }
 
   /* Biggest possible reasonable values... */
-  columns[COLUMN_DATETIME].width = file_string_width(small_size ? "23/08/89" :
-                                                                  "23 Dec 6789, 23:59") +
+  columns[COLUMN_DATETIME].width = file_string_width(compact ? "23/08/89" : "23 Dec 6789, 23:59") +
                                    pad;
-  columns[COLUMN_SIZE].width = file_string_width(small_size ? "98.7 M" : "098.7 MiB") + pad;
+  columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;
   if (params->display == FILE_IMGDISPLAY) {
     columns[COLUMN_NAME].width = (float(params->thumbnail_size) / 8.0f) * UI_UNIT_X;
   }
@@ -997,7 +998,8 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
          column_type >= 0;
          column_type = FileAttributeColumnType(int(column_type) - 1))
     {
-      if ((column_type == COLUMN_NAME) || !file_attribute_column_type_enabled(params, column_type))
+      if ((column_type == COLUMN_NAME) ||
+          !file_attribute_column_type_enabled(params, column_type, layout))
       {
         continue;
       }
@@ -1014,7 +1016,10 @@ static void file_attribute_columns_init(const FileSelectParams *params, FileLayo
   layout->attribute_columns[COLUMN_NAME].name = N_("Name");
   layout->attribute_columns[COLUMN_NAME].sort_type = FILE_SORT_ALPHA;
   layout->attribute_columns[COLUMN_NAME].text_align = UI_STYLE_TEXT_LEFT;
-  layout->attribute_columns[COLUMN_DATETIME].name = N_("Date Modified");
+
+  const bool compact = FILE_LAYOUT_COMPACT(layout);
+  layout->attribute_columns[COLUMN_DATETIME].name = compact ? N_("Date") : N_("Date Modified");
+
   layout->attribute_columns[COLUMN_DATETIME].sort_type = FILE_SORT_TIME;
   layout->attribute_columns[COLUMN_DATETIME].text_align = UI_STYLE_TEXT_LEFT;
   layout->attribute_columns[COLUMN_SIZE].name = N_("Size");
@@ -1089,7 +1094,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
                (layout->tile_h + 2 * layout->tile_border_y);
     file_attribute_columns_init(params, layout);
 
-    layout->rows = MAX2(rowcount, numfiles);
+    layout->rows = std::max(rowcount, numfiles);
     BLI_assert(layout->rows != 0);
     layout->height = sfile->layout->rows * (layout->tile_h + 2 * layout->tile_border_y) +
                      layout->tile_border_y * 2 + layout->offset_top;

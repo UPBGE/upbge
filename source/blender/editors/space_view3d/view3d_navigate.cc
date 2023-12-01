@@ -15,21 +15,23 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 
 #include "BLT_translation.h"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_vfont.h"
+#include "BKE_screen.hh"
+#include "BKE_vfont.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_mesh.hh"
 #include "ED_particle.hh"
@@ -56,9 +58,22 @@ static eViewOpsFlag viewops_flag_from_prefs()
   const bool use_select = (U.uiflag & USER_ORBIT_SELECTION) != 0;
   const bool use_depth = (U.uiflag & USER_DEPTH_NAVIGATE) != 0;
   const bool use_zoom_to_mouse = (U.uiflag & USER_ZOOM_TO_MOUSEPOS) != 0;
-  const bool use_auto_persp = (U.uiflag & USER_AUTOPERSP) != 0;
 
-  enum eViewOpsFlag flag = VIEWOPS_FLAG_INIT_ZFAC;
+  /**
+   * If the mode requires it, always set the #VIEWOPS_FLAG_PERSP_ENSURE.
+   * The function `ED_view3d_persp_ensure` already handles the checking of the preferences.
+   * And even with the option disabled, in some modes, it is still necessary to exit the camera
+   * view.
+   *
+   * \code{.c}
+   * const bool use_auto_persp = (U.uiflag & USER_AUTOPERSP) != 0;
+   * if (use_auto_persp) {
+   *  flag |= VIEWOPS_FLAG_PERSP_ENSURE;
+   * }
+   * \endcode
+   */
+  enum eViewOpsFlag flag = VIEWOPS_FLAG_INIT_ZFAC | VIEWOPS_FLAG_PERSP_ENSURE;
+
   if (use_select) {
     flag |= VIEWOPS_FLAG_ORBIT_SELECT;
   }
@@ -67,9 +82,6 @@ static eViewOpsFlag viewops_flag_from_prefs()
   }
   if (use_zoom_to_mouse) {
     flag |= VIEWOPS_FLAG_ZOOM_TO_MOUSE;
-  }
-  if (use_auto_persp) {
-    flag |= VIEWOPS_FLAG_PERSP_ENSURE;
   }
 
   return flag;
@@ -148,10 +160,9 @@ void ViewOpsData::state_restore()
 
   /* ROTATE and ZOOM. */
   {
-    /**
-     * For Rotate this only changes when orbiting from a camera view.
-     * In this case the `dist` is calculated based on the camera relative to the `ofs`.
-     */
+    /* For Rotate this only changes when orbiting from a camera view.
+     * In this case the `dist` is calculated based on the camera relative to the `ofs`. */
+
     /* Note this does not remove auto-keys on locked cameras. */
     this->rv3d->dist = this->init.dist;
   }
@@ -270,8 +281,9 @@ void ViewOpsData::init_navigation(bContext *C,
     negate_v3_v3(this->dyn_ofs, pivot_new);
     this->use_dyn_ofs = true;
 
-    if (!(nav_type->flag & VIEWOPS_FLAG_ORBIT_SELECT)) {
-      /* Calculate new #RegionView3D::ofs and #RegionView3D::dist. */
+    {
+      /* The pivot has changed so the offset needs to be updated as well.
+       * Calculate new #RegionView3D::ofs and #RegionView3D::dist. */
 
       if (rv3d->is_persp) {
         float my_origin[3]; /* Original #RegionView3D.ofs. */
@@ -395,12 +407,16 @@ struct ViewOpsData_Utility : ViewOpsData {
   /* Used by #ED_view3d_navigation_do. */
   bool is_modal_event;
 
-  ViewOpsData_Utility(bContext *C, const bool use_alt_navigation = false)
+  ViewOpsData_Utility(bContext *C, const wmKeyMapItem *kmi_merge = nullptr)
       : ViewOpsData(), keymap_items(), is_modal_event(false)
   {
     this->init_context(C);
 
-    wmKeyMap *keymap = WM_keymap_find_all(CTX_wm_manager(C), "3D View", SPACE_VIEW3D, 0);
+    wmKeyMap *keymap = WM_keymap_find_all(
+        CTX_wm_manager(C), "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+
+    WM_keyconfig_update_suppress_begin();
+
     wmKeyMap keymap_tmp = {};
 
     LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
@@ -414,22 +430,50 @@ struct ViewOpsData_Utility : ViewOpsData {
         continue;
       }
 
-      wmKeyMapItem *kmi_copy = WM_keymap_add_item_copy(&keymap_tmp, kmi);
-      if (use_alt_navigation) {
-        kmi_copy->alt = true;
+      wmKeyMapItem *kmi_cpy = WM_keymap_add_item_copy(&keymap_tmp, kmi);
+      if (kmi_merge) {
+        if (kmi_merge->shift == 1 || ELEM(kmi_merge->type, EVT_RIGHTSHIFTKEY, EVT_LEFTSHIFTKEY)) {
+          kmi_cpy->shift = 1;
+        }
+        if (kmi_merge->ctrl == 1 || ELEM(kmi_merge->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
+          kmi_cpy->ctrl = 1;
+        }
+        if (kmi_merge->alt == 1 || ELEM(kmi_merge->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
+          kmi_cpy->alt = 1;
+        }
+        if (kmi_merge->oskey == 1 || ELEM(kmi_merge->type, EVT_OSKEY)) {
+          kmi_cpy->oskey = 1;
+        }
+        if (!ELEM(kmi_merge->type,
+                  EVT_LEFTCTRLKEY,
+                  EVT_LEFTALTKEY,
+                  EVT_RIGHTALTKEY,
+                  EVT_RIGHTCTRLKEY,
+                  EVT_RIGHTSHIFTKEY,
+                  EVT_LEFTSHIFTKEY,
+                  EVT_OSKEY))
+        {
+          kmi_cpy->keymodifier |= kmi_merge->type;
+        }
       }
     }
 
     /* Weak, but only the keymap items from the #wmKeyMap struct are needed here. */
     this->keymap_items = keymap_tmp.items;
+
+    WM_keyconfig_update_suppress_end();
   }
 
   ~ViewOpsData_Utility()
   {
     /* Weak, but rebuild the struct #wmKeyMap to clear the keymap items. */
+    WM_keyconfig_update_suppress_begin();
+
     wmKeyMap keymap_tmp = {};
     keymap_tmp.items = this->keymap_items;
     WM_keymap_clear(&keymap_tmp);
+
+    WM_keyconfig_update_suppress_end();
   }
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -781,21 +825,19 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
     is_set = true;
   }
   else if (ob_act == nullptr || ob_act->mode == OB_MODE_OBJECT) {
-    /* object mode use boundbox centers */
+    /* Object mode uses bounding-box centers. */
     uint tot = 0;
     float select_center[3];
 
     zero_v3(select_center);
     LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
       if (BASE_SELECTED(v3d, base_eval)) {
-        /* use the boundbox if we can */
+        /* Use the bounding-box if we can. */
         Object *ob_eval = base_eval->object;
 
-        if (ob_eval->runtime.bb && !(ob_eval->runtime.bb->flag & BOUNDBOX_DIRTY)) {
-          float cent[3];
-
-          BKE_boundbox_calc_center_aabb(ob_eval->runtime.bb, cent);
-
+        if (ob_eval->runtime->bounds_eval) {
+          blender::float3 cent = blender::math::midpoint(ob_eval->runtime->bounds_eval->min,
+                                                         ob_eval->runtime->bounds_eval->max);
           mul_m4_v3(ob_eval->object_to_world, cent);
           add_v3_v3(select_center, cent);
         }
@@ -1018,13 +1060,13 @@ static const ViewOpsType *view3d_navigation_type_from_idname(const char *idname)
 
 /* Unlike `viewops_data_create`, `ED_view3d_navigation_init` creates a navigation context along
  * with an array of `wmKeyMapItem`s used for navigation. */
-ViewOpsData *ED_view3d_navigation_init(bContext *C, const bool use_alt_navigation)
+ViewOpsData *ED_view3d_navigation_init(bContext *C, const wmKeyMapItem *kmi_merge)
 {
   if (!CTX_wm_region_view3d(C)) {
     return nullptr;
   }
 
-  return new ViewOpsData_Utility(C, use_alt_navigation);
+  return new ViewOpsData_Utility(C, kmi_merge);
 }
 
 bool ED_view3d_navigation_do(bContext *C,

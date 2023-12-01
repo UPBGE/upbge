@@ -25,30 +25,30 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_bvhutils.h"
+#include "BKE_bvhutils.hh"
 #include "BKE_colortools.h" /* CurveMapping. */
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_customdata.h"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_customdata.hh"
 #include "BKE_deform.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
+#include "BKE_screen.hh"
 #include "BKE_texture.h" /* Texture masking. */
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -652,7 +652,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemPointerR(layout, ptr, "vertex_group", &ob_ptr, "vertex_groups", nullptr, ICON_NONE);
+  uiItemPointerR(
+      layout, ptr, "vertex_group", &ob_ptr, "vertex_groups", nullptr, ICON_GROUP_VERTEX);
 
   uiItemR(layout, ptr, "target", UI_ITEM_NONE, nullptr, ICON_NONE);
 
@@ -738,7 +739,7 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
     /*struct_name*/ "WeightVGProximityModifierData",
     /*struct_size*/ sizeof(WeightVGProximityModifierData),
     /*srna*/ &RNA_VertexWeightProximityModifier,
-    /*type*/ eModifierTypeType_NonGeometrical,
+    /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_UsesPreview,
     /*icon*/ ICON_MOD_VERTEX_WEIGHT,

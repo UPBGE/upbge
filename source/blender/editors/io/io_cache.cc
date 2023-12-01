@@ -16,7 +16,7 @@
 #include "BLI_string.h"
 
 #include "BKE_cachefile.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
@@ -24,7 +24,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
 
@@ -97,8 +97,7 @@ static int cachefile_open_exec(bContext *C, wmOperator *op)
        * pointer see also increases user, so this compensates it. */
       id_us_min(&cache_file->id);
 
-      PointerRNA idptr;
-      RNA_id_pointer_create(&cache_file->id, &idptr);
+      PointerRNA idptr = RNA_id_pointer_create(&cache_file->id);
       RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
       RNA_property_update(C, &pprop->ptr, pprop->prop);
     }

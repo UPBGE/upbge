@@ -8,14 +8,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-#include "BKE_curve.h"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_mask.h"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "DNA_mask_types.h"
 #include "DNA_scene_types.h"

@@ -28,7 +28,7 @@
 #include "RNA_prototypes.h"
 
 #include "BKE_action.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
@@ -46,7 +46,7 @@
 #include "ED_mask.hh"
 #include "ED_screen.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -140,15 +140,14 @@ static void actedit_change_action(bContext *C, bAction *act)
   bScreen *screen = CTX_wm_screen(C);
   SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
 
-  PointerRNA ptr, idptr;
   PropertyRNA *prop;
 
   /* create RNA pointers and get the property */
-  RNA_pointer_create(&screen->id, &RNA_SpaceDopeSheetEditor, saction, &ptr);
+  PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_SpaceDopeSheetEditor, saction);
   prop = RNA_struct_find_property(&ptr, "action");
 
   /* NOTE: act may be nullptr here, so better to just use a cast here */
-  RNA_id_pointer_create((ID *)act, &idptr);
+  PointerRNA idptr = RNA_id_pointer_create((ID *)act);
 
   /* set the new pointer, and force a refresh */
   RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
@@ -208,7 +207,7 @@ static bool action_new_poll(bContext *C)
 
 static int action_new_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr, idptr;
+  PointerRNA ptr;
   PropertyRNA *prop;
 
   bAction *oldact = nullptr;
@@ -272,7 +271,7 @@ static int action_new_exec(bContext *C, wmOperator * /*op*/)
       /* set this new action
        * NOTE: we can't use actedit_change_action, as this function is also called from the NLA
        */
-      RNA_id_pointer_create(&action->id, &idptr);
+      PointerRNA idptr = RNA_id_pointer_create(&action->id);
       RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
       RNA_property_update(C, &ptr, prop);
     }
@@ -641,11 +640,10 @@ void ED_animedit_unlink_action(
     }
     else {
       /* clear AnimData -> action */
-      PointerRNA ptr;
       PropertyRNA *prop;
 
       /* create AnimData RNA pointers */
-      RNA_pointer_create(id, &RNA_AnimData, adt, &ptr);
+      PointerRNA ptr = RNA_pointer_create(id, &RNA_AnimData, adt);
       prop = RNA_struct_find_property(&ptr, "action");
 
       /* clear... */

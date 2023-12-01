@@ -9,6 +9,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_path_util.h"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_layer_types.h"
@@ -17,7 +18,7 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_camera.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_layer.h"
@@ -29,8 +30,8 @@
 
 #include "ED_view3d.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "gpencil_io_base.hh"
 
@@ -267,7 +268,7 @@ float GpencilIO::stroke_point_radius_get(bGPDlayer *gpl, bGPDstroke *gps)
   float radius = math::length(v1);
   BKE_gpencil_free_stroke(gps_perimeter);
 
-  return MAX2(radius, 1.0f);
+  return std::max(radius, 1.0f);
 }
 
 void GpencilIO::prepare_layer_export_matrix(Object *ob, bGPDlayer *gpl)

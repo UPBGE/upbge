@@ -152,13 +152,13 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 
 #  include "DNA_object_types.h"
 
-#  include "BKE_curve.h"
+#  include "BKE_curve.hh"
 #  include "BKE_curveprofile.h"
 #  include "BKE_main.h"
-#  include "BKE_vfont.h"
+#  include "BKE_vfont.hh"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
 
@@ -318,13 +318,13 @@ static void rna_Curve_material_index_range(
 static int rna_ChariInfo_material_index_get(PointerRNA *ptr)
 {
   CharInfo *info = static_cast<CharInfo *>(ptr->data);
-  return info->mat_nr ? info->mat_nr - 1 : 0;
+  return info->mat_nr ? info->mat_nr : 0;
 }
 
 static void rna_ChariInfo_material_index_set(PointerRNA *ptr, int value)
 {
   CharInfo *info = static_cast<CharInfo *>(ptr->data);
-  info->mat_nr = value + 1;
+  info->mat_nr = value;
 }
 
 static void rna_Curve_active_textbox_index_range(

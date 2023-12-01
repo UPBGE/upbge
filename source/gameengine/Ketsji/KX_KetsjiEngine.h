@@ -179,6 +179,10 @@ class KX_KetsjiEngine {
   /// slower than real-time.
   double m_timescale;
   double m_previousRealTime;
+  /// used to fix deltaTime if there is a large variation in the value.
+  double m_previous_deltaTime;
+  /// used to control strange behavior in clockTime physics when starting the game.
+  bool m_firstEngineFrame;
 
   /// maximum number of consecutive logic frame
   int m_maxLogicFrame;

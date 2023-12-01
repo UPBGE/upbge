@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "BLI_array.hh"
-
 #include "gpu_shader_create_info.hh"
 
 namespace blender::gpu {
@@ -25,7 +23,9 @@ class VKBindableResource {
   /**
    * Bind the resource to the shader.
    */
-  virtual void bind(int binding, shader::ShaderCreateInfo::Resource::BindType bind_type) = 0;
+  virtual void bind(int binding,
+                    shader::ShaderCreateInfo::Resource::BindType bind_type,
+                    const GPUSamplerState sampler_state) = 0;
 
  protected:
   void unbind_from_active_context();
@@ -38,22 +38,33 @@ class VKBindableResource {
  * Blender binds resources at context level (VKStateManager). The bindings are organized in
  * namespaces.
  */
-template<shader::ShaderCreateInfo::Resource::BindType BindType, int MaxBindings = 16>
-class VKBindSpace {
-  Array<VKBindableResource *> bindings_ = Array<VKBindableResource *>(MaxBindings);
+template<shader::ShaderCreateInfo::Resource::BindType BindType> class VKBindSpace {
+  class ResourceBinding {
+   public:
+    int binding;
+    VKBindableResource *resource;
+    GPUSamplerState sampler_state;
+  };
+
+  Vector<ResourceBinding> bindings_;
 
  public:
-  VKBindSpace()
-  {
-    bindings_.fill(nullptr);
-  }
-
   /**
    * Register a binding to this namespace.
    */
-  void bind(int binding, VKBindableResource &resource)
+  void bind(int binding,
+            VKBindableResource &resource,
+            const GPUSamplerState sampler_state = GPUSamplerState::default_sampler())
   {
-    bindings_[binding] = &resource;
+    for (ResourceBinding &bind : bindings_) {
+      if (bind.binding == binding) {
+        bind.resource = &resource;
+        bind.sampler_state = sampler_state;
+        return;
+      }
+    }
+    ResourceBinding bind = {binding, &resource, sampler_state};
+    bindings_.append(bind);
   }
 
   /**
@@ -61,10 +72,8 @@ class VKBindSpace {
    */
   void apply_bindings()
   {
-    for (int binding : IndexRange(MaxBindings)) {
-      if (bindings_[binding] != nullptr) {
-        bindings_[binding]->bind(binding, BindType);
-      }
+    for (ResourceBinding &binding : bindings_) {
+      binding.resource->bind(binding.binding, BindType, binding.sampler_state);
     }
   }
 
@@ -73,11 +82,8 @@ class VKBindSpace {
    */
   void unbind(VKBindableResource &resource)
   {
-    for (int binding : IndexRange(MaxBindings)) {
-      if (bindings_[binding] == &resource) {
-        bindings_[binding] = nullptr;
-      }
-    }
+    bindings_.remove_if(
+        [&resource](const ResourceBinding &binding) { return binding.resource == &resource; });
   }
 
   /**
@@ -85,7 +91,7 @@ class VKBindSpace {
    */
   void unbind_all()
   {
-    bindings_.fill(nullptr);
+    bindings_.clear();
   }
 };
 

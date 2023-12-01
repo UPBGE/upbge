@@ -111,9 +111,7 @@ class FrameBuffer {
                                 eGPUDataFormat data_format,
                                 const void *clear_value) = 0;
 
-  virtual void attachment_set_loadstore_op(GPUAttachmentType type,
-                                           eGPULoadOp load_action,
-                                           eGPUStoreOp store_action) = 0;
+  virtual void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) = 0;
 
   virtual void read(eGPUFrameBufferBits planes,
                     eGPUDataFormat format,
@@ -128,6 +126,9 @@ class FrameBuffer {
                        int dst_slot,
                        int dst_offset_x,
                        int dst_offset_y) = 0;
+
+  virtual void subpass_transition(const GPUAttachmentState depth_attachment_state,
+                                  Span<GPUAttachmentState> color_attachment_states) = 0;
 
   void load_store_config_array(const GPULoadStore *load_store_actions, uint actions_len);
 
@@ -187,6 +188,7 @@ class FrameBuffer {
   inline void scissor_test_set(bool test)
   {
     scissor_test_ = test;
+    dirty_state_ = true;
   }
 
   inline void viewport_get(int r_viewport[4]) const

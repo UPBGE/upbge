@@ -97,32 +97,11 @@ class Prefs(bpy.types.KeyConfigPreferences):
         default=False,
         update=update_fn,
     )
-    # Experimental: only show with developer extras, see: #96544.
-    use_tweak_select_passthrough: BoolProperty(
-        name="Tweak Select: Mouse Select & Move",
-        description=(
-            "The tweak tool is activated immediately instead of placing the cursor. "
-            "This is an experimental preference and may be removed"
-        ),
-        default=False,
-        update=update_fn,
-    )
-    # Experimental: only show with developer extras, see: #96544.
-    use_tweak_tool_lmb_interaction: BoolProperty(
-        name="Tweak Tool: Left Mouse Select & Move",
-        description=(
-            "The tweak tool is activated immediately instead of placing the cursor. "
-            "This is an experimental preference and may be removed"
-        ),
-        default=False,
-        update=update_fn,
-    )
 
     use_alt_click_leader: BoolProperty(
         name="Alt Click Tool Prompt",
         description=(
-            "Tapping Alt (without pressing any other keys) shows a prompt in the status-bar\n"
-            "prompting a second keystroke to activate the tool"
+            "Tapping Alt (without pressing any other keys) shows a prompt in the status-bar, prompting a second keystroke to activate the tool"
         ),
         default=False,
         update=update_fn,
@@ -315,12 +294,6 @@ class Prefs(bpy.types.KeyConfigPreferences):
 
         if show_developer_ui:
             row = sub.row()
-            row.prop(self, "use_tweak_select_passthrough")
-        if show_developer_ui and (not is_select_left):
-            row = sub.row()
-            row.prop(self, "use_tweak_tool_lmb_interaction")
-        if show_developer_ui:
-            row = sub.row()
             row.prop(self, "use_region_toggle_pie")
 
         # 3DView settings.
@@ -330,7 +303,7 @@ class Prefs(bpy.types.KeyConfigPreferences):
         col.row().prop(self, "v3d_mmb_action", text="Middle Mouse Action", expand=True)
         col.row().prop(self, "v3d_alt_mmb_drag_action", text="Alt Middle Mouse Drag Action", expand=True)
 
-        # Checkboxes sub-layout.
+        # Check-boxes sub-layout.
         col = layout.column()
         sub = col.column(align=True)
         sub.prop(self, "use_v3d_tab_menu")
@@ -385,11 +358,6 @@ def load():
                 # Otherwise LMB activates the fallback tool and RMB always tweak-selects.
                 (kc_prefs.rmb_action != 'FALLBACK_TOOL')
             ),
-            use_tweak_select_passthrough=(show_developer_ui and kc_prefs.use_tweak_select_passthrough),
-            use_tweak_tool_lmb_interaction=(
-                False if is_select_left else
-                (show_developer_ui and kc_prefs.use_tweak_tool_lmb_interaction)
-            ),
             use_alt_tool_or_cursor=(
                 (not use_mouse_emulate_3_button) and
                 (kc_prefs.use_alt_tool if is_select_left else kc_prefs.use_alt_cursor)
@@ -397,8 +365,9 @@ def load():
             use_alt_click_leader=kc_prefs.use_alt_click_leader,
             use_pie_click_drag=kc_prefs.use_pie_click_drag,
             use_file_single_click=kc_prefs.use_file_single_click,
-            experimental=prefs.experimental,
             use_alt_navigation=kc_prefs.use_alt_navigation,
+            # Experimental features.
+            use_experimental_grease_pencil_version3=prefs.experimental.use_grease_pencil_version3,
         ),
     )
 

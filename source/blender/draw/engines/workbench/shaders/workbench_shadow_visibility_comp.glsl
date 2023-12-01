@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
@@ -74,10 +77,10 @@ void main()
   }
 
   ObjectBounds bounds = bounds_buf[gl_GlobalInvocationID.x];
-  IsectBox box = isect_data_setup(bounds.bounding_corners[0].xyz,
-                                  bounds.bounding_corners[1].xyz,
-                                  bounds.bounding_corners[2].xyz,
-                                  bounds.bounding_corners[3].xyz);
+  IsectBox box = isect_box_setup(bounds.bounding_corners[0].xyz,
+                                 bounds.bounding_corners[1].xyz,
+                                 bounds.bounding_corners[2].xyz,
+                                 bounds.bounding_corners[3].xyz);
 
 #ifdef DYNAMIC_PASS_SELECTION
   if (is_visible(box)) {

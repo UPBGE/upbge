@@ -14,17 +14,17 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_armature.hh"
 #include "ED_util.hh"
@@ -32,6 +32,8 @@
 #include "ANIM_bone_collections.h"
 
 #include "armature_intern.h"
+
+#include <cstring>
 
 /* -------------------------------------------------------------------- */
 /** \name Validation
@@ -69,14 +71,6 @@ void ED_armature_edit_validate_active(bArmature *arm)
     if (ebone->flag & BONE_HIDDEN_A) {
       arm->act_edbone = nullptr;
     }
-  }
-}
-
-void ED_armature_edit_refresh_layer_used(bArmature *arm)
-{
-  arm->layer_used = 0;
-  LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-    arm->layer_used |= ebo->layer;
   }
 }
 
@@ -440,6 +434,18 @@ void ED_armature_edit_transform_mirror_update(Object *obedit)
 /** \name Armature EditMode Conversions
  * \{ */
 
+/**
+ * Copy the bone collection membership info from the bones to the edit-bones.
+ *
+ * Operations on edit-bones (like subdividing, extruding, etc.) will have to deal
+ * with collection assignments of those edit-bones as well.
+ */
+static void copy_bonecollection_membership(EditBone *eBone, const Bone *bone)
+{
+  BLI_assert(BLI_listbase_is_empty(&eBone->bone_collections));
+  BLI_duplicatelist(&eBone->bone_collections, &bone->runtime.collections);
+}
+
 /* converts Bones to EditBone list, used for tools as well */
 static EditBone *make_boneList_recursive(ListBase *edbo,
                                          ListBase *bones,
@@ -513,9 +519,13 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
     eBone->bbone_prev_type = curBone->bbone_prev_type;
     eBone->bbone_next_type = curBone->bbone_next_type;
 
+    eBone->bbone_mapping_mode = eBone_BBoneMappingMode(curBone->bbone_mapping_mode);
     eBone->bbone_flag = curBone->bbone_flag;
     eBone->bbone_prev_flag = curBone->bbone_prev_flag;
     eBone->bbone_next_flag = curBone->bbone_next_flag;
+
+    eBone->color = curBone->color;
+    copy_bonecollection_membership(eBone, curBone);
 
     if (curBone->prop) {
       eBone->prop = IDP_CopyProperty(curBone->prop);
@@ -724,9 +734,18 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     newBone->bbone_prev_type = eBone->bbone_prev_type;
     newBone->bbone_next_type = eBone->bbone_next_type;
 
+    newBone->bbone_mapping_mode = eBone->bbone_mapping_mode;
     newBone->bbone_flag = eBone->bbone_flag;
     newBone->bbone_prev_flag = eBone->bbone_prev_flag;
     newBone->bbone_next_flag = eBone->bbone_next_flag;
+
+    newBone->color = eBone->color;
+
+    LISTBASE_FOREACH (BoneCollectionReference *, ref, &eBone->bone_collections) {
+      BoneCollectionReference *newBoneRef = MEM_cnew<BoneCollectionReference>(
+          "ED_armature_from_edit", *ref);
+      BLI_addtail(&newBone->runtime.collections, newBoneRef);
+    }
 
     if (eBone->prop) {
       newBone->prop = IDP_CopyProperty(eBone->prop);
@@ -759,6 +778,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
 
   /* Finalize definition of rest-pose data (roll, bone_mat, arm_mat, head/tail...). */
   armature_finalize_restpose(&arm->bonebase, arm->edbo);
+  ANIM_armature_bonecoll_reconstruct(arm);
 
   BKE_armature_bone_hash_make(arm);
 
@@ -783,6 +803,7 @@ void ED_armature_edit_free(bArmature *arm)
         if (eBone->prop) {
           IDP_FreeProperty(eBone->prop);
         }
+        BLI_freelistN(&eBone->bone_collections);
       }
 
       BLI_freelistN(arm->edbo);
@@ -817,6 +838,8 @@ void ED_armature_ebone_listbase_free(ListBase *lb, const bool do_id_user)
       IDP_FreeProperty_ex(ebone->prop, do_id_user);
     }
 
+    BLI_freelistN(&ebone->bone_collections);
+
     MEM_freeN(ebone);
   }
 
@@ -848,6 +871,8 @@ void ED_armature_ebone_listbase_copy(ListBase *lb_dst, ListBase *lb_src, const b
     if (ebone_dst->bbone_prev) {
       ebone_dst->bbone_prev = ebone_dst->bbone_prev->temp.ebone;
     }
+
+    BLI_duplicatelist(&ebone_dst->bone_collections, &ebone_dst->bone_collections);
   }
 }
 

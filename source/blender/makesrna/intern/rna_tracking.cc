@@ -12,7 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_movieclip.h"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
 
 #include "BLT_translation.h"
@@ -40,7 +40,7 @@
 #  include "BKE_node.h"
 #  include "BKE_report.h"
 
-#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph.hh"
 
 #  include "IMB_imbuf.h"
 
@@ -2534,7 +2534,7 @@ static void rna_def_trackingDopesheet(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_hidden", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", TRACKING_DOPE_SHOW_HIDDEN);
   RNA_def_property_ui_text(
-      prop, "Display Hidden", "Include channels from objects/bone that aren't visible");
+      prop, "Display Hidden", "Include channels from objects/bone that are not visible");
   RNA_def_property_ui_icon(prop, ICON_GHOST_ENABLED, 0);
   RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_trackingDopesheet_tagUpdate");
 }

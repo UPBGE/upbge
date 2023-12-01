@@ -143,23 +143,23 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
 
   if (args_contain_key(kwargs, "min")) {
     ui_data.min = min;
-    ui_data.soft_min = MAX2(ui_data.soft_min, ui_data.min);
-    ui_data.max = MAX2(ui_data.min, ui_data.max);
+    ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
+    ui_data.max = std::max(ui_data.min, ui_data.max);
   }
   if (args_contain_key(kwargs, "max")) {
     ui_data.max = max;
-    ui_data.soft_max = MIN2(ui_data.soft_max, ui_data.max);
-    ui_data.min = MIN2(ui_data.min, ui_data.max);
+    ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
+    ui_data.min = std::min(ui_data.min, ui_data.max);
   }
   if (args_contain_key(kwargs, "soft_min")) {
     ui_data.soft_min = soft_min;
-    ui_data.soft_min = MAX2(ui_data.soft_min, ui_data.min);
-    ui_data.soft_max = MAX2(ui_data.soft_min, ui_data.soft_max);
+    ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
+    ui_data.soft_max = std::max(ui_data.soft_min, ui_data.soft_max);
   }
   if (args_contain_key(kwargs, "soft_max")) {
     ui_data.soft_max = soft_max;
-    ui_data.soft_max = MIN2(ui_data.soft_max, ui_data.max);
-    ui_data.soft_min = MIN2(ui_data.soft_min, ui_data.soft_max);
+    ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
+    ui_data.soft_min = std::min(ui_data.soft_min, ui_data.soft_max);
   }
   if (args_contain_key(kwargs, "step")) {
     ui_data.step = step;
@@ -354,23 +354,23 @@ static bool idprop_ui_data_update_float(IDProperty *idprop, PyObject *args, PyOb
 
   if (args_contain_key(kwargs, "min")) {
     ui_data.min = min;
-    ui_data.soft_min = MAX2(ui_data.soft_min, ui_data.min);
-    ui_data.max = MAX2(ui_data.min, ui_data.max);
+    ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
+    ui_data.max = std::max(ui_data.min, ui_data.max);
   }
   if (args_contain_key(kwargs, "max")) {
     ui_data.max = max;
-    ui_data.soft_max = MIN2(ui_data.soft_max, ui_data.max);
-    ui_data.min = MIN2(ui_data.min, ui_data.max);
+    ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
+    ui_data.min = std::min(ui_data.min, ui_data.max);
   }
   if (args_contain_key(kwargs, "soft_min")) {
     ui_data.soft_min = soft_min;
     ui_data.soft_min = MAX2(ui_data.soft_min, ui_data.min);
-    ui_data.soft_max = MAX2(ui_data.soft_min, ui_data.soft_max);
+    ui_data.soft_max = std::max(ui_data.soft_min, ui_data.soft_max);
   }
   if (args_contain_key(kwargs, "soft_max")) {
     ui_data.soft_max = soft_max;
     ui_data.soft_max = MIN2(ui_data.soft_max, ui_data.max);
-    ui_data.soft_min = MIN2(ui_data.soft_min, ui_data.soft_max);
+    ui_data.soft_min = std::min(ui_data.soft_min, ui_data.soft_max);
   }
   if (args_contain_key(kwargs, "step")) {
     ui_data.step = float(step);
@@ -439,9 +439,10 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
 {
   const char *rna_subtype = nullptr;
   const char *description = nullptr;
-  const char *kwlist[] = {"subtype", "description", nullptr};
+  const char *id_type = nullptr;
+  const char *kwlist[] = {"subtype", "description", "id_type", nullptr};
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwargs, "|$zz:update", (char **)kwlist, &rna_subtype, &description))
+          args, kwargs, "|$zzz:update", (char **)kwlist, &rna_subtype, &description, &id_type))
   {
     return false;
   }
@@ -454,6 +455,15 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
     IDP_ui_data_free_unique_contents(&ui_data.base, IDP_ui_data_type(idprop), &ui_data_orig->base);
     return false;
   }
+
+  int id_type_tmp;
+  if (pyrna_enum_value_from_id(
+          rna_enum_id_type_items, id_type, &id_type_tmp, "IDPropertyUIManager.update") == -1)
+  {
+    return false;
+  }
+
+  ui_data.id_type = short(id_type_tmp);
 
   /* Write back to the property's UI data. */
   IDP_ui_data_free_unique_contents(&ui_data_orig->base, IDP_ui_data_type(idprop), &ui_data.base);
@@ -471,6 +481,7 @@ PyDoc_STRVAR(BPy_IDPropertyUIManager_update_doc,
              "precision=None, "
              "step=None, "
              "default=None, "
+             "id_type=None, "
              "description=None)\n"
              "\n"
              "   Update the RNA information of the IDProperty used for interaction and\n"
@@ -619,6 +630,30 @@ static void idprop_ui_data_to_dict_string(IDProperty *property, PyObject *dict)
   Py_DECREF(item);
 }
 
+static void idprop_ui_data_to_dict_id(IDProperty *property, PyObject *dict)
+{
+  IDPropertyUIDataID *ui_data = reinterpret_cast<IDPropertyUIDataID *>(property->ui_data);
+
+  short id_type_value = ui_data->id_type;
+  if (id_type_value == 0) {
+    /* While UI exposed custom properties do not allow the 'all ID types' `0` value, in py-defined
+     * IDProperties it is accepted. So force defining a valid id_type value when this function is
+     * called. */
+    ID *id = IDP_Id(property);
+    id_type_value = id ? GS(id->name) : ID_OB;
+  }
+
+  const char *id_type = nullptr;
+  if (!RNA_enum_identifier(rna_enum_id_type_items, id_type_value, &id_type)) {
+    /* Same fall-back as above, in case it is an unknown ID type (from a future version of Blender
+     * e.g.). */
+    RNA_enum_identifier(rna_enum_id_type_items, ID_OB, &id_type);
+  }
+  PyObject *item = PyUnicode_FromString(id_type);
+  PyDict_SetItemString(dict, "id_type", item);
+  Py_DECREF(item);
+}
+
 PyDoc_STRVAR(BPy_IDPropertyUIManager_as_dict_doc,
              ".. method:: as_dict()\n"
              "\n"
@@ -655,6 +690,7 @@ static PyObject *BPy_IDIDPropertyUIManager_as_dict(BPy_IDPropertyUIManager *self
       idprop_ui_data_to_dict_string(property, dict);
       break;
     case IDP_UI_DATA_TYPE_ID:
+      idprop_ui_data_to_dict_id(property, dict);
       break;
     case IDP_UI_DATA_TYPE_INT:
       idprop_ui_data_to_dict_int(property, dict);

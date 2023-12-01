@@ -11,7 +11,6 @@ set(INC
   ../../blentranslation
   ../../makesrna
   ../../windowmanager
-  ../../../../intern/clog
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
@@ -31,6 +30,7 @@ set(SRC
   intern/asset_library_reference_enum.cc
   intern/asset_list.cc
   intern/asset_mark_clear.cc
+  intern/asset_menu_utils.cc
   intern/asset_ops.cc
   intern/asset_shelf.cc
   intern/asset_shelf_asset_view.cc
@@ -62,6 +62,7 @@ set(LIB
   PRIVATE bf::blenlib
   bf_blenloader
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )
 

@@ -90,7 +90,7 @@ base class --- :class:`~bge.types.SCA_IActuator`
       Generate a Poisson-distributed number.
 
       This performs a series of Bernouilli tests with parameter value.
-      It returns the number of tries needed to achieve succes.
+      It returns the number of tries needed to achieve success.
 
       :type value: float
 

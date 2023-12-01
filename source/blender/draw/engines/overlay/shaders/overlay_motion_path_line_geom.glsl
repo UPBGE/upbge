@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
@@ -21,16 +24,16 @@ void main(void)
   interp_out.color = interp_in[0].color;
   t = edge_dir * (line_size * (is_persp ? gl_in[0].gl_Position.w : 1.0));
   gl_Position = gl_in[0].gl_Position + vec4(t, 0.0, 0.0);
-  EmitVertex();
+  gpu_EmitVertex();
   gl_Position = gl_in[0].gl_Position - vec4(t, 0.0, 0.0);
-  EmitVertex();
+  gpu_EmitVertex();
 
   view_clipping_distances_set(gl_in[1]);
   interp_out.color = interp_in[1].color;
   t = edge_dir * (line_size * (is_persp ? gl_in[1].gl_Position.w : 1.0));
   gl_Position = gl_in[1].gl_Position + vec4(t, 0.0, 0.0);
-  EmitVertex();
+  gpu_EmitVertex();
   gl_Position = gl_in[1].gl_Position - vec4(t, 0.0, 0.0);
-  EmitVertex();
+  gpu_EmitVertex();
   EndPrimitive();
 }

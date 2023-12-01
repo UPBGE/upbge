@@ -49,10 +49,7 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
                                  const IndexMask &mask) const final
   {
     const IndexRange vert_range(mesh.totvert);
-    Array<int> map_offsets;
-    Array<int> map_indices;
-    const GroupedSpan<int> vert_to_loop_map = bke::mesh::build_vert_to_loop_map(
-        mesh.corner_verts(), mesh.totvert, map_offsets, map_indices);
+    const GroupedSpan<int> vert_to_corner_map = mesh.vert_to_corner_map();
 
     const bke::MeshFieldContext context{mesh, domain};
     fn::FieldEvaluator evaluator{context, &mask};
@@ -83,7 +80,7 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
           continue;
         }
 
-        const Span<int> corners = vert_to_loop_map[vert_i];
+        const Span<int> corners = vert_to_corner_map[vert_i];
         if (corners.is_empty()) {
           corner_of_vertex[selection_i] = 0;
           continue;
@@ -102,7 +99,7 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
            * when accessing values in the sort weights. However, it means a separate array of
            * indices within the compressed array is necessary for sorting. */
           sort_indices.reinitialize(corners.size());
-          std::iota(sort_indices.begin(), sort_indices.end(), 0);
+          array_utils::fill_index_range<int>(sort_indices);
           std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
             return sort_weights[a] < sort_weights[b];
           });

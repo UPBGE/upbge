@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_compositor_texture_utilities.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_compositor_summed_area_table_lib.glsl)
@@ -5,6 +9,12 @@
 void main()
 {
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
+
+#if defined(VARIABLE_SIZE)
+  int radius = max(0, int(texture_load(size_tx, texel).x));
+#elif defined(CONSTANT_SIZE)
+  int radius = max(0, size);
+#endif
 
   vec4 mean_of_squared_color_of_quadrants[4] = vec4[](vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0));
   vec4 mean_of_color_of_quadrants[4] = vec4[](vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0));

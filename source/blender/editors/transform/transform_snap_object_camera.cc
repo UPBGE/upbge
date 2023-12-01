@@ -8,9 +8,9 @@
 
 #include "BLI_math_matrix.hh"
 
-#include "BKE_bvhutils.h"
+#include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_tracking.h"
 
 #include "ED_transform_snap_object_context.hh"
@@ -45,7 +45,7 @@ eSnapMode snapCamera(SnapObjectContext *sctx,
   BKE_tracking_get_camera_object_matrix(object, orig_camera_mat.ptr());
 
   SnapData nearest2d(sctx);
-  nearest2d.clip_planes_enable(sctx);
+  nearest2d.clip_planes_enable(sctx, object);
 
   MovieTracking *tracking = &clip->tracking;
   LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {

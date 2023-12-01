@@ -34,6 +34,7 @@
 #include "BLI_kdopbvh.h"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -48,7 +49,7 @@
 #include "BKE_anim_data.h"
 #include "BKE_anim_path.h"
 #include "BKE_boids.h"
-#include "BKE_cloth.h"
+#include "BKE_cloth.hh"
 #include "BKE_collection.h"
 #include "BKE_colortools.h"
 #include "BKE_deform.h"
@@ -56,7 +57,7 @@
 #include "BKE_effect.h"
 #include "BKE_idtype.h"
 #include "BKE_key.h"
-#include "BKE_lattice.h"
+#include "BKE_lattice.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
@@ -65,20 +66,20 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "RE_texture.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "particle_private.h"
 
@@ -167,7 +168,9 @@ static void particle_settings_free_data(ID *id)
 
 static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  ParticleSettings *psett = (ParticleSettings *)id;
+  ParticleSettings *psett = reinterpret_cast<ParticleSettings *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
+
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->instance_collection, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->instance_object, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->bb_ob, IDWALK_CB_NOP);
@@ -196,7 +199,7 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
   if (psett->boids) {
     LISTBASE_FOREACH (BoidState *, state, &psett->boids->states) {
       LISTBASE_FOREACH (BoidRule *, rule, &state->rules) {
-        if (rule->type == eBoidRuleType_Avoid) {
+        if (ELEM(rule->type, eBoidRuleType_Avoid, eBoidRuleType_Goal)) {
           BoidRuleGoalAvoid *gabr = (BoidRuleGoalAvoid *)rule;
           BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gabr->ob, IDWALK_CB_NOP);
         }
@@ -210,6 +213,10 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
 
   LISTBASE_FOREACH (ParticleDupliWeight *, dw, &psett->instance_weights) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, dw->ob, IDWALK_CB_NOP);
+  }
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->force_group, IDWALK_CB_NOP);
   }
 }
 
@@ -361,120 +368,12 @@ static void particle_settings_blend_read_data(BlendDataReader *reader, ID *id)
   CLAMP(part->trail_count, 1, 100000);
 }
 
-void BKE_particle_partdeflect_blend_read_lib(BlendLibReader *reader, ID *id, PartDeflect *pd)
+static void particle_settings_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
 {
-  if (pd && pd->tex) {
-    BLO_read_id_address(reader, id, &pd->tex);
-  }
-  if (pd && pd->f_source) {
-    BLO_read_id_address(reader, id, &pd->f_source);
-  }
-}
+  ParticleSettings *part = reinterpret_cast<ParticleSettings *>(id);
 
-static void particle_settings_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  ParticleSettings *part = (ParticleSettings *)id;
-
-  /* XXX: deprecated - old animation system. */
-  BLO_read_id_address(reader, id, &part->ipo);
-
-  BLO_read_id_address(reader, id, &part->instance_object);
-  BLO_read_id_address(reader, id, &part->instance_collection);
-  BLO_read_id_address(reader, id, &part->force_group);
-  BLO_read_id_address(reader, id, &part->bb_ob);
-  BLO_read_id_address(reader, id, &part->collision_group);
-
-  BKE_particle_partdeflect_blend_read_lib(reader, id, part->pd);
-  BKE_particle_partdeflect_blend_read_lib(reader, id, part->pd2);
-
-  if (part->effector_weights) {
-    BLO_read_id_address(reader, id, &part->effector_weights->group);
-  }
-
-  if (part->instance_weights.first && part->instance_collection) {
-    LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
-      BLO_read_id_address(reader, id, &dw->ob);
-    }
-  }
-  else {
+  if (part->instance_weights.first && !part->instance_collection) {
     BLI_freelistN(&part->instance_weights);
-  }
-
-  if (part->boids) {
-    LISTBASE_FOREACH (BoidState *, state, &part->boids->states) {
-      LISTBASE_FOREACH (BoidRule *, rule, &state->rules) {
-        switch (rule->type) {
-          case eBoidRuleType_Goal:
-          case eBoidRuleType_Avoid: {
-            BoidRuleGoalAvoid *brga = (BoidRuleGoalAvoid *)rule;
-            BLO_read_id_address(reader, id, &brga->ob);
-            break;
-          }
-          case eBoidRuleType_FollowLeader: {
-            BoidRuleFollowLeader *brfl = (BoidRuleFollowLeader *)rule;
-            BLO_read_id_address(reader, id, &brfl->ob);
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  for (int a = 0; a < MAX_MTEX; a++) {
-    MTex *mtex = part->mtex[a];
-    if (mtex) {
-      BLO_read_id_address(reader, id, &mtex->tex);
-      BLO_read_id_address(reader, id, &mtex->object);
-    }
-  }
-}
-
-static void particle_settings_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  ParticleSettings *part = (ParticleSettings *)id;
-  BLO_expand(expander, part->instance_object);
-  BLO_expand(expander, part->instance_collection);
-  BLO_expand(expander, part->force_group);
-  BLO_expand(expander, part->bb_ob);
-  BLO_expand(expander, part->collision_group);
-
-  for (int a = 0; a < MAX_MTEX; a++) {
-    if (part->mtex[a]) {
-      BLO_expand(expander, part->mtex[a]->tex);
-      BLO_expand(expander, part->mtex[a]->object);
-    }
-  }
-
-  if (part->effector_weights) {
-    BLO_expand(expander, part->effector_weights->group);
-  }
-
-  if (part->pd) {
-    BLO_expand(expander, part->pd->tex);
-    BLO_expand(expander, part->pd->f_source);
-  }
-  if (part->pd2) {
-    BLO_expand(expander, part->pd2->tex);
-    BLO_expand(expander, part->pd2->f_source);
-  }
-
-  if (part->boids) {
-    LISTBASE_FOREACH (BoidState *, state, &part->boids->states) {
-      LISTBASE_FOREACH (BoidRule *, rule, &state->rules) {
-        if (rule->type == eBoidRuleType_Avoid) {
-          BoidRuleGoalAvoid *gabr = (BoidRuleGoalAvoid *)rule;
-          BLO_expand(expander, gabr->ob);
-        }
-        else if (rule->type == eBoidRuleType_FollowLeader) {
-          BoidRuleFollowLeader *flbr = (BoidRuleFollowLeader *)rule;
-          BLO_expand(expander, flbr->ob);
-        }
-      }
-    }
-  }
-
-  LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
-    BLO_expand(expander, dw->ob);
   }
 }
 
@@ -484,7 +383,7 @@ IDTypeInfo IDType_ID_PA = {
     /*main_listbase_index*/ INDEX_ID_PA,
     /*struct_size*/ sizeof(ParticleSettings),
     /*name*/ "ParticleSettings",
-    /*name_plural*/ "particles",
+    /*name_plural*/ N_("particles"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_PARTICLESETTINGS,
     /*flags*/ 0,
     /*asset_type_info*/ nullptr,
@@ -500,8 +399,7 @@ IDTypeInfo IDType_ID_PA = {
 
     /*blend_write*/ particle_settings_blend_write,
     /*blend_read_data*/ particle_settings_blend_read_data,
-    /*blend_read_lib*/ particle_settings_blend_read_lib,
-    /*blend_read_expand*/ particle_settings_blend_read_expand,
+    /*blend_read_after_liblink*/ particle_settings_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -595,12 +493,12 @@ static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot,
   ParticleCacheKey **cache;
   int i, totkey, totbufkey;
 
-  tot = MAX2(tot, 1);
+  tot = std::max(tot, 1);
   totkey = 0;
   cache = static_cast<ParticleCacheKey **>(MEM_callocN(tot * sizeof(void *), "PathCacheArray"));
 
   while (totkey < tot) {
-    totbufkey = MIN2(tot - totkey, PATH_CACHE_BUF_SIZE);
+    totbufkey = std::min(tot - totkey, PATH_CACHE_BUF_SIZE);
     buf = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "PathCacheLinkData"));
     buf->data = MEM_callocN(sizeof(ParticleCacheKey) * totbufkey * totkeys, "ParticleCacheKey");
 
@@ -1412,8 +1310,8 @@ static void init_particle_interpolation(Object *ob,
     pind->dietime = pa ? pa->dietime : (pind->cache->endframe + 1);
 
     if (get_pointcache_times_for_particle(pind->cache, pa - psys->particles, &start, &dietime)) {
-      pind->birthtime = MAX2(pind->birthtime, start);
-      pind->dietime = MIN2(pind->dietime, dietime);
+      pind->birthtime = std::max(pind->birthtime, start);
+      pind->dietime = std::min(pind->dietime, dietime);
     }
   }
   else {
@@ -1960,7 +1858,7 @@ int psys_particle_dm_face_lookup(Mesh *mesh_final,
         CustomData_get_layer(&mesh_original->fdata_legacy, CD_ORIGINDEX));
   }
   else {
-    BLI_assert(BKE_mesh_is_deformed_only(mesh_final));
+    BLI_assert(mesh_final->runtime->deformed_only);
     index_mf_to_mpoly_deformed = index_mf_to_mpoly;
   }
   BLI_assert(index_mf_to_mpoly_deformed);
@@ -2052,7 +1950,7 @@ static int psys_map_index_on_dm(Mesh *mesh,
     return 0;
   }
 
-  if (BKE_mesh_is_deformed_only(mesh) || index_dmcache == DMCACHE_ISCHILD) {
+  if (mesh->runtime->deformed_only || index_dmcache == DMCACHE_ISCHILD) {
     /* for meshes that are either only deformed or for child particles, the
      * index and fw do not require any mapping, so we can directly use it */
     if (from == PART_FROM_VERT) {
@@ -2499,7 +2397,7 @@ bool do_guides(Depsgraph *depsgraph,
         /* curve direction */
         cross_v3_v3v3(temp, eff->guide_dir, guidedir);
         angle = dot_v3v3(eff->guide_dir, guidedir) / len_v3(eff->guide_dir);
-        angle = saacos(angle);
+        angle = safe_acosf(angle);
         axis_angle_to_quat(rot2, temp, angle);
         mul_qt_v3(rot2, vec_to_point);
 
@@ -2974,7 +2872,7 @@ static void psys_thread_create_path(ParticleTask *task,
             normalize_v3(v1);
             normalize_v3(v2);
 
-            d = RAD2DEGF(saacos(dot_v3v3(v1, v2)));
+            d = RAD2DEGF(safe_acosf(dot_v3v3(v1, v2)));
           }
 
           if (p_max > p_min) {
@@ -3340,7 +3238,7 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0,
         copy_v4_v4(key1->rot, key2->rot);
       }
       else {
-        angle = saacos(cosangle);
+        angle = safe_acosf(cosangle);
         cross_v3_v3v3(normal, prev_tangent, tangent);
         axis_angle_to_quat(q, normal, angle);
         mul_qt_qtqt(key1->rot, q, key2->rot);
@@ -3455,7 +3353,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_re
 
     if (part->draw & PART_ABS_PATH_TIME) {
       birthtime = MAX2(pind.birthtime, part->path_start);
-      dietime = MIN2(pind.dietime, part->path_end);
+      dietime = std::min(pind.dietime, part->path_end);
     }
     else {
       float tb = pind.birthtime;
@@ -3777,7 +3675,7 @@ void psys_cache_edit_paths(Depsgraph *depsgraph,
     return;
   }
 
-  segments = MAX2(segments, 4);
+  segments = std::max(segments, 4);
 
   if (!cache || edit->totpoint != edit->totcached) {
     /* Clear out old and create new empty path cache. */
@@ -3932,7 +3830,7 @@ static void psys_face_mat(Object *ob, Mesh *mesh, ParticleData *pa, float mat[4]
     /* ugly hack to use non-transformed orcos, since only those
      * give symmetric results for mirroring in particle mode */
     if (CustomData_get_layer(&mesh->vert_data, CD_ORIGINDEX)) {
-      BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), v, 3, 1);
+      BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), v, 3, true);
     }
   }
   else {
@@ -5037,7 +4935,7 @@ bool psys_get_particle_state(ParticleSimulationData *sim,
       }
     }
 
-    cfra = MIN2(cfra, pa->dietime);
+    cfra = std::min(cfra, pa->dietime);
   }
 
   if (sim->psys->flag & PSYS_KEYED) {
@@ -5531,28 +5429,18 @@ void BKE_particle_system_blend_read_data(BlendDataReader *reader, ListBase *part
   }
 }
 
-void BKE_particle_system_blend_read_lib(BlendLibReader *reader,
-                                        Object *ob,
-                                        ID *id,
-                                        ListBase *particles)
+void BKE_particle_system_blend_read_after_liblink(BlendLibReader * /*reader*/,
+                                                  Object *ob,
+                                                  ID * /*id*/,
+                                                  ListBase *particles)
 {
   LISTBASE_FOREACH_MUTABLE (ParticleSystem *, psys, particles) {
-
-    BLO_read_id_address(reader, id, &psys->part);
     if (psys->part) {
-      LISTBASE_FOREACH (ParticleTarget *, pt, &psys->targets) {
-        BLO_read_id_address(reader, id, &pt->ob);
-      }
-
-      BLO_read_id_address(reader, id, &psys->parent);
-      BLO_read_id_address(reader, id, &psys->target_ob);
-
       if (psys->clmd) {
         /* XXX(@ideasman42): from reading existing code this seems correct but intended usage
          * of point-cache with cloth should be added in #ParticleSystem. */
         psys->clmd->point_cache = psys->pointcache;
         psys->clmd->ptcaches.first = psys->clmd->ptcaches.last = nullptr;
-        BLO_read_id_address(reader, id, &psys->clmd->coll_parms->group);
         psys->clmd->modifier.error = nullptr;
       }
     }

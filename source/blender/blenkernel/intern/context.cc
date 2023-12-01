@@ -23,7 +23,7 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -32,11 +32,11 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_sound.h"
 #include "BKE_workspace.h"
 
@@ -68,7 +68,7 @@ struct bContext {
     ARegion *region;
     ARegion *menu;
     wmGizmoGroup *gizmo_group;
-    bContextStore *store;
+    const bContextStore *store;
 
     /* Operator poll. */
     /**
@@ -128,60 +128,51 @@ void CTX_free(bContext *C)
 
 /* store */
 
-bContextStore *CTX_store_add(ListBase *contexts,
+bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                              const blender::StringRefNull name,
                              const PointerRNA *ptr)
 {
   /* ensure we have a context to put the entry in, if it was already used
    * we have to copy the context to ensure */
-  bContextStore *ctx = static_cast<bContextStore *>(contexts->last);
-
-  if (!ctx || ctx->used) {
-    if (ctx) {
-      ctx = MEM_new<bContextStore>(__func__, *ctx);
-    }
-    else {
-      ctx = MEM_new<bContextStore>(__func__);
-    }
-
-    BLI_addtail(contexts, ctx);
+  if (contexts.is_empty()) {
+    contexts.append(std::make_unique<bContextStore>());
+  }
+  else if (contexts.last()->used) {
+    auto new_ctx = std::make_unique<bContextStore>(bContextStore{contexts.last()->entries, false});
+    contexts.append(std::move(new_ctx));
   }
 
+  bContextStore *ctx = contexts.last().get();
   ctx->entries.append(bContextStoreEntry{name, *ptr});
-
   return ctx;
 }
 
-bContextStore *CTX_store_add_all(ListBase *contexts, bContextStore *context)
+bContextStore *CTX_store_add_all(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
+                                 const bContextStore *context)
 {
-  /* ensure we have a context to put the entries in, if it was already used
+  /* ensure we have a context to put the entry in, if it was already used
    * we have to copy the context to ensure */
-  bContextStore *ctx = static_cast<bContextStore *>(contexts->last);
-
-  if (!ctx || ctx->used) {
-    if (ctx) {
-      ctx = MEM_new<bContextStore>(__func__, *ctx);
-    }
-    else {
-      ctx = MEM_new<bContextStore>(__func__);
-    }
-
-    BLI_addtail(contexts, ctx);
+  if (contexts.is_empty()) {
+    contexts.append(std::make_unique<bContextStore>());
+  }
+  else if (contexts.last()->used) {
+    auto new_ctx = std::make_unique<bContextStore>(bContextStore{contexts.last()->entries, false});
+    contexts.append(std::move(new_ctx));
   }
 
+  bContextStore *ctx = contexts.last().get();
   for (const bContextStoreEntry &src_entry : context->entries) {
     ctx->entries.append(src_entry);
   }
-
   return ctx;
 }
 
-bContextStore *CTX_store_get(bContext *C)
+const bContextStore *CTX_store_get(const bContext *C)
 {
   return C->wm.store;
 }
 
-void CTX_store_set(bContext *C, bContextStore *store)
+void CTX_store_set(bContext *C, const bContextStore *store)
 {
   C->wm.store = store;
 }
@@ -198,16 +189,6 @@ const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
     }
   }
   return nullptr;
-}
-
-bContextStore *CTX_store_copy(const bContextStore *store)
-{
-  return MEM_new<bContextStore>(__func__, *store);
-}
-
-void CTX_store_free(bContextStore *store)
-{
-  MEM_delete(store);
 }
 
 /* is python initialized? */
@@ -500,6 +481,16 @@ ListBase CTX_data_collection_get(const bContext *C, const char *member)
   return list;
 }
 
+void CTX_data_collection_remap_property(ListBase /*CollectionPointerLink*/ collection_pointers,
+                                        const char *propname)
+{
+  LISTBASE_FOREACH (CollectionPointerLink *, link, &collection_pointers) {
+    PointerRNA original_ptr = link->ptr;
+    PointerRNA remapped_ptr = RNA_pointer_get(&original_ptr, propname);
+    link->ptr = remapped_ptr;
+  }
+}
+
 int /*eContextResult*/ CTX_data_get(const bContext *C,
                                     const char *member,
                                     PointerRNA *r_ptr,
@@ -563,8 +554,7 @@ ListBase CTX_data_dir_get_ex(const bContext *C,
     int namelen;
 
     PropertyRNA *iterprop;
-    PointerRNA ctx_ptr;
-    RNA_pointer_create(nullptr, &RNA_Context, (void *)C, &ctx_ptr);
+    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, (void *)C);
 
     iterprop = RNA_struct_iterator_property(ctx_ptr.type);
 
@@ -636,12 +626,12 @@ bool CTX_data_dir(const char *member)
 
 void CTX_data_id_pointer_set(bContextDataResult *result, ID *id)
 {
-  RNA_id_pointer_create(id, &result->ptr);
+  result->ptr = RNA_id_pointer_create(id);
 }
 
 void CTX_data_pointer_set(bContextDataResult *result, ID *id, StructRNA *type, void *data)
 {
-  RNA_pointer_create(id, type, data, &result->ptr);
+  result->ptr = RNA_pointer_create(id, type, data);
 }
 
 void CTX_data_pointer_set_ptr(bContextDataResult *result, const PointerRNA *ptr)
@@ -652,7 +642,7 @@ void CTX_data_pointer_set_ptr(bContextDataResult *result, const PointerRNA *ptr)
 void CTX_data_id_list_add(bContextDataResult *result, ID *id)
 {
   CollectionPointerLink *link = MEM_cnew<CollectionPointerLink>(__func__);
-  RNA_id_pointer_create(id, &link->ptr);
+  link->ptr = RNA_id_pointer_create(id);
 
   BLI_addtail(&result->list, link);
 }
@@ -660,7 +650,7 @@ void CTX_data_id_list_add(bContextDataResult *result, ID *id)
 void CTX_data_list_add(bContextDataResult *result, ID *id, StructRNA *type, void *data)
 {
   CollectionPointerLink *link = MEM_cnew<CollectionPointerLink>(__func__);
-  RNA_pointer_create(id, type, data, &link->ptr);
+  link->ptr = RNA_pointer_create(id, type, data);
 
   BLI_addtail(&result->list, link);
 }
@@ -1503,10 +1493,10 @@ bool CTX_data_editable_gpencil_strokes(const bContext *C, ListBase *list)
 
 const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C)
 {
-  return static_cast<AssetLibraryReference *>(ctx_data_pointer_get(C, "asset_library_ref"));
+  return static_cast<AssetLibraryReference *>(ctx_data_pointer_get(C, "asset_library_reference"));
 }
 
-AssetHandle CTX_wm_asset_handle(const bContext *C, bool *r_is_valid)
+static AssetHandle ctx_wm_asset_handle(const bContext *C, bool *r_is_valid)
 {
   AssetHandle *asset_handle_p =
       (AssetHandle *)CTX_data_pointer_get_type(C, "asset_handle", &RNA_AssetHandle).data;
@@ -1533,8 +1523,20 @@ AssetHandle CTX_wm_asset_handle(const bContext *C, bool *r_is_valid)
 
 blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C)
 {
-  return static_cast<blender::asset_system::AssetRepresentation *>(
-      ctx_data_pointer_get(C, "asset"));
+  if (auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(
+          ctx_data_pointer_get(C, "asset")))
+  {
+    return asset;
+  }
+
+  /* Expose the asset representation from the asset-handle.
+   * TODO(Julian): #AssetHandle should be properly replaced by #AssetRepresentation. */
+  bool is_valid;
+  if (AssetHandle handle = ctx_wm_asset_handle(C, &is_valid); is_valid) {
+    return handle.file_data->asset;
+  }
+
+  return nullptr;
 }
 
 Depsgraph *CTX_data_depsgraph_pointer(const bContext *C)

@@ -35,9 +35,9 @@
 #include "KX_Globals.h"
 
 #include "BKE_constraint.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_id.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #ifdef WITH_PYTHON
 

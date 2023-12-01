@@ -5,7 +5,6 @@
 set(INC
   .
   ../../blenkernel
-  ../../depsgraph
   ../../makesrna
 )
 
@@ -22,16 +21,17 @@ set(SRC
 
   IO_abstract_hierarchy_iterator.h
   IO_dupli_persistent_id.hh
-  IO_orientation.h
+  IO_orientation.hh
   IO_path_util.hh
-  IO_path_util_types.h
-  IO_types.h
+  IO_path_util_types.hh
+  IO_types.hh
   intern/dupli_parent_finder.hh
 )
 
 set(LIB
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

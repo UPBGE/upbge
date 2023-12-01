@@ -26,17 +26,17 @@
 
 #include "BLI_path_util.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
 #include "DNA_python_proxy_types.h"
 #include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BKE_appdir.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_python_proxy.h"
+#include "BKE_python_proxy.hh"
 #include "BKE_report.h"
 #include "BKE_text.h"
 

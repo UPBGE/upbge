@@ -22,9 +22,9 @@
 #include "BKE_main.h"
 #include "BKE_speaker.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
-#include <string.h>
+#include <cstring>
 
 static void speaker_init_data(ID *id)
 {
@@ -51,25 +51,13 @@ static void speaker_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   BKE_id_blend_write(writer, &spk->id);
 }
 
-static void speaker_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Speaker *spk = (Speaker *)id;
-  BLO_read_id_address(reader, id, &spk->sound);
-}
-
-static void speaker_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Speaker *spk = (Speaker *)id;
-  BLO_expand(expander, spk->sound);
-}
-
 IDTypeInfo IDType_ID_SPK = {
     /*id_code*/ ID_SPK,
     /*id_filter*/ FILTER_ID_SPK,
     /*main_listbase_index*/ INDEX_ID_SPK,
     /*struct_size*/ sizeof(Speaker),
     /*name*/ "Speaker",
-    /*name_plural*/ "speakers",
+    /*name_plural*/ N_("speakers"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_SPEAKER,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -85,8 +73,7 @@ IDTypeInfo IDType_ID_SPK = {
 
     /*blend_write*/ speaker_blend_write,
     /*blend_read_data*/ nullptr,
-    /*blend_read_lib*/ speaker_blend_read_lib,
-    /*blend_read_expand*/ speaker_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 

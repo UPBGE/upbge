@@ -15,6 +15,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -27,23 +28,26 @@
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_colorband.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
+#include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.h"
 
 #include "NOD_texture.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "UI_interface.hh"
 #include "UI_view2d.hh"
@@ -808,16 +812,19 @@ static blender::float3 paint_init_pivot_mesh(Object *ob)
   return math::midpoint(bounds->min, bounds->max);
 }
 
-static void paint_init_pivot_curves(Object *ob, float location[3])
+static blender::float3 paint_init_pivot_curves(Object *ob)
 {
-  const BoundBox *bbox = BKE_object_boundbox_get(ob);
-  interp_v3_v3v3(location, bbox->vec[0], bbox->vec[6], 0.5f);
+  const Curves &curves = *static_cast<const Curves *>(ob->data);
+  const blender::Bounds<blender::float3> bounds = *curves.geometry.wrap().bounds_min_max();
+  return blender::math::midpoint(bounds.min, bounds.max);
 }
 
-static void paint_init_pivot_grease_pencil(Object *ob, float location[3])
+static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int frame)
 {
-  const BoundBox *bbox = BKE_object_boundbox_get(ob);
-  interp_v3_v3v3(location, bbox->vec[0], bbox->vec[6], 0.5f);
+  using namespace blender;
+  const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(ob->data);
+  const blender::Bounds<blender::float3> bounds = *grease_pencil.bounds_min_max(frame);
+  return blender::math::midpoint(bounds.min, bounds.max);
 }
 
 void paint_init_pivot(Object *ob, Scene *scene)
@@ -830,10 +837,10 @@ void paint_init_pivot(Object *ob, Scene *scene)
       location = paint_init_pivot_mesh(ob);
       break;
     case OB_CURVES:
-      paint_init_pivot_curves(ob, location);
+      location = paint_init_pivot_curves(ob);
       break;
     case OB_GREASE_PENCIL:
-      paint_init_pivot_grease_pencil(ob, location);
+      location = paint_init_pivot_grease_pencil(ob, scene->r.cfra);
       break;
     default:
       BLI_assert_unreachable();

@@ -18,7 +18,7 @@
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_paint.hh"
@@ -33,7 +33,7 @@
 #include "ED_gpencil_legacy.hh"
 #include "ED_screen.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "gpencil_intern.h"
 

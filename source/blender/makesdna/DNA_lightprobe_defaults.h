@@ -29,6 +29,8 @@
     .grid_validity_threshold = 0.40f, \
     .grid_dilation_threshold = 0.5f, \
     .grid_dilation_radius = 1.0f, \
+    .grid_clamp_direct = 0.0f, \
+    .grid_clamp_indirect = 10.0f, \
     .surfel_density = 1.0f, \
     .distinf = 2.5f, \
     .distpar = 2.5f, \
@@ -40,7 +42,7 @@
     .intensity = 1.0f, \
     .flag = LIGHTPROBE_FLAG_SHOW_INFLUENCE, \
     .grid_flag = LIGHTPROBE_GRID_CAPTURE_INDIRECT | LIGHTPROBE_GRID_CAPTURE_EMISSION, \
-    .resolution = LIGHT_PROBE_RESOLUTION_1024, \
+    .data_display_size = 0.1f, \
   }
 
 /** \} */

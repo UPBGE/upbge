@@ -13,10 +13,11 @@
 #include "BKE_scene.h"
 
 #include "BLI_path_util.h"
+#include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "DNA_scene_types.h"
 
@@ -158,9 +159,6 @@ static void write_mesh_objects(Vector<std::unique_ptr<OBJMesh>> exportable_as_me
     OBJMesh &obj = *obj_mesh;
     if (mtl_writer) {
       mtlindices.append(mtl_writer->add_materials(obj));
-    }
-    if (export_params.export_normals) {
-      obj.ensure_mesh_normals();
     }
   }
 

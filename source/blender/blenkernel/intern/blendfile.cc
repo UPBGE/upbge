@@ -37,7 +37,7 @@
 #include "BKE_blendfile.h"
 #include "BKE_bpath.h"
 #include "BKE_colorband.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
 #include "BKE_ipo.h"
@@ -46,20 +46,20 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
-#include "BKE_main_idmap.h"
-#include "BKE_main_namemap.h"
+#include "BKE_main_idmap.hh"
+#include "BKE_main_namemap.hh"
 #include "BKE_preferences.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_studiolight.h"
 #include "BKE_undo_system.h"
 #include "BKE_workspace.h"
 
 #include "BLO_readfile.h"
-#include "BLO_writefile.h"
+#include "BLO_writefile.hh"
 
 #include "RNA_access.hh"
 
@@ -306,14 +306,16 @@ static bool reuse_bmain_data_remapper_is_id_remapped(IDRemapper *remapper, ID *i
   return false;
 }
 
-/** Does a complete replacement of data in `new_bmain` by data from `old_bmain. Original new data
+/**
+ * Does a complete replacement of data in `new_bmain` by data from `old_bmain. Original new data
  * are moved to the `old_bmain`, and will be freed together with it.
  *
  * WARNING: Currently only expects to work on local data, won't work properly if some of the IDs of
  * given type are linked.
  *
  * NOTE: There is no support at all for potential dependencies of the IDs moved around. This is not
- * expected to be necessary for the current use cases (UI-related IDs). */
+ * expected to be necessary for the current use cases (UI-related IDs).
+ */
 static void swap_old_bmain_data_for_blendfile(ReuseOldBMainData *reuse_data, const short id_code)
 {
   Main *new_bmain = reuse_data->new_bmain;
@@ -382,9 +384,11 @@ static void swap_old_bmain_data_for_blendfile(ReuseOldBMainData *reuse_data, con
   FOREACH_MAIN_LISTBASE_ID_END;
 }
 
-/** Similar to #swap_old_bmain_data_for_blendfile, but with special handling for WM ID. Tightly
+/**
+ * Similar to #swap_old_bmain_data_for_blendfile, but with special handling for WM ID. Tightly
  * related to further WM post-processing from calling WM code (see #WM_file_read and
- * #wm_homefile_read_ex). */
+ * #wm_homefile_read_ex).
+ */
 static void swap_wm_data_for_blendfile(ReuseOldBMainData *reuse_data, const bool load_ui)
 {
   Main *old_bmain = reuse_data->old_bmain;
@@ -800,6 +804,19 @@ static void setup_app_data(bContext *C,
     wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
   }
 
+  if (mode == LOAD_UNDO) {
+    /* It's possible to undo into a time before the scene existed, in this case the window's scene
+     * will be null. Since it doesn't make sense to remove the window, set it to the current scene.
+     * NOTE: Redo will restore the active scene to the window so a reasonably consistent state
+     * is maintained. We could do better by keeping a window/scene map for each undo step. */
+    wmWindowManager *wm = static_cast<wmWindowManager *>(bfd->main->wm.first);
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+      if (win->scene == nullptr) {
+        win->scene = curscene;
+      }
+    }
+  }
+
   BLI_assert(BKE_main_namemap_validate(bfd->main));
 
   if (mode != LOAD_UI) {
@@ -957,15 +974,14 @@ static void setup_app_blend_file_data(bContext *C,
 
 static void handle_subversion_warning(Main *main, BlendFileReadReport *reports)
 {
-  if (main->minversionfile > BLENDER_FILE_VERSION ||
-      (main->minversionfile == BLENDER_FILE_VERSION &&
-       main->minsubversionfile > BLENDER_FILE_SUBVERSION))
+  if (main->versionfile > BLENDER_FILE_VERSION || (main->versionfile == BLENDER_FILE_VERSION &&
+                                                   main->subversionfile > BLENDER_FILE_SUBVERSION))
   {
     BKE_reportf(reports->reports,
                 RPT_WARNING,
                 "File written by newer Blender binary (%d.%d), expect loss of data!",
-                main->minversionfile,
-                main->minsubversionfile);
+                main->versionfile,
+                main->subversionfile);
   }
 }
 

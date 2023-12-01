@@ -12,7 +12,7 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_movieclip.h"
 
 #include "ED_clip.hh"
@@ -382,9 +382,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
         IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
       MovieTrackingTrack *track = channel->track;
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
-      PointerRNA ptr;
-
-      RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track, &ptr);
+      PointerRNA ptr = RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track);
 
       UI_block_emboss_set(block, UI_EMBOSS_NONE);
       uiDefIconButR_prop(block,

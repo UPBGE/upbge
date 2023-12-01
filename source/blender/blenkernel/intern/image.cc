@@ -22,7 +22,7 @@
 #include <string>
 
 #include "BLI_array.hh"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
 #include "CLG_log.h"
 
@@ -73,8 +73,9 @@
 #include "BKE_main.h"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.h"
+#include "BKE_preview_image.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_workspace.h"
@@ -85,17 +86,17 @@
 
 #include "RE_pipeline.h"
 
-#include "SEQ_utils.h" /* SEQ_get_topmost_sequence() */
+#include "SEQ_utils.hh" /* SEQ_get_topmost_sequence() */
 
 #include "GPU_material.h"
 #include "GPU_texture.h"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /* for image user iteration */
 #include "DNA_node_types.h"
@@ -419,9 +420,10 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   image_runtime_reset(ima);
 }
 
-static void image_blend_read_lib(BlendLibReader * /*reader*/, ID *id)
+static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
 {
-  Image *ima = (Image *)id;
+  Image *ima = reinterpret_cast<Image *>(id);
+
   /* Images have some kind of 'main' cache, when null we should also clear all others. */
   /* Needs to be done *after* cache pointers are restored (call to
    * `foreach_cache`/`blo_cache_storage_entry_restore_in_new`), easier for now to do it in
@@ -455,8 +457,7 @@ constexpr IDTypeInfo get_type_info()
 
   info.blend_write = image_blend_write;
   info.blend_read_data = image_blend_read_data;
-  info.blend_read_lib = image_blend_read_lib;
-  info.blend_read_expand = nullptr;
+  info.blend_read_after_liblink = image_blend_read_after_liblink;
 
   info.blend_read_undo_preserve = nullptr;
 
@@ -1893,6 +1894,14 @@ static void stampdata_from_template(StampData *stamp_data,
   else {
     stamp_data->frame[0] = '\0';
   }
+  if (scene->r.stamp & R_STAMP_FRAME_RANGE) {
+    SNPRINTF(stamp_data->frame_range,
+             do_prefix ? "Frame Range %s" : "%s",
+             stamp_data_template->frame_range);
+  }
+  else {
+    stamp_data->frame_range[0] = '\0';
+  }
   if (scene->r.stamp & R_STAMP_CAMERA) {
     SNPRINTF(stamp_data->camera, do_prefix ? "Camera %s" : "%s", stamp_data_template->camera);
   }
@@ -2218,6 +2227,28 @@ void BKE_image_stamp_buf(Scene *scene,
     /* and pad the text. */
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.frame, sizeof(stamp_data.frame));
+
+    /* space width. */
+    x += w + pad;
+  }
+
+  if (TEXT_SIZE_CHECK(stamp_data.frame_range, w, h)) {
+
+    /* extra space for background. */
+    buf_rectfill_area(rect,
+                      rectf,
+                      width,
+                      height,
+                      scene->r.bg_stamp,
+                      display,
+                      x - BUFF_MARGIN_X,
+                      y - BUFF_MARGIN_Y,
+                      x + w + BUFF_MARGIN_X,
+                      y + h + BUFF_MARGIN_Y);
+
+    /* and pad the text. */
+    BLF_position(mono, x, y + y_ofs, 0.0);
+    BLF_draw_buffer(mono, stamp_data.frame_range, sizeof(stamp_data.frame_range));
 
     /* space width. */
     x += w + pad;
@@ -4384,13 +4415,45 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
     }
   }
 
+  /* Put an empty image buffer to the cache. This allows to achieve the following:
+   *
+   * 1. It makes it so the generic logic in the #BKE_image_has_loaded_ibuf properly detects that
+   * an Image used to display render result has loaded image buffer.
+   *
+   * Surely there are all the design questions about scene-dependent Render Result image
+   * data-block, and the behavior of the flag dependent on whether the Render Result image was ever
+   * shown on screen. The purpose of this code is to preserve the Python API behavior to the level
+   * prior to the #RenderResult refactor to use #ImBuf which happened for Blender 4.0.
+   *
+   * 2. Provides an image buffer which can be used to communicate the render resolution (with
+   * possible border render applied to it) prior to the actual pixels storage is allocated. */
+  if (ima->cache == nullptr) {
+    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, 0, 0);
+    image_assign_ibuf(ima, empty_ibuf, IMA_NO_INDEX, 0);
+
+    /* The cache references the image buffer, and the freeing only happens if the buffer has 0
+     * references at the time when the #IMB_freeImBuf() is called. This particular image buffer is
+     * to be freed together with the cache, without any extra reference counting done by any image
+     * pixel accessor. */
+    IMB_freeImBuf(empty_ibuf);
+  }
+
   if (pass_ibuf) {
-    /* TODO(sergey): Perhaps its better to assign dither when ImBuf is allocated for the render
+    /* TODO(@sergey): Perhaps its better to assign dither when #ImBuf is allocated for the render
      * result. It will avoid modification here, and allow comparing render results with different
      * dither applied to them. */
     pass_ibuf->dither = dither;
 
     IMB_refImBuf(pass_ibuf);
+  }
+  else {
+    pass_ibuf = image_get_cached_ibuf_for_index_entry(ima, IMA_NO_INDEX, 0, nullptr);
+
+    /* Assign the current render resolution to the image buffer.
+     * The actual storage is still empty. The intended use is to merely communicate the actual
+     * render resolution prior to render border is "un-cropped". */
+    pass_ibuf->x = rres.rectx;
+    pass_ibuf->y = rres.recty;
   }
 
   return pass_ibuf;
@@ -4765,17 +4828,16 @@ void BKE_image_pool_free(ImagePool *pool)
 }
 
 BLI_INLINE ImBuf *image_pool_find_item(
-    ImagePool *pool, Image *image, int entry, int index, bool *found)
+    ImagePool *pool, Image *image, int entry, int index, bool *r_found)
 {
-  *found = false;
-
   LISTBASE_FOREACH (ImagePoolItem *, item, &pool->image_buffers) {
     if (item->image == image && item->entry == entry && item->index == index) {
-      *found = true;
+      *r_found = true;
       return item->ibuf;
     }
   }
 
+  *r_found = false;
   return nullptr;
 }
 

@@ -54,7 +54,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "BKE_idtype.h"
 #include "BKE_image.h"
@@ -63,13 +63,13 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 
 #include "BKE_bpath.h" /* own include */
 
 #include "CLG_log.h"
 
-#include "SEQ_iterator.h"
+#include "SEQ_iterator.hh"
 
 #ifndef _MSC_VER
 #  include "BLI_strict_flags.h"

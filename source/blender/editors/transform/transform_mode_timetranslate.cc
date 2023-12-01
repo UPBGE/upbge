@@ -13,8 +13,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.h"
-#include "BKE_unit.h"
+#include "BKE_context.hh"
+#include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
@@ -43,29 +43,25 @@ static void headerTimeTranslate(TransInfo *t, char str[UI_MAX_DRAW_STR])
     outputNumInput(&(t->num), tvec, &t->scene->unit);
   }
   else {
-    const short autosnap = getAnimEdit_SnapMode(t);
+    eSnapMode snap_mode = t->tsnap.mode;
     float ival = TRANS_DATA_CONTAINER_FIRST_OK(t)->data->ival;
     float val = ival + t->values_final[0];
 
-    snapFrameTransform(t, eAnimEdit_AutoSnap(autosnap), ival, val, &val);
+    snapFrameTransform(t, snap_mode, ival, val, &val);
     float delta_x = val - ival;
 
-    if (ELEM(autosnap, SACTSNAP_SECOND, SACTSNAP_TSTEP)) {
+    if (snap_mode == SCE_SNAP_TO_SECOND) {
       /* Convert to seconds. */
       const Scene *scene = t->scene;
-      const double secf = FPS;
-      delta_x /= secf;
-      val /= secf;
+      delta_x /= FPS;
+      val /= FPS;
     }
 
-    if (autosnap == SACTSNAP_FRAME) {
+    if (snap_mode == SCE_SNAP_TO_FRAME) {
       BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.2f (%.4f)", delta_x, val);
     }
-    else if (autosnap == SACTSNAP_SECOND) {
+    else if (snap_mode == SCE_SNAP_TO_SECOND) {
       BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.2f sec (%.4f)", delta_x, val);
-    }
-    else if (autosnap == SACTSNAP_TSTEP) {
-      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f sec", delta_x);
     }
     else {
       BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", delta_x);
@@ -86,7 +82,17 @@ static void applyTimeTranslateValue(TransInfo *t, const float deltax)
     /* It doesn't matter whether we apply to t->data. */
     TransData *td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
-      *(td->val) = td->loc[0] = td->ival + deltax * td->factor;
+      float *dst, ival;
+      if (td->val) {
+        dst = td->val;
+        ival = td->ival;
+      }
+      else {
+        dst = &td->loc[0];
+        ival = td->iloc[0];
+      }
+
+      *dst = ival + deltax * td->factor;
     }
   }
 }

@@ -32,7 +32,7 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
@@ -59,8 +59,8 @@
 
 #include "PIL_time.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "clip_intern.h" /* own include */
 
@@ -183,7 +183,6 @@ static int open_exec(bContext *C, wmOperator *op)
   bScreen *screen = CTX_wm_screen(C);
   Main *bmain = CTX_data_main(C);
   PropertyPointerRNA *pprop;
-  PointerRNA idptr;
   MovieClip *clip = nullptr;
   char filepath[FILE_MAX];
 
@@ -242,7 +241,7 @@ static int open_exec(bContext *C, wmOperator *op)
      * pointer use also increases user, so this compensates it */
     id_us_min(&clip->id);
 
-    RNA_id_pointer_create(&clip->id, &idptr);
+    PointerRNA idptr = RNA_id_pointer_create(&clip->id);
     RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
     RNA_property_update(C, &pprop->ptr, pprop->prop);
   }
@@ -1309,7 +1308,6 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
   if (!*queue->stop && queue->cfra <= queue->efra) {
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
     char filepath[FILE_MAX];
-    size_t size;
     int file;
 
     user.framenr = queue->cfra;
@@ -1322,8 +1320,8 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
       return nullptr;
     }
 
-    size = BLI_file_descriptor_size(file);
-    if (size < 1) {
+    const size_t size = BLI_file_descriptor_size(file);
+    if (UNLIKELY(ELEM(size, 0, size_t(-1)))) {
       close(file);
       BLI_spin_unlock(&queue->spin);
       return nullptr;
@@ -1331,7 +1329,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
     mem = MEM_cnew_array<uchar>(size, "movieclip proxy memory file");
 
-    if (read(file, mem, size) != size) {
+    if (BLI_read(file, mem, size) != size) {
       close(file);
       BLI_spin_unlock(&queue->spin);
       MEM_freeN(mem);
@@ -1453,7 +1451,7 @@ static void do_sequence_proxy(void *pjv,
   MEM_freeN(handles);
 }
 
-static void proxy_startjob(void *pjv, bool *stop, bool *do_update, float *progress)
+static void proxy_startjob(void *pjv, wmJobWorkerStatus *worker_status)
 {
   ProxyJob *pj = static_cast<ProxyJob *>(pjv);
   MovieClip *clip = pj->clip;
@@ -1473,9 +1471,9 @@ static void proxy_startjob(void *pjv, bool *stop, bool *do_update, float *progre
                    build_count,
                    build_undistort_sizes,
                    build_undistort_count,
-                   stop,
-                   do_update,
-                   progress);
+                   &worker_status->stop,
+                   &worker_status->do_update,
+                   &worker_status->progress);
   }
   else {
     do_sequence_proxy(pjv,
@@ -1483,9 +1481,9 @@ static void proxy_startjob(void *pjv, bool *stop, bool *do_update, float *progre
                       build_count,
                       build_undistort_sizes,
                       build_undistort_count,
-                      stop,
-                      do_update,
-                      progress);
+                      &worker_status->stop,
+                      &worker_status->do_update,
+                      &worker_status->progress);
   }
 }
 

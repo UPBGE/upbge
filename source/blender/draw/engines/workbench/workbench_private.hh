@@ -11,7 +11,9 @@
 #include "workbench_enums.hh"
 #include "workbench_shader_shared.h"
 
-extern "C" DrawEngineType draw_engine_workbench_next;
+#include "GPU_capabilities.h"
+
+extern "C" DrawEngineType draw_engine_workbench;
 
 namespace blender::workbench {
 
@@ -30,14 +32,15 @@ class ShaderCache {
   GPUShader *resolve_shader_get(ePipelineType pipeline_type,
                                 eLightingType lighting_type,
                                 bool cavity = false,
-                                bool curvature = false);
+                                bool curvature = false,
+                                bool shadow = false);
 
  private:
   /* TODO(fclem): We might want to change to a Map since most shader will never be compiled. */
   GPUShader *prepass_shader_cache_[pipeline_type_len][geometry_type_len][shader_type_len]
                                   [lighting_type_len][2 /*clip*/] = {{{{{nullptr}}}}};
   GPUShader *resolve_shader_cache_[pipeline_type_len][lighting_type_len][2 /*cavity*/]
-                                  [2 /*curvature*/] = {{{{nullptr}}}};
+                                  [2 /*curvature*/][2 /*shadow*/] = {{{{{nullptr}}}}};
 };
 
 struct Material {
@@ -94,6 +97,8 @@ struct SceneState {
   bool reset_taa_next_sample = false;
   bool render_finished = false;
 
+  bool overlays_enabled = false;
+
   /* Used when material_type == eMaterialType::SINGLE */
   Material material_override = Material(float3(1.0f));
   /* When r == -1.0 the shader uses the vertex color */
@@ -105,7 +110,6 @@ struct SceneState {
 struct ObjectState {
   eV3DShadingColorType color_type = V3D_SHADING_SINGLE_COLOR;
   bool sculpt_pbvh = false;
-  bool texture_paint_mode = false;
   ::Image *image_paint_override = nullptr;
   GPUSamplerState override_sampler_state = GPUSamplerState::default_sampler();
   bool draw_shadow = false;
@@ -137,6 +141,56 @@ class CavityEffect {
   void load_samples_buf(int ssao_samples);
 };
 
+/* Used as a temporary workaround for the lack of texture views support on Windows ARM. */
+class StencilViewWorkaround {
+ private:
+  Texture stencil_copy_tx_ = "stencil_copy_tx";
+  GPUShader *stencil_copy_sh_ = nullptr;
+
+ public:
+  StencilViewWorkaround()
+  {
+    stencil_copy_sh_ = GPU_shader_create_from_info_name("workbench_extract_stencil");
+  }
+  ~StencilViewWorkaround()
+  {
+    DRW_SHADER_FREE_SAFE(stencil_copy_sh_);
+  }
+
+  /** WARNING: Should only be called at render time.
+   * When the workaround path is active,
+   * the returned texture won't stay in sync with the stencil_src,
+   * and will only be valid until the next time this function is called.
+   * Note that the output is a binary mask,
+   * any stencil value that is not 0x00 will be rendered as 0xFF. */
+  GPUTexture *extract(Manager &manager, Texture &stencil_src)
+  {
+    if (GPU_texture_view_support()) {
+      return stencil_src.stencil_view();
+    }
+
+    int2 extent = int2(stencil_src.width(), stencil_src.height());
+    stencil_copy_tx_.ensure_2d(
+        GPU_R8UI, extent, GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ);
+
+    PassSimple ps("Stencil View Workaround");
+    ps.init();
+    ps.clear_color(float4(0));
+    ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_STENCIL_NEQUAL);
+    ps.state_stencil(0x00, 0x00, 0xFF);
+    ps.shader_set(stencil_copy_sh_);
+    ps.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+
+    Framebuffer fb;
+    fb.ensure(GPU_ATTACHMENT_TEXTURE(stencil_src), GPU_ATTACHMENT_TEXTURE(stencil_copy_tx_));
+    fb.bind();
+
+    manager.submit(ps);
+
+    return stencil_copy_tx_;
+  }
+};
+
 struct SceneResources {
   static const int jitter_tx_size = 64;
 
@@ -145,10 +199,14 @@ struct SceneResources {
   StringRefNull current_matcap = {};
   Texture matcap_tx = "matcap_tx";
 
-  TextureFromPool color_tx = "wb_color_tx";
   TextureFromPool object_id_tx = "wb_object_id_tx";
-  Texture depth_tx = "wb_depth_tx";
-  TextureFromPool depth_in_front_tx = "wb_depth_in_front_tx";
+
+  TextureRef color_tx;
+  TextureRef depth_tx;
+  TextureRef depth_in_front_tx;
+
+  Framebuffer clear_fb = {"Clear Main"};
+  Framebuffer clear_in_front_fb = {"Clear In Front"};
 
   StorageVectorBuffer<Material> material_buf = {"material_buf"};
   UniformBuffer<WorldData> world_buf = {};
@@ -157,6 +215,8 @@ struct SceneResources {
   Texture jitter_tx = "wb_jitter_tx";
 
   CavityEffect cavity = {};
+
+  StencilViewWorkaround stencil_view;
 
   void init(const SceneState &scene_state);
   void load_jitter_tx(int total_samples);
@@ -190,11 +250,16 @@ class MeshPass : public PassMain {
                              ImageUser *iuser = nullptr);
 };
 
+enum class StencilBits : uint8_t {
+  BACKGROUND = 0,
+  OBJECT = 1u << 0,
+  OBJECT_IN_FRONT = 1u << 1,
+};
+
 class OpaquePass {
  public:
   TextureFromPool gbuffer_normal_tx = {"gbuffer_normal_tx"};
   TextureFromPool gbuffer_material_tx = {"gbuffer_material_tx"};
-  Framebuffer opaque_fb = {};
 
   Texture shadow_depth_stencil_tx = {"shadow_depth_stencil_tx"};
   GPUTexture *deferred_ps_stencil_tx = nullptr;
@@ -202,6 +267,11 @@ class OpaquePass {
   MeshPass gbuffer_ps_ = {"Opaque.Gbuffer"};
   MeshPass gbuffer_in_front_ps_ = {"Opaque.GbufferInFront"};
   PassSimple deferred_ps_ = {"Opaque.Deferred"};
+
+  Framebuffer gbuffer_fb = {"Opaque.Gbuffer"};
+  Framebuffer gbuffer_in_front_fb = {"Opaque.GbufferInFront"};
+  Framebuffer deferred_fb = {"Opaque.Deferred"};
+  Framebuffer clear_fb = {"Opaque.Clear"};
 
   void sync(const SceneState &scene_state, SceneResources &resources);
   void draw(Manager &manager,
@@ -321,6 +391,8 @@ class ShadowPass {
             GPUTexture &depth_stencil_tx,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
+
+  bool is_debug();
 };
 
 class VolumePass {
@@ -338,6 +410,8 @@ class VolumePass {
   GPUShader *shaders_[2 /*slice*/][2 /*coba*/][3 /*interpolation*/][2 /*smoke*/];
 
  public:
+  ~VolumePass();
+
   void sync(SceneResources &resources);
 
   void object_sync_volume(Manager &manager,
@@ -443,10 +517,6 @@ class DofPass {
 class AntiAliasingPass {
  private:
   bool enabled_ = false;
-  /* Current TAA sample index in [0..samples_len_] range. */
-  int sample_ = 0;
-  /* Total number of samples to after which TAA stops accumulating samples. */
-  int samples_len_ = 0;
   /* Weight accumulated. */
   float weight_accum_ = 0;
   /* Samples weight for this iteration. */
@@ -455,7 +525,7 @@ class AntiAliasingPass {
   float weights_sum_ = 0;
 
   Texture sample0_depth_tx_ = {"sample0_depth_tx"};
-  GPUTexture *stencil_tx_ = nullptr;
+  Texture sample0_depth_in_front_tx_ = {"sample0_depth_in_front_tx"};
 
   Texture taa_accumulation_tx_ = {"taa_accumulation_tx"};
   Texture smaa_search_tx_ = {"smaa_search_tx"};
@@ -489,14 +559,16 @@ class AntiAliasingPass {
   ~AntiAliasingPass();
 
   void init(const SceneState &scene_state);
-  void sync(SceneResources &resources, int2 resolution);
-  void setup_view(View &view, int2 resolution);
-  void draw(Manager &manager,
-            View &view,
-            SceneResources &resources,
-            int2 resolution,
-            GPUTexture *depth_tx,
-            GPUTexture *color_tx);
+  void sync(const SceneState &scene_state, SceneResources &resources);
+  void setup_view(View &view, const SceneState &scene_state);
+  void draw(
+      Manager &manager,
+      View &view,
+      const SceneState &scene_state,
+      SceneResources &resources,
+      /** Passed directly since we may need to copy back the results from the first sample,
+       * and resources.depth_in_front_tx is only valid when mesh passes have to draw to it. */
+      GPUTexture *depth_in_front_tx);
 };
 
 }  // namespace blender::workbench

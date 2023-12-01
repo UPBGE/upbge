@@ -12,8 +12,6 @@ if(WITH_COMPOSITOR_CPU)
     operations
     ../blenkernel
     ../blentranslation
-    ../depsgraph
-    ../imbuf
     ../makesrna
     ../nodes
     ../windowmanager
@@ -22,7 +20,6 @@ if(WITH_COMPOSITOR_CPU)
     ../render
     ../render/intern
     ../../../extern/clew/include
-    ../../../intern/clog
 
     # RNA_prototypes.h
     ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -33,7 +30,7 @@ if(WITH_COMPOSITOR_CPU)
   )
 
   set(SRC
-    COM_compositor.h
+    COM_compositor.hh
     COM_defines.h
 
     intern/COM_BufferArea.h
@@ -346,9 +343,9 @@ if(WITH_COMPOSITOR_CPU)
     operations/COM_GaussianYBlurOperation.cc
     operations/COM_GaussianYBlurOperation.h
     operations/COM_KuwaharaAnisotropicOperation.cc
-    operations/COM_KuwaharaAnisotropicStructureTensorOperation.h
-    operations/COM_KuwaharaAnisotropicStructureTensorOperation.cc
     operations/COM_KuwaharaAnisotropicOperation.h
+    operations/COM_KuwaharaAnisotropicStructureTensorOperation.cc
+    operations/COM_KuwaharaAnisotropicStructureTensorOperation.h
     operations/COM_KuwaharaClassicOperation.cc
     operations/COM_KuwaharaClassicOperation.h
     operations/COM_MovieClipAttributeOperation.cc
@@ -359,6 +356,8 @@ if(WITH_COMPOSITOR_CPU)
     operations/COM_PosterizeOperation.h
     operations/COM_SMAAOperation.cc
     operations/COM_SMAAOperation.h
+    operations/COM_SummedAreaTableOperation.cc
+    operations/COM_SummedAreaTableOperation.h
     operations/COM_VariableSizeBokehBlurOperation.cc
     operations/COM_VariableSizeBokehBlurOperation.h
 
@@ -598,7 +597,10 @@ if(WITH_COMPOSITOR_CPU)
   set(LIB
     bf_blenkernel
     PRIVATE bf::blenlib
+    PRIVATE bf::depsgraph
     PRIVATE bf::dna
+    PRIVATE bf::imbuf
+    PRIVATE bf::intern::clog
     PRIVATE bf::intern::guardedalloc
     extern_clew
     PRIVATE bf::intern::atomic
@@ -612,6 +614,7 @@ if(WITH_COMPOSITOR_CPU)
     ${CMAKE_CURRENT_SOURCE_DIR}/operations/COM_OpenCLKernels.cl
     ${CMAKE_CURRENT_BINARY_DIR}/operations/COM_OpenCLKernels.cl.h
     SRC
+    STRIP_LEADING_C_COMMENTS
   )
 
   add_definitions(-DCL_USE_DEPRECATED_OPENCL_1_1_APIS)
@@ -663,6 +666,7 @@ if(WITH_COMPOSITOR_CPU)
       tests/COM_BufferArea_test.cc
       tests/COM_BufferRange_test.cc
       tests/COM_BuffersIterator_test.cc
+      tests/COM_ComputeSummedAreaTableOperation_test.cc
       tests/COM_NodeOperation_test.cc
     )
     set(TEST_INC

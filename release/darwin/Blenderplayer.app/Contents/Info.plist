@@ -30,7 +30,7 @@
         <key>CFBundleGetInfoString</key>
         <string>${MACOSX_BUNDLE_LONG_VERSION_STRING}, UPBGE</string>
         <key>CFBundleIconFile</key>
-        <string>upbge icon.icns</string>
+        <string>upbge_icon.icns</string>
         <key>CFBundleIdentifier</key>
         <string>org.upbgeteam.upbgeplayer</string>
         <key>CFBundleInfoDictionaryVersion</key>

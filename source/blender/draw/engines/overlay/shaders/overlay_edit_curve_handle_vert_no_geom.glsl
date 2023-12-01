@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
@@ -114,8 +117,8 @@ void main()
     offset.x = 0.0;
   }
 
-  /** Each output vertex falls into 10 possible positions to generate 8 output triangles between 5
-   * lines. **/
+  /* Each output vertex falls into 10 possible positions to generate 8 output triangles between 5
+   * lines. */
   /* Discard transparent border quads up-front. */
   if (!(is_active_nurb != 0u)) {
     if (output_quad_id == 0 || output_quad_id == 3) {
@@ -166,26 +169,26 @@ void main()
       output_vert(vec2(0.0), inner_color, world_pos[1], ndc_pos[1]);
       break;
     }
-    /* Bottom outline left point*/
+    /* Bottom outline left point. */
     case 14:
     case 15:
     case 18: {
       output_vert(-offset, outer_color, world_pos[0], ndc_pos[0]);
       break;
     }
-    /* Bottom outline right point*/
+    /* Bottom outline right point. */
     case 17:
     case 19:
     case 22: {
       output_vert(-offset, outer_color, world_pos[1], ndc_pos[1]);
       break;
     }
-    /* Bottom transparent border left*/
+    /* Bottom transparent border left. */
     case 20:
     case 21: {
       output_vert(offset * -2.0, vec4(colorActiveSpline.rgb, 0.0), world_pos[0], ndc_pos[0]);
     }
-    /* Bottom transparent border right*/
+    /* Bottom transparent border right. */
     case 23: {
       output_vert(offset * -2.0, vec4(colorActiveSpline.rgb, 0.0), world_pos[1], ndc_pos[1]);
     }

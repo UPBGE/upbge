@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'769fe076683a')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'd293f72ab6e7')\n"
 "Report-Msgid-Bugs-To: \n"
 "\"POT-Creation-Date: 2019-02-25 20:41:30\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -27,6 +27,46 @@ msgstr "Ацхра"
 
 msgid "Empty"
 msgstr "Аҭацәы"
+
+
+msgctxt "ID"
+msgid "Armature"
+msgstr "Абаҩ"
+
+
+msgctxt "ID"
+msgid "Camera"
+msgstr "Акамера"
+
+
+msgctxt "ID"
+msgid "Image"
+msgstr "Асахьанҵа"
+
+
+msgctxt "ID"
+msgid "Lattice"
+msgstr "Аҭыџьеихац"
+
+
+msgctxt "ID"
+msgid "Library"
+msgstr "Ашәҟәыԥхьарҭа"
+
+
+msgctxt "ID"
+msgid "Light"
+msgstr "Алашара"
+
+
+msgctxt "ID"
+msgid "Metaball"
+msgstr "Метампыл"
+
+
+msgctxt "ID"
+msgid "Speaker"
+msgstr "Абжьы Ахыҵхырҭа"
 
 
 msgid "Edge"
@@ -117,46 +157,6 @@ msgid "Shading"
 msgstr "Аршәшьра"
 
 
-msgctxt "ID"
-msgid "Armature"
-msgstr "Абаҩ"
-
-
-msgctxt "ID"
-msgid "Camera"
-msgstr "Акамера"
-
-
-msgctxt "ID"
-msgid "Image"
-msgstr "Асахьанҵа"
-
-
-msgctxt "ID"
-msgid "Lattice"
-msgstr "Аҭыџьеихац"
-
-
-msgctxt "ID"
-msgid "Library"
-msgstr "Ашәҟәыԥхьарҭа"
-
-
-msgctxt "ID"
-msgid "Light"
-msgstr "Алашара"
-
-
-msgctxt "ID"
-msgid "Metaball"
-msgstr "Метампыл"
-
-
-msgctxt "ID"
-msgid "Speaker"
-msgstr "Абжьы Ахыҵхырҭа"
-
-
 msgid "Vertex"
 msgstr "Ақәыцә"
 
@@ -197,6 +197,26 @@ msgid "Library"
 msgstr "Ашәҟәыԥхьарҭа"
 
 
+msgid "Light"
+msgstr "Алашара"
+
+
+msgid "Mesh"
+msgstr "Аҿарҧага"
+
+
+msgid "Metaball"
+msgstr "Метампыл"
+
+
+msgid "Speaker"
+msgstr "Абжьы Ахыҵхырҭа"
+
+
+msgid "Text"
+msgstr "Аҳәоу"
+
+
 msgid "Local"
 msgstr "Ҷыдала"
 
@@ -229,10 +249,6 @@ msgstr "Ацырцырра"
 
 msgid "Edit"
 msgstr "Аиҭакра"
-
-
-msgid "Mesh"
-msgstr "Аҿарҧага"
 
 
 msgid "Circle"
@@ -268,8 +284,8 @@ msgid "3D Cursor"
 msgstr "3Д Ахырхага"
 
 
-msgid "Text"
-msgstr "Аҳәоу"
+msgid "Keying"
+msgstr " Аиҭаганҵа"
 
 
 msgid "File"
@@ -278,14 +294,6 @@ msgstr "Ашәҟәы"
 
 msgid "Help"
 msgstr "Аилыркаа"
-
-
-msgid "Metaball"
-msgstr "Метампыл"
-
-
-msgid "Light"
-msgstr "Алашара"
 
 
 msgid "Intersect"
@@ -298,10 +306,6 @@ msgstr "Ампыл"
 
 msgid "New"
 msgstr "Аҿыц"
-
-
-msgid "Keying"
-msgstr " Аиҭаганҵа"
 
 
 msgctxt "Operator"
@@ -373,6 +377,11 @@ msgid "New"
 msgstr "Аҿыц"
 
 
+msgctxt "Sequence"
+msgid "Text"
+msgstr "Аҳәоу"
+
+
 msgid "Overlays"
 msgstr "Ақәҵакәа"
 
@@ -396,18 +405,9 @@ msgid "Image"
 msgstr "Асахьанҵа"
 
 
-msgctxt "Sequence"
-msgid "Text"
-msgstr "Аҳәоу"
-
-
 msgctxt "MovieClip"
 msgid "View"
 msgstr "Аԥшра"
-
-
-msgid "Speaker"
-msgstr "Абжьы Ахыҵхырҭа"
 
 
 msgctxt "WindowManager"
@@ -629,11 +629,6 @@ msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Action"
-msgid "Group"
-msgstr "Агәыԥ"
-
-
 msgid "Front Orthographic"
 msgstr "Аԥхьа Аҩышьаԥҟара"
 
@@ -714,7 +709,7 @@ msgid "cursor"
 msgstr "Ахырхага"
 
 
-msgctxt "Armature"
+msgctxt "Action"
 msgid "Group"
 msgstr "Агәыԥ"
 

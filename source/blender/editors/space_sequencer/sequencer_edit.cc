@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_timecode.h"
@@ -24,7 +25,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
@@ -32,21 +33,21 @@
 #include "BKE_report.h"
 #include "BKE_sound.h"
 
-#include "SEQ_add.h"
-#include "SEQ_animation.h"
-#include "SEQ_channels.h"
-#include "SEQ_clipboard.h"
-#include "SEQ_edit.h"
-#include "SEQ_effects.h"
-#include "SEQ_iterator.h"
-#include "SEQ_prefetch.h"
-#include "SEQ_relations.h"
-#include "SEQ_render.h"
-#include "SEQ_select.h"
-#include "SEQ_sequencer.h"
-#include "SEQ_time.h"
-#include "SEQ_transform.h"
-#include "SEQ_utils.h"
+#include "SEQ_add.hh"
+#include "SEQ_animation.hh"
+#include "SEQ_channels.hh"
+#include "SEQ_clipboard.hh"
+#include "SEQ_edit.hh"
+#include "SEQ_effects.hh"
+#include "SEQ_iterator.hh"
+#include "SEQ_prefetch.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_render.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_time.hh"
+#include "SEQ_transform.hh"
+#include "SEQ_utils.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -68,11 +69,11 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 /* Own include. */
-#include "sequencer_intern.h"
+#include "sequencer_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Structs & Enums
@@ -82,7 +83,7 @@ struct TransSeq {
   int start, machine;
   int startofs, endofs;
   int anim_startofs, anim_endofs;
-  /* int final_left, final_right; */ /* UNUSED */
+  // int final_left, final_right; /* UNUSED. */
   int len;
   float content_start;
 };
@@ -385,6 +386,8 @@ static int sequencer_snap_exec(bContext *C, wmOperator *op)
           SEQ_time_right_handle_frame_set(scene, seq, snap_frame);
         }
       }
+
+      SEQ_relations_invalidate_cache_composite(scene, seq);
     }
   }
 
@@ -1401,6 +1404,23 @@ EnumPropertyItem prop_side_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+/* Get the splitting side for the Split Strips's operator exec() callback. */
+static int sequence_split_side_for_exec_get(wmOperator *op)
+{
+  const int split_side = RNA_enum_get(op->ptr, "side");
+
+  /* The mouse position can not be resolved from the exec() as the mouse coordinate is not
+   * accessible. So fall-back to the RIGHT side instead.
+   *
+   * The SEQ_SIDE_MOUSE is used by the Strip menu, together with the EXEC_DEFAULT operator
+   * context in order to have properly resolved shortcut in the menu. */
+  if (split_side == SEQ_SIDE_MOUSE) {
+    return SEQ_SIDE_RIGHT;
+  }
+
+  return split_side;
+}
+
 static int sequencer_split_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -1409,11 +1429,15 @@ static int sequencer_split_exec(bContext *C, wmOperator *op)
   bool changed = false;
   bool seq_selected = false;
 
-  const int split_frame = RNA_int_get(op->ptr, "frame");
-  const int split_channel = RNA_int_get(op->ptr, "channel");
   const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
+
+  const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
+                              RNA_int_get(op->ptr, "frame") :
+                              scene->r.cfra;
+  const int split_channel = RNA_int_get(op->ptr, "channel");
+
   const eSeqSplitMethod method = eSeqSplitMethod(RNA_enum_get(op->ptr, "type"));
-  const int split_side = RNA_enum_get(op->ptr, "side");
+  const int split_side = sequence_split_side_for_exec_get(op);
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
 
   SEQ_prefetch_stop(scene);
@@ -1708,20 +1732,19 @@ static int sequencer_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  if (sequencer_retiming_mode_is_active(C)) {
+    sequencer_retiming_key_remove_exec(C, op);
+  }
+
   SEQ_prefetch_stop(scene);
 
-  SeqCollection *selected_strips = selected_strips_from_context(C);
-  Sequence *seq;
-
-  SEQ_ITERATOR_FOREACH (seq, selected_strips) {
+  for (Sequence *seq : selected_strips_from_context(C)) {
     SEQ_edit_flag_for_removal(scene, seqbasep, seq);
     if (delete_data) {
       sequencer_delete_strip_data(C, seq);
     }
   }
   SEQ_edit_remove_flagged_sequences(scene, seqbasep);
-
-  SEQ_collection_free(selected_strips);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
@@ -1878,7 +1901,7 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
         seq_new->start = start_ofs;
         seq_new->type = SEQ_TYPE_IMAGE;
         seq_new->len = 1;
-        seq->flag |= SEQ_SINGLE_FRAME_CONTENT;
+        seq_new->flag |= SEQ_SINGLE_FRAME_CONTENT;
         seq_new->endofs = 1 - step;
 
         /* New strip. */
@@ -2894,6 +2917,7 @@ void SEQUENCER_OT_change_effect_type(wmOperatorType *ot)
                           SEQ_TYPE_CROSS,
                           "Type",
                           "Sequencer effect type");
+  RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_SEQUENCE);
 }
 
 /** \} */
@@ -2980,11 +3004,10 @@ static int sequencer_change_path_exec(bContext *C, wmOperator *op)
   }
   else {
     /* Lame, set rna filepath. */
-    PointerRNA seq_ptr;
     PropertyRNA *prop;
     char filepath[FILE_MAX];
 
-    RNA_pointer_create(&scene->id, &RNA_Sequence, seq, &seq_ptr);
+    PointerRNA seq_ptr = RNA_pointer_create(&scene->id, &RNA_Sequence, seq);
 
     RNA_string_get(op->ptr, "filepath", filepath);
     prop = RNA_struct_find_property(&seq_ptr, "filepath");
@@ -3122,7 +3145,7 @@ void SEQUENCER_OT_change_scene(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties. */
-  prop = RNA_def_enum(ot->srna, "scene", DummyRNA_NULL_items, 0, "Scene", "");
+  prop = RNA_def_enum(ot->srna, "scene", rna_enum_dummy_NULL_items, 0, "Scene", "");
   RNA_def_enum_funcs(prop, RNA_scene_without_active_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
@@ -3313,9 +3336,9 @@ static int sequencer_set_range_to_strips_exec(bContext *C, wmOperator *op)
     if (seq->flag & SELECT) {
       selected = true;
       sfra = min_ii(sfra, SEQ_time_left_handle_frame_get(scene, seq));
-      /* Offset of -1 is needed because in VSE every frame has width. Range from 1 to 1 is drawn
-       * as range 1 to 2, because 1 frame long strip starts at frame 1 and ends at frame 2.
-       * See #106480. */
+      /* Offset of -1 is needed because in the sequencer every frame has width.
+       * Range from 1 to 1 is drawn as range 1 to 2, because 1 frame long strip starts at frame 1
+       * and ends at frame 2. See #106480. */
       efra = max_ii(efra, SEQ_time_right_handle_frame_get(scene, seq) - 1);
     }
   }

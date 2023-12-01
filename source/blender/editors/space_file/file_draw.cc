@@ -26,7 +26,7 @@
 #include "BIF_glutil.hh"
 
 #include "BKE_blendfile.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_report.h"
 
 #include "BLT_translation.h"
@@ -65,13 +65,12 @@ void ED_file_path_button(bScreen *screen,
                          FileSelectParams *params,
                          uiBlock *block)
 {
-  PointerRNA params_rna_ptr;
   uiBut *but;
 
   BLI_assert_msg(params != nullptr,
                  "File select parameters not set. The caller is expected to check this.");
 
-  RNA_pointer_create(&screen->id, &RNA_FileSelectParams, params, &params_rna_ptr);
+  PointerRNA params_rna_ptr = RNA_pointer_create(&screen->id, &RNA_FileSelectParams, params);
 
   /* callbacks for operator check functions */
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
@@ -744,7 +743,8 @@ static void draw_columnheader_columns(const FileSelectParams *params,
   int sx = v2d->cur.xmin, sy = v2d->cur.ymax;
 
   for (int column_type = 0; column_type < ATTRIBUTE_COLUMN_MAX; column_type++) {
-    if (!file_attribute_column_type_enabled(params, FileAttributeColumnType(column_type))) {
+    if (!file_attribute_column_type_enabled(params, FileAttributeColumnType(column_type), layout))
+    {
       continue;
     }
     const FileAttributeColumn *column = &layout->attribute_columns[column_type];
@@ -808,23 +808,23 @@ static const char *filelist_get_details_column_string(
     FileAttributeColumnType column,
     /* Generated string will be cached in the file, so non-const. */
     FileDirEntry *file,
-    const bool small_size,
+    const bool compact,
     const bool update_stat_strings)
 {
   switch (column) {
     case COLUMN_DATETIME:
       if (!(file->typeflag & FILE_TYPE_BLENDERLIB) && !FILENAME_IS_CURRPAR(file->relpath)) {
-        if ((file->draw_data.datetime_str[0] == '\0') || update_stat_strings) {
+        if (file->draw_data.datetime_str[0] == '\0' || update_stat_strings) {
           char date[FILELIST_DIRENTRY_DATE_LEN], time[FILELIST_DIRENTRY_TIME_LEN];
           bool is_today, is_yesterday;
 
           BLI_filelist_entry_datetime_to_string(
-              nullptr, file->time, small_size, time, date, &is_today, &is_yesterday);
+              nullptr, file->time, compact, time, date, &is_today, &is_yesterday);
 
-          if (is_today || is_yesterday) {
-            STRNCPY(date, is_today ? N_("Today") : N_("Yesterday"));
+          if (!compact && (is_today || is_yesterday)) {
+            STRNCPY(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
           }
-          SNPRINTF(file->draw_data.datetime_str, "%s %s", date, time);
+          SNPRINTF(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
         }
 
         return file->draw_data.datetime_str;
@@ -834,9 +834,9 @@ static const char *filelist_get_details_column_string(
       if ((file->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) ||
           !(file->typeflag & (FILE_TYPE_DIR | FILE_TYPE_BLENDERLIB)))
       {
-        if ((file->draw_data.size_str[0] == '\0') || update_stat_strings) {
+        if (file->draw_data.size_str[0] == '\0' || update_stat_strings) {
           BLI_filelist_entry_size_to_string(
-              nullptr, file->size, small_size, file->draw_data.size_str);
+              nullptr, file->size, compact, file->draw_data.size_str);
         }
 
         return file->draw_data.size_str;
@@ -855,8 +855,8 @@ static void draw_details_columns(const FileSelectParams *params,
                                  const rcti *tile_draw_rect,
                                  const uchar text_col[4])
 {
-  const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
-  const bool update_stat_strings = small_size != SMALL_SIZE_CHECK(layout->curr_size);
+  const bool compact = FILE_LAYOUT_COMPACT(layout);
+  const bool update_stat_strings = layout->width != layout->curr_size;
   int sx = tile_draw_rect->xmin - layout->tile_border_x - (UI_UNIT_X * 0.1f);
 
   for (int column_type = 0; column_type < ATTRIBUTE_COLUMN_MAX; column_type++) {
@@ -867,12 +867,13 @@ static void draw_details_columns(const FileSelectParams *params,
       sx += column->width;
       continue;
     }
-    if (!file_attribute_column_type_enabled(params, FileAttributeColumnType(column_type))) {
+    if (!file_attribute_column_type_enabled(params, FileAttributeColumnType(column_type), layout))
+    {
       continue;
     }
 
     const char *str = filelist_get_details_column_string(
-        FileAttributeColumnType(column_type), file, small_size, update_stat_strings);
+        FileAttributeColumnType(column_type), file, compact, update_stat_strings);
 
     if (str) {
       file_draw_string(sx + ATTRIBUTE_COLUMN_PADDING,
@@ -931,7 +932,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   bool do_drag;
   uchar text_col[4];
   const bool draw_columnheader = (params->display == FILE_VERTICALDISPLAY);
-  const float thumb_icon_aspect = MIN2(64.0f / float(params->thumbnail_size), 1.0f);
+  const float thumb_icon_aspect = std::min(64.0f / float(params->thumbnail_size), 1.0f);
 
   numfiles = filelist_files_ensure(files);
 
@@ -1176,7 +1177,10 @@ void file_draw_list(const bContext *C, ARegion *region)
     draw_columnheader_columns(params, layout, v2d, text_col);
   }
 
-  layout->curr_size = params->thumbnail_size;
+  if (numfiles != -1) {
+    /* Only save current size if there is something to show. */
+    layout->curr_size = layout->width;
+  }
 }
 
 static void file_draw_invalid_asset_library_hint(const bContext *C,

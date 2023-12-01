@@ -23,18 +23,18 @@
 
 #include "BKE_action.h" /* BKE_pose_channel_find_name */
 #include "BKE_deform.h"
-#include "BKE_editmesh.h"
+#include "BKE_editmesh.hh"
 #include "BKE_image.h"
-#include "BKE_lattice.h"
+#include "BKE_lattice.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_util.hh"
@@ -174,7 +174,7 @@ void MOD_get_vgroup(const Object *ob,
       *dvert = nullptr;
     }
   }
-  else {
+  else if (OB_TYPE_SUPPORT_VGROUP(ob->type)) {
     *defgrp_index = BKE_object_defgroup_name_index(ob, name);
     if (*defgrp_index != -1 && ob->type == OB_LATTICE) {
       *dvert = BKE_lattice_deform_verts_get(ob);
@@ -182,6 +182,10 @@ void MOD_get_vgroup(const Object *ob,
     else {
       *dvert = nullptr;
     }
+  }
+  else {
+    *defgrp_index = -1;
+    *dvert = nullptr;
   }
 }
 

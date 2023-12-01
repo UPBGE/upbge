@@ -21,7 +21,8 @@
 
 #include "CcdPhysicsEnvironment.h"
 
-#include "BKE_object.h"
+#include "BKE_object.hh"
+#include "BLI_bounds_types.hh"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
@@ -2102,6 +2103,15 @@ void CcdPhysicsEnvironment::CallbackTriggers()
       continue;
     }
 
+    // Bullet does not refresh the manifold contact point for object without contact response
+    // may need to remove this when a newer Bullet version is integrated
+    if (!dispatcher->needsResponse(col0, col1)) {
+      // Refresh algorithm fails sometimes when there is penetration
+      // (usuall the case with ghost and sensor objects)
+      // Let's just clear the manifold, in any case, it is recomputed on each frame.
+      manifold->clearManifold();  // refreshContactPoints(rb0->getCenterOfMassTransform(),rb1->getCenterOfMassTransform());
+    }
+
     const CcdCollData *coll_data = new CcdCollData(manifold);
     m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE], ctrl0, ctrl1, coll_data, first);
   }
@@ -2767,6 +2777,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                                           bool isCompoundChild,
                                           bool hasCompoundChildren)
 {
+  using namespace blender;
   Object *blenderobject = gameobj->GetBlenderObject();
 
   bool isbulletdyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
@@ -2973,19 +2984,21 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   // Get bounds information
   float bounds_center[3], bounds_extends[3];
-  const BoundBox *bb = BKE_object_boundbox_get(blenderobject);
-  if (bb == nullptr) {
-    bounds_center[0] = bounds_center[1] = bounds_center[2] = 0.0f;
-    bounds_extends[0] = bounds_extends[1] = bounds_extends[2] = 1.0f;
+  if (const std::optional<Bounds<float3>> bl_bounds = BKE_object_boundbox_eval_cached_get(
+          blenderobject)) {
+    BoundBox bb;
+    BKE_boundbox_init_from_minmax(&bb, bl_bounds->min, bl_bounds->max);
+    bounds_extends[0] = 0.5f * fabsf(bb.vec[0][0] - bb.vec[4][0]);
+    bounds_extends[1] = 0.5f * fabsf(bb.vec[0][1] - bb.vec[2][1]);
+    bounds_extends[2] = 0.5f * fabsf(bb.vec[0][2] - bb.vec[1][2]);
+
+    bounds_center[0] = 0.5f * (bb.vec[0][0] + bb.vec[4][0]);
+    bounds_center[1] = 0.5f * (bb.vec[0][1] + bb.vec[2][1]);
+    bounds_center[2] = 0.5f * (bb.vec[0][2] + bb.vec[1][2]);
   }
   else {
-    bounds_extends[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
-    bounds_extends[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
-    bounds_extends[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
-
-    bounds_center[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
-    bounds_center[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
-    bounds_center[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
+    bounds_center[0] = bounds_center[1] = bounds_center[2] = 0.0f;
+    bounds_extends[0] = bounds_extends[1] = bounds_extends[2] = 1.0f;
   }
 
   switch (bounds) {

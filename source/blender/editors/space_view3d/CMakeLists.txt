@@ -3,18 +3,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  ../include
   ../asset
+  ../include
   ../../asset_system
-  ../../blenfont
   ../../blenkernel
   ../../blenloader
   ../../blentranslation
   ../../bmesh
-  ../../depsgraph
   ../../draw
   ../../gpu
-  ../../imbuf
   ../../makesrna
   ../../render
   ../../windowmanager
@@ -32,6 +29,7 @@ set(SRC
   space_view3d.cc
   view3d_buttons.cc
   view3d_camera_control.cc
+  view3d_context.cc
   view3d_cursor_snap.cc
   view3d_draw.cc
   view3d_edit.cc
@@ -60,9 +58,9 @@ set(SRC
   view3d_navigate_view_move.cc
   view3d_navigate_view_ndof.cc
   view3d_navigate_view_orbit.cc
+  view3d_navigate_view_pan.cc
   view3d_navigate_view_roll.cc
   view3d_navigate_view_rotate.cc
-  view3d_navigate_view_pan.cc
   view3d_navigate_view_zoom.cc
   view3d_navigate_walk.cc
   view3d_navigate_zoom_border.cc
@@ -80,11 +78,14 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_curves
   bf_editor_lattice
   bf_editor_mesh
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
 )
 

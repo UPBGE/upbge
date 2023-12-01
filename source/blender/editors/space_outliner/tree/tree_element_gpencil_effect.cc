@@ -27,23 +27,16 @@ TreeElementGPencilEffectBase::TreeElementGPencilEffectBase(TreeElement &legacy_t
   legacy_te.name = IFACE_("Effects");
 }
 
-void TreeElementGPencilEffectBase::expand(SpaceOutliner &space_outliner) const
+void TreeElementGPencilEffectBase::expand(SpaceOutliner & /*space_outliner*/) const
 {
   int index;
   LISTBASE_FOREACH_INDEX (ShaderFxData *, fx, &object_.shader_fx, index) {
-    GPencilEffectElementCreateData gp_effect_data = {&object_, fx};
-
-    outliner_add_element(&space_outliner,
-                         &legacy_te_.subtree,
-                         &gp_effect_data,
-                         &legacy_te_,
-                         TSE_GPENCIL_EFFECT,
-                         index);
+    add_element(&legacy_te_.subtree, &object_.id, fx, &legacy_te_, TSE_GPENCIL_EFFECT, index);
   }
 }
 
 TreeElementGPencilEffect::TreeElementGPencilEffect(TreeElement &legacy_te,
-                                                   Object & /* object */,
+                                                   Object & /*object*/,
                                                    ShaderFxData &fx)
     : AbstractTreeElement(legacy_te), /* object_(object), */ fx_(fx)
 {
@@ -52,15 +45,15 @@ TreeElementGPencilEffect::TreeElementGPencilEffect(TreeElement &legacy_te,
   legacy_te.directdata = &fx_;
 }
 
-void TreeElementGPencilEffect::expand(SpaceOutliner &space_outliner) const
+void TreeElementGPencilEffect::expand(SpaceOutliner & /*space_outliner*/) const
 {
   if (fx_.type == eShaderFxType_Swirl) {
-    outliner_add_element(&space_outliner,
-                         &legacy_te_.subtree,
-                         ((SwirlShaderFxData *)(&fx_))->object,
-                         &legacy_te_,
-                         TSE_LINKED_OB,
-                         0);
+    add_element(&legacy_te_.subtree,
+                reinterpret_cast<ID *>(((SwirlShaderFxData *)(&fx_))->object),
+                nullptr,
+                &legacy_te_,
+                TSE_LINKED_OB,
+                0);
   }
 }
 

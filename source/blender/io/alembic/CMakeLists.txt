@@ -9,12 +9,9 @@ set(INC
   ../../blenloader
   ../../blentranslation
   ../../bmesh
-  ../../depsgraph
   ../../editors/include
   ../../makesrna
   ../../windowmanager
-  ../../../../intern/clog
-  ../../../../intern/utfconv
 )
 
 set(INC_SYS
@@ -90,8 +87,11 @@ set(SRC
 set(LIB
   bf_blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::utfconv
   bf_io_common
 
   ${ALEMBIC_LIBRARIES}
@@ -104,7 +104,7 @@ if(WITH_BOOST)
   )
 endif()
 
-blender_add_lib(bf_alembic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(bf_io_alembic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
@@ -114,7 +114,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_LIB
-    bf_alembic
+    bf_io_alembic
   )
   include(GTestTesting)
   blender_add_test_lib(bf_io_alembic_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")

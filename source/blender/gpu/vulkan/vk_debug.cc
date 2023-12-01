@@ -73,6 +73,7 @@ namespace blender::gpu::debug {
 
 void VKDebuggingTools::init(VkInstance vk_instance)
 {
+
   PFN_vkGetInstanceProcAddr instance_proc_addr = vkGetInstanceProcAddr;
   enabled = false;
   vk_debug_utils_messenger = nullptr;
@@ -228,8 +229,8 @@ void VKDebuggingTools::print_labels(const VkDebugUtilsMessengerCallbackDataEXT *
   std::stringstream ss;
   for (uint32_t object = 0; object < callback_data->objectCount; ++object) {
     ss << " - ObjectType[" << to_string(callback_data->pObjects[object].objectType) << "],";
-    ss << "Handle[0x" << std::hex
-       << static_cast<uintptr_t>(callback_data->pObjects[object].objectHandle) << "]";
+    ss << "Handle[0x" << std::hex << uintptr_t(callback_data->pObjects[object].objectHandle)
+       << "]";
     if (callback_data->pObjects[object].pObjectName) {
       ss << ",Name[" << callback_data->pObjects[object].pObjectName << "]";
     }
@@ -248,6 +249,7 @@ void VKDebuggingTools::print_labels(const VkDebugUtilsMessengerCallbackDataEXT *
   ss << std::endl;
   printf("%s", ss.str().c_str());
 }
+
 VKAPI_ATTR VkBool32 VKAPI_CALL
 messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                    VkDebugUtilsMessageTypeFlagsEXT /* message_type*/,
@@ -259,75 +261,59 @@ messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                    const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
                    void *user_data)
 {
+  /*
+   * Some message IDs are turned of globally to reduce console flooding.
+   *
+   * - 0xec321b6c: `VUID-VkBufferCreateInfo-size-06409` is disabled as all allocations are reported
+   *   to be larger than the maximum allowed buffer size, although the buffer-size is 4GB. Detected
+   *   on Mesa 23.0.4.
+   */
+  if (ELEM(callback_data->messageIdNumber, 0xec321b6c)) {
+    return VK_FALSE;
+  }
+
   VKDebuggingTools &debugging_tools = *reinterpret_cast<VKDebuggingTools *>(user_data);
   if (debugging_tools.is_ignore(callback_data->messageIdNumber)) {
     return VK_FALSE;
   }
-  bool use_color = CLG_color_support_get(&LOG);
-  UNUSED_VARS(use_color);
-  bool enabled = false;
-  if ((message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) ||
-      (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT))
+
+  CLG_Severity severity = CLG_SEVERITY_INFO;
+  if (message_severity & (VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                          VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT))
   {
-    if ((LOG.type->flag & CLG_FLAG_USE) && (LOG.type->level >= CLG_SEVERITY_INFO)) {
-      const char *format = "{0x%x}% s\n %s ";
-      CLG_logf(LOG.type,
-               CLG_SEVERITY_INFO,
-               "",
-               "",
-               format,
-               callback_data->messageIdNumber,
-               callback_data->pMessageIdName,
-               callback_data->pMessage);
-      enabled = true;
-    }
+    severity = CLG_SEVERITY_INFO;
   }
-  else {
-    CLG_Severity clog_severity;
-    switch (message_severity) {
-      case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-        clog_severity = CLG_SEVERITY_WARN;
-        break;
-      case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-        clog_severity = CLG_SEVERITY_ERROR;
-        break;
-      default:
-        BLI_assert_unreachable();
-    }
-    enabled = true;
-    if (clog_severity == CLG_SEVERITY_ERROR) {
-      const char *format = " %s {0x%x}\n %s ";
-      CLG_logf(LOG.type,
-               clog_severity,
-               "",
-               "",
-               format,
-               callback_data->pMessageIdName,
-               callback_data->messageIdNumber,
-               callback_data->pMessage);
-    }
-    else if (LOG.type->level >= CLG_SEVERITY_WARN) {
-      const char *format = " %s {0x%x}\n %s ";
-      CLG_logf(LOG.type,
-               clog_severity,
-               "",
-               "",
-               format,
-               callback_data->pMessageIdName,
-               callback_data->messageIdNumber,
-               callback_data->pMessage);
-    }
+  if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+    severity = CLG_SEVERITY_WARN;
   }
-  if ((enabled) && ((callback_data->objectCount > 0) || (callback_data->cmdBufLabelCount > 0) ||
-                    (callback_data->queueLabelCount > 0)))
-  {
+  if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+    severity = CLG_SEVERITY_ERROR;
+  }
+
+  if ((LOG.type->flag & CLG_FLAG_USE) && (LOG.type->level <= severity)) {
+    const char *format = "{0x%x}% s\n %s ";
+    CLG_logf(LOG.type,
+             severity,
+             "",
+             "",
+             format,
+             callback_data->messageIdNumber,
+             callback_data->pMessageIdName,
+             callback_data->pMessage);
+  }
+
+  const bool do_labels = (callback_data->objectCount + callback_data->cmdBufLabelCount +
+                          callback_data->queueLabelCount) > 0;
+  if (do_labels) {
     debugging_tools.print_labels(callback_data);
   }
+
   return VK_FALSE;
 };
 
 VkResult VKDebuggingTools::init_messenger(VkInstance vk_instance)
 {
+  CLG_logref_init(&LOG);
   vk_message_id_number_ignored.clear();
   BLI_assert(enabled);
 

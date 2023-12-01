@@ -20,12 +20,14 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
+
+#include "BLT_translation.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
@@ -47,7 +49,7 @@
 
 #include "ANIM_bone_collections.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "armature_intern.h"
 
@@ -70,7 +72,6 @@ EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
   bone->rad_head = 0.10f;
   bone->rad_tail = 0.05f;
   bone->segments = 1;
-  ANIM_bone_set_ebone_layer_from_armature(bone, arm);
 
   /* Bendy-Bone parameters */
   bone->roll1 = 0.0f;
@@ -81,6 +82,12 @@ EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
   bone->curve_out_z = 0.0f;
   bone->ease1 = 1.0f;
   bone->ease2 = 1.0f;
+
+  /* Prevent custom bone colors from having alpha zero.
+   * Part of the fix for issue #115434. */
+  bone->color.custom.solid[3] = 255;
+  bone->color.custom.select[3] = 255;
+  bone->color.custom.active[3] = 255;
 
   copy_v3_fl(bone->scale_in, 1.0f);
   copy_v3_fl(bone->scale_out, 1.0f);
@@ -96,7 +103,7 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm, float length, bool
   ED_armature_edit_deselect_all(obedit_arm);
 
   /* Create a bone */
-  bone = ED_armature_ebone_add(arm, "Bone");
+  bone = ED_armature_ebone_add(arm, DATA_("Bone"));
 
   arm->act_edbone = bone;
 
@@ -104,6 +111,10 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm, float length, bool
   zero_v3(bone->tail);
 
   bone->tail[view_aligned ? 1 : 2] = length;
+
+  if (arm->runtime.active_collection) {
+    ANIM_armature_bonecoll_assign_editbone(arm->runtime.active_collection, bone);
+  }
 
   return bone;
 }
@@ -220,7 +231,6 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
   ARegion *region;
   View3D *v3d;
   float tvec[3], oldcurs[3], mval_f[2];
-  int retv;
 
   scene = CTX_data_scene(C);
   region = CTX_wm_region(C);
@@ -235,12 +245,16 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
   copy_v3_v3(cursor->location, tvec);
 
   /* extrude to the where new cursor is and store the operation result */
-  retv = armature_click_extrude_exec(C, op);
+  int retval = armature_click_extrude_exec(C, op);
 
   /* restore previous 3d cursor position */
   copy_v3_v3(cursor->location, oldcurs);
 
-  return retv;
+  /* Support dragging to move after extrude, see: #114282. */
+  if (retval & OPERATOR_FINISHED) {
+    retval |= OPERATOR_PASS_THROUGH;
+  }
+  return WM_operator_flag_only_pass_through_on_press(retval, event);
 }
 
 void ARMATURE_OT_click_extrude(wmOperatorType *ot)
@@ -265,7 +279,7 @@ EditBone *add_points_bone(Object *obedit, float head[3], float tail[3])
 {
   EditBone *ebo;
 
-  ebo = ED_armature_ebone_add(static_cast<bArmature *>(obedit->data), "Bone");
+  ebo = ED_armature_ebone_add(static_cast<bArmature *>(obedit->data), DATA_("Bone"));
 
   copy_v3_v3(ebo->head, head);
   copy_v3_v3(ebo->tail, tail);
@@ -918,13 +932,19 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
   }
 }
 
+void ED_armature_ebone_copy(EditBone *dest, const EditBone *source)
+{
+  memcpy(dest, source, sizeof(*dest));
+  BLI_duplicatelist(&dest->bone_collections, &dest->bone_collections);
+}
+
 EditBone *duplicateEditBoneObjects(
     EditBone *cur_bone, const char *name, ListBase *editbones, Object *src_ob, Object *dst_ob)
 {
   EditBone *e_bone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "addup_editbone"));
 
   /* Copy data from old bone to new bone */
-  memcpy(e_bone, cur_bone, sizeof(EditBone));
+  ED_armature_ebone_copy(e_bone, cur_bone);
 
   cur_bone->temp.ebone = e_bone;
   e_bone->temp.ebone = cur_bone;
@@ -1304,6 +1324,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
         ebone->bbone_prev_type = ebone_iter->bbone_prev_type;
         ebone->bbone_next_type = ebone_iter->bbone_next_type;
 
+        ebone->bbone_mapping_mode = ebone_iter->bbone_mapping_mode;
         ebone->bbone_flag = ebone_iter->bbone_flag;
         ebone->bbone_prev_flag = ebone_iter->bbone_prev_flag;
         ebone->bbone_next_flag = ebone_iter->bbone_next_flag;
@@ -1507,6 +1528,8 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
               }
             }
 
+            newbone->color = ebone->color;
+
             newbone->weight = ebone->weight;
             newbone->dist = ebone->dist;
             newbone->xwidth = ebone->xwidth;
@@ -1537,6 +1560,9 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
               }
             }
             ED_armature_ebone_unique_name(arm->edbo, newbone->name, nullptr);
+
+            /* Copy bone collection membership. */
+            BLI_duplicatelist(&newbone->bone_collections, &ebone->bone_collections);
 
             /* Add the new bone to the list */
             BLI_addtail(arm->edbo, newbone);
@@ -1639,6 +1665,17 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 
   /* Create a bone. */
   bone = ED_armature_ebone_add(static_cast<bArmature *>(obedit->data), name);
+  ANIM_armature_bonecoll_assign_active(static_cast<bArmature *>(obedit->data), bone);
+
+  bArmature *arm = static_cast<bArmature *>(obedit->data);
+  if (!ANIM_bonecoll_is_visible_editbone(arm, bone)) {
+    const BoneCollectionReference *bcoll_ref = static_cast<const BoneCollectionReference *>(
+        bone->bone_collections.first);
+    BLI_assert_msg(bcoll_ref,
+                   "Bone that is not visible due to its bone collections MUST be assigned to at "
+                   "least one of them.");
+    WM_reportf(RPT_WARNING, "Bone was added to a hidden collection '%s'", bcoll_ref->bcoll->name);
+  }
 
   copy_v3_v3(bone->head, curs);
 
@@ -1648,8 +1685,6 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
   else {
     add_v3_v3v3(bone->tail, bone->head, imat[2]); /* bone with unit length 1, pointing up Z */
   }
-
-  ED_armature_edit_refresh_layer_used(static_cast<bArmature *>(obedit->data));
 
   /* NOTE: notifier might evolve. */
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
@@ -1673,7 +1708,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", "Bone", MAXBONENAME, "Name", "Name of the newly created bone");
+  RNA_def_string(ot->srna, "name", nullptr, MAXBONENAME, "Name", "Name of the newly created bone");
 }
 
 /* ********************** Subdivide *******************************/
@@ -1738,6 +1773,9 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
         }
       }
       newbone->parent = ebone;
+
+      /* Copy bone collection membership. */
+      BLI_duplicatelist(&newbone->bone_collections, &ebone->bone_collections);
     }
   }
   CTX_DATA_END;

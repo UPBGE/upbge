@@ -42,18 +42,18 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
@@ -118,7 +118,7 @@ static void createVertsTrisData(
     me = (Mesh *)meshlink->link;
 
     curnverts = me->totvert;
-    const float (*positions)[3] = BKE_mesh_vert_positions(me);
+    const blender::Span<blender::float3> positions = me->vert_positions();
 
     /* copy verts */
     for (i = 0; i < curnverts; i++) {

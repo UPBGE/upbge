@@ -30,8 +30,8 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_customdata.h"
+#include "BKE_bvhutils.hh"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remap.hh" /* own include */
@@ -303,20 +303,6 @@ void BKE_mesh_remap_find_best_match_from_mesh(const float (*vert_positions_dst)[
 /** \name Mesh to Mesh Mapping
  * \{ */
 
-void BKE_mesh_remap_calc_source_cddata_masks_from_map_modes(const int /*vert_mode*/,
-                                                            const int /*edge_mode*/,
-                                                            const int loop_mode,
-                                                            const int /*face_mode*/,
-                                                            CustomData_MeshMasks *r_cddata_mask)
-{
-  /* vert, edge and face mapping modes never need extra cddata from source object. */
-  const bool need_lnors_src = (loop_mode & MREMAP_USE_LOOP) && (loop_mode & MREMAP_USE_NORMAL);
-
-  if (need_lnors_src) {
-    r_cddata_mask->lmask |= CD_MASK_NORMAL;
-  }
-}
-
 void BKE_mesh_remap_init(MeshPairRemap *map, const int items_num)
 {
   MemArena *mem = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
@@ -469,7 +455,6 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
                                          const float ray_radius,
                                          const float (*vert_positions_dst)[3],
                                          const int numverts_dst,
-                                         const bool /*dirty_nors_dst*/,
                                          const Mesh *me_src,
                                          Mesh *me_dst,
                                          MeshPairRemap *r_map)
@@ -695,7 +680,6 @@ void BKE_mesh_remap_calc_edges_from_mesh(const int mode,
                                          const int numverts_dst,
                                          const blender::int2 *edges_dst,
                                          const int numedges_dst,
-                                         const bool /*dirty_nors_dst*/,
                                          const Mesh *me_src,
                                          Mesh *me_dst,
                                          MeshPairRemap *r_map)
@@ -1228,19 +1212,12 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                          const SpaceTransform *space_transform,
                                          const float max_dist,
                                          const float ray_radius,
-                                         Mesh *mesh_dst,
+                                         const Mesh *mesh_dst,
                                          const float (*vert_positions_dst)[3],
                                          const int numverts_dst,
-                                         const blender::int2 *edges_dst,
-                                         const int numedges_dst,
                                          const int *corner_verts_dst,
-                                         const int *corner_edges_dst,
                                          const int numloops_dst,
                                          const blender::OffsetIndices<int> faces_dst,
-                                         CustomData *ldata_dst,
-                                         const bool use_split_nors_dst,
-                                         const float split_angle_dst,
-                                         const bool dirty_nors_dst,
                                          const Mesh *me_src,
                                          MeshRemapIslandsCalc gen_islands_src,
                                          const float islands_precision_src,
@@ -1286,16 +1263,11 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     blender::Span<blender::float3> loop_normals_src;
 
     blender::Span<blender::float3> face_normals_dst;
-    blender::float3 *loop_normals_dst;
+    blender::Span<blender::float3> loop_normals_dst;
 
     blender::Array<blender::float3> face_cents_src;
 
-    Array<int> vert_to_loop_src_offsets;
-    Array<int> vert_to_loop_src_indices;
     GroupedSpan<int> vert_to_loop_map_src;
-
-    Array<int> vert_to_face_src_offsets;
-    Array<int> vert_to_face_src_indices;
     GroupedSpan<int> vert_to_face_map_src;
 
     Array<int> edge_to_face_src_offsets;
@@ -1306,7 +1278,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     int *face_to_looptri_map_src_buff = nullptr;
 
     /* Unlike above, those are one-to-one mappings, simpler! */
-    blender::Array<int> loop_to_face_map_src;
+    blender::Span<int> loop_to_face_map_src;
 
     const blender::Span<blender::float3> positions_src = me_src->vert_positions();
     const int num_verts_src = me_src->totvert;
@@ -1347,65 +1319,20 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
         face_normals_dst = mesh_dst->face_normals();
       }
       if (need_lnors_dst) {
-        const blender::short2 *custom_nors_dst = static_cast<const blender::short2 *>(
-            CustomData_get_layer(ldata_dst, CD_CUSTOMLOOPNORMAL));
-
-        /* Cache loop normals into a temporary custom data layer. */
-        loop_normals_dst = static_cast<blender::float3 *>(
-            CustomData_get_layer_for_write(ldata_dst, CD_NORMAL, numloops_dst));
-
-        const bool do_loop_normals_dst = (loop_normals_dst == nullptr);
-        if (!loop_normals_dst) {
-          loop_normals_dst = static_cast<blender::float3 *>(
-              CustomData_add_layer(ldata_dst, CD_NORMAL, CD_SET_DEFAULT, numloops_dst));
-          CustomData_set_layer_flag(ldata_dst, CD_NORMAL, CD_FLAG_TEMPORARY);
-        }
-        if (dirty_nors_dst || do_loop_normals_dst) {
-          const bool *sharp_edges = static_cast<const bool *>(
-              CustomData_get_layer_named(&mesh_dst->edge_data, CD_PROP_BOOL, "sharp_edge"));
-          const bool *sharp_faces = static_cast<const bool *>(
-              CustomData_get_layer_named(&mesh_dst->face_data, CD_PROP_BOOL, "sharp_face"));
-          blender::bke::mesh::normals_calc_loop(
-              {reinterpret_cast<const blender::float3 *>(vert_positions_dst), numverts_dst},
-              {edges_dst, numedges_dst},
-              faces_dst,
-              {corner_verts_dst, numloops_dst},
-              {corner_edges_dst, numloops_dst},
-              {},
-              mesh_dst->vert_normals(),
-              mesh_dst->face_normals(),
-              sharp_edges,
-              sharp_faces,
-              custom_nors_dst,
-              use_split_nors_dst,
-              split_angle_dst,
-              nullptr,
-              {loop_normals_dst, numloops_dst});
-        }
+        loop_normals_dst = mesh_dst->corner_normals();
       }
-      if (need_pnors_src || need_lnors_src) {
-        if (need_pnors_src) {
-          face_normals_src = me_src->face_normals();
-        }
-        if (need_lnors_src) {
-          loop_normals_src = {static_cast<const blender::float3 *>(
-                                  CustomData_get_layer(&me_src->loop_data, CD_NORMAL)),
-                              me_src->totloop};
-          BLI_assert(loop_normals_src.data() != nullptr);
-        }
+      if (need_pnors_src) {
+        face_normals_src = me_src->face_normals();
+      }
+      if (need_lnors_src) {
+        loop_normals_src = me_src->corner_normals();
       }
     }
 
     if (use_from_vert) {
-      vert_to_loop_map_src = bke::mesh::build_vert_to_loop_map(
-          corner_verts_src, num_verts_src, vert_to_loop_src_offsets, vert_to_loop_src_indices);
-
+      vert_to_loop_map_src = me_src->vert_to_corner_map();
       if (mode & MREMAP_USE_POLY) {
-        vert_to_face_map_src = bke::mesh::build_vert_to_face_map(faces_src,
-                                                                 corner_verts_src,
-                                                                 num_verts_src,
-                                                                 vert_to_face_src_offsets,
-                                                                 vert_to_face_src_indices);
+        vert_to_face_map_src = me_src->vert_to_face_map();
       }
     }
 
@@ -1417,7 +1344,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                                              edge_to_face_src_indices);
 
     if (use_from_vert) {
-      loop_to_face_map_src = blender::bke::mesh::build_loop_to_face_map(faces_src);
+      loop_to_face_map_src = me_src->corner_to_face_map();
       face_cents_src.reinitialize(faces_src.size());
       for (const int64_t i : faces_src.index_range()) {
         face_cents_src[i] = blender::bke::mesh::face_center_calc(
@@ -1504,14 +1431,8 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
               }
             }
           }
-          bvhtree_from_mesh_verts_ex(&treedata[tindex],
-                                     reinterpret_cast<const float(*)[3]>(positions_src.data()),
-                                     num_verts_src,
-                                     verts_active,
-                                     num_verts_active,
-                                     0.0,
-                                     2,
-                                     6);
+          bvhtree_from_mesh_verts_ex(
+              &treedata[tindex], positions_src, verts_active, num_verts_active, 0.0, 2, 6);
         }
       }
       else {
@@ -1536,10 +1457,9 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
             }
           }
           bvhtree_from_mesh_looptri_ex(&treedata[tindex],
-                                       reinterpret_cast<const float(*)[3]>(positions_src.data()),
-                                       corner_verts_src.data(),
-                                       looptris_src.data(),
-                                       int(looptris_src.size()),
+                                       positions_src,
+                                       corner_verts_src,
+                                       looptris_src,
                                        looptri_active,
                                        num_looptri_active,
                                        0.0,
@@ -1805,10 +1725,10 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
         for (tindex = 0; tindex < num_trees; tindex++) {
           float island_fac = 0.0f;
 
-          for (plidx_dst = 0; plidx_dst < faces_dst.size(); plidx_dst++) {
+          for (plidx_dst = 0; plidx_dst < face_dst.size(); plidx_dst++) {
             island_fac += islands_res[tindex][plidx_dst].factor;
           }
-          island_fac /= float(faces_dst.size());
+          island_fac /= float(face_dst.size());
 
           if (island_fac > best_island_fac) {
             best_island_fac = island_fac;

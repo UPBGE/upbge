@@ -528,7 +528,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       .. note::
 
-         This attribute is experemental and may be removed (but probably wont be).
+         This attribute is experimental and may be removed (but probably wont be).
 
       .. note::
 
@@ -914,7 +914,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. method:: setCcdSweptSphereRadius(ccd_swept_sphere_radius)
 
-      Sets :py:attr:`ccdSweptSphereRadius` that is the radius of the sphere that is used to check for possible collisions when ccd is actived.
+      Sets :py:attr:`ccdSweptSphereRadius` that is the radius of the sphere that is used to check for possible collisions when ccd is activated.
 
       :arg ccd_swept_sphere_radius: sphere radius.
       :type ccd_swept_sphere_radius: float ∈ [0, 10]

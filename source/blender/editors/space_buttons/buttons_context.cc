@@ -28,16 +28,16 @@
 #include "DNA_world_types.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_layer.h"
 #include "BKE_linestyle.h"
 #include "BKE_material.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -105,7 +105,7 @@ static bool buttons_context_path_view_layer(ButsContextPath *path, wmWindow *win
     ViewLayer *view_layer = (win->scene == scene) ? WM_window_get_active_view_layer(win) :
                                                     BKE_view_layer_default_view(scene);
 
-    RNA_pointer_create(&scene->id, &RNA_ViewLayer, view_layer, &path->ptr[path->len]);
+    path->ptr[path->len] = RNA_pointer_create(&scene->id, &RNA_ViewLayer, view_layer);
     path->len++;
     return true;
   }
@@ -129,7 +129,7 @@ static bool buttons_context_path_world(ButsContextPath *path)
     World *world = scene->world;
 
     if (world) {
-      RNA_id_pointer_create(&scene->world->id, &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_id_pointer_create(&scene->world->id);
       path->len++;
       return true;
     }
@@ -166,7 +166,7 @@ static bool buttons_context_path_collection(const bContext *C,
     }
 
     if (c) {
-      RNA_id_pointer_create(&c->id, &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_id_pointer_create(&c->id);
       path->len++;
       return true;
     }
@@ -189,7 +189,7 @@ static bool buttons_context_path_linestyle(ButsContextPath *path, wmWindow *wind
     ViewLayer *view_layer = static_cast<ViewLayer *>(path->ptr[path->len - 1].data);
     FreestyleLineStyle *linestyle = BKE_linestyle_active_from_view_layer(view_layer);
     if (linestyle) {
-      RNA_id_pointer_create(&linestyle->id, &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_id_pointer_create(&linestyle->id);
       path->len++;
       return true;
     }
@@ -215,7 +215,7 @@ static bool buttons_context_path_object(ButsContextPath *path)
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   if (ob) {
-    RNA_id_pointer_create(&ob->id, &path->ptr[path->len]);
+    path->ptr[path->len] = RNA_id_pointer_create(&ob->id);
     path->len++;
 
     return true;
@@ -262,9 +262,11 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_GreasePencil) && ELEM(type, -1, OB_GPENCIL_LEGACY)) {
     return true;
   }
+#ifdef WITH_GREASE_PENCIL_V3
   if (RNA_struct_is_a(ptr->type, &RNA_GreasePencilv3) && ELEM(type, -1, OB_GREASE_PENCIL)) {
     return true;
   }
+#endif
   if (RNA_struct_is_a(ptr->type, &RNA_Curves) && ELEM(type, -1, OB_CURVES)) {
     return true;
   }
@@ -281,7 +283,7 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
 
     if (ob && ELEM(type, -1, ob->type)) {
-      RNA_id_pointer_create(static_cast<ID *>(ob->data), &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_id_pointer_create(static_cast<ID *>(ob->data));
       path->len++;
 
       return true;
@@ -311,7 +313,7 @@ static bool buttons_context_path_modifier(ButsContextPath *path)
     {
       ModifierData *md = BKE_object_active_modifier(ob);
       if (md != nullptr) {
-        RNA_pointer_create(&ob->id, &RNA_Modifier, md, &path->ptr[path->len]);
+        path->ptr[path->len] = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
         path->len++;
       }
 
@@ -350,7 +352,7 @@ static bool buttons_context_path_material(ButsContextPath *path)
     if (ob && OB_TYPE_SUPPORT_MATERIAL(ob->type)) {
       Material *ma = BKE_object_material_get(ob, ob->actcol);
       if (ma != nullptr) {
-        RNA_id_pointer_create(&ma->id, &path->ptr[path->len]);
+        path->ptr[path->len] = RNA_id_pointer_create(&ma->id);
         path->len++;
       }
       return true;
@@ -370,14 +372,14 @@ static bool buttons_context_path_bone(ButsContextPath *path)
     if (arm->edbo) {
       if (arm->act_edbone) {
         EditBone *edbo = arm->act_edbone;
-        RNA_pointer_create(&arm->id, &RNA_EditBone, edbo, &path->ptr[path->len]);
+        path->ptr[path->len] = RNA_pointer_create(&arm->id, &RNA_EditBone, edbo);
         path->len++;
         return true;
       }
     }
     else {
       if (arm->act_bone) {
-        RNA_pointer_create(&arm->id, &RNA_Bone, arm->act_bone, &path->ptr[path->len]);
+        path->ptr[path->len] = RNA_pointer_create(&arm->id, &RNA_Bone, arm->act_bone);
         path->len++;
         return true;
       }
@@ -410,7 +412,7 @@ static bool buttons_context_path_pose_bone(ButsContextPath *path)
     if (arm->act_bone) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, arm->act_bone->name);
       if (pchan) {
-        RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan, &path->ptr[path->len]);
+        path->ptr[path->len] = RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan);
         path->len++;
         return true;
       }
@@ -436,7 +438,7 @@ static bool buttons_context_path_particle(ButsContextPath *path)
     if (ob && ob->type == OB_MESH) {
       ParticleSystem *psys = psys_get_current(ob);
 
-      RNA_pointer_create(&ob->id, &RNA_ParticleSystem, psys, &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_pointer_create(&ob->id, &RNA_ParticleSystem, psys);
       path->len++;
       return true;
     }
@@ -454,7 +456,7 @@ static bool buttons_context_path_brush(const bContext *C, ButsContextPath *path)
   if (RNA_struct_is_a(ptr->type, &RNA_Brush)) {
     return true;
   }
-  /* if we have a scene, use the toolsettings brushes */
+  /* If we have a scene, use the tool-settings brushes. */
   if (buttons_context_path_scene(path)) {
     Scene *scene = static_cast<Scene *>(path->ptr[path->len - 1].data);
 
@@ -466,7 +468,7 @@ static bool buttons_context_path_brush(const bContext *C, ButsContextPath *path)
     }
 
     if (br) {
-      RNA_id_pointer_create((ID *)br, &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_id_pointer_create((ID *)br);
       path->len++;
 
       return true;
@@ -514,7 +516,7 @@ static bool buttons_context_path_texture(const bContext *C,
   }
 
   if (ct->texture) {
-    RNA_id_pointer_create(&ct->texture->id, &path->ptr[path->len]);
+    path->ptr[path->len] = RNA_id_pointer_create(&ct->texture->id);
     path->len++;
   }
 
@@ -561,12 +563,12 @@ static bool buttons_context_path(
   if (sbuts->pinid) {
     ID *id = sbuts->pinid;
 
-    RNA_id_pointer_create(id, &path->ptr[0]);
+    path->ptr[0] = RNA_id_pointer_create(id);
     path->len++;
   }
   /* No pinned root, use scene as initial root. */
   else if (mainb != BCONTEXT_TOOL) {
-    RNA_id_pointer_create(&scene->id, &path->ptr[0]);
+    path->ptr[0] = RNA_id_pointer_create(&scene->id);
     path->len++;
 
     if (!ELEM(mainb,
@@ -576,7 +578,7 @@ static bool buttons_context_path(
               BCONTEXT_VIEW_LAYER,
               BCONTEXT_WORLD))
     {
-      RNA_pointer_create(nullptr, &RNA_ViewLayer, view_layer, &path->ptr[path->len]);
+      path->ptr[path->len] = RNA_pointer_create(nullptr, &RNA_ViewLayer, view_layer);
       path->len++;
     }
   }
@@ -1173,10 +1175,12 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, &RNA_GreasePencil);
     return CTX_RESULT_OK;
   }
+#ifdef WITH_GREASE_PENCIL_V3
   if (CTX_data_equals(member, "grease_pencil")) {
     set_pointer_type(path, result, &RNA_GreasePencilv3);
     return CTX_RESULT_OK;
   }
+#endif
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 

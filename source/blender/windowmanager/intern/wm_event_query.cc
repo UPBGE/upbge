@@ -22,7 +22,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 
@@ -34,7 +34,7 @@
 
 #include "RNA_enum_types.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Event Printing
@@ -129,7 +129,7 @@ void WM_event_print(const wmEvent *event)
         flag_id,
         event->xy[0],
         event->xy[1],
-        BLI_str_utf8_size(event->utf8_buf),
+        BLI_str_utf8_size_or_error(event->utf8_buf),
         event->utf8_buf,
         (const void *)event);
 
@@ -445,7 +445,7 @@ void WM_event_drag_start_xy(const wmEvent *event, int r_xy[2])
 
 char WM_event_utf8_to_ascii(const wmEvent *event)
 {
-  if (BLI_str_utf8_size(event->utf8_buf) == 1) {
+  if (BLI_str_utf8_size_or_error(event->utf8_buf) == 1) {
     return event->utf8_buf[0];
   }
   return '\0';
@@ -560,15 +560,15 @@ float wm_pressure_curve(float pressure)
   return pressure;
 }
 
-float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
+float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2])
 {
-  if (tilt) {
-    tilt[0] = event->tablet.x_tilt;
-    tilt[1] = event->tablet.y_tilt;
+  if (r_tilt) {
+    r_tilt[0] = event->tablet.x_tilt;
+    r_tilt[1] = event->tablet.y_tilt;
   }
 
-  if (pen_flip) {
-    (*pen_flip) = (event->tablet.active == EVT_TABLET_ERASER);
+  if (r_pen_flip) {
+    (*r_pen_flip) = (event->tablet.active == EVT_TABLET_ERASER);
   }
 
   return event->tablet.pressure;
@@ -624,7 +624,7 @@ int WM_event_absolute_delta_y(const wmEvent *event)
  *
  * \note Shift is excluded from this check since it prevented typing `Shift+Space`, see: #85517.
  */
-bool WM_event_is_ime_switch(const struct wmEvent *event)
+bool WM_event_is_ime_switch(const wmEvent *event)
 {
   return (event->val == KM_PRESS) && (event->type == EVT_SPACEKEY) &&
          (event->modifier & (KM_CTRL | KM_OSKEY | KM_ALT));

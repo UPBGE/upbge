@@ -1,6 +1,9 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma BLENDER_REQUIRE(gpu_shader_debug_gradients_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
 
 vec3 debug_random_color(int v)
 {
@@ -34,7 +37,7 @@ void main()
   }
 
   /* Display surfels as circles. */
-  if (distance(P, surfel.position) > surfel_radius) {
+  if (distance(P, surfel.position) > debug_surfel_radius) {
     discard;
     return;
   }

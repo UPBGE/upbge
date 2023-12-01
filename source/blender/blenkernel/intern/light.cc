@@ -33,12 +33,13 @@
 #include "BKE_light.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_preview_image.hh"
 
 #include "BLT_translation.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 static void light_init_data(ID *id)
 {
@@ -104,11 +105,17 @@ static void light_free_data(ID *id)
 
 static void light_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Light *lamp = (Light *)id;
+  Light *lamp = reinterpret_cast<Light *>(id);
+  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
+
   if (lamp->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data, BKE_library_foreach_ID_embedded(data, (ID **)&lamp->nodetree));
+  }
+
+  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, lamp->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -148,25 +155,13 @@ static void light_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, la->preview);
 }
 
-static void light_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Light *la = (Light *)id;
-  BLO_read_id_address(reader, id, &la->ipo);  // XXX deprecated - old animation system
-}
-
-static void light_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Light *la = (Light *)id;
-  BLO_expand(expander, la->ipo);  // XXX deprecated - old animation system
-}
-
 IDTypeInfo IDType_ID_LA = {
     /*id_code*/ ID_LA,
     /*id_filter*/ FILTER_ID_LA,
     /*main_listbase_index*/ INDEX_ID_LA,
     /*struct_size*/ sizeof(Light),
     /*name*/ "Light",
-    /*name_plural*/ "lights",
+    /*name_plural*/ N_("lights"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_LIGHT,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -182,8 +177,7 @@ IDTypeInfo IDType_ID_LA = {
 
     /*blend_write*/ light_blend_write,
     /*blend_read_data*/ light_blend_read_data,
-    /*blend_read_lib*/ light_blend_read_lib,
-    /*blend_read_expand*/ light_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 

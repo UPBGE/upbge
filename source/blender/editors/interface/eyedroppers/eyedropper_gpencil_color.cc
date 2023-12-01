@@ -22,7 +22,7 @@
 #include "DNA_material_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
@@ -44,8 +44,8 @@
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "eyedropper_intern.hh"
 #include "interface_intern.hh"

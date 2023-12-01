@@ -21,10 +21,10 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -37,6 +37,8 @@
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
+
+#include "GEO_randomize.hh"
 
 /* For edge split modifier node. */
 Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd);
@@ -103,6 +105,8 @@ Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd)
   result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
   BM_mesh_free(bm);
 
+  blender::geometry::debug_randomize_mesh_order(result);
+
   return result;
 }
 
@@ -160,7 +164,7 @@ ModifierTypeInfo modifierType_EdgeSplit = {
     /*struct_name*/ "EdgeSplitModifierData",
     /*struct_size*/ sizeof(EdgeSplitModifierData),
     /*srna*/ &RNA_EdgeSplitModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,

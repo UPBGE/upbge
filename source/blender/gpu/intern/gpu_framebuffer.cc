@@ -109,16 +109,15 @@ void FrameBuffer::attachment_set(GPUAttachmentType type, const GPUAttachment &ne
     reinterpret_cast<Texture *>(attachment.tex)->detach_from(this);
   }
 
-  attachment = new_attachment;
-
   /* Might be null if this is for unbinding. */
-  if (attachment.tex) {
-    reinterpret_cast<Texture *>(attachment.tex)->attach_to(this, type);
+  if (new_attachment.tex) {
+    reinterpret_cast<Texture *>(new_attachment.tex)->attach_to(this, type);
   }
   else {
     /* GPU_ATTACHMENT_NONE */
   }
 
+  attachment = new_attachment;
   dirty_attachments_ = true;
 }
 
@@ -132,21 +131,19 @@ void FrameBuffer::load_store_config_array(const GPULoadStore *load_store_actions
 {
   /* Follows attachment structure of GPU_framebuffer_config_array/GPU_framebuffer_ensure_config */
   const GPULoadStore &depth_action = load_store_actions[0];
-  Span<GPULoadStore> color_attachments(load_store_actions + 1, actions_len - 1);
+  Span<GPULoadStore> color_attachment_actions(load_store_actions + 1, actions_len - 1);
 
   if (this->attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex) {
-    this->attachment_set_loadstore_op(
-        GPU_FB_DEPTH_STENCIL_ATTACHMENT, depth_action.load_action, depth_action.store_action);
+    this->attachment_set_loadstore_op(GPU_FB_DEPTH_STENCIL_ATTACHMENT, depth_action);
   }
   if (this->attachments_[GPU_FB_DEPTH_ATTACHMENT].tex) {
-    this->attachment_set_loadstore_op(
-        GPU_FB_DEPTH_ATTACHMENT, depth_action.load_action, depth_action.store_action);
+    this->attachment_set_loadstore_op(GPU_FB_DEPTH_ATTACHMENT, depth_action);
   }
 
   GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0;
-  for (const GPULoadStore &actions : color_attachments) {
+  for (const GPULoadStore &action : color_attachment_actions) {
     if (this->attachments_[type].tex) {
-      this->attachment_set_loadstore_op(type, actions.load_action, actions.store_action);
+      this->attachment_set_loadstore_op(type, action);
     }
     ++type;
   }
@@ -200,7 +197,8 @@ void FrameBuffer::recursive_downsample(int max_lvl,
     for (GPUAttachment &attachment : attachments_) {
       Texture *tex = reinterpret_cast<Texture *>(attachment.tex);
       if (tex != nullptr) {
-        this->attachment_set_loadstore_op(type, GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE);
+        this->attachment_set_loadstore_op(
+            type, {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE, NULL_ATTACHMENT_COLOR});
       }
       ++type;
     }
@@ -265,6 +263,14 @@ void GPU_framebuffer_bind_loadstore(GPUFrameBuffer *gpu_fb,
   /* Update load store */
   FrameBuffer *fb = unwrap(gpu_fb);
   fb->load_store_config_array(load_store_actions, actions_len);
+}
+
+void GPU_framebuffer_subpass_transition_array(GPUFrameBuffer *gpu_fb,
+                                              const GPUAttachmentState *attachment_states,
+                                              uint attachment_len)
+{
+  unwrap(gpu_fb)->subpass_transition(
+      attachment_states[0], Span<GPUAttachmentState>(attachment_states + 1, attachment_len - 1));
 }
 
 void GPU_framebuffer_bind_no_srgb(GPUFrameBuffer *gpu_fb)
@@ -680,8 +686,10 @@ GPUOffScreen *GPU_offscreen_create(int width,
   ofs->color = GPU_texture_create_2d("ofs_color", width, height, 1, format, usage, nullptr);
 
   if (depth) {
+    /* Format view flag is needed by Workbench Volumes to read the stencil view. */
+    eGPUTextureUsage depth_usage = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
     ofs->depth = GPU_texture_create_2d(
-        "ofs_depth", width, height, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
+        "ofs_depth", width, height, 1, GPU_DEPTH24_STENCIL8, depth_usage, nullptr);
   }
 
   if ((depth && !ofs->depth) || !ofs->color) {

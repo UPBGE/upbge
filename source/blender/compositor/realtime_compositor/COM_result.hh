@@ -15,14 +15,24 @@
 
 namespace blender::realtime_compositor {
 
-/* Possible data types that operations can operate on. They either represent the base type of the
- * result texture or a single value result. The color type represents an RGBA color. And the vector
- * type represents a generic 4-component vector, which can encode two 2D vectors, one 3D vector
- * with the last component ignored, or other dimensional data. */
+/* To add a new type, update the format related static methods in the Result class. */
 enum class ResultType : uint8_t {
+  /* The following types are user facing and can be used as inputs and outputs of operations. They
+   * either represent the base type of the result texture or a single value result. The color type
+   * represents an RGBA color. And the vector type represents a generic 4-component vector, which
+   * can encode two 2D vectors, one 3D vector with the last component ignored, or other dimensional
+   * data. */
   Float,
   Vector,
   Color,
+
+  /* The following types are for internal use only, not user facing, and can't be used as inputs
+   * and outputs of operations. Furthermore, they can't be single values and thus always need to be
+   * allocated as textures. It follows that they needn't be handled in implicit operations like
+   * type conversion, shader, or single value reduction operations. */
+  Float2,
+  Float3,
+  Int2,
 };
 
 enum class ResultPrecision : uint8_t {
@@ -61,7 +71,11 @@ enum class ResultPrecision : uint8_t {
  * the results of identity operations, that is, operations that do nothing to their inputs in
  * certain configurations. In which case, the proxy result is left as is with no extra
  * transformation on its domain whatsoever. Proxy results can be created by calling the
- * pass_through method, see that method for more details. */
+ * pass_through method, see that method for more details.
+ *
+ * A result can wrap an external texture that is not allocated nor managed by the result. This is
+ * set up by a call to the wrap_external method. In that case, when the reference count eventually
+ * reach zero, the texture will not be freed. */
 class Result {
  private:
   /* The base type of the result's texture or single value. */
@@ -109,20 +123,35 @@ class Result {
    * calling the pass_through method, which sets this result to be the master of a target result.
    * See that method for more information. */
   Result *master_ = nullptr;
+  /* If true, then the result wraps an external texture that is not allocated nor managed by the
+   * result. This is set up by a call to the wrap_external method. In that case, when the reference
+   * count eventually reach zero, the texture will not be freed. */
+  bool is_external_ = false;
 
  public:
   /* Construct a result of the given type and precision with the given texture pool that will be
    * used to allocate and release the result's texture. */
-  Result(ResultType type,
-         TexturePool &texture_pool,
-         ResultPrecision precision = ResultPrecision::Half);
+  Result(ResultType type, TexturePool &texture_pool, ResultPrecision precision);
 
   /* Identical to the standard constructor but initializes the reference count to 1. This is useful
    * to construct temporary results that are created and released by the developer manually, which
    * are typically used in operations that need temporary intermediate results. */
-  static Result Temporary(ResultType type,
-                          TexturePool &texture_pool,
-                          ResultPrecision precision = ResultPrecision::Half);
+  static Result Temporary(ResultType type, TexturePool &texture_pool, ResultPrecision precision);
+
+  /* Returns the appropriate texture format based on the given result type and precision. */
+  static eGPUTextureFormat texture_format(ResultType type, ResultPrecision precision);
+
+  /* Returns the texture format that corresponds to the give one, but with the given precision. */
+  static eGPUTextureFormat texture_format(eGPUTextureFormat format, ResultPrecision precision);
+
+  /* Returns the precision of the given format. */
+  static ResultPrecision precision(eGPUTextureFormat format);
+
+  /* Returns the type of the given format. */
+  static ResultType type(eGPUTextureFormat format);
+
+  /* Returns the appropriate texture format based on the result's type and precision. */
+  eGPUTextureFormat get_texture_format() const;
 
   /* Declare the result to be a texture result, allocate a texture of an appropriate type with
    * the size of the given domain from the result's texture pool, and set the domain of the result
@@ -189,6 +218,16 @@ class Result {
    * eventually be stolen by the actual output of the operation. See the uses of the method for
    * a practical example of use. */
   void steal_data(Result &source);
+
+  /* Set up the result to wrap an external texture that is not allocated nor managed by the result.
+   * The is_external_ member will be set to true, the domain will be set to have the same size as
+   * the texture, and the texture will be set to the given texture. See the is_external_ member for
+   * more information. The given texture should have the same format as the result and is assumed
+   * to have a lifetime that covers the evaluation of the compositor. */
+  void wrap_external(GPUTexture *texture);
+
+  /* Sets the transformation of the domain of the result to the given transformation. */
+  void set_transformation(const float3x3 &transformation);
 
   /* Transform the result by the given transformation. This effectively pre-multiply the given
    * transformation by the current transformation of the domain of the result. */
@@ -279,10 +318,6 @@ class Result {
 
   /* Returns a reference to the domain of the result. See the Domain class. */
   const Domain &domain() const;
-
- private:
-  /* Returns the appropriate texture format based on the result's type and precision. */
-  eGPUTextureFormat get_texture_format() const;
 };
 
 }  // namespace blender::realtime_compositor

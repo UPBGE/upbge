@@ -98,9 +98,11 @@ class TreeViewItemContainer {
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions,
                TreeViewItemContainer::IterOptions::SkipCollapsed);
 
-/** The container class is the base for both the tree-view and the items. This alias gives it a
+/**
+ * The container class is the base for both the tree-view and the items. This alias gives it a
  * clearer name for handles that accept both. Use whenever something wants to act on child-items,
- * irrespective of if they are stored at root level or as children of some other item. */
+ * irrespective of if they are stored at root level or as children of some other item.
+ */
 using TreeViewOrItem = TreeViewItemContainer;
 
 /** \} */
@@ -207,7 +209,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   /** See AbstractViewItem::get_rename_string(). */
   /* virtual */ StringRef get_rename_string() const override;
   /** See AbstractViewItem::rename(). */
-  /* virtual */ bool rename(StringRefNull new_name) override;
+  /* virtual */ bool rename(const bContext &C, StringRefNull new_name) override;
 
   /**
    * Return whether the item can be collapsed. Used to disable collapsing for items with children.
@@ -245,7 +247,6 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
  private:
   static void tree_row_click_fn(bContext *, void *, void *);
   static void collapse_chevron_click_fn(bContext *, void *but_arg1, void *);
-  static bool is_collapse_chevron_but(const uiBut *but);
 
   /**
    * Override of #AbstractViewItem::set_state_active() that also ensures the parents of this
@@ -292,9 +293,8 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
 
  protected:
   /**
-   * Optionally passed to the #BasicTreeViewItem constructor. Called when activating this tree
-   * view item. This way users don't have to sub-class #BasicTreeViewItem, just to implement
-   * custom activation behavior (a common thing to do).
+   * Called when activating this tree view item. This way users don't have to sub-class
+   * #BasicTreeViewItem, just to implement custom activation behavior (a common thing to do).
    */
   ActivateFn activate_fn_;
 
@@ -324,11 +324,12 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
  */
 class TreeViewItemDropTarget : public DropTargetInterface {
  protected:
-  AbstractTreeView &view_;
+  AbstractTreeViewItem &view_item_;
   const DropBehavior behavior_;
 
  public:
-  TreeViewItemDropTarget(AbstractTreeView &view, DropBehavior behavior = DropBehavior::Insert);
+  TreeViewItemDropTarget(AbstractTreeViewItem &view_item,
+                         DropBehavior behavior = DropBehavior::Insert);
 
   std::optional<DropLocation> choose_drop_location(const ARegion &region,
                                                    const wmEvent &event) const override;
@@ -370,7 +371,7 @@ template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
 {
   static_assert(std::is_base_of<AbstractTreeView, ViewType>::value,
                 "Type must derive from and implement the ui::AbstractTreeView interface");
-  return dynamic_cast<ViewType &>(view_);
+  return dynamic_cast<ViewType &>(view_item_.get_tree_view());
 }
 
 }  // namespace blender::ui

@@ -10,6 +10,7 @@
  * Used for 3D View
  */
 
+#include "BLI_array_utils.h"
 #include "BLI_function_ref.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -19,19 +20,19 @@
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
+#include "BKE_curve.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_global.h"
 #include "BKE_gpencil_legacy.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_layer.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
-#include "BLI_array_utils.h"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -41,6 +42,7 @@
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
 #include "ED_gpencil_legacy.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_object.hh"
 #include "ED_particle.hh"
 #include "ED_screen.hh"
@@ -49,6 +51,8 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "ANIM_bone_collections.h"
 
 /* local module include */
 #include "transform.hh"
@@ -805,6 +809,37 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
       FOREACH_EDIT_OBJECT_END();
     }
+    else if (obedit->type == OB_GREASE_PENCIL) {
+      FOREACH_EDIT_OBJECT_BEGIN (ob_iter, use_mat_local) {
+        GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_iter->data);
+
+        float4x4 mat_local;
+        if (use_mat_local) {
+          mat_local = float4x4(obedit->world_to_object) * float4x4(ob_iter->object_to_world);
+        }
+
+        const Array<ed::greasepencil::MutableDrawingInfo> drawings =
+            ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
+        threading::parallel_for_each(
+            drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
+              const bke::CurvesGeometry &curves = info.drawing.strokes();
+
+              const bke::crazyspace::GeometryDeformation deformation =
+                  bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+                      *depsgraph, *ob, info.layer_index, info.frame_number);
+
+              IndexMaskMemory memory;
+              const IndexMask selected_points = ed::curves::retrieve_selected_points(curves,
+                                                                                     memory);
+              const Span<float3> positions = deformation.positions;
+              totsel += selected_points.size();
+              selected_points.foreach_index([&](const int point_i) {
+                run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
+              });
+            });
+      }
+      FOREACH_EDIT_OBJECT_END();
+    }
 
 #undef FOREACH_EDIT_OBJECT_BEGIN
 #undef FOREACH_EDIT_OBJECT_END
@@ -896,12 +931,15 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
 
       /* Get the boundbox out of the evaluated object. */
-      const BoundBox *bb = nullptr;
+      std::optional<BoundBox> bb;
       if (use_only_center == false) {
-        bb = BKE_object_boundbox_get(base->object);
+        if (std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(base->object)) {
+          bb.emplace();
+          BKE_boundbox_init_from_minmax(&*bb, bounds->min, bounds->max);
+        }
       }
 
-      if (use_only_center || (bb == nullptr)) {
+      if (use_only_center || !bb) {
         user_fn(base->object->object_to_world[3]);
       }
       else {
@@ -1178,12 +1216,11 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
   TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(scene,
                                                                                    orient_flag);
-  PointerRNA orient_ref_ptr;
-  RNA_pointer_create(&scene->id, &RNA_TransformOrientationSlot, orient_slot, &orient_ref_ptr);
+  PointerRNA orient_ref_ptr = RNA_pointer_create(
+      &scene->id, &RNA_TransformOrientationSlot, orient_slot);
   const ToolSettings *ts = scene->toolsettings;
 
-  PointerRNA scene_ptr;
-  RNA_id_pointer_create(&scene->id, &scene_ptr);
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
   {
     const PropertyRNA *props[] = {
         &rna_Scene_transform_orientation_slots,
@@ -1196,8 +1233,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   if ((ts->transform_pivot_point == V3D_AROUND_CURSOR) || (orient_slot->type == V3D_ORIENT_CURSOR))
   {
     /* We could be more specific here, for now subscribe to any cursor change. */
-    PointerRNA cursor_ptr;
-    RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor, &cursor_ptr);
+    PointerRNA cursor_ptr = RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor);
     WM_msg_subscribe_rna(mbus, &cursor_ptr, nullptr, &msg_sub_value_gz_tag_refresh, __func__);
   }
 
@@ -1214,8 +1250,8 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
     }
   }
 
-  PointerRNA toolsettings_ptr;
-  RNA_pointer_create(&scene->id, &RNA_ToolSettings, scene->toolsettings, &toolsettings_ptr);
+  PointerRNA toolsettings_ptr = RNA_pointer_create(
+      &scene->id, &RNA_ToolSettings, scene->toolsettings);
 
   if (ELEM(type_fn, VIEW3D_GGT_xform_gizmo, VIEW3D_GGT_xform_shear)) {
     const PropertyRNA *props[] = {
@@ -1237,8 +1273,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
     }
   }
 
-  PointerRNA view3d_ptr;
-  RNA_pointer_create(&screen->id, &RNA_SpaceView3D, area->spacedata.first, &view3d_ptr);
+  PointerRNA view3d_ptr = RNA_pointer_create(&screen->id, &RNA_SpaceView3D, area->spacedata.first);
 
   if (type_fn == VIEW3D_GGT_xform_gizmo) {
     GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);

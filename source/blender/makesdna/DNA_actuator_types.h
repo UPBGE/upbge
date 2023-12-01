@@ -33,10 +33,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Object;
 struct Mesh;
 struct Scene;
@@ -629,7 +625,3 @@ typedef struct bActuator {
 /* vibrationactuator->mode */
 #define ACT_VIBRATION_PLAY 0
 #define ACT_VIBRATION_STOP 1
-
-#ifdef __cplusplus
-}
-#endif

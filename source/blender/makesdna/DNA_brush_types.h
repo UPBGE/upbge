@@ -14,10 +14,6 @@
 #include "DNA_defs.h"
 #include "DNA_texture_types.h" /* for MTex */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct CurveMapping;
 struct Image;
 struct MTex;
@@ -94,7 +90,7 @@ typedef struct BrushGpencilSettings {
   int flag;
 
   /** gradient control along y for color */
-  float hardeness;
+  float hardness;
   /** factor xy of shape for dots gradients */
   float aspect_ratio[2];
   /** Simplify adaptive factor */
@@ -441,7 +437,3 @@ typedef struct PaintCurve {
   /** Index where next point will be added. */
   int add_index;
 } PaintCurve;
-
-#ifdef __cplusplus
-}
-#endif

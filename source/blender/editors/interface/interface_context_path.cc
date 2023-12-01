@@ -8,7 +8,7 @@
 
 #include "BLI_vector.hh"
 
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 
@@ -33,8 +33,7 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
     return;
   }
 
-  PointerRNA rna_ptr;
-  RNA_pointer_create(nullptr, &rna_type, ptr, &rna_ptr);
+  PointerRNA rna_ptr = RNA_pointer_create(nullptr, &rna_type, ptr);
   char name[128];
   RNA_struct_name_get_alloc(&rna_ptr, name, sizeof(name), nullptr);
 

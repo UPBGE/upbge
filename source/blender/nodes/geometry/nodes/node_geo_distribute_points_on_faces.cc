@@ -5,6 +5,7 @@
 #include "BLI_kdtree.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
@@ -15,7 +16,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute_math.hh"
-#include "BKE_bvhutils.h"
+#include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_sample.hh"
@@ -23,6 +24,8 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
+#include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
 
@@ -60,7 +63,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Geometry>("Points").propagate_all();
   b.add_output<decl::Vector>("Normal").field_on_all();
-  b.add_output<decl::Vector>("Rotation").subtype(PROP_EULER).field_on_all();
+  b.add_output<decl::Rotation>("Rotation").field_on_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -96,13 +99,11 @@ static void node_point_distribute_points_on_faces_update(bNodeTree *ntree, bNode
 /**
  * Use an arbitrary choice of axes for a usable rotation attribute directly out of this node.
  */
-static float3 normal_to_euler_rotation(const float3 normal)
+static math::Quaternion normal_to_rotation(const float3 normal)
 {
   float quat[4];
   vec_to_quat(quat, normal, OB_NEGZ, OB_POSY);
-  float3 rotation;
-  quat_to_eul(rotation, quat);
-  return rotation;
+  return math::normalize(math::Quaternion(quat));
 }
 
 static void sample_mesh_surface(const Mesh &mesh,
@@ -336,15 +337,36 @@ static void compute_normal_outputs(const Mesh &mesh,
                                    const Span<int> looptri_indices,
                                    MutableSpan<float3> r_normals)
 {
-  Array<float3> corner_normals(mesh.totloop);
-  BKE_mesh_calc_normals_split_ex(
-      &mesh, nullptr, reinterpret_cast<float(*)[3]>(corner_normals.data()));
-
-  const Span<MLoopTri> looptris = mesh.looptris();
-  threading::parallel_for(bary_coords.index_range(), 512, [&](const IndexRange range) {
-    bke::mesh_surface_sample::sample_corner_normals(
-        looptris, looptri_indices, bary_coords, corner_normals, range, r_normals);
-  });
+  switch (mesh.normals_domain()) {
+    case bke::MeshNormalDomain::Point: {
+      const Span<int> corner_verts = mesh.corner_verts();
+      const Span<MLoopTri> looptris = mesh.looptris();
+      const Span<float3> vert_normals = mesh.vert_normals();
+      threading::parallel_for(bary_coords.index_range(), 512, [&](const IndexRange range) {
+        bke::mesh_surface_sample::sample_point_normals(
+            corner_verts, looptris, looptri_indices, bary_coords, vert_normals, range, r_normals);
+      });
+      break;
+    }
+    case bke::MeshNormalDomain::Face: {
+      const Span<int> looptri_faces = mesh.looptri_faces();
+      VArray<float3> face_normals = VArray<float3>::ForSpan(mesh.face_normals());
+      threading::parallel_for(bary_coords.index_range(), 512, [&](const IndexRange range) {
+        bke::mesh_surface_sample::sample_face_attribute(
+            looptri_faces, looptri_indices, face_normals, range, r_normals);
+      });
+      break;
+    }
+    case bke::MeshNormalDomain::Corner: {
+      const Span<MLoopTri> looptris = mesh.looptris();
+      const Span<float3> corner_normals = mesh.corner_normals();
+      threading::parallel_for(bary_coords.index_range(), 512, [&](const IndexRange range) {
+        bke::mesh_surface_sample::sample_corner_normals(
+            looptris, looptri_indices, bary_coords, corner_normals, range, r_normals);
+      });
+      break;
+    }
+  }
 }
 
 static void compute_legacy_normal_outputs(const Mesh &mesh,
@@ -373,11 +395,12 @@ static void compute_legacy_normal_outputs(const Mesh &mesh,
   }
 }
 
-static void compute_rotation_output(const Span<float3> normals, MutableSpan<float3> r_rotations)
+static void compute_rotation_output(const Span<float3> normals,
+                                    MutableSpan<math::Quaternion> r_rotations)
 {
-  threading::parallel_for(normals.index_range(), 256, [&](const IndexRange range) {
+  threading::parallel_for(normals.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
-      r_rotations[i] = normal_to_euler_rotation(normals[i]);
+      r_rotations[i] = normal_to_rotation(normals[i]);
     }
   });
 }
@@ -395,14 +418,14 @@ BLI_NOINLINE static void compute_attribute_outputs(const Mesh &mesh,
       "id", ATTR_DOMAIN_POINT);
 
   SpanAttributeWriter<float3> normals;
-  SpanAttributeWriter<float3> rotations;
+  SpanAttributeWriter<math::Quaternion> rotations;
 
   if (attribute_outputs.normal_id) {
     normals = point_attributes.lookup_or_add_for_write_only_span<float3>(
         attribute_outputs.normal_id.get(), ATTR_DOMAIN_POINT);
   }
   if (attribute_outputs.rotation_id) {
-    rotations = point_attributes.lookup_or_add_for_write_only_span<float3>(
+    rotations = point_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(
         attribute_outputs.rotation_id.get(), ATTR_DOMAIN_POINT);
   }
 
@@ -556,6 +579,8 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
   const bool use_legacy_normal = params.node().custom2 != 0;
   compute_attribute_outputs(
       mesh, *pointcloud, bary_coords, looptri_indices, attribute_outputs, use_legacy_normal);
+
+  geometry::debug_randomize_point_order(pointcloud);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

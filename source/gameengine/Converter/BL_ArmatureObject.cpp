@@ -32,9 +32,9 @@
 #include "BL_ArmatureObject.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BLI_math_rotation.h"
 #include "DNA_armature_types.h"
 #include "RNA_access.hh"
@@ -433,8 +433,7 @@ void BL_ArmatureObject::ApplyPose()
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
-  PointerRNA ptrrna;
-  RNA_id_pointer_create(&m_objArma->id, &ptrrna);
+  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
 
   animsys_evaluate_action(&ptrrna, action, evalCtx, false);
 }

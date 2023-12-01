@@ -30,7 +30,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       Each specifying the value of an axis between -1.0 and 1.0
       depending on how far the axis is pushed, 0 for nothing.
       The first 2 values are used by most joysticks and gamepads for directional control.
-      3rd and 4th values are only on some joysticks and can be used for arbitary controls.
+      3rd and 4th values are only on some joysticks and can be used for arbitrary controls.
 
       * left:[-1.0, 0.0, ...]
       * right:[1.0, 0.0, ...]

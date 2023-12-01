@@ -14,9 +14,9 @@
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_image.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
@@ -275,8 +275,7 @@ static void applyResize(TransInfo *t)
         ElementResize(t, tc, td, mat);
       }
 
-      /* XXX(@dg): In proportional edit it can happen that vertices
-       * in the radius of the brush end outside the clipping area. */
+      /* Not ideal, see #clipUVData code-comment. */
       if (t->flag & T_PROP_EDIT) {
         clipUVData(t);
       }

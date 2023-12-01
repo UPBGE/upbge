@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 #include "MEM_guardedalloc.h"
 
@@ -27,12 +28,6 @@
 #include "RNA_types.hh"
 
 #include "rna_internal.h"
-
-#ifdef _WIN32
-#  ifndef snprintf
-#    define snprintf _snprintf
-#  endif
-#endif
 
 #include "CLG_log.h"
 
@@ -67,10 +62,10 @@ static bool file_older(const char *file1, const char *file2)
   }
 
   if (stat(file1, &st1)) {
-    return 0;
+    return false;
   }
   if (stat(file2, &st2)) {
-    return 0;
+    return false;
   }
 
   return (st1.st_mtime < st2.st_mtime);
@@ -426,17 +421,17 @@ static void rna_print_id_get(FILE *f, PropertyDefRNA * /*dp*/)
 static void rna_construct_function_name(
     char *buffer, int size, const char *structname, const char *propname, const char *type)
 {
-  snprintf(buffer, size, "%s_%s_%s", structname, propname, type);
+  BLI_snprintf(buffer, size, "%s_%s_%s", structname, propname, type);
 }
 
 static void rna_construct_wrapper_function_name(
     char *buffer, int size, const char *structname, const char *propname, const char *type)
 {
   if (type == nullptr || type[0] == '\0') {
-    snprintf(buffer, size, "%s_%s", structname, propname);
+    BLI_snprintf(buffer, size, "%s_%s", structname, propname);
   }
   else {
-    snprintf(buffer, size, "%s_%s_%s", structname, propname, type);
+    BLI_snprintf(buffer, size, "%s_%s_%s", structname, propname, type);
   }
 }
 
@@ -651,6 +646,12 @@ static void rna_float_print(FILE *f, float num)
   }
   else if ((fabsf(num) < float(INT64_MAX)) && (int64_t(num) == num)) {
     fprintf(f, "%.1ff", num);
+  }
+  else if (num == std::numeric_limits<float>::infinity()) {
+    fprintf(f, "std::numeric_limits<float>::infinity()");
+  }
+  else if (num == -std::numeric_limits<float>::infinity()) {
+    fprintf(f, "-std::numeric_limits<float>::infinity()");
   }
   else {
     fprintf(f, "%.10ff", num);
@@ -2380,7 +2381,7 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
     }
     case PROP_POINTER: {
       fprintf(f, "PointerRNA %sget(PointerRNA *ptr);\n", func);
-      /*fprintf(f, "void %sset(PointerRNA *ptr, PointerRNA value);\n", func); */
+      // fprintf(f, "void %sset(PointerRNA *ptr, PointerRNA value);\n", func);
       break;
     }
     case PROP_COLLECTION: {
@@ -2975,11 +2976,11 @@ static void rna_def_struct_function_impl_cpp(FILE *f, StructRNA *srna, FunctionD
         fprintf(f, "\t\t::%s *retdata = ", rna_parameter_type_name(dp->prop));
         rna_def_struct_function_call_impl_cpp(f, srna, dfunc);
         if (ret_srna->flag & STRUCT_ID) {
-          fprintf(f, "\t\tRNA_id_pointer_create((::ID *) retdata, &result);\n");
+          fprintf(f, "\t\tresult = RNA_id_pointer_create((::ID *) retdata);\n");
         }
         else {
           fprintf(f,
-                  "\t\tRNA_pointer_create((::ID *) ptr.owner_id, &RNA_%s, retdata, &result);\n",
+                  "\t\tresult = RNA_pointer_create((::ID *) ptr.owner_id, &RNA_%s, retdata);\n",
                   (const char *)pprop->type);
         }
       }
@@ -3391,6 +3392,27 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   fprintf(f, "}\n\n");
 
   dfunc->gencall = funcname;
+}
+
+static void rna_sanity_checks()
+{
+  /* Ensure RNA enum definitions follow naming convention. */
+  {
+#define DEF_ENUM(id) #id,
+    const char *rna_enum_id_array[] = {
+#include "RNA_enum_items.hh"
+    };
+    for (int i = 0; i < ARRAY_SIZE(rna_enum_id_array); i++) {
+      if (!(BLI_str_startswith(rna_enum_id_array[i], "rna_enum_") &&
+            BLI_str_endswith(rna_enum_id_array[i], "_items")))
+      {
+        fprintf(stderr,
+                "Error: enum defined in \"RNA_enum_items.hh\" "
+                "doesn't confirm to \"rna_enum_*_items\" convention!\n");
+        DefRNA.error = true;
+      }
+    }
+  }
 }
 
 static void rna_auto_types()
@@ -3939,6 +3961,12 @@ static void rna_generate_static_function_prototypes(BlenderRNA * /*brna*/,
     dfunc = rna_find_function_def(func);
 
     if (dfunc->call) {
+      if (strstr(dfunc->call, "<")) {
+        /* Can't generate the declaration for templates. We'll still get compile errors when trying
+         * to call it with a wrong signature. */
+        continue;
+      }
+
       if (first) {
         fprintf(f, "/* Repeated prototypes to detect errors */\n\n");
         first = 0;
@@ -4090,7 +4118,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           }
         }
         else {
-          if (!defaultfound && !(eprop->item_fn && eprop->item == DummyRNA_NULL_items)) {
+          if (!defaultfound && !(eprop->item_fn && eprop->item == rna_enum_dummy_NULL_items)) {
             CLOG_ERROR(&LOG,
                        "%s%s.%s, enum default is not in items.",
                        srna->identifier,
@@ -4202,7 +4230,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
       StructRNA *type = rna_find_struct((const char *)pprop->type);
       if (type && (type->flag & STRUCT_ID) &&
           !(prop->flag_internal & PROP_INTERN_PTR_OWNERSHIP_FORCED)) {
-        prop->flag |= PROP_PTR_NO_OWNERSHIP;
+        RNA_def_property_flag(prop, PROP_PTR_NO_OWNERSHIP);
       }
       break;
     }
@@ -4214,7 +4242,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
       StructRNA *type = rna_find_struct((const char *)cprop->item_type);
       if (type && (type->flag & STRUCT_ID) &&
           !(prop->flag_internal & PROP_INTERN_PTR_OWNERSHIP_FORCED)) {
-        prop->flag |= PROP_PTR_NO_OWNERSHIP;
+        RNA_def_property_flag(prop, PROP_PTR_NO_OWNERSHIP);
       }
       break;
     }
@@ -4719,7 +4747,9 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_dynamicpaint.cc", nullptr, RNA_def_dynamic_paint},
     {"rna_fcurve.cc", "rna_fcurve_api.cc", RNA_def_fcurve},
     {"rna_gpencil_legacy.cc", nullptr, RNA_def_gpencil},
+#ifdef WITH_GREASE_PENCIL_V3
     {"rna_grease_pencil.cc", nullptr, RNA_def_grease_pencil},
+#endif
     {"rna_curves.cc", nullptr, RNA_def_curves},
     {"rna_image.cc", "rna_image_api.cc", RNA_def_image},
     {"rna_key.cc", nullptr, RNA_def_key},
@@ -4738,6 +4768,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_nla.cc", nullptr, RNA_def_nla},
     {"rna_nodetree.cc", nullptr, RNA_def_nodetree},
     {"rna_node_socket.cc", nullptr, RNA_def_node_socket_subtypes},
+    {"rna_node_tree_interface.cc", nullptr, RNA_def_node_tree_interface},
     {"rna_object.cc", "rna_object_api.cc", RNA_def_object},
     {"rna_object_force.cc", nullptr, RNA_def_object_force},
     {"rna_depsgraph.cc", nullptr, RNA_def_depsgraph},
@@ -4795,6 +4826,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
   fprintf(f, "#include <float.h>\n");
   fprintf(f, "#include <stdio.h>\n");
   fprintf(f, "#include <limits.h>\n");
+  fprintf(f, "#include <limits>\n");
   fprintf(f, "#include <string.h>\n\n");
   fprintf(f, "#include <stddef.h>\n\n");
 
@@ -4807,7 +4839,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
   fprintf(f, "#include \"BLI_blenlib.h\"\n\n");
   fprintf(f, "#include \"BLI_utildefines.h\"\n\n");
 
-  fprintf(f, "#include \"BKE_context.h\"\n");
+  fprintf(f, "#include \"BKE_context.hh\"\n");
   fprintf(f, "#include \"BKE_lib_id.h\"\n");
   fprintf(f, "#include \"BKE_main.h\"\n");
   fprintf(f, "#include \"BKE_report.h\"\n");
@@ -5545,6 +5577,11 @@ static int rna_preprocess(const char *outfile, const char *public_header_outfile
         }
       }
     }
+  }
+
+  rna_sanity_checks();
+  if (DefRNA.error) {
+    status = EXIT_FAILURE;
   }
 
   rna_auto_types();

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'769fe076683a')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'd293f72ab6e7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-08-14 09:28:55\n"
+"POT-Creation-Date: 2023-11-27 10:28:34\n"
 "PO-Revision-Date: 2017-08-26 11:13+0200\n"
 "Last-Translator: Mikołaj Juda <mikolaj.juda@gmail.com>\n"
 "Language: pl\n"
@@ -198,20 +198,12 @@ msgid "Message"
 msgstr "Komunikat"
 
 
+msgid "Auto"
+msgstr "Automatyczny"
+
+
 msgid "Fribidi Library"
 msgstr "Biblioteka fribidi"
-
-
-msgid "The FriBidi C compiled library (.so under Linux, .dll under windows...), you’ll likely have to edit it if you’re under Windows, e.g. using the one included in svn's libraries repository"
-msgstr "Skompilowana biblioteka FriBidi dla C (.so pod Linuxem, .dll pod Windows), prawdopodobnie potrzebujesz ustawić ją gdy jesteś pod Windows, np. wykorzystując dołączone repozytorium bibliotek z SVN."
-
-
-msgid "Gettext 'msgfmt' executable"
-msgstr "Położenie 'msgfmt' dla Gettext"
-
-
-msgid "The gettext msgfmt 'compiler'. You’ll likely have to edit it if you’re under Windows"
-msgstr "Kompilator gettext 'msgfmt'. Zazwyczaj trzeba określić to pole jeżeli jesteś pod Windows"
 
 
 msgid "Translation Root"
@@ -690,12 +682,20 @@ msgid "Description"
 msgstr "Opis"
 
 
+msgid "All"
+msgstr "Wszystko"
+
+
 msgid "Vector"
 msgstr "Wektorowy"
 
 
 msgid "Point"
 msgstr "Punkt"
+
+
+msgid "Layer"
+msgstr "Warstwa"
 
 
 msgid "Bake Data"
@@ -908,10 +908,6 @@ msgstr "Swobodny"
 
 msgid "Aligned"
 msgstr "Wyrównany"
-
-
-msgid "Auto"
-msgstr "Automatyczny"
 
 
 msgid "Handle 2"
@@ -1694,14 +1690,6 @@ msgid "Inherit Scale"
 msgstr "Dziedzicz skalę"
 
 
-msgid "Layers"
-msgstr "Warstwy"
-
-
-msgid "Layers bone exists in"
-msgstr "Warstwy na których ta kość istnieje"
-
-
 msgid "Bone Matrix"
 msgstr "Macierz kości"
 
@@ -1802,12 +1790,8 @@ msgid "Object children will use relative transform, like deform"
 msgstr "Obiekty potomne będą używać transformacji względnych, takich jak deformacje"
 
 
-msgid "Bone Group"
-msgstr "Grupa kości"
-
-
-msgid "Groups of Pose Channels (Bones)"
-msgstr "Grupy kanałów pozy (kości)"
+msgid "Visible"
+msgstr "Widoczny"
 
 
 msgid "Brush Capabilities"
@@ -1850,20 +1834,8 @@ msgid "Material"
 msgstr "Materiał"
 
 
-msgid "Flat"
-msgstr "Płaskie"
-
-
 msgid "Direction"
 msgstr "Kierunek"
-
-
-msgid "All"
-msgstr "Wszystko"
-
-
-msgid "Visible"
-msgstr "Widoczny"
 
 
 msgid "Threshold"
@@ -1872,10 +1844,6 @@ msgstr "Próg"
 
 msgid "Blur"
 msgstr "Rozmycie"
-
-
-msgid "Smooth"
-msgstr "Wygładzanie"
 
 
 msgid "Iterations"
@@ -6064,10 +6032,6 @@ msgid "Onion Skinning"
 msgstr "Pokrywanie wielowarstwowe"
 
 
-msgid "Layer"
-msgstr "Warstwa"
-
-
 msgid "Window"
 msgstr "Okno"
 
@@ -6080,6 +6044,10 @@ msgid "Lattice"
 msgstr "Kratownica"
 
 
+msgid "Smooth"
+msgstr "Wygładzanie"
+
+
 msgid "Target Object"
 msgstr "Obiekt docelowy"
 
@@ -6088,8 +6056,60 @@ msgid "Fixed"
 msgstr "Stałe"
 
 
+msgid "Brush"
+msgstr "Pędzel"
+
+
+msgid "Font"
+msgstr "Czcionka"
+
+
+msgid "Key"
+msgstr "Klucz"
+
+
 msgid "Library"
 msgstr "Biblioteka"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Mesh"
+msgstr "Siatka"
+
+
+msgid "Paint Curve"
+msgstr "Krzywa graficzna"
+
+
+msgid "Palette"
+msgstr "Paleta"
+
+
+msgid "Particle"
+msgstr "Cząstka"
+
+
+msgid "Sound"
+msgstr "Dźwięk"
+
+
+msgid "Speaker"
+msgstr "Głośnik"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Window Manager"
+msgstr "Zarządca okien"
+
+
+msgid "World"
+msgstr "Świat"
 
 
 msgid "Groups"
@@ -6098,14 +6118,6 @@ msgstr "Grupy"
 
 msgid "Local"
 msgstr "Lokalnie"
-
-
-msgid "Brush"
-msgstr "Pędzel"
-
-
-msgid "Paint Curve"
-msgstr "Krzywa graficzna"
 
 
 msgid "Laplacian"
@@ -6122,10 +6134,6 @@ msgstr "Początek przycinania"
 
 msgid "Dimensions"
 msgstr "Wymiary"
-
-
-msgid "Font"
-msgstr "Czcionka"
 
 
 msgid "X Offset"
@@ -6152,16 +6160,16 @@ msgid "Use Nodes"
 msgstr "Używaj Węzłów"
 
 
+msgid "Layers"
+msgstr "Warstwy"
+
+
 msgid "Cube"
 msgstr "Sześcian"
 
 
 msgid "Edit"
 msgstr "Edytuj"
-
-
-msgid "Mesh"
-msgstr "Siatka"
 
 
 msgid "Faces"
@@ -6180,10 +6188,6 @@ msgid "Mass"
 msgstr "Masa"
 
 
-msgid "Particle"
-msgstr "Cząstka"
-
-
 msgid "Reference Distance"
 msgstr "Odległość odniesienia"
 
@@ -6193,20 +6197,12 @@ msgid "Pitch"
 msgstr "Wysokość"
 
 
-msgid "Sound"
-msgstr "Dźwięk"
-
-
 msgid "Blend"
 msgstr "Mieszanie"
 
 
 msgid "Filter"
 msgstr "Filtr"
-
-
-msgid "Window Manager"
-msgstr "Zarządca okien"
 
 
 msgid "Operation"
@@ -6241,20 +6237,12 @@ msgid "ID Type"
 msgstr "Typ ID"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
-msgid "Key"
-msgstr "Klucz"
-
-
 msgid "Distort"
 msgstr "Zniekształć"
 
 
-msgid "Text"
-msgstr "Tekst"
+msgid "Add Modifier"
+msgstr "Dodaj Modyfikator"
 
 
 msgid "Python"
@@ -6283,10 +6271,6 @@ msgstr "Nadpisz"
 
 msgid "Copy"
 msgstr "Skopiuj"
-
-
-msgid "World"
-msgstr "Świat"
 
 
 msgid "Smooth Shading"
@@ -6431,6 +6415,10 @@ msgid "Sigma"
 msgstr "Sigma"
 
 
+msgid "Flat"
+msgstr "Płaskie"
+
+
 msgid "Add a constraint to the active object"
 msgstr "Dodaj ogranicznik do aktywnego obiektu"
 
@@ -6445,10 +6433,6 @@ msgstr "Potomek"
 
 msgid "Reset"
 msgstr "Zresetuj"
-
-
-msgid "Palette"
-msgstr "Paleta"
 
 
 msgid "Hinge"
@@ -6562,10 +6546,6 @@ msgid "Timeline and playback controls"
 msgstr "Oś czasu oraz kontrolki odtwarzania"
 
 
-msgid "Speaker"
-msgstr "Głośnik"
-
-
 msgid "3D"
 msgstr "3D"
 
@@ -6640,6 +6620,54 @@ msgid "Layer:"
 msgstr "Warstwa:"
 
 
+msgid "<No ID pointer>"
+msgstr "<Brak wskaźników ID>"
+
+
+msgid "<Missing ID block>"
+msgstr "<Brak bloku ID>"
+
+
+msgid "No F-Curve to add keyframes to"
+msgstr "Brak krzywej-F, do której można dodać klatki kluczowe"
+
+
+msgid "No RNA pointer available to retrieve values for keyframing from"
+msgstr "Brak dostępnego wskaźnika RNA, z którego można odzyskać wartości kluczowania"
+
+
+msgid "No ID block and/or AnimData to delete keyframe from"
+msgstr "Brak bloku ID i/lub AnimData, z którego można usunąć klatki kluczowe"
+
+
+msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Nie można było wstawić klatki kluczowej ponieważ ścieżka ID jest nieprawidłowa dla danego ID (ID = %s, path = %s)"
+
+
+msgid "No ID block to insert keyframe in (path = %s)"
+msgstr "Brak bloku ID, w którym można wstawić klatkę kluczową (path = %s)"
+
+
+msgid "Could not insert keyframe, as this type does not support animation data (ID = %s, path = %s)"
+msgstr "Nie można było wstawić klatki kluczowej ponieważ ten typ nie obsługuje danych animacji (ID = %s, path = %s)"
+
+
+msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Nie można było usunąć klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
+
+
+msgid "No action to delete keyframes from for ID = %s"
+msgstr "Brak akcji do usunięcia klatek kluczowych dla ID = %s"
+
+
+msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
+msgstr "Nie można usunąć klatki kluczowej dla zablokowanej krzywej-F '%s' dla %s '%s'"
+
+
+msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "Nie można było wyczyścić klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
+
+
 msgid "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will be done! You may want to re-save your lib file with current Blender"
 msgstr "Powiązanie lub dołączenie z bardzo starego formatu .blend (%d.%d), dane o animacji nie zostaną przystosowane! Spróbuj zapisać źródłowy plik zawierający bibliotekę w aktualnym formacie pliku .blend"
 
@@ -6686,22 +6714,6 @@ msgstr "OS Loop"
 
 msgid "PreviewLoopCol"
 msgstr "PreviewLoopCol"
-
-
-msgid "Source and destination meshes do not have the same amount of vertices, 'Topology' mapping cannot be used in this case"
-msgstr "Siatka źródłowa i docelowa nie mają tej samej liczby wierzchołków, Mapowanie 'Topologia' nie może być użyte w tym przypadku"
-
-
-msgid "Source and destination meshes do not have the same amount of edges, 'Topology' mapping cannot be used in this case"
-msgstr "Siatka źródłowa i docelowa nie mają tej samej liczby krawędzi, Mapowanie 'Topologia' nie może być użyte w tym przypadku"
-
-
-msgid "Source and destination meshes do not have the same amount of face corners, 'Topology' mapping cannot be used in this case"
-msgstr "Siatka źródłowa i docelowa nie mają tej samej liczby narożników ścian, Mapowanie 'Topologia' nie może być użyte w tym przypadku"
-
-
-msgid "Source and destination meshes do not have the same amount of faces, 'Topology' mapping cannot be used in this case"
-msgstr "Siatka źródłowa i docelowa nie mają tej samej liczby ścian, Mapowanie 'Topologia' nie może być użyte w tym przypadku"
 
 
 msgid "Not enough free memory"
@@ -6772,10 +6784,6 @@ msgstr "WarstwaMaski"
 
 msgid "Tangent space can only be computed for tris/quads, aborting"
 msgstr "Przestrzeń styczna może być wyliczona jedynie dla trójkątów/czworokątów, przerywam"
-
-
-msgid "Tangent space computation needs loop normals, none found, aborting"
-msgstr "Kalkulacja przestrzeni stycznej wymaga pętli normalnych, żadna nie odnaleziona, przerywam"
 
 
 msgid "NlaTrack"
@@ -7099,6 +7107,10 @@ msgid "Display action without any time remapping (when unpinned)"
 msgstr "Wyświetl akcję bez jakiegokolwiek przemapowania czasu (gdy odpięta)"
 
 
+msgid "Nothing selected"
+msgstr "Nic nie zaznaczono"
+
+
 msgid "<invalid>"
 msgstr "<nieprawidłowy>"
 
@@ -7143,26 +7155,6 @@ msgid "Delete envelope control point"
 msgstr "Usuń punkt kontrolny otoczki"
 
 
-msgid "<No ID pointer>"
-msgstr "<Brak wskaźników ID>"
-
-
-msgid "<Missing ID block>"
-msgstr "<Brak bloku ID>"
-
-
-msgid "No F-Curve to add keyframes to"
-msgstr "Brak krzywej-F, do której można dodać klatki kluczowe"
-
-
-msgid "No RNA pointer available to retrieve values for keyframing from"
-msgstr "Brak dostępnego wskaźnika RNA, z którego można odzyskać wartości kluczowania"
-
-
-msgid "No ID block and/or AnimData to delete keyframe from"
-msgstr "Brak bloku ID i/lub AnimData, z którego można usunąć klatki kluczowe"
-
-
 msgid "No suitable context info for active keying set"
 msgstr "Brak pasującej informacji kontekstu dla aktywnego zestawu kluczowania"
 
@@ -7181,38 +7173,6 @@ msgstr "Ustanowienie ścieżki do właściwości nie powiodło się, spróbuj r�
 
 msgid "No active Keying Set"
 msgstr "Brak aktywnego Zestawu Kluczowania"
-
-
-msgid "F-Curve with path '%s[%d]' cannot be keyframed, ensure that it is not locked or sampled, and try removing F-Modifiers"
-msgstr "Na krzywej-F ze ścieżką '%s[%d]' nie można wstawiać klatek kluczowych, upewnij się, że nie jest ona zablokowana lub próbkowana i spróbuj usunąć Modyfikatory-F"
-
-
-msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było wstawić klatki kluczowej ponieważ ścieżka ID jest nieprawidłowa dla danego ID (ID = %s, path = %s)"
-
-
-msgid "No ID block to insert keyframe in (path = %s)"
-msgstr "Brak bloku ID, w którym można wstawić klatkę kluczową (path = %s)"
-
-
-msgid "Could not insert keyframe, as this type does not support animation data (ID = %s, path = %s)"
-msgstr "Nie można było wstawić klatki kluczowej ponieważ ten typ nie obsługuje danych animacji (ID = %s, path = %s)"
-
-
-msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było usunąć klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
-
-
-msgid "No action to delete keyframes from for ID = %s"
-msgstr "Brak akcji do usunięcia klatek kluczowych dla ID = %s"
-
-
-msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
-msgstr "Nie można usunąć klatki kluczowej dla zablokowanej krzywej-F '%s' dla %s '%s'"
-
-
-msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było wyczyścić klatki kluczowej, ścieżka RNA jest nieprawidłowa dla podanego ID (ID = %s, path = %s)"
 
 
 msgid "Keying set '%s' - successfully added %d keyframes"
@@ -7515,10 +7475,6 @@ msgid "No active frame to delete"
 msgstr "Brak aktywnej klatki do usunięcia"
 
 
-msgid "Nothing selected"
-msgstr "Nic nie zaznaczono"
-
-
 msgid "No active area"
 msgstr "Brak aktywnego obszaru"
 
@@ -7638,10 +7594,6 @@ msgstr "Nie odnaleziono prawidłowego 'po' dla języka '%s' pod '%s'"
 
 msgid "Hex"
 msgstr "Hex"
-
-
-msgid "(Gamma Corrected)"
-msgstr "(Po korekcji gammy)"
 
 
 msgid "Lightness"
@@ -7768,10 +7720,6 @@ msgid "Stop animation playback"
 msgstr "Zakończ odtwarzanie animacji"
 
 
-msgid "Click to see the remaining reports in text block: 'Recent Reports'"
-msgstr "Kliknij by zobaczyć pozostałe raporty w bloku tekstu: 'Ostatnie Raporty'"
-
-
 msgid "Browse Scene to be linked"
 msgstr "Przeglądaj sceny do powiązania"
 
@@ -7856,6 +7804,10 @@ msgid "Browse Particle Settings to be linked"
 msgstr "Przeglądaj dane cząstek do powiązania"
 
 
+msgid "Browse Grease Pencil Data to be linked"
+msgstr "Przeglądaj dane szkicownika do powiązania"
+
+
 msgid "Browse Movie Clip to be linked"
 msgstr "Przeglądaj klipy filmowe do powiązania"
 
@@ -7870,10 +7822,6 @@ msgstr "Przeglądaj dane palety do powiązania"
 
 msgid "Browse Paint Curve Data to be linked"
 msgstr "Przeglądaj dane krzywej malowania do powiązania"
-
-
-msgid "Browse Grease Pencil Data to be linked"
-msgstr "Przeglądaj dane szkicownika do powiązania"
 
 
 msgid "Browse ID data to be linked"
@@ -9318,10 +9266,6 @@ msgid "Update Dependencies"
 msgstr "Odśwież Zależności"
 
 
-msgid "Add Modifier"
-msgstr "Dodaj Modyfikator"
-
-
 msgid "F-Curve only has F-Modifiers"
 msgstr "Krzywa F ma tylko modyfikatory F"
 
@@ -9534,30 +9478,6 @@ msgid "Now"
 msgstr "Teraz"
 
 
-msgid "Internal Error - AnimData block is not valid"
-msgstr "Błąd wewnętrzny - AnimData block jest nieprawidłowy"
-
-
-msgid "Cannot push down actions while tweaking a strip's action, exit tweak mode first"
-msgstr "Nie można pchnąć w dół akcji gdy manipulujesz (tweak) akcją paska, najpierw wyjdź z trybu tweak"
-
-
-msgid "No active action to push down"
-msgstr "Brak aktywnej akcji do pchnięcia w dół"
-
-
-msgid "Select an existing NLA Track or an empty action line first"
-msgstr "Zaznacz najpierw istniejącą ścieżkę NLA lub pustą linię akcji."
-
-
-msgid "No animation channel found at index %d"
-msgstr "Pod indeksem %d nie odnaleziono kanału animacji"
-
-
-msgid "Animation channel at index %d is not a NLA 'Active Action' channel"
-msgstr "Kanał animacji w indeksie %d nie jest kanałem NLA aktywnej akcji (NLA 'Active Action')"
-
-
 msgid "No AnimData blocks to enter tweak mode for"
 msgstr "Brak AnimData blocks dla których można uruchomić tryb tweak"
 
@@ -9606,25 +9526,24 @@ msgid "Modifier could not be added to (%s : %s) (see console for details)"
 msgstr "Modyfikator nie mógł być dodany to (%s : %s) (szczegóły w konsoli)"
 
 
-msgctxt "Action"
-msgid "Group"
-msgstr "Grupa"
+msgid "Internal Error - AnimData block is not valid"
+msgstr "Błąd wewnętrzny - AnimData block jest nieprawidłowy"
+
+
+msgid "Cannot push down actions while tweaking a strip's action, exit tweak mode first"
+msgstr "Nie można pchnąć w dół akcji gdy manipulujesz (tweak) akcją paska, najpierw wyjdź z trybu tweak"
+
+
+msgid "No active action to push down"
+msgstr "Brak aktywnej akcji do pchnięcia w dół"
+
+
+msgid "Select an existing NLA Track or an empty action line first"
+msgstr "Zaznacz najpierw istniejącą ścieżkę NLA lub pustą linię akcji."
 
 
 msgid "Library path '%s' does not exist, correct this before saving"
 msgstr "Ścieżka biblioteki '%s' nie istnieje, popraw to zanim zapiszesz"
-
-
-msgid "Cannot edit builtin name"
-msgstr "Nie można edytować wbudowanej nazwy"
-
-
-msgid "Cannot edit sequence name"
-msgstr "Nie można edytować nazwy sekwencji"
-
-
-msgid "Cannot edit the path of an indirectly linked library"
-msgstr "Nie można edytować ścieżki z biblioteki zlinkowanej niebezpośrednio"
 
 
 msgid "Operation requires an active keying set"
@@ -10316,6 +10235,11 @@ msgid "Cannot open file: %s"
 msgstr "Nie można otworzyć pliku: %s"
 
 
+msgctxt "Action"
+msgid "Group"
+msgstr "Grupa"
+
+
 msgid "Index out of range"
 msgstr "Indeks poza zakresem"
 
@@ -10609,16 +10533,16 @@ msgid "Registering node socket class: '%s' is too long, maximum length is %d"
 msgstr "Rejestracja node socket class: '%s' jest za długie, maksymalna długość: %d"
 
 
+msgid "Unable to create socket"
+msgstr "Utworzenie złącza niemożliwe"
+
+
 msgid "Same input/output direction of sockets"
 msgstr "Identyczny kierunek wejście/wyjście złącza"
 
 
 msgid "Unable to locate link in node tree"
 msgstr "Niemożliwe odnalezienie łącza w drzewie nodów (node tree)"
-
-
-msgid "Unable to create socket"
-msgstr "Utworzenie złącza niemożliwe"
 
 
 msgid "Node tree '%s' has undefined type %s"
@@ -10699,15 +10623,6 @@ msgstr "Siatka nie posiada danych UV"
 
 msgid "Mesh has no VCol data"
 msgstr "Siatka nie posiada danych VCol"
-
-
-msgctxt "Armature"
-msgid "Group"
-msgstr "Grupa [ Szkielet ]"
-
-
-msgid "Bone group '%s' not found in this object"
-msgstr "Nie odnaleziono grupy kości '%s' w tym obiekcie"
 
 
 msgid "Constraint '%s' not found in pose bone '%s'"
@@ -10820,10 +10735,6 @@ msgstr "To nie jest modal keymap"
 
 msgid "Property value not in enumeration"
 msgstr "Wartość właściwości nieobecna w wymienionych"
-
-
-msgid "KeyMapItem '%s' cannot be removed from '%s'"
-msgstr "KeyMapItem '%s' nie może być usunięte z '%s'"
 
 
 msgid "KeyConfig '%s' cannot be removed"
@@ -11012,10 +10923,6 @@ msgstr "W4"
 
 msgid "iScale"
 msgstr "iSkala"
-
-
-msgid "Unknown py-exception, could not convert"
-msgstr "Nieznana py-exception, przetworzenie nie powiodło się"
 
 
 msgid "Image too small"
@@ -11254,10 +11161,6 @@ msgid "Catalan (Català)"
 msgstr "Kataloński (Català)"
 
 
-msgid "Czech (Český)"
-msgstr "Czeski (Český)"
-
-
 msgid "Portuguese (Português)"
 msgstr "Portugalski (Português)"
 
@@ -11340,10 +11243,6 @@ msgstr "Hebrajski (תירִבְעִ)"
 
 msgid "Esperanto (Esperanto)"
 msgstr "Esperanto (Esperanto)"
-
-
-msgid "Spanish from Spain (Español de España)"
-msgstr "Hiszpański Hiszpania (Español de España)"
 
 
 msgid "Amharic (አማርኛ)"

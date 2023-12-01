@@ -14,12 +14,12 @@
 #include "BLI_listbase.h" /* Needed due to import of BLO_readfile.h */
 #include "BLI_utildefines.h"
 
-#include "BLO_blend_defs.h"
+#include "BLO_blend_defs.hh"
 #include "BLO_readfile.h"
 
-#include "BKE_icons.h"
 #include "BKE_idtype.h"
 #include "BKE_main.h"
+#include "BKE_preview_image.hh"
 
 #include "DNA_ID.h" /* For preview images... */
 

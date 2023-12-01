@@ -15,8 +15,8 @@
 #include "BLI_rect.h"
 
 #include "BKE_colortools.h"
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_layer.h"
@@ -26,7 +26,7 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_image.hh" /* own include */
 #include "ED_mesh.hh"

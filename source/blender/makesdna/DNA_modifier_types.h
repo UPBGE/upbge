@@ -15,19 +15,12 @@
 #include "DNA_session_uuid_types.h"
 
 #ifdef __cplusplus
-namespace blender::bke::sim {
-struct ModifierSimulationCachePtr;
-}
 namespace blender {
 struct NodesModifierRuntime;
 }
 using NodesModifierRuntimeHandle = blender::NodesModifierRuntime;
 #else
 typedef struct NodesModifierRuntimeHandle NodesModifierRuntimeHandle;
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 /* WARNING ALERT! TYPEDEF VALUES ARE WRITTEN IN FILES! SO DO NOT CHANGE!
@@ -2148,7 +2141,7 @@ typedef struct DataTransferModifierData {
   /** DT_MULTILAYER_INDEX_MAX; See DT_TOLAYERS_ enum in ED_object.hh. */
   int layers_select_dst[5];
 
-  /** See CDT_MIX_ enum in BKE_customdata.h. */
+  /** See CDT_MIX_ enum in BKE_customdata.hh. */
   int mix_mode;
   float mix_factor;
   /** #MAX_VGROUP_NAME. */
@@ -2332,6 +2325,29 @@ typedef struct NodesModifierSettings {
   struct IDProperty *properties;
 } NodesModifierSettings;
 
+typedef struct NodesModifierBake {
+  /** An id that references a nested node in the node tree. Also see #bNestedNodeRef. */
+  int id;
+  /** #NodesModifierBakeFlag. */
+  uint32_t flag;
+  /**
+   * Directory where the baked data should be stored. This is only used when
+   * `NODES_MODIFIER_BAKE_CUSTOM_PATH` is set.
+   */
+  char *directory;
+  /**
+   * Frame range for the simulation and baking that is used if
+   * `NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE` is set.
+   */
+  int frame_start;
+  int frame_end;
+} NodesModifierBake;
+
+typedef enum NodesModifierBakeFlag {
+  NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE = 1 << 0,
+  NODES_MODIFIER_BAKE_CUSTOM_PATH = 1 << 1,
+} NodesModifierBakeFlag;
+
 typedef struct NodesModifierData {
   ModifierData modifier;
   struct bNodeTree *node_group;
@@ -2340,8 +2356,25 @@ typedef struct NodesModifierData {
    * Directory where baked simulation states are stored. This may be relative to the .blend file.
    */
   char *simulation_bake_directory;
+  /** NodesModifierFlag. */
+  int8_t flag;
+
+  char _pad[3];
+  int bakes_num;
+  NodesModifierBake *bakes;
+  void *_pad2;
+
   NodesModifierRuntimeHandle *runtime;
+
+#ifdef __cplusplus
+  NodesModifierBake *find_bake(int id);
+  const NodesModifierBake *find_bake(int id) const;
+#endif
 } NodesModifierData;
+
+typedef enum NodesModifierFlag {
+  NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR = (1 << 0),
+} NodesModifierFlag;
 
 typedef struct MeshToVolumeModifierData {
   ModifierData modifier;
@@ -2422,7 +2455,3 @@ typedef enum VolumeToMeshResolutionMode {
 typedef enum VolumeToMeshFlag {
   VOLUME_TO_MESH_USE_SMOOTH_SHADE = 1 << 0,
 } VolumeToMeshFlag;
-
-#ifdef __cplusplus
-}
-#endif

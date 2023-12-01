@@ -29,20 +29,20 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_collection.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_gpencil_curve_legacy.h"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 extern "C" {
 #include "curve_fit_nd.h"
 }
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #define COORD_FITTING_INFLUENCE 20.0f
 
@@ -219,7 +219,7 @@ static Collection *gpencil_get_parent_collection(Scene *scene, Object *ob)
   return mycol;
 }
 static int gpencil_get_stroke_material_fromcurve(
-    Main *bmain, Object *ob_gp, Object *ob_cu, bool *do_stroke, bool *do_fill)
+    Main *bmain, Object *ob_gp, Object *ob_cu, bool *r_do_stroke, bool *r_do_fill)
 {
   Curve *cu = (Curve *)ob_cu->data;
 
@@ -234,21 +234,21 @@ static int gpencil_get_stroke_material_fromcurve(
    * If the has only one material, if the name contains "_stroke",
    * it's used as a stroke, otherwise as fill. */
   if (ob_cu->totcol >= 2) {
-    *do_stroke = true;
-    *do_fill = true;
+    *r_do_stroke = true;
+    *r_do_fill = true;
     mat_curve_fill = BKE_object_material_get(ob_cu, 1);
     mat_curve_stroke = BKE_object_material_get(ob_cu, 2);
   }
   else if (ob_cu->totcol == 1) {
     mat_curve_stroke = BKE_object_material_get(ob_cu, 1);
     if ((mat_curve_stroke) && (strstr(mat_curve_stroke->id.name, "_stroke") != nullptr)) {
-      *do_stroke = true;
-      *do_fill = false;
+      *r_do_stroke = true;
+      *r_do_fill = false;
       mat_curve_fill = nullptr;
     }
     else {
-      *do_stroke = false;
-      *do_fill = true;
+      *r_do_stroke = false;
+      *r_do_fill = true;
       /* Invert materials. */
       mat_curve_fill = mat_curve_stroke;
       mat_curve_stroke = nullptr;
@@ -256,7 +256,7 @@ static int gpencil_get_stroke_material_fromcurve(
   }
   else {
     /* No materials in the curve. */
-    *do_fill = false;
+    *r_do_fill = false;
     return -1;
   }
 
@@ -268,11 +268,11 @@ static int gpencil_get_stroke_material_fromcurve(
   }
 
   int r_idx = gpencil_check_same_material_color(
-      ob_gp, color_stroke, color_fill, *do_stroke, *do_fill, &mat_gp);
+      ob_gp, color_stroke, color_fill, *r_do_stroke, *r_do_fill, &mat_gp);
 
   if ((ob_gp->totcol < r_idx) || (r_idx < 0)) {
     mat_gp = gpencil_add_from_curve_material(
-        bmain, ob_gp, color_stroke, color_fill, *do_stroke, *do_fill, &r_idx);
+        bmain, ob_gp, color_stroke, color_fill, *r_do_stroke, *r_do_fill, &r_idx);
   }
 
   /* Set fill and stroke depending of curve type (3D or 2D). */
@@ -304,7 +304,7 @@ static void gpencil_convert_spline(Main *bmain,
   bGPDstroke *gps = static_cast<bGPDstroke *>(MEM_callocN(sizeof(bGPDstroke), "bGPDstroke"));
   gps->thickness = 1.0f;
   gps->fill_opacity_fac = 1.0f;
-  gps->hardeness = 1.0f;
+  gps->hardness = 1.0f;
   gps->uv_scale = 1.0f;
 
   ARRAY_SET_ITEMS(gps->aspect_ratio, 1.0f, 1.0f);

@@ -33,7 +33,29 @@ class NLA_HT_header(Header):
             icon='FILTER',
         )
 
-        layout.prop(st, "auto_snap", text="")
+        row = layout.row(align=True)
+        tool_settings = context.tool_settings
+        row.prop(tool_settings, "use_snap_anim", text="")
+        sub = row.row(align=True)
+        sub.popover(
+            panel="NLA_PT_snapping",
+            text="",
+        )
+
+
+class NLA_PT_snapping(Panel):
+    bl_space_type = 'NLA_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Snapping"
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        col.label(text="Snap To")
+        tool_settings = context.tool_settings
+        col.prop(tool_settings, "snap_anim_element", expand=True)
+        if tool_settings.snap_anim_element != 'MARKER':
+            col.prop(tool_settings, "use_snap_time_absolute")
 
 
 class NLA_PT_filters(DopesheetFilterPopoverBase, Panel):
@@ -281,7 +303,7 @@ class NLA_MT_view_pie(Menu):
 
 
 class NLA_MT_context_menu(Menu):
-    bl_label = "NLA Context Menu"
+    bl_label = "NLA"
 
     def draw(self, context):
         layout = self.layout
@@ -325,12 +347,19 @@ class NLA_MT_context_menu(Menu):
 
 
 class NLA_MT_channel_context_menu(Menu):
-    bl_label = "NLA Channel Context Menu"
+    bl_label = "NLA Tracks"
 
     def draw(self, _context):
         layout = self.layout
 
         layout.operator_menu_enum("anim.channels_move", "direction", text="Track Ordering...")
+
+        layout.separator()
+
+        layout.operator("nla.tracks_add", text="Add Track").above_selected = False
+        layout.operator("nla.tracks_add", text="Add Track Above Selected").above_selected = True
+        layout.separator()
+        layout.operator("nla.tracks_delete")
         layout.operator("anim.channels_clean_empty")
 
 
@@ -350,6 +379,7 @@ classes = (
     NLA_MT_channel_context_menu,
     NLA_PT_filters,
     NLA_PT_action,
+    NLA_PT_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.

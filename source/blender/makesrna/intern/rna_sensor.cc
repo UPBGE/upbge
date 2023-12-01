@@ -31,7 +31,7 @@
 #include "DNA_sensor_types.h"
 
 #include "BLI_math_rotation.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -65,7 +65,7 @@ static const EnumPropertyItem sensor_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_sca.h"
+#  include "BKE_sca.hh"
 #  include "DNA_controller_types.h"
 
 static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)

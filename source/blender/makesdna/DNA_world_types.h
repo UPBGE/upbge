@@ -11,10 +11,6 @@
 #include "DNA_ID.h"
 #include "DNA_defs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimData;
 struct Ipo;
 struct LightgroupMembership;
@@ -33,7 +29,10 @@ typedef struct World {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /* runtime (must be immediately after id for utilities to use it). */
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
   DrawDataList drawdata;
 
   char _pad0[4];
@@ -118,6 +117,12 @@ enum {
   WO_DS_SHOW_TEXS = 1 << 2,
 };
 
-#ifdef __cplusplus
-}
-#endif
+/** #World::probe_resolution. */
+typedef enum eLightProbeResolution {
+  LIGHT_PROBE_RESOLUTION_64 = 6,
+  LIGHT_PROBE_RESOLUTION_128 = 7,
+  LIGHT_PROBE_RESOLUTION_256 = 8,
+  LIGHT_PROBE_RESOLUTION_512 = 9,
+  LIGHT_PROBE_RESOLUTION_1024 = 10,
+  LIGHT_PROBE_RESOLUTION_2048 = 11,
+} eLightProbeResolution;

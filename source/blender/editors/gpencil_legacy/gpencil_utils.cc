@@ -41,14 +41,14 @@
 #include "BKE_brush.hh"
 #include "BKE_collection.h"
 #include "BKE_colortools.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_gpencil_curve_legacy.h"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_tracking.h"
 
@@ -76,8 +76,8 @@
 #include "GPU_immediate_util.h"
 #include "GPU_state.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "gpencil_intern.h"
 
@@ -99,7 +99,7 @@ bGPdata **ED_gpencil_data_get_pointers_direct(ScrArea *area, Object *ob, Pointer
         if (ob && (ob->type == OB_GPENCIL_LEGACY)) {
           /* GP Object. */
           if (r_ptr) {
-            RNA_id_pointer_create(&ob->id, r_ptr);
+            *r_ptr = RNA_id_pointer_create(&ob->id);
           }
           return (bGPdata **)&ob->data;
         }
@@ -134,7 +134,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
       case SPACE_VIEW3D: /* 3D-View */
       {
         if (r_ptr) {
-          RNA_id_pointer_create(&scene->id, r_ptr);
+          *r_ptr = RNA_id_pointer_create(&scene->id);
         }
         return &scene->gpd;
 
@@ -149,7 +149,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
           /* for now, as long as there's an active node tree,
            * default to using that in the Nodes Editor */
           if (r_ptr) {
-            RNA_id_pointer_create(&snode->nodetree->id, r_ptr);
+            *r_ptr = RNA_id_pointer_create(&snode->nodetree->id);
           }
           return &snode->nodetree->gpd;
         }
@@ -164,7 +164,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
         /* For now, Grease Pencil data is associated with the space
          * (actually preview region only). */
         if (r_ptr) {
-          RNA_pointer_create(screen_id, &RNA_SpaceSequenceEditor, sseq, r_ptr);
+          *r_ptr = RNA_pointer_create(screen_id, &RNA_SpaceSequenceEditor, sseq);
         }
         return &sseq->gpd;
       }
@@ -174,7 +174,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
 
         /* For now, Grease Pencil data is associated with the space... */
         if (r_ptr) {
-          RNA_pointer_create(screen_id, &RNA_SpaceImageEditor, sima, r_ptr);
+          *r_ptr = RNA_pointer_create(screen_id, &RNA_SpaceImageEditor, sima);
         }
         return &sima->gpd;
       }
@@ -194,12 +194,12 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
             }
 
             if (r_ptr) {
-              RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track, r_ptr);
+              *r_ptr = RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track);
             }
             return &track->gpd;
           }
           if (r_ptr) {
-            RNA_id_pointer_create(&clip->id, r_ptr);
+            *r_ptr = RNA_id_pointer_create(&clip->id);
           }
           return &clip->gpd;
         }
@@ -350,7 +350,7 @@ const EnumPropertyItem *ED_gpencil_layers_enum_itemf(bContext *C,
   int i = 0;
 
   if (ELEM(nullptr, C, gpd)) {
-    return DummyRNA_DEFAULT_items;
+    return rna_enum_dummy_DEFAULT_items;
   }
 
   /* Existing layers */
@@ -387,7 +387,7 @@ const EnumPropertyItem *ED_gpencil_layers_with_new_enum_itemf(bContext *C,
   int i = 0;
 
   if (ELEM(nullptr, C, gpd)) {
-    return DummyRNA_DEFAULT_items;
+    return rna_enum_dummy_DEFAULT_items;
   }
 
   /* Create new layer */
@@ -438,7 +438,7 @@ const EnumPropertyItem *ED_gpencil_material_enum_itemf(bContext *C,
   int i = 0;
 
   if (ELEM(nullptr, C, ob)) {
-    return DummyRNA_DEFAULT_items;
+    return rna_enum_dummy_DEFAULT_items;
   }
 
   /* Existing materials */
@@ -1774,7 +1774,7 @@ float ED_gpencil_cursor_radius(bContext *C, int x, int y)
     float brush_size = float(brush->size);
     bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
     if (gpl != nullptr) {
-      brush_size = MAX2(1.0f, brush_size + gpl->line_change);
+      brush_size = std::max(1.0f, brush_size + gpl->line_change);
     }
 
     /* Convert the 3D offset distance to a brush radius. */
@@ -2691,7 +2691,12 @@ void ED_gpencil_select_curve_toggle_all(bContext *C, int action)
             break;
           case SEL_INVERT:
             gpc_pt->flag ^= GP_CURVE_POINT_SELECT;
-            BEZT_SEL_INVERT(bezt);
+            if (gpc_pt->flag & GP_CURVE_POINT_SELECT) {
+              BEZT_SEL_ALL(bezt);
+            }
+            else {
+              BEZT_DESEL_ALL(bezt);
+            }
             break;
           default:
             break;

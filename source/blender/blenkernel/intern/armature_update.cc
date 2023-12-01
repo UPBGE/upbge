@@ -21,16 +21,17 @@
 
 #include "BKE_action.h"
 #include "BKE_anim_path.h"
-#include "BKE_armature.h"
-#include "BKE_curve.h"
+#include "BKE_armature.hh"
+#include "BKE_curve.hh"
 #include "BKE_displist.h"
 #include "BKE_fcurve.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_scene.h"
 
 #include "BIK_api.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 /* ********************** SPLINE IK SOLVER ******************* */
 
@@ -216,7 +217,7 @@ static bool splineik_evaluate_init(tSplineIK_Tree *tree, tSplineIk_EvalState *st
     return false;
   }
 
-  CurveCache *cache = ik_data->tar->runtime.curve_cache;
+  CurveCache *cache = ik_data->tar->runtime->curve_cache;
 
   if (ELEM(nullptr, cache, cache->anim_path_accum_length)) {
     return false;
@@ -286,7 +287,7 @@ static int position_tail_on_spline(bSplineIKConstraint *ik_data,
   /* This is using the tessellated curve data.
    * So we are working with piece-wise linear curve segments.
    * The same method is used in #BKE_where_on_path to get curve location data. */
-  const CurveCache *cache = ik_data->tar->runtime.curve_cache;
+  const CurveCache *cache = ik_data->tar->runtime->curve_cache;
   const float *seg_accum_len = cache->anim_path_accum_length;
 
   int max_seg_idx = BKE_anim_path_get_array_size(cache) - 1;
@@ -942,6 +943,7 @@ static void pose_channel_flush_to_orig_if_needed(Depsgraph *depsgraph,
   copy_v3_v3(pchan_orig->pose_head, pchan->pose_mat[3]);
   copy_m4_m4(pchan_orig->constinv, pchan->constinv);
   copy_v3_v3(pchan_orig->pose_tail, pchan->pose_tail);
+  pchan_orig->constflag = pchan->constflag;
 }
 
 void BKE_pose_bone_done(Depsgraph *depsgraph, Object *object, int pchan_index)

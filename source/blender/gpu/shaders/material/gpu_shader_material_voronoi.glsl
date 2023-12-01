@@ -1,9 +1,9 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
+/* SPDX-FileCopyrightText: 2013 Inigo Quilez
+ * SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
- * Original code is under the MIT License, Copyright (c) 2013 Inigo Quilez.
- *
  * Smooth Voronoi:
  *
  * - https://wiki.blender.org/wiki/User:OmarSquircleArt/GSoC2019/Documentation/Smooth_Voronoi
@@ -16,6 +16,9 @@
  * With optimization to change -2..2 scan window to -1..1 for better performance,
  * as explained in https://www.shadertoy.com/view/llG3zy.
  */
+
+#pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
+#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
 
 #define SHD_VORONOI_EUCLIDEAN 0
 #define SHD_VORONOI_MANHATTAN 1

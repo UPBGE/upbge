@@ -46,12 +46,13 @@ else()
   endif()
 endif()
 
-
 # Support restoring this value once pre-compiled libraries have been handled.
 set(WITH_STATIC_LIBS_INIT ${WITH_STATIC_LIBS})
 
 if(DEFINED LIBDIR)
-  message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
+  if(FIRST_RUN)
+    message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
+  endif()
 
   file(GLOB LIB_SUBDIRS ${LIBDIR}/*)
 
@@ -115,20 +116,41 @@ find_package_wrapper(Epoxy REQUIRED)
 find_package(TIFF)
 
 if(WITH_VULKAN_BACKEND)
-  find_package_wrapper(Vulkan REQUIRED)
-  find_package_wrapper(ShaderC REQUIRED)
+  if((DEFINED LIBDIR) AND (EXISTS "${LIBDIR}/vulkan") AND (EXISTS "${LIBDIR}/shaderc"))
+    if(NOT DEFINED VULKAN_ROOT_DIR)
+      set(VULKAN_ROOT_DIR ${LIBDIR}/vulkan)
+    endif()
+    if(NOT DEFINED SHADERC_ROOT_DIR)
+      set(SHADERC_ROOT_DIR ${LIBDIR}/shaderc)
+    endif()
+
+    find_package_wrapper(Vulkan REQUIRED)
+    find_package_wrapper(ShaderC REQUIRED)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(VULKAN REQUIRED vulkan)
+    pkg_check_modules(SHADERC REQUIRED shaderc)
+  endif()
 endif()
+add_bundled_libraries(vulkan/lib)
 
 function(check_freetype_for_brotli)
-  include(CheckSymbolExists)
-  set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-  check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
-  unset(CMAKE_REQUIRED_INCLUDES)
-  if(NOT HAVE_BROTLI)
+  if((DEFINED HAVE_BROTLI AND HAVE_BROTLI) AND
+     (DEFINED HAVE_BROTLI_INC AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}")))
+    # Pass, the includes didn't change, use the cached value.
+  else()
     unset(HAVE_BROTLI CACHE)
-    message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+    include(CheckSymbolExists)
+    set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
+    check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
+    unset(CMAKE_REQUIRED_INCLUDES)
+    if(NOT HAVE_BROTLI)
+      unset(HAVE_BROTLI CACHE)
+      message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+    endif()
+    set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
   endif()
-  unset(HAVE_BROTLI CACHE)
 endfunction()
 
 if(NOT WITH_SYSTEM_FREETYPE)
@@ -149,6 +171,14 @@ if(NOT WITH_SYSTEM_FREETYPE)
     set(BROTLI_LIBRARIES "")
   endif()
   check_freetype_for_brotli()
+endif()
+
+if(WITH_HARFBUZZ)
+  find_package(Harfbuzz)
+endif()
+
+if(WITH_FRIBIDI)
+  find_package(Fribidi)
 endif()
 
 if(WITH_PYTHON)
@@ -379,6 +409,7 @@ endif()
 if(WITH_USD)
   find_package_wrapper(USD)
   set_and_warn_library_found("USD" USD_FOUND WITH_USD)
+  set_and_warn_library_found("Hydra" USD_FOUND WITH_HYDRA)
 endif()
 add_bundled_libraries(usd/lib)
 
@@ -476,6 +507,7 @@ add_bundled_libraries(embree/lib)
 if(WITH_OPENIMAGEDENOISE)
   find_package_wrapper(OpenImageDenoise)
   set_and_warn_library_found("OpenImageDenoise" OPENIMAGEDENOISE_FOUND WITH_OPENIMAGEDENOISE)
+  add_bundled_libraries(openimagedenoise/lib)
 endif()
 
 if(WITH_LLVM)
@@ -539,10 +571,13 @@ endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   find_package_wrapper(openpgl)
+  mark_as_advanced(openpgl_DIR)
   if(openpgl_FOUND)
     get_target_property(OPENPGL_LIBRARIES openpgl::openpgl LOCATION)
     get_target_property(OPENPGL_INCLUDE_DIR openpgl::openpgl INTERFACE_INCLUDE_DIRECTORIES)
-    message(STATUS "Found OpenPGL: ${OPENPGL_LIBRARIES}")
+    if(FIRST_RUN)
+      message(STATUS "Found OpenPGL: ${OPENPGL_LIBRARIES}")
+    endif()
   else()
     set(WITH_CYCLES_PATH_GUIDING OFF)
     message(STATUS "OpenPGL not found, disabling WITH_CYCLES_PATH_GUIDING")
@@ -709,10 +744,6 @@ if(WITH_GHOST_WAYLAND)
   set_and_warn_library_found("xkbcommon" xkbcommon_FOUND WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    if(WITH_GHOST_WAYLAND_DBUS)
-      pkg_check_modules(dbus REQUIRED dbus-1)
-    endif()
-
     if(WITH_GHOST_WAYLAND_LIBDECOR)
       if(_use_system_wayland)
         pkg_check_modules(libdecor libdecor-0>=0.1)
@@ -721,10 +752,6 @@ if(WITH_GHOST_WAYLAND)
         set(libdecor_FOUND ON)
       endif()
       set_and_warn_library_found("libdecor" libdecor_FOUND WITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
-    if(WITH_GHOST_WAYLAND_DBUS)
-      add_definitions(-DWITH_GHOST_WAYLAND_DBUS)
     endif()
 
     if(WITH_GHOST_WAYLAND_LIBDECOR)
@@ -777,14 +804,19 @@ endif()
 
 if(WITH_GHOST_X11)
   find_package(X11 REQUIRED)
+  # For some reason the finder doesn't mark this.
+  mark_as_advanced(X11_xcb_xkb_INCLUDE_PATH)
 
   find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
   mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
 
   if(WITH_X11_XINPUT)
     if(NOT X11_Xinput_LIB)
-      message(FATAL_ERROR "LibXi not found. Disable WITH_X11_XINPUT if you
-      want to build without tablet support")
+      message(
+        FATAL_ERROR
+        "LibXi not found. "
+        "Disable WITH_X11_XINPUT if you want to build without tablet support"
+      )
     endif()
   endif()
 
@@ -793,15 +825,21 @@ if(WITH_GHOST_X11)
     find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
     mark_as_advanced(X11_Xxf86vmode_LIB)
     if(NOT X11_Xxf86vmode_LIB)
-      message(FATAL_ERROR "libXxf86vm not found. Disable WITH_X11_XF86VMODE if you
-      want to build without")
+      message(
+        FATAL_ERROR
+        "libXxf86vm not found. "
+        "Disable WITH_X11_XF86VMODE if you want to build without"
+      )
     endif()
   endif()
 
   if(WITH_X11_XFIXES)
     if(NOT X11_Xfixes_LIB)
-      message(FATAL_ERROR "libXfixes not found. Disable WITH_X11_XFIXES if you
-      want to build without")
+      message(
+        FATAL_ERROR
+        "libXfixes not found. "
+        "Disable WITH_X11_XFIXES if you want to build without"
+      )
     endif()
   endif()
 
@@ -809,8 +847,11 @@ if(WITH_GHOST_X11)
     find_library(X11_Xrender_LIB Xrender ${X11_LIB_SEARCH_PATH})
     mark_as_advanced(X11_Xrender_LIB)
     if(NOT X11_Xrender_LIB)
-      message(FATAL_ERROR "libXrender not found. Disable WITH_X11_ALPHA if you
-      want to build without")
+      message(
+        FATAL_ERROR
+        "libXrender not found. "
+        "Disable WITH_X11_ALPHA if you want to build without"
+      )
     endif()
   endif()
 
@@ -1054,11 +1095,7 @@ if(PLATFORM_BUNDLED_LIBRARIES)
 
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
-  if(DEFINED LD_LIBRARY_PATH)
-    set(PLATFORM_ENV_BUILD "LD_LIBRARY_PATH=\"${_library_paths}:${LD_LIBRARY_PATH}\"")
-  else()
-    set(PLATFORM_ENV_BUILD "LD_LIBRARY_PATH=\"${_library_paths}\"")
-  endif()
+  set(PLATFORM_ENV_BUILD "LD_LIBRARY_PATH=\"${_library_paths}:$LD_LIBRARY_PATH\"")
   set(PLATFORM_ENV_INSTALL "LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/lib/;$LD_LIBRARY_PATH")
   unset(_library_paths)
 endif()

@@ -24,16 +24,16 @@
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_particle.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 static void alloc_child_particles(ParticleSystem *psys, int tot)
 {
@@ -128,11 +128,11 @@ static void distribute_grid(Mesh *mesh, ParticleSystem *psys)
 
   /* float errors grrr. */
   size[(axis + 1) % 3] = MIN2(size[(axis + 1) % 3], res);
-  size[(axis + 2) % 3] = MIN2(size[(axis + 2) % 3], res);
+  size[(axis + 2) % 3] = std::min(size[(axis + 2) % 3], res);
 
-  size[0] = MAX2(size[0], 1);
-  size[1] = MAX2(size[1], 1);
-  size[2] = MAX2(size[2], 1);
+  size[0] = std::max(size[0], 1);
+  size[1] = std::max(size[1], 1);
+  size[2] = std::max(size[2], 1);
 
   /* no full offset for flat/thin objects */
   min[0] += d < delta[0] ? d / 2.0f : delta[0] / 2.0f;
@@ -503,7 +503,7 @@ static void distribute_from_verts_exec(ParticleTask *thread, ParticleData *pa, i
 
     psys_particle_on_dm(
         ctx->mesh, from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co1, 0, 0, 0, orco1, 0);
-    BKE_mesh_orco_verts_transform(ob->data, &orco1, 1, 1);
+    BKE_mesh_orco_verts_transform(ob->data, &orco1, 1, true);
     maxw = BLI_kdtree_3d_find_nearest_n(ctx->tree, orco1, ptn, 3);
 
     for (w = 0; w < maxw; w++) {
@@ -737,11 +737,11 @@ static void distribute_children_exec(ParticleTask *thread, ChildParticle *cpa, i
                         nullptr,
                         nullptr,
                         orco1);
-    BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &orco1, 1, 1);
+    BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &orco1, 1, true);
     maxw = BLI_kdtree_3d_find_nearest_n(ctx->tree, orco1, ptn, 3);
 
     maxd = ptn[maxw - 1].dist;
-    /* mind=ptn[0].dist; */ /* UNUSED */
+    // mind=ptn[0].dist; /* UNUSED */
 
     /* the weights here could be done better */
     for (w = 0; w < maxw; w++) {
@@ -916,7 +916,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     return 0;
   }
 
-  if (!BKE_mesh_is_deformed_only(final_mesh) &&
+  if (!final_mesh->runtime->deformed_only &&
       !CustomData_get_layer(&final_mesh->fdata_legacy, CD_ORIGINDEX))
   {
     printf(
@@ -993,7 +993,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
                           nullptr,
                           nullptr,
                           orco);
-      BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &orco, 1, 1);
+      BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &orco, 1, true);
       BLI_kdtree_3d_insert(tree, p, orco);
     }
 
@@ -1031,7 +1031,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
       for (p = 0; p < totvert; p++) {
         if (orcodata) {
           copy_v3_v3(co, orcodata[p]);
-          BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co, 1, 1);
+          BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co, 1, true);
         }
         else {
           copy_v3_v3(co, positions[p]);
@@ -1087,12 +1087,12 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
         copy_v3_v3(co1, orcodata[mf->v1]);
         copy_v3_v3(co2, orcodata[mf->v2]);
         copy_v3_v3(co3, orcodata[mf->v3]);
-        BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co1, 1, 1);
-        BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co2, 1, 1);
-        BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co3, 1, 1);
+        BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co1, 1, true);
+        BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co2, 1, true);
+        BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co3, 1, true);
         if (mf->v4) {
           copy_v3_v3(co4, orcodata[mf->v4]);
-          BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co4, 1, 1);
+          BKE_mesh_orco_verts_transform(static_cast<Mesh *>(ob->data), &co4, 1, true);
         }
       }
       else {

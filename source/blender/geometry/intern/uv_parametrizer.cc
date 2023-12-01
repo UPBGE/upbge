@@ -990,7 +990,7 @@ static PFace *p_face_add(ParamHandle *handle)
 
   /* allocate */
   f = (PFace *)BLI_memarena_alloc(handle->arena, sizeof(*f));
-  f->flag = 0; /* init ! */
+  f->flag = 0;
 
   PEdge *e1 = (PEdge *)BLI_memarena_calloc(handle->arena, sizeof(*e1));
   PEdge *e2 = (PEdge *)BLI_memarena_calloc(handle->arena, sizeof(*e2));
@@ -1384,11 +1384,13 @@ static void p_polygon_kernel_center(float (*points)[2], int npoints, float *cent
 }
 #endif
 
-#if 0
-/* Edge Collapser */
+/* Simplify/Complexity
+ *
+ * This is currently used for eliminating degenerate vertex coordinates.
+ * In the future this can be used for efficient unwrapping of high resolution
+ * charts at lower resolution. */
 
-int NCOLLAPSE = 1;
-int NCOLLAPSEX = 0;
+#if 0
 
 static float p_vert_cotan(const float v1[3], const float v2[3], const float v3[3])
 {
@@ -1941,7 +1943,12 @@ static float p_collapse_cost(PEdge *edge, PEdge *pair)
   return cost;
 }
 
-static void p_collapse_cost_vertex(PVert *vert, float *r_mincost, PEdge **r_mine)
+static void p_collapse_cost_vertex(
+    PVert *vert,
+    float *r_mincost,
+    PEdge **r_mine,
+    const std::function<float(PEdge *, PEdge *)> &collapse_cost_fn,
+    const std::function<float(PEdge *, PEdge *)> &collapse_allowed_fn)
 {
   PEdge *e, *enext, *pair;
 
@@ -1949,8 +1956,8 @@ static void p_collapse_cost_vertex(PVert *vert, float *r_mincost, PEdge **r_mine
   *r_mincost = 0.0f;
   e = vert->edge;
   do {
-    if (p_collapse_allowed(e, e->pair)) {
-      float cost = p_collapse_cost(e, e->pair);
+    if (collapse_allowed_fn(e, e->pair)) {
+      float cost = collapse_cost_fn(e, e->pair);
 
       if ((*r_mine == nullptr) || (cost < *r_mincost)) {
         *r_mincost = cost;
@@ -1964,8 +1971,8 @@ static void p_collapse_cost_vertex(PVert *vert, float *r_mincost, PEdge **r_mine
       /* The other boundary edge, where we only have the pair half-edge. */
       pair = e->next->next;
 
-      if (p_collapse_allowed(nullptr, pair)) {
-        float cost = p_collapse_cost(nullptr, pair);
+      if (collapse_allowed_fn(nullptr, pair)) {
+        float cost = collapse_cost_fn(nullptr, pair);
 
         if ((*r_mine == nullptr) || (cost < *r_mincost)) {
           *r_mincost = cost;
@@ -2050,9 +2057,12 @@ static void p_chart_post_collapse_flush(PChart *chart, PEdge *collapsed)
   }
 }
 
-static void p_chart_post_split_flush(PChart *chart)
+static void p_chart_simplify_compute(PChart *chart,
+                                     std::function<float(PEdge *, PEdge *)> collapse_cost_fn,
+                                     std::function<float(PEdge *, PEdge *)> collapse_allowed_fn)
 {
-  /* Move from `collapsed_*`. */
+  /* For debugging. */
+  static const int MAX_SIMPLIFY = INT_MAX;
 
   PVert *v, *nextv = nullptr;
   PEdge *e, *nexte = nullptr;
@@ -2092,18 +2102,18 @@ static void p_chart_simplify_compute(PChart *chart)
    * is at the top of the respective lists. */
 
   Heap *heap = BLI_heap_new();
-  PVert *v, **wheelverts;
+  PVert *v;
   PEdge *collapsededges = nullptr, *e;
-  int nwheelverts, i, ncollapsed = 0;
-
-  wheelverts = MEM_mallocN(sizeof(PVert *) * chart->nverts, "PChartWheelVerts");
+  int ncollapsed = 0;
+  Vector<PVert *> wheelverts;
+  wheelverts.reserve(16);
 
   /* insert all potential collapses into heap */
   for (v = chart->verts; v; v = v->nextlink) {
     float cost;
     PEdge *e = nullptr;
 
-    p_collapse_cost_vertex(v, &cost, &e);
+    p_collapse_cost_vertex(v, &cost, &e, collapse_cost_fn, collapse_allowed_fn);
 
     if (e) {
       v->u.heaplink = BLI_heap_insert(heap, cost, e);
@@ -2119,7 +2129,7 @@ static void p_chart_simplify_compute(PChart *chart)
 
   /* pop edge collapse out of heap one by one */
   while (!BLI_heap_is_empty(heap)) {
-    if (ncollapsed == NCOLLAPSE) {
+    if (ncollapsed == MAX_SIMPLIFY) {
       break;
     }
 
@@ -2145,15 +2155,15 @@ static void p_chart_simplify_compute(PChart *chart)
     p_collapsing_verts(edge, pair, &oldv, &keepv);
 
     /* gather all wheel verts and remember them before collapse */
-    nwheelverts = 0;
+    wheelverts.clear();
     wheele = oldv->edge;
 
     do {
-      wheelverts[nwheelverts++] = wheele->next->vert;
+      wheelverts.append(wheele->next->vert);
       nexte = p_wheel_edge_next(wheele);
 
       if (nexte == nullptr) {
-        wheelverts[nwheelverts++] = wheele->next->next->vert;
+        wheelverts.append(wheele->next->next->vert);
       }
 
       wheele = nexte;
@@ -2162,18 +2172,16 @@ static void p_chart_simplify_compute(PChart *chart)
     /* collapse */
     p_collapse_edge(edge, pair);
 
-    for (i = 0; i < nwheelverts; i++) {
+    for (PVert *v : wheelverts) {
       float cost;
       PEdge *collapse = nullptr;
-
-      v = wheelverts[i];
 
       if (v->u.heaplink) {
         BLI_heap_remove(heap, v->u.heaplink);
         v->u.heaplink = nullptr;
       }
 
-      p_collapse_cost_vertex(v, &cost, &collapse);
+      p_collapse_cost_vertex(v, &cost, &collapse, collapse_cost_fn, collapse_allowed_fn);
 
       if (collapse) {
         v->u.heaplink = BLI_heap_insert(heap, cost, collapse);
@@ -2183,7 +2191,6 @@ static void p_chart_simplify_compute(PChart *chart)
     ncollapsed++;
   }
 
-  MEM_freeN(wheelverts);
   BLI_heap_free(heap, nullptr);
 
   p_chart_post_collapse_flush(chart, collapsededges);
@@ -2191,6 +2198,9 @@ static void p_chart_simplify_compute(PChart *chart)
 
 static void p_chart_complexify(PChart *chart)
 {
+  /* For debugging. */
+  static const int MAX_COMPLEXIFY = INT_MAX;
+
   PEdge *e, *pair, *edge;
   PVert *newv, *keepv;
   int x = 0;
@@ -2210,7 +2220,7 @@ static void p_chart_complexify(PChart *chart)
     p_split_vertex(edge, pair);
     p_collapsing_verts(edge, pair, &newv, &keepv);
 
-    if (x >= NCOLLAPSEX) {
+    if (x >= MAX_COMPLEXIFY) {
       newv->uv[0] = keepv->uv[0];
       newv->uv[1] = keepv->uv[1];
     }
@@ -2708,12 +2718,12 @@ static bool p_chart_abf_solve(PChart *chart)
     p_abf_compute_sines(&sys);
 
     /* iteration */
-    /* lastnorm = 1e10; */ /* UNUSED */
+    // lastnorm = 1e10; /* UNUSED. */
 
     for (i = 0; i < ABF_MAX_ITER; i++) {
       float norm = p_abf_compute_gradient(&sys, chart);
 
-      /* lastnorm = norm; */ /* UNUSED */
+      // lastnorm = norm; /* UNUSED. */
 
       if (norm < limit) {
         break;
@@ -2951,11 +2961,9 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  int id = 0;
 
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
-    v->u.id = id++;
     if (v->flag & PVERT_PIN) {
       npins++;
       if (v->flag & PVERT_SELECT) {
@@ -2973,7 +2981,7 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
     return;
   }
 #if 0
-  p_chart_simplify_compute(chart);
+  p_chart_simplify_compute(chart, p_collapse_cost, p_collapse_allowed);
   p_chart_topological_sanity_check(chart);
 #endif
 
@@ -2991,6 +2999,13 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
     if (!p_chart_abf_solve(chart)) {
       param_warning("ABF solving failed: falling back to LSCM.\n");
     }
+  }
+
+  /* ABF uses these indices for it's internal references.
+   * Set the indices afterwards. */
+  int id = 0;
+  for (PVert *v = chart->verts; v; v = v->nextlink) {
+    v->u.id = id++;
   }
 
   if (npins <= 1) {
@@ -3622,17 +3637,6 @@ ParamHandle::ParamHandle()
   hash_verts = phash_new((PHashLink **)&construction_chart->verts, 1);
   hash_edges = phash_new((PHashLink **)&construction_chart->edges, 1);
   hash_faces = phash_new((PHashLink **)&construction_chart->faces, 1);
-
-  pin_hash = nullptr;
-  unique_pin_count = 0;
-
-  charts = nullptr;
-  ncharts = 0;
-
-  aspect_y = 1.0f;
-
-  rng = nullptr;
-  blend = 0.0f;
 }
 
 ParamHandle::~ParamHandle()
@@ -3813,6 +3817,7 @@ void uv_parametrizer_face_add(ParamHandle *phandle,
                               const bool *select)
 {
   BLI_assert(nverts >= 3);
+  BLI_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
 
   if (nverts > 3) {
     /* Protect against (manifold) geometry which has a non-manifold triangulation.
@@ -3854,7 +3859,7 @@ void uv_parametrizer_face_add(ParamHandle *phandle,
     }
     if (permute.size() != nverts) {
       const int pm = int(permute.size());
-      /* Add the remaining pm-gon. */
+      /* Add the remaining `pm-gon` data. */
       Array<ParamKey> vkeys_sub(pm);
       Array<const float *> co_sub(pm);
       Array<float *> uv_sub(pm);
@@ -3892,6 +3897,8 @@ void uv_parametrizer_face_add(ParamHandle *phandle,
 
 void uv_parametrizer_edge_set_seam(ParamHandle *phandle, ParamKey *vkeys)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
+
   PEdge *e = p_edge_lookup(phandle, vkeys);
   if (e) {
     e->flag |= PEDGE_SEAM;
@@ -3904,6 +3911,8 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
                                    int *r_count_failed)
 {
   int i, j;
+
+  BLI_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
 
   phandle->ncharts = p_connect_pairs(phandle, topology_from_uvs);
   phandle->charts = p_split_charts(phandle, phandle->construction_chart, phandle->ncharts);
@@ -3941,10 +3950,15 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
   }
 
   phandle->ncharts = j;
+
+  phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
 void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
+  phandle->state = PHANDLE_STATE_LSCM;
+
   for (int i = 0; i < phandle->ncharts; i++) {
     for (PFace *f = phandle->charts[i]->faces; f; f = f->nextlink) {
       p_face_backup_uvs(f);
@@ -3955,6 +3969,8 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
 
 void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *count_failed)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_LSCM);
+
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
 
@@ -3991,16 +4007,23 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
 
 void uv_parametrizer_lscm_end(ParamHandle *phandle)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_LSCM);
+
   for (int i = 0; i < phandle->ncharts; i++) {
     p_chart_lscm_end(phandle->charts[i]);
 #if 0
     p_chart_complexify(phandle->charts[i]);
 #endif
   }
+
+  phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
 void uv_parametrizer_stretch_begin(ParamHandle *phandle)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
+  phandle->state = PHANDLE_STATE_STRETCH;
+
   phandle->rng = BLI_rng_new(31415926);
   phandle->blend = 0.0f;
 
@@ -4022,14 +4045,22 @@ void uv_parametrizer_stretch_begin(ParamHandle *phandle)
 
 void uv_parametrizer_stretch_blend(ParamHandle *phandle, float blend)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_STRETCH);
   phandle->blend = blend;
 }
 
 void uv_parametrizer_stretch_iter(ParamHandle *phandle)
 {
+  BLI_assert(phandle->state == PHANDLE_STATE_STRETCH);
   for (int i = 0; i < phandle->ncharts; i++) {
     p_chart_stretch_minimize(phandle->charts[i], phandle->rng);
   }
+}
+
+void uv_parametrizer_stretch_end(ParamHandle *phandle)
+{
+  BLI_assert(phandle->state == PHANDLE_STATE_STRETCH);
+  phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
 void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned)
@@ -4078,7 +4109,7 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
     float matrix[2][2];
     pack_island->build_transformation(island_scale, pack_island->angle, matrix);
     for (PVert *v = chart->verts; v; v = v->nextlink) {
-      blender::geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
+      geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
     }
 
     pack_island_vector[i] = nullptr;

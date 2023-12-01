@@ -70,9 +70,17 @@ void ARMATURE_OT_split(struct wmOperatorType *ot);
 void ARMATURE_OT_autoside_names(struct wmOperatorType *ot);
 void ARMATURE_OT_flip_names(struct wmOperatorType *ot);
 
-void ARMATURE_OT_layers_show_all(struct wmOperatorType *ot);
-void ARMATURE_OT_armature_layers(struct wmOperatorType *ot);
-void ARMATURE_OT_bone_layers(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_add(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_remove(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_move(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_assign(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_unassign(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_unassign_named(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_select(struct wmOperatorType *ot);
+void ARMATURE_OT_collection_deselect(struct wmOperatorType *ot);
+
+void ARMATURE_OT_move_to_collection(struct wmOperatorType *ot);
+void ARMATURE_OT_assign_to_collection(struct wmOperatorType *ot);
 
 /** \} */
 
@@ -104,15 +112,6 @@ void POSE_OT_select_constraint_target(struct wmOperatorType *ot);
 void POSE_OT_select_grouped(struct wmOperatorType *ot);
 void POSE_OT_select_mirror(struct wmOperatorType *ot);
 
-void POSE_OT_group_add(struct wmOperatorType *ot);
-void POSE_OT_group_remove(struct wmOperatorType *ot);
-void POSE_OT_group_move(struct wmOperatorType *ot);
-void POSE_OT_group_sort(struct wmOperatorType *ot);
-void POSE_OT_group_assign(struct wmOperatorType *ot);
-void POSE_OT_group_unassign(struct wmOperatorType *ot);
-void POSE_OT_group_select(struct wmOperatorType *ot);
-void POSE_OT_group_deselect(struct wmOperatorType *ot);
-
 void POSE_OT_paths_calculate(struct wmOperatorType *ot);
 void POSE_OT_paths_update(struct wmOperatorType *ot);
 void POSE_OT_paths_clear(struct wmOperatorType *ot);
@@ -124,8 +123,6 @@ void POSE_OT_flip_names(struct wmOperatorType *ot);
 void POSE_OT_rotation_mode_set(struct wmOperatorType *ot);
 
 void POSE_OT_quaternions_flip(struct wmOperatorType *ot);
-
-void POSE_OT_bone_layers(struct wmOperatorType *ot);
 
 /** \} */
 
@@ -195,8 +192,9 @@ void poseAnim_mapping_autoKeyframe(struct bContext *C,
                                    float cframe);
 
 /**
- * Find the next F-Curve for a PoseChannel with matching path...
- * - path is not just the pfl rna_path, since that path doesn't have property info yet.
+ * Find the next F-Curve for a PoseChannel with matching path.
+ * - `path` is not just the #tPChanFCurveLink (`pfl`) rna_path,
+ *   since that path doesn't have property info yet.
  */
 LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, const char *path);
 
@@ -296,24 +294,26 @@ struct Bone *ED_armature_pick_bone(struct bContext *C,
                                    bool findunsel,
                                    struct Base **r_base);
 
-struct EditBone *ED_armature_pick_ebone_from_selectbuffer(struct Base **bases,
-                                                          uint bases_len,
-                                                          const struct GPUSelectResult *buffer,
-                                                          short hits,
-                                                          bool findunsel,
-                                                          bool do_nearest,
-                                                          struct Base **r_base);
-struct bPoseChannel *ED_armature_pick_pchan_from_selectbuffer(struct Base **bases,
-                                                              uint bases_len,
-                                                              const struct GPUSelectResult *buffer,
-                                                              short hits,
-                                                              bool findunsel,
-                                                              bool do_nearest,
-                                                              struct Base **r_base);
+struct EditBone *ED_armature_pick_ebone_from_selectbuffer(
+    struct Base **bases,
+    uint bases_len,
+    const struct GPUSelectResult *hit_results,
+    int hits,
+    bool findunsel,
+    bool do_nearest,
+    struct Base **r_base);
+struct bPoseChannel *ED_armature_pick_pchan_from_selectbuffer(
+    struct Base **bases,
+    uint bases_len,
+    const struct GPUSelectResult *hit_results,
+    int hits,
+    bool findunsel,
+    bool do_nearest,
+    struct Base **r_base);
 struct Bone *ED_armature_pick_bone_from_selectbuffer(struct Base **bases,
                                                      uint bases_len,
-                                                     const struct GPUSelectResult *buffer,
-                                                     short hits,
+                                                     const struct GPUSelectResult *hit_results,
+                                                     int hits,
                                                      bool findunsel,
                                                      bool do_nearest,
                                                      struct Base **r_base);

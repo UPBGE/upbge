@@ -27,7 +27,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "ED_view3d.hh"
 
@@ -114,8 +114,8 @@ void constraintNumInput(TransInfo *t, float vec[3])
     if (dims == 2) {
       int axis = mode & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2);
       if (axis == (CON_AXIS0 | CON_AXIS1)) {
-        /* vec[0] = vec[0]; */ /* same */
-        /* vec[1] = vec[1]; */ /* same */
+        // vec[0] = vec[0]; /* Same. */
+        // vec[1] = vec[1]; /* Same. */
         vec[2] = nval;
       }
       else if (axis == (CON_AXIS1 | CON_AXIS2)) {
@@ -124,14 +124,14 @@ void constraintNumInput(TransInfo *t, float vec[3])
         vec[0] = nval;
       }
       else if (axis == (CON_AXIS0 | CON_AXIS2)) {
-        /* vec[0] = vec[0]; */ /* same */
+        // vec[0] = vec[0]; /* Same. */
         vec[2] = vec[1];
         vec[1] = nval;
       }
     }
     else if (dims == 1) {
       if (mode & CON_AXIS0) {
-        /* vec[0] = vec[0]; */ /* same */
+        // vec[0] = vec[0]; /* Same. */
         vec[1] = nval;
         vec[2] = nval;
       }
@@ -874,13 +874,19 @@ void drawConstraint(TransInfo *t)
   }
 }
 
-void drawPropCircle(const bContext *C, TransInfo *t)
+void drawPropCircle(TransInfo *t)
 {
   if (t->flag & T_PROP_EDIT) {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    const RegionView3D *rv3d = nullptr;
     float tmat[4][4], imat[4][4];
 
-    if (t->spacetype == SPACE_VIEW3D && rv3d != nullptr) {
+    if (t->spacetype == SPACE_VIEW3D) {
+      if (t->region && (t->region->regiontype == RGN_TYPE_WINDOW)) {
+        rv3d = static_cast<const RegionView3D *>(t->region->regiondata);
+      }
+    }
+
+    if (rv3d != nullptr) {
       copy_m4_m4(tmat, rv3d->viewmat);
       invert_m4_m4(imat, tmat);
     }

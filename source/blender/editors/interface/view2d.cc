@@ -16,7 +16,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_array.h"
 #include "BLI_easing.h"
 #include "BLI_link_utils.h"
 #include "BLI_listbase.h"
@@ -27,9 +26,9 @@
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
@@ -386,7 +385,7 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
  * Ensure View2D rects remain in a viable configuration
  * 'cur' is not allowed to be: larger than max, smaller than min, or outside of 'tot'
  */
-/* XXX pre2.5 -> this used to be called  test_view2d() */
+/* XXX pre2.5 -> this used to be called #test_view2d() */
 static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
 {
   float totwidth, totheight, curwidth, curheight, width, height;
@@ -538,7 +537,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
       }
     }
     do_cur = do_x;
-    /* do_win = do_y; */ /* UNUSED */
+    // do_win = do_y; /* UNUSED. */
 
     if (do_cur) {
       if ((v2d->keeptot == V2D_KEEPTOT_STRICT) && (winx != v2d->oldwinx)) {
@@ -1304,11 +1303,11 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
 
   GPUVertFormat *format = immVertexFormat();
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  GPU_program_point_size(true);
+  immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
 
   /* Scaling the dots fully with the zoom looks too busy, but a bit of size variation is nice. */
-  const float min_point_size = 2.0f * UI_SCALE_FAC;
+  const float min_point_size = 2.0f * U.pixelsize;
   const float point_size_factor = 1.5f;
   const float max_point_size = point_size_factor * min_point_size;
 
@@ -1329,6 +1328,9 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
     const float point_size_precise = min_point_size * level_scale * zoom_x;
     const float point_size_draw = ceilf(
         clamp_f(point_size_precise, min_point_size, max_point_size));
+
+    /* Offset point by this amount to better align centers as size changes. */
+    const float point_size_offset = (point_size_draw / 2.0f) - U.pixelsize;
 
     /* To compensate the for the clamped point_size we adjust the alpha to make the overall
      * brightness of the grid background more consistent. */
@@ -1353,15 +1355,20 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
     const float step = min_step * level_scale;
     int count_x;
     float start_x;
-    grid_axis_start_and_count(step, v2d->cur.xmin, v2d->cur.xmax, &start_x, &count_x);
+
+    /* Count points that fit in viewport minus space for the scroll-bars. */
+    grid_axis_start_and_count(
+        step, v2d->cur.xmin, v2d->cur.xmax - V2D_SCROLL_WIDTH, &start_x, &count_x);
     int count_y;
     float start_y;
-    grid_axis_start_and_count(step, v2d->cur.ymin, v2d->cur.ymax, &start_y, &count_y);
+    grid_axis_start_and_count(
+        step, v2d->cur.ymin + V2D_SCROLL_HEIGHT, v2d->cur.ymax, &start_y, &count_y);
     if (count_x == 0 || count_y == 0) {
       continue;
     }
 
-    GPU_point_size(point_size_draw);
+    immUniform1f("size", point_size_draw);
+    immUniform4fv("color", color);
     immBegin(GPU_PRIM_POINTS, count_x * count_y);
 
     /* Theoretically drawing on top of lower grid levels could be avoided, but it would also
@@ -1370,8 +1377,7 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
       const float y = start_y + step * i_y;
       for (int i_x = 0; i_x < count_x; i_x++) {
         const float x = start_x + step * i_x;
-        immAttr4fv(color_id, color);
-        immVertex2f(pos, x, y);
+        immVertex2f(pos, x + point_size_offset, y + point_size_offset);
       }
     }
 
@@ -1379,6 +1385,7 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
   }
 
   immUnbindProgram();
+  GPU_program_point_size(false);
 }
 
 /** \} */

@@ -13,10 +13,6 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /** Used in `readfile.cc` and `editfont.cc`. */
 #define MAXTEXTBOX 256
 
@@ -161,7 +157,6 @@ typedef struct Nurb {
 
 typedef struct CharInfo {
   float kern;
-  /** Index start at 1, unlike mesh & nurbs. */
   short mat_nr;
   char flag;
   char _pad[1];
@@ -285,7 +280,7 @@ typedef struct Curve {
   struct CharInfo curinfo;
   /* font part end */
 
-  /** Current evaltime - for use by Objects parented to curves. */
+  /** Current evaluation-time, for use by Objects parented to curves. */
   float ctime;
   float bevfac1, bevfac2;
   char bevfac1_mapping, bevfac2_mapping;
@@ -613,7 +608,3 @@ enum {
 
 /* indicates point has been seen during surface duplication */
 #define SURF_SEEN (1 << 2)
-
-#ifdef __cplusplus
-}
-#endif

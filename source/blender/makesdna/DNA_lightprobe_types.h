@@ -14,10 +14,6 @@
 
 #include "BLI_assert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimData;
 struct Object;
 
@@ -71,35 +67,27 @@ typedef struct LightProbe {
   /** Irradiance grid: Dilation. */
   float grid_dilation_threshold;
   float grid_dilation_radius;
-  char _pad1[4];
+
+  /** Light intensity clamp. */
+  float grid_clamp_direct;
+  float grid_clamp_indirect;
 
   /** Surface element density for scene surface cache. In surfel per unit distance. */
   float surfel_density;
 
-  /**
-   * Resolution of the light probe when baked to a texture. Contains `eLightProbeResolution`.
-   */
-  int resolution;
-
   /** Object visibility group, inclusive or exclusive. */
   struct Collection *visibility_grp;
-} LightProbe;
 
-/* LightProbe->resolution, World->probe_resolution. */
-typedef enum eLightProbeResolution {
-  LIGHT_PROBE_RESOLUTION_64 = 6,
-  LIGHT_PROBE_RESOLUTION_128 = 7,
-  LIGHT_PROBE_RESOLUTION_256 = 8,
-  LIGHT_PROBE_RESOLUTION_512 = 9,
-  LIGHT_PROBE_RESOLUTION_1024 = 10,
-  LIGHT_PROBE_RESOLUTION_2048 = 11,
-} eLightProbeResolution;
+  /** LIGHTPROBE_FLAG_SHOW_DATA display size. */
+  float data_display_size;
+  char _pad1[4];
+} LightProbe;
 
 /* Probe->type */
 enum {
-  LIGHTPROBE_TYPE_CUBE = 0,
-  LIGHTPROBE_TYPE_PLANAR = 1,
-  LIGHTPROBE_TYPE_GRID = 2,
+  LIGHTPROBE_TYPE_SPHERE = 0,
+  LIGHTPROBE_TYPE_PLANE = 1,
+  LIGHTPROBE_TYPE_VOLUME = 2,
 };
 
 /* Probe->flag */
@@ -370,7 +358,3 @@ enum {
 };
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

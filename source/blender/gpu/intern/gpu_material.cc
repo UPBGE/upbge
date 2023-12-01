@@ -46,7 +46,8 @@
 #define MAX_COLOR_BAND 128
 #define MAX_GPU_SKIES 8
 
-/** Whether the optimized variant of the GPUPass should be created asynchronously.
+/**
+ * Whether the optimized variant of the GPUPass should be created asynchronously.
  * Usage of this depends on whether there are possible threading challenges of doing so.
  * Currently, the overhead of GPU_generate_pass is relatively small in comparison to shader
  * compilation, though this option exists in case any potential scenarios for material graph
@@ -130,6 +131,7 @@ struct GPUMaterial {
   /** DEPRECATED: To remove. */
   bool has_surface_output;
   bool has_volume_output;
+  bool has_displacement_output;
   /** DEPRECATED: To remove. */
   GPUUniformBuf *sss_profile;  /* UBO containing SSS profile. */
   GPUTexture *sss_tex_profile; /* Texture containing SSS profile. */
@@ -433,7 +435,7 @@ static void compute_sss_kernel(GPUSssKernelData *kd, const float radii[3], int s
   /* Minimum radius */
   rad[0] = MAX2(radii[0], 1e-15f);
   rad[1] = MAX2(radii[1], 1e-15f);
-  rad[2] = MAX2(radii[2], 1e-15f);
+  rad[2] = std::max(radii[2], 1e-15f);
 
   kd->avg_inv_radius = 3.0f / (rad[0] + rad[1] + rad[2]);
 
@@ -662,6 +664,7 @@ void GPU_material_output_displacement(GPUMaterial *material, GPUNodeLink *link)
 {
   if (!material->graph.outlink_displacement) {
     material->graph.outlink_displacement = link;
+    material->has_displacement_output = true;
   }
 }
 
@@ -777,6 +780,11 @@ bool GPU_material_has_surface_output(GPUMaterial *mat)
 bool GPU_material_has_volume_output(GPUMaterial *mat)
 {
   return mat->has_volume_output;
+}
+
+bool GPU_material_has_displacement_output(GPUMaterial *mat)
+{
+  return mat->has_displacement_output;
 }
 
 void GPU_material_flag_set(GPUMaterial *mat, eGPUMaterialFlag flag)

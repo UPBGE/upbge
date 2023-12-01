@@ -4,15 +4,16 @@
 
 /** \file
  * \ingroup RNA
+ *
+ * Notes:
+ * - This is included multiple times with different #defines for DEF_ENUM.
+ * - As these are global identifiers, all must confirm to `rna_enum_*_items` convention.
  */
 
-/* NOTE: this is included multiple times with different #defines for DEF_ENUM. */
+/* Use in cases where only dynamic types are used. */
+DEF_ENUM(rna_enum_dummy_NULL_items)
+DEF_ENUM(rna_enum_dummy_DEFAULT_items)
 
-/* use in cases where only dynamic types are used */
-DEF_ENUM(DummyRNA_NULL_items)
-DEF_ENUM(DummyRNA_DEFAULT_items)
-
-/* all others should follow 'rna_enum_*_items' naming */
 DEF_ENUM(rna_enum_id_type_items)
 
 DEF_ENUM(rna_enum_object_mode_items)
@@ -27,6 +28,7 @@ DEF_ENUM(rna_enum_proportional_falloff_curve_only_items)
 DEF_ENUM(rna_enum_snap_source_items)
 DEF_ENUM(rna_enum_snap_element_items)
 DEF_ENUM(rna_enum_snap_node_element_items)
+DEF_ENUM(rna_enum_snap_animation_element_items)
 DEF_ENUM(rna_enum_curve_fit_method_items)
 DEF_ENUM(rna_enum_mesh_select_mode_items)
 DEF_ENUM(rna_enum_mesh_select_mode_uv_items)
@@ -44,6 +46,8 @@ DEF_ENUM(rna_enum_object_modifier_type_items)
 DEF_ENUM(rna_enum_constraint_type_items)
 DEF_ENUM(rna_enum_boidrule_type_items)
 DEF_ENUM(rna_enum_sequence_modifier_type_items)
+DEF_ENUM(rna_enum_sequence_video_modifier_type_items)
+DEF_ENUM(rna_enum_sequence_sound_modifier_type_items)
 DEF_ENUM(rna_enum_object_greasepencil_modifier_type_items)
 DEF_ENUM(rna_enum_object_shaderfx_type_items)
 
@@ -85,7 +89,7 @@ DEF_ENUM(rna_enum_driver_target_rotation_mode_items)
 
 DEF_ENUM(rna_enum_keyingset_path_grouping_items)
 DEF_ENUM(rna_enum_keying_flag_items)
-DEF_ENUM(rna_enum_keying_flag_items_api)
+DEF_ENUM(rna_enum_keying_flag_api_items)
 
 DEF_ENUM(rna_enum_fmodifier_type_items)
 
@@ -101,7 +105,7 @@ DEF_ENUM(rna_enum_event_type_mask_items)
 
 DEF_ENUM(rna_enum_operator_type_flag_items)
 DEF_ENUM(rna_enum_operator_return_items)
-DEF_ENUM(rna_enum_operator_property_tags)
+DEF_ENUM(rna_enum_operator_property_tag_items)
 
 DEF_ENUM(rna_enum_brush_automasking_flag_items)
 DEF_ENUM(rna_enum_brush_sculpt_tool_items)
@@ -174,6 +178,8 @@ DEF_ENUM(rna_enum_navigation_mode_items)
 DEF_ENUM(rna_enum_node_socket_in_out_items)
 DEF_ENUM(rna_enum_node_socket_type_items)
 
+DEF_ENUM(rna_enum_node_tree_interface_item_type_items)
+
 DEF_ENUM(rna_enum_node_math_items)
 DEF_ENUM(rna_enum_mapping_type_items)
 DEF_ENUM(rna_enum_node_vec_math_items)
@@ -217,18 +223,21 @@ DEF_ENUM(rna_enum_attribute_type_items)
 DEF_ENUM(rna_enum_color_attribute_type_items)
 DEF_ENUM(rna_enum_attribute_type_with_auto_items)
 DEF_ENUM(rna_enum_attribute_domain_items)
+DEF_ENUM(rna_enum_attribute_domain_edge_face_items)
 DEF_ENUM(rna_enum_attribute_domain_only_mesh_items)
+DEF_ENUM(rna_enum_attribute_domain_only_mesh_no_edge_items)
 DEF_ENUM(rna_enum_attribute_domain_point_face_curve_items)
+DEF_ENUM(rna_enum_attribute_domain_point_edge_face_curve_items)
 DEF_ENUM(rna_enum_attribute_curves_domain_items)
 DEF_ENUM(rna_enum_color_attribute_domain_items)
 DEF_ENUM(rna_enum_attribute_domain_without_corner_items)
 DEF_ENUM(rna_enum_attribute_domain_with_auto_items)
 DEF_ENUM(rna_enum_geometry_component_type_items)
-DEF_ENUM(rna_node_combsep_color_items)
-DEF_ENUM(rna_node_socket_data_type_items)
+DEF_ENUM(rna_enum_node_combsep_color_items)
+DEF_ENUM(rna_enum_node_socket_data_type_items)
 
-DEF_ENUM(rna_node_geometry_curve_handle_side_items)
-DEF_ENUM(rna_node_geometry_mesh_circle_fill_type_items)
+DEF_ENUM(rna_enum_node_geometry_curve_handle_side_items)
+DEF_ENUM(rna_enum_node_geometry_mesh_circle_fill_type_items)
 
 DEF_ENUM(rna_enum_volume_grid_data_type_items)
 
@@ -242,8 +251,8 @@ DEF_ENUM(rna_enum_transform_orientation_items)
 
 DEF_ENUM(rna_enum_velocity_unit_items)
 
-DEF_ENUM(rna_enum_curves_types)
-DEF_ENUM(rna_enum_curve_normal_modes)
+DEF_ENUM(rna_enum_curves_type_items)
+DEF_ENUM(rna_enum_curve_normal_mode_items)
 
 /* Not available to RNA pre-processing (`makesrna`).
  * Defined in editors for example. */
@@ -253,18 +262,18 @@ DEF_ENUM(rna_enum_particle_edit_hair_brush_items)
 DEF_ENUM(rna_enum_particle_edit_disconnected_hair_brush_items)
 
 DEF_ENUM(rna_enum_keyframe_paste_offset_items)
-DEF_ENUM(rna_enum_keyframe_paste_offset_value)
+DEF_ENUM(rna_enum_keyframe_paste_offset_value_items)
 DEF_ENUM(rna_enum_keyframe_paste_merge_items)
 
-DEF_ENUM(rna_enum_transform_pivot_items_full)
-DEF_ENUM(rna_enum_transform_mode_types)
+DEF_ENUM(rna_enum_transform_pivot_full_items)
+DEF_ENUM(rna_enum_transform_mode_type_items)
 
 /* In the runtime part of RNA, could be removed from this section. */
 DEF_ENUM(rna_enum_nla_mode_extend_items)
 DEF_ENUM(rna_enum_nla_mode_blend_items)
 DEF_ENUM(rna_enum_keyblock_type_items)
 
-DEF_ENUM(rna_enum_aset_library_type_items)
+DEF_ENUM(rna_enum_asset_library_type_items)
 
 #endif
 

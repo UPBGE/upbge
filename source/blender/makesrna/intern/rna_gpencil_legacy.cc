@@ -151,7 +151,7 @@ static const EnumPropertyItem rna_enum_gpencil_caps_modes_items[] = {
 
 #  include "BLI_ghash.h"
 #  include "BLI_listbase.h"
-#  include "BLI_string_utils.h"
+#  include "BLI_string_utils.hh"
 
 #  include "WM_api.hh"
 
@@ -164,8 +164,8 @@ static const EnumPropertyItem rna_enum_gpencil_caps_modes_items[] = {
 #  include "BKE_gpencil_update_cache_legacy.h"
 #  include "BKE_icons.h"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 static void rna_GPencil_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -577,7 +577,7 @@ static const EnumPropertyItem *rna_GPencil_active_layer_itemf(bContext *C,
   int i = 0;
 
   if (ELEM(nullptr, C, gpd)) {
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
   }
 
   /* Existing layers */
@@ -1673,12 +1673,14 @@ static void rna_def_gpencil_stroke(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "caps[0]");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_caps_modes_items);
   RNA_def_property_ui_text(prop, "Start Cap", "Stroke start extreme cap style");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "end_cap_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "caps[1]");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_caps_modes_items);
   RNA_def_property_ui_text(prop, "End Cap", "Stroke end extreme cap style");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   /* No fill: The stroke never must fill area and must use fill color as stroke color
@@ -1698,7 +1700,7 @@ static void rna_def_gpencil_stroke(BlenderRNA *brna)
 
   /* gradient control along y */
   prop = RNA_def_property(srna, "hardness", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "hardeness");
+  RNA_def_property_float_sdna(prop, nullptr, "hardness");
   RNA_def_property_range(prop, 0.001f, 1.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Hardness", "Amount of gradient along section of stroke");
@@ -2385,7 +2387,7 @@ static void rna_def_gpencil_layers_api(BlenderRNA *brna, PropertyRNA *cprop)
                               "rna_GPencil_active_layer_index_set",
                               "rna_GPencil_active_layer_itemf");
   RNA_def_property_enum_items(
-      prop, DummyRNA_DEFAULT_items); /* purely dynamic, as it maps to user-data */
+      prop, rna_enum_dummy_DEFAULT_items); /* purely dynamic, as it maps to user-data */
   RNA_def_property_ui_text(prop, "Active Note", "Note/Layer to add annotation strokes to");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 }

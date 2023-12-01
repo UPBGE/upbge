@@ -66,14 +66,14 @@ bool ED_space_clip_maskedit_mask_poll(bContext *C);
  * - Mask has visible and editable splines. */
 bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C);
 
-void ED_space_clip_get_size(const SpaceClip *sc, int *width, int *height);
-void ED_space_clip_get_size_fl(const SpaceClip *sc, float size[2]);
+void ED_space_clip_get_size(const SpaceClip *sc, int *r_width, int *r_height);
+void ED_space_clip_get_size_fl(const SpaceClip *sc, float r_size[2]);
 void ED_space_clip_get_zoom(const SpaceClip *sc,
                             const ARegion *region,
-                            float *zoomx,
-                            float *zoomy);
-void ED_space_clip_get_aspect(const SpaceClip *sc, float *aspx, float *aspy);
-void ED_space_clip_get_aspect_dimension_aware(const SpaceClip *sc, float *aspx, float *aspy);
+                            float *r_zoomx,
+                            float *r_zoomy);
+void ED_space_clip_get_aspect(const SpaceClip *sc, float *r_aspx, float *r_aspy);
+void ED_space_clip_get_aspect_dimension_aware(const SpaceClip *sc, float *r_aspx, float *r_aspy);
 
 /**
  * Return current frame number in clip space.
@@ -88,8 +88,8 @@ ImBuf *ED_space_clip_get_stable_buffer(const SpaceClip *sc,
 
 bool ED_space_clip_get_position(const SpaceClip *sc,
                                 const ARegion *region,
-                                int mval[2],
-                                float fpos[2]);
+                                const int mval[2],
+                                float r_fpos[2]);
 /**
  * Returns color in linear space, matching #ED_space_image_color_sample().
  */
@@ -118,7 +118,10 @@ void ED_clip_point_stable_pos__reverse(const SpaceClip *sc,
 /**
  * Takes `event->mval`.
  */
-void ED_clip_mouse_pos(const SpaceClip *sc, const ARegion *region, const int mval[2], float co[2]);
+void ED_clip_mouse_pos(const SpaceClip *sc,
+                       const ARegion *region,
+                       const int mval[2],
+                       float r_co[2]);
 
 bool ED_space_clip_check_show_trackedit(const SpaceClip *sc);
 bool ED_space_clip_check_show_maskedit(const SpaceClip *sc);

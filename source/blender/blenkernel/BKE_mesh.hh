@@ -44,6 +44,12 @@ void looptris_calc_with_normals(Span<float3> vert_positions,
 
 void looptris_calc_face_indices(OffsetIndices<int> faces, MutableSpan<int> looptri_faces);
 
+/** Return the triangle's three edge indices they are real edges, otherwise -1. */
+int3 looptri_get_real_edges(Span<int2> edges,
+                            Span<int> corner_verts,
+                            Span<int> corner_edges,
+                            const MLoopTri &tri);
+
 /** Calculate the average position of the vertices in the face. */
 float3 face_center_calc(Span<float3> vert_positions, Span<int> face_verts);
 
@@ -73,16 +79,20 @@ void normals_calc_faces(Span<float3> vert_positions,
                         MutableSpan<float3> face_normals);
 
 /**
- * Calculate face and vertex normals directly into result arrays.
+ * Calculate vertex normals directly into the result array.
+ *
+ * \note Vertex and face normals can be calculated at the same time with
+ * #normals_calc_faces_and_verts, which can have performance benefits in some cases.
  *
  * \note Usually #Mesh::vert_normals() is the preferred way to access vertex normals,
  * since they may already be calculated and cached on the mesh.
  */
-void normals_calc_face_vert(Span<float3> vert_positions,
-                            OffsetIndices<int> faces,
-                            Span<int> corner_verts,
-                            MutableSpan<float3> face_normals,
-                            MutableSpan<float3> vert_normals);
+void normals_calc_verts(Span<float3> vert_positions,
+                        OffsetIndices<int> faces,
+                        Span<int> corner_verts,
+                        GroupedSpan<int> vert_to_face_map,
+                        Span<float3> face_normals,
+                        MutableSpan<float3> vert_normals);
 
 /** \} */
 
@@ -143,7 +153,6 @@ short2 lnor_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
  * Useful to materialize sharp edges (or non-smooth faces) without actually modifying the geometry
  * (splitting edges).
  *
- * \param loop_to_face_map: Optional pre-created map from corners to their face.
  * \param sharp_edges: Optional array of sharp edge tags, used to split the evaluated normals on
  * each side of the edge.
  * \param r_lnors_spacearr: Optional return data filled with information about the custom
@@ -160,8 +169,6 @@ void normals_calc_loop(Span<float3> vert_positions,
                        const bool *sharp_edges,
                        const bool *sharp_faces,
                        const short2 *clnors_data,
-                       bool use_split_normals,
-                       float split_angle,
                        CornerNormalSpaceArray *r_lnors_spacearr,
                        MutableSpan<float3> r_loop_normals);
 
@@ -201,6 +208,7 @@ void edges_sharp_from_angle_set(OffsetIndices<int> faces,
                                 Span<int> corner_verts,
                                 Span<int> corner_edges,
                                 Span<float3> face_normals,
+                                Span<int> loop_to_face,
                                 const bool *sharp_faces,
                                 const float split_angle,
                                 MutableSpan<bool> sharp_edges);
@@ -257,18 +265,24 @@ inline int2 face_find_adjecent_verts(const IndexRange face,
 }
 
 /**
- * Return the index of the edge's vertex that is not the \a vert.
- * If neither edge vertex is equal to \a v, returns -1.
+ * Return the number of triangles needed to tessellate a face with \a face_size corners.
  */
-inline int edge_other_vert(const int2 &edge, const int vert)
+inline int face_triangles_num(const int face_size)
 {
-  if (edge[0] == vert) {
-    return edge[1];
-  }
-  if (edge[1] == vert) {
-    return edge[0];
-  }
-  return -1;
+  BLI_assert(face_size > 2);
+  return face_size - 2;
+}
+
+/**
+ * Return the index of the edge's vertex that is not the \a vert.
+ */
+inline int edge_other_vert(const int2 edge, const int vert)
+{
+  BLI_assert(ELEM(vert, edge[0], edge[1]));
+  BLI_assert(edge[0] >= 0);
+  BLI_assert(edge[1] >= 0);
+  /* Order is important to avoid overflow. */
+  return (edge[0] - vert) + edge[1];
 }
 
 /** \} */

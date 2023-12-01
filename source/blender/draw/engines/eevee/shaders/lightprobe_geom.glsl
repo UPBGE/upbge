@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 const vec3 maj_axes[6] = vec3[6](vec3(1.0, 0.0, 0.0),
                                  vec3(-1.0, 0.0, 0.0),
@@ -28,7 +31,7 @@ void main()
     geom_iface.worldPosition = x_axis[geom_iface_flat.fFace] * vert_iface[v].vPos.x +
                                y_axis[geom_iface_flat.fFace] * vert_iface[v].vPos.y +
                                maj_axes[geom_iface_flat.fFace];
-    EmitVertex();
+    gpu_EmitVertex();
   }
 
   EndPrimitive();

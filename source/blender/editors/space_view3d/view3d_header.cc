@@ -19,11 +19,11 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_layer.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -43,7 +43,7 @@
 /** \name Toggle Matcap Flip Operator
  * \{ */
 
-static int toggle_matcap_flip(bContext *C, wmOperator * /*op*/)
+static int toggle_matcap_flip_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -70,7 +70,7 @@ void VIEW3D_OT_toggle_matcap_flip(wmOperatorType *ot)
   ot->idname = "VIEW3D_OT_toggle_matcap_flip";
 
   /* api callbacks */
-  ot->exec = toggle_matcap_flip;
+  ot->exec = toggle_matcap_flip_exec;
 }
 
 /** \} */
@@ -130,9 +130,7 @@ static void uiTemplatePaintModeSelection(uiLayout *layout, bContext *C)
   /* Gizmos aren't used in paint modes */
   if (!ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_PARTICLE_EDIT)) {
     /* masks aren't used for sculpt and particle painting */
-    PointerRNA meshptr;
-
-    RNA_pointer_create(static_cast<ID *>(ob->data), &RNA_Mesh, ob->data, &meshptr);
+    PointerRNA meshptr = RNA_pointer_create(static_cast<ID *>(ob->data), &RNA_Mesh, ob->data);
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
       uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
     }

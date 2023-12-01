@@ -27,8 +27,8 @@
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
+#include "BKE_screen.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -44,8 +44,8 @@
 #include "MOD_gpencil_legacy_ui_common.h"
 #include "MOD_gpencil_legacy_util.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_api.hh"
 
@@ -332,11 +332,8 @@ static void panel_draw(const bContext *C, Panel *panel)
   DashGpencilModifierData *dmd = static_cast<DashGpencilModifierData *>(ptr->data);
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_len) {
-    PointerRNA ds_ptr;
-    RNA_pointer_create(ptr->owner_id,
-                       &RNA_DashGpencilModifierSegment,
-                       &dmd->segments[dmd->segment_active_index],
-                       &ds_ptr);
+    PointerRNA ds_ptr = RNA_pointer_create(
+        ptr->owner_id, &RNA_DashGpencilModifierSegment, &dmd->segments[dmd->segment_active_index]);
 
     sub = uiLayoutColumn(layout, true);
     uiItemR(sub, &ds_ptr, "dash", UI_ITEM_NONE, nullptr, ICON_NONE);

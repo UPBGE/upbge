@@ -206,7 +206,7 @@ TriMeshTopology::TriMeshTopology(const IMesh &tm)
       std::cout << "tris for edge " << item.key << ": " << *item.value << "\n";
       constexpr bool print_stats = false;
       if (print_stats) {
-        edge_tri_.print_stats();
+        edge_tri_.print_stats("");
       }
     }
     for (auto item : vert_edges_.items()) {
@@ -2253,7 +2253,7 @@ static void propagate_windings_and_in_output_volume(PatchesInfo &pinfo,
 }
 
 /**
- * Given an array of winding numbers, where the ith entry is a cell's winding
+ * Given an array of winding numbers, where the `i-th` entry is a cell's winding
  * number with respect to input shape (mesh part) i, return true if the
  * cell should be included in the output of the boolean operation.
  *   Intersection: all the winding numbers must be nonzero.

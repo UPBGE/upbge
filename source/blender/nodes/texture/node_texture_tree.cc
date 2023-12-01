@@ -13,10 +13,11 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_layer.h"
 #include "BKE_linestyle.h"
 #include "BKE_node.hh"
@@ -30,7 +31,7 @@
 #include "node_texture_util.hh"
 #include "node_util.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"

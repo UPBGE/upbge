@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-void blender::HashTableStats::print(StringRef name) const
+void blender::HashTableStats::print(const char *name) const
 {
   std::cout << "Hash Table Stats: " << name << "\n";
   std::cout << "  Address: " << address_ << "\n";

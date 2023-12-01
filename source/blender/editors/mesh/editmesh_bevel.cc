@@ -16,11 +16,11 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_global.h"
 #include "BKE_layer.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
 #include "DNA_curveprofile_types.h"
 #include "DNA_mesh_types.h"
@@ -336,20 +336,13 @@ static bool edbm_bevel_calc(wmOperator *op)
 
     const int material = CLAMPIS(material_init, -1, obedit->totcol - 1);
 
-    Mesh *me = static_cast<Mesh *>(obedit->data);
-
-    if (harden_normals && !(me->flag & ME_AUTOSMOOTH)) {
-      /* `harden_normals` only has a visible effect if auto-smooth is on, so turn it on. */
-      me->flag |= ME_AUTOSMOOTH;
-    }
-
     EDBM_op_init(em,
                  &bmop,
                  op,
                  "bevel geom=%hev offset=%f segments=%i affect=%i offset_type=%i "
                  "profile_type=%i profile=%f clamp_overlap=%b material=%i loop_slide=%b "
                  "mark_seam=%b mark_sharp=%b harden_normals=%b face_strength_mode=%i "
-                 "miter_outer=%i miter_inner=%i spread=%f smoothresh=%f custom_profile=%p "
+                 "miter_outer=%i miter_inner=%i spread=%f custom_profile=%p "
                  "vmesh_method=%i",
                  BM_ELEM_SELECT,
                  offset,
@@ -368,7 +361,6 @@ static bool edbm_bevel_calc(wmOperator *op)
                  miter_outer,
                  miter_inner,
                  spread,
-                 me->smoothresh,
                  opdata->custom_profile,
                  vmesh_method);
 
@@ -901,7 +893,6 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   uiLayout *col, *row;
-  PointerRNA toolsettings_ptr;
 
   int profile_type = RNA_enum_get(op->ptr, "profile_type");
   int offset_type = RNA_enum_get(op->ptr, "offset_type");
@@ -970,7 +961,8 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   if (profile_type == BEVEL_PROFILE_CUSTOM) {
     /* Get an RNA pointer to ToolSettings to give to the curve profile template code. */
     Scene *scene = CTX_data_scene(C);
-    RNA_pointer_create(&scene->id, &RNA_ToolSettings, scene->toolsettings, &toolsettings_ptr);
+    PointerRNA toolsettings_ptr = RNA_pointer_create(
+        &scene->id, &RNA_ToolSettings, scene->toolsettings);
     uiTemplateCurveProfile(layout, &toolsettings_ptr, "custom_bevel_profile_preset");
   }
 }

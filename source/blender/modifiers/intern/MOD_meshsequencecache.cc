@@ -26,12 +26,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_cachefile.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_lib_query.h"
 #include "BKE_mesh.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -39,10 +39,10 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "GEO_mesh_primitive_cuboid.hh"
 
@@ -434,7 +434,7 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /*struct_name*/ "MeshSeqCacheModifierData",
     /*struct_size*/ sizeof(MeshSeqCacheModifierData),
     /*srna*/ &RNA_MeshSequenceCacheModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/
     static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */

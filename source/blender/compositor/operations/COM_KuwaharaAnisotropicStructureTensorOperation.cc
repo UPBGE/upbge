@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,6 +16,7 @@ KuwaharaAnisotropicStructureTensorOperation::KuwaharaAnisotropicStructureTensorO
   this->add_input_socket(DataType::Color);
   this->add_output_socket(DataType::Color);
   this->flags_.is_fullframe_operation = true;
+  this->flags_.can_be_constant = true;
 }
 
 void KuwaharaAnisotropicStructureTensorOperation::init_execution()
@@ -39,7 +40,7 @@ void KuwaharaAnisotropicStructureTensorOperation::deinit_execution()
 void KuwaharaAnisotropicStructureTensorOperation::execute_pixel_sampled(float output[4],
                                                                         float x_float,
                                                                         float y_float,
-                                                                        PixelSampler /* sampler */)
+                                                                        PixelSampler /*sampler*/)
 {
   using math::max, math::min, math::dot;
   const int x = x_float;

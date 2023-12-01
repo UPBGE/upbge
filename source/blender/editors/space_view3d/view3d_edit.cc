@@ -21,16 +21,16 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_camera.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -127,7 +127,7 @@ static int view_lock_to_active_exec(bContext *C, wmOperator * /*op*/)
       if (obact->mode & OB_MODE_POSE) {
         Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
         Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
-        bPoseChannel *pcham_act = BKE_pose_channel_active_if_layer_visible(obact_eval);
+        bPoseChannel *pcham_act = BKE_pose_channel_active_if_bonecoll_visible(obact_eval);
         if (pcham_act) {
           STRNCPY(v3d->ob_center_bone, pcham_act->name);
         }
@@ -1053,7 +1053,7 @@ void ED_view3d_cursor3d_update(bContext *C,
   {
     wmMsgBus *mbus = CTX_wm_message_bus(C);
     wmMsgParams_RNA msg_key_params = {{nullptr}};
-    RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor, &msg_key_params.ptr);
+    msg_key_params.ptr = RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor);
     WM_msg_publish_rna_params(mbus, &msg_key_params);
   }
 

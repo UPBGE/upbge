@@ -19,7 +19,7 @@
 #ifdef WITH_X11_XINPUT
 #  include <X11/extensions/XInput.h>
 
-/* Disable XINPUT warp, currently not implemented by Xorg for multi-head display.
+/* Disable XINPUT warp, currently not implemented by XORG for multi-head display.
  * (see comment in XSERVER `Xi/xiwarppointer.c` -> `FIXME: panoramix stuff is missing` ~ v1.13.4)
  * If this is supported we can add back XINPUT for warping (fixing #48901).
  * For now disable (see #50383). */
@@ -153,6 +153,13 @@ class GHOST_SystemX11 : public GHOST_System {
   GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const override;
 
   GHOST_TSuccess setCursorPosition(int32_t x, int32_t y) override;
+
+  /**
+   * Get the color of the pixel at the current mouse cursor location
+   * \param r_color: returned sRGB float colors
+   * \return Success value (true == successful and supported by platform)
+   */
+  GHOST_TSuccess getPixelAtCursor(float r_color[3]) const override;
 
   /**
    * Returns the state of all modifier keys.

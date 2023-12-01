@@ -19,7 +19,7 @@
 
 #include "BKE_appdir.h"
 #include "BKE_blender_copybuffer.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_main.h"
 #include "BKE_report.h"
 
@@ -233,10 +233,10 @@ void view3d_operatortypes()
 
 void view3d_keymap(wmKeyConfig *keyconf)
 {
-  WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, 0);
+  WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* only for region 3D window */
-  WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, 0);
+  WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   fly_modal_keymap(keyconf);
   walk_modal_keymap(keyconf);

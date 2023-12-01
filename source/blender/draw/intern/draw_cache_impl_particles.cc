@@ -25,7 +25,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_particle.h"
@@ -38,7 +38,7 @@
 #include "GPU_context.h"
 #include "GPU_material.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "draw_cache_impl.hh" /* own include */
 #include "draw_hair_private.h"

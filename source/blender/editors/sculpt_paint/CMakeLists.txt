@@ -8,17 +8,13 @@ set(INC
   ../../blenkernel
   ../../blentranslation
   ../../bmesh
-  ../../depsgraph
   ../../draw
-  ../../functions
   ../../geometry
   ../../gpu
-  ../../imbuf
   ../../makesrna
   ../../nodes
   ../../render
   ../../windowmanager
-  ../../../../intern/clog
   ../../../../intern/eigen
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -78,7 +74,6 @@ set(SRC
   sculpt_filter_mask.cc
   sculpt_filter_mesh.cc
   sculpt_geodesic.cc
-  sculpt_mask_expand.cc
   sculpt_mask_init.cc
   sculpt_multiplane_scrape.cc
   sculpt_ops.cc
@@ -98,9 +93,14 @@ set(SRC
 
 set(LIB
   bf_blenkernel
+  PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )
 

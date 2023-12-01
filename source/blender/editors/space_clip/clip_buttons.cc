@@ -23,12 +23,12 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_movieclip.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_tracking.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_clip.hh"
 #include "ED_screen.hh"
@@ -791,7 +791,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
    * as metadata panel. So if the cache is skipped here it is not really a memory saver, but
    * skipping the cache could lead to a performance impact depending on the order in which panels
    * and the main area is drawn. Basically, if it is this template drawn first and then the main
-   * area it will lead to frame read and processing  happening twice. */
+   * area it will lead to frame read and processing happening twice. */
   ImBuf *ibuf = BKE_movieclip_get_ibuf_flag(clip, user, clip->flag, 0);
 
   int width, height;
@@ -827,7 +827,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
     if (clip->anim != nullptr) {
       short frs_sec;
       float frs_sec_base;
-      if (IMB_anim_get_fps(clip->anim, &frs_sec, &frs_sec_base, true)) {
+      if (IMB_anim_get_fps(clip->anim, true, &frs_sec, &frs_sec_base)) {
         ofs += BLI_snprintf_rlen(
             str + ofs, sizeof(str) - ofs, TIP_(", %.2f fps"), float(frs_sec) / frs_sec_base);
       }

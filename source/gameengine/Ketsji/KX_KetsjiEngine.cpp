@@ -139,6 +139,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_previousAnimTime(0.0f),
       m_timescale(1.0f),
       m_previousRealTime(0.0f),
+      m_previous_deltaTime(0.0f),
+      m_firstEngineFrame(true),
       m_maxLogicFrame(5),
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
@@ -384,8 +386,31 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
     m_clockTime = m_clock.GetTimeSecond();
   }
 
+  // if it's the first frame of the game, put m_previousRealTime = m_clockTime to avoid problems.
+  if (m_firstEngineFrame) {
+    m_previousRealTime = m_clockTime;
+    m_firstEngineFrame = false;
+  }
+
   // Get elapsed time.
-  const double dt = m_clockTime - m_previousRealTime;
+  double dt = m_clockTime - m_previousRealTime;
+
+  // Fix strange behavior of deltaTime and physics.
+  const double averageFrameRate = GetAverageFrameRate();
+  double maxDeltaTime = 1.5f;
+
+  // Below 1fps, deltaTime tends to be close to 1, there is no need to adjust.
+  if (averageFrameRate >= 1.5f) {
+    maxDeltaTime = (averageFrameRate < 15.0f) ? m_previous_deltaTime + 0.5f :
+                                                m_previous_deltaTime + 0.05f;  // Max dt
+  }
+  m_previous_deltaTime = dt;
+
+  // If it exceeds the maximum value, adjust it to the maximum value, this prevents objects from
+  // having sudden movements.
+  if (dt > maxDeltaTime) {
+    dt = maxDeltaTime;  // set deltaTime to max value.
+  }
 
   // Time of a frame (without scale).
   double timestep;
@@ -745,7 +770,7 @@ void KX_KetsjiEngine::Render()
       RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0);
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
-  background_fb->UpdateSize(width, height);
+  background_fb->UpdateSize(width + 1, height + 1);
 
   std::vector<FrameRenderData> frameDataList;
   GetFrameRenderData(frameDataList);
@@ -783,7 +808,7 @@ void KX_KetsjiEngine::Render()
   if (!UseViewportRender()) {
     /* Clear the entire screen (draw a black background rect before drawing) */
     ARegion *region = CTX_wm_region(m_context);
-    wmViewport(&region->winrct);
+    wmWindowViewport(CTX_wm_window(m_context));
 
     DRW_state_reset();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
@@ -793,10 +818,10 @@ void KX_KetsjiEngine::Render()
     const float clear_col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     immUniform4fv("color", clear_col);
     immRectf(pos,
-             0,
-             0,
-             BLI_rcti_size_x(&region->winrct),
-             BLI_rcti_size_y(&region->winrct));
+             region->winrct.xmin,
+             region->winrct.ymin,
+             region->winrct.xmin + BLI_rcti_size_x(&region->winrct),
+             region->winrct.ymin + BLI_rcti_size_y(&region->winrct));
     immUnbindProgram();
 
     /* Draw to the result of render loop on window backbuffer */
@@ -808,10 +833,10 @@ void KX_KetsjiEngine::Render()
                 m_canvas->GetHeight() + 1};
 
     GPU_viewport(v[0], v[1], v[2], v[3]);
-    if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+    //if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
       GPU_scissor_test(true);
       GPU_scissor(v[0], v[1], v[2], v[3]);
-    }
+    //}
 
     GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
     GPU_matrix_identity_set();
@@ -1259,7 +1284,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
   // Framerate display
   if (m_flags & SHOW_FRAMERATE) {
-    debugDraw.RenderText2D("Frametime :", MT_Vector2(xcoord + const_xindent, ycoord), white);
+    debugDraw.RenderText2D("Frametime:", MT_Vector2(xcoord + const_xindent, ycoord), white);
 
     debugtxt = (boost::format("%5.2fms (%.1ffps)") % (tottime * 1000.0f) % (1.0f / tottime)).str();
     debugDraw.RenderText2D(

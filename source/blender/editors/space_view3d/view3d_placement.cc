@@ -16,7 +16,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -694,7 +694,7 @@ static bool view3d_interactive_add_calc_snap(bContext * /*C*/,
   if (r_is_snap_invert) {
     *r_is_snap_invert = snap_data->is_snap_invert;
   }
-  return snap_data->snap_elem != SCE_SNAP_TO_NONE;
+  return snap_data->type_target != SCE_SNAP_TO_NONE;
 }
 
 /** \} */
@@ -734,14 +734,11 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
       /* Set this flag so snapping always updated. */
       int mval[2];
       WM_event_drag_start_mval(event, ipd->region, mval);
-      int flag_orig = snap_state_new->flag;
-      snap_state_new->flag |= V3D_SNAPCURSOR_TOGGLE_ALWAYS_TRUE;
 
       /* Be sure to also compute the #V3DSnapCursorData.plane_omat. */
       snap_state->draw_plane = true;
 
       ED_view3d_cursor_snap_data_update(snap_state_new, C, mval[0], mval[1]);
-      snap_state_new->flag = eV3DSnapCursor(flag_orig);
     }
   }
 

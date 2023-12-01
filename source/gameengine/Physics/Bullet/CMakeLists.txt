@@ -43,7 +43,6 @@ set(INC
   ../../Rasterizer
   ../../SceneGraph
   ../../../blender/blenkernel
-  ../../../blender/depsgraph
   ../../../blender/makesrna
 )
 
@@ -67,6 +66,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )

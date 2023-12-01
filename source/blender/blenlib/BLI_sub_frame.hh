@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <cmath>
+
 #include "BLI_assert.h"
 #include "BLI_math_base.h"
+#include "BLI_struct_equality_utils.hh"
 
 namespace blender {
 
@@ -56,15 +59,7 @@ struct SubFrame {
     return {INT32_MAX, std::nexttowardf(1.0f, 0.0)};
   }
 
-  friend bool operator==(const SubFrame &a, const SubFrame &b)
-  {
-    return a.frame_ == b.frame_ && a.subframe_ == b.subframe_;
-  }
-
-  friend bool operator!=(const SubFrame &a, const SubFrame &b)
-  {
-    return !(a == b);
-  }
+  BLI_STRUCT_EQUALITY_OPERATORS_2(SubFrame, frame_, subframe_)
 
   friend bool operator<(const SubFrame &a, const SubFrame &b)
   {
@@ -84,11 +79,6 @@ struct SubFrame {
   friend bool operator>=(const SubFrame &a, const SubFrame &b)
   {
     return a.frame_ >= b.frame_ || (a.frame_ == b.frame_ && a.subframe_ >= b.subframe_);
-  }
-
-  friend std::ostream &operator<<(std::ostream &stream, const SubFrame &a)
-  {
-    return stream << float(a);
   }
 };
 

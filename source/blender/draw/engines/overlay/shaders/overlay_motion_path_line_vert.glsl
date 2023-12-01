@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
@@ -32,7 +35,7 @@ void main()
 
   vec3 blend_base = (abs(frame - frameCurrent) == 0) ?
                         colorCurrentFrame.rgb :
-                        colorBackground.rgb; /* "bleed" cframe color to ease color blending */
+                        colorBackground.rgb; /* "bleed" CFRAME color to ease color blending */
   bool use_custom_color = customColor.x >= 0.0;
   /* TODO: We might want something more consistent with custom color and standard colors. */
   if (frame < frameCurrent) {

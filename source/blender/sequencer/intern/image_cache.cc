@@ -34,15 +34,16 @@
 #include "BKE_main.h"
 #include "BKE_scene.h"
 
-#include "SEQ_prefetch.h"
-#include "SEQ_relations.h"
-#include "SEQ_sequencer.h"
-#include "SEQ_time.h"
+#include "SEQ_prefetch.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_render.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_time.hh"
 
-#include "disk_cache.h"
-#include "image_cache.h"
-#include "prefetch.h"
-#include "strip_time.h"
+#include "disk_cache.hh"
+#include "image_cache.hh"
+#include "prefetch.hh"
+#include "strip_time.hh"
 
 /**
  * Sequencer Cache Design Notes
@@ -579,7 +580,9 @@ void seq_cache_free_temp_cache(Scene *scene, short id, int timeline_frame)
       {
         seq_cache_key_unlink(key);
         BLI_ghash_remove(cache->hash, key, seq_cache_keyfree, seq_cache_valfree);
-        BLI_assert(key != cache->last_key);
+        if (key == cache->last_key) {
+          cache->last_key = nullptr;
+        }
       }
     }
   }

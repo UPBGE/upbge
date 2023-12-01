@@ -12,7 +12,7 @@
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
@@ -39,9 +39,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -698,11 +698,11 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
  * and seeing if we can resolve it. */
 static bool check_rna_path_is_valid(ID *owner_id, const char *path)
 {
-  PointerRNA id_ptr, ptr;
+  PointerRNA ptr;
   PropertyRNA *prop = nullptr;
 
   /* make initial RNA pointer to start resolving from */
-  RNA_id_pointer_create(owner_id, &id_ptr);
+  PointerRNA id_ptr = RNA_id_pointer_create(owner_id);
 
   /* try to resolve */
   return RNA_path_resolve_property(&id_ptr, path, &ptr, &prop);
@@ -1498,36 +1498,4 @@ void BKE_animdata_blend_read_data(BlendDataReader *reader, ID *id)
    *       state, but it's going to be too hard to enforce this single case. */
   BLO_read_data_address(reader, &adt->act_track);
   BLO_read_data_address(reader, &adt->actstrip);
-}
-
-void BKE_animdata_blend_read_lib(BlendLibReader *reader, ID *id, AnimData *adt)
-{
-  if (adt == nullptr) {
-    return;
-  }
-
-  /* link action data */
-  BLO_read_id_address(reader, id, &adt->action);
-  BLO_read_id_address(reader, id, &adt->tmpact);
-
-  /* link drivers */
-  BKE_fcurve_blend_read_lib(reader, id, &adt->drivers);
-
-  /* overrides don't have lib-link for now, so no need to do anything */
-
-  /* link NLA-data */
-  BKE_nla_blend_read_lib(reader, id, &adt->nla_tracks);
-}
-
-void BKE_animdata_blend_read_expand(BlendExpander *expander, AnimData *adt)
-{
-  /* own action */
-  BLO_expand(expander, adt->action);
-  BLO_expand(expander, adt->tmpact);
-
-  /* drivers - assume that these F-Curves have driver data to be in this list... */
-  BKE_fcurve_blend_read_expand(expander, &adt->drivers);
-
-  /* NLA data - referenced actions. */
-  BKE_nla_blend_read_expand(expander, &adt->nla_tracks);
 }

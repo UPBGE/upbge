@@ -18,6 +18,8 @@ MovieDistortionOperation::MovieDistortionOperation(bool distortion)
   input_operation_ = nullptr;
   movie_clip_ = nullptr;
   apply_ = distortion;
+
+  flags_.can_be_constant = true;
 }
 
 void MovieDistortionOperation::init_data()
@@ -91,7 +93,7 @@ void MovieDistortionOperation::execute_pixel_sampled(float output[4],
     return;
   }
 
-  /* float overscan = 0.0f; */
+  // float overscan = 0.0f;
   const float w = float(width) /* / (1 + overscan) */;
   const float h = float(height) /* / (1 + overscan) */;
   const float pixel_aspect = pixel_aspect_;

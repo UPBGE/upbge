@@ -295,51 +295,6 @@ struct IDsSelectedData {
   ListBase selected_array;
 };
 
-struct BoneElementCreateData {
-  ID *armature_id;
-  Bone *bone;
-};
-
-struct EditBoneElementCreateData {
-  ID *armature_id;
-  EditBone *ebone;
-};
-
-struct ConstraintElementCreateData {
-  Object *object;
-  bConstraint *con;
-};
-
-struct DeformGroupElementCreateData {
-  Object *object;
-  bDeformGroup *defgroup;
-};
-
-struct GPencilEffectElementCreateData {
-  Object *object;
-  ShaderFxData *fx;
-};
-
-struct ModifierCreateElementData {
-  Object *object;
-  ModifierDataStoreElem *md;
-};
-
-struct ParticleSystemElementCreateData {
-  Object *object;
-  ParticleSystem *psys;
-};
-
-struct PoseGroupElementCreateData {
-  Object *object;
-  bActionGroup *agrp;
-};
-
-struct ViewLayerElementCreateData {
-  Scene *scene;
-  ViewLayer *view_layer;
-};
-
 TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void *customdata);
 TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *customdata);
 
@@ -719,7 +674,9 @@ void outliner_sync_selection(const bContext *C, SpaceOutliner *space_outliner);
 
 /* `outliner_context.cc` */
 
-int outliner_context(const bContext *C, const char *member, bContextDataResult *result);
+int outliner_main_region_context(const bContext *C,
+                                 const char *member,
+                                 bContextDataResult *result);
 
 /**
  * Helper to safely "cast" a #TreeElement to its new C++ #AbstractTreeElement, if possible.

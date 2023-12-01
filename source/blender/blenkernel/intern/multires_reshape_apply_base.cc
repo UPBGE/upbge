@@ -19,7 +19,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -27,7 +27,7 @@
 #include "BKE_multires.hh"
 #include "BKE_subdiv_eval.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *reshape_context)
 {
@@ -72,14 +72,7 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
   blender::MutableSpan<blender::float3> base_positions = base_mesh->vert_positions_for_write();
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
-  blender::Array<int> vert_to_face_offsets;
-  blender::Array<int> vert_to_face_indices;
-  const blender::GroupedSpan<int> pmap = blender::bke::mesh::build_vert_to_face_map(
-      reshape_context->base_faces,
-      reshape_context->base_corner_verts,
-      base_mesh->totvert,
-      vert_to_face_offsets,
-      vert_to_face_indices);
+  const blender::GroupedSpan<int> pmap = base_mesh->vert_to_face_map();
 
   float(*origco)[3] = static_cast<float(*)[3]>(
       MEM_calloc_arrayN(base_mesh->totvert, sizeof(float[3]), __func__));
@@ -166,11 +159,10 @@ void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *resh
   BLI_assert(object != nullptr);
   BLI_assert(mmd != nullptr);
 
-  float(*deformed_verts)[3] = BKE_multires_create_deformed_base_mesh_vert_coords(
-      depsgraph, object, mmd, nullptr);
+  blender::Array<blender::float3> deformed_verts =
+      BKE_multires_create_deformed_base_mesh_vert_coords(depsgraph, object, mmd);
 
-  BKE_subdiv_eval_refine_from_mesh(
-      reshape_context->subdiv, reshape_context->base_mesh, deformed_verts);
-
-  MEM_freeN(deformed_verts);
+  BKE_subdiv_eval_refine_from_mesh(reshape_context->subdiv,
+                                   reshape_context->base_mesh,
+                                   reinterpret_cast<float(*)[3]>(deformed_verts.data()));
 }

@@ -15,10 +15,10 @@
 #include "ImportSettings.h"
 #include "collada.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_scene.h"
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 /* make dummy file */
 #include "BLI_fileops.h"

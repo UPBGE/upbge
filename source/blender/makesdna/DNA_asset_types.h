@@ -22,10 +22,6 @@ class AssetIdentifier;
 
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * \brief User defined tag.
  * Currently only used by assets, could be used more often at some point.
@@ -183,10 +179,13 @@ typedef struct AssetWeakReference {
   AssetWeakReference();
   AssetWeakReference(AssetWeakReference &&);
   AssetWeakReference(const AssetWeakReference &) = delete;
-  /** Enables use with `std::unique_ptr<AssetWeakReference>`. */
   ~AssetWeakReference();
 
-  static std::unique_ptr<AssetWeakReference> make_reference(
+  /**
+   * See AssetRepresentation::make_weak_reference(). Must be freed using
+   * #BKE_asset_weak_reference_free().
+   */
+  static AssetWeakReference *make_reference(
       const blender::asset_system::AssetLibrary &library,
       const blender::asset_system::AssetIdentifier &asset_identifier);
 #endif
@@ -213,7 +212,3 @@ typedef enum eUserExtensionRepo_Flag {
   /** Maintain disk cache. */
   USER_EXTENSION_FLAG_NO_CACHE = 1 << 0,
 } eUserExtensionRepo_Flag;
-
-#ifdef __cplusplus
-}
-#endif

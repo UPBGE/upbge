@@ -42,7 +42,7 @@
 
 /* This little block needed for linking to Blender... */
 #include "BLI_math_rotation.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_text.h"
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
@@ -977,9 +977,8 @@ void BL_ConvertActuators(const char *maggiename,
         bSteeringActuator *stAct = (bSteeringActuator *)bact->data;
         KX_GameObject *navmeshob = nullptr;
         if (stAct->navmesh) {
-          PointerRNA settings_ptr;
-          RNA_pointer_create(
-              (ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh, &settings_ptr);
+          PointerRNA settings_ptr = RNA_pointer_create(
+              (ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh);
           if (RNA_enum_get(&settings_ptr, "physics_type") == OB_BODY_TYPE_NAVMESH)
             navmeshob = converter->FindGameObject(stAct->navmesh);
         }

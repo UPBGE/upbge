@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'769fe076683a')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'd293f72ab6e7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-08-14 09:28:55\n"
+"POT-Creation-Date: 2023-11-27 10:28:34\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Arvid Rudling <arvid.r@gmail.com>\n"
 "Language-Team: \n"
@@ -117,6 +117,14 @@ msgid "Width"
 msgstr "Bredd"
 
 
+msgid "All"
+msgstr "Alla"
+
+
+msgid "Custom"
+msgstr "Anpassad"
+
+
 msgid "Options"
 msgstr "Alternativ"
 
@@ -131,6 +139,10 @@ msgstr "Kant"
 
 msgid "Face"
 msgstr "Yta"
+
+
+msgid "Layer"
+msgstr "Lager"
 
 
 msgid "File Path"
@@ -233,10 +245,6 @@ msgid "Inherit Scale"
 msgstr "Ärva skalning"
 
 
-msgid "Layers"
-msgstr "Lager"
-
-
 msgid "Length"
 msgstr "Längd"
 
@@ -265,10 +273,6 @@ msgid "Local Location"
 msgstr "Lokalposition"
 
 
-msgid "Bone Groups"
-msgstr "Bengrupper"
-
-
 msgid "Remove"
 msgstr "Ta bort"
 
@@ -283,10 +287,6 @@ msgstr "Material"
 
 msgid "Direction"
 msgstr "Riktning"
-
-
-msgid "All"
-msgstr "Alla"
 
 
 msgid "Radius"
@@ -311,10 +311,6 @@ msgstr "Hårdhet"
 
 msgid "Thickness"
 msgstr "Tjocklek"
-
-
-msgid "Smooth"
-msgstr "Jämn"
 
 
 msgid "Saturation"
@@ -757,10 +753,6 @@ msgid "Vertex Group"
 msgstr "Vertexgrupp"
 
 
-msgid "Temp. Diff."
-msgstr "Temperaturskillnad"
-
-
 msgid "Mapping"
 msgstr "Mappning"
 
@@ -793,14 +785,6 @@ msgid "Onion Skinning"
 msgstr "Lökskal"
 
 
-msgid "Layer"
-msgstr "Lager"
-
-
-msgid "Custom"
-msgstr "Anpassad"
-
-
 msgid "Grid"
 msgstr "Rutnät"
 
@@ -823,6 +807,10 @@ msgstr "Dela upp"
 
 msgid "Lattice"
 msgstr "Lattice"
+
+
+msgid "Smooth"
+msgstr "Jämn"
 
 
 msgid "Falloff Curve"
@@ -865,16 +853,40 @@ msgid "Statistical view of the levels of color in an image"
 msgstr "Statistisk vy över bildens färgnivåer"
 
 
+msgid "Font"
+msgstr "Typsnitt"
+
+
+msgid "Light"
+msgstr "Ljus"
+
+
+msgid "Mesh"
+msgstr "Mesh"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Sound"
+msgstr "Ljud"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "World"
+msgstr "Värld"
+
+
 msgid "Groups"
 msgstr "Grupper"
 
 
 msgid "Wire"
 msgstr "Trådmodell"
-
-
-msgid "Visible Layers"
-msgstr "Synliga lager"
 
 
 msgid "Box"
@@ -909,10 +921,6 @@ msgid "Path"
 msgstr "Bana"
 
 
-msgid "Font"
-msgstr "Typsnitt"
-
-
 msgid "Shear"
 msgstr "Vrida"
 
@@ -939,6 +947,10 @@ msgstr "Min"
 
 msgid "Max"
 msgstr "Max"
+
+
+msgid "Layers"
+msgstr "Lager"
 
 
 msgid "Alpha Mode"
@@ -1053,10 +1065,6 @@ msgid "Tool"
 msgstr "Verktyg"
 
 
-msgid "Mesh"
-msgstr "Mesh"
-
-
 msgid "Cylinder"
 msgstr "Cylinder"
 
@@ -1131,10 +1139,6 @@ msgstr "3D-markör"
 
 msgid "Frame Dropping"
 msgstr "Tappa rutor"
-
-
-msgid "Sound"
-msgstr "Ljud"
 
 
 msgid "Blend"
@@ -1225,16 +1229,16 @@ msgid "Rotation Angle"
 msgstr "Rotationsvinkel"
 
 
-msgid "Even"
-msgstr "Jämn"
-
-
 msgid "Pivot Point"
 msgstr "Fast punkt"
 
 
 msgid "Snap"
 msgstr "Snäpp"
+
+
+msgid "Files"
+msgstr "Filer"
 
 
 msgid "Show/Hide Faces"
@@ -1245,16 +1249,16 @@ msgid "Shape Key Specials"
 msgstr "Specialare för formnycklar"
 
 
-msgid "Text"
-msgstr "Text"
+msgid "Node"
+msgstr "Nod"
 
 
 msgid "Instances"
 msgstr "Instanser"
 
 
-msgid "Node"
-msgstr "Nod"
+msgid "Physics"
+msgstr "Fysik"
 
 
 msgid "Frame Rate Presets"
@@ -1295,14 +1299,6 @@ msgstr "Förinställningar"
 
 msgid "Names"
 msgstr "Namn"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Light"
-msgstr "Ljus"
 
 
 msgid "Rigid Body"
@@ -1365,12 +1361,12 @@ msgid "Random Seed"
 msgstr "Slumpfrö"
 
 
-msgid "World"
-msgstr "Värld"
-
-
 msgid "Limits"
 msgstr "Gränser"
+
+
+msgid "Even"
+msgstr "Jämn"
 
 
 msgid "Aspect X"
@@ -1415,6 +1411,10 @@ msgstr "Zooma"
 
 msgid "Shadow"
 msgstr "Skugga"
+
+
+msgid "Eccentricity"
+msgstr "Eccentricitet"
 
 
 msgid "Anisotropic"
@@ -1538,10 +1538,6 @@ msgstr "Radera markör"
 msgctxt "Operator"
 msgid "Select"
 msgstr "Markera"
-
-
-msgid "Files"
-msgstr "Filer"
 
 
 msgid "Backwards"
@@ -1926,26 +1922,6 @@ msgid "Operator"
 msgstr "Operator"
 
 
-msgid "Alpha Under"
-msgstr "Alfa under"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma-övertona"
-
-
-msgid "Wipe"
-msgstr "Torka"
-
-
-msgid "Glow"
-msgstr "Glöd"
-
-
-msgid "Adjustment Layer"
-msgstr "Justeringslager"
-
-
 msgctxt "Operator"
 msgid "Deinterlace Movies"
 msgstr "Avläta filmer"
@@ -2106,10 +2082,6 @@ msgstr "Histogram"
 
 msgid "Kink"
 msgstr "Nyck"
-
-
-msgid "Physics"
-msgstr "Fysik"
 
 
 msgid "Border Collisions"
@@ -2344,6 +2316,14 @@ msgid "Vectorscope Opacity"
 msgstr "Genomskinlighet för vektroskop"
 
 
+msgid "Alpha Under"
+msgstr "Alfa under"
+
+
+msgid "Gamma Cross"
+msgstr "Gamma-övertona"
+
+
 msgid "Camera Override"
 msgstr "Åsidosätt kamera"
 
@@ -2528,14 +2508,6 @@ msgid "Pivot Offset"
 msgstr "Rotationspunktförskjutning"
 
 
-msgid "Layers:"
-msgstr "Lager:"
-
-
-msgid "Protected Layers:"
-msgstr "Skyddade lager:"
-
-
 msgid "Axes"
 msgstr "Axlar"
 
@@ -2587,10 +2559,6 @@ msgstr "Exponent"
 
 msgid "Auto-Step"
 msgstr "Automatiska steg"
-
-
-msgid "Eccentricity"
-msgstr "Eccentricitet"
 
 
 msgid "Options:"
@@ -2721,6 +2689,10 @@ msgid "Transparency"
 msgstr "Genomskinlighet"
 
 
+msgid "Glow"
+msgstr "Glöd"
+
+
 msgid "English (English)"
 msgstr "Engelska (English)"
 
@@ -2751,10 +2723,6 @@ msgstr "Spanska (Español)"
 
 msgid "Catalan (Català)"
 msgstr "Katalanska (Català)"
-
-
-msgid "Czech (Český)"
-msgstr "Tjeckiska (Český)"
 
 
 msgid "Traditional Chinese (繁體中文)"

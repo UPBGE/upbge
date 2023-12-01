@@ -23,13 +23,13 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_report.h"
 
 #include "RNA_access.hh"
@@ -45,7 +45,7 @@
 
 #include "ANIM_bone_collections.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "armature_intern.h"
 
@@ -846,7 +846,6 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
   }
 
   /* updates */
-  ED_armature_edit_refresh_layer_used(arm);
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE, obedit);
   DEG_id_tag_update(&arm->id, ID_RECALC_COPY_ON_WRITE);
 
@@ -1264,7 +1263,6 @@ static int armature_delete_selected_exec(bContext *C, wmOperator * /*op*/)
       changed_multi = true;
 
       ED_armature_edit_sync_selection(arm->edbo);
-      ED_armature_edit_refresh_layer_used(arm);
       BKE_pose_tag_recalc(CTX_data_main(C), obedit->pose);
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
@@ -1445,7 +1443,6 @@ static int armature_dissolve_selected_exec(bContext *C, wmOperator * /*op*/)
     if (changed) {
       changed_multi = true;
       ED_armature_edit_sync_selection(arm->edbo);
-      ED_armature_edit_refresh_layer_used(arm);
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
       ED_outliner_select_sync_from_edit_bone_tag(C);

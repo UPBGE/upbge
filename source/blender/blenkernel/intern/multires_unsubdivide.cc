@@ -19,19 +19,19 @@
 #include "BLI_gsqueue.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subsurf.hh"
 
 #include "bmesh.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "multires_reshape.hh"
 #include "multires_unsubdivide.hh"
@@ -925,7 +925,6 @@ static void multires_unsubdivide_prepare_original_bmesh_for_extract(
     MultiresUnsubdivideContext *context)
 {
   Mesh *original_mesh = context->original_mesh;
-  const blender::OffsetIndices original_faces = original_mesh->faces();
 
   Mesh *base_mesh = context->base_mesh;
 
@@ -953,7 +952,7 @@ static void multires_unsubdivide_prepare_original_bmesh_for_extract(
     BM_elem_flag_set(v, BM_ELEM_TAG, true);
   }
 
-  context->loop_to_face_map = blender::bke::mesh::build_loop_to_face_map(original_faces);
+  context->loop_to_face_map = original_mesh->corner_to_face_map();
 }
 
 /**

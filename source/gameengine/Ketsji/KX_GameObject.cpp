@@ -40,9 +40,9 @@
 
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
-#include "DEG_depsgraph_query.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "DEG_depsgraph_query.hh"
 #include "DRW_render.h"
 #include "WM_api.hh"
 
@@ -390,27 +390,6 @@ void KX_GameObject::ReplicateBlenderObject()
       if (is_realtime_compositor_enabled) {
         GetScene()->AppendToIdsToUpdateInOverlayPass(&scene->id, ID_RECALC_EDITORS);
       }
-    }
-
-    if (ob->parent) {
-      if (GetScene()->GetLastReplicatedParentObject()) {
-        newob->parent = GetScene()->GetLastReplicatedParentObject();
-        if (ob->parent && ob->parent->type == OB_ARMATURE) {
-          ModifierData *mod;
-          for (mod = (ModifierData *)newob->modifiers.first; mod; mod = mod->next) {
-            if (mod->type == eModifierType_Armature) {
-              ((ArmatureModifierData *)mod)->object = newob->parent;
-            }
-          }
-        }
-        GetScene()->ResetLastReplicatedParentObject();
-      }
-    }
-
-    // To check again
-    const NodeList &children = GetSGNode()->GetSGChildren();
-    if (children.size() > 0) {
-      GetScene()->SetLastReplicatedParentObject(newob);
     }
 
     DEG_relations_tag_update(bmain);

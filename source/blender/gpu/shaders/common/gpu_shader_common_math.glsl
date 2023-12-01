@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
 
 void math_add(float a, float b, float c, out float result)
@@ -223,4 +227,15 @@ void math_smoothmax(float a, float b, float c, out float result)
 {
   math_smoothmin(-a, -b, c, result);
   result = -result;
+}
+
+/* TODO(fclem): Fix dependency hell one EEVEE legacy is removed. */
+float math_reduce_max(vec3 a)
+{
+  return max(a.x, max(a.y, a.z));
+}
+
+float math_average(vec3 a)
+{
+  return (a.x + a.y + a.z) * (1.0 / 3.0);
 }

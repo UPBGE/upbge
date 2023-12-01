@@ -28,7 +28,7 @@
 #include "BLI_ghash.h"
 
 #include "BLO_readfile.h"
-#include "BLO_undofile.h"
+#include "BLO_undofile.hh"
 
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
@@ -205,10 +205,9 @@ bool BLO_memfile_write_file(MemFile *memfile, const char *filepath)
   int file, oflags;
 
   /* NOTE: This is currently used for auto-save and `quit.blend`,
-   * where _not_ following symlinks is OK,
+   * where _not_ following symbolic-links is OK,
    * however if this is ever executed explicitly by the user,
-   * we may want to allow writing to symlinks.
-   */
+   * we may want to allow writing to symbolic-links. */
 
   oflags = O_BINARY | O_WRONLY | O_CREAT | O_TRUNC;
 #ifdef O_NOFOLLOW
@@ -255,7 +254,7 @@ bool BLO_memfile_write_file(MemFile *memfile, const char *filepath)
   return true;
 }
 
-static ssize_t undo_read(FileReader *reader, void *buffer, size_t size)
+static int64_t undo_read(FileReader *reader, void *buffer, size_t size)
 {
   UndoReader *undo = (UndoReader *)reader;
 
@@ -324,7 +323,7 @@ static ssize_t undo_read(FileReader *reader, void *buffer, size_t size)
                                                                       chunk->is_identical_future;
     } while (totread < size);
 
-    return ssize_t(totread);
+    return int64_t(totread);
   }
 
   return 0;

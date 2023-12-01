@@ -14,7 +14,7 @@
 #include "IMB_imbuf_types.h"
 
 #include "BKE_attribute.h"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 #include "BKE_global.h"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
@@ -35,8 +35,9 @@
 
 extern "C" {
 Global G;
-UserDef U;
 }
+
+UserDef U;
 
 /* -------------------------------------------------------------------- */
 /** \name Stubs of BLI_imbuf_types.h
@@ -157,48 +158,35 @@ extern "C" void BKE_material_defaults_free_gpu()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Stubs of BKE_customdata.h
+/** \name Stubs of BKE_customdata.hh
  * \{ */
 
-extern "C" int CustomData_get_offset(const struct CustomData * /*data*/, eCustomDataType /*type*/)
+int CustomData_get_offset(const struct CustomData * /*data*/, eCustomDataType /*type*/)
 {
   BLI_assert_unreachable();
   return 0;
 }
 
-extern "C" int CustomData_get_named_layer_index(const struct CustomData * /*data*/,
-                                                eCustomDataType /*type*/,
-                                                const char * /*name*/)
+int CustomData_get_named_layer_index(const struct CustomData * /*data*/,
+                                     eCustomDataType /*type*/,
+                                     const char * /*name*/)
 {
   return -1;
 }
 
-extern "C" int CustomData_get_active_layer_index(const struct CustomData * /*data*/,
-                                                 eCustomDataType /*type*/)
+int CustomData_get_active_layer_index(const struct CustomData * /*data*/, eCustomDataType /*type*/)
 {
   return -1;
 }
 
-extern "C" int CustomData_get_render_layer_index(const struct CustomData * /*data*/,
-                                                 eCustomDataType /*type*/)
+int CustomData_get_render_layer_index(const struct CustomData * /*data*/, eCustomDataType /*type*/)
 {
   return -1;
 }
 
-extern "C" bool CustomData_has_layer(const struct CustomData * /*data*/, eCustomDataType /*type*/)
+bool CustomData_has_layer(const struct CustomData * /*data*/, eCustomDataType /*type*/)
 {
   return false;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Stubs of BKE_subdiv_ccg.hh
- * \{ */
-int BKE_subdiv_ccg_grid_to_face_index(const SubdivCCG * /*subdiv_ccg*/, const int /*grid_index*/)
-{
-  BLI_assert_unreachable();
-  return 0;
 }
 
 /** \} */
@@ -223,15 +211,6 @@ extern "C" void ntreeFreeLocalTree(struct bNodeTree * /*ntree*/)
   BLI_assert_unreachable();
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Stubs of bmesh.h
- * \{ */
-extern "C" void BM_face_as_array_vert_tri(BMFace * /*f*/, BMVert *[3] /*r_verts*/)
-{
-  BLI_assert_unreachable();
-}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -280,22 +259,6 @@ extern "C" bool IMB_saveiff(struct ImBuf * /*ibuf*/, const char * /*filepath*/, 
 {
   BLI_assert_unreachable();
   return false;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Stubs of BKE_pbvh.hh
- * \{ */
-
-int BKE_pbvh_count_grid_quads(BLI_bitmap ** /*grid_hidden*/,
-                              const int * /*grid_indices*/,
-                              int /*totgrid*/,
-                              int /*gridsize*/,
-                              int /*display_gridsize*/)
-{
-  BLI_assert_unreachable();
-  return 0;
 }
 
 /** \} */

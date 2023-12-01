@@ -8,6 +8,8 @@
 
 #include <cstdlib>
 
+#include "BLT_translation.h"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -17,11 +19,23 @@
 
 #include "rna_internal.h"
 
-const EnumPropertyItem rna_enum_aset_library_type_items[] = {
-    {ASSET_LIBRARY_LOCAL, "LOCAL", 0, "Local", ""},
-    {ASSET_LIBRARY_ALL, "ALL", 0, "All", ""},
-    {ASSET_LIBRARY_ESSENTIALS, "ESSENTIALS", 0, "Essentials", ""},
-    {ASSET_LIBRARY_CUSTOM, "CUSTOM", 0, "Custom", ""},
+const EnumPropertyItem rna_enum_asset_library_type_items[] = {
+    {ASSET_LIBRARY_ALL, "ALL", 0, "All", "Show assets from all of the listed asset libraries"},
+    {ASSET_LIBRARY_LOCAL,
+     "LOCAL",
+     0,
+     "Current File",
+     "Show the assets currently available in this Blender session"},
+    {ASSET_LIBRARY_ESSENTIALS,
+     "ESSENTIALS",
+     0,
+     "Essentials",
+     "Show the basic building blocks and utilities coming with Blender"},
+    {ASSET_LIBRARY_CUSTOM,
+     "CUSTOM",
+     0,
+     "Custom",
+     "Show assets from the asset libraries configured in the Preferences"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -30,8 +44,8 @@ const EnumPropertyItem rna_enum_aset_library_type_items[] = {
 #  include "AS_asset_library.h"
 #  include "AS_asset_representation.hh"
 
-#  include "BKE_asset.h"
-#  include "BKE_context.h"
+#  include "BKE_asset.hh"
+#  include "BKE_context.hh"
 #  include "BKE_idprop.h"
 
 #  include "BLI_listbase.h"
@@ -41,6 +55,8 @@ const EnumPropertyItem rna_enum_aset_library_type_items[] = {
 #  include "ED_fileselect.hh"
 
 #  include "RNA_access.hh"
+
+using namespace blender::asset_system;
 
 static char *rna_AssetMetaData_path(const PointerRNA * /*ptr*/)
 {
@@ -337,7 +353,7 @@ void rna_AssetMetaData_catalog_id_update(bContext *C, PointerRNA *ptr)
     return;
   }
 
-  AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
+  ::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   if (asset_library == nullptr) {
     /* The SpaceFile may not be an asset browser but a regular file browser. */
     return;
@@ -363,21 +379,76 @@ static void rna_AssetHandle_file_data_set(PointerRNA *ptr,
   asset_handle->file_data = static_cast<const FileDirEntry *>(value.data);
 }
 
-static void rna_AssetHandle_get_full_library_path(
-    // AssetHandle *asset,
-    FileDirEntry *asset_file,
-    char r_result[/*FILE_MAX_LIBEXTRA*/])
+static void rna_AssetRepresentation_name_get(PointerRNA *ptr, char *value)
 {
-  AssetHandle asset{};
-  asset.file_data = asset_file;
-  ED_asset_handle_get_full_library_path(&asset, r_result);
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  const blender::StringRefNull name = asset->get_name();
+  BLI_strncpy(value, name.c_str(), name.size() + 1);
 }
 
-static PointerRNA rna_AssetHandle_local_id_get(PointerRNA *ptr)
+static int rna_AssetRepresentation_name_length(PointerRNA *ptr)
 {
-  const AssetHandle *asset = static_cast<const AssetHandle *>(ptr->data);
-  ID *id = ED_asset_handle_get_representation(asset)->local_id();
-  return rna_pointer_inherit_refine(ptr, &RNA_ID, id);
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  const blender::StringRefNull name = asset->get_name();
+  return name.size();
+}
+
+static PointerRNA rna_AssetRepresentation_metadata_get(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+
+  AssetMetaData &asset_data = asset->get_metadata();
+
+  /* Note that for local ID assets, the asset metadata is owned by the ID. Let the pointer inherit
+   * accordingly, so that the #PointerRNA.owner_id is set to the ID, and the metadata can be
+   * recognized as editable. */
+
+  if (asset->is_local_id()) {
+    PointerRNA id_ptr = RNA_id_pointer_create(asset->local_id());
+    return rna_pointer_inherit_refine(&id_ptr, &RNA_AssetMetaData, &asset_data);
+  }
+
+  return rna_pointer_inherit_refine(ptr, &RNA_AssetMetaData, &asset_data);
+}
+
+static int rna_AssetRepresentation_id_type_get(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  return asset->get_id_type();
+}
+
+static PointerRNA rna_AssetRepresentation_local_id_get(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  return rna_pointer_inherit_refine(ptr, &RNA_ID, asset->local_id());
+}
+
+static void rna_AssetRepresentation_full_library_path_get(PointerRNA *ptr, char *value)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  const std::string full_library_path = asset->get_identifier().full_library_path();
+  BLI_strncpy(value, full_library_path.c_str(), full_library_path.size() + 1);
+}
+
+static int rna_AssetRepresentation_full_library_path_length(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  const std::string full_library_path = asset->get_identifier().full_library_path();
+  return full_library_path.size();
+}
+
+static void rna_AssetRepresentation_full_path_get(PointerRNA *ptr, char *value)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  const std::string full_path = asset->get_identifier().full_path();
+  BLI_strncpy(value, full_path.c_str(), full_path.size() + 1);
+}
+
+static int rna_AssetRepresentation_full_path_length(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  const std::string full_path = asset->get_identifier().full_path();
+  return full_path.size();
 }
 
 const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*/,
@@ -535,22 +606,6 @@ static void rna_def_asset_data(BlenderRNA *brna)
                            "data recovery purposes");
 }
 
-static void rna_def_asset_handle_api(StructRNA *srna)
-{
-  FunctionRNA *func;
-  PropertyRNA *parm;
-
-  func = RNA_def_function(srna, "get_full_library_path", "rna_AssetHandle_get_full_library_path");
-  /* TODO temporarily static function, for until .py can receive the asset handle from context
-   * properly. `asset_file_handle` should go away too then. */
-  RNA_def_function_flag(func, FUNC_NO_SELF);
-  parm = RNA_def_pointer(func, "asset_file_handle", "FileSelectEntry", "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "result", nullptr, FILE_MAX_LIBEXTRA, "result", "");
-  RNA_def_parameter_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
-  RNA_def_function_output(func, parm);
-}
-
 static void rna_def_asset_handle(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -569,28 +624,75 @@ static void rna_def_asset_handle(BlenderRNA *brna)
       prop, "rna_AssetHandle_file_data_get", "rna_AssetHandle_file_data_set", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop, "File Entry", "TEMPORARY, DO NOT USE - File data used to refer to the asset");
-
-  prop = RNA_def_property(srna, "local_id", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "ID");
-  RNA_def_property_pointer_funcs(prop, "rna_AssetHandle_local_id_get", nullptr, nullptr, nullptr);
-  RNA_def_property_ui_text(prop,
-                           "",
-                           "The local data-block this asset represents; only valid if that is a "
-                           "data-block in this file");
-  RNA_def_property_flag(prop, PROP_HIDDEN);
-
-  rna_def_asset_handle_api(srna);
 }
 
 static void rna_def_asset_representation(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "AssetRepresentation", nullptr);
   RNA_def_struct_ui_text(srna,
                          "Asset Representation",
                          "Information about an entity that makes it possible for the asset system "
                          "to deal with the entity as asset");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(
+      prop, "rna_AssetRepresentation_name_get", "rna_AssetRepresentation_name_length", nullptr);
+  RNA_def_property_ui_text(prop, "Name", "");
+  RNA_def_struct_name_property(srna, prop);
+
+  prop = RNA_def_property(srna, "metadata", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "AssetMetaData");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_AssetRepresentation_metadata_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Asset Metadata", "Additional information about the asset");
+
+  prop = RNA_def_property(srna, "id_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_id_type_items);
+  RNA_def_property_enum_funcs(prop, "rna_AssetRepresentation_id_type_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Data-block Type",
+      /* Won't ever actually return 'NONE' currently, this is just for information for once non-ID
+       * assets are supported. */
+      "The type of the data-block, if the asset represents one ('NONE' otherwise)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
+
+  prop = RNA_def_property(srna, "local_id", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ID");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_AssetRepresentation_local_id_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop,
+                           "",
+                           "The local data-block this asset represents; only valid if that is a "
+                           "data-block in this file");
+
+  prop = RNA_def_property(srna, "full_library_path", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_AssetRepresentation_full_library_path_get",
+                                "rna_AssetRepresentation_full_library_path_length",
+                                nullptr);
+
+  RNA_def_property_ui_text(
+      prop, "Full Library Path", "Absolute path to the .blend file containing this asset");
+
+  prop = RNA_def_property(srna, "full_path", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_AssetRepresentation_full_path_get",
+                                "rna_AssetRepresentation_full_path_length",
+                                nullptr);
+
+  RNA_def_property_ui_text(
+      prop,
+      "Full Path",
+      "Absolute path to the .blend file containing this asset extended with the path "
+      "of the asset inside the file");
 }
 
 static void rna_def_asset_catalog_path(BlenderRNA *brna)
@@ -610,11 +712,30 @@ PropertyRNA *rna_def_asset_library_reference_common(StructRNA *srna,
                                                     const char *get,
                                                     const char *set)
 {
-  PropertyRNA *prop = RNA_def_property(srna, "asset_library_ref", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, DummyRNA_NULL_items);
+  PropertyRNA *prop = RNA_def_property(srna, "asset_library_reference", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_library_type_items);
   RNA_def_property_enum_funcs(prop, get, set, "rna_asset_library_reference_itemf");
 
   return prop;
+}
+
+static void rna_def_asset_weak_reference(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "AssetWeakReference", nullptr);
+  RNA_def_struct_ui_text(srna, "Asset Weak Reference", "Weak reference to some asset");
+
+  prop = RNA_def_property(srna, "asset_library_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_library_type_items);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "asset_library_identifier", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "relative_asset_identifier", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
 void RNA_def_asset(BlenderRNA *brna)
@@ -627,6 +748,7 @@ void RNA_def_asset(BlenderRNA *brna)
   rna_def_asset_handle(brna);
   rna_def_asset_representation(brna);
   rna_def_asset_catalog_path(brna);
+  rna_def_asset_weak_reference(brna);
 
   RNA_define_animate_sdna(true);
 }

@@ -18,10 +18,10 @@ base class --- :class:`~bge.types.SCA_IController`
 
    .. attribute:: script
 
-      The value of this variable depends on the execution methid.
+      The value of this variable depends on the execution method.
 
       * When 'Script' execution mode is set this value contains the entire python script as a single string (not the script name as you might expect) which can be modified to run different scripts.
-      * When 'Module' execution mode is set this value will contain a single line string - module name and function "module.func" or "package.modile.func" where the module names are python textblocks or external scripts.
+      * When 'Module' execution mode is set this value will contain a single line string - module name and function "module.func" or "package.module.func" where the module names are python textblocks or external scripts.
 
       :type: string
 

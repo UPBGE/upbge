@@ -47,7 +47,7 @@
 #  include "../blender/python/BPY_extern_python.h"
 #  include "BKE_appdir.h"
 #  include "BKE_blender_version.h"
-#  include "BKE_context.h"
+#  include "BKE_context.hh"
 #  include "BKE_global.h"
 #  include "BKE_idtype.h"
 #  include "BKE_library.h"

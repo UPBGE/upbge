@@ -13,10 +13,6 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Action;
 struct Ipo;
 struct Text;
@@ -672,7 +668,7 @@ typedef enum eBConstraint_Types {
 /* bConstraint->flag */
 /* flags 0x2 (1 << 1) and 0x8 (1 << 3) were used in past */
 /* flag 0x20 (1 << 5) was used to indicate that a constraint was evaluated
- *                  using a 'local' hack for posebones only. */
+ *                    using a 'local' hack for pose-bones only. */
 typedef enum eBConstraint_Flags {
 #ifdef DNA_DEPRECATED_ALLOW
   /* Expansion for old box constraint layouts. Just for versioning. */
@@ -1186,7 +1182,3 @@ typedef enum eStretchTo_Flags {
 #define CONSTRAINT_RB_CONETWIST 4
 #define CONSTRAINT_RB_VEHICLE 11
 #define CONSTRAINT_RB_GENERIC6DOF 12
-
-#ifdef __cplusplus
-}
-#endif

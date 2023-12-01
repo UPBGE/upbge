@@ -13,9 +13,9 @@
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_report.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
@@ -368,10 +368,7 @@ static void applyRotation(TransInfo *t)
       applyRotationValue(t, t->values_final[0], axis_final, is_large_rotation);
     }
 
-    /* In proportional edit it can happen that */
-    /* vertices in the radius of the brush end */
-    /* outside the clipping area               */
-    /* XXX HACK - dg */
+    /* Not ideal, see #clipUVData code-comment. */
     if (t->flag & T_PROP_EDIT) {
       clipUVData(t);
     }

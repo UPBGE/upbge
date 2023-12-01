@@ -1,5 +1,8 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* Fallback implementation for hardware not supporting cubemap arrays.
+/* Fallback implementation for hardware not supporting cube-map arrays.
  * `samplerCubeArray` fallback declaration as sampler2DArray in `glsl_shader_defines.glsl`. */
 #ifndef GPU_ARB_texture_cube_map_array
 

@@ -22,12 +22,13 @@
 #include "BLI_path_util.h"
 #include "BLI_serialize.hh"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_uuid.h"
 
 #include "AS_asset_catalog.hh"
 #include "BKE_appdir.h"
-#include "BKE_asset.h"
+#include "BKE_asset.hh"
 #include "BKE_idprop.hh"
 
 #include "CLG_log.h"

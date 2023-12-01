@@ -25,10 +25,10 @@
 
 #include "CcdPhysicsController.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
@@ -795,14 +795,14 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   if (sb) {  // EXPERIMENTAL
     if (sb->m_pose.m_bframe || sb->m_pose.m_bvolume) {
       // btVector3 worldPos = sb->m_pose.m_com;
-      // btQuaternion worldquat;
-      // btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
-      // trs.getRotation(worldquat);
+      btQuaternion worldquat;
+      btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
+      trs.getRotation(worldquat);
       /*btVector3 aabbMin, aabbMax;
       sb->getAabb(aabbMin, aabbMax);
       btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;*/
       m_MotionState->SetWorldPosition(ToMoto(sb->m_pose.m_com));
-      // m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+      m_MotionState->SetWorldOrientation(ToMoto(worldquat));
     }
     else {
       /*btVector3 aabbMin, aabbMax;
@@ -903,6 +903,7 @@ void CcdPhysicsController::UpdateSoftBody()
             }
           }
         }
+        BKE_mesh_tag_positions_changed(me);
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
@@ -2040,7 +2041,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   /* No need to call again ensure_tessface as it was called in BL_DataConversion */
 
-  const float(*positions)[3] = BKE_mesh_vert_positions(me);
+  const blender::Span<blender::float3> positions = me->vert_positions();
   const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
   numverts = me->totvert;
   const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
@@ -2388,7 +2389,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
      * Mesh Update
      *
      * */
-    const float(*positions)[3] = BKE_mesh_vert_positions(me);
+    const blender::Span<blender::float3> positions = me->vert_positions();
     MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
     numpolys = me->totface_legacy;
     numverts = me->totvert;

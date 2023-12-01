@@ -14,8 +14,8 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_screen.h"
+#include "BKE_context.hh"
+#include "BKE_screen.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -28,7 +28,7 @@
 
 #include "UI_interface.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /* ******************** default callbacks for userpref space ***************** */
 

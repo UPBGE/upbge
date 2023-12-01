@@ -5,7 +5,9 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
+#include "NOD_geometry.hh"
 #include "NOD_node_declaration.hh"
+#include "NOD_socket.hh"
 
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
@@ -20,14 +22,9 @@ using nodes::OutputFieldDependency;
 using nodes::OutputSocketFieldType;
 using nodes::SocketDeclaration;
 
-static bool is_field_socket_type(eNodeSocketDatatype type)
-{
-  return ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA, SOCK_ROTATION);
-}
-
 static bool is_field_socket_type(const bNodeSocket &socket)
 {
-  return is_field_socket_type((eNodeSocketDatatype)socket.typeinfo->type);
+  return nodes::socket_type_supports_fields((eNodeSocketDatatype)socket.typeinfo->type);
 }
 
 static InputSocketFieldType get_interface_input_field_type(const bNode &node,
@@ -500,9 +497,21 @@ static void determine_group_input_states(
 {
   {
     /* Non-field inputs never support fields. */
-    int index;
-    LISTBASE_FOREACH_INDEX (bNodeSocket *, group_input, &tree.inputs, index) {
-      if (!is_field_socket_type((eNodeSocketDatatype)group_input->type)) {
+    for (const int index : tree.interface_inputs().index_range()) {
+      const bNodeTreeInterfaceSocket *group_input = tree.interface_inputs()[index];
+      const bNodeSocketType *typeinfo = group_input->socket_typeinfo();
+      const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
+                                                  SOCK_CUSTOM;
+      if (!nodes::socket_type_supports_fields(type)) {
+        new_inferencing_interface.inputs[index] = InputSocketFieldType::None;
+      }
+      else if (group_input->default_input != NODE_INPUT_DEFAULT_VALUE) {
+        new_inferencing_interface.inputs[index] = InputSocketFieldType::Implicit;
+      }
+      else if (is_layer_selection_field(*group_input)) {
+        new_inferencing_interface.inputs[index] = InputSocketFieldType::Implicit;
+      }
+      else if (group_input->flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY) {
         new_inferencing_interface.inputs[index] = InputSocketFieldType::None;
       }
     }
@@ -512,8 +521,13 @@ static void determine_group_input_states(
   for (const bNode *node : tree.group_input_nodes()) {
     for (const bNodeSocket *output_socket : node->output_sockets().drop_back(1)) {
       SocketFieldState &state = field_state_by_socket_id[output_socket->index_in_tree()];
+      const int output_index = output_socket->index();
       if (state.requires_single) {
-        new_inferencing_interface.inputs[output_socket->index()] = InputSocketFieldType::None;
+        if (new_inferencing_interface.inputs[output_index] == InputSocketFieldType::Implicit) {
+          /* Don't override hard-coded implicit fields. */
+          continue;
+        }
+        new_inferencing_interface.inputs[output_index] = InputSocketFieldType::None;
       }
     }
   }
@@ -686,6 +700,7 @@ bool update_field_inferencing(const bNodeTree &tree)
 {
   BLI_assert(tree.type == NTREE_GEOMETRY);
   tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
 
   const Span<const bNode *> nodes = tree.all_nodes();
   ResourceScope scope;
@@ -695,9 +710,9 @@ bool update_field_inferencing(const bNodeTree &tree)
   /* Create new inferencing interface for this node group. */
   std::unique_ptr<FieldInferencingInterface> new_inferencing_interface =
       std::make_unique<FieldInferencingInterface>();
-  new_inferencing_interface->inputs.resize(BLI_listbase_count(&tree.inputs),
+  new_inferencing_interface->inputs.resize(tree.interface_inputs().size(),
                                            InputSocketFieldType::IsSupported);
-  new_inferencing_interface->outputs.resize(BLI_listbase_count(&tree.outputs),
+  new_inferencing_interface->outputs.resize(tree.interface_outputs().size(),
                                             OutputFieldDependency::ForDataSource());
 
   /* Keep track of the state of all sockets. The index into this array is #SocketRef::id(). */

@@ -22,11 +22,11 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "BKE_anim_data.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_blender.h"
 #include "BKE_collection.h"
 #include "BKE_fcurve.h"
@@ -37,9 +37,9 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.h"
-#include "BKE_main_namemap.h"
+#include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -54,6 +54,7 @@
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "PIL_time.h"
 
@@ -64,7 +65,7 @@
 
 #include "atomic_ops.h"
 
-#include "lib_intern.h"
+#include "lib_intern.hh"
 
 #define OVERRIDE_AUTO_CHECK_DELAY 0.2 /* 200ms between auto-override checks. */
 //#define DEBUG_OVERRIDE_TIMEIT
@@ -94,9 +95,11 @@ BLI_INLINE IDOverrideLibraryRuntime *override_library_runtime_ensure(
   return liboverride->runtime;
 }
 
-/** Helper to preserve Pose mode on override objects.
+/**
+ * Helper to preserve Pose mode on override objects.
  * A bit annoying to have this special case, but not much to be done here currently, since the
- * matching RNA property is read-only. */
+ * matching RNA property is read-only.
+ */
 BLI_INLINE void lib_override_object_posemode_transfer(ID *id_dst, ID *id_src)
 {
   if (GS(id_src->name) == ID_OB && GS(id_dst->name) == ID_OB) {
@@ -422,6 +425,19 @@ bool BKE_lib_override_library_is_hierarchy_leaf(Main *bmain, ID *id)
   return false;
 }
 
+void BKE_lib_override_id_tag_on_deg_tag_from_user(ID *id)
+{
+  /* Only local liboverrides need to be tagged for refresh, linked ones should not be editable. */
+  if (ID_IS_LINKED(id) || !ID_IS_OVERRIDE_LIBRARY(id)) {
+    return;
+  }
+  /* NOTE: Valid relationships between IDs here (especially the beloved ObData <-> ShapeKey special
+   * case) cannot be always expected when ID get tagged. So now, embedded IDs and similar also get
+   * tagged, and the 'liboverride refresh' code is responsible to properly propagate the update to
+   * the owner ID when needed (see #BKE_lib_override_library_main_operations_create). */
+  id->tag |= LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+}
+
 ID *BKE_lib_override_library_create_from_id(Main *bmain,
                                             ID *reference_id,
                                             const bool do_tagged_remap)
@@ -628,7 +644,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
     }
     BLI_assert(id_hierarchy_root != nullptr);
 
-    LinkNode *relinked_ids = nullptr;
+    blender::Vector<ID *> relinked_ids;
     IDRemapper *id_remapper = BKE_id_remapper_create();
     /* Still checking the whole Main, that way we can tag other local IDs as needing to be
      * remapped to use newly created overriding IDs, if needed. */
@@ -662,7 +678,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
             (!ID_IS_OVERRIDE_LIBRARY_REAL(owner_id) ||
              owner_id->override_library->hierarchy_root == id_hierarchy_root))
         {
-          BLI_linklist_prepend(&relinked_ids, other_id);
+          relinked_ids.append(other_id);
         }
 
         if (ID_IS_OVERRIDE_LIBRARY_REAL(other_id) &&
@@ -703,7 +719,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
                                  ID_REMAP_SKIP_OVERRIDE_LIBRARY | ID_REMAP_FORCE_USER_REFCOUNT);
 
     BKE_id_remapper_free(id_remapper);
-    BLI_linklist_free(relinked_ids, nullptr);
+    relinked_ids.clear();
   }
   else {
     /* We need to cleanup potentially already created data. */
@@ -1573,9 +1589,15 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
     BKE_lib_override_library_get(bmain, id, nullptr, &id_owner);
     return lib_override_root_find(bmain, id_owner, curr_level + 1, &best_level_placeholder);
   }
-  /* This way we won't process again that ID, should we encounter it again through another
-   * relationship hierarchy. */
-  entry->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
+
+  if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS) {
+    /* Re-processing an entry already being processed higher in the call-graph (re-entry caused by
+     * a dependency loops). Just do nothing, there is no more useful info to provide here. */
+    return nullptr;
+  }
+  /* Flag this entry to avoid re-processing it in case some dependency loop leads to it again
+   * downwards in the call-stack. */
+  entry->tags |= MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS;
 
   int best_level_candidate = curr_level;
   ID *best_root_id_candidate = id;
@@ -1617,6 +1639,11 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
 
   BLI_assert(best_root_id_candidate != nullptr);
   BLI_assert((best_root_id_candidate->flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE) == 0);
+
+  /* This way this ID won't be processed again, should it be encountered again through another
+   * relationship hierarchy. */
+  entry->tags &= ~MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS;
+  entry->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
 
   *r_best_level = best_level_candidate;
   return best_root_id_candidate;
@@ -1663,7 +1690,10 @@ static void lib_override_root_hierarchy_set(
           bmain->relations->relations_from_pointers, id->override_library->reference));
       BLI_assert(entry != nullptr);
 
-      bool do_replace_root = false;
+      /* Enforce replacing hierarchy root if the current one is invalid. */
+      bool do_replace_root = (!id->override_library->hierarchy_root ||
+                              !ID_IS_OVERRIDE_LIBRARY_REAL(id->override_library->hierarchy_root) ||
+                              id->override_library->hierarchy_root->lib != id->lib);
       for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
            from_id_entry = from_id_entry->next)
       {
@@ -1770,6 +1800,7 @@ void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
     }
 
     BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
+    BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS, false);
 
     int best_level = 0;
     ID *id_root = lib_override_root_find(bmain, id, best_level, &best_level);
@@ -1807,7 +1838,7 @@ static void lib_override_library_remap(Main *bmain,
 {
   ID *id;
   IDRemapper *remapper = BKE_id_remapper_create();
-  LinkNode *nomain_ids = nullptr;
+  blender::Vector<ID *> nomain_ids;
 
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     if (id->tag & LIB_TAG_DOIT && id->newid != nullptr && id->lib == id_root_reference->lib) {
@@ -1831,7 +1862,7 @@ static void lib_override_library_remap(Main *bmain,
       continue;
     }
 
-    BLI_linklist_prepend(&nomain_ids, id_override_old_iter);
+    nomain_ids.append(id_override_old_iter);
   }
 
   /* Remap all IDs to use the new override. */
@@ -1842,7 +1873,6 @@ static void lib_override_library_remap(Main *bmain,
                                remapper,
                                ID_REMAP_FORCE_USER_REFCOUNT | ID_REMAP_FORCE_NEVER_NULL_USAGE);
   BKE_id_remapper_free(remapper);
-  BLI_linklist_free(nomain_ids, nullptr);
 }
 
 /**
@@ -2250,7 +2280,7 @@ static bool lib_override_library_resync(Main *bmain,
 
   BKE_main_collection_sync(bmain);
 
-  LinkNode *id_override_old_list = nullptr;
+  blender::Vector<ID *> id_override_old_vector;
 
   /* We need to apply override rules in a separate loop, after all ID pointers have been properly
    * remapped, and all new local override IDs have gotten their proper original names, otherwise
@@ -2294,9 +2324,8 @@ static bool lib_override_library_resync(Main *bmain,
       /* Apply rules on new override ID using old one as 'source' data. */
       /* Note that since we already remapped ID pointers in old override IDs to new ones, we
        * can also apply ID pointer override rules safely here. */
-      PointerRNA rnaptr_src, rnaptr_dst;
-      RNA_id_pointer_create(id_override_old, &rnaptr_src);
-      RNA_id_pointer_create(id_override_new, &rnaptr_dst);
+      PointerRNA rnaptr_src = RNA_id_pointer_create(id_override_old);
+      PointerRNA rnaptr_dst = RNA_id_pointer_create(id_override_new);
 
       /* In case the parent of the liboverride object matches hierarchy-wise the parent of its
        * linked reference, also enforce clearing any override of the other related parenting
@@ -2369,7 +2398,7 @@ static bool lib_override_library_resync(Main *bmain,
       }
     }
 
-    BLI_linklist_prepend(&id_override_old_list, id_override_old);
+    id_override_old_vector.append(id_override_old);
   }
   FOREACH_MAIN_ID_END;
 
@@ -2378,17 +2407,15 @@ static bool lib_override_library_resync(Main *bmain,
    * This is necessary in case said old ID is not in Main anymore. */
   IDRemapper *id_remapper = BKE_id_remapper_create();
   BKE_libblock_relink_multiple(bmain,
-                               id_override_old_list,
+                               id_override_old_vector,
                                ID_REMAP_TYPE_CLEANUP,
                                id_remapper,
                                ID_REMAP_FORCE_USER_REFCOUNT | ID_REMAP_FORCE_NEVER_NULL_USAGE);
-  for (LinkNode *ln_iter = id_override_old_list; ln_iter != nullptr; ln_iter = ln_iter->next) {
-    ID *id_override_old = static_cast<ID *>(ln_iter->link);
+  for (ID *id_override_old : id_override_old_vector) {
     id_override_old->tag |= LIB_TAG_NO_USER_REFCOUNT;
   }
+  id_override_old_vector.clear();
   BKE_id_remapper_free(id_remapper);
-  BLI_linklist_free(id_override_old_list, nullptr);
-  id_override_old_list = nullptr;
 
   /* Delete old override IDs.
    * Note that we have to use tagged group deletion here, since ID deletion also uses
@@ -2413,7 +2440,7 @@ static bool lib_override_library_resync(Main *bmain,
           }
           else {
             /* Defer tagging. */
-            BLI_linklist_prepend(&id_override_old_list, id_override_old);
+            id_override_old_vector.append(id_override_old);
           }
         }
       }
@@ -2478,11 +2505,10 @@ static bool lib_override_library_resync(Main *bmain,
   FOREACH_MAIN_ID_END;
 
   /* Finalize tagging old liboverrides for deletion. */
-  for (LinkNode *ln_iter = id_override_old_list; ln_iter != nullptr; ln_iter = ln_iter->next) {
-    ID *id_override_old = static_cast<ID *>(ln_iter->link);
+  for (ID *id_override_old : id_override_old_vector) {
     id_override_old->tag |= LIB_TAG_DOIT;
   }
-  BLI_linklist_free(id_override_old_list, nullptr);
+  id_override_old_vector.clear();
 
   /* Cleanup, many pointers in this GHash are already invalid now. */
   BLI_ghash_free(linkedref_to_old_override, nullptr, nullptr);
@@ -3393,10 +3419,12 @@ static int lib_override_sort_libraries_func(LibraryIDLinkCallbackData *cb_data)
   return IDWALK_RET_NOP;
 }
 
-/** Define the `temp_index` of libraries from their highest level of indirect usage.
+/**
+ * Define the `temp_index` of libraries from their highest level of indirect usage.
  *
  * E.g. if lib_a uses lib_b, lib_c and lib_d, and lib_b also uses lib_d, then lib_a has an index of
- * 1, lib_b and lib_c an index of 2, and lib_d an index of 3. */
+ * 1, lib_b and lib_c an index of 2, and lib_d an index of 3.
+ */
 static int lib_override_libraries_index_define(Main *bmain)
 {
   LISTBASE_FOREACH (Library *, library, &bmain->libraries) {
@@ -3573,7 +3601,7 @@ void BKE_lib_override_library_delete(Main *bmain, ID *id_root)
   BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
 }
 
-void BKE_lib_override_library_make_local(ID *id)
+void BKE_lib_override_library_make_local(Main *bmain, ID *id)
 {
   if (!ID_IS_OVERRIDE_LIBRARY(id)) {
     return;
@@ -3602,6 +3630,13 @@ void BKE_lib_override_library_make_local(ID *id)
   bNodeTree *node_tree = ntreeFromID(id);
   if (node_tree != nullptr) {
     node_tree->id.flag &= ~LIB_EMBEDDED_DATA_LIB_OVERRIDE;
+  }
+
+  /* In case a liboverride hierarchy root is 'made local', i.e. is not a liboverride anymore, all
+   * hierarchy roots of all liboverrides need to be validated/re-generated again.
+   * Only in case `bmain` is given, otherwise caller is responsible to do this. */
+  if (bmain) {
+    BKE_lib_override_library_main_hierarchy_root_ensure(bmain);
   }
 }
 
@@ -4099,9 +4134,8 @@ bool BKE_lib_override_library_status_check_local(Main *bmain, ID *local)
 
   /* Note that reference is assumed always valid, caller has to ensure that itself. */
 
-  PointerRNA rnaptr_local, rnaptr_reference;
-  RNA_id_pointer_create(local, &rnaptr_local);
-  RNA_id_pointer_create(reference, &rnaptr_reference);
+  PointerRNA rnaptr_local = RNA_id_pointer_create(local);
+  PointerRNA rnaptr_reference = RNA_id_pointer_create(reference);
 
   if (!RNA_struct_override_matches(
           bmain,
@@ -4158,9 +4192,8 @@ bool BKE_lib_override_library_status_check_reference(Main *bmain, ID *local)
     }
   }
 
-  PointerRNA rnaptr_local, rnaptr_reference;
-  RNA_id_pointer_create(local, &rnaptr_local);
-  RNA_id_pointer_create(reference, &rnaptr_reference);
+  PointerRNA rnaptr_local = RNA_id_pointer_create(local);
+  PointerRNA rnaptr_reference = RNA_id_pointer_create(reference);
 
   if (!RNA_struct_override_matches(bmain,
                                    &rnaptr_local,
@@ -4209,9 +4242,8 @@ static void lib_override_library_operations_create(Main *bmain,
       }
     }
 
-    PointerRNA rnaptr_local, rnaptr_reference;
-    RNA_id_pointer_create(local, &rnaptr_local);
-    RNA_id_pointer_create(local->override_library->reference, &rnaptr_reference);
+    PointerRNA rnaptr_local = RNA_id_pointer_create(local);
+    PointerRNA rnaptr_reference = RNA_id_pointer_create(local->override_library->reference);
 
     eRNAOverrideMatchResult local_report_flags = RNA_OVERRIDE_MATCH_RESULT_INIT;
     RNA_struct_override_matches(bmain,
@@ -4261,9 +4293,8 @@ void BKE_lib_override_library_operations_restore(Main *bmain, ID *local, int *r_
     return;
   }
 
-  PointerRNA rnaptr_src, rnaptr_dst;
-  RNA_id_pointer_create(local, &rnaptr_dst);
-  RNA_id_pointer_create(local->override_library->reference, &rnaptr_src);
+  PointerRNA rnaptr_src = RNA_id_pointer_create(local);
+  PointerRNA rnaptr_dst = RNA_id_pointer_create(local->override_library->reference);
   RNA_struct_override_apply(
       bmain,
       &rnaptr_dst,
@@ -4351,9 +4382,33 @@ void BKE_lib_override_library_main_operations_create(Main *bmain,
   TaskPool *task_pool = BLI_task_pool_create(&create_pool_data, TASK_PRIORITY_HIGH);
 
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    if (!ID_IS_LINKED(id) && ID_IS_OVERRIDE_LIBRARY_REAL(id) &&
-        (force_auto || (id->tag & LIB_TAG_LIBOVERRIDE_AUTOREFRESH)))
-    {
+    if (ID_IS_LINKED(id) || !ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+      continue;
+    }
+    /* Propagate potential embedded data tag to the owner ID (see also
+     * #BKE_lib_override_id_tag_on_deg_tag_from_user). */
+    if (Key *key = BKE_key_from_id(id)) {
+      if (key->id.tag & LIB_TAG_LIBOVERRIDE_AUTOREFRESH) {
+        key->id.tag &= ~LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+        id->tag |= LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+      }
+    }
+    if (bNodeTree *ntree = ntreeFromID(id)) {
+      if (ntree->id.tag & LIB_TAG_LIBOVERRIDE_AUTOREFRESH) {
+        ntree->id.tag &= ~LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+        id->tag |= LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+      }
+    }
+    if (GS(id->name) == ID_SCE) {
+      if (Collection *scene_collection = reinterpret_cast<Scene *>(id)->master_collection) {
+        if (scene_collection->id.tag & LIB_TAG_LIBOVERRIDE_AUTOREFRESH) {
+          scene_collection->id.tag &= ~LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+          id->tag |= LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
+        }
+      }
+    }
+
+    if (force_auto || (id->tag & LIB_TAG_LIBOVERRIDE_AUTOREFRESH)) {
       /* Usual issue with pose, it's quiet rare but sometimes they may not be up to date when this
        * function is called. */
       if (GS(id->name) == ID_OB) {
@@ -4445,14 +4500,12 @@ static bool lib_override_library_id_reset_do(Main *bmain,
     bool do_op_delete = true;
     const bool is_collection = op->rna_prop_type == PROP_COLLECTION;
     if (is_collection || op->rna_prop_type == PROP_POINTER) {
-      PointerRNA ptr_root, ptr_root_lib, ptr, ptr_lib;
+      PointerRNA ptr, ptr_lib;
       PropertyRNA *prop, *prop_lib;
 
-      RNA_pointer_create(id_root, &RNA_ID, id_root, &ptr_root);
-      RNA_pointer_create(id_root->override_library->reference,
-                         &RNA_ID,
-                         id_root->override_library->reference,
-                         &ptr_root_lib);
+      PointerRNA ptr_root = RNA_pointer_create(id_root, &RNA_ID, id_root);
+      PointerRNA ptr_root_lib = RNA_pointer_create(
+          id_root->override_library->reference, &RNA_ID, id_root->override_library->reference);
 
       bool prop_exists = RNA_path_resolve_property(&ptr_root, op->rna_path, &ptr, &prop);
       if (prop_exists) {
@@ -4746,12 +4799,12 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
     STRNCPY(tmp_key->id.name, local_key->id.name);
   }
 
-  PointerRNA rnaptr_src, rnaptr_dst, rnaptr_storage_stack, *rnaptr_storage = nullptr;
-  RNA_id_pointer_create(local, &rnaptr_src);
-  RNA_id_pointer_create(tmp_id, &rnaptr_dst);
+  PointerRNA rnaptr_src = RNA_id_pointer_create(local);
+  PointerRNA rnaptr_dst = RNA_id_pointer_create(tmp_id);
+  PointerRNA rnaptr_storage_stack, *rnaptr_storage = nullptr;
   if (local->override_library->storage) {
+    rnaptr_storage_stack = RNA_id_pointer_create(local->override_library->storage);
     rnaptr_storage = &rnaptr_storage_stack;
-    RNA_id_pointer_create(local->override_library->storage, rnaptr_storage);
   }
 
   RNA_struct_override_apply(bmain,
@@ -4961,10 +5014,9 @@ ID *BKE_lib_override_library_operations_store_start(Main *bmain,
   storage_id = BKE_id_copy(reinterpret_cast<Main *>(liboverride_storage), local);
 
   if (storage_id != nullptr) {
-    PointerRNA rnaptr_reference, rnaptr_final, rnaptr_storage;
-    RNA_id_pointer_create(local->override_library->reference, &rnaptr_reference);
-    RNA_id_pointer_create(local, &rnaptr_final);
-    RNA_id_pointer_create(storage_id, &rnaptr_storage);
+    PointerRNA rnaptr_reference = RNA_id_pointer_create(local->override_library->reference);
+   PointerRNA rnaptr_final = RNA_id_pointer_create(local);
+   PointerRNA rnaptr_storage = RNA_id_pointer_create(storage_id);
 
     if (!RNA_struct_override_store(
             bmain, &rnaptr_final, &rnaptr_reference, &rnaptr_storage, local->override_library))

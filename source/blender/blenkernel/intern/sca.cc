@@ -49,7 +49,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_sca.h"
+#include "BKE_sca.hh"
 
 /* ******************* SENSORS ************************ */
 
@@ -992,7 +992,7 @@ void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size
     old_links = *ppoin;
 
     (*tot)++;
-    *ppoin = *(void ***)MEM_callocN((*tot) * size, "new link");
+    *ppoin = (void **)MEM_callocN((*tot) * size, "new link");
 
     for (ibrick = 0; ibrick < *(tot)-1; ibrick++) {
       (*ppoin)[ibrick] = old_links[ibrick];
@@ -1004,7 +1004,7 @@ void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size
   }
   else {
     (*tot) = 1;
-    *ppoin = *(void ***)MEM_callocN((*tot) * size, "new link");
+    *ppoin = (void **)MEM_callocN((*tot) * size, "new link");
     (*ppoin)[0] = *poin;
   }
 }
