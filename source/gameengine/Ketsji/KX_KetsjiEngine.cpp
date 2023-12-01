@@ -808,7 +808,7 @@ void KX_KetsjiEngine::Render()
   if (!UseViewportRender()) {
     /* Clear the entire screen (draw a black background rect before drawing) */
     ARegion *region = CTX_wm_region(m_context);
-    wmViewport(&region->winrct);
+    wmWindowViewport(CTX_wm_window(m_context));
 
     DRW_state_reset();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
@@ -818,10 +818,10 @@ void KX_KetsjiEngine::Render()
     const float clear_col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     immUniform4fv("color", clear_col);
     immRectf(pos,
-             0,
-             0,
-             BLI_rcti_size_x(&region->winrct),
-             BLI_rcti_size_y(&region->winrct));
+             region->winrct.xmin,
+             region->winrct.ymin,
+             region->winrct.xmin + BLI_rcti_size_x(&region->winrct),
+             region->winrct.ymin + BLI_rcti_size_y(&region->winrct));
     immUnbindProgram();
 
     /* Draw to the result of render loop on window backbuffer */
@@ -833,10 +833,10 @@ void KX_KetsjiEngine::Render()
                 m_canvas->GetHeight() + 1};
 
     GPU_viewport(v[0], v[1], v[2], v[3]);
-    if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+    //if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
       GPU_scissor_test(true);
       GPU_scissor(v[0], v[1], v[2], v[3]);
-    }
+    //}
 
     GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
     GPU_matrix_identity_set();
