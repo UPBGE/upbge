@@ -18,7 +18,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -27,7 +27,7 @@
 #include "GPU_framebuffer.h"
 #include "GPU_matrix.h"
 #include "GPU_platform.h"
-#include "GPU_select.h"
+#include "GPU_select.hh"
 #include "GPU_state.h"
 #include "GPU_viewport.h"
 
@@ -612,11 +612,11 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
     int hit_found = -1;
     float dot_best = FLT_MAX;
 
-    for (const GPUSelectResult &result : hit_results) {
-      BLI_assert(result.id != -1);
-      wmGizmo *gz = visible_gizmos[result.id >> 8];
+    for (const GPUSelectResult &hit_result : hit_results) {
+      BLI_assert(hit_result.id != -1);
+      wmGizmo *gz = visible_gizmos[hit_result.id >> 8];
       float co_3d[3];
-      co_screen[2] = float(double(result.depth) / double(UINT_MAX));
+      co_screen[2] = float(double(hit_result.depth) / double(UINT_MAX));
       GPU_matrix_unproject_3fv(co_screen, rv3d->viewinv, rv3d->winmat, viewport, co_3d);
       float select_bias = gz->select_bias;
       if ((gz->flag & WM_GIZMO_DRAW_NO_SCALE) == 0) {
@@ -626,7 +626,7 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
       const float dot_test = dot_v3v3(co_3d, co_direction) - select_bias;
       if (dot_best > dot_test) {
         dot_best = dot_test;
-        hit_found = result.id;
+        hit_found = hit_result.id;
       }
     }
     return hit_found;

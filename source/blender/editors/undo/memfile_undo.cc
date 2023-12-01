@@ -26,7 +26,7 @@
 #include "BKE_global.h" //UPBGE
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_scene.h"
