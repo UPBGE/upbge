@@ -26,10 +26,11 @@
 
 #include "BLI_alloca.h"
 #include "GPU_immediate.h"
-#include "../gpu/intern/gpu_shader_create_info.hh"
 #include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
+
+using namespace blender::gpu::shader;
 
 RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
     : m_loc(-1), m_count(1), m_dirty(true), m_type(UNI_NONE), m_transpose(0), m_dataLen(data_size)
@@ -249,7 +250,35 @@ void RAS_Shader::DeleteShader()
   }
 }
 
-std::string RAS_Shader::GetParsedProgram(ProgramType type) const
+void RAS_Shader::AppendConstantUniform(std::string type, std::string name)
+{
+  if (type == "float") {
+    m_constantUniforms.push_back(UniformConstant({Type::FLOAT, name}));
+  }
+  else if (type == "int") {
+    m_constantUniforms.push_back(UniformConstant({Type::INT, name}));
+  }
+  else if (type == "vec2") {
+    m_constantUniforms.push_back(UniformConstant({Type::VEC2, name}));
+  }
+  else if (type == "vec3") {
+    m_constantUniforms.push_back(UniformConstant({Type::VEC3, name}));
+  }
+  else if (type == "vec4") {
+    m_constantUniforms.push_back(UniformConstant({Type::VEC4, name}));
+  }
+  else if (type == "mat3") {
+    m_constantUniforms.push_back(UniformConstant({Type::MAT3, name}));
+  }
+  else if (type == "mat4") {
+    m_constantUniforms.push_back(UniformConstant({Type::MAT4, name}));
+  }
+  else {
+    CM_Warning("Invalid/unsupported uniform type: " << name);
+  }
+}
+
+std::string RAS_Shader::GetParsedProgram(ProgramType type)
 {
   std::string prog = m_progs[type];
   if (prog.empty()) {
@@ -261,6 +290,22 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type) const
     CM_Warning("found redundant #version directive in shader program, directive ignored.");
     const unsigned int nline = prog.find("\n", pos);
     prog.erase(pos, nline - pos);
+  }
+
+  unsigned int uni_pos = prog.find("uniform");
+  while (uni_pos != -1) {
+    const unsigned int type_pos = prog.find(" ", uni_pos) + 1;
+    const unsigned int name_pos = prog.find(" ", type_pos) + 1;
+    const unsigned int end_namepos = prog.find(";", name_pos);
+    std::string type = prog.substr(type_pos, (name_pos - 1) - type_pos);
+    std::string name = prog.substr(name_pos, end_namepos - name_pos);
+    AppendConstantUniform(type, name);
+
+    prog.replace(uni_pos, 2, "//");
+
+    const unsigned int endline_pos = prog.find("\0", end_namepos);
+
+    uni_pos = prog.find("uniform", endline_pos);
   }
 
   prog.insert(0, "#line 0\n");
@@ -292,6 +337,10 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   info.fragment_source("common_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
+
+  for (UniformConstant constant : m_constantUniforms) {
+    info.push_constant(constant.type, constant.name);
+  }
 
   if (m_error) {
     goto program_error;

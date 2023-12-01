@@ -35,6 +35,7 @@ set(INC
   ../Rasterizer
   ../SceneGraph
   ../../blender/blenkernel
+  ../../blender/gpu
   ../../blender/python/generic
   ../../../intern/termcolor
   ../../../intern/ghost

@@ -8,14 +8,23 @@
 #include <string>
 #include <vector>
 
+#include "../gpu/intern/gpu_shader_create_info.hh"
+
 #include "MT_Matrix4x4.h"
 #include "RAS_Rasterizer.h"  // For RAS_Rasterizer::TexCoGenList.
 #include "RAS_Texture.h"     // For RAS_Texture::MaxUnits.
 
 #define SORT_UNIFORMS 1
 
+using namespace blender::gpu::shader;
+
 class RAS_Rasterizer;
 struct GPUShader;
+
+typedef struct UniformConstant {
+  Type type;
+  std::string name;
+} UniformConstant;
 
 /**
  * RAS_Shader
@@ -36,6 +45,7 @@ class RAS_Shader {
     int m_type;            // Enum UniformTypes
     bool m_transpose;      // Transpose matrices
     const int m_dataLen;   // Length of our data
+
    public:
     RAS_Uniform(int data_size);
     ~RAS_Uniform();
@@ -110,11 +120,14 @@ class RAS_Shader {
   RAS_UniformVec m_uniforms;
   RAS_UniformVecDef m_preDef;
 
+  std::vector<UniformConstant> m_constantUniforms;
+  void AppendConstantUniform(std::string type, std::string name);
+
   /** Parse shader program to prevent redundant macro directives.
    * \param type The program type to parse.
    * \return The parsed program.
    */
-  std::string GetParsedProgram(ProgramType type) const;
+  std::string GetParsedProgram(ProgramType type);
 
   // Compiles and links the shader
   virtual bool LinkProgram(bool isCustomShader);
