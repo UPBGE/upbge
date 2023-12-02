@@ -14,7 +14,7 @@
 
 #include "GPU_debug.h"
 #include "GPU_framebuffer.h"
-#include "GPU_select.h"
+#include "GPU_select.hh"
 #include "GPU_state.h"
 
 #include "MEM_guardedalloc.h"
@@ -664,7 +664,10 @@ uint gpu_select_pick_end()
 #ifdef DEBUG_PRINT
     printf("  hit: %u: depth %u\n", depth_data[i].id, depth_data[i].depth);
 #endif
-    g_pick_state.buffer->storage.append_unchecked({depth_data[i].id, depth_data[i].depth});
+    GPUSelectResult hit_result{};
+    hit_result.id = depth_data[i].id;
+    hit_result.depth = depth_data[i].depth;
+    g_pick_state.buffer->storage.append_unchecked(hit_result);
     hits++;
   }
 

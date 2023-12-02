@@ -13,7 +13,7 @@
 
 #include "GPU_debug.h"
 #include "GPU_framebuffer.h"
-#include "GPU_select.h"
+#include "GPU_select.hh"
 #include "GPU_state.h"
 
 #include "MEM_guardedalloc.h"
@@ -150,7 +150,10 @@ uint gpu_select_query_end()
   for (int i = 0; i < result.size(); i++) {
     if (result[i] != 0) {
       if (g_query_state.mode != GPU_SELECT_NEAREST_SECOND_PASS) {
-        g_query_state.buffer->storage.append({ids[i], 0xFFFF});
+        GPUSelectResult hit_result{};
+        hit_result.id = ids[i];
+        hit_result.depth = 0xFFFF;
+        g_query_state.buffer->storage.append(hit_result);
         hits++;
       }
       else {

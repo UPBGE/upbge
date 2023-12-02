@@ -46,7 +46,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_layer.h"
 #include "BKE_library.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"

@@ -19,6 +19,7 @@ class SelectPattern(Operator):
     bl_idname = "object.select_pattern"
     bl_label = "Select Pattern"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "pattern"
 
     pattern: StringProperty(
         name="Pattern",
