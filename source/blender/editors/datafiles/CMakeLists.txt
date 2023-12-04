@@ -343,6 +343,8 @@ set(ICON_NAMES
   force_fluidflow
   rigid_body
   rigid_body_constraint
+  area_join
+  area_swap
   split_horizontal
   split_vertical
   image_plane

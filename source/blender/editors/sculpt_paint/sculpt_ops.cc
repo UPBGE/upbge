@@ -11,6 +11,8 @@
 
 #include "BLI_ghash.h"
 #include "BLI_gsqueue.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
@@ -84,7 +86,7 @@ static int sculpt_set_persistent_base_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_FINISHED;
   }
   SCULPT_vertex_random_access_ensure(ss);
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, false, false, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
 
   SculptAttributeParams params = {0};
   params.permanent = true;
@@ -285,7 +287,7 @@ static void sculpt_init_session(Main *bmain, Depsgraph *depsgraph, Scene *scene,
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
   /* This function expects a fully evaluated depsgraph. */
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, false, false, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
 
   SculptSession *ss = ob->sculpt;
   if (ss->face_sets) {
@@ -310,6 +312,7 @@ static void sculpt_init_session(Main *bmain, Depsgraph *depsgraph, Scene *scene,
 
 void SCULPT_ensure_valid_pivot(const Object *ob, Scene *scene)
 {
+  using namespace blender;
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
   const SculptSession *ss = ob->sculpt;
 
@@ -320,11 +323,9 @@ void SCULPT_ensure_valid_pivot(const Object *ob, Scene *scene)
 
   /* No valid pivot? Use bounding box center. */
   if (ups->average_stroke_counter == 0 || !ups->last_stroke_valid) {
-    float location[3], max[3];
-    BKE_pbvh_bounding_box(ss->pbvh, location, max);
-
-    interp_v3_v3v3(location, location, max, 0.5f);
-    mul_m4_v3(ob->object_to_world, location);
+    const Bounds<float3> bounds = BKE_pbvh_bounding_box(ob->sculpt->pbvh);
+    const float3 center = math::midpoint(bounds.min, bounds.max);
+    const float3 location = math::transform_point(float4x4(ob->object_to_world), center);
 
     copy_v3_v3(ups->average_stroke_accum, location);
     ups->average_stroke_counter = 1;
@@ -575,7 +576,7 @@ void SCULPT_geometry_preview_lines_update(bContext *C, SculptSession *ss, float 
     return;
   }
 
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
 
   float brush_co[3];
   copy_v3_v3(brush_co, SCULPT_active_vertex_co_get(ss));
@@ -640,7 +641,7 @@ static int sculpt_sample_color_invoke(bContext *C, wmOperator *op, const wmEvent
     return OPERATOR_CANCELLED;
   }
 
-  BKE_sculpt_update_object_for_edit(CTX_data_depsgraph_pointer(C), ob, true, false, false);
+  BKE_sculpt_update_object_for_edit(CTX_data_depsgraph_pointer(C), ob, false);
 
   /* No color attribute? Set color to white. */
   if (!SCULPT_has_colors(ss)) {
@@ -915,7 +916,7 @@ static int sculpt_mask_by_color_invoke(bContext *C, wmOperator *op, const wmEven
   MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), ob);
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), ob, mmd);
 
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
   SCULPT_vertex_random_access_ensure(ss);
 
   /* Tools that are not brushes do not have the brush gizmo to update the vertex as the mouse move,
@@ -1064,7 +1065,7 @@ static int sculpt_bake_cavity_exec(bContext *C, wmOperator *op)
   MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), ob);
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), ob, mmd);
 
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
   SCULPT_vertex_random_access_ensure(ss);
 
   SCULPT_undo_push_begin(ob, op);
@@ -1283,11 +1284,11 @@ void ED_operatortypes_sculpt()
   WM_operatortype_append(SCULPT_OT_face_sets_init);
   WM_operatortype_append(SCULPT_OT_cloth_filter);
   WM_operatortype_append(SCULPT_OT_face_sets_edit);
-  WM_operatortype_append(SCULPT_OT_face_set_lasso_gesture);
-  WM_operatortype_append(SCULPT_OT_face_set_box_gesture);
-  WM_operatortype_append(SCULPT_OT_trim_box_gesture);
-  WM_operatortype_append(SCULPT_OT_trim_lasso_gesture);
-  WM_operatortype_append(SCULPT_OT_project_line_gesture);
+  WM_operatortype_append(blender::ed::sculpt_paint::mask::SCULPT_OT_face_set_lasso_gesture);
+  WM_operatortype_append(blender::ed::sculpt_paint::mask::SCULPT_OT_face_set_box_gesture);
+  WM_operatortype_append(blender::ed::sculpt_paint::mask::SCULPT_OT_trim_box_gesture);
+  WM_operatortype_append(blender::ed::sculpt_paint::mask::SCULPT_OT_trim_lasso_gesture);
+  WM_operatortype_append(blender::ed::sculpt_paint::mask::SCULPT_OT_project_line_gesture);
 
   WM_operatortype_append(SCULPT_OT_sample_color);
   WM_operatortype_append(SCULPT_OT_color_filter);

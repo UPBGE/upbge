@@ -492,8 +492,12 @@ static void libblock_remap_data(
                                      IDWALK_DO_INTERNAL_RUNTIME_POINTERS :
                                      IDWALK_NOP) |
                                 (include_ui ? IDWALK_INCLUDE_UI : IDWALK_NOP) |
+
                                 ((remap_flags & ID_REMAP_NO_ORIG_POINTERS_ACCESS) != 0 ?
                                      IDWALK_NO_ORIG_POINTERS_ACCESS :
+                                     IDWALK_NOP) |
+                                ((remap_flags & ID_REMAP_DO_LIBRARY_POINTERS) != 0 ?
+                                     IDWALK_DO_LIBRARY_POINTER :
                                      IDWALK_NOP));
 
   id_remap_data.id_remapper = id_remapper;
