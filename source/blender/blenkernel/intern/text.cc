@@ -59,6 +59,8 @@ static void txt_delete_line(Text *text, TextLine *line);
 static void txt_delete_sel(Text *text);
 static void txt_make_dirty(Text *text);
 
+static TextLine *txt_line_malloc() ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -68,7 +70,6 @@ static void txt_make_dirty(Text *text);
 static void text_init_data(ID *id)
 {
   Text *text = (Text *)id;
-  TextLine *tmp;
 
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(text, id));
 
@@ -81,7 +82,7 @@ static void text_init_data(ID *id)
 
   BLI_listbase_clear(&text->lines);
 
-  tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+  TextLine *tmp = txt_line_malloc();
   tmp->line = (char *)MEM_mallocN(1, "textline_string");
   tmp->format = nullptr;
 
@@ -127,7 +128,7 @@ static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const
 
   /* Walk down, reconstructing. */
   LISTBASE_FOREACH (TextLine *, line_src, &text_src->lines) {
-    TextLine *line_dst = static_cast<TextLine *>(MEM_mallocN(sizeof(*line_dst), __func__));
+    TextLine *line_dst = txt_line_malloc();
 
     line_dst->line = BLI_strdupn(line_src->line, line_src->len);
     line_dst->len = line_src->len;
@@ -364,9 +365,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
   lines_count = 0;
   for (i = 0; i < len; i++) {
     if (buffer[i] == '\n') {
-      TextLine *tmp;
-
-      tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+      TextLine *tmp = txt_line_malloc();
       tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
       tmp->format = nullptr;
 
@@ -394,9 +393,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
    * - last character in buffer is \n. in this case new line is needed to
    *   deal with newline at end of file. (see #28087) (sergey) */
   if (llen != 0 || lines_count == 0 || buffer[len - 1] == '\n') {
-    TextLine *tmp;
-
-    tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+    TextLine *tmp = txt_line_malloc();
     tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
     tmp->format = nullptr;
 
@@ -593,6 +590,14 @@ void BKE_text_file_modified_ignore(Text *text)
 /** \name Editing Utility Functions
  * \{ */
 
+static TextLine *txt_line_malloc()
+{
+  TextLine *l = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+  /* Quiet VALGRIND warning, may avoid unintended differences with MEMFILE undo as well. */
+  memset(l->_pad0, 0, sizeof(l->_pad0));
+  return l;
+}
+
 static void make_new_line(TextLine *line, char *newline)
 {
   if (line->line) {
@@ -609,9 +614,7 @@ static void make_new_line(TextLine *line, char *newline)
 
 static TextLine *txt_new_linen(const char *str, int str_len)
 {
-  TextLine *tmp;
-
-  tmp = (TextLine *)MEM_mallocN(sizeof(TextLine), "textline");
+  TextLine *tmp = txt_line_malloc();
   tmp->line = static_cast<char *>(MEM_mallocN(str_len + 1, "textline_string"));
   tmp->format = nullptr;
 
@@ -1408,7 +1411,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
     const char *buf_step_next = strchr(buf_step, '\n');
     const int len = buf_step_next - buf_step;
 
-    TextLine *l = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+    TextLine *l = txt_line_malloc();
     l->line = static_cast<char *>(MEM_mallocN(len + 1, "textline_string"));
     l->len = len;
     l->format = nullptr;
@@ -1683,7 +1686,7 @@ void txt_split_curline(Text *text)
 
   /* Make the new TextLine */
 
-  ins = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+  ins = txt_line_malloc();
   ins->line = left;
   ins->format = nullptr;
   ins->len = text->curc;

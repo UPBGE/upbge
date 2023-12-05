@@ -50,7 +50,7 @@
 #  include "BKE_context.hh"
 #  include "BKE_global.h"
 #  include "BKE_idtype.h"
-#  include "BKE_library.h"
+#  include "BKE_library.hh"
 #  include "BKE_main.hh"
 #  include "BLI_blenlib.h"
 #  include "BLI_utildefines.h"

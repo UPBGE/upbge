@@ -60,7 +60,7 @@
 #include "ED_view3d_offscreen.hh"
 #include "ED_viewer_path.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -2420,8 +2420,7 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   if (viewport != nullptr) {
     switch (mode) {
       case V3D_DEPTH_NO_GPENCIL:
-        DRW_draw_depth_loop(
-            depsgraph, region, v3d, viewport, false, true, (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, true, false);
         break;
       case V3D_DEPTH_GPENCIL_ONLY:
         DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false, false);
