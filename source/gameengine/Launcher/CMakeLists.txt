@@ -81,6 +81,12 @@ set(LIB
   ge_blender_routines
 )
 
+if(MSVC)
+	add_definitions(
+		/DNOMINMAX
+	)
+endif()
+
 if(WITH_PYTHON)
   list(APPEND LIB
     ge_videotexture
