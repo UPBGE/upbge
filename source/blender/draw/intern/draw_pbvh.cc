@@ -351,7 +351,7 @@ struct PBVHBatches {
         break;
       }
       case PBVH_GRIDS: {
-        count = BKE_pbvh_count_grid_quads(args.grid_hidden,
+        count = BKE_pbvh_count_grid_quads(args.subdiv_ccg->grid_hidden,
                                           args.grid_indices.data(),
                                           args.grid_indices.size(),
                                           args.ccg_key.grid_size,
@@ -498,10 +498,13 @@ struct PBVHBatches {
           break;
         }
         case CustomRequest::Normal: {
+          const Span<int> grid_to_face_map = args.subdiv_ccg->grid_to_face_map;
+          const bool *sharp_faces = static_cast<const bool *>(
+              CustomData_get_layer_named(args.face_data, CD_PROP_BOOL, "sharp_face"));
           foreach_grids([&](int /*x*/, int /*y*/, int grid_index, CCGElem *elems[4], int /*i*/) {
             float3 no(0.0f, 0.0f, 0.0f);
 
-            const bool smooth = !args.grid_flag_mats[grid_index].sharp;
+            const bool smooth = !(sharp_faces && sharp_faces[grid_to_face_map[grid_index]]);
 
             if (smooth) {
               no = CCG_elem_no(&args.ccg_key, elems[0]);
@@ -1111,6 +1114,11 @@ struct PBVHBatches {
 
   void create_index_grids(const PBVH_GPU_Args &args, bool do_coarse)
   {
+    const BitGroupVector<> &grid_hidden = args.subdiv_ccg->grid_hidden;
+    const Span<int> grid_to_face_map = args.subdiv_ccg->grid_to_face_map;
+
+    const bool *sharp_faces = static_cast<const bool *>(
+        CustomData_get_layer_named(args.face_data, CD_PROP_BOOL, "sharp_face"));
     const int *mat_index = static_cast<const int *>(
         CustomData_get_layer_named(args.face_data, CD_PROP_INT32, "material_index"));
 
@@ -1133,15 +1141,16 @@ struct PBVHBatches {
     }
 
     for (const int grid_index : args.grid_indices) {
-      bool smooth = !args.grid_flag_mats[grid_index].sharp;
-      const BLI_bitmap *gh = args.grid_hidden[grid_index];
-
-      for (int y = 0; y < gridsize - 1; y += skip) {
-        for (int x = 0; x < gridsize - 1; x += skip) {
-          if (gh && paint_is_grid_face_hidden(gh, gridsize, x, y)) {
-            /* Skip hidden faces by just setting smooth to true. */
-            smooth = true;
-            goto outer_loop_break;
+      bool smooth = !(sharp_faces && sharp_faces[grid_to_face_map[grid_index]]);
+      if (!grid_hidden.is_empty()) {
+        const BoundedBitSpan gh = grid_hidden[grid_index];
+        for (int y = 0; y < gridsize - 1; y += skip) {
+          for (int x = 0; x < gridsize - 1; x += skip) {
+            if (paint_is_grid_face_hidden(gh, gridsize, x, y)) {
+              /* Skip hidden faces by just setting smooth to true. */
+              smooth = true;
+              goto outer_loop_break;
+            }
           }
         }
       }
@@ -1159,7 +1168,7 @@ struct PBVHBatches {
     const CCGKey *key = &args.ccg_key;
 
     uint visible_quad_len = BKE_pbvh_count_grid_quads(
-        args.grid_hidden, args.grid_indices.data(), totgrid, key->grid_size, display_gridsize);
+        grid_hidden, args.grid_indices.data(), totgrid, key->grid_size, display_gridsize);
 
     GPU_indexbuf_init(&elb, GPU_PRIM_TRIS, 2 * visible_quad_len, INT_MAX);
     GPU_indexbuf_init(&elb_lines,
@@ -1174,12 +1183,13 @@ struct PBVHBatches {
         uint v0, v1, v2, v3;
         bool grid_visible = false;
 
-        const BLI_bitmap *gh = args.grid_hidden[args.grid_indices[i]];
+        const BoundedBitSpan gh = grid_hidden.is_empty() ? BoundedBitSpan() :
+                                                           grid_hidden[args.grid_indices[i]];
 
         for (int j = 0; j < gridsize - skip; j += skip) {
           for (int k = 0; k < gridsize - skip; k += skip) {
             /* Skip hidden grid face */
-            if (gh && paint_is_grid_face_hidden(gh, gridsize, k, j)) {
+            if (!gh.is_empty() && paint_is_grid_face_hidden(gh, gridsize, k, j)) {
               continue;
             }
             /* Indices in a Clockwise QUAD disposition. */
@@ -1212,13 +1222,14 @@ struct PBVHBatches {
 
       for (int i = 0; i < totgrid; i++, offset += grid_vert_len) {
         bool grid_visible = false;
-        const BLI_bitmap *gh = args.grid_hidden[args.grid_indices[i]];
+        const BoundedBitSpan gh = grid_hidden.is_empty() ? BoundedBitSpan() :
+                                                           grid_hidden[args.grid_indices[i]];
 
         uint v0, v1, v2, v3;
         for (int j = 0; j < gridsize - skip; j += skip) {
           for (int k = 0; k < gridsize - skip; k += skip) {
             /* Skip hidden grid face */
-            if (gh && paint_is_grid_face_hidden(gh, gridsize, k, j)) {
+            if (!gh.is_empty() && paint_is_grid_face_hidden(gh, gridsize, k, j)) {
               continue;
             }
 

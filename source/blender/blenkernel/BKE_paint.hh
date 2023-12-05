@@ -224,7 +224,7 @@ bool BKE_paint_always_hide_test(const Object *ob);
  * Returns non-zero if any of the corners of the grid
  * face whose inner corner is at (x, y) are hidden, zero otherwise.
  */
-bool paint_is_grid_face_hidden(const unsigned int *grid_hidden, int gridsize, int x, int y);
+bool paint_is_grid_face_hidden(blender::BoundedBitSpan grid_hidden, int gridsize, int x, int y);
 /**
  * Return true if all vertices in the face are visible, false otherwise.
  */
@@ -839,8 +839,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object);
 /**
  * \warning Expects a fully evaluated depsgraph.
  */
-void BKE_sculpt_update_object_for_edit(
-    Depsgraph *depsgraph, Object *ob_orig, bool need_pmap, bool need_mask, bool is_paint_tool);
+void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bool is_paint_tool);
 void BKE_sculpt_update_object_before_eval(Object *ob_eval);
 void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
 

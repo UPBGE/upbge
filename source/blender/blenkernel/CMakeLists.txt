@@ -282,7 +282,6 @@ set(SRC
   intern/subdiv.cc
   intern/subdiv_ccg.cc
   intern/subdiv_ccg_mask.cc
-  intern/subdiv_ccg_material.cc
   intern/subdiv_converter.cc
   intern/subdiv_converter_mesh.cc
   intern/subdiv_deform.cc
@@ -861,6 +860,7 @@ if(WITH_GTESTS)
     intern/lib_id_remapper_test.cc
     intern/lib_id_test.cc
     intern/lib_remap_test.cc
+    intern/main_test.cc
     intern/nla_test.cc
     intern/tracking_test.cc
   )
