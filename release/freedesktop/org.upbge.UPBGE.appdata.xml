@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop">
-    <id>org.upbgeteam.UPBGE</id>
+    <id>org.upbge.UPBGE</id>
     <launchable type="desktop-id">upbge.desktop</launchable>
     <name>UPBGE</name>
     <summary>UPBGE is a free and open source 3D Game Engine integrated in Blender</summary>

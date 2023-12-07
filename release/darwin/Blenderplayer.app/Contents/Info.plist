@@ -32,7 +32,7 @@
         <key>CFBundleIconFile</key>
         <string>upbge_icon.icns</string>
         <key>CFBundleIdentifier</key>
-        <string>org.upbgeteam.upbgeplayer</string>
+        <string>org.upbge.UPBGEplayer</string>
         <key>CFBundleInfoDictionaryVersion</key>
         <string>6.0</string>
         <key>CFBundleName</key>

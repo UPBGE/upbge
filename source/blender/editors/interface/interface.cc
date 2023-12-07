@@ -4593,6 +4593,8 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     }
     if (!item->identifier[0] && item->name) {
       categories++;
+      /* The category name adds to the column length. */
+      col_rows++;
     }
     if (item->icon) {
       has_item_with_icon = true;
@@ -6637,7 +6639,7 @@ void UI_but_func_search_set(uiBut *but,
   search_but->arg_free_fn = search_arg_free_fn;
 
   if (search_exec_fn) {
-#ifdef DEBUG
+#ifndef NDEBUG
     if (but->func) {
       /* watch this, can be cause of much confusion, see: #47691 */
       printf("%s: warning, overwriting button callback with search function callback!\n",

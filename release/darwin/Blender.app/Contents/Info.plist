@@ -38,7 +38,7 @@
 	<key>CFBundleIconFile</key>
 	<string>upbge_icon.icns</string>
 	<key>CFBundleIdentifier</key>
-        <string>org.upbgeteam.upbge</string>
+        <string>org.upbge.UPBGE</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

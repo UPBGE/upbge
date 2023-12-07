@@ -2627,4 +2627,4 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
 
 /** \} */
 
-#endif /* WITH_PYTHON_MODULE */
+#endif /* !WITH_PYTHON_MODULE */
