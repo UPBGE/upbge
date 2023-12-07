@@ -338,7 +338,7 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
 
-  for (UniformConstant constant : m_constantUniforms) {
+  for (UniformConstant &constant : m_constantUniforms) {
     info.push_constant(constant.type, constant.name);
   }
 
