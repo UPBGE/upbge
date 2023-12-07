@@ -347,6 +347,11 @@ void CustomData_bmesh_copy_data(const CustomData *source,
                                 CustomData *dest,
                                 void *src_block,
                                 void **dest_block);
+/**
+ * Copy all layers from the source to the destination block.
+ * Allocate the result block if necessary, otherwise free its existing layer data.
+ */
+void CustomData_bmesh_copy_block(CustomData &data, void *src_block, void **dst_block);
 void CustomData_bmesh_copy_data_exclude_by_type(const CustomData *source,
                                                 CustomData *dest,
                                                 void *src_block,
@@ -508,11 +513,6 @@ const char *CustomData_get_active_layer_name(const CustomData *data, eCustomData
 const char *CustomData_get_render_layer_name(const CustomData *data, eCustomDataType type);
 
 bool CustomData_layer_is_anonymous(const CustomData *data, eCustomDataType type, int n);
-
-void CustomData_bmesh_set(const CustomData *data,
-                          void *block,
-                          eCustomDataType type,
-                          const void *source);
 
 void CustomData_bmesh_set_n(
     CustomData *data, void *block, eCustomDataType type, int n, const void *source);
@@ -757,7 +757,7 @@ size_t CustomData_get_elem_size(const CustomDataLayer *layer);
 struct DynStr;
 /** Use to inspect mesh data when debugging. */
 void CustomData_debug_info_from_layers(const CustomData *data, const char *indent, DynStr *dynstr);
-#endif /* NDEBUG */
+#endif /* !NDEBUG */
 
 namespace blender::bke {
 const CPPType *custom_data_type_to_cpp_type(eCustomDataType type);
