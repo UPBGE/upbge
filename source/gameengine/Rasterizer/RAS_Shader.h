@@ -121,7 +121,8 @@ class RAS_Shader {
   RAS_UniformVecDef m_preDef;
 
   std::vector<UniformConstant> m_constantUniforms;
-  void AppendConstantUniform(std::string type, std::string name);
+  std::vector<std::pair<int, std::string>> m_samplerUniforms;
+  void AppendUniformInfos(std::string type, std::string name);
 
   /** Parse shader program to prevent redundant macro directives.
    * \param type The program type to parse.

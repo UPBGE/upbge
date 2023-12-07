@@ -146,6 +146,9 @@ RAS_Shader::RAS_Shader() : m_shader(nullptr), m_use(0), m_error(0), m_dirty(true
   for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
     m_progs[i] = "";
   }
+
+  m_constantUniforms = {};
+  m_samplerUniforms = {};
 }
 
 RAS_Shader::~RAS_Shader()
@@ -250,7 +253,7 @@ void RAS_Shader::DeleteShader()
   }
 }
 
-void RAS_Shader::AppendConstantUniform(std::string type, std::string name)
+void RAS_Shader::AppendUniformInfos(std::string type, std::string name)
 {
   if (type == "float") {
     m_constantUniforms.push_back(UniformConstant({Type::FLOAT, name}));
@@ -272,6 +275,14 @@ void RAS_Shader::AppendConstantUniform(std::string type, std::string name)
   }
   else if (type == "mat4") {
     m_constantUniforms.push_back(UniformConstant({Type::MAT4, name}));
+  }
+  else if (type == "sampler2D") {
+    if (m_samplerUniforms.size() > 7) {
+      CM_Warning("RAS_Shader: Sampler index can't be > 7");
+    }
+    else {
+      m_samplerUniforms.push_back({m_samplerUniforms.size(), name});
+    }
   }
   else {
     CM_Warning("Invalid/unsupported uniform type: " << name);
@@ -299,16 +310,16 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type)
     const unsigned int end_namepos = prog.find(";", name_pos);
     std::string type = prog.substr(type_pos, (name_pos - 1) - type_pos);
     std::string name = prog.substr(name_pos, end_namepos - name_pos);
-    AppendConstantUniform(type, name);
+    AppendUniformInfos(type, name);
 
     prog.replace(uni_pos, 2, "//");
 
-    const unsigned int endline_pos = prog.find("\0", end_namepos);
+    const unsigned int endline_pos = prog.find("\n", end_namepos);
 
     uni_pos = prog.find("uniform", endline_pos);
   }
 
-  prog.insert(0, "#line 0\n");
+  prog.insert(0, "\n");
 
   return prog;
 }
@@ -329,18 +340,20 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
 
   ShaderCreateInfo info("s_Display");
   info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
+    info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
+  }
   info.sampler(8, ImageType::FLOAT_2D, "bgl_RenderedTexture");
   info.sampler(9, ImageType::FLOAT_2D, "bgl_DepthTexture");
+  for (UniformConstant &constant : m_constantUniforms) {
+    info.push_constant(constant.type, constant.name);
+  }
   info.vertex_out(iface);
   info.fragment_out(0, Type::VEC4, "fragColor");
   info.vertex_source("common_colormanagement_lib.glsl");
   info.fragment_source("common_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
-
-  for (UniformConstant &constant : m_constantUniforms) {
-    info.push_constant(constant.type, constant.name);
-  }
 
   if (m_error) {
     goto program_error;
