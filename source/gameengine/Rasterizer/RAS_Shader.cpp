@@ -339,6 +339,8 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   iface.smooth(Type::VEC4, "bgl_TexCoord");
 
   ShaderCreateInfo info("s_Display");
+  info.push_constant(Type::FLOAT, "bgl_RenderedTextureWidth");
+  info.push_constant(Type::FLOAT, "bgl_RenderedTextureHeight");
   info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
