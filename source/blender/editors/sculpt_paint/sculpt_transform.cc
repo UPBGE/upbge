@@ -49,6 +49,7 @@ void ED_sculpt_init_transform(bContext *C,
                               const float mval_fl[2],
                               const char *undo_name)
 {
+  using namespace blender::ed::sculpt_paint;
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   SculptSession *ss = ob->sculpt;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -61,14 +62,14 @@ void ED_sculpt_init_transform(bContext *C,
   copy_v4_v4(ss->prev_pivot_rot, ss->pivot_rot);
   copy_v3_v3(ss->prev_pivot_scale, ss->pivot_scale);
 
-  SCULPT_undo_push_begin_ex(ob, undo_name);
+  undo::push_begin_ex(ob, undo_name);
   BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
 
   ss->pivot_rot[3] = 1.0f;
 
   SCULPT_vertex_random_access_ensure(ss);
 
-  SCULPT_filter_cache_init(C, ob, sd, SCULPT_UNDO_COORDS, mval_fl, 5.0, 1.0f);
+  filter::cache_init(C, ob, sd, undo::Type::Position, mval_fl, 5.0, 1.0f);
 
   if (sd->transform_mode == SCULPT_TRANSFORM_MODE_RADIUS_ELASTIC) {
     ss->filter_cache->transform_displacement_mode = SCULPT_TRANSFORM_DISPLACEMENT_INCREMENTAL;
@@ -144,14 +145,15 @@ static void sculpt_transform_matrices_init(SculptSession *ss,
 
 static void sculpt_transform_task(Object *ob, const float transform_mats[8][4][4], PBVHNode *node)
 {
+  using namespace blender::ed::sculpt_paint;
   SculptSession *ss = ob->sculpt;
 
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, ob, node, SCULPT_UNDO_COORDS);
+  SCULPT_orig_vert_data_init(&orig_data, ob, node, undo::Type::Position);
 
   PBVHVertexIter vd;
 
-  SCULPT_undo_push_node(ob, node, SCULPT_UNDO_COORDS);
+  undo::push_node(ob, node, undo::Type::Position);
   BKE_pbvh_vertex_iter_begin (ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
     SCULPT_orig_vert_data_update(&orig_data, &vd);
     float *start_co;
@@ -209,13 +211,13 @@ static void sculpt_elastic_transform_task(Object *ob,
                                           const float elastic_transform_pivot[3],
                                           PBVHNode *node)
 {
-
+  using namespace blender::ed::sculpt_paint;
   SculptSession *ss = ob->sculpt;
 
   const MutableSpan<float3> proxy = BKE_pbvh_node_add_proxy(*ss->pbvh, *node).co;
 
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, ob, node, SCULPT_UNDO_COORDS);
+  SCULPT_orig_vert_data_init(&orig_data, ob, node, undo::Type::Position);
 
   KelvinletParams params;
   /* TODO(pablodp606): These parameters can be exposed if needed as transform strength and volume
@@ -226,7 +228,7 @@ static void sculpt_elastic_transform_task(Object *ob,
   const float poisson_ratio = 0.4f;
   BKE_kelvinlet_init_params(&params, transform_radius, force, shear_modulus, poisson_ratio);
 
-  SCULPT_undo_push_node(ob, node, SCULPT_UNDO_COORDS);
+  undo::push_node(ob, node, undo::Type::Position);
 
   PBVHVertexIter vd;
   BKE_pbvh_vertex_iter_begin (ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
@@ -344,9 +346,10 @@ void ED_sculpt_update_modal_transform(bContext *C, Object *ob)
 
 void ED_sculpt_end_transform(bContext *C, Object *ob)
 {
+  using namespace blender::ed::sculpt_paint;
   SculptSession *ss = ob->sculpt;
   if (ss->filter_cache) {
-    SCULPT_filter_cache_free(ss);
+    filter::cache_free(ss);
   }
   SCULPT_flush_update_done(C, ob, SCULPT_UPDATE_COORDS);
 }

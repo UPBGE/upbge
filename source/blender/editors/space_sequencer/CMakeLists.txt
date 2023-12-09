@@ -9,6 +9,7 @@ set(INC
   ../../blentranslation
   ../../draw
   ../../gpu
+  ../../imbuf
   ../../makesrna
   ../../sequencer
   ../../windowmanager
@@ -25,6 +26,7 @@ set(SRC
   sequencer_buttons.cc
   sequencer_channels_draw.cc
   sequencer_channels_edit.cc
+  sequencer_clipboard.cc
   sequencer_drag_drop.cc
   sequencer_edit.cc
   sequencer_modifier.cc
@@ -53,7 +55,6 @@ set(LIB
   PRIVATE bf::dna
   bf_editor_interface
   bf_editor_util
-  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
 )

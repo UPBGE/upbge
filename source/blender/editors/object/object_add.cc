@@ -3173,11 +3173,11 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         newob = basen->object;
 
         /* Decrement original mesh's usage count. */
-        Mesh *me = static_cast<Mesh *>(newob->data);
-        id_us_min(&me->id);
+        Mesh *mesh = static_cast<Mesh *>(newob->data);
+        id_us_min(&mesh->id);
 
         /* Make a new copy of the mesh. */
-        newob->data = BKE_id_copy(bmain, &me->id);
+        newob->data = BKE_id_copy(bmain, &mesh->id);
       }
       else {
         newob = ob;
@@ -3314,11 +3314,11 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         newob = basen->object;
 
         /* Decrement original mesh's usage count. */
-        Mesh *me = static_cast<Mesh *>(newob->data);
-        id_us_min(&me->id);
+        Mesh *mesh = static_cast<Mesh *>(newob->data);
+        id_us_min(&mesh->id);
 
         /* Make a new copy of the mesh. */
-        newob->data = BKE_id_copy(bmain, &me->id);
+        newob->data = BKE_id_copy(bmain, &mesh->id);
       }
       else {
         newob = ob;
@@ -3339,11 +3339,11 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         newob = basen->object;
 
         /* Decrement original mesh's usage count. */
-        Mesh *me = static_cast<Mesh *>(newob->data);
-        id_us_min(&me->id);
+        Mesh *mesh = static_cast<Mesh *>(newob->data);
+        id_us_min(&mesh->id);
 
         /* Make a new copy of the mesh. */
-        newob->data = BKE_id_copy(bmain, &me->id);
+        newob->data = BKE_id_copy(bmain, &mesh->id);
       }
       else {
         newob = ob;
