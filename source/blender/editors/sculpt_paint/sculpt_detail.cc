@@ -47,6 +47,8 @@
 #include <cmath>
 #include <cstdlib>
 
+namespace blender::ed::sculpt_paint::dyntopo {
+
 static CLG_LogRef LOG = {"sculpt.detail"};
 
 /* -------------------------------------------------------------------- */
@@ -86,12 +88,11 @@ static bool sculpt_and_dynamic_topology_poll(bContext *C)
 
 static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   Object *ob = CTX_data_active_object(C);
   SculptSession *ss = ob->sculpt;
 
-  blender::Vector<PBVHNode *> nodes = blender::bke::pbvh::search_gather(ss->pbvh, {});
+  Vector<PBVHNode *> nodes = bke::pbvh::search_gather(ss->pbvh, {});
 
   if (nodes.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -111,8 +112,8 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *op)
                                        (sd->constant_detail * mat4_to_scale(ob->object_to_world));
   BKE_pbvh_bmesh_detail_size_set(ss->pbvh, object_space_constant_detail);
 
-  SCULPT_undo_push_begin(ob, op);
-  SCULPT_undo_push_node(ob, nullptr, SCULPT_UNDO_COORDS);
+  undo::push_begin(ob, op);
+  undo::push_node(ob, nullptr, undo::Type::Position);
 
   const double start_time = PIL_check_seconds_timer();
 
@@ -126,7 +127,7 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *op)
 
   CLOG_INFO(&LOG, 2, "Detail flood fill took %f seconds.", PIL_check_seconds_timer() - start_time);
 
-  SCULPT_undo_push_end(ob);
+  undo::push_end(ob);
 
   /* Force rebuild of PBVH for better BB placement. */
   SCULPT_pbvh_clear(ob);
@@ -782,5 +783,7 @@ void SCULPT_OT_dyntopo_detail_size_edit(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+}  // namespace blender::ed::sculpt_paint::dyntopo
 
 /** \} */

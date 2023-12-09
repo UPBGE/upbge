@@ -24,6 +24,7 @@
 #include "BLI_utildefines_stack.h"
 #include "BLI_vector.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.h"
@@ -72,7 +73,7 @@
  * \{ */
 
 void EDBM_select_mirrored(BMEditMesh *em,
-                          const Mesh *me,
+                          const Mesh *mesh,
                           const int axis,
                           const bool extend,
                           int *r_totmirr,
@@ -82,7 +83,7 @@ void EDBM_select_mirrored(BMEditMesh *em,
   BMIter iter;
   int totmirr = 0;
   int totfail = 0;
-  bool use_topology = me->editflag & ME_EDIT_MIRROR_TOPO;
+  bool use_topology = mesh->editflag & ME_EDIT_MIRROR_TOPO;
 
   *r_totmirr = *r_totfail = 0;
 

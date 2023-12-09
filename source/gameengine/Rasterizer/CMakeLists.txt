@@ -39,6 +39,7 @@ set(INC
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee/
   ../../blender/gpu
+  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/render
   ../../blender/render/intern
@@ -111,7 +112,6 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_intern_moto
   ge_rasterizer_opengl

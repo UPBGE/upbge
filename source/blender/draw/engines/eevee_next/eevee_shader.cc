@@ -94,12 +94,22 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_film_cryptomatte_post";
     case DEFERRED_COMBINE:
       return "eevee_deferred_combine";
-    case DEFERRED_LIGHT:
-      return "eevee_deferred_light";
+    case DEFERRED_LIGHT_SINGLE:
+      return "eevee_deferred_light_single";
+    case DEFERRED_LIGHT_DOUBLE:
+      return "eevee_deferred_light_double";
+    case DEFERRED_LIGHT_TRIPLE:
+      return "eevee_deferred_light_triple";
     case DEFERRED_CAPTURE_EVAL:
       return "eevee_deferred_capture_eval";
     case DEFERRED_PLANAR_EVAL:
       return "eevee_deferred_planar_eval";
+    case DEFERRED_TILE_CLASSIFY:
+      return "eevee_deferred_tile_classify";
+    case DEFERRED_TILE_COMPACT:
+      return "eevee_deferred_tile_compact";
+    case DEFERRED_TILE_STENCIL:
+      return "eevee_deferred_tile_stencil";
     case HIZ_DEBUG:
       return "eevee_hiz_debug";
     case HIZ_UPDATE:
@@ -116,6 +126,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_horizon_scan_refract";
     case HORIZON_SETUP:
       return "eevee_horizon_setup";
+    case LOOKDEV_DISPLAY:
+      return "eevee_lookdev_display";
     case MOTION_BLUR_GATHER:
       return "eevee_motion_blur_gather";
     case MOTION_BLUR_TILE_DILATE:
@@ -666,8 +678,14 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
   uint64_t shader_uuid = shader_uuid_from_material_type(
       pipeline_type, geometry_type, displacement_type, blender_mat->blend_flag);
 
-  return DRW_shader_from_material(
-      blender_mat, nodetree, shader_uuid, is_volume, deferred_compilation, codegen_callback, this);
+  return DRW_shader_from_material(blender_mat,
+                                  nodetree,
+                                  GPU_MAT_EEVEE,
+                                  shader_uuid,
+                                  is_volume,
+                                  deferred_compilation,
+                                  codegen_callback,
+                                  this);
 }
 
 GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
@@ -681,8 +699,14 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
 
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, geometry_type);
 
-  return DRW_shader_from_world(
-      blender_world, nodetree, shader_uuid, is_volume, defer_compilation, codegen_callback, this);
+  return DRW_shader_from_world(blender_world,
+                               nodetree,
+                               GPU_MAT_EEVEE,
+                               shader_uuid,
+                               is_volume,
+                               defer_compilation,
+                               codegen_callback,
+                               this);
 }
 
 /* Variation to compile a material only with a nodetree. Caller needs to maintain the list of
@@ -702,6 +726,7 @@ GPUMaterial *ShaderModule::material_shader_get(const char *name,
                                                    nodetree,
                                                    &materials,
                                                    name,
+                                                   GPU_MAT_EEVEE,
                                                    shader_uuid,
                                                    is_volume,
                                                    false,

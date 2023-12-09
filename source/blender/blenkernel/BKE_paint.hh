@@ -36,8 +36,15 @@ struct Brush;
 struct CurveMapping;
 struct Depsgraph;
 struct EnumPropertyItem;
-struct ExpandCache;
-struct FilterCache;
+namespace blender::ed::sculpt_paint {
+namespace expand {
+struct Cache;
+}
+namespace filter {
+struct Cache;
+}
+struct StrokeCache;
+}  // namespace blender::ed::sculpt_paint
 struct GHash;
 struct GridPaintMask;
 struct Image;
@@ -61,7 +68,6 @@ struct Palette;
 struct PaletteColor;
 struct RegionView3D;
 struct Scene;
-struct StrokeCache;
 struct Sculpt;
 struct SculptSession;
 struct SubdivCCG;
@@ -196,7 +202,6 @@ const Brush *BKE_paint_brush_for_read(const Paint *p);
 void BKE_paint_brush_set(Paint *paint, Brush *br);
 Palette *BKE_paint_palette(Paint *paint);
 void BKE_paint_palette_set(Paint *p, Palette *palette);
-void BKE_paint_curve_set(Brush *br, PaintCurve *pc);
 void BKE_paint_curve_clamp_endpoint_add_index(PaintCurve *pc, int add_index);
 
 /**
@@ -546,7 +551,7 @@ struct SculptAttributePointers {
   SculptAttribute *persistent_disp;
 
   /* Precomputed auto-mask factor indexed by vertex, owned by the auto-masking system and
-   * initialized in #SCULPT_automasking_cache_init when needed. */
+   * initialized in #auto_mask::cache_init when needed. */
   SculptAttribute *automasking_factor;
   SculptAttribute *automasking_occlusion; /* CD_PROP_INT8. */
   SculptAttribute *automasking_stroke_id;
@@ -607,12 +612,12 @@ struct SculptSession {
    * geometry (the trim tool, for example) to detect which geometry was just added, so it can be
    * assigned a valid Face Set after creation. Tools are not intended to run with Face Sets IDs set
    * to 0. */
-  int *face_sets;
+  const int *face_sets;
   /**
    * A reference to the ".hide_poly" attribute, to store whether (base) faces are hidden.
    * May be null.
    */
-  bool *hide_poly;
+  const bool *hide_poly;
 
   /* BMesh for dynamic topology sculpting */
   BMesh *bm;
@@ -637,9 +642,9 @@ struct SculptSession {
   /* Pool for texture evaluations. */
   ImagePool *tex_pool;
 
-  StrokeCache *cache;
-  FilterCache *filter_cache;
-  ExpandCache *expand_cache;
+  blender::ed::sculpt_paint::StrokeCache *cache;
+  blender::ed::sculpt_paint::filter::Cache *filter_cache;
+  blender::ed::sculpt_paint::expand::Cache *expand_cache;
 
   /* Cursor data and active vertex for tools */
   PBVHVertRef active_vertex;
@@ -775,11 +780,6 @@ SculptAttribute *BKE_sculpt_attribute_get(Object *ob,
                                           eCustomDataType proptype,
                                           const char *name);
 
-bool BKE_sculpt_attribute_exists(Object *ob,
-                                 eAttrDomain domain,
-                                 eCustomDataType proptype,
-                                 const char *name);
-
 bool BKE_sculpt_attribute_destroy(Object *ob, SculptAttribute *attr);
 
 /* Destroy all attributes and pseudo-attributes created by sculpt mode. */
@@ -848,13 +848,11 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
  * it's the last modifier on the stack and it is not on the first level.
  */
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob);
-int *BKE_sculpt_face_sets_ensure(Object *ob);
 /**
- * Create the attribute used to store face visibility and retrieve its data.
- * Note that changes to the face visibility have to be propagated to other domains
- * (see #SCULPT_visibility_sync_all_from_faces).
+ * Update the pointer to the ".hide_poly" attribute. This is necessary because it is dynamically
+ * created, removed, and made mutable.
  */
-bool *BKE_sculpt_hide_poly_ensure(Mesh *mesh);
+void BKE_sculpt_hide_poly_pointer_update(Object &object);
 
 /**
  * Ensures a mask layer exists. If depsgraph and bmain are non-null,
@@ -874,7 +872,6 @@ PBVH *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob);
 
 void BKE_sculpt_bvh_update_from_ccg(PBVH *pbvh, SubdivCCG *subdiv_ccg);
 
-void BKE_sculpt_ensure_orig_mesh_data(Scene *scene, Object *object);
 void BKE_sculpt_sync_face_visibility_to_grids(Mesh *mesh, SubdivCCG *subdiv_ccg);
 
 /**

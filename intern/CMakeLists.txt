@@ -55,8 +55,11 @@ if(WITH_BULLET)
   add_subdirectory(rigidbody)
 endif()
 
-add_subdirectory(utfconv)
-add_subdirectory(gpudirect)
+# only windows needs utf16 converter
+if(WIN32)
+  add_subdirectory(utfconv)
+  add_subdirectory(gpudirect)
+endif()
 
 if(WITH_MOD_FLUID)
   add_subdirectory(mantaflow)

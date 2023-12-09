@@ -107,7 +107,6 @@
 #include "RE_pipeline.h"
 #include "RE_texture.h"
 #include "RNA_define.hh"
-#include "SEQ_clipboard.hh"
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "WM_api.hh"
@@ -1840,7 +1839,6 @@ int main(int argc,
   ED_preview_restart_queue_free();
   ED_assetlist_storage_exit();
 
-  SEQ_clipboard_free(); /* sequencer.c */
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
