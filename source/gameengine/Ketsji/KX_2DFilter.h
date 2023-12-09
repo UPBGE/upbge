@@ -44,8 +44,7 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
   virtual bool LinkProgram();
 
 #ifdef WITH_PYTHON
-  bool CheckTexture(int index, int bindCode, const std::string &prefix) const;
-  bool SetTextureUniform(int index, const char *samplerName);
+  bool SetTextureUniform(struct BPyGPUTexture *py_texture, const char *samplerName);
 
   static PyObject *pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v,
@@ -55,7 +54,6 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
                                           const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC(KX_2DFilter, setTexture);
-  EXP_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
   EXP_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
   EXP_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
 

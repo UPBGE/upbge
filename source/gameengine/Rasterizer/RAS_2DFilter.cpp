@@ -232,13 +232,6 @@ void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *color
     GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
     GPU_apply_state();
   }
-
-  //// Bind custom textures.
-  //for (const auto &pair : m_textures) {
-  //  glActiveTexture(GL_TEXTURE0 + pair.first);
-  //  glBindTexture(pair.second.first, pair.second.second);
-  //}
-  GPU_apply_state();
 }
 
 void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *colorfb)
@@ -252,14 +245,6 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb->GetFrameBuffer()));
   }
-
-  //// Unbind custom textures.
-  //for (const auto &pair : m_textures) {
-  //  glActiveTexture(GL_TEXTURE0 + pair.first);
-  //  glBindTexture(pair.second.first, 0);
-  //}
-
-  //glActiveTexture(GL_TEXTURE0);
 }
 
 void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
