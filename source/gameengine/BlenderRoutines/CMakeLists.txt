@@ -20,6 +20,7 @@ set(INC
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
   ../../blender/gpu
+  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/windowmanager
   ../../../intern/termcolor
@@ -40,7 +41,6 @@ set(LIB
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
   PRIVATE bf::dna
-  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   ge_ketsji
   ge_common

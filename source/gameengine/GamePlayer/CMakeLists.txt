@@ -49,6 +49,7 @@ set(INC
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
   ../../blender/gpu
+  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/python
   ../../blender/render
@@ -79,7 +80,6 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_ghost
@@ -88,9 +88,7 @@ set(LIB
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
-  list(APPEND LIB
-    PRIVATE bf::intern::utfconv
-  )
+  list(APPEND INC ../../../intern/utfconv)
 endif()
 
 if(WITH_USD)

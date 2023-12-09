@@ -20,6 +20,7 @@ set(INC
   ../../blender/draw/engines/eevee
   ../../blender/editors/include
   ../../blender/gpu
+  ../../blender/imbuf
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
@@ -82,7 +83,6 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   ge_scenegraph
 )

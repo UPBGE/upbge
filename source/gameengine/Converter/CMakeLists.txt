@@ -47,6 +47,7 @@ set(INC
   ../../blender/draw/engines/eevee
   ../../blender/draw/intern
   ../../blender/gpu
+  ../../blender/imbuf
   ../../blender/ikplugin
   ../../blender/makesrna
   ../../blender/render
@@ -99,7 +100,6 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   ge_physics_dummy
   ge_physics_bullet
