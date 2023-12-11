@@ -388,7 +388,7 @@ void ForwardPipeline::render(View &view, Framebuffer &prepass_fb, Framebuffer &c
 
   inst_.hiz_buffer.set_dirty();
 
-  inst_.shadows.set_view(view);
+  inst_.shadows.set_view(view, inst_.render_buffers.depth_tx);
   inst_.irradiance_cache.set_view(view);
 
   combined_fb.bind();
@@ -464,7 +464,20 @@ void DeferredLayer::begin_sync()
     inst_.hiz_buffer.bind_resources(gbuffer_ps_);
     inst_.cryptomatte.bind_resources(gbuffer_ps_);
 
+    /* Bind light resources for the NPR materials that gets rendered first.
+     * Non-NPR shaders will override these resource bindings. */
+    inst_.lights.bind_resources(gbuffer_ps_);
+    inst_.shadows.bind_resources(gbuffer_ps_);
+    inst_.reflection_probes.bind_resources(gbuffer_ps_);
+    inst_.irradiance_cache.bind_resources(gbuffer_ps_);
+
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL;
+
+    gbuffer_single_sided_hybrid_ps_ = &gbuffer_ps_.sub("DoubleSided");
+    gbuffer_single_sided_hybrid_ps_->state_set(state | DRW_STATE_CULL_BACK);
+
+    gbuffer_double_sided_hybrid_ps_ = &gbuffer_ps_.sub("SingleSided");
+    gbuffer_double_sided_hybrid_ps_->state_set(state);
 
     gbuffer_double_sided_ps_ = &gbuffer_ps_.sub("DoubleSided");
     gbuffer_double_sided_ps_->state_set(state);
@@ -600,9 +613,15 @@ PassMain::Sub *DeferredLayer::material_add(::Material *blender_mat, GPUMaterial 
   eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
   closure_bits_ |= closure_bits;
 
-  PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
-                            gbuffer_single_sided_ps_ :
-                            gbuffer_double_sided_ps_;
+  bool has_shader_to_rgba = (closure_bits & CLOSURE_SHADER_TO_RGBA) != 0;
+  bool backface_culling = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) != 0;
+
+  PassMain::Sub *pass = (has_shader_to_rgba) ?
+                            ((backface_culling) ? gbuffer_single_sided_hybrid_ps_ :
+                                                  gbuffer_double_sided_hybrid_ps_) :
+                            ((backface_culling) ? gbuffer_single_sided_ps_ :
+                                                  gbuffer_double_sided_ps_);
+
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
@@ -620,7 +639,7 @@ void DeferredLayer::render(View &main_view,
   /* The first pass will never have any surfaces behind it. Nothing is refracted except the
    * environment. So in this case, disable tracing and fallback to probe. */
   bool do_screen_space_refraction = !is_first_pass && (closure_bits_ & CLOSURE_REFRACTION);
-  bool do_screen_space_reflection = (closure_bits_ & CLOSURE_REFLECTION);
+  bool do_screen_space_reflection = (closure_bits_ & (CLOSURE_REFLECTION | CLOSURE_DIFFUSE));
   eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
 
   if (do_screen_space_reflection) {
@@ -653,10 +672,11 @@ void DeferredLayer::render(View &main_view,
   inst_.manager->submit(prepass_ps_, render_view);
 
   inst_.hiz_buffer.swap_layer();
+  /* Update for lighting pass or AO node. */
   inst_.hiz_buffer.update();
 
   inst_.irradiance_cache.set_view(render_view);
-  inst_.shadows.set_view(render_view);
+  inst_.shadows.set_view(render_view, inst_.render_buffers.depth_tx);
 
   if (/* FIXME(fclem): Vulkan doesn't implement load / store config yet. */
       GPU_backend_get_type() == GPU_BACKEND_VULKAN)
@@ -1195,10 +1215,12 @@ void DeferredProbeLayer::render(View &view,
   inst_.manager->submit(prepass_ps_, view);
 
   inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
-  inst_.hiz_buffer.set_dirty();
   inst_.lights.set_view(view, extent);
-  inst_.shadows.set_view(view);
+  inst_.shadows.set_view(view, inst_.render_buffers.depth_tx);
   inst_.irradiance_cache.set_view(view);
+
+  /* Update for lighting pass. */
+  inst_.hiz_buffer.update();
 
   GPU_framebuffer_bind(gbuffer_fb);
   inst_.manager->submit(gbuffer_ps_, view);
@@ -1339,26 +1361,36 @@ PassMain::Sub *PlanarProbePipeline::material_add(::Material *blender_mat, GPUMat
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-void PlanarProbePipeline::render(
-    View &view, Framebuffer &gbuffer_fb, Framebuffer &combined_fb, int layer_id, int2 extent)
+void PlanarProbePipeline::render(View &view,
+                                 GPUTexture *depth_layer_tx,
+                                 Framebuffer &gbuffer_fb,
+                                 Framebuffer &combined_fb,
+                                 int2 extent)
 {
   GPU_debug_group_begin("Planar.Capture");
-
-  inst_.hiz_buffer.set_source(&inst_.planar_probes.depth_tx_, layer_id);
-  inst_.hiz_buffer.set_dirty();
 
   GPU_framebuffer_bind(gbuffer_fb);
   GPU_framebuffer_clear_depth(gbuffer_fb, 1.0f);
   inst_.manager->submit(prepass_ps_, view);
 
+  /* TODO(fclem): This is the only place where we use the layer source to HiZ.
+   * This is because the texture layer view is still a layer texture. */
+  inst_.hiz_buffer.set_source(&depth_layer_tx, 0);
   inst_.lights.set_view(view, extent);
-  inst_.shadows.set_view(view);
+  inst_.shadows.set_view(view, depth_layer_tx);
   inst_.irradiance_cache.set_view(view);
 
+  /* Update for lighting pass. */
   inst_.hiz_buffer.update();
 
-  GPU_framebuffer_bind(gbuffer_fb);
-  GPU_framebuffer_clear_color(gbuffer_fb, float4(0.0f, 0.0f, 0.0f, 1.0f));
+  GPU_framebuffer_bind_ex(gbuffer_fb,
+                          {
+                              {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},          /* Depth */
+                              {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0.0f}}, /* Combined */
+                              {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0}}, /* GBuf Header */
+                              {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE}, /* GBuf Closure */
+                              {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE}, /* GBuf Color */
+                          });
   inst_.manager->submit(gbuffer_ps_, view);
 
   GPU_framebuffer_bind(combined_fb);

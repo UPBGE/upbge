@@ -394,10 +394,6 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
     }
   }
 
-  if (pipeline_type == MAT_PIPE_PREPASS_FORWARD) {
-    info.define("MAT_FORWARD");
-  }
-
   bool supports_render_passes = (pipeline_type == MAT_PIPE_DEFERRED);
   /* Opaque forward do support AOVs and render pass if not using transparency. */
   if (!GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) &&
@@ -645,7 +641,12 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
           info.additional_info("eevee_surf_capture");
           break;
         case MAT_PIPE_DEFERRED:
-          info.additional_info("eevee_surf_deferred");
+          if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
+            info.additional_info("eevee_surf_deferred_hybrid");
+          }
+          else {
+            info.additional_info("eevee_surf_deferred");
+          }
           break;
         case MAT_PIPE_FORWARD:
           info.additional_info("eevee_surf_forward");
