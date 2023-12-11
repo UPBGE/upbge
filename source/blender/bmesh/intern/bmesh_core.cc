@@ -98,7 +98,7 @@ BMVert *BM_vert_create(BMesh *bm,
       int *keyi;
 
       /* handles 'v->no' too */
-      BM_elem_attrs_copy(*bm, v_example, v);
+      BM_elem_attrs_copy(bm, v_example, v);
 
       /* Exception: don't copy the original shape-key index. */
       keyi = static_cast<int *>(CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX));
@@ -179,7 +179,7 @@ BMEdge *BM_edge_create(
 
   if (!(create_flag & BM_CREATE_SKIP_CD)) {
     if (e_example) {
-      BM_elem_attrs_copy(*bm, e_example, e);
+      BM_elem_attrs_copy(bm, e_example, e);
     }
     else {
       CustomData_bmesh_set_default(&bm->edata, &e->head.data);
@@ -280,18 +280,17 @@ static BMLoop *bm_face_boundary_add(
   return l;
 }
 
-BMFace *BM_face_copy(
-    BMesh *bm_dst, BMesh *bm_src, BMFace *f, const bool copy_verts, const bool copy_edges)
+static BMFace *bm_face_copy_impl(BMesh *bm_dst,
+                                 BMFace *f,
+                                 const bool copy_verts,
+                                 const bool copy_edges)
 {
   BMVert **verts = BLI_array_alloca(verts, f->len);
   BMEdge **edges = BLI_array_alloca(edges, f->len);
   BMLoop *l_iter;
   BMLoop *l_first;
-  BMLoop *l_copy;
   BMFace *f_copy;
   int i;
-
-  BLI_assert((bm_dst == bm_src) || (copy_verts && copy_edges));
 
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
   i = 0;
@@ -330,15 +329,45 @@ BMFace *BM_face_copy(
 
   f_copy = BM_face_create(bm_dst, verts, edges, f->len, nullptr, BM_CREATE_SKIP_CD);
 
-  BM_elem_attrs_copy(bm_src, bm_dst, f, f_copy);
+  return f_copy;
+}
 
-  l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-  l_copy = BM_FACE_FIRST_LOOP(f_copy);
+BMFace *BM_face_copy(BMesh *bm_dst,
+                     const BMCustomDataCopyMap &cd_face_map,
+                     const BMCustomDataCopyMap &cd_loop_map,
+                     BMFace *f,
+                     const bool copy_verts,
+                     const bool copy_edges)
+{
+  BMFace *f_copy = bm_face_copy_impl(bm_dst, f, copy_verts, copy_edges);
+
+  /* Copy custom-data. */
+  BM_elem_attrs_copy(bm_dst, cd_face_map, f, f_copy);
+
+  BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
+  BMLoop *l_copy = BM_FACE_FIRST_LOOP(f_copy);
+  BMLoop *l_iter = l_first;
   do {
-    BM_elem_attrs_copy(bm_src, bm_dst, l_iter, l_copy);
+    BM_elem_attrs_copy(bm_dst, cd_loop_map, l_iter, l_copy);
     l_copy = l_copy->next;
   } while ((l_iter = l_iter->next) != l_first);
+  return f_copy;
+}
 
+BMFace *BM_face_copy(BMesh *bm_dst, BMFace *f, const bool copy_verts, const bool copy_edges)
+{
+  BMFace *f_copy = bm_face_copy_impl(bm_dst, f, copy_verts, copy_edges);
+
+  /* Copy custom-data. */
+  BM_elem_attrs_copy(bm_dst, f, f_copy);
+
+  BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
+  BMLoop *l_copy = BM_FACE_FIRST_LOOP(f_copy);
+  BMLoop *l_iter = l_first;
+  do {
+    BM_elem_attrs_copy(bm_dst, l_iter, l_copy);
+    l_copy = l_copy->next;
+  } while ((l_iter = l_iter->next) != l_first);
   return f_copy;
 }
 
@@ -445,7 +474,7 @@ BMFace *BM_face_create(BMesh *bm,
 
   if (!(create_flag & BM_CREATE_SKIP_CD)) {
     if (f_example) {
-      BM_elem_attrs_copy(*bm, f_example, f);
+      BM_elem_attrs_copy(bm, f_example, f);
     }
     else {
       CustomData_bmesh_set_default(&bm->pdata, &f->head.data);
@@ -1249,7 +1278,7 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
       }
       BLI_assert(l_iter->v == l2->v);
 
-      BM_elem_attrs_copy(*bm, l2, l_iter);
+      BM_elem_attrs_copy(bm, l2, l_iter);
     }
   } while ((l_iter = l_iter->next) != l_first);
 
@@ -1332,7 +1361,7 @@ static BMFace *bm_face_create__sfme(BMesh *bm, BMFace *f_example)
   f->totbounds = 1;
 #endif
 
-  BM_elem_attrs_copy(*bm, f_example, f);
+  BM_elem_attrs_copy(bm, f_example, f);
 
   return f;
 }
@@ -2149,7 +2178,7 @@ void bmesh_kernel_vert_separate(
       if (edges_found == v_edges_num) {
         /* We're done! The remaining edges in 'edges' form the last fan,
          * which can be left as is.
-         * if 'edges' were alloc'd it'd be freed here. */
+         * if 'edges' were allocated it'd be freed here. */
         break;
       }
 

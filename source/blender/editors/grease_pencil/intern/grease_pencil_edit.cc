@@ -267,7 +267,7 @@ static void smooth_curve_attribute(const OffsetIndices<int> points_by_curve,
                                    const bool keep_shape,
                                    GMutableSpan data)
 {
-  curves_to_smooth.foreach_index_optimized<int64_t>(GrainSize(512), [&](const int64_t curve_i) {
+  curves_to_smooth.foreach_index(GrainSize(512), [&](const int curve_i) {
     Vector<std::byte> orig_data;
     const IndexRange points = points_by_curve[curve_i];
 
@@ -1010,7 +1010,7 @@ static void GREASE_PENCIL_OT_stroke_material_set(wmOperatorType *ot)
 {
   ot->name = "Assign Material";
   ot->idname = "GREASE_PENCIL_OT_stroke_material_set";
-  ot->description = "Change Stroke material with selected material";
+  ot->description = "Assign the active material slot to the selected strokes";
 
   ot->exec = grease_pencil_stroke_material_set_exec;
   ot->poll = editable_grease_pencil_poll;

@@ -207,7 +207,8 @@ uint64_t GHOST_SystemWin32::getMilliSeconds() const
  * Returns the number of milliseconds since the start of the Blender process to the time of the
  * last message, using the high frequency timer if available. This should be used instead of
  * getMilliSeconds when you need the time a message was delivered versus collected, so for all
- * event creation that are in reponse to receiving a Windows message. */
+ * event creation that are in response to receiving a Windows message.
+ */
 static uint64_t getMessageTime(GHOST_SystemWin32 *system)
 {
   /* Get difference between last message time and now. */
@@ -882,6 +883,7 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 
   GHOST_TabletData td = window->getTabletData();
+  const uint64_t event_ms = getMessageTime(system);
 
   /* Move mouse to button event position. */
   if (window->getTabletData().Active != GHOST_kTabletModeNone) {
@@ -889,8 +891,8 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
     DWORD msgPos = ::GetMessagePos();
     int msgPosX = GET_X_LPARAM(msgPos);
     int msgPosY = GET_Y_LPARAM(msgPos);
-    system->pushEvent(new GHOST_EventCursor(
-        ::GetMessageTime(), GHOST_kEventCursorMove, window, msgPosX, msgPosY, td));
+    system->pushEvent(
+        new GHOST_EventCursor(event_ms, GHOST_kEventCursorMove, window, msgPosX, msgPosY, td));
 
     if (type == GHOST_kEventButtonDown) {
       WINTAB_PRINTF("HWND %p OS button down\n", window->getHWND());
@@ -901,7 +903,7 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
   }
 
   window->updateMouseCapture(type == GHOST_kEventButtonDown ? MousePressed : MouseReleased);
-  return new GHOST_EventButton(getMessageTime(system), type, window, mask, td);
+  return new GHOST_EventButton(event_ms, type, window, mask, td);
 }
 
 void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)

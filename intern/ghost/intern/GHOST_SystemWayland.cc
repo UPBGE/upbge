@@ -2274,6 +2274,113 @@ static wl_buffer *ghost_wl_buffer_create_for_image(wl_shm *shm,
   return buffer;
 }
 
+/**
+ * A version of `read` which will read `nbytes` or as many bytes as possible,
+ * useful as the LIBC version may `read` less than requested.
+ */
+static ssize_t read_exhaustive(const int fd, void *data, size_t nbytes)
+{
+  ssize_t nbytes_read = read(fd, data, nbytes);
+  if (nbytes_read > 0) {
+    while (nbytes_read < nbytes) {
+      const ssize_t nbytes_extra = read(
+          fd, static_cast<char *>(data) + nbytes_read, nbytes - nbytes_read);
+      if (nbytes_extra > 0) {
+        nbytes_read += nbytes_extra;
+      }
+      else {
+        if (UNLIKELY(nbytes_extra < 0)) {
+          nbytes_read = nbytes_extra; /* Error. */
+        }
+        break;
+      }
+    }
+  }
+  return nbytes_read;
+}
+
+/**
+ * Read from `fd` into a buffer which is returned.
+ * Use for files where seeking to determine the final size isn't supported (pipes for e.g.).
+ *
+ * \return the buffer or null on failure.
+ * On failure `errno` will be set.
+ */
+static char *read_file_as_buffer(const int fd, const bool nil_terminate, size_t *r_len)
+{
+  struct ByteChunk {
+    ByteChunk *next;
+    char data[4096 - sizeof(ByteChunk *)];
+  };
+  bool ok = true;
+  size_t len = 0;
+
+  ByteChunk *chunk_first = static_cast<ByteChunk *>(malloc(sizeof(ByteChunk)));
+  {
+    ByteChunk **chunk_link_p = &chunk_first;
+    ByteChunk *chunk = chunk_first;
+    while (true) {
+      if (UNLIKELY(chunk == nullptr)) {
+        errno = ENOMEM;
+        ok = false;
+        break;
+      }
+      chunk->next = nullptr;
+      /* Using `read` causes issues with GNOME, see: #106040). */
+      const ssize_t len_chunk = read_exhaustive(fd, chunk->data, sizeof(ByteChunk::data));
+      if (len_chunk <= 0) {
+        if (UNLIKELY(len_chunk < 0)) {
+          ok = false;
+        }
+        free(chunk);
+        break;
+      }
+      *chunk_link_p = chunk;
+      chunk_link_p = &chunk->next;
+      len += len_chunk;
+
+      if (len_chunk != sizeof(ByteChunk::data)) {
+        break;
+      }
+      chunk = static_cast<ByteChunk *>(malloc(sizeof(ByteChunk)));
+    }
+  }
+
+  char *buf = nullptr;
+  if (ok) {
+    buf = static_cast<char *>(malloc(len + (nil_terminate ? 1 : 0)));
+    if (UNLIKELY(buf == nullptr)) {
+      errno = ENOMEM;
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    *r_len = len;
+    if (nil_terminate) {
+      buf[len] = '\0';
+    }
+  }
+  else {
+    *r_len = 0;
+  }
+
+  char *buf_stride = buf;
+  while (chunk_first) {
+    if (ok) {
+      const size_t len_chunk = std::min(len, sizeof(chunk_first->data));
+      memcpy(buf_stride, chunk_first->data, len_chunk);
+      buf_stride += len_chunk;
+      len -= len_chunk;
+    }
+    ByteChunk *chunk = chunk_first->next;
+    free(chunk_first);
+    chunk_first = chunk;
+  }
+
+  return buf;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2449,85 +2556,6 @@ static void dnd_events(const GWL_Seat *const seat,
   }
 }
 
-/**
- * Read from `fd` into a buffer which is returned.
- * \return the buffer or null on failure.
- */
-static char *read_file_as_buffer(const int fd, const bool nil_terminate, size_t *r_len)
-{
-  struct ByteChunk {
-    ByteChunk *next;
-    /* NOTE(@ideasman42): On GNOME-SHELL-43.3, non powers of two values
-     * (1023 or 4088 for e.g.) makes `read()` *intermittently* include uninitialized memory
-     * (failing to read the end of the chunk) as well as truncating the end of the whole buffer.
-     * The WAYLAND spec doesn't mention buffer-size so this may be a bug in GNOME-SHELL.
-     * Whatever the case, using a power of two isn't a problem (besides some slop-space waste).
-     * This workaround isn't necessary for KDE & WLROOTS based compositors, see: #106040. */
-    char data[4096];
-  };
-  ByteChunk *chunk_first = nullptr, **chunk_link_p = &chunk_first;
-  bool ok = true;
-  size_t len = 0;
-  while (true) {
-    ByteChunk *chunk = static_cast<typeof(chunk)>(malloc(sizeof(*chunk)));
-    if (UNLIKELY(chunk == nullptr)) {
-      CLOG_WARN(LOG, "unable to allocate chunk for file buffer");
-      ok = false;
-      break;
-    }
-    chunk->next = nullptr;
-    const ssize_t len_chunk = read(fd, chunk->data, sizeof(chunk->data));
-    if (len_chunk <= 0) {
-      if (UNLIKELY(len_chunk < 0)) {
-        CLOG_WARN(LOG, "error reading from pipe: %s", std::strerror(errno));
-        ok = false;
-      }
-      free(chunk);
-      break;
-    }
-    if (chunk_first == nullptr) {
-      chunk_first = chunk;
-    }
-    *chunk_link_p = chunk;
-    chunk_link_p = &chunk->next;
-    len += len_chunk;
-  }
-
-  char *buf = nullptr;
-  if (ok) {
-    buf = static_cast<char *>(malloc(len + (nil_terminate ? 1 : 0)));
-    if (UNLIKELY(buf == nullptr)) {
-      CLOG_WARN(LOG, "unable to allocate file buffer: %zu bytes", len);
-      ok = false;
-    }
-  }
-
-  if (ok) {
-    *r_len = len;
-    if (nil_terminate) {
-      buf[len] = '\0';
-    }
-  }
-  else {
-    *r_len = 0;
-  }
-
-  char *buf_stride = buf;
-  while (chunk_first) {
-    if (ok) {
-      const size_t len_chunk = std::min(len, sizeof(chunk_first->data));
-      memcpy(buf_stride, chunk_first->data, len_chunk);
-      buf_stride += len_chunk;
-      len -= len_chunk;
-    }
-    ByteChunk *chunk = chunk_first->next;
-    free(chunk_first);
-    chunk_first = chunk;
-  }
-
-  return buf;
-}
-
 static char *read_buffer_from_data_offer(GWL_DataOffer *data_offer,
                                          const char *mime_receive,
                                          std::mutex *mutex,
@@ -2554,6 +2582,9 @@ static char *read_buffer_from_data_offer(GWL_DataOffer *data_offer,
   char *buf = nullptr;
   if (pipefd_ok) {
     buf = read_file_as_buffer(pipefd[0], nil_terminate, r_len);
+    if (buf == nullptr) {
+      CLOG_WARN(LOG, "unable to pipe into buffer: %s", std::strerror(errno));
+    }
     close(pipefd[0]);
   }
   return buf;
@@ -2582,6 +2613,9 @@ static char *read_buffer_from_primary_selection_offer(GWL_PrimarySelection_DataO
   char *buf = nullptr;
   if (pipefd_ok) {
     buf = read_file_as_buffer(pipefd[0], nil_terminate, r_len);
+    if (buf == nullptr) {
+      CLOG_WARN(LOG, "unable to pipe into buffer: %s", std::strerror(errno));
+    }
     close(pipefd[0]);
   }
   return buf;
@@ -8067,8 +8101,12 @@ GHOST_TimerManager *GHOST_SystemWayland::ghost_timer_manager()
 
 #ifdef WITH_INPUT_IME
 
-void GHOST_SystemWayland::ime_begin(
-    GHOST_WindowWayland *win, int32_t x, int32_t y, int32_t w, int32_t h, bool completed) const
+void GHOST_SystemWayland::ime_begin(const GHOST_WindowWayland *win,
+                                    int32_t x,
+                                    int32_t y,
+                                    int32_t w,
+                                    int32_t h,
+                                    bool completed) const
 {
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
   if (UNLIKELY(!seat)) {
@@ -8134,7 +8172,7 @@ void GHOST_SystemWayland::ime_begin(
   }
 }
 
-void GHOST_SystemWayland::ime_end(GHOST_WindowWayland * /*window*/) const
+void GHOST_SystemWayland::ime_end(const GHOST_WindowWayland * /*window*/) const
 {
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
   if (UNLIKELY(!seat)) {
