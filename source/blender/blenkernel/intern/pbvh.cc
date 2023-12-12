@@ -1780,11 +1780,9 @@ void BKE_pbvh_vert_tag_update_normal(PBVH *pbvh, PBVHVertRef vertex)
   pbvh->vert_bitmap[vertex.i] = true;
 }
 
-void BKE_pbvh_node_get_loops(const PBVHNode *node, const int **r_loop_indices)
+blender::Span<int> BKE_pbvh_node_get_loops(const PBVHNode *node)
 {
-  if (r_loop_indices) {
-    *r_loop_indices = node->loop_indices.data();
-  }
+  return node->loop_indices;
 }
 
 int BKE_pbvh_num_faces(const PBVH *pbvh)
@@ -1849,43 +1847,6 @@ blender::Vector<int> BKE_pbvh_node_calc_face_indices(const PBVH &pbvh, const PBV
   Vector<int> faces;
   BKE_pbvh_node_calc_face_indices(pbvh, node, faces);
   return faces;
-}
-
-void BKE_pbvh_node_num_verts(const PBVH *pbvh,
-                             const PBVHNode *node,
-                             int *r_uniquevert,
-                             int *r_totvert)
-{
-  int tot;
-
-  switch (pbvh->header.type) {
-    case PBVH_GRIDS:
-      tot = node->prim_indices.size() * pbvh->gridkey.grid_area;
-      if (r_totvert) {
-        *r_totvert = tot;
-      }
-      if (r_uniquevert) {
-        *r_uniquevert = tot;
-      }
-      break;
-    case PBVH_FACES:
-      if (r_totvert) {
-        *r_totvert = node->uniq_verts + node->face_verts;
-      }
-      if (r_uniquevert) {
-        *r_uniquevert = node->uniq_verts;
-      }
-      break;
-    case PBVH_BMESH:
-      tot = node->bm_unique_verts.size();
-      if (r_totvert) {
-        *r_totvert = tot + node->bm_other_verts.size();
-      }
-      if (r_uniquevert) {
-        *r_uniquevert = tot;
-      }
-      break;
-  }
 }
 
 int BKE_pbvh_node_num_unique_verts(const PBVH &pbvh, const PBVHNode &node)
@@ -2985,8 +2946,22 @@ void pbvh_vertex_iter_init(PBVH *pbvh, PBVHNode *node, PBVHVertexIter *vi, int m
   vi->vert_positions = {};
   vi->vertex.i = 0LL;
 
-  int uniq_verts, totvert;
-  BKE_pbvh_node_num_verts(pbvh, node, &uniq_verts, &totvert);
+  int uniq_verts;
+  int totvert;
+  switch (pbvh->header.type) {
+    case PBVH_GRIDS:
+      totvert = node->prim_indices.size() * pbvh->gridkey.grid_area;
+      uniq_verts = totvert;
+      break;
+    case PBVH_FACES:
+      totvert = node->uniq_verts + node->face_verts;
+      uniq_verts = node->uniq_verts;
+      break;
+    case PBVH_BMESH:
+      totvert = node->bm_unique_verts.size() + node->bm_other_verts.size();
+      uniq_verts = node->bm_unique_verts.size();
+      break;
+  }
 
   if (pbvh->header.type == PBVH_GRIDS) {
     vi->key = pbvh->gridkey;
@@ -3132,16 +3107,6 @@ bool BKE_pbvh_draw_cache_invalid(const PBVH *pbvh)
 void BKE_pbvh_is_drawing_set(PBVH *pbvh, bool val)
 {
   pbvh->is_drawing = val;
-}
-
-void BKE_pbvh_node_num_loops(PBVH *pbvh, PBVHNode *node, int *r_totloop)
-{
-  UNUSED_VARS(pbvh);
-  BLI_assert(BKE_pbvh_type(pbvh) == PBVH_FACES);
-
-  if (r_totloop) {
-    *r_totloop = node->loop_indices.size();
-  }
 }
 
 void BKE_pbvh_update_active_vcol(PBVH *pbvh, Mesh *mesh)

@@ -5912,6 +5912,8 @@ class VIEW3D_MT_edit_curves(Menu):
 
         layout.menu("VIEW3D_MT_transform")
         layout.separator()
+        layout.operator("curves.duplicate_move")
+        layout.separator()
         layout.operator("curves.attribute_set")
         layout.operator("curves.delete")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
