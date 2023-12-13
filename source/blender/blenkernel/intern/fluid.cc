@@ -2085,7 +2085,7 @@ static void emit_from_mesh(
     const blender::Span<int> corner_verts = mesh->corner_verts();
     const blender::Span<MLoopTri> looptris = mesh->looptris();
     const int numverts = mesh->totvert;
-    const MDeformVert *dvert = BKE_mesh_deform_verts(mesh);
+    const MDeformVert *dvert = mesh->deform_verts().data();
     const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
         CustomData_get_layer_named(&mesh->loop_data, CD_PROP_FLOAT2, ffs->uvlayer_name));
 
@@ -2127,7 +2127,7 @@ static void emit_from_mesh(
       /* Calculate emission map bounds. */
       bb_boundInsert(bb, positions[i]);
     }
-    BKE_mesh_tag_positions_changed(mesh);
+    mesh->tag_positions_changed();
     mul_m4_v3(flow_ob->object_to_world, flow_center);
     manta_pos_to_cell(fds, flow_center);
 
@@ -3219,14 +3219,17 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
                                     Mesh *orgmesh,
                                     Object *ob)
 {
+  using namespace blender;
   Mesh *mesh;
   float min[3];
   float max[3];
   float size[3];
   float cell_size_scaled[3];
 
-  const int *orig_material_indices = BKE_mesh_material_indices(orgmesh);
-  const short mp_mat_nr = orig_material_indices ? orig_material_indices[0] : 0;
+  const bke::AttributeAccessor orig_attributes = orgmesh->attributes();
+  const VArraySpan orig_material_indices = *orig_attributes.lookup<int>("material_index",
+                                                                        ATTR_DOMAIN_FACE);
+  const short mp_mat_nr = orig_material_indices.is_empty() ? 0 : orig_material_indices[0];
 
   int i;
   int num_verts, num_faces;
@@ -3258,7 +3261,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   const bool is_sharp = orgmesh->attributes()
                             .lookup_or_default<bool>("sharp_face", ATTR_DOMAIN_FACE, false)
                             .varray[0];
-  BKE_mesh_smooth_flag_set(mesh, !is_sharp);
+  bke::mesh_smooth_set(*mesh, !is_sharp);
 
   /* Get size (dimension) but considering scaling. */
   copy_v3_v3(cell_size_scaled, fds->cell_size);
@@ -3341,12 +3344,14 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
     }
   }
 
-  int *material_indices = BKE_mesh_material_indices_for_write(mesh);
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_span<int>(
+      "material_index", ATTR_DOMAIN_FACE);
 
   /* Loop for triangles. */
   for (const int i : face_offsets.index_range().drop_back(1)) {
     /* Initialize from existing face. */
-    material_indices[i] = mp_mat_nr;
+    material_indices.span[i] = mp_mat_nr;
 
     face_offsets[i] = i * 3;
 
@@ -3361,6 +3366,8 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
            mloops[2].v);
 #  endif
   }
+
+  material_indices.finish();
 
   BKE_mesh_calc_edges(mesh, false, false);
 

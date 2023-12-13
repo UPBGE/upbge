@@ -32,6 +32,7 @@ set(SRC
   intern/operation.cc
   intern/realize_on_domain_operation.cc
   intern/reduce_to_single_value_operation.cc
+  intern/render_context.cc
   intern/result.cc
   intern/scheduler.cc
   intern/shader_node.cc
@@ -52,6 +53,7 @@ set(SRC
   COM_operation.hh
   COM_realize_on_domain_operation.hh
   COM_reduce_to_single_value_operation.hh
+  COM_render_context.hh
   COM_result.hh
   COM_scheduler.hh
   COM_shader_node.hh
@@ -84,6 +86,7 @@ set(SRC
   algorithms/COM_algorithm_transform.hh
 
   cached_resources/intern/bokeh_kernel.cc
+  cached_resources/intern/cached_image.cc
   cached_resources/intern/cached_mask.cc
   cached_resources/intern/cached_shader.cc
   cached_resources/intern/cached_texture.cc
@@ -96,6 +99,7 @@ set(SRC
   cached_resources/intern/symmetric_separable_blur_weights.cc
 
   cached_resources/COM_bokeh_kernel.hh
+  cached_resources/COM_cached_image.hh
   cached_resources/COM_cached_mask.hh
   cached_resources/COM_cached_resource.hh
   cached_resources/COM_cached_shader.hh
@@ -175,6 +179,7 @@ set(GLSL_SRC
   shaders/compositor_parallel_reduction.glsl
   shaders/compositor_plane_deform.glsl
   shaders/compositor_plane_deform_motion_blur.glsl
+  shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_projector_lens_distortion.glsl
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
@@ -292,6 +297,7 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/compositor_parallel_reduction_info.hh
   shaders/infos/compositor_plane_deform_info.hh
   shaders/infos/compositor_plane_deform_motion_blur_info.hh
+  shaders/infos/compositor_premultiply_alpha_info.hh
   shaders/infos/compositor_projector_lens_distortion_info.hh
   shaders/infos/compositor_read_input_info.hh
   shaders/infos/compositor_realize_on_domain_info.hh

@@ -6,7 +6,9 @@
  * \ingroup draw
  */
 
-#include "MEM_guardedalloc.h"
+#include "BKE_editmesh.hh"
+
+#include "GPU_index_buffer.h"
 
 #include "extract_mesh.hh"
 
@@ -192,7 +194,7 @@ static void extract_tris_single_mat_iter_looptri_mesh(const MeshRenderData &mr,
 {
   GPUIndexBufBuilder *elb = static_cast<GPUIndexBufBuilder *>(_data);
   const int face_i = mr.looptri_faces[mlt_index];
-  const bool hidden = mr.use_hide && mr.hide_poly && mr.hide_poly[face_i];
+  const bool hidden = mr.use_hide && !mr.hide_poly.is_empty() && mr.hide_poly[face_i];
   if (hidden) {
     GPU_indexbuf_set_tri_restart(elb, mlt_index);
   }

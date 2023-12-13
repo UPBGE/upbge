@@ -55,7 +55,7 @@ static void rna_Mesh_sharp_from_angle_set(Mesh *mesh, const float angle)
 {
   mesh->attributes_for_write().remove("sharp_edge");
   mesh->attributes_for_write().remove("sharp_face");
-  BKE_mesh_sharp_edges_set_from_angle(mesh, angle);
+  blender::bke::mesh_sharp_edges_set_from_angle(*mesh, angle);
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 }
 
@@ -90,11 +90,11 @@ static void rna_Mesh_calc_looptri(Mesh *mesh)
 static void rna_Mesh_calc_smooth_groups(
     Mesh *mesh, bool use_bitflags, int **r_poly_group, int *r_poly_group_num, int *r_group_total)
 {
+  using namespace blender;
   *r_poly_group_num = mesh->faces_num;
-  const bool *sharp_edges = (const bool *)CustomData_get_layer_named(
-      &mesh->edge_data, CD_PROP_BOOL, "sharp_edge");
-  const bool *sharp_faces = (const bool *)CustomData_get_layer_named(
-      &mesh->face_data, CD_PROP_BOOL, "sharp_face");
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", ATTR_DOMAIN_EDGE);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", ATTR_DOMAIN_FACE);
   *r_poly_group = BKE_mesh_calc_smoothgroups(mesh->totedge,
                                              mesh->faces(),
                                              mesh->corner_edges(),

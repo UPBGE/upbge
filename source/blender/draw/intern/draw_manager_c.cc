@@ -80,7 +80,7 @@
 #include "draw_manager.h"
 #include "draw_manager_profiling.hh"
 #include "draw_manager_testing.h"
-#include "draw_manager_text.h"
+#include "draw_manager_text.hh"
 #include "draw_shader.h"
 #include "draw_subdivision.hh"
 #include "draw_texture_pool.h"
@@ -842,6 +842,7 @@ static bool id_type_can_have_drawdata(const short id_type)
     case ID_TE:
     case ID_MSK:
     case ID_MC:
+    case ID_IM:
       return true;
 
     /* no DrawData */

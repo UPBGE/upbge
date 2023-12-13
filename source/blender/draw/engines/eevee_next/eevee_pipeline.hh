@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include "BLI_math_bits.h"
+
 #include "DRW_render.h"
 #include "draw_shader_shared.h"
 
@@ -188,16 +190,18 @@ struct DeferredLayerBase {
   /* Return the amount of gbuffer layer needed. */
   int closure_layer_count() const
   {
-    return count_bits_i(closure_bits_ &
-                        (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_DIFFUSE | CLOSURE_SSS));
+    return count_bits_i(closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_REFLECTION |
+                                         CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT | CLOSURE_SSS));
   }
 
   /* Return the amount of gbuffer layer needed. */
   int color_layer_count() const
   {
-    return count_bits_i(closure_bits_ &
-                        (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_DIFFUSE));
+    return count_bits_i(closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_REFLECTION |
+                                         CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
   }
+
+  void gbuffer_pass_sync(Instance &inst);
 };
 
 class DeferredPipeline;
@@ -695,6 +699,7 @@ class PipelineModule {
 
   void begin_sync()
   {
+    data.is_probe_reflection = false;
     probe.begin_sync();
     planar.begin_sync();
     deferred.begin_sync();

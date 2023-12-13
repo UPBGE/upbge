@@ -14,8 +14,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BKE_customdata.hh"
-
 struct BMesh;
 struct BMeshCreateParams;
 struct BMeshFromMeshParams;
@@ -49,39 +47,6 @@ typedef enum eMeshBatchDirtyMode {
   BKE_MESH_BATCH_DIRTY_UVEDIT_ALL,
   BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT,
 } eMeshBatchDirtyMode;
-
-/*  mesh_runtime.cc  */
-
-/**
- * Call after changing vertex positions to tag lazily calculated caches for recomputation.
- */
-void BKE_mesh_tag_positions_changed(struct Mesh *mesh);
-
-/**
- * The same as #BKE_mesh_tag_positions_changed but doesn't tag normals dirty, instead expecting
- * them to be updated separately.
- */
-void BKE_mesh_tag_positions_changed_no_normals(struct Mesh *mesh);
-
-/**
- * Call after moving every mesh vertex by the same translation.
- */
-void BKE_mesh_tag_positions_changed_uniformly(struct Mesh *mesh);
-
-void BKE_mesh_tag_topology_changed(struct Mesh *mesh);
-
-/**
- * Call when new edges and vertices have been created but positions and faces haven't changed.
- */
-void BKE_mesh_tag_edges_split(struct Mesh *mesh);
-
-/** Call when changing "sharp_face" or "sharp_edge" data. */
-void BKE_mesh_tag_sharpness_changed(struct Mesh *mesh);
-
-/**
- * Call when face vertex order has changed but positions and faces haven't changed
- */
-void BKE_mesh_tag_face_winding_changed(struct Mesh *mesh);
 
 /* `mesh.cc` */
 
@@ -211,8 +176,6 @@ void BKE_mesh_material_index_remove(struct Mesh *mesh, short index);
 bool BKE_mesh_material_index_used(struct Mesh *mesh, short index);
 void BKE_mesh_material_index_clear(struct Mesh *mesh);
 void BKE_mesh_material_remap(struct Mesh *mesh, const unsigned int *remap, unsigned int remap_len);
-void BKE_mesh_smooth_flag_set(struct Mesh *mesh, bool use_smooth);
-void BKE_mesh_sharp_edges_set_from_angle(struct Mesh *mesh, float angle);
 
 void BKE_mesh_texspace_calc(struct Mesh *mesh);
 void BKE_mesh_texspace_ensure(struct Mesh *mesh);
@@ -596,46 +559,6 @@ void BKE_mesh_debug_print(const struct Mesh *mesh) ATTR_NONNULL(1);
 /** \name Inline Mesh Data Access
  * \{ */
 
-/**
- * \return The material index for each face. May be null.
- * \note In C++ code, prefer using the attribute API (#AttributeAccessor).
- */
-BLI_INLINE const int *BKE_mesh_material_indices(const Mesh *mesh)
-{
-  return (const int *)CustomData_get_layer_named(
-      &mesh->face_data, CD_PROP_INT32, "material_index");
-}
-
-/**
- * \return The material index for each face. Create the layer if it doesn't exist.
- * \note In C++ code, prefer using the attribute API (#MutableAttributeAccessor).
- */
-BLI_INLINE int *BKE_mesh_material_indices_for_write(Mesh *mesh)
-{
-  int *indices = (int *)CustomData_get_layer_named_for_write(
-      &mesh->face_data, CD_PROP_INT32, "material_index", mesh->faces_num);
-  if (indices) {
-    return indices;
-  }
-  return (int *)CustomData_add_layer_named(
-      &mesh->face_data, CD_PROP_INT32, CD_SET_DEFAULT, mesh->faces_num, "material_index");
-}
-
-BLI_INLINE const MDeformVert *BKE_mesh_deform_verts(const Mesh *mesh)
-{
-  return (const MDeformVert *)CustomData_get_layer(&mesh->vert_data, CD_MDEFORMVERT);
-}
-BLI_INLINE MDeformVert *BKE_mesh_deform_verts_for_write(Mesh *mesh)
-{
-  MDeformVert *dvert = (MDeformVert *)CustomData_get_layer_for_write(
-      &mesh->vert_data, CD_MDEFORMVERT, mesh->totvert);
-  if (dvert) {
-    return dvert;
-  }
-  return (MDeformVert *)CustomData_add_layer(
-      &mesh->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, mesh->totvert);
-}
-
 /* UPBGE: KEEP THIS EVEN AFTER DerivedMesh removal!!!!!!! */
 BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
                                         const int *index_mp_to_orig,
@@ -650,7 +573,6 @@ BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 }
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
-/**********************************************************/
 
 #ifdef __cplusplus
 }

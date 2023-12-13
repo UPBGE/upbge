@@ -795,18 +795,10 @@ static void restore_geometry_data(NodeGeometry *geometry, Object *object)
 
 static void geometry_free_data(NodeGeometry *geometry)
 {
-  if (geometry->totvert) {
-    CustomData_free(&geometry->vert_data, geometry->totvert);
-  }
-  if (geometry->totedge) {
-    CustomData_free(&geometry->edge_data, geometry->totedge);
-  }
-  if (geometry->totloop) {
-    CustomData_free(&geometry->loop_data, geometry->totloop);
-  }
-  if (geometry->faces_num) {
-    CustomData_free(&geometry->face_data, geometry->faces_num);
-  }
+  CustomData_free(&geometry->vert_data, geometry->totvert);
+  CustomData_free(&geometry->edge_data, geometry->totedge);
+  CustomData_free(&geometry->loop_data, geometry->totloop);
+  CustomData_free(&geometry->face_data, geometry->faces_num);
   implicit_sharing::free_shared_data(&geometry->face_offset_indices,
                                      &geometry->face_offsets_sharing_info);
 }
@@ -1080,7 +1072,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, UndoSculpt &usculpt)
   if (tag_update) {
     Mesh *mesh = static_cast<Mesh *>(ob->data);
     if (changed_position) {
-      BKE_mesh_tag_positions_changed(mesh);
+      mesh->tag_positions_changed();
       BKE_sculptsession_free_deformMats(ss);
     }
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

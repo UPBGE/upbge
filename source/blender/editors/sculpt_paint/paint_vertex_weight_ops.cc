@@ -175,7 +175,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   mesh = BKE_mesh_from_object(vc.obact);
-  const MDeformVert *dvert = BKE_mesh_deform_verts(mesh);
+  const MDeformVert *dvert = mesh->deform_verts().data();
 
   if (mesh && dvert && vc.v3d && vc.rv3d && (mesh->vertex_group_active_index != 0)) {
     const bool use_vert_sel = (mesh->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
@@ -320,7 +320,7 @@ static int weight_sample_group_invoke(bContext *C, wmOperator *op, const wmEvent
   BLI_assert(vc.v3d && vc.rv3d); /* Ensured by poll. */
 
   Mesh *mesh = BKE_mesh_from_object(vc.obact);
-  const MDeformVert *dverts = BKE_mesh_deform_verts(mesh);
+  const MDeformVert *dverts = mesh->deform_verts().data();
   if (BLI_listbase_is_empty(&mesh->vertex_group_names) || (dverts == nullptr)) {
     BKE_report(op->reports, RPT_WARNING, "No vertex group data");
     return OPERATOR_CANCELLED;
@@ -405,6 +405,7 @@ void PAINT_OT_weight_sample_group(wmOperatorType *ot)
 /* fills in the selected faces with the current weight and vertex group */
 static bool weight_paint_set(Object *ob, float paintweight)
 {
+  using namespace blender;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   MDeformWeight *dw, *dw_prev;
   int vgroup_active, vgroup_mirror = -1;
@@ -415,7 +416,7 @@ static bool weight_paint_set(Object *ob, float paintweight)
 
   const blender::OffsetIndices faces = mesh->faces();
   const blender::Span<int> corner_verts = mesh->corner_verts();
-  MDeformVert *dvert = BKE_mesh_deform_verts_for_write(mesh);
+  MDeformVert *dvert = mesh->deform_verts_for_write().data();
 
   if (mesh->faces_num == 0 || dvert == nullptr) {
     return false;
@@ -431,19 +432,19 @@ static bool weight_paint_set(Object *ob, float paintweight)
   WPaintPrev wpp;
   wpaint_prev_create(&wpp, dvert, mesh->totvert);
 
-  const bool *select_vert = (const bool *)CustomData_get_layer_named(
-      &mesh->vert_data, CD_PROP_BOOL, ".select_vert");
-  const bool *select_poly = (const bool *)CustomData_get_layer_named(
-      &mesh->face_data, CD_PROP_BOOL, ".select_poly");
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const VArraySpan select_vert = *attributes.lookup<bool>(".select_vert", ATTR_DOMAIN_POINT);
+  const VArraySpan select_poly = *attributes.lookup<bool>(".select_poly", ATTR_DOMAIN_FACE);
 
   for (const int i : faces.index_range()) {
-    if ((paint_selmode == SCE_SELECT_FACE) && !(select_poly && select_poly[i])) {
+    if ((paint_selmode == SCE_SELECT_FACE) && !(!select_poly.is_empty() && select_poly[i])) {
       continue;
     }
 
     for (const int vert : corner_verts.slice(faces[i])) {
       if (!dvert[vert].flag) {
-        if ((paint_selmode == SCE_SELECT_VERTEX) && !(select_vert && select_vert[vert])) {
+        if ((paint_selmode == SCE_SELECT_VERTEX) &&
+            !(!select_vert.is_empty() && select_vert[vert])) {
           continue;
         }
 
@@ -553,7 +554,7 @@ struct WPGradient_userData {
   Scene *scene;
   Mesh *mesh;
   MDeformVert *dvert;
-  const bool *select_vert;
+  blender::VArraySpan<bool> select_vert;
   blender::VArray<bool> hide_vert;
   Brush *brush;
   const float *sco_start; /* [2] */
@@ -654,7 +655,8 @@ static void gradientVertInit__mapFunc(void *user_data,
   WPGradient_vertStore *vs = &grad_data->vert_cache->elem[index];
 
   if (grad_data->hide_vert[index] ||
-      (grad_data->use_select && (grad_data->select_vert && !grad_data->select_vert[index])))
+      (grad_data->use_select &&
+       (!grad_data->select_vert.is_empty() && !grad_data->select_vert[index])))
   {
     copy_v2_fl(vs->sco, FLT_MAX);
     return;
@@ -720,7 +722,7 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, const wmEven
     if (vert_cache != nullptr) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
       if (vert_cache->wpp.wpaint_prev) {
-        MDeformVert *dvert = BKE_mesh_deform_verts_for_write(mesh);
+        MDeformVert *dvert = mesh->deform_verts_for_write().data();
         BKE_defvert_array_free_elems(dvert, mesh->totvert);
         BKE_defvert_array_copy(dvert, vert_cache->wpp.wpaint_prev, mesh->totvert);
         wpaint_prev_destroy(&vert_cache->wpp);
@@ -748,7 +750,7 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  MDeformVert *dverts = BKE_mesh_deform_verts_for_write(mesh);
+  MDeformVert *dverts = mesh->deform_verts_for_write().data();
   int x_start = RNA_int_get(op->ptr, "xstart");
   int y_start = RNA_int_get(op->ptr, "ystart");
   int x_end = RNA_int_get(op->ptr, "xend");
@@ -797,8 +799,7 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
   data.scene = scene;
   data.mesh = mesh;
   data.dvert = dverts;
-  data.select_vert = (const bool *)CustomData_get_layer_named(
-      &mesh->vert_data, CD_PROP_BOOL, ".select_vert");
+  data.select_vert = *attributes.lookup<bool>(".select_vert", ATTR_DOMAIN_POINT);
   data.hide_vert = *attributes.lookup_or_default<bool>(".hide_vert", ATTR_DOMAIN_POINT, false);
   data.sco_start = sco_start;
   data.sco_end = sco_end;
