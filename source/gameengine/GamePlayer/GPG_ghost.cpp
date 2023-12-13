@@ -39,7 +39,7 @@
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
-#include "BKE_blendfile.h"
+#include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"

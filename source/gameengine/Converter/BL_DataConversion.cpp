@@ -418,6 +418,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     loop_nors_dst = final_me->corner_normals();
   }
 
+  const bke::AttributeAccessor attributes = final_me->attributes();
+  const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", ATTR_DOMAIN_FACE);
+
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
     if (CustomData_get_layer_index(&final_me->loop_data, CD_TANGENT) == -1) {
@@ -430,8 +433,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           looptris.data(),
           final_me->looptri_faces().data(),
           uint(looptris.size()),
-          static_cast<const bool *>(
-              CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face")),
+          sharp_face,
           &final_me->loop_data,
           true,
           nullptr,
@@ -504,7 +506,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
   std::vector<unsigned int> vertices(totverts, -1);
 
-  const AttributeAccessor attributes = final_me->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
       "material_index", ATTR_DOMAIN_FACE, 0);
 

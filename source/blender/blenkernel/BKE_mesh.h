@@ -7,6 +7,8 @@
  * \ingroup bke
  */
 
+#include "BKE_customdata.hh" // UPBGE
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_compiler_compat.h"
 #include "BLI_utildefines.h"
