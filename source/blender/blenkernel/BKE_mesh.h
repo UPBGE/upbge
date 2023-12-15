@@ -36,10 +36,6 @@ struct Mesh;
 struct Object;
 struct Scene;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* TODO: Move to `BKE_mesh_types.hh` when possible. */
 typedef enum eMeshBatchDirtyMode {
   BKE_MESH_BATCH_DIRTY_ALL = 0,
@@ -576,8 +572,5 @@ BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
 
-#ifdef __cplusplus
-}
-#endif
 
 /** \} */

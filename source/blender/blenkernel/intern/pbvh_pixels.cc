@@ -285,7 +285,7 @@ static void split_flush_final_nodes(SplitQueueData *tdata)
     if (!newsplit->parent->children_offset) {
       newsplit->parent->children_offset = pbvh->nodes.size();
 
-      pbvh_grow_nodes(pbvh, pbvh->nodes.size() + 2);
+      pbvh->nodes.resize(pbvh->nodes.size() + 2);
       newsplit->source_index = newsplit->parent->children_offset;
     }
     else {
@@ -466,11 +466,8 @@ struct EncodePixelsUserData {
   const UVPrimitiveLookup *uv_primitive_lookup;
 };
 
-static void do_encode_pixels(void *__restrict userdata,
-                             const int n,
-                             const TaskParallelTLS *__restrict /*tls*/)
+static void do_encode_pixels(EncodePixelsUserData *data, const int n)
 {
-  EncodePixelsUserData *data = static_cast<EncodePixelsUserData *>(userdata);
   const uv_islands::MeshData &mesh_data = *data->mesh_data;
   Image *image = data->image;
   ImageUser image_user = *data->image_user;
@@ -710,9 +707,11 @@ static bool update_pixels(PBVH *pbvh, Mesh *mesh, Image *image, ImageUser *image
   user_data.uv_primitive_lookup = &uv_primitive_lookup;
   user_data.uv_masks = &uv_masks;
 
-  TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(&settings, true, nodes_to_update.size());
-  BLI_task_parallel_range(0, nodes_to_update.size(), &user_data, do_encode_pixels, &settings);
+  threading::parallel_for(nodes_to_update.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      do_encode_pixels(&user_data, i);
+    }
+  });
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
   }

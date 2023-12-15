@@ -159,7 +159,6 @@ struct SculptUndoStep {
 };
 
 static UndoSculpt *get_nodes();
-static bool sculpt_attribute_ref_equals(SculptAttrRef *a, SculptAttrRef *b);
 static void sculpt_save_active_attribute(Object *ob, SculptAttrRef *attr);
 static UndoSculpt *sculpt_undosys_step_get_nodes(UndoStep *us_p);
 
@@ -326,7 +325,7 @@ static void update_modified_node_mesh(PBVHNode *node, void *userdata)
   Vector<int> faces;
   if (!data->modified_face_set_faces.is_empty()) {
     if (faces.is_empty()) {
-      faces = BKE_pbvh_node_calc_face_indices(*data->pbvh, *node);
+      bke::pbvh::node_face_indices_calc_mesh(*data->pbvh, *node, faces);
     }
     for (const int face : faces) {
       if (data->modified_face_set_faces[face]) {
@@ -337,7 +336,7 @@ static void update_modified_node_mesh(PBVHNode *node, void *userdata)
   }
   if (!data->modified_hidden_faces.is_empty()) {
     if (faces.is_empty()) {
-      faces = BKE_pbvh_node_calc_face_indices(*data->pbvh, *node);
+      bke::pbvh::node_face_indices_calc_mesh(*data->pbvh, *node, faces);
     }
     for (const int face : faces) {
       if (data->modified_hidden_faces[face]) {
@@ -370,7 +369,7 @@ static void update_modified_node_grids(PBVHNode *node, void *userdata)
   Vector<int> faces;
   if (!data->modified_face_set_faces.is_empty()) {
     if (faces.is_empty()) {
-      faces = BKE_pbvh_node_calc_face_indices(*data->pbvh, *node);
+      bke::pbvh::node_face_indices_calc_grids(*data->pbvh, *node, faces);
     }
     for (const int face : faces) {
       if (data->modified_face_set_faces[face]) {
@@ -381,7 +380,7 @@ static void update_modified_node_grids(PBVHNode *node, void *userdata)
   }
   if (!data->modified_hidden_faces.is_empty()) {
     if (faces.is_empty()) {
-      faces = BKE_pbvh_node_calc_face_indices(*data->pbvh, *node);
+      bke::pbvh::node_face_indices_calc_grids(*data->pbvh, *node, faces);
     }
     for (const int face : faces) {
       if (data->modified_hidden_faces[face]) {
@@ -1587,11 +1586,6 @@ Node *push_node(Object *ob, PBVHNode *node, Type type)
   }
 
   return unode;
-}
-
-static bool sculpt_attribute_ref_equals(SculptAttrRef *a, SculptAttrRef *b)
-{
-  return a->domain == b->domain && a->type == b->type && STREQ(a->name, b->name);
 }
 
 static void sculpt_save_active_attribute(Object *ob, SculptAttrRef *attr)
