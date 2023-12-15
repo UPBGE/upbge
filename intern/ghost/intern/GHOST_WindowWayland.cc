@@ -62,7 +62,7 @@ static constexpr size_t base_dpi = 96;
 #endif
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
-struct WGL_LibDecor_Window {
+struct GWL_LibDecor_Window {
   libdecor_frame *frame = nullptr;
 
   /**
@@ -77,12 +77,6 @@ struct WGL_LibDecor_Window {
     int32_t size[2] = {0, 0};
   } applied;
 
-  /**
-   * Used at startup to set the initial window size
-   * (before fractional scale information is available).
-   */
-  int scale_fractional_from_output = 0;
-
   /** The window has been configured (see #xdg_surface_ack_configure). */
   bool initial_configure_seen = false;
   /** The window size has been configured. */
@@ -91,14 +85,14 @@ struct WGL_LibDecor_Window {
   bool initial_state_seen = false;
 };
 
-static void gwl_libdecor_window_destroy(WGL_LibDecor_Window *decor)
+static void gwl_libdecor_window_destroy(GWL_LibDecor_Window *decor)
 {
   libdecor_frame_unref(decor->frame);
   delete decor;
 }
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR */
 
-struct WGL_XDG_Decor_Window {
+struct GWL_XDG_Decor_Window {
   xdg_surface *surface = nullptr;
   zxdg_toplevel_decoration_v1 *toplevel_decor = nullptr;
   xdg_toplevel *toplevel = nullptr;
@@ -119,7 +113,7 @@ struct WGL_XDG_Decor_Window {
   bool initial_configure_seen = false;
 };
 
-static void gwl_xdg_decor_window_destroy(WGL_XDG_Decor_Window *decor)
+static void gwl_xdg_decor_window_destroy(GWL_XDG_Decor_Window *decor)
 {
   if (decor->toplevel_decor) {
     zxdg_toplevel_decoration_v1_destroy(decor->toplevel_decor);
@@ -309,9 +303,9 @@ struct GWL_Window {
   std::vector<GWL_Output *> outputs;
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
-  WGL_LibDecor_Window *libdecor = nullptr;
+  GWL_LibDecor_Window *libdecor = nullptr;
 #endif
-  WGL_XDG_Decor_Window *xdg_decor = nullptr;
+  GWL_XDG_Decor_Window *xdg_decor = nullptr;
 
   /**
    * The current value of frame, copied from `frame_pending` when applying updates.
@@ -366,13 +360,13 @@ static void gwl_window_title_set(GWL_Window *win, const char *title)
 {
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
-    WGL_LibDecor_Window &decor = *win->libdecor;
+    GWL_LibDecor_Window &decor = *win->libdecor;
     libdecor_frame_set_title(decor.frame, title);
   }
   else
 #endif
   {
-    WGL_XDG_Decor_Window &decor = *win->xdg_decor;
+    GWL_XDG_Decor_Window &decor = *win->xdg_decor;
     xdg_toplevel_set_title(decor.toplevel, title);
   }
 
@@ -683,16 +677,9 @@ static void gwl_window_activate(GWL_Window *win)
 /** \name Internal #GWL_Window Pending Actions
  * \{ */
 
-static void gwl_window_frame_pending_fractional_scale_set(GWL_Window *win,
-                                                          bool *r_surface_needs_commit,
-                                                          bool *r_surface_needs_buffer_scale)
+static void gwl_window_frame_pending_fractional_scale_set_notest(
+    GWL_Window *win, bool *r_surface_needs_commit, bool *r_surface_needs_buffer_scale)
 {
-  if (win->frame_pending.fractional_scale == win->frame.fractional_scale &&
-      win->frame_pending.buffer_scale == win->frame.buffer_scale)
-  {
-    return;
-  }
-
   if (win->frame_pending.fractional_scale) {
     win->frame.fractional_scale = win->frame_pending.fractional_scale;
     gwl_window_viewport_set(win, r_surface_needs_commit, r_surface_needs_buffer_scale);
@@ -718,6 +705,19 @@ static void gwl_window_frame_pending_fractional_scale_set(GWL_Window *win,
       }
     }
   }
+}
+
+static void gwl_window_frame_pending_fractional_scale_set(GWL_Window *win,
+                                                          bool *r_surface_needs_commit,
+                                                          bool *r_surface_needs_buffer_scale)
+{
+  if (win->frame_pending.fractional_scale == win->frame.fractional_scale &&
+      win->frame_pending.buffer_scale == win->frame.buffer_scale)
+  {
+    return;
+  }
+  gwl_window_frame_pending_fractional_scale_set_notest(
+      win, r_surface_needs_commit, r_surface_needs_buffer_scale);
 }
 
 static void gwl_window_frame_pending_size_set(GWL_Window *win,
@@ -844,7 +844,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
   }
 
   if (win->xdg_decor) {
-    WGL_XDG_Decor_Window &decor = *win->xdg_decor;
+    GWL_XDG_Decor_Window &decor = *win->xdg_decor;
     if (decor.pending.ack_configure) {
       xdg_surface_ack_configure(decor.surface, decor.pending.ack_configure_serial);
       /* The XDG spec states a commit event is required after ACK configure. */
@@ -1164,7 +1164,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
   }();
 #  endif
 
-  GWL_WindowFrame *frame_pending = &static_cast<GWL_Window *>(data)->frame_pending;
+  GWL_WindowFrame &frame_pending = static_cast<GWL_Window *>(data)->frame_pending;
 
   /* Set the size. */
   int size_next[2] = {0, 0};
@@ -1175,7 +1175,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
 
   {
     const GWL_Window *win = static_cast<GWL_Window *>(data);
-    const WGL_LibDecor_Window &decor = *win->libdecor;
+    const GWL_LibDecor_Window &decor = *win->libdecor;
     if (decor.initial_configure_seen_with_size) {
       size_decor[0] = decor.applied.size[0];
       size_decor[1] = decor.applied.size[1];
@@ -1184,9 +1184,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
 
   {
     GWL_Window *win = static_cast<GWL_Window *>(data);
-    const int fractional_scale = win->frame.fractional_scale ?
-                                     win->frame.fractional_scale :
-                                     win->libdecor->scale_fractional_from_output;
+    const int fractional_scale = win->frame.fractional_scale;
     /* It's important `fractional_scale` has a fractional component or rounding up will fail
      * to produce the correct whole-number scale. */
     GHOST_ASSERT((fractional_scale == 0) ||
@@ -1200,26 +1198,24 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
     const int scale_as_fractional = scale * FRACTIONAL_DENOMINATOR;
     if (libdecor_configuration_get_content_size(
             configuration, frame, &size_next[0], &size_next[1])) {
-      if (win->frame.fractional_scale) {
-        win->frame_pending.size[0] = gwl_window_fractional_to_viewport_round(win->frame,
-                                                                             size_next[0]);
-        win->frame_pending.size[1] = gwl_window_fractional_to_viewport_round(win->frame,
-                                                                             size_next[1]);
+      if (fractional_scale) {
+        frame_pending.size[0] = gwl_window_fractional_to_viewport_round(win->frame, size_next[0]);
+        frame_pending.size[1] = gwl_window_fractional_to_viewport_round(win->frame, size_next[1]);
       }
       else if (fractional_scale && (fractional_scale != (scale * FRACTIONAL_DENOMINATOR))) {
         /* The windows `preferred_scale` is not yet available,
          * set the size as if fractional scale is available. */
-        frame_pending->size[0] = ((size_next[0] * scale) * fractional_scale) / scale_as_fractional;
-        frame_pending->size[1] = ((size_next[1] * scale) * fractional_scale) / scale_as_fractional;
+        frame_pending.size[0] = ((size_next[0] * scale) * fractional_scale) / scale_as_fractional;
+        frame_pending.size[1] = ((size_next[1] * scale) * fractional_scale) / scale_as_fractional;
       }
       else {
-        frame_pending->size[0] = size_next[0] * scale;
-        frame_pending->size[1] = size_next[1] * scale;
+        frame_pending.size[0] = size_next[0] * scale;
+        frame_pending.size[1] = size_next[1] * scale;
       }
 
       /* Account for buffer rounding requirement, once fractional scaling is enabled
        * the buffer scale will be 1, rounding is a requirement until then. */
-      gwl_round_int2_by(frame_pending->size, win->frame.buffer_scale);
+      gwl_round_int2_by(frame_pending.size, win->frame.buffer_scale);
 
       has_size = true;
     }
@@ -1241,25 +1237,15 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
         }
       }
     }
-
-#  ifdef USE_EVENT_BACKGROUND_THREAD
-    /* NOTE(@ideasman42): when running from the event handling thread,
-     * don't apply the new window size back to LIBDECOR, otherwise the window content
-     * (which uses a deferred update) and the window get noticeably out of sync.
-     * Rely on the new `frame_pending->size` to resize the window later. */
-    if (is_main_thread == false) {
-      has_size = false;
-    }
-#  endif
   }
 
   /* Set the state. */
   {
     enum libdecor_window_state window_state;
     if (libdecor_configuration_get_window_state(configuration, &window_state)) {
-      frame_pending->is_maximised = window_state & LIBDECOR_WINDOW_STATE_MAXIMIZED;
-      frame_pending->is_fullscreen = window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN;
-      frame_pending->is_active = window_state & LIBDECOR_WINDOW_STATE_ACTIVE;
+      frame_pending.is_maximised = window_state & LIBDECOR_WINDOW_STATE_MAXIMIZED;
+      frame_pending.is_fullscreen = window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN;
+      frame_pending.is_active = window_state & LIBDECOR_WINDOW_STATE_ACTIVE;
     }
   }
 
@@ -1280,7 +1266,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
   /* Commit the changes. */
   {
     GWL_Window *win = static_cast<GWL_Window *>(data);
-    WGL_LibDecor_Window &decor = *win->libdecor;
+    GWL_LibDecor_Window &decor = *win->libdecor;
     if (has_size == false) {
       /* Keep the current decor size. */
       size_next[0] = size_decor[0];
@@ -1298,10 +1284,6 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
       libdecor_state_free(state);
     }
 
-    /* Only ever use this once, after initial creation:
-     * #wp_fractional_scale_v1_listener::preferred_scale provides fractional scaling values. */
-    decor.scale_fractional_from_output = 0;
-
     if (decor.initial_configure_seen == false) {
       decor.initial_configure_seen = true;
     }
@@ -1311,7 +1293,10 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
       }
     }
     if (decor.initial_configure_seen_with_size == false) {
-      if (is_main_thread) {
+#  ifdef USE_EVENT_BACKGROUND_THREAD
+      if (is_main_thread)
+#  endif
+      {
         if (size_next[0] && size_next[1]) {
           decor.initial_configure_seen_with_size = true;
         }
@@ -1528,24 +1513,17 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
    * So leave the buffer scaled up because there is no *guarantee* the fractional scaling support
    * will run which could result in an incorrect buffer scale. */
   int scale_fractional_from_output;
-  window_->frame.buffer_scale = outputs_uniform_scale_or_default(
-      system_->outputs_get(), 1, &scale_fractional_from_output);
-  window_->frame_pending.buffer_scale = window_->frame.buffer_scale;
+  const int buffer_scale_from_output = outputs_uniform_scale_or_default(
+      system_->outputs_get(), 0, &scale_fractional_from_output);
 
   window_->frame.size[0] = int32_t(width);
   window_->frame.size[1] = int32_t(height);
-
-  /* The window surface must be rounded to the scale,
-   * failing to do so causes the WAYLAND-server to close the window immediately. */
-  gwl_round_int2_by(window_->frame.size, window_->frame.buffer_scale);
 
   window_->is_dialog = is_dialog;
 
   /* Window surfaces. */
   window_->wl.surface = wl_compositor_create_surface(system_->wl_compositor_get());
   ghost_wl_surface_tag(window_->wl.surface);
-
-  wl_surface_set_buffer_scale(window_->wl.surface, window_->frame.buffer_scale);
 
   wl_surface_add_listener(window_->wl.surface, &wl_surface_listener, window_);
 
@@ -1568,8 +1546,8 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
-    window_->libdecor = new WGL_LibDecor_Window;
-    WGL_LibDecor_Window &decor = *window_->libdecor;
+    window_->libdecor = new GWL_LibDecor_Window;
+    GWL_LibDecor_Window &decor = *window_->libdecor;
 
     /* create window decorations */
     decor.frame = libdecor_decorate(
@@ -1580,7 +1558,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     libdecor_frame_set_app_id(decor.frame, xdg_app_id);
 
     if (parentWindow) {
-      WGL_LibDecor_Window &decor_parent =
+      GWL_LibDecor_Window &decor_parent =
           *dynamic_cast<const GHOST_WindowWayland *>(parentWindow)->window_->libdecor;
       libdecor_frame_set_parent(decor.frame, decor_parent.frame);
     }
@@ -1588,8 +1566,8 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   else
 #endif
   {
-    window_->xdg_decor = new WGL_XDG_Decor_Window;
-    WGL_XDG_Decor_Window &decor = *window_->xdg_decor;
+    window_->xdg_decor = new GWL_XDG_Decor_Window;
+    GWL_XDG_Decor_Window &decor = *window_->xdg_decor;
     decor.surface = xdg_wm_base_get_xdg_surface(system_->xdg_decor_shell_get(),
                                                 window_->wl.surface);
     decor.toplevel = xdg_surface_get_toplevel(decor.surface);
@@ -1601,7 +1579,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     xdg_toplevel_add_listener(decor.toplevel, &xdg_toplevel_listener, window_);
 
     if (parentWindow && is_dialog) {
-      WGL_XDG_Decor_Window &decor_parent =
+      GWL_XDG_Decor_Window &decor_parent =
           *dynamic_cast<const GHOST_WindowWayland *>(parentWindow)->window_->xdg_decor;
       xdg_toplevel_set_parent(decor.toplevel, decor_parent.toplevel);
     }
@@ -1617,15 +1595,131 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   /* Causes a glitch with `libdecor` for some reason. */
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
-    WGL_LibDecor_Window &decor = *window_->libdecor;
-    if (fractional_scale_manager &&
-        (gwl_round_int_test(scale_fractional_from_output, FRACTIONAL_DENOMINATOR) == false))
-    {
-      decor.scale_fractional_from_output = scale_fractional_from_output;
+    /* Pass. */
+  }
+  else
+#endif /* WITH_GHOST_WAYLAND_LIBDECOR */
+  {
+    GWL_XDG_Decor_Window &decor = *window_->xdg_decor;
+
+    if (system_->xdg_decor_manager_get()) {
+      decor.toplevel_decor = zxdg_decoration_manager_v1_get_toplevel_decoration(
+          system_->xdg_decor_manager_get(), decor.toplevel);
+      zxdg_toplevel_decoration_v1_add_listener(
+          decor.toplevel_decor, &xdg_toplevel_decoration_v1_listener, window_);
+      zxdg_toplevel_decoration_v1_set_mode(decor.toplevel_decor,
+                                           ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     }
 
+    /* Commit needed to so configure callback runs. */
+    wl_surface_commit(window_->wl.surface);
+    while (!decor.initial_configure_seen) {
+      wl_display_flush(system->wl_display_get());
+      wl_display_dispatch(system->wl_display_get());
+    }
+  }
+
+  /* If the scale is known early, setup the window scale.
+   * Otherwise accept an unsightly flicker once the outputs scale can be found. */
+  int early_buffer_scale = 0;
+  int early_fractional_scale = 0;
+
+  if (const int test_fractional_scale =
+          fractional_scale_manager ? (window_->frame_pending.fractional_scale_preferred ?
+                                          window_->frame_pending.fractional_scale_preferred :
+                                          scale_fractional_from_output) :
+                                     0)
+  {
+    if (!gwl_round_int_test(test_fractional_scale, FRACTIONAL_DENOMINATOR)) {
+      early_fractional_scale = test_fractional_scale;
+    }
+    else {
+      /* Rounded, use simple integer buffer scaling. */
+      early_buffer_scale = test_fractional_scale / FRACTIONAL_DENOMINATOR;
+      early_fractional_scale = 0;
+    }
+  }
+  else if (buffer_scale_from_output) {
+    early_buffer_scale = buffer_scale_from_output;
+  }
+
+  if (early_fractional_scale != 0) {
+    /* Fractional scale is known. */
+
+    window_->frame.fractional_scale_preferred = early_fractional_scale;
+    window_->frame.fractional_scale = early_fractional_scale;
+    window_->frame.buffer_scale = 1;
+
+    window_->frame_pending.fractional_scale_preferred = early_fractional_scale;
+    window_->frame_pending.fractional_scale = early_fractional_scale;
+    window_->frame_pending.buffer_scale = 1;
+
+    /* The scale is considered initialized now. */
+    window_->frame_pending.is_scale_init = true;
+
+    /* Always commit and set the scale. */
+    bool surface_needs_commit_dummy = false, surface_needs_buffer_scale_dummy = false;
+    gwl_window_frame_pending_fractional_scale_set_notest(
+        window_, &surface_needs_commit_dummy, &surface_needs_buffer_scale_dummy);
+  }
+  else if (early_buffer_scale != 0) {
+    /* Non-fractional scale is known. */
+
+    /* No fractional scale, simple initialization. */
+    window_->frame.buffer_scale = early_buffer_scale;
+    window_->frame_pending.buffer_scale = early_buffer_scale;
+
+    /* The scale is considered initialized now. */
+    window_->frame_pending.is_scale_init = true;
+
+    /* The window surface must be rounded to the scale,
+     * failing to do so causes the WAYLAND-server to close the window immediately. */
+    gwl_round_int2_by(window_->frame.size, window_->frame.buffer_scale);
+  }
+  else {
+    /* Scale isn't known (the windows size may flicker when #outputs_changed_update_scale runs). */
+    window_->frame.buffer_scale = 1;
+    window_->frame_pending.buffer_scale = 1;
+    GHOST_ASSERT(window_->frame_pending.is_scale_init == false,
+                 "An initialized scale is not expected");
+  }
+
+  if (window_->frame_pending.is_scale_init) {
+    /* If the output scale changes here it means the scale settings were not properly set. */
+    GHOST_ASSERT(outputs_changed_update_scale() == false,
+                 "Fractional scale was not properly initialized");
+  }
+
+  wl_surface_set_buffer_scale(window_->wl.surface, window_->frame.buffer_scale);
+
+/* Postpone binding the buffer until after it's decor has been configured:
+ * - Ensure the window is sized properly (with XDG window decorations), see: #113059.
+ * - Avoids flickering on startup.
+ */
+#ifdef WITH_OPENGL_BACKEND
+  if (type == GHOST_kDrawingContextTypeOpenGL) {
+    window_->backend.egl_window = wl_egl_window_create(
+        window_->wl.surface, int(window_->frame.size[0]), int(window_->frame.size[1]));
+  }
+#endif
+#ifdef WITH_VULKAN_BACKEND
+  if (type == GHOST_kDrawingContextTypeVulkan) {
+    window_->backend.vulkan_window_info = new GHOST_ContextVK_WindowInfo;
+    window_->backend.vulkan_window_info->size[0] = window_->frame.size[0];
+    window_->backend.vulkan_window_info->size[1] = window_->frame.size[1];
+  }
+#endif
+
+  /* Drawing context. */
+  if (setDrawingContextType(type) == GHOST_kFailure) {
+    GHOST_PRINT("Failed to create drawing context" << std::endl);
+  }
+
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  if (use_libdecor) {
     /* Commit needed so the top-level callbacks run (and `toplevel` can be accessed). */
     wl_surface_commit(window_->wl.surface);
+    GWL_LibDecor_Window &decor = *window_->libdecor;
 
     /* Additional round-trip is needed to ensure `xdg_toplevel` is set. */
     wl_display_roundtrip(system_->wl_display_get());
@@ -1657,52 +1751,13 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   else
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR */
   {
-    WGL_XDG_Decor_Window &decor = *window_->xdg_decor;
-
-    if (system_->xdg_decor_manager_get()) {
-      decor.toplevel_decor = zxdg_decoration_manager_v1_get_toplevel_decoration(
-          system_->xdg_decor_manager_get(), decor.toplevel);
-      zxdg_toplevel_decoration_v1_add_listener(
-          decor.toplevel_decor, &xdg_toplevel_decoration_v1_listener, window_);
-      zxdg_toplevel_decoration_v1_set_mode(decor.toplevel_decor,
-                                           ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-    }
-
     gwl_window_state_set(window_, state);
-
-    /* Commit needed to so configure callback runs. */
-    wl_surface_commit(window_->wl.surface);
-    while (!decor.initial_configure_seen) {
-      wl_display_flush(system->wl_display_get());
-      wl_display_dispatch(system->wl_display_get());
-    }
   }
 
-  /* Postpone binding the buffer until after it's decor has been configured:
-   * - Ensure the window is sized properly (with XDG window decorations), see: #113059.
-   * - Avoids flickering on startup.
-   */
-#ifdef WITH_OPENGL_BACKEND
-  if (type == GHOST_kDrawingContextTypeOpenGL) {
-    window_->backend.egl_window = wl_egl_window_create(
-        window_->wl.surface, int(window_->frame.size[0]), int(window_->frame.size[1]));
-  }
-#endif
-#ifdef WITH_VULKAN_BACKEND
-  if (type == GHOST_kDrawingContextTypeVulkan) {
-    window_->backend.vulkan_window_info = new GHOST_ContextVK_WindowInfo;
-    window_->backend.vulkan_window_info->size[0] = window_->frame.size[0];
-    window_->backend.vulkan_window_info->size[1] = window_->frame.size[1];
-  }
-#endif
-
-  /* Commit after setting the buffer. */
+  /* Commit after setting the buffer.
+   * While postponing until after the buffer drawing is context is set
+   * isn't essential, it reduces flickering. */
   wl_surface_commit(window_->wl.surface);
-
-  /* Drawing context. */
-  if (setDrawingContextType(type) == GHOST_kFailure) {
-    GHOST_PRINT("Failed to create drawing context" << std::endl);
-  }
 
   /* Set swap interval to 0 to prevent blocking. */
   setSwapInterval(0);

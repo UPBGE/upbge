@@ -594,7 +594,7 @@ static void mesh_batch_cache_init(Object *object, Mesh *mesh)
 
   if (cache->is_editmode == false) {
     // cache->edge_len = mesh_render_edges_len_get(mesh);
-    // cache->tri_len = mesh_render_looptri_len_get(mesh);
+    // cache->tri_len = mesh_render_looptris_len_get(mesh);
     // cache->face_len = mesh_render_faces_len_get(mesh);
     // cache->vert_len = mesh_render_verts_len_get(mesh);
   }
@@ -1343,6 +1343,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
                                            const bool is_paint_mode,
                                            const bool use_hide)
 {
+  using namespace blender;
   BLI_assert(task_graph);
   const ToolSettings *ts = nullptr;
   if (scene) {
@@ -1509,7 +1510,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
   const bool do_update_sculpt_normals = ob->sculpt && ob->sculpt->pbvh;
   if (do_update_sculpt_normals) {
     Mesh *mesh = static_cast<Mesh *>(ob->data);
-    BKE_pbvh_update_normals(ob->sculpt->pbvh, mesh->runtime->subdiv_ccg.get());
+    bke::pbvh::update_normals(*ob->sculpt->pbvh, mesh->runtime->subdiv_ccg.get());
   }
 
   cache.batch_ready |= batch_requested;

@@ -119,8 +119,8 @@ void BKE_mesh_uv_vert_map_free(UvVertMap *vmap);
 void BKE_mesh_vert_looptri_map_create(MeshElemMap **r_map,
                                       int **r_mem,
                                       int totvert,
-                                      const MLoopTri *mlooptri,
-                                      int totlooptri,
+                                      const MLoopTri *looptris,
+                                      int totlooptris,
                                       const int *corner_verts,
                                       int totloop);
 /**
@@ -140,14 +140,14 @@ void BKE_mesh_vert_looptri_map_create(MeshElemMap **r_map,
 void BKE_mesh_origindex_map_create(
     MeshElemMap **r_map, int **r_mem, int totsource, const int *final_origindex, int totfinal);
 /**
- * A version of #BKE_mesh_origindex_map_create that takes a looptri array.
- * Making a face -> looptri map.
+ * A version of #BKE_mesh_origindex_map_create that takes a #MLoopTri array.
+ * Making a face -> #MLoopTri map.
  */
 void BKE_mesh_origindex_map_create_looptri(MeshElemMap **r_map,
                                            int **r_mem,
                                            blender::OffsetIndices<int> faces,
                                            const int *looptri_faces,
-                                           int looptri_num);
+                                           int looptris_num);
 
 /* islands */
 
@@ -263,16 +263,7 @@ int *BKE_mesh_calc_smoothgroups(int edges_num,
                                 int *r_totgroup,
                                 bool use_bitflags);
 
-/* No good (portable) way to have exported inlined functions... */
-#define BKE_MESH_TESSFACE_VINDEX_ORDER(_mf, _v) \
-  ((CHECK_TYPE_INLINE(_mf, MFace *), CHECK_TYPE_INLINE(&(_v), unsigned int *)), \
-   ((_mf->v1 == _v)            ? 0 : \
-    (_mf->v2 == _v)            ? 1 : \
-    (_mf->v3 == _v)            ? 2 : \
-    (_mf->v4 && _mf->v4 == _v) ? 3 : \
-                                 -1))
-
-/* use on looptri vertex values */
+/* Use on #MLoopTri vertex values. */
 #define BKE_MESH_TESSTRI_VINDEX_ORDER(_tri, _v) \
   ((CHECK_TYPE_ANY( \
         _tri, unsigned int *, int *, int[3], const unsigned int *, const int *, const int[3]), \
