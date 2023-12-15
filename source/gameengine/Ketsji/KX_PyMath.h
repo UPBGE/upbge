@@ -42,9 +42,7 @@
 
 #ifdef WITH_PYTHON
 #  ifdef USE_MATHUTILS
-extern "C" {
 #    include "../../blender/python/mathutils/mathutils.h" /* so we can have mathutils callbacks */
-}
 #  endif
 
 inline unsigned int Size(const MT_Matrix4x4 &)
