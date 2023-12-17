@@ -1260,6 +1260,9 @@ class RENDER_PT_simplify_viewport(RenderButtonsPanel, Panel):
             col = flow.column()
             col.prop(rd, "simplify_shadows", text="Shadow Resolution")
 
+        col = flow.column()
+        col.prop(rd, "use_simplify_normals", text="Normals")
+
 
 class RENDER_PT_simplify_render(RenderButtonsPanel, Panel):
     bl_label = "Render"

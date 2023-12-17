@@ -67,8 +67,7 @@
 
 #include "lib_intern.hh"
 
-#define OVERRIDE_AUTO_CHECK_DELAY 0.2 /* 200ms between auto-override checks. */
-//#define DEBUG_OVERRIDE_TIMEIT
+// #define DEBUG_OVERRIDE_TIMEIT
 
 #ifdef DEBUG_OVERRIDE_TIMEIT
 #  include "PIL_time_utildefines.h"
@@ -835,7 +834,7 @@ struct LibOverrideGroupTagData {
   GHash *linked_object_to_instantiating_collections;
   MemArena *mem_arena;
 
-  void clear(void)
+  void clear()
   {
     linked_ids_hierarchy_default_override.clear();
     BLI_ghash_free(linked_object_to_instantiating_collections, nullptr, nullptr);

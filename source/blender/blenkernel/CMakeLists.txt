@@ -236,7 +236,7 @@ set(SRC
   intern/nla.cc
   intern/node.cc
   intern/node_runtime.cc
-  intern/node_socket_value_cpp_type.cc
+  intern/node_socket_value.cc
   intern/node_tree_anonymous_attributes.cc
   intern/node_tree_dot_export.cc
   intern/node_tree_field_inferencing.cc
@@ -463,7 +463,6 @@ set(SRC
   BKE_node.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
-  BKE_node_socket_value_cpp_type.hh
   BKE_node_tree_anonymous_attributes.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
