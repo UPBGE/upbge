@@ -1511,11 +1511,6 @@ static const wl_surface_listener wl_surface_listener = {
  * WAYLAND specific implementation of the #GHOST_Window interface.
  * \{ */
 
-GHOST_TSuccess GHOST_WindowWayland::hasCursorShape(GHOST_TStandardCursor cursorShape)
-{
-  return system_->cursor_shape_check(cursorShape);
-}
-
 GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                          const char *title,
                                          const int32_t /*left*/,
@@ -1796,6 +1791,64 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   setSwapInterval(0);
 }
 
+GHOST_WindowWayland::~GHOST_WindowWayland()
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*system_->server_mutex};
+#endif
+
+  releaseNativeHandles();
+
+#ifdef WITH_OPENGL_BACKEND
+  if (window_->ghost_context_type == GHOST_kDrawingContextTypeOpenGL) {
+    wl_egl_window_destroy(window_->backend.egl_window);
+  }
+#endif
+#ifdef WITH_VULKAN_BACKEND
+  if (window_->ghost_context_type == GHOST_kDrawingContextTypeVulkan) {
+    delete window_->backend.vulkan_window_info;
+  }
+#endif
+
+  if (window_->xdg.activation_token) {
+    xdg_activation_token_v1_destroy(window_->xdg.activation_token);
+    window_->xdg.activation_token = nullptr;
+  }
+
+  if (window_->wp.fractional_scale_handle) {
+    wp_fractional_scale_v1_destroy(window_->wp.fractional_scale_handle);
+    window_->wp.fractional_scale_handle = nullptr;
+  }
+
+  if (window_->wp.viewport) {
+    wp_viewport_destroy(window_->wp.viewport);
+    window_->wp.viewport = nullptr;
+  }
+
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  if (use_libdecor) {
+    gwl_libdecor_window_destroy(window_->libdecor);
+  }
+  else
+#endif
+  {
+    gwl_xdg_decor_window_destroy(window_->xdg_decor);
+  }
+
+  /* Clear any pointers to this window. This is needed because there are no guarantees
+   * that flushing the display will the "leave" handlers before handling events. */
+  system_->window_surface_unref(window_->wl.surface);
+
+  wl_surface_destroy(window_->wl.surface);
+
+  /* NOTE(@ideasman42): Flushing will often run the appropriate handlers event
+   * (#wl_surface_listener.leave in particular) to avoid attempted access to the freed surfaces.
+   * This is not fool-proof though, hence the call to #window_surface_unref, see: #99078. */
+  wl_display_flush(system_->wl_display_get());
+
+  delete window_;
+}
+
 #ifdef USE_EVENT_BACKGROUND_THREAD
 GHOST_TSuccess GHOST_WindowWayland::swapBuffers()
 {
@@ -1803,6 +1856,11 @@ GHOST_TSuccess GHOST_WindowWayland::swapBuffers()
   return GHOST_Window::swapBuffers();
 }
 #endif /* USE_EVENT_BACKGROUND_THREAD */
+
+GHOST_TSuccess GHOST_WindowWayland::hasCursorShape(GHOST_TStandardCursor cursorShape)
+{
+  return system_->cursor_shape_check(cursorShape);
+}
 
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorGrab(GHOST_TGrabCursorMode mode)
 {
@@ -1948,64 +2006,6 @@ void GHOST_WindowWayland::clientToScreen(int32_t inX,
 {
   outX = inX;
   outY = inY;
-}
-
-GHOST_WindowWayland::~GHOST_WindowWayland()
-{
-#ifdef USE_EVENT_BACKGROUND_THREAD
-  std::lock_guard lock_server_guard{*system_->server_mutex};
-#endif
-
-  releaseNativeHandles();
-
-#ifdef WITH_OPENGL_BACKEND
-  if (window_->ghost_context_type == GHOST_kDrawingContextTypeOpenGL) {
-    wl_egl_window_destroy(window_->backend.egl_window);
-  }
-#endif
-#ifdef WITH_VULKAN_BACKEND
-  if (window_->ghost_context_type == GHOST_kDrawingContextTypeVulkan) {
-    delete window_->backend.vulkan_window_info;
-  }
-#endif
-
-  if (window_->xdg.activation_token) {
-    xdg_activation_token_v1_destroy(window_->xdg.activation_token);
-    window_->xdg.activation_token = nullptr;
-  }
-
-  if (window_->wp.fractional_scale_handle) {
-    wp_fractional_scale_v1_destroy(window_->wp.fractional_scale_handle);
-    window_->wp.fractional_scale_handle = nullptr;
-  }
-
-  if (window_->wp.viewport) {
-    wp_viewport_destroy(window_->wp.viewport);
-    window_->wp.viewport = nullptr;
-  }
-
-#ifdef WITH_GHOST_WAYLAND_LIBDECOR
-  if (use_libdecor) {
-    gwl_libdecor_window_destroy(window_->libdecor);
-  }
-  else
-#endif
-  {
-    gwl_xdg_decor_window_destroy(window_->xdg_decor);
-  }
-
-  /* Clear any pointers to this window. This is needed because there are no guarantees
-   * that flushing the display will the "leave" handlers before handling events. */
-  system_->window_surface_unref(window_->wl.surface);
-
-  wl_surface_destroy(window_->wl.surface);
-
-  /* NOTE(@ideasman42): Flushing will often run the appropriate handlers event
-   * (#wl_surface_listener.leave in particular) to avoid attempted access to the freed surfaces.
-   * This is not fool-proof though, hence the call to #window_surface_unref, see: #99078. */
-  wl_display_flush(system_->wl_display_get());
-
-  delete window_;
 }
 
 uint16_t GHOST_WindowWayland::getDPIHint()
@@ -2344,10 +2344,11 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
     return false;
   }
 
-  if (window_->wp.fractional_scale_handle) {
 #ifdef USE_EVENT_BACKGROUND_THREAD
-    std::lock_guard lock_frame_guard{window_->frame_pending_mutex};
+  std::lock_guard lock_frame_guard{window_->frame_pending_mutex};
 #endif
+
+  if (window_->wp.fractional_scale_handle) {
     /* Let the #wp_fractional_scale_v1_listener::preferred_scale callback handle
      * changes to the windows scale. */
     if (window_->frame_pending.fractional_scale_preferred != 0) {
@@ -2363,13 +2364,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
 
   bool changed = false;
 
-#ifdef USE_EVENT_BACKGROUND_THREAD
-  std::lock_guard lock_frame_guard{window_->frame_pending_mutex};
-#endif
-
-  bool force_frame_update = false;
-
-  bool is_fractional_prev = window_->frame.fractional_scale != 0;
+  const bool is_fractional_prev = window_->frame.fractional_scale != 0;
   const bool is_fractional_next = (fractional_scale_next % FRACTIONAL_DENOMINATOR) != 0;
 
   /* When non-fractional, never use fractional scaling! */
@@ -2378,11 +2373,14 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
                                             1 :
                                             fractional_scale_next / FRACTIONAL_DENOMINATOR;
 
-  int fractional_scale_prev = window_->frame.fractional_scale ?
-                                  window_->frame.fractional_scale :
-                                  window_->frame.buffer_scale * FRACTIONAL_DENOMINATOR;
-  int scale_prev = fractional_scale_prev / FRACTIONAL_DENOMINATOR;
-  bool do_frame_resize = true;
+  const int fractional_scale_prev = window_->frame.fractional_scale ?
+                                        window_->frame.fractional_scale :
+                                        window_->frame.buffer_scale * FRACTIONAL_DENOMINATOR;
+  const int scale_prev = fractional_scale_prev / FRACTIONAL_DENOMINATOR;
+
+  /* Resizing implies updating. */
+  bool do_frame_resize = false;
+  bool do_frame_update = false;
 
   if (window_->frame_pending.is_scale_init == false) {
     window_->frame_pending.is_scale_init = true;
@@ -2415,7 +2413,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
                                  double(fractional_scale_next));
         }
         else {
-          window_->frame_pending.size[i] = value / scale_prev;
+          size_next[i] = value / scale_prev;
         }
         if (window_->frame_pending.buffer_scale > 1) {
           gwl_round_int_by(&size_next[i], window_->frame_pending.buffer_scale);
@@ -2428,52 +2426,47 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
         libdecor_frame_commit(decor.frame, state, nullptr);
         libdecor_state_free(state);
       }
-
-      do_frame_resize = false;
-
-      force_frame_update = true;
     }
-    else
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR */
+    /* Leave `window_->frame_pending` as-is, so changes are detected and updates are applied. */
+    do_frame_resize = false;
+    do_frame_update = true;
+  }
+  else {
+    /* Test if the scale changed. */
+    if ((fractional_scale_prev != fractional_scale_next) ||
+        (window_->frame_pending.buffer_scale != window_->frame.buffer_scale))
     {
-      is_fractional_prev = is_fractional_next;
-      scale_prev = scale_next;
-      fractional_scale_prev = fractional_scale_next;
-
-      /* Leave `window_->frame_pending` as-is, so changes are detected and updates are applied. */
-      force_frame_update = true;
+      do_frame_resize = true;
     }
   }
 
-  if ((fractional_scale_prev != fractional_scale_next) ||
-      (window_->frame_pending.buffer_scale != window_->frame.buffer_scale) ||
-      (force_frame_update == true))
-  {
+  if (do_frame_resize) {
     /* Resize the window failing to do so results in severe flickering with a
      * multi-monitor setup when multiple monitors have different scales.
      *
      * NOTE: some flickering is still possible even when resizing this
      * happens when dragging the right hand side of the title-bar in KDE
      * as expanding changed the size on the RHS, this may be up to the compositor to fix. */
-    if (do_frame_resize) {
-      for (size_t i = 0; i < ARRAY_SIZE(window_->frame_pending.size); i++) {
-        const int value = window_->frame_pending.size[i] ? window_->frame_pending.size[i] :
-                                                           window_->frame.size[i];
-        if (is_fractional_prev || is_fractional_next) {
-          window_->frame_pending.size[i] = lroundf(
-              (value * (double(fractional_scale_next)) / double(fractional_scale_prev)));
-        }
-        else {
-          window_->frame_pending.size[i] = (value * scale_next) / scale_prev;
-        }
-        if (window_->frame_pending.buffer_scale > 1) {
-          gwl_round_int_by(&window_->frame_pending.size[i], window_->frame_pending.buffer_scale);
-        }
+    for (size_t i = 0; i < ARRAY_SIZE(window_->frame_pending.size); i++) {
+      const int value = window_->frame_pending.size[i] ? window_->frame_pending.size[i] :
+                                                         window_->frame.size[i];
+      if (is_fractional_prev || is_fractional_next) {
+        window_->frame_pending.size[i] = lroundf((value * double(fractional_scale_next)) /
+                                                 double(fractional_scale_prev));
+      }
+      else {
+        window_->frame_pending.size[i] = (value * scale_next) / scale_prev;
+      }
+      if (window_->frame_pending.buffer_scale > 1) {
+        gwl_round_int_by(&window_->frame_pending.size[i], window_->frame_pending.buffer_scale);
       }
     }
+    do_frame_update = true;
+  }
 
+  if (do_frame_update) {
     gwl_window_frame_update_from_pending_no_lock(window_);
-
     changed = true;
   }
 

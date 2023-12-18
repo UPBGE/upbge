@@ -857,29 +857,24 @@ enum {
 
 typedef int (*RecursiveOp_Callback)(const char *from, const char *to);
 
-/* appending of filename to dir (ensures for buffer size before appending) */
+/**
+ * Append `file` to `dir` (ensures for buffer size before appending).
+ * \param dst: The destination memory (allocated by `malloc`).
+ */
 static void join_dirfile_alloc(char **dst, size_t *alloc_len, const char *dir, const char *file)
 {
   size_t len = strlen(dir) + strlen(file) + 1;
 
   if (*dst == nullptr) {
-    *dst = MEM_cnew_array<char>(len + 1, "join_dirfile_alloc path");
+    *dst = static_cast<char *>(malloc(len + 1));
   }
   else if (*alloc_len < len) {
-    *dst = static_cast<char *>(MEM_reallocN(*dst, len + 1));
+    *dst = static_cast<char *>(realloc(*dst, len + 1));
   }
 
   *alloc_len = len;
 
   BLI_path_join(*dst, len + 1, dir, file);
-}
-
-static char *strip_last_slash(const char *dirpath)
-{
-  char *result = BLI_strdup(dirpath);
-  BLI_path_slash_rstrip(result);
-
-  return result;
 }
 
 /**
@@ -893,7 +888,7 @@ static char *strip_last_slash(const char *dirpath)
  *                          RecursiveOp_Callback_StopRecurs to skip the subdirectory.
  * \param callback_file: Optional, to be invoked on each file found.
  * \param callback_dir_post: optional, to be invoked after leaving a subdirectory.
- * \return
+ * \return Zero on success.
  */
 static int recursive_operation(const char *startfrom,
                                const char *startto,
@@ -901,18 +896,27 @@ static int recursive_operation(const char *startfrom,
                                RecursiveOp_Callback callback_file,
                                RecursiveOp_Callback callback_dir_post)
 {
+  /* NOTE(@ideasman42): This function must *not* use any `MEM_*` functions
+   * as it's used to purge temporary files on when the processed is aborted,
+   * in this case the `MEM_*` state may have already been freed (memory usage tracking for e.g.)
+   * causing freed memory access, potentially crashing. This constraint doesn't apply to the
+   * callbacks themselves - unless they might also be called when aborting. */
   struct stat st;
   char *from = nullptr, *to = nullptr;
   char *from_path = nullptr, *to_path = nullptr;
-  dirent **dirlist = nullptr;
   size_t from_alloc_len = -1, to_alloc_len = -1;
-  int i, n = 0, ret = 0;
+  int ret = 0;
+
+  dirent **dirlist = nullptr;
+  int dirlist_num = 0;
 
   do { /* once */
     /* ensure there's no trailing slash in file path */
-    from = strip_last_slash(startfrom);
+    from = strdup(startfrom);
+    BLI_path_slash_rstrip(from);
     if (startto) {
-      to = strip_last_slash(startto);
+      to = strdup(startto);
+      BLI_path_slash_rstrip(to);
     }
 
     ret = lstat(from, &st);
@@ -933,8 +937,8 @@ static int recursive_operation(const char *startfrom,
       break;
     }
 
-    n = scandir(startfrom, &dirlist, nullptr, alphasort);
-    if (n < 0) {
+    dirlist_num = scandir(startfrom, &dirlist, nullptr, alphasort);
+    if (dirlist_num < 0) {
       /* error opening directory for listing */
       perror("scandir");
       ret = -1;
@@ -955,7 +959,7 @@ static int recursive_operation(const char *startfrom,
       }
     }
 
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < dirlist_num; i++) {
       const dirent *const dirent = dirlist[i];
 
       if (FILENAME_IS_CURRPAR(dirent->d_name)) {
@@ -972,9 +976,7 @@ static int recursive_operation(const char *startfrom,
 #  ifdef __HAIKU__
       {
         struct stat st_dir;
-        char filepath[FILE_MAX];
-        BLI_path_join(filepath, sizeof(filepath), startfrom, dirent->d_name, NULL);
-        lstat(filepath, &st_dir);
+        lstat(from_path, &st_dir);
         is_dir = S_ISDIR(st_dir.st_mode);
       }
 #  else
@@ -1010,22 +1012,22 @@ static int recursive_operation(const char *startfrom,
   } while (false);
 
   if (dirlist != nullptr) {
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < dirlist_num; i++) {
       free(dirlist[i]);
     }
     free(dirlist);
   }
   if (from_path != nullptr) {
-    MEM_freeN(from_path);
+    free(from_path);
   }
   if (to_path != nullptr) {
-    MEM_freeN(to_path);
+    free(to_path);
   }
   if (from != nullptr) {
-    MEM_freeN(from);
+    free(from);
   }
   if (to != nullptr) {
-    MEM_freeN(to);
+    free(to);
   }
 
   return ret;
@@ -1408,7 +1410,8 @@ static const char *path_destination_ensure_filename(const char *path_src,
                                                     size_t buf_size)
 {
   if (BLI_is_dir(path_dst)) {
-    char *path_src_no_slash = strip_last_slash(path_src);
+    char *path_src_no_slash = BLI_strdup(path_src);
+    BLI_path_slash_rstrip(path_src_no_slash);
     const char *filename_src = BLI_path_basename(path_src_no_slash);
     if (filename_src != path_src_no_slash) {
       const size_t buf_size_needed = strlen(path_dst) + 1 + strlen(filename_src) + 1;
