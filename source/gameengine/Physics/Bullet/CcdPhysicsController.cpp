@@ -29,7 +29,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "DEG_depsgraph_query.hh"
-#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"

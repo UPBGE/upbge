@@ -72,6 +72,7 @@
 #include "BKE_scene.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_python_proxy_types.h"
 #include "wm_event_types.hh"
 
@@ -419,20 +420,20 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
 
   const bke::AttributeAccessor attributes = final_me->attributes();
-  const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", ATTR_DOMAIN_FACE);
 
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
     if (CustomData_get_layer_index(&final_me->loop_data, CD_TANGENT) == -1) {
       short tangent_mask = 0;
-      const Span<MLoopTri> looptris = final_me->looptris();
+      const blender::Span<int3> corner_tris = final_me->corner_tris();
+      const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", ATTR_DOMAIN_FACE);
       BKE_mesh_calc_loop_tangent_ex(
           reinterpret_cast<const float(*)[3]>(positions.data()),
           final_me->faces(),
           final_me->corner_verts().data(),
-          looptris.data(),
-          final_me->looptri_faces().data(),
-          uint(looptris.size()),
+          corner_tris.data(),
+          final_me->corner_tri_faces().data(),
+          uint(corner_tris.size()),
           sharp_face,
           &final_me->loop_data,
           true,
