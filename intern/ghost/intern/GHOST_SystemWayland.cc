@@ -836,6 +836,13 @@ static void gwl_primary_selection_discard_source(GWL_PrimarySelection *primary)
 
 #ifdef WITH_INPUT_IME
 struct GWL_SeatIME {
+  /**
+   * The surface associated with this text input method.
+   *
+   * \note Even when null, IME callbacks run and events are generated to ensure
+   * the IME state remains consistent & allow for the compositor to assign the surface
+   * at any point in time which is then defines `window` IME events are associated with.
+   */
   wl_surface *surface_window = nullptr;
   GHOST_TEventImeData event_ime_data = {
       /*result_len*/ nullptr,
@@ -5288,10 +5295,6 @@ static void text_input_handle_preedit_string(void *data,
             cursor_end);
 
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  if (UNLIKELY(seat->ime.surface_window == nullptr)) {
-    return;
-  }
-
   if (seat->ime.has_preedit == false) {
     /* Starting IME input. */
     gwl_seat_ime_full_reset(seat);
@@ -5318,10 +5321,6 @@ static void text_input_handle_commit_string(void *data,
   CLOG_INFO(LOG, 2, "commit_string (text=\"%s\")", text ? text : "<null>");
 
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  if (UNLIKELY(seat->ime.surface_window == nullptr)) {
-    return;
-  }
-
   seat->ime.result_is_null = (text == nullptr);
   if (seat->ime.result_is_null) {
     seat->ime.result = "";
@@ -5363,7 +5362,9 @@ static void text_input_handle_done(void *data,
 
   CLOG_INFO(LOG, 2, "done");
 
-  GHOST_WindowWayland *win = ghost_wl_surface_user_data(seat->ime.surface_window);
+  GHOST_WindowWayland *win = seat->ime.surface_window ?
+                                 ghost_wl_surface_user_data(seat->ime.surface_window) :
+                                 nullptr;
   if (seat->ime.has_commit_string_callback) {
     if (seat->ime.has_preedit) {
       const bool is_end = seat->ime.composite_is_null;
@@ -8271,8 +8272,10 @@ uint64_t GHOST_SystemWayland::ms_from_input_time(const uint32_t timestamp_as_uin
   GWL_DisplayTimeStamp &input_timestamp = display_->input_timestamp;
   if (UNLIKELY(timestamp_as_uint < input_timestamp.last)) {
     /* NOTE(@ideasman42): Sometimes event times are out of order,
-     * while this should _never_ happen, it occasionally does when resizing the window then
-     * clicking on the window with GNOME+LIBDECOR.
+     * while this should _never_ happen, it occasionally does:
+     * - When resizing the window then clicking on the window with GNOME+LIBDECOR.
+     * - With accepting IME text with GNOME-v45.2 the timestamp is in seconds, see:
+     *   https://gitlab.gnome.org/GNOME/mutter/-/issues/3214
      * Accept events must occur within ~25 days, out-of-order time-stamps above this time-frame
      * will be treated as a wrapped integer. */
     if (input_timestamp.last - timestamp_as_uint > std::numeric_limits<uint32_t>::max() / 2) {

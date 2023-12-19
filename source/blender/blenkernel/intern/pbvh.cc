@@ -252,8 +252,8 @@ static int map_insert_vert(Map<int, int> &map,
 
 /* Find vertices used by the faces in this node and update the draw buffers */
 static void build_mesh_leaf_node(const Span<int> corner_verts,
-                                 const Span<MLoopTri> looptris,
-                                 const Span<int> looptri_faces,
+                                 const Span<int3> corner_tris,
+                                 const Span<int> tri_faces,
                                  const Span<bool> hide_poly,
                                  MutableSpan<bool> vert_bitmap,
                                  PBVHNode *node)
@@ -268,10 +268,10 @@ static void build_mesh_leaf_node(const Span<int> corner_verts,
   node->face_vert_indices.reinitialize(prim_indices.size());
 
   for (const int i : prim_indices.index_range()) {
-    const MLoopTri &lt = looptris[prim_indices[i]];
+    const int3 &tri = corner_tris[prim_indices[i]];
     for (int j = 0; j < 3; j++) {
       node->face_vert_indices[i][j] = map_insert_vert(
-          map, vert_bitmap, &node->face_verts, &node->uniq_verts, corner_verts[lt.tri[j]]);
+          map, vert_bitmap, &node->face_verts, &node->uniq_verts, corner_verts[tri[j]]);
     }
   }
 
@@ -296,10 +296,9 @@ static void build_mesh_leaf_node(const Span<int> corner_verts,
   }
 
   const bool fully_hidden = !hide_poly.is_empty() &&
-                            std::all_of(
-                                prim_indices.begin(), prim_indices.end(), [&](const int tri) {
-                                  return hide_poly[looptri_faces[tri]];
-                                });
+                            std::all_of(prim_indices.begin(),
+                                        prim_indices.end(),
+                                        [&](const int tri) { return hide_poly[tri_faces[tri]]; });
   BKE_pbvh_node_fully_hidden_set(node, fully_hidden);
   BKE_pbvh_node_mark_rebuild_draw(node);
 }
@@ -363,8 +362,8 @@ static void build_grid_leaf_node(PBVH *pbvh, PBVHNode *node)
 
 static void build_leaf(PBVH *pbvh,
                        const Span<int> corner_verts,
-                       const Span<MLoopTri> looptris,
-                       const Span<int> looptri_faces,
+                       const Span<int3> corner_tris,
+                       const Span<int> tri_faces,
                        const Span<bool> hide_poly,
                        MutableSpan<bool> vert_bitmap,
                        int node_index,
@@ -380,8 +379,8 @@ static void build_leaf(PBVH *pbvh,
   /* Still need vb for searches */
   update_vb(pbvh->prim_indices, &node, prim_bounds, offset, count);
 
-  if (!pbvh->looptris.is_empty()) {
-    build_mesh_leaf_node(corner_verts, looptris, looptri_faces, hide_poly, vert_bitmap, &node);
+  if (!pbvh->corner_tris.is_empty()) {
+    build_mesh_leaf_node(corner_verts, corner_tris, tri_faces, hide_poly, vert_bitmap, &node);
   }
   else {
     build_grid_leaf_node(pbvh, &node);
@@ -413,50 +412,36 @@ static bool leaf_needs_material_split(PBVH *pbvh,
 }
 
 #ifdef TEST_PBVH_FACE_SPLIT
-static void test_face_boundaries(PBVH *pbvh)
+static void test_face_boundaries(PBVH *pbvh, const Mesh &mesh)
 {
-  int faces_num = BKE_pbvh_num_faces(pbvh);
-  int *node_map = MEM_calloc_arrayN(faces_num, sizeof(int), __func__);
-  for (int i = 0; i < faces_num; i++) {
-    node_map[i] = -1;
-  }
-
-  for (int i = 0; i < pbvh->totnode; i++) {
-    PBVHNode *node = pbvh->nodes + i;
-
-    if (!(node->flag & PBVH_Leaf)) {
-      continue;
-    }
-
-    switch (BKE_pbvh_type(pbvh)) {
-      case PBVH_FACES: {
-        for (int j = 0; j < node->totprim; j++) {
-          int face_i = looptri_faces[node->prim_indices[j]];
-
-          if (node_map[face_i] >= 0 && node_map[face_i] != i) {
-            int old_i = node_map[face_i];
-            int prim_i = node->prim_indices - pbvh->prim_indices + j;
-
-            printf("PBVH split error; face: %d, prim_i: %d, node1: %d, node2: %d, totprim: %d\n",
-                   face_i,
-                   prim_i,
-                   old_i,
-                   i,
-                   node->totprim);
-          }
-
-          node_map[face_i] = i;
-        }
-        break;
+  if (BKE_pbvh_type(pbvh) == PBVH_FACES) {
+    int faces_num = mesh.faces_num;
+    Array<int> node_map(faces_num, -1);
+    for (int i = 0; i < pbvh->totnode; i++) {
+      PBVHNode *node = pbvh->nodes + i;
+      if (!(node->flag & PBVH_Leaf)) {
+        continue;
       }
-      case PBVH_GRIDS:
-        break;
-      case PBVH_BMESH:
-        break;
+
+      for (int j = 0; j < node->totprim; j++) {
+        int face_i = mesh.corner_tri_faces()[node->prim_indices[j]];
+
+        if (node_map[face_i] >= 0 && node_map[face_i] != i) {
+          int old_i = node_map[face_i];
+          int prim_i = node->prim_indices - pbvh->prim_indices + j;
+
+          printf("PBVH split error; face: %d, prim_i: %d, node1: %d, node2: %d, totprim: %d\n",
+                 face_i,
+                 prim_i,
+                 old_i,
+                 i,
+                 node->totprim);
+        }
+
+        node_map[face_i] = i;
+      }
     }
   }
-
-  MEM_SAFE_FREE(node_map);
 }
 #endif
 
@@ -473,8 +458,8 @@ static void test_face_boundaries(PBVH *pbvh)
 
 static void build_sub(PBVH *pbvh,
                       const Span<int> corner_verts,
-                      const Span<MLoopTri> looptris,
-                      const Span<int> looptri_faces,
+                      const Span<int3> corner_tris,
+                      const Span<int> tri_faces,
                       const Span<bool> hide_poly,
                       const Span<int> material_indices,
                       const Span<bool> sharp_faces,
@@ -488,7 +473,7 @@ static void build_sub(PBVH *pbvh,
                       int depth)
 {
   const Span<int> prim_to_face_map = pbvh->header.type == PBVH_FACES ?
-                                         looptri_faces :
+                                         tri_faces :
                                          pbvh->subdiv_ccg->grid_to_face_map;
   int end;
 
@@ -504,8 +489,8 @@ static void build_sub(PBVH *pbvh,
     {
       build_leaf(pbvh,
                  corner_verts,
-                 looptris,
-                 looptri_faces,
+                 corner_tris,
+                 tri_faces,
                  hide_poly,
                  vert_bitmap,
                  node_index,
@@ -565,8 +550,8 @@ static void build_sub(PBVH *pbvh,
   /* Build children */
   build_sub(pbvh,
             corner_verts,
-            looptris,
-            looptri_faces,
+            corner_tris,
+            tri_faces,
             hide_poly,
             material_indices,
             sharp_faces,
@@ -580,8 +565,8 @@ static void build_sub(PBVH *pbvh,
             depth + 1);
   build_sub(pbvh,
             corner_verts,
-            looptris,
-            looptri_faces,
+            corner_tris,
+            tri_faces,
             hide_poly,
             material_indices,
             sharp_faces,
@@ -601,8 +586,8 @@ static void build_sub(PBVH *pbvh,
 
 static void pbvh_build(PBVH *pbvh,
                        const Span<int> corner_verts,
-                       const Span<MLoopTri> looptris,
-                       const Span<int> looptri_faces,
+                       const Span<int3> corner_tris,
+                       const Span<int> tri_faces,
                        const Span<bool> hide_poly,
                        const Span<int> material_indices,
                        const Span<bool> sharp_faces,
@@ -623,8 +608,8 @@ static void pbvh_build(PBVH *pbvh,
 
   build_sub(pbvh,
             corner_verts,
-            looptris,
-            looptri_faces,
+            corner_tris,
+            tri_faces,
             hide_poly,
             material_indices,
             sharp_faces,
@@ -639,7 +624,7 @@ static void pbvh_build(PBVH *pbvh,
 }
 
 #ifdef VALIDATE_UNIQUE_NODE_FACES
-static void pbvh_validate_node_prims(PBVH *pbvh, const Span<int> looptri_faces)
+static void pbvh_validate_node_prims(PBVH *pbvh, const Span<int> tri_faces)
 {
   int totface = 0;
 
@@ -658,7 +643,7 @@ static void pbvh_validate_node_prims(PBVH *pbvh, const Span<int> looptri_faces)
       int face_i;
 
       if (pbvh->header.type == PBVH_FACES) {
-        face_i = looptri_faces[node->prim_indices[j]];
+        face_i = tri_faces[node->prim_indices[j]];
       }
       else {
         face_i = BKE_subdiv_ccg_grid_to_face_index(pbvh->subdiv_ccg, node->prim_indices[j]);
@@ -685,7 +670,7 @@ static void pbvh_validate_node_prims(PBVH *pbvh, const Span<int> looptri_faces)
       int face_i;
 
       if (pbvh->header.type == PBVH_FACES) {
-        face_i = looptri_faces[node->prim_indices[j]];
+        face_i = tri_faces[node->prim_indices[j]];
       }
       else {
         face_i = BKE_subdiv_ccg_grid_to_face_index(pbvh->subdiv_ccg, node->prim_indices[j]);
@@ -710,7 +695,7 @@ void update_mesh_pointers(PBVH *pbvh, Mesh *mesh)
   BLI_assert(pbvh->header.type == PBVH_FACES);
   pbvh->faces = mesh->faces();
   pbvh->corner_verts = mesh->corner_verts();
-  pbvh->looptri_faces = mesh->looptri_faces();
+  pbvh->corner_tri_faces = mesh->corner_tri_faces();
   if (!pbvh->deformed) {
     /* Deformed data not matching the original mesh are owned directly by the PBVH, and are
      * set separately by #BKE_pbvh_vert_coords_apply. */
@@ -726,19 +711,19 @@ PBVH *build_mesh(Mesh *mesh)
   pbvh->header.type = PBVH_FACES;
 
   const int totvert = mesh->totvert;
-  const int looptris_num = poly_to_tri_count(mesh->faces_num, mesh->totloop);
+  const int corner_tris_num = poly_to_tri_count(mesh->faces_num, mesh->totloop);
   MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
   const OffsetIndices<int> faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
 
-  pbvh->looptris.reinitialize(looptris_num);
-  mesh::looptris_calc(vert_positions, faces, corner_verts, pbvh->looptris);
-  const Span<MLoopTri> looptris = pbvh->looptris;
+  pbvh->corner_tris.reinitialize(corner_tris_num);
+  mesh::corner_tris_calc(vert_positions, faces, corner_verts, pbvh->corner_tris);
+  const Span<int3> corner_tris = pbvh->corner_tris;
 
   pbvh->mesh = mesh;
 
   update_mesh_pointers(pbvh.get(), mesh);
-  const Span<int> looptri_faces = pbvh->looptri_faces;
+  const Span<int> tri_faces = pbvh->corner_tri_faces;
 
   pbvh->vert_bitmap = blender::Array<bool>(totvert, false);
   pbvh->totvert = totvert;
@@ -752,22 +737,20 @@ PBVH *build_mesh(Mesh *mesh)
   pbvh->leaf_limit = LEAF_LIMIT;
 #endif
 
-  pbvh->faces_num = mesh->faces_num;
-
   /* For each face, store the AABB and the AABB centroid */
-  Array<Bounds<float3>> prim_bounds(looptris_num);
+  Array<Bounds<float3>> prim_bounds(corner_tris_num);
   const Bounds<float3> cb = threading::parallel_reduce(
-      looptris.index_range(),
+      corner_tris.index_range(),
       1024,
       negative_bounds(),
       [&](const IndexRange range, const Bounds<float3> &init) {
         Bounds<float3> current = init;
         for (const int i : range) {
-          const MLoopTri &lt = looptris[i];
+          const int3 &tri = corner_tris[i];
           Bounds<float3> &bounds = prim_bounds[i];
-          bounds = {vert_positions[corner_verts[lt.tri[0]]]};
-          math::min_max(vert_positions[corner_verts[lt.tri[1]]], bounds.min, bounds.max);
-          math::min_max(vert_positions[corner_verts[lt.tri[2]]], bounds.min, bounds.max);
+          bounds = {vert_positions[corner_verts[tri[0]]]};
+          math::min_max(vert_positions[corner_verts[tri[1]]], bounds.min, bounds.max);
+          math::min_max(vert_positions[corner_verts[tri[2]]], bounds.min, bounds.max);
           const float3 center = math::midpoint(prim_bounds[i].min, prim_bounds[i].max);
           math::min_max(center, current.min, current.max);
         }
@@ -775,25 +758,25 @@ PBVH *build_mesh(Mesh *mesh)
       },
       [](const Bounds<float3> &a, const Bounds<float3> &b) { return bounds::merge(a, b); });
 
-  if (looptris_num) {
+  if (corner_tris_num) {
     const AttributeAccessor attributes = mesh->attributes();
     const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", ATTR_DOMAIN_FACE);
     const VArraySpan material_index = *attributes.lookup<int>("material_index", ATTR_DOMAIN_FACE);
     const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", ATTR_DOMAIN_FACE);
     pbvh_build(pbvh.get(),
                corner_verts,
-               looptris,
-               looptri_faces,
+               corner_tris,
+               tri_faces,
                hide_poly,
                material_index,
                sharp_face,
                pbvh->vert_bitmap,
                &cb,
                prim_bounds,
-               looptris_num);
+               corner_tris_num);
 
 #ifdef TEST_PBVH_FACE_SPLIT
-    test_face_boundaries(pbvh, looptri_faces);
+    test_face_boundaries(pbvh, tri_faces);
 #endif
   }
 
@@ -816,7 +799,6 @@ PBVH *build_grids(const CCGKey *key, Mesh *mesh, SubdivCCG *subdiv_ccg)
 
   pbvh->gridkey = *key;
   pbvh->subdiv_ccg = subdiv_ccg;
-  pbvh->faces_num = mesh->faces_num;
 
   /* Find maximum number of grids per face. */
   int max_grids = 1;
@@ -873,10 +855,6 @@ PBVH *build_grids(const CCGKey *key, Mesh *mesh, SubdivCCG *subdiv_ccg)
                &cb,
                prim_bounds,
                grids.size());
-
-#ifdef TEST_PBVH_FACE_SPLIT
-    test_face_boundaries(pbvh);
-#endif
   }
 
 #ifdef VALIDATE_UNIQUE_NODE_FACES
@@ -1258,7 +1236,7 @@ void update_normals(PBVH &pbvh, SubdivCCG *subdiv_ccg)
   }
   else if (pbvh.header.type == PBVH_GRIDS) {
     IndexMaskMemory memory;
-    const IndexMask faces_to_update = BKE_pbvh_get_grid_updates(&pbvh, nodes, memory);
+    const IndexMask faces_to_update = nodes_to_face_selection_grids(*subdiv_ccg, nodes, memory);
     BKE_subdiv_ccg_update_normals(*subdiv_ccg, faces_to_update);
     for (PBVHNode *node : nodes) {
       node->flag &= ~PBVH_UpdateNormals;
@@ -1328,6 +1306,9 @@ void update_bounds(PBVH &pbvh, int flag)
 {
   Vector<PBVHNode *> nodes = search_gather(
       &pbvh, [&](PBVHNode &node) { return update_search(&node, flag); });
+  if (nodes.is_empty()) {
+    return;
+  }
 
   if (flag & (PBVH_UpdateBB | PBVH_UpdateOriginalBB | PBVH_UpdateRedraw)) {
     pbvh_update_BB_redraw(&pbvh, nodes, flag);
@@ -1586,16 +1567,17 @@ Bounds<float3> BKE_pbvh_redraw_BB(PBVH *pbvh)
   return bounds;
 }
 
-blender::IndexMask BKE_pbvh_get_grid_updates(const PBVH *pbvh,
-                                             const Span<const PBVHNode *> nodes,
-                                             blender::IndexMaskMemory &memory)
+namespace blender::bke::pbvh {
+
+IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
+                                        const Span<const PBVHNode *> nodes,
+                                        IndexMaskMemory &memory)
 {
-  using namespace blender;
-  const Span<int> grid_to_face_map = pbvh->subdiv_ccg->grid_to_face_map;
+  const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
   /* Using a #VectorSet for index deduplication would also work, but the performance gets much
    * worse with large selections since the loop would be single-threaded. A boolean array has an
    * overhead regardless of selection size, but that is small. */
-  Array<bool> faces_to_update(pbvh->faces_num, false);
+  Array<bool> faces_to_update(subdiv_ccg.faces.size(), false);
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     for (const PBVHNode *node : nodes.slice(range)) {
       for (const int grid : node->prim_indices) {
@@ -1606,6 +1588,8 @@ blender::IndexMask BKE_pbvh_get_grid_updates(const PBVH *pbvh,
   return IndexMask::from_bools(faces_to_update, memory);
 }
 
+}  // namespace blender::bke::pbvh
+
 /***************************** PBVH Access ***********************************/
 
 bool BKE_pbvh_get_color_layer(Mesh *mesh, CustomDataLayer **r_layer, eAttrDomain *r_domain)
@@ -1614,15 +1598,6 @@ bool BKE_pbvh_get_color_layer(Mesh *mesh, CustomDataLayer **r_layer, eAttrDomain
       &mesh->id, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_COLOR);
   *r_domain = *r_layer ? BKE_id_attribute_domain(&mesh->id, *r_layer) : ATTR_DOMAIN_POINT;
   return *r_layer != nullptr;
-}
-
-bool BKE_pbvh_has_faces(const PBVH *pbvh)
-{
-  if (pbvh->header.type == PBVH_BMESH) {
-    return (pbvh->header.bm->totface != 0);
-  }
-
-  return (pbvh->totprim != 0);
 }
 
 Bounds<float3> BKE_pbvh_bounding_box(const PBVH *pbvh)
@@ -1767,20 +1742,6 @@ blender::Span<int> BKE_pbvh_node_get_loops(const PBVHNode *node)
   return node->loop_indices;
 }
 
-int BKE_pbvh_num_faces(const PBVH *pbvh)
-{
-  switch (pbvh->header.type) {
-    case PBVH_GRIDS:
-    case PBVH_FACES:
-      return pbvh->faces_num;
-    case PBVH_BMESH:
-      return pbvh->header.bm->totface;
-  }
-
-  BLI_assert_unreachable();
-  return 0;
-}
-
 blender::Span<int> BKE_pbvh_node_get_vert_indices(const PBVHNode *node)
 {
   return node->vert_indices;
@@ -1796,10 +1757,10 @@ namespace blender::bke::pbvh {
 Span<int> node_face_indices_calc_mesh(const PBVH &pbvh, const PBVHNode &node, Vector<int> &faces)
 {
   faces.clear();
-  const Span<int> looptri_faces = pbvh.looptri_faces;
+  const Span<int> tri_faces = pbvh.corner_tri_faces;
   int prev_face = -1;
   for (const int tri : node.prim_indices) {
-    const int face = looptri_faces[tri];
+    const int face = tri_faces[tri];
     if (face != prev_face) {
       faces.append(face);
       prev_face = face;
@@ -2066,16 +2027,17 @@ static bool pbvh_faces_node_raycast(PBVH *pbvh,
                                     int *r_active_face_index,
                                     float *r_face_normal)
 {
+  using namespace blender;
   const Span<float3> positions = pbvh->vert_positions;
   bool hit = false;
   float nearest_vertex_co[3] = {0.0f};
 
   for (const int i : node->prim_indices.index_range()) {
-    const int looptri_i = node->prim_indices[i];
-    const MLoopTri *lt = &pbvh->looptris[looptri_i];
+    const int tri_i = node->prim_indices[i];
+    const int3 &tri = pbvh->corner_tris[tri_i];
     const int3 face_verts = node->face_vert_indices[i];
 
-    if (!hide_poly.is_empty() && hide_poly[pbvh->looptri_faces[looptri_i]]) {
+    if (!hide_poly.is_empty() && hide_poly[pbvh->corner_tri_faces[tri_i]]) {
       continue;
     }
 
@@ -2088,9 +2050,9 @@ static bool pbvh_faces_node_raycast(PBVH *pbvh,
     }
     else {
       /* intersect with current coordinates */
-      co[0] = positions[corner_verts[lt->tri[0]]];
-      co[1] = positions[corner_verts[lt->tri[1]]];
-      co[2] = positions[corner_verts[lt->tri[2]]];
+      co[0] = positions[corner_verts[tri[0]]];
+      co[1] = positions[corner_verts[tri[1]]];
+      co[2] = positions[corner_verts[tri[2]]];
     }
 
     if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
@@ -2110,8 +2072,8 @@ static bool pbvh_faces_node_raycast(PBVH *pbvh,
           if (j == 0 ||
               len_squared_v3v3(location, co[j]) < len_squared_v3v3(location, nearest_vertex_co)) {
             copy_v3_v3(nearest_vertex_co, co[j]);
-            r_active_vertex->i = corner_verts[lt->tri[j]];
-            *r_active_face_index = pbvh->looptri_faces[looptri_i];
+            r_active_vertex->i = corner_verts[tri[j]];
+            *r_active_face_index = pbvh->corner_tri_faces[tri_i];
           }
         }
       }
@@ -2417,15 +2379,16 @@ static bool pbvh_faces_node_nearest_to_ray(PBVH *pbvh,
                                            float *depth,
                                            float *dist_sq)
 {
+  using namespace blender;
   const Span<float3> positions = pbvh->vert_positions;
   bool hit = false;
 
   for (const int i : node->prim_indices.index_range()) {
-    const int looptri_i = node->prim_indices[i];
-    const MLoopTri *lt = &pbvh->looptris[looptri_i];
+    const int tri_i = node->prim_indices[i];
+    const int3 &corner_tri = pbvh->corner_tris[tri_i];
     const int3 face_verts = node->face_vert_indices[i];
 
-    if (!hide_poly.is_empty() && hide_poly[pbvh->looptri_faces[looptri_i]]) {
+    if (!hide_poly.is_empty() && hide_poly[pbvh->corner_tri_faces[tri_i]]) {
       continue;
     }
 
@@ -2443,9 +2406,9 @@ static bool pbvh_faces_node_nearest_to_ray(PBVH *pbvh,
       /* intersect with current coordinates */
       hit |= ray_face_nearest_tri(ray_start,
                                   ray_normal,
-                                  positions[corner_verts[lt->tri[0]]],
-                                  positions[corner_verts[lt->tri[1]]],
-                                  positions[corner_verts[lt->tri[2]]],
+                                  positions[corner_verts[corner_tri[0]]],
+                                  positions[corner_verts[corner_tri[1]]],
+                                  positions[corner_verts[corner_tri[2]]],
                                   depth,
                                   dist_sq);
     }
@@ -2629,7 +2592,7 @@ static blender::draw::pbvh::PBVH_GPU_Args pbvh_draw_args_init(const Mesh &mesh,
       args.vert_positions = pbvh.vert_positions;
       args.corner_verts = mesh.corner_verts();
       args.corner_edges = mesh.corner_edges();
-      args.looptris = pbvh.looptris;
+      args.corner_tris = pbvh.corner_tris;
       args.vert_normals = pbvh.vert_normals;
       args.face_normals = pbvh.face_normals;
       /* Retrieve data from the original mesh. Ideally that would be passed to this function to
@@ -2637,7 +2600,7 @@ static blender::draw::pbvh::PBVH_GPU_Args pbvh_draw_args_init(const Mesh &mesh,
       args.hide_poly = *pbvh.mesh->attributes().lookup<bool>(".hide_poly", ATTR_DOMAIN_FACE);
 
       args.prim_indices = node.prim_indices;
-      args.looptri_faces = mesh.looptri_faces();
+      args.tri_faces = mesh.corner_tri_faces();
       break;
     case PBVH_GRIDS:
       args.vert_data = &pbvh.mesh->vert_data;
@@ -3069,11 +3032,6 @@ bool BKE_pbvh_is_drawing(const PBVH *pbvh)
   return pbvh->is_drawing;
 }
 
-bool BKE_pbvh_draw_cache_invalid(const PBVH *pbvh)
-{
-  return pbvh->draw_cache_invalid;
-}
-
 void BKE_pbvh_is_drawing_set(PBVH *pbvh, bool val)
 {
   pbvh->is_drawing = val;
@@ -3091,6 +3049,7 @@ void BKE_pbvh_pmap_set(PBVH *pbvh, const blender::GroupedSpan<int> pmap)
 
 void BKE_pbvh_ensure_node_loops(PBVH *pbvh)
 {
+  using namespace blender;
   BLI_assert(BKE_pbvh_type(pbvh) == PBVH_FACES);
 
   int totloop = 0;
@@ -3120,12 +3079,12 @@ void BKE_pbvh_ensure_node_loops(PBVH *pbvh)
     loop_indices.clear();
 
     for (const int i : node.prim_indices) {
-      const MLoopTri &lt = pbvh->looptris[i];
+      const int3 &tri = pbvh->corner_tris[i];
 
       for (int k = 0; k < 3; k++) {
-        if (!BLI_BITMAP_TEST(visit, lt.tri[k])) {
-          loop_indices.append(lt.tri[k]);
-          BLI_BITMAP_ENABLE(visit, lt.tri[k]);
+        if (!BLI_BITMAP_TEST(visit, tri[k])) {
+          loop_indices.append(tri[k]);
+          BLI_BITMAP_ENABLE(visit, tri[k]);
         }
       }
     }

@@ -4566,6 +4566,13 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
+  prop = RNA_def_property(srna, "show_viewer_text", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", V3D_OVERLAY_VIEWER_ATTRIBUTE_TEXT);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "View Attribute Text", "Show attribute values as text in viewport");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
   prop = RNA_def_property(srna, "show_paint_wire", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.paint_flag", V3D_OVERLAY_PAINT_WIRE);
   RNA_def_property_ui_text(prop, "Show Wire", "Use wireframe display in painting modes");
@@ -5764,21 +5771,17 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Timeline Overlay Settings", "");
 
   static const EnumPropertyItem waveform_type_display_items[] = {
-      {SEQ_TIMELINE_NO_WAVEFORMS,
-       "NO_WAVEFORMS",
-       0,
-       "Waveforms Off",
-       "Don't display waveforms for any sound strips"},
       {SEQ_TIMELINE_ALL_WAVEFORMS,
        "ALL_WAVEFORMS",
        0,
-       "Waveforms On",
+       "On",
        "Display waveforms for all sound strips"},
-      {0,
-       "DEFAULT_WAVEFORMS",
+      {0, "DEFAULT_WAVEFORMS", 0, "Strip", "Display waveforms depending on strip setting"},
+      {SEQ_TIMELINE_NO_WAVEFORMS,
+       "NO_WAVEFORMS",
        0,
-       "Use Strip Option",
-       "Display waveforms depending on strip setting"},
+       "Off",
+       "Don't display waveforms for any sound strips"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -5786,6 +5789,22 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
   RNA_def_property_enum_items(prop, waveform_type_display_items);
   RNA_def_property_ui_text(prop, "Waveform Display", "How Waveforms are displayed");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  static const EnumPropertyItem waveform_style_display_items[] = {
+      {0, "FULL_WAVEFORMS", 0, "Full", "Display full waveform"},
+      {SEQ_TIMELINE_WAVEFORMS_HALF,
+       "HALF_WAVEFORMS",
+       0,
+       "Half",
+       "Display upper half of the absolute value waveform"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "waveform_display_style", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
+  RNA_def_property_enum_items(prop, waveform_style_display_items);
+  RNA_def_property_ui_text(prop, "Waveform Style", "How Waveforms are displayed");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "show_fcurves", PROP_BOOLEAN, PROP_NONE);
