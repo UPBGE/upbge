@@ -159,7 +159,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
       break;
     }
 
-    if (!CustomData_has_layer(&mesh->loop_data, CD_PROP_FLOAT2)) {
+    if (!CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
       BKE_report(op->reports, RPT_ERROR, "Mesh should be unwrapped before multires data baking");
 
       ok = false;
@@ -167,7 +167,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
     else {
       const bke::AttributeAccessor attributes = mesh->attributes();
       const VArraySpan material_indices = *attributes.lookup<int>("material_index",
-                                                                  ATTR_DOMAIN_FACE);
+                                                                  bke::AttrDomain::Face);
       a = mesh->faces_num;
       while (ok && a--) {
         Image *ima = bake_object_image_get(ob,

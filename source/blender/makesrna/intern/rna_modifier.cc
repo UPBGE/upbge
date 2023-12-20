@@ -23,7 +23,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_animsys.h"
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_curveprofile.h"
 #include "BKE_data_transfer.h"
 #include "BKE_dynamicpaint.h"
@@ -1072,13 +1072,13 @@ static bool rna_MultiresModifier_external_get(PointerRNA *ptr)
   Object *ob = (Object *)ptr->owner_id;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
-  return CustomData_external_test(&mesh->loop_data, CD_MDISPS);
+  return CustomData_external_test(&mesh->corner_data, CD_MDISPS);
 }
 
 static void rna_MultiresModifier_filepath_get(PointerRNA *ptr, char *value)
 {
   Object *ob = (Object *)ptr->owner_id;
-  CustomDataExternal *external = ((Mesh *)ob->data)->loop_data.external;
+  CustomDataExternal *external = ((Mesh *)ob->data)->corner_data.external;
 
   strcpy(value, (external) ? external->filepath : "");
 }
@@ -1086,7 +1086,7 @@ static void rna_MultiresModifier_filepath_get(PointerRNA *ptr, char *value)
 static void rna_MultiresModifier_filepath_set(PointerRNA *ptr, const char *value)
 {
   Object *ob = (Object *)ptr->owner_id;
-  CustomDataExternal *external = ((Mesh *)ob->data)->loop_data.external;
+  CustomDataExternal *external = ((Mesh *)ob->data)->corner_data.external;
 
   if (external && !STREQ(external->filepath, value)) {
     STRNCPY(external->filepath, value);
@@ -1097,7 +1097,7 @@ static void rna_MultiresModifier_filepath_set(PointerRNA *ptr, const char *value
 static int rna_MultiresModifier_filepath_length(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  CustomDataExternal *external = ((Mesh *)ob->data)->loop_data.external;
+  CustomDataExternal *external = ((Mesh *)ob->data)->corner_data.external;
 
   return strlen((external) ? external->filepath : "");
 }
@@ -1298,6 +1298,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
                                                                                 PropertyRNA *prop,
                                                                                 bool *r_free)
 {
+  using namespace blender;
   DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
   EnumPropertyItem *item = nullptr, tmp_item = {0};
   int totitem = 0;
@@ -1359,14 +1360,14 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
         return item;
       }
 
-      num_data = CustomData_number_of_layers(&me_eval->loop_data, CD_PROP_FLOAT2);
+      num_data = CustomData_number_of_layers(&me_eval->corner_data, CD_PROP_FLOAT2);
 
       RNA_enum_item_add_separator(&item, &totitem);
 
       for (i = 0; i < num_data; i++) {
         tmp_item.value = i;
         tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(
-            &me_eval->loop_data, CD_PROP_FLOAT2, i);
+            &me_eval->corner_data, CD_PROP_FLOAT2, i);
         RNA_enum_item_add(&item, &totitem, &tmp_item);
       }
     }
@@ -1377,9 +1378,10 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
     Object *ob_src = dtmd->ob_source;
 
     if (ob_src) {
-      eAttrDomain domain = STREQ(RNA_property_identifier(prop), "layers_vcol_vert_select_src") ?
-                               ATTR_DOMAIN_POINT :
-                               ATTR_DOMAIN_CORNER;
+      bke::AttrDomain domain = STREQ(RNA_property_identifier(prop),
+                                     "layers_vcol_vert_select_src") ?
+                                   bke::AttrDomain::Point :
+                                   bke::AttrDomain::Corner;
 
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_src);
@@ -1396,11 +1398,11 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
       }
 
       const CustomData *cdata;
-      if (domain == ATTR_DOMAIN_POINT) {
+      if (domain == bke::AttrDomain::Point) {
         cdata = &mesh_eval->vert_data;
       }
       else {
-        cdata = &mesh_eval->loop_data;
+        cdata = &mesh_eval->corner_data;
       }
 
       eCustomDataType types[2] = {CD_PROP_COLOR, CD_PROP_BYTE_COLOR};
@@ -1476,19 +1478,19 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
 
       if (ob_dst && ob_dst->data) {
         Mesh *me_dst;
-        CustomData *loop_data;
+        CustomData *corner_data;
         int num_data, i;
 
         me_dst = static_cast<Mesh *>(ob_dst->data);
-        loop_data = &me_dst->loop_data;
-        num_data = CustomData_number_of_layers(loop_data, CD_PROP_FLOAT2);
+        corner_data = &me_dst->corner_data;
+        num_data = CustomData_number_of_layers(corner_data, CD_PROP_FLOAT2);
 
         RNA_enum_item_add_separator(&item, &totitem);
 
         for (i = 0; i < num_data; i++) {
           tmp_item.value = i;
           tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(
-              loop_data, CD_PROP_FLOAT2, i);
+              corner_data, CD_PROP_FLOAT2, i);
           RNA_enum_item_add(&item, &totitem, &tmp_item);
         }
       }
@@ -1511,7 +1513,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
         Mesh *me_dst = static_cast<Mesh *>(ob_dst->data);
         CustomData *cdata = STREQ(RNA_property_identifier(prop), "layers_vcol_vert_select_dst") ?
                                 &me_dst->vert_data :
-                                &me_dst->loop_data;
+                                &me_dst->corner_data;
 
         int idx = 0;
         for (int i = 0; i < 2; i++) {

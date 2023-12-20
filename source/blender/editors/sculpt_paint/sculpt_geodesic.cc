@@ -83,8 +83,8 @@ static float *geodesic_mesh_create(Object *ob, GSet *initial_verts, const float 
   SculptSession *ss = ob->sculpt;
   Mesh *mesh = BKE_object_get_original_mesh(ob);
 
-  const int totvert = mesh->totvert;
-  const int totedge = mesh->totedge;
+  const int totvert = mesh->verts_num;
+  const int totedge = mesh->edges_num;
 
   const float limit_radius_sq = limit_radius * limit_radius;
 
@@ -94,7 +94,7 @@ static float *geodesic_mesh_create(Object *ob, GSet *initial_verts, const float 
   const Span<int> corner_verts = mesh->corner_verts();
   const Span<int> corner_edges = mesh->corner_edges();
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", ATTR_DOMAIN_FACE);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
 
   float *dists = static_cast<float *>(MEM_malloc_arrayN(totvert, sizeof(float), __func__));
   BLI_bitmap *edge_tag = BLI_BITMAP_NEW(totedge, "edge tag");
@@ -105,7 +105,7 @@ static float *geodesic_mesh_create(Object *ob, GSet *initial_verts, const float 
   }
   if (ss->vemap.is_empty()) {
     ss->vemap = bke::mesh::build_vert_to_edge_map(
-        edges, mesh->totvert, ss->vert_to_edge_offsets, ss->vert_to_edge_indices);
+        edges, mesh->verts_num, ss->vert_to_edge_offsets, ss->vert_to_edge_indices);
   }
 
   /* Both contain edge indices encoded as *void. */
@@ -238,7 +238,7 @@ static float *geodesic_fallback_create(Object *ob, GSet *initial_verts)
 {
   SculptSession *ss = ob->sculpt;
   Mesh *mesh = BKE_object_get_original_mesh(ob);
-  const int totvert = mesh->totvert;
+  const int totvert = mesh->verts_num;
   float *dists = static_cast<float *>(MEM_malloc_arrayN(totvert, sizeof(float), __func__));
   int first_affected = SCULPT_GEODESIC_VERTEX_NONE;
   GSetIterator gs_iter;

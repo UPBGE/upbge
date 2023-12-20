@@ -186,7 +186,8 @@ static float rna_CurvePoint_radius_get(PointerRNA *ptr)
   using namespace blender;
   const Curves *curves = rna_curves(ptr);
   const bke::AttributeAccessor attributes = curves->geometry.wrap().attributes();
-  const VArray radii = *attributes.lookup_or_default<float>("radius", ATTR_DOMAIN_POINT, 0.0f);
+  const VArray radii = *attributes.lookup_or_default<float>(
+      "radius", bke::AttrDomain::Point, 0.0f);
   return radii[rna_CurvePoint_index_get_const(ptr)];
 }
 
@@ -291,25 +292,10 @@ static void rna_Curves_add_curves(Curves *curves_id,
 
   /* Initialize new attribute values, since #CurvesGeometry::resize() doesn't do that. */
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  attributes.for_all(
-      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData /*meta_data*/) {
-        bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-        GMutableSpan new_data;
-        switch (attribute.domain) {
-          case ATTR_DOMAIN_POINT:
-            new_data = attribute.span.drop_front(orig_points_num);
-            break;
-          case ATTR_DOMAIN_CURVE:
-            new_data = attribute.span.drop_front(orig_curves_num);
-            break;
-          default:
-            BLI_assert_unreachable();
-        }
-        const CPPType &type = attribute.span.type();
-        type.fill_construct_n(type.default_value(), new_data.data(), new_data.size());
-        attribute.finish();
-        return true;
-      });
+  bke::fill_attribute_range_default(
+      attributes, bke::AttrDomain::Point, {}, curves.points_range().drop_front(orig_points_num));
+  bke::fill_attribute_range_default(
+      attributes, bke::AttrDomain::Curve, {}, curves.curves_range().drop_front(orig_curves_num));
 
   curves.update_curve_types();
 

@@ -2017,7 +2017,7 @@ typedef struct SpaceSpreadsheet {
 
   /* #GeometryComponent::Type. */
   uint8_t geometry_component_type;
-  /* #eAttrDomain. */
+  /* #AttrDomain. */
   uint8_t attribute_domain;
   /* eSpaceSpreadsheet_ObjectEvalState. */
   uint8_t object_eval_state;

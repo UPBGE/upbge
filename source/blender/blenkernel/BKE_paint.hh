@@ -22,7 +22,6 @@
 #include "DNA_brush_enums.h"
 #include "DNA_object_enums.h"
 
-#include "BKE_attribute.h"
 #include "BKE_pbvh.hh"
 
 #include "bmesh.hh"
@@ -36,7 +35,11 @@ struct Brush;
 struct CurveMapping;
 struct Depsgraph;
 struct EnumPropertyItem;
-namespace blender::ed::sculpt_paint {
+namespace blender {
+namespace bke {
+enum class AttrDomain : int8_t;
+}
+namespace ed::sculpt_paint {
 namespace expand {
 struct Cache;
 }
@@ -44,7 +47,8 @@ namespace filter {
 struct Cache;
 }
 struct StrokeCache;
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+}  // namespace blender
 struct GHash;
 struct GridPaintMask;
 struct Image;
@@ -385,12 +389,6 @@ struct SculptClothSimulation {
   eSculptClothNodeSimState *node_state;
 };
 
-struct SculptPersistentBase {
-  blender::float3 co;
-  blender::float3 no;
-  float disp;
-};
-
 struct SculptVertexInfo {
   /* Indexed by base mesh vertex index, stores if that vertex is a boundary. */
   blender::BitVector<> boundary;
@@ -499,7 +497,7 @@ struct SculptAttributeParams {
 
 struct SculptAttribute {
   /* Domain, data type and name */
-  eAttrDomain domain;
+  blender::bke::AttrDomain domain;
   eCustomDataType proptype;
   char name[MAX_CUSTOMDATA_LAYER_NAME];
 
@@ -586,7 +584,7 @@ struct SculptSession {
   MPropCol *vcol;
   MLoopCol *mcol;
 
-  eAttrDomain vcol_domain;
+  blender::bke::AttrDomain vcol_domain;
   eCustomDataType vcol_type;
 
   /* Mesh connectivity maps. */
@@ -768,14 +766,14 @@ int BKE_sculptsession_vertex_count(const SculptSession *ss);
 
 /* Ensure an attribute layer exists. */
 SculptAttribute *BKE_sculpt_attribute_ensure(Object *ob,
-                                             eAttrDomain domain,
+                                             blender::bke::AttrDomain domain,
                                              eCustomDataType proptype,
                                              const char *name,
                                              const SculptAttributeParams *params);
 
 /* Returns nullptr if attribute does not exist. */
 SculptAttribute *BKE_sculpt_attribute_get(Object *ob,
-                                          eAttrDomain domain,
+                                          blender::bke::AttrDomain domain,
                                           eCustomDataType proptype,
                                           const char *name);
 
@@ -863,9 +861,7 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
 /**
  * Fills the object's active color attribute layer with the fill color.
  *
- * \param[in] ob: The object.
- * \param[in] fill_color: The fill color.
- * \param[in] only_selected: Limit the fill to selected faces or vertices.
+ * \param only_selected: Limit the fill to selected faces or vertices.
  *
  * \return #true if successful.
  */

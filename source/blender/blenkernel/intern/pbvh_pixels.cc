@@ -663,14 +663,14 @@ static bool update_pixels(PBVH *pbvh, Mesh *mesh, Image *image, ImageUser *image
     return false;
   }
 
-  const StringRef active_uv_name = CustomData_get_active_layer_name(&mesh->loop_data,
+  const StringRef active_uv_name = CustomData_get_active_layer_name(&mesh->corner_data,
                                                                     CD_PROP_FLOAT2);
   if (active_uv_name.is_empty()) {
     return false;
   }
 
   const AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_name, ATTR_DOMAIN_CORNER);
+  const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_name, AttrDomain::Corner);
 
   uv_islands::MeshData mesh_data(
       pbvh->corner_tris, mesh->corner_verts(), uv_map, pbvh->vert_positions);

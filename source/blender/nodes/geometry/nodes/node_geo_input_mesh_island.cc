@@ -34,23 +34,23 @@ class IslandFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
     const Span<int2> edges = mesh.edges();
 
-    AtomicDisjointSet islands(mesh.totvert);
+    AtomicDisjointSet islands(mesh.verts_num);
     threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
       for (const int2 &edge : edges.slice(range)) {
         islands.join(edge[0], edge[1]);
       }
     });
 
-    Array<int> output(mesh.totvert);
+    Array<int> output(mesh.verts_num);
     islands.calc_reduced_ids(output);
 
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(output)), ATTR_DOMAIN_POINT, domain);
+        VArray<int>::ForContainer(std::move(output)), AttrDomain::Point, domain);
   }
 
   uint64_t hash() const override
@@ -64,9 +64,9 @@ class IslandFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const IslandFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -78,12 +78,12 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
     const Span<int2> edges = mesh.edges();
 
-    AtomicDisjointSet islands(mesh.totvert);
+    AtomicDisjointSet islands(mesh.verts_num);
     threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
       for (const int2 &edge : edges.slice(range)) {
         islands.join(edge[0], edge[1]);
@@ -105,9 +105,9 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const IslandCountFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
