@@ -2043,7 +2043,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   const blender::Span<blender::float3> positions = me->vert_positions();
   const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-  numverts = me->totvert;
+  numverts = me->verts_num;
   const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
 
   /* double lookup */
@@ -2392,7 +2392,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     const blender::Span<blender::float3> positions = me->vert_positions();
     MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
     numpolys = me->totface_legacy;
-    numverts = me->totvert;
+    numverts = me->verts_num;
 
     // double lookup
     const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);

@@ -91,7 +91,7 @@ static void createVertsTrisData(
     BKE_mesh_tessface_ensure(me);
     BLI_linklist_append(&meshes_pair, me);
 
-    nverts += me->totvert;
+    nverts += me->verts_num;
     nfaces = me->totface_legacy;
     ntris += nfaces;
 
@@ -117,7 +117,7 @@ static void createVertsTrisData(
     ob = (Object *)oblink->link;
     me = (Mesh *)meshlink->link;
 
-    curnverts = me->totvert;
+    curnverts = me->verts_num;
     const blender::Span<blender::float3> positions = me->vert_positions();
 
     /* copy verts */
