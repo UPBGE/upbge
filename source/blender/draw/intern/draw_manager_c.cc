@@ -3489,12 +3489,14 @@ void DRW_gpu_context_activate(bool drw_state)
 
 /****************UPBGE**************************/
 
-/*--UPBGE Viewport Debug Drawing --*/
-
+#include "BKE_colortools.hh"
 #include "BLF_api.h"
 #include "BLI_link_utils.h"
+#include "engines/eevee/eevee_private.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
+
+/*--UPBGE Viewport Debug Drawing --*/
 
 static float g_modelmat[4][4];
 
@@ -3660,8 +3662,6 @@ void drw_debug_draw_bge(void)
 }
 
 /*--End of UPBGE Viewport Debug Drawing--*/
-
-#include "engines/eevee/eevee_private.h"
 
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
