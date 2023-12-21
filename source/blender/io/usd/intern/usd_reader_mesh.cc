@@ -27,8 +27,6 @@
 
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_windowmanager_types.h"
@@ -357,7 +355,7 @@ void USDMeshReader::read_mpolys(Mesh *mesh)
     }
   }
 
-  BKE_mesh_calc_edges(mesh, false, false);
+  bke::mesh_calc_edges(*mesh, false, false);
 }
 
 template<typename T>

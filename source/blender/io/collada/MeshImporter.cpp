@@ -27,6 +27,8 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
+#include "DNA_meshdata_types.h"
+
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
@@ -1162,7 +1164,7 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
   blender::Vector<blender::float3> loop_normals;
   read_polys(mesh, blender_mesh, loop_normals);
 
-  BKE_mesh_calc_edges(blender_mesh, false, false);
+  blender::bke::mesh_calc_edges(*blender_mesh, false, false);
 
   /* We must apply custom normals after edges have been calculated, because
    * BKE_mesh_set_custom_normals()'s internals expect mesh->medge to be populated

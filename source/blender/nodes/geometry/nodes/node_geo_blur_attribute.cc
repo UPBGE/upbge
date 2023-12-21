@@ -11,9 +11,6 @@
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_fields.hh"
@@ -447,8 +444,7 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override
   {
-    const std::optional<AttrDomain> domain = bke::try_detect_field_domain(component,
-                                                                           value_field_);
+    const std::optional<AttrDomain> domain = bke::try_detect_field_domain(component, value_field_);
     if (domain.has_value() && *domain == AttrDomain::Corner) {
       return AttrDomain::Point;
     }

@@ -15,7 +15,6 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_lib_id.h"
 #include "BKE_material.h"
@@ -30,7 +29,6 @@
 
 #include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_particle_types.h"

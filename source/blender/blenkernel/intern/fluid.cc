@@ -56,7 +56,6 @@
 
 #  include "BKE_bvhutils.hh"
 #  include "BKE_collision.h"
-#  include "BKE_colortools.h"
 #  include "BKE_customdata.hh"
 #  include "BKE_deform.h"
 #  include "BKE_mesh.hh"
@@ -3370,13 +3369,15 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
 
   material_indices.finish();
 
-  BKE_mesh_calc_edges(mesh, false, false);
+  mesh_calc_edges(*mesh, false, false);
 
   return mesh;
 }
 
 static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Object *ob)
 {
+  using namespace blender;
+  using namespace blender::bke;
   Mesh *result;
   float min[3];
   float max[3];
@@ -3494,7 +3495,7 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
     }
   }
 
-  BKE_mesh_calc_edges(result, false, false);
+  mesh_calc_edges(*result, false, false);
   return result;
 }
 

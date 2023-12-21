@@ -25,6 +25,7 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
@@ -32,9 +33,7 @@
 #include "RNA_access.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
-#include "BKE_colortools.h"
 #include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_editmesh.hh"

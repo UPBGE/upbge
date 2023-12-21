@@ -422,6 +422,13 @@ class CurveLengthFieldInput final : public CurvesFieldInput {
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry &curves) const final;
 };
 
+bool try_capture_field_on_geometry(MutableAttributeAccessor attributes,
+                                   const fn::FieldContext &field_context,
+                                   const AttributeIDRef &attribute_id,
+                                   AttrDomain domain,
+                                   const fn::Field<bool> &selection,
+                                   const fn::GField &field);
+
 bool try_capture_field_on_geometry(GeometryComponent &component,
                                    const AttributeIDRef &attribute_id,
                                    AttrDomain domain,
@@ -438,6 +445,6 @@ bool try_capture_field_on_geometry(GeometryComponent &component,
  * which domain is correct, none is returned.
  */
 std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
-                                                   const fn::GField &field);
+                                                  const fn::GField &field);
 
 }  // namespace blender::bke

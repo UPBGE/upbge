@@ -6,9 +6,6 @@
 
 #include "BLI_task.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_mesh.hh"
@@ -152,8 +149,8 @@ static void set_position_in_component(GeometrySet &geometry,
 {
   const GeometryComponent &component = *geometry.get_component(component_type);
   const AttrDomain domain = component.type() == GeometryComponent::Type::Instance ?
-                                 AttrDomain::Instance :
-                                 AttrDomain::Point;
+                                AttrDomain::Instance :
+                                AttrDomain::Point;
   const int domain_size = component.attribute_domain_size(domain);
   if (domain_size == 0) {
     return;

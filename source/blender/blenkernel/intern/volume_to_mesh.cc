@@ -8,8 +8,6 @@
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_volume_types.h"
 
 #include "BKE_mesh.hh"
@@ -181,7 +179,7 @@ Mesh *volume_to_mesh(const openvdb::GridBase &grid,
                               mesh->face_offsets_for_write(),
                               mesh->corner_verts_for_write());
 
-  BKE_mesh_calc_edges(mesh, false, false);
+  mesh_calc_edges(*mesh, false, false);
   mesh_smooth_set(*mesh, false);
 
   mesh->tag_overlapping_none();

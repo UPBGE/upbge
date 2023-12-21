@@ -30,8 +30,6 @@
 #include "DEG_depsgraph.hh"
 
 #include "DNA_layer_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_particle_types.h"
@@ -642,7 +640,8 @@ static void get_loops_polys(const Mesh *mesh, USDMeshData &usd_mesh_data)
 static void get_edge_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge", bke::AttrDomain::Edge);
+  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge",
+                                                                  bke::AttrDomain::Edge);
   if (!attribute) {
     return;
   }

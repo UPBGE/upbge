@@ -9,9 +9,6 @@
 #include "BLI_set.hh"
 #include "BLI_task.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
@@ -335,7 +332,7 @@ static ResultOffsets calculate_result_offsets(const CurvesInfo &info, const bool
 }
 
 static AttrDomain get_attribute_domain_for_mesh(const AttributeAccessor &mesh_attributes,
-                                                 const AttributeIDRef &attribute_id)
+                                                const AttributeIDRef &attribute_id)
 {
   /* Only use a different domain if it is builtin and must only exist on one domain. */
   if (!mesh_attributes.is_builtin(attribute_id)) {
