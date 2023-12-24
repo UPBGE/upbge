@@ -347,7 +347,7 @@ static GlyphBLF *blf_glyph_cache_add_glyph(FontBLF *font,
       }
     }
     else {
-      memcpy(g->bitmap, glyph->bitmap.buffer, (size_t)buffer_size);
+      memcpy(g->bitmap, glyph->bitmap.buffer, size_t(buffer_size));
     }
   }
 
@@ -1368,7 +1368,7 @@ static void blf_glyph_calc_rect_test(rcti *rect, GlyphBLF *g, const int x, const
   /* Intentionally check with `g->advance`, because this is the
    * width used by BLF_width. This allows that the text slightly
    * overlaps the clipping border to achieve better alignment. */
-  rect->xmin = x + g->pos[0] + 1;
+  rect->xmin = x + abs(g->pos[0]) + 1;
   rect->xmax = x + std::min(ft_pix_to_int(g->advance_x), g->dims[0]);
   rect->ymin = y;
   rect->ymax = rect->ymin - g->dims[1];
@@ -1831,10 +1831,7 @@ static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, const uint charc
   return glyph;
 }
 
-float blf_character_to_curves(FontBLF *font,
-                              unsigned int unicode,
-                              ListBase *nurbsbase,
-                              const float scale)
+float blf_character_to_curves(FontBLF *font, uint unicode, ListBase *nurbsbase, const float scale)
 {
   FT_GlyphSlot glyph = blf_glyphslot_ensure_outline(font, unicode);
   if (!glyph) {

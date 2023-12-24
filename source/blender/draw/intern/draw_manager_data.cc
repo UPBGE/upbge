@@ -12,6 +12,7 @@
 #include "draw_manager.h"
 #include "draw_pbvh.hh"
 
+#include "BKE_attribute.hh"
 #include "BKE_curve.hh"
 #include "BKE_duplilist.h"
 #include "BKE_global.h"
@@ -644,11 +645,15 @@ static void drw_call_calc_orco(const Object *ob, float (*r_orcofacs)[4])
     switch (GS(ob_data->name)) {
       case ID_VO: {
         const Volume &volume = *reinterpret_cast<const Volume *>(ob_data);
-        const blender::Bounds<blender::float3> bounds = *BKE_volume_min_max(&volume);
-        mid_v3_v3v3(static_buf.texspace_location, bounds.max, bounds.min);
-        sub_v3_v3v3(static_buf.texspace_size, bounds.max, bounds.min);
+        const std::optional<blender::Bounds<blender::float3>> bounds = BKE_volume_min_max(&volume);
+        if (bounds) {
+          mid_v3_v3v3(static_buf.texspace_location, bounds->max, bounds->min);
+          sub_v3_v3v3(static_buf.texspace_size, bounds->max, bounds->min);
+        }
+        static_buf.texspace_size[0] = std::max(static_buf.texspace_size[0], 0.001f);
+        static_buf.texspace_size[1] = std::max(static_buf.texspace_size[1], 0.001f);
+        static_buf.texspace_size[2] = std::max(static_buf.texspace_size[2], 0.001f);
         texspace_location = static_buf.texspace_location;
-        texspace_size = static_buf.texspace_size;
         break;
       }
       case ID_ME:
@@ -1307,6 +1312,7 @@ static void drw_sculpt_get_frustum_planes(const Object *ob, float planes[6][4])
 
 static void drw_sculpt_generate_calls(DRWSculptCallbackData *scd)
 {
+  using namespace blender;
   /* PBVH should always exist for non-empty meshes, created by depsgraph eval. */
   PBVH *pbvh = (scd->ob->sculpt) ? scd->ob->sculpt->pbvh : nullptr;
   if (!pbvh) {
@@ -1331,12 +1337,12 @@ static void drw_sculpt_generate_calls(DRWSculptCallbackData *scd)
   if (p && (p->flags & PAINT_SCULPT_DELAY_UPDATES)) {
     update_frustum.planes = update_planes;
     update_frustum.num_planes = 6;
-    BKE_pbvh_get_frustum_planes(pbvh, &update_frustum);
+    bke::pbvh::get_frustum_planes(pbvh, &update_frustum);
     if (!navigating) {
       drw_sculpt_get_frustum_planes(scd->ob, update_planes);
       update_frustum.planes = update_planes;
       update_frustum.num_planes = 6;
-      BKE_pbvh_set_frustum_planes(pbvh, &update_frustum);
+      bke::pbvh::set_frustum_planes(pbvh, &update_frustum);
     }
   }
   else {
@@ -1363,9 +1369,9 @@ static void drw_sculpt_generate_calls(DRWSculptCallbackData *scd)
   }
 
   Mesh *mesh = static_cast<Mesh *>(scd->ob->data);
-  BKE_pbvh_update_normals(pbvh, mesh->runtime->subdiv_ccg.get());
+  bke::pbvh::update_normals(*pbvh, mesh->runtime->subdiv_ccg.get());
 
-  BKE_pbvh_draw_cb(
+  bke::pbvh::draw_cb(
       *mesh,
       pbvh,
       update_only_visible,
@@ -1427,8 +1433,8 @@ void DRW_shgroup_call_sculpt(DRWShadingGroup *shgroup,
   }
 
   if (use_uv) {
-    if (const char *name = CustomData_get_active_layer_name(&mesh->loop_data, CD_PROP_FLOAT2)) {
-      attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2, ATTR_DOMAIN_CORNER});
+    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+      attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
     }
   }
 
@@ -1442,6 +1448,7 @@ void DRW_shgroup_call_sculpt_with_materials(DRWShadingGroup **shgroups,
                                             int num_shgroups,
                                             const Object *ob)
 {
+  using namespace blender;
   using namespace blender::draw;
   DRW_Attributes draw_attrs;
   DRW_MeshCDMask cd_needed;
@@ -1469,10 +1476,10 @@ void DRW_shgroup_call_sculpt_with_materials(DRWShadingGroup **shgroups,
   /* UV maps are not in attribute requests. */
   for (uint i = 0; i < 32; i++) {
     if (cd_needed.uv & (1 << i)) {
-      int layer_i = CustomData_get_layer_index_n(&mesh->loop_data, CD_PROP_FLOAT2, i);
-      CustomDataLayer *layer = layer_i != -1 ? mesh->loop_data.layers + layer_i : nullptr;
+      int layer_i = CustomData_get_layer_index_n(&mesh->corner_data, CD_PROP_FLOAT2, i);
+      CustomDataLayer *layer = layer_i != -1 ? mesh->corner_data.layers + layer_i : nullptr;
       if (layer) {
-        attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, ATTR_DOMAIN_CORNER});
+        attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
       }
     }
   }

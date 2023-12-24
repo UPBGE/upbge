@@ -171,7 +171,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
     if (UNLIKELY(ob->type != OB_MESH)) {
       BKE_modifier_set_error(ob, &mcmd->modifier, "'Integrate' only valid for Mesh objects");
     }
-    else if (UNLIKELY(mesh->totvert != verts_num)) {
+    else if (UNLIKELY(mesh->verts_num != verts_num)) {
       BKE_modifier_set_error(ob, &mcmd->modifier, "'Integrate' original mesh vertex mismatch");
     }
     else if (UNLIKELY(mesh->faces_num == 0)) {
@@ -185,13 +185,15 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
           mesh->face_offsets().data(),
           mesh->faces_num,
           mesh->corner_verts().data(),
-          mesh->totvert,
-          reinterpret_cast<const float(*)[3]>(
-              mesh->vert_positions().data()), /* From the original Mesh. */
-          (const float(*)[3])vertexCos_Real,  /* the input we've been given (shape keys!) */
-          (const float(*)[3])vertexCos,       /* The result of this modifier. */
-          vertexCos_New                       /* The result of this function. */
-      );
+          mesh->verts_num,
+          /* From the original Mesh. */
+          reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()),
+          /* the input we've been given (shape keys!) */
+          const_cast<const float(*)[3]>(vertexCos_Real),
+          /* The result of this modifier. */
+          const_cast<const float(*)[3]>(vertexCos),
+          /* The result of this function. */
+          vertexCos_New);
 
       /* write the corrected locations back into the result */
       memcpy(vertexCos, vertexCos_New, sizeof(*vertexCos) * verts_num);
@@ -248,7 +250,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
         const float global_offset = (mcmd->flag & MOD_MESHCACHE_INVERT_VERTEX_GROUP) ?
                                         mcmd->factor :
                                         0.0f;
-        if (BKE_mesh_deform_verts(mesh) != nullptr) {
+        if (!mesh->deform_verts().is_empty()) {
           for (int i = 0; i < verts_num; i++) {
             /* For each vertex, compute its blending factor between the mesh cache (for `fac = 0`)
              * and the former position of the vertex (for `fac = 1`). */

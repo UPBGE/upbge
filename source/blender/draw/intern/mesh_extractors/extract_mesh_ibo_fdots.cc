@@ -6,7 +6,7 @@
  * \ingroup draw
  */
 
-#include "BLI_bitmap.h"
+#include "GPU_index_buffer.h"
 
 #include "extract_mesh.hh"
 
@@ -42,7 +42,7 @@ static void extract_fdots_iter_face_mesh(const MeshRenderData &mr,
                                          const int face_index,
                                          void *_userdata)
 {
-  const bool hidden = mr.use_hide && mr.hide_poly && mr.hide_poly[face_index];
+  const bool hidden = mr.use_hide && !mr.hide_poly.is_empty() && mr.hide_poly[face_index];
 
   GPUIndexBufBuilder *elb = static_cast<GPUIndexBufBuilder *>(_userdata);
   if (mr.use_subsurf_fdots) {

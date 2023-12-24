@@ -28,11 +28,10 @@
 #include "DEG_depsgraph_query.hh"  // UPBGE
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.h"
 #include "BKE_editmesh.hh"
@@ -42,6 +41,7 @@
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_tangent.hh"
 #include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
@@ -278,6 +278,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object *object,
                                                    int gpumat_array_len,
                                                    DRW_Attributes *attributes)
 {
+  using namespace blender;
   const Mesh *me_final = editmesh_final_or_this(object, mesh);
   const CustomData *cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
   const CustomData *cd_pdata = mesh_cd_pdata_get_from_mesh(me_final);
@@ -302,7 +303,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object *object,
       const char *name = gpu_attr->name;
       eCustomDataType type = static_cast<eCustomDataType>(gpu_attr->type);
       int layer = -1;
-      std::optional<eAttrDomain> domain;
+      std::optional<bke::AttrDomain> domain;
 
       if (gpu_attr->is_default_color) {
         name = default_color_name.c_str();
@@ -327,16 +328,16 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object *object,
             /* Try to match a generic attribute, we use the first attribute domain with a
              * matching name. */
             if (drw_custom_data_match_attribute(cd_vdata, name, &layer, &type)) {
-              domain = ATTR_DOMAIN_POINT;
+              domain = bke::AttrDomain::Point;
             }
             else if (drw_custom_data_match_attribute(cd_ldata, name, &layer, &type)) {
-              domain = ATTR_DOMAIN_CORNER;
+              domain = bke::AttrDomain::Corner;
             }
             else if (drw_custom_data_match_attribute(cd_pdata, name, &layer, &type)) {
-              domain = ATTR_DOMAIN_FACE;
+              domain = bke::AttrDomain::Face;
             }
             else if (drw_custom_data_match_attribute(cd_edata, name, &layer, &type)) {
-              domain = ATTR_DOMAIN_EDGE;
+              domain = bke::AttrDomain::Edge;
             }
             else {
               layer = -1;
@@ -593,7 +594,7 @@ static void mesh_batch_cache_init(Object *object, Mesh *mesh)
 
   if (cache->is_editmode == false) {
     // cache->edge_len = mesh_render_edges_len_get(mesh);
-    // cache->tri_len = mesh_render_looptri_len_get(mesh);
+    // cache->tri_len = mesh_render_corner_tris_len_get(mesh);
     // cache->face_len = mesh_render_faces_len_get(mesh);
     // cache->vert_len = mesh_render_verts_len_get(mesh);
   }
@@ -650,7 +651,7 @@ static void mesh_batch_cache_request_surface_batches(MeshBatchCache &cache)
   }
 }
 
-/* Free batches with material-mapped looptris.
+/* Free batches with material-mapped corner_tris.
  * NOTE: The updating of the indices buffers (#tris_per_mat) is handled in the extractors.
  * No need to discard they here. */
 static void mesh_batch_cache_discard_surface_batches(MeshBatchCache &cache)
@@ -868,6 +869,7 @@ static void request_active_and_default_color_attributes(const Object &object,
                                                         const Mesh &mesh,
                                                         DRW_Attributes &attributes)
 {
+  using namespace blender;
   const Mesh *me_final = editmesh_final_or_this(&object, &mesh);
   const CustomData *cd_vdata = mesh_cd_vdata_get_from_mesh(me_final);
   const CustomData *cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
@@ -877,10 +879,10 @@ static void request_active_and_default_color_attributes(const Object &object,
       int layer_index;
       eCustomDataType type;
       if (drw_custom_data_match_attribute(cd_vdata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name, type, layer_index, ATTR_DOMAIN_POINT);
+        drw_attributes_add_request(&attributes, name, type, layer_index, bke::AttrDomain::Point);
       }
       else if (drw_custom_data_match_attribute(cd_ldata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name, type, layer_index, ATTR_DOMAIN_CORNER);
+        drw_attributes_add_request(&attributes, name, type, layer_index, bke::AttrDomain::Corner);
       }
     }
   };
@@ -1342,6 +1344,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
                                            const bool is_paint_mode,
                                            const bool use_hide)
 {
+  using namespace blender;
   BLI_assert(task_graph);
   const ToolSettings *ts = nullptr;
   if (scene) {
@@ -1508,7 +1511,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
   const bool do_update_sculpt_normals = ob->sculpt && ob->sculpt->pbvh;
   if (do_update_sculpt_normals) {
     Mesh *mesh = static_cast<Mesh *>(ob->data);
-    BKE_pbvh_update_normals(ob->sculpt->pbvh, mesh->runtime->subdiv_ccg.get());
+    bke::pbvh::update_normals(*ob->sculpt->pbvh, mesh->runtime->subdiv_ccg.get());
   }
 
   cache.batch_ready |= batch_requested;

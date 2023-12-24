@@ -702,7 +702,7 @@ class VIEW3D_HT_header(Header):
                     icon = snap_items[elem].icon
                     break
             else:
-                text = "Mix"
+                text = iface_("Mix", i18n_contexts.editor_view3d)
                 icon = 'NONE'
             del snap_items, snap_elements
 
@@ -714,6 +714,7 @@ class VIEW3D_HT_header(Header):
                 panel="VIEW3D_PT_snapping",
                 icon=icon,
                 text=text,
+                translate=False,
             )
 
         # Proportional editing
@@ -4142,7 +4143,7 @@ class VIEW3D_MT_bone_collections(Menu):
 
         layout.separator()
 
-        props = layout.operator("armature.collection_assign",
+        props = layout.operator("armature.collection_create_and_assign",
                                 text="Assign to New Collection")
         props.name = "New Collection"
 
@@ -5796,7 +5797,7 @@ class VIEW3D_MT_edit_greasepencil_animation(Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator("grease_pencil.insert_blank_frame", text="Insert Blank Keyframe (Active Layer)")
-        layout.operator("grease_pencil.insert_blank_frame", text="Insert Blank Keyframe (All Layer)").all_layers = True
+        layout.operator("grease_pencil.insert_blank_frame", text="Insert Blank Keyframe (All Layers)").all_layers = True
 
 
 class VIEW3D_MT_edit_gpencil_transform(Menu):
@@ -5911,6 +5912,8 @@ class VIEW3D_MT_edit_curves(Menu):
         layout = self.layout
 
         layout.menu("VIEW3D_MT_transform")
+        layout.separator()
+        layout.operator("curves.duplicate_move")
         layout.separator()
         layout.operator("curves.attribute_set")
         layout.operator("curves.delete")
@@ -7026,13 +7029,6 @@ class VIEW3D_PT_overlay_geometry(Panel):
         sub.prop(overlay, "wireframe_opacity", text="Opacity")
 
         row = col.row(align=True)
-        row.active = view.show_viewer
-        row.prop(overlay, "show_viewer_attribute", text="")
-        subrow = row.row(align=True)
-        subrow.active = overlay.show_viewer_attribute
-        subrow.prop(overlay, "viewer_attribute_opacity", text="Viewer Node")
-
-        row = col.row(align=True)
 
         # These properties should be always available in the UI for all modes
         # other than Object.
@@ -7051,6 +7047,33 @@ class VIEW3D_PT_overlay_geometry(Panel):
         col.prop(overlay, "show_face_orientation")
 
         # sub.prop(overlay, "show_onion_skins")
+
+
+class VIEW3D_PT_overlay_viewer_node(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = "VIEW3D_PT_overlay"
+    bl_label = "Viewer Node"
+
+    def draw(self, context):
+        layout = self.layout
+        view = context.space_data
+        overlay = view.overlay
+        display_all = overlay.show_overlays
+
+        col = layout.column()
+        col.active = display_all
+
+        row = col.row(align=True)
+        row.active = view.show_viewer
+        row.prop(overlay, "show_viewer_attribute", text="")
+        subrow = row.row(align=True)
+        subrow.active = overlay.show_viewer_attribute
+        subrow.prop(overlay, "viewer_attribute_opacity", text="Color Opacity")
+
+        row = col.row(align=True)
+        row.active = view.show_viewer
+        row.prop(overlay, "show_viewer_text", text="Attribute Text")
 
 
 class VIEW3D_PT_overlay_motion_tracking(Panel):
@@ -7182,7 +7205,7 @@ class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
         statvis_active = not xray
         row = col.row()
         row.active = statvis_active
-        row.prop(overlay, "show_statvis", text="Mesh Analysis")
+        row.prop(overlay, "show_statvis")
         if overlay.show_statvis:
             col = col.column()
             col.active = statvis_active
@@ -8992,6 +9015,7 @@ classes = (
     VIEW3D_PT_overlay_guides,
     VIEW3D_PT_overlay_object,
     VIEW3D_PT_overlay_geometry,
+    VIEW3D_PT_overlay_viewer_node,
     VIEW3D_PT_overlay_motion_tracking,
     VIEW3D_PT_overlay_edit_mesh,
     VIEW3D_PT_overlay_edit_mesh_shading,

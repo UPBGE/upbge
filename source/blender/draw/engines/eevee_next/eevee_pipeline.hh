@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include "BLI_math_bits.h"
+
 #include "DRW_render.h"
 #include "draw_shader_shared.h"
 
@@ -175,6 +177,10 @@ struct DeferredLayerBase {
   PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
 
   PassMain gbuffer_ps_ = {"Shading"};
+  /* Shaders that use the ClosureToRGBA node needs to be rendered first.
+   * Consider they hybrid forward and deferred. */
+  PassMain::Sub *gbuffer_single_sided_hybrid_ps_ = nullptr;
+  PassMain::Sub *gbuffer_double_sided_hybrid_ps_ = nullptr;
   PassMain::Sub *gbuffer_single_sided_ps_ = nullptr;
   PassMain::Sub *gbuffer_double_sided_ps_ = nullptr;
 
@@ -184,16 +190,29 @@ struct DeferredLayerBase {
   /* Return the amount of gbuffer layer needed. */
   int closure_layer_count() const
   {
-    return count_bits_i(closure_bits_ &
-                        (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_DIFFUSE | CLOSURE_SSS));
+    /* Diffuse and translucent require only one layer. */
+    int count = count_bits_i(closure_bits_ & (CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
+    /* SSS require an additional layer compared to diffuse. */
+    count += count_bits_i(closure_bits_ & CLOSURE_SSS);
+    /* Reflection and refraction can have at most two layers. */
+    count += 2 * count_bits_i(closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_REFLECTION));
+    return count;
   }
 
   /* Return the amount of gbuffer layer needed. */
-  int color_layer_count() const
+  int normal_layer_count() const
   {
-    return count_bits_i(closure_bits_ &
-                        (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_DIFFUSE));
+    /* TODO(fclem): We could count the number of different tangent frame in the shader and use
+     * min(tangent_frame_count, closure_count) once we have the normal reuse optimization.
+     * For now, allocate a split normal layer for each Closure. */
+    int count = count_bits_i(closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_REFLECTION |
+                                              CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
+    /* Count the additional infos layer needed by some closures. */
+    count += count_bits_i(closure_bits_ & (CLOSURE_SSS | CLOSURE_TRANSLUCENT));
+    return count;
   }
+
+  void gbuffer_pass_sync(Instance &inst);
 };
 
 class DeferredPipeline;
@@ -301,9 +320,9 @@ class DeferredPipeline {
   }
 
   /* Return the maximum amount of gbuffer layer needed. */
-  int color_layer_count() const
+  int normal_layer_count() const
   {
-    return max_ii(opaque_layer_.color_layer_count(), refraction_layer_.color_layer_count());
+    return max_ii(opaque_layer_.normal_layer_count(), refraction_layer_.normal_layer_count());
   }
 
   void debug_draw(draw::View &view, GPUFrameBuffer *combined_fb);
@@ -517,9 +536,9 @@ class DeferredProbePipeline {
   }
 
   /* Return the maximum amount of gbuffer layer needed. */
-  int color_layer_count() const
+  int normal_layer_count() const
   {
-    return opaque_layer_.color_layer_count();
+    return opaque_layer_.normal_layer_count();
   }
 };
 
@@ -544,8 +563,11 @@ class PlanarProbePipeline : DeferredLayerBase {
   PassMain::Sub *prepass_add(::Material *material, GPUMaterial *gpumat);
   PassMain::Sub *material_add(::Material *material, GPUMaterial *gpumat);
 
-  void render(
-      View &view, Framebuffer &gbuffer, Framebuffer &combined_fb, int layer_id, int2 extent);
+  void render(View &view,
+              GPUTexture *depth_layer_tx,
+              Framebuffer &gbuffer,
+              Framebuffer &combined_fb,
+              int2 extent);
 };
 
 /** \} */
@@ -688,6 +710,7 @@ class PipelineModule {
 
   void begin_sync()
   {
+    data.is_probe_reflection = false;
     probe.begin_sync();
     planar.begin_sync();
     deferred.begin_sync();

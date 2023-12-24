@@ -112,7 +112,7 @@ bDeformGroup *BKE_object_defgroup_add(Object *ob)
 MDeformVert *BKE_object_defgroup_data_create(ID *id)
 {
   if (GS(id->name) == ID_ME) {
-    return BKE_mesh_deform_verts_for_write((Mesh *)id);
+    return ((Mesh *)id)->deform_verts_for_write().data();
   }
   if (GS(id->name) == ID_LT) {
     Lattice *lt = (Lattice *)id;
@@ -160,14 +160,14 @@ bool BKE_object_defgroup_clear(Object *ob, bDeformGroup *dg, const bool use_sele
       }
     }
     else {
-      if (BKE_mesh_deform_verts(mesh)) {
+      if (!mesh->deform_verts().data()) {
         const bool *select_vert = (const bool *)CustomData_get_layer_named(
             &mesh->vert_data, CD_PROP_BOOL, ".select_vert");
         int i;
 
-        dv = BKE_mesh_deform_verts_for_write(mesh);
+        dv = mesh->deform_verts_for_write().data();
 
-        for (i = 0; i < mesh->totvert; i++, dv++) {
+        for (i = 0; i < mesh->verts_num; i++, dv++) {
           if (dv->dw && (!use_selection || (select_vert && select_vert[i]))) {
             MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
             BKE_defvert_remove_group(dv, dw); /* dw can be nullptr */
@@ -258,7 +258,7 @@ static void object_defgroup_remove_common(Object *ob, bDeformGroup *dg, const in
   if (BLI_listbase_is_empty(defbase)) {
     if (ob->type == OB_MESH) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
-      CustomData_free_layer_active(&mesh->vert_data, CD_MDEFORMVERT, mesh->totvert);
+      CustomData_free_layer_active(&mesh->vert_data, CD_MDEFORMVERT, mesh->verts_num);
     }
     else if (ob->type == OB_LATTICE) {
       Lattice *lt = object_defgroup_lattice_get((ID *)(ob->data));
@@ -405,7 +405,7 @@ void BKE_object_defgroup_remove_all_ex(Object *ob, bool only_unlocked)
     /* Remove all deform-verts. */
     if (ob->type == OB_MESH) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
-      CustomData_free_layer_active(&mesh->vert_data, CD_MDEFORMVERT, mesh->totvert);
+      CustomData_free_layer_active(&mesh->vert_data, CD_MDEFORMVERT, mesh->verts_num);
     }
     else if (ob->type == OB_LATTICE) {
       Lattice *lt = object_defgroup_lattice_get((ID *)(ob->data));
@@ -496,8 +496,8 @@ bool BKE_object_defgroup_array_get(ID *id, MDeformVert **dvert_arr, int *dvert_t
     switch (GS(id->name)) {
       case ID_ME: {
         Mesh *mesh = (Mesh *)id;
-        *dvert_arr = BKE_mesh_deform_verts_for_write(mesh);
-        *dvert_tot = mesh->totvert;
+        *dvert_arr = mesh->deform_verts_for_write().data();
+        *dvert_tot = mesh->verts_num;
         return true;
       }
       case ID_LT: {

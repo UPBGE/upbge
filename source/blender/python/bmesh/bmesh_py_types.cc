@@ -1394,8 +1394,8 @@ static PyObject *bpy_bmesh_calc_loop_triangles(BPy_BMElem *self)
 {
   BMesh *bm;
 
-  int looptris_tot;
-  BMLoop *(*looptris)[3];
+  int corner_tris_tot;
+  BMLoop *(*corner_tris)[3];
 
   PyObject *ret;
   int i;
@@ -1404,17 +1404,17 @@ static PyObject *bpy_bmesh_calc_loop_triangles(BPy_BMElem *self)
 
   bm = self->bm;
 
-  looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  looptris = static_cast<BMLoop *(*)[3]>(PyMem_MALLOC(sizeof(*looptris) * looptris_tot));
+  corner_tris_tot = poly_to_tri_count(bm->totface, bm->totloop);
+  corner_tris = static_cast<BMLoop *(*)[3]>(PyMem_MALLOC(sizeof(*corner_tris) * corner_tris_tot));
 
-  BM_mesh_calc_tessellation(bm, looptris);
+  BM_mesh_calc_tessellation(bm, corner_tris);
 
-  ret = PyList_New(looptris_tot);
-  for (i = 0; i < looptris_tot; i++) {
-    PyList_SET_ITEM(ret, i, BPy_BMLoop_Array_As_Tuple(bm, looptris[i], 3));
+  ret = PyList_New(corner_tris_tot);
+  for (i = 0; i < corner_tris_tot; i++) {
+    PyList_SET_ITEM(ret, i, BPy_BMLoop_Array_As_Tuple(bm, corner_tris[i], 3));
   }
 
-  PyMem_FREE(looptris);
+  PyMem_FREE(corner_tris);
 
   return ret;
 }
@@ -1494,7 +1494,44 @@ static PyObject *bpy_bm_elem_copy_from(BPy_BMElem *self, BPy_BMElem *value)
   }
 
   if (value->ele != self->ele) {
-    BM_elem_attrs_copy_ex(value->bm, self->bm, value->ele, self->ele, 0xff, CD_MASK_BM_ELEM_PYPTR);
+    switch (self->ele->head.htype) {
+      case BM_VERT: {
+        const BMCustomDataCopyMap cd_vert_map = CustomData_bmesh_copy_map_calc(
+            value->bm->vdata, self->bm->vdata, CD_MASK_BM_ELEM_PYPTR);
+        BM_elem_attrs_copy(self->bm,
+                           cd_vert_map,
+                           reinterpret_cast<const BMVert *>(value->ele),
+                           reinterpret_cast<BMVert *>(self->ele));
+        break;
+      }
+      case BM_EDGE: {
+        const BMCustomDataCopyMap cd_edge_map = CustomData_bmesh_copy_map_calc(
+            value->bm->edata, self->bm->edata, CD_MASK_BM_ELEM_PYPTR);
+        BM_elem_attrs_copy(self->bm,
+                           cd_edge_map,
+                           reinterpret_cast<const BMEdge *>(value->ele),
+                           reinterpret_cast<BMEdge *>(self->ele));
+        break;
+      }
+      case BM_FACE: {
+        const BMCustomDataCopyMap cd_face_map = CustomData_bmesh_copy_map_calc(
+            value->bm->pdata, self->bm->pdata, CD_MASK_BM_ELEM_PYPTR);
+        BM_elem_attrs_copy(self->bm,
+                           cd_face_map,
+                           reinterpret_cast<const BMFace *>(value->ele),
+                           reinterpret_cast<BMFace *>(self->ele));
+        break;
+      }
+      case BM_LOOP: {
+        const BMCustomDataCopyMap cd_loop_map = CustomData_bmesh_copy_map_calc(
+            value->bm->ldata, self->bm->ldata, CD_MASK_BM_ELEM_PYPTR);
+        BM_elem_attrs_copy(self->bm,
+                           cd_loop_map,
+                           reinterpret_cast<const BMLoop *>(value->ele),
+                           reinterpret_cast<BMLoop *>(self->ele));
+        break;
+      }
+    }
   }
 
   Py_RETURN_NONE;
@@ -1890,7 +1927,7 @@ static PyObject *bpy_bmface_copy(BPy_BMFace *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
-  f_cpy = BM_face_copy(bm, bm, self->f, do_verts, do_edges);
+  f_cpy = BM_face_copy(bm, self->f, do_verts, do_edges);
 
   if (f_cpy) {
     return BPy_BMFace_CreatePyObject(bm, f_cpy);
@@ -2205,7 +2242,14 @@ static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args)
   }
 
   if (py_vert_example) {
-    BM_elem_attrs_copy(py_vert_example->bm, bm, py_vert_example->v, v);
+    if (py_vert_example->bm == bm) {
+      BM_elem_attrs_copy(bm, py_vert_example->v, v);
+    }
+    else {
+      const BMCustomDataCopyMap cd_vert_map = CustomData_bmesh_copy_map_calc(
+          py_vert_example->bm->vdata, bm->vdata);
+      BM_elem_attrs_copy(bm, cd_vert_map, py_vert_example->v, v);
+    }
   }
 
   return BPy_BMVert_CreatePyObject(bm, v);
@@ -2266,7 +2310,14 @@ static PyObject *bpy_bmedgeseq_new(BPy_BMElemSeq *self, PyObject *args)
   }
 
   if (py_edge_example) {
-    BM_elem_attrs_copy(py_edge_example->bm, bm, py_edge_example->e, e);
+    if (py_edge_example->bm == bm) {
+      BM_elem_attrs_copy(bm, py_edge_example->e, e);
+    }
+    else {
+      const BMCustomDataCopyMap cd_edge_map = CustomData_bmesh_copy_map_calc(
+          py_edge_example->bm->edata, bm->edata);
+      BM_elem_attrs_copy(bm, cd_edge_map, py_edge_example->e, e);
+    }
   }
 
   ret = BPy_BMEdge_CreatePyObject(bm, e);

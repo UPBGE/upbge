@@ -27,7 +27,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_ccg.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_kelvinlet.h"
 #include "BKE_paint.hh"
@@ -2318,8 +2318,6 @@ void SCULPT_do_slide_relax_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nodes)
 
   BKE_curvemapping_init(brush->curve);
 
-  TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(&settings, true, nodes.size());
   if (ss->cache->alt_smooth) {
     SCULPT_boundary_info_ensure(ob);
     for (int i = 0; i < 4; i++) {

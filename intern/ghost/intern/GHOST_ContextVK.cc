@@ -303,7 +303,6 @@ class GHOST_DeviceVK {
     }
 
     fprintf(stderr, "Couldn't find any Graphic queue family on selected device\n");
-    return;
   }
 };
 
@@ -318,7 +317,7 @@ static std::optional<GHOST_DeviceVK> vulkan_device;
 
 static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
                                            VkSurfaceKHR vk_surface,
-                                           vector<const char *> required_extensions)
+                                           const vector<const char *> &required_extensions)
 {
   if (vulkan_device.has_value()) {
     return GHOST_kSuccess;
@@ -623,7 +622,7 @@ static vector<VkExtensionProperties> getExtensionsAvailable()
   return extensions;
 }
 
-static bool checkExtensionSupport(vector<VkExtensionProperties> &extensions_available,
+static bool checkExtensionSupport(const vector<VkExtensionProperties> &extensions_available,
                                   const char *extension_name)
 {
   for (const auto &extension : extensions_available) {
@@ -634,7 +633,7 @@ static bool checkExtensionSupport(vector<VkExtensionProperties> &extensions_avai
   return false;
 }
 
-static void requireExtension(vector<VkExtensionProperties> &extensions_available,
+static void requireExtension(const vector<VkExtensionProperties> &extensions_available,
                              vector<const char *> &extensions_enabled,
                              const char *extension_name)
 {
@@ -657,7 +656,8 @@ static vector<VkLayerProperties> getLayersAvailable()
   return layers;
 }
 
-static bool checkLayerSupport(vector<VkLayerProperties> &layers_available, const char *layer_name)
+static bool checkLayerSupport(const vector<VkLayerProperties> &layers_available,
+                              const char *layer_name)
 {
   for (const auto &layer : layers_available) {
     if (strcmp(layer_name, layer.layerName) == 0) {
@@ -667,7 +667,7 @@ static bool checkLayerSupport(vector<VkLayerProperties> &layers_available, const
   return false;
 }
 
-static void enableLayer(vector<VkLayerProperties> &layers_available,
+static void enableLayer(const vector<VkLayerProperties> &layers_available,
                         vector<const char *> &layers_enabled,
                         const VkLayer layer,
                         const bool display_warning)
@@ -789,7 +789,7 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  for (VkSurfaceFormatKHR &format : formats) {
+  for (const VkSurfaceFormatKHR &format : formats) {
     if (surfaceFormatSupported(format)) {
       r_surfaceFormat = format;
       return true;

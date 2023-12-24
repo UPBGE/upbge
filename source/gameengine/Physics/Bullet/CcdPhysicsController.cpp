@@ -29,7 +29,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "DEG_depsgraph_query.hh"
-#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"
@@ -903,7 +903,7 @@ void CcdPhysicsController::UpdateSoftBody()
             }
           }
         }
-        BKE_mesh_tag_positions_changed(me);
+        me->tag_positions_changed();
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
@@ -2043,7 +2043,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   const blender::Span<blender::float3> positions = me->vert_positions();
   const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-  numverts = me->totvert;
+  numverts = me->verts_num;
   const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
 
   /* double lookup */
@@ -2392,7 +2392,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     const blender::Span<blender::float3> positions = me->vert_positions();
     MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
     numpolys = me->totface_legacy;
-    numverts = me->totvert;
+    numverts = me->verts_num;
 
     // double lookup
     const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);

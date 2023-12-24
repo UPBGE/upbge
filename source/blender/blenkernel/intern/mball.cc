@@ -648,11 +648,11 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
         ob->parent,
         ob,
         reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
-        mesh->totvert,
+        mesh->verts_num,
         0,
         nullptr,
         1.0f);
-    BKE_mesh_tag_positions_changed(mesh);
+    mesh->tag_positions_changed();
   }
 
   ob->runtime->geometry_set_eval = new GeometrySet(GeometrySet::from_mesh(mesh));

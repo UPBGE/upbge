@@ -24,7 +24,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_colortools.h" /* CurveMapping. */
+#include "BKE_colortools.hh" /* CurveMapping. */
 #include "BKE_context.hh"
 #include "BKE_deform.h"
 #include "BKE_lib_query.h"
@@ -169,7 +169,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 #endif
 
   /* Get number of verts. */
-  const int verts_num = mesh->totvert;
+  const int verts_num = mesh->verts_num;
 
   /* Check if we can just return the original mesh.
    * Must have verts and therefore verts assigned to vgroups to do anything useful!
@@ -193,7 +193,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
   }
 
-  MDeformVert *dvert = BKE_mesh_deform_verts_for_write(mesh);
+  MDeformVert *dvert = mesh->deform_verts_for_write().data();
 
   /* Ultimate security check. */
   if (!dvert) {

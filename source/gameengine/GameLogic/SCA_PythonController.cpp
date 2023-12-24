@@ -36,7 +36,6 @@
 
 #ifdef WITH_PYTHON
 #  include "compile.h"
-#  include "eval.h"
 #  include "py_capi_utils.h"
 #endif  // WITH_PYTHON
 

@@ -53,9 +53,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -458,8 +455,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *me_ev
   using namespace blender;
   int i;
 
-  const int tottri = poly_to_tri_count(mesh->faces_num, mesh->totloop);
-  MLoopTri *looptri;
+  const int tottri = poly_to_tri_count(mesh->faces_num, mesh->corners_num);
   TriTessFace *triangles;
 
   /* calculate normal for each face only once */
@@ -471,9 +467,10 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *me_ev
   const blender::Span<int> corner_verts = mesh->corner_verts();
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray<bool> sharp_faces =
-      attributes.lookup_or_default<bool>("sharp_face", ATTR_DOMAIN_FACE, false).varray;
+      attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
 
-  looptri = static_cast<MLoopTri *>(MEM_mallocN(sizeof(*looptri) * tottri, __func__));
+  blender::int3 *corner_tris = static_cast<blender::int3 *>(
+      MEM_mallocN(sizeof(*corner_tris) * tottri, __func__));
   triangles = static_cast<TriTessFace *>(MEM_callocN(sizeof(TriTessFace) * tottri, __func__));
 
   const bool calculate_normal = BKE_mesh_face_normals_are_dirty(mesh);
@@ -483,11 +480,11 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *me_ev
   }
 
   if (!precomputed_normals.is_empty()) {
-    blender::bke::mesh::looptris_calc_with_normals(
-        positions, faces, corner_verts, precomputed_normals, {looptri, tottri});
+    blender::bke::mesh::corner_tris_calc_with_normals(
+        positions, faces, corner_verts, precomputed_normals, {corner_tris, tottri});
   }
   else {
-    blender::bke::mesh::looptris_calc(positions, faces, corner_verts, {looptri, tottri});
+    blender::bke::mesh::corner_tris_calc(positions, faces, corner_verts, {corner_tris, tottri});
   }
 
   const TSpace *tspace = nullptr;
@@ -495,36 +492,36 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *me_ev
   if (tangent) {
     BKE_mesh_calc_loop_tangents(me_eval, true, nullptr, 0);
 
-    tspace = static_cast<const TSpace *>(CustomData_get_layer(&me_eval->loop_data, CD_TANGENT));
+    tspace = static_cast<const TSpace *>(CustomData_get_layer(&me_eval->corner_data, CD_TANGENT));
     BLI_assert(tspace);
 
     corner_normals = me_eval->corner_normals();
   }
 
   const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
-  const blender::Span<int> looptri_faces = mesh->looptri_faces();
+  const blender::Span<int> tri_faces = mesh->corner_tri_faces();
   for (i = 0; i < tottri; i++) {
-    const MLoopTri *lt = &looptri[i];
-    const int face_i = looptri_faces[i];
+    const int3 &tri = corner_tris[i];
+    const int face_i = tri_faces[i];
 
-    triangles[i].positions[0] = positions[corner_verts[lt->tri[0]]];
-    triangles[i].positions[1] = positions[corner_verts[lt->tri[1]]];
-    triangles[i].positions[2] = positions[corner_verts[lt->tri[2]]];
-    triangles[i].vert_normals[0] = vert_normals[corner_verts[lt->tri[0]]];
-    triangles[i].vert_normals[1] = vert_normals[corner_verts[lt->tri[1]]];
-    triangles[i].vert_normals[2] = vert_normals[corner_verts[lt->tri[2]]];
+    triangles[i].positions[0] = positions[corner_verts[tri[0]]];
+    triangles[i].positions[1] = positions[corner_verts[tri[1]]];
+    triangles[i].positions[2] = positions[corner_verts[tri[2]]];
+    triangles[i].vert_normals[0] = vert_normals[corner_verts[tri[0]]];
+    triangles[i].vert_normals[1] = vert_normals[corner_verts[tri[1]]];
+    triangles[i].vert_normals[2] = vert_normals[corner_verts[tri[2]]];
     triangles[i].is_smooth = !sharp_faces[face_i];
 
     if (tangent) {
-      triangles[i].tspace[0] = &tspace[lt->tri[0]];
-      triangles[i].tspace[1] = &tspace[lt->tri[1]];
-      triangles[i].tspace[2] = &tspace[lt->tri[2]];
+      triangles[i].tspace[0] = &tspace[tri[0]];
+      triangles[i].tspace[1] = &tspace[tri[1]];
+      triangles[i].tspace[2] = &tspace[tri[2]];
     }
 
     if (!corner_normals.is_empty()) {
-      triangles[i].loop_normal[0] = corner_normals[lt->tri[0]];
-      triangles[i].loop_normal[1] = corner_normals[lt->tri[1]];
-      triangles[i].loop_normal[2] = corner_normals[lt->tri[2]];
+      triangles[i].loop_normal[0] = corner_normals[tri[0]];
+      triangles[i].loop_normal[1] = corner_normals[tri[1]];
+      triangles[i].loop_normal[2] = corner_normals[tri[2]];
     }
 
     if (calculate_normal) {
@@ -539,7 +536,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *me_ev
     }
   }
 
-  MEM_freeN(looptri);
+  MEM_freeN(corner_tris);
 
   return triangles;
 }
@@ -599,9 +596,9 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
 
     me_highpoly[i] = highpoly[i].mesh;
 
-    if (BKE_mesh_runtime_looptri_len(me_highpoly[i]) != 0) {
+    if (BKE_mesh_runtime_corner_tris_len(me_highpoly[i]) != 0) {
       /* Create a BVH-tree for each `highpoly` object. */
-      BKE_bvhtree_from_mesh_get(&treeData[i], me_highpoly[i], BVHTREE_FROM_LOOPTRI, 2);
+      BKE_bvhtree_from_mesh_get(&treeData[i], me_highpoly[i], BVHTREE_FROM_CORNER_TRIS, 2);
 
       if (treeData[i].tree == nullptr) {
         printf("Baking: out of memory while creating BHVTree for object \"%s\"\n",
@@ -720,15 +717,16 @@ void RE_bake_pixels_populate(Mesh *mesh,
                              const BakeTargets *targets,
                              const char *uv_layer)
 {
+  using namespace blender;
   const float(*mloopuv)[2];
   if ((uv_layer == nullptr) || (uv_layer[0] == '\0')) {
     mloopuv = static_cast<const float(*)[2]>(
-        CustomData_get_layer(&mesh->loop_data, CD_PROP_FLOAT2));
+        CustomData_get_layer(&mesh->corner_data, CD_PROP_FLOAT2));
   }
   else {
-    int uv_id = CustomData_get_named_layer(&mesh->loop_data, CD_PROP_FLOAT2, uv_layer);
+    int uv_id = CustomData_get_named_layer(&mesh->corner_data, CD_PROP_FLOAT2, uv_layer);
     mloopuv = static_cast<const float(*)[2]>(
-        CustomData_get_layer_n(&mesh->loop_data, CD_PROP_FLOAT2, uv_id));
+        CustomData_get_layer_n(&mesh->corner_data, CD_PROP_FLOAT2, uv_id));
   }
 
   if (mloopuv == nullptr) {
@@ -749,25 +747,28 @@ void RE_bake_pixels_populate(Mesh *mesh,
     zbuf_alloc_span(&bd.zspan[i], targets->images[i].width, targets->images[i].height);
   }
 
-  const int tottri = poly_to_tri_count(mesh->faces_num, mesh->totloop);
-  MLoopTri *looptri = static_cast<MLoopTri *>(MEM_mallocN(sizeof(*looptri) * tottri, __func__));
+  const int tottri = poly_to_tri_count(mesh->faces_num, mesh->corners_num);
+  blender::int3 *corner_tris = static_cast<blender::int3 *>(
+      MEM_mallocN(sizeof(*corner_tris) * tottri, __func__));
 
-  blender::bke::mesh::looptris_calc(
-      mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), {looptri, tottri});
+  blender::bke::mesh::corner_tris_calc(
+      mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), {corner_tris, tottri});
 
-  const blender::Span<int> looptri_faces = mesh->looptri_faces();
+  const blender::Span<int> tri_faces = mesh->corner_tri_faces();
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const VArraySpan material_indices = *attributes.lookup<int>("material_index",
+                                                              bke::AttrDomain::Face);
 
-  const int *material_indices = BKE_mesh_material_indices(mesh);
   const int materials_num = targets->materials_num;
 
   for (int i = 0; i < tottri; i++) {
-    const MLoopTri *lt = &looptri[i];
-    const int face_i = looptri_faces[i];
+    const int3 &tri = corner_tris[i];
+    const int face_i = tri_faces[i];
 
     bd.primitive_id = i;
 
     /* Find images matching this material. */
-    const int material_index = (material_indices && materials_num) ?
+    const int material_index = (!material_indices.is_empty() && materials_num) ?
                                    clamp_i(material_indices[face_i], 0, materials_num - 1) :
                                    0;
     Image *image = targets->material_to_image[material_index];
@@ -780,7 +781,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
       /* Compute triangle vertex UV coordinates. */
       float vec[3][2];
       for (int a = 0; a < 3; a++) {
-        const float *uv = mloopuv[lt->tri[a]];
+        const float *uv = mloopuv[tri[a]];
 
         /* NOTE(@ideasman42): workaround for pixel aligned UVs which are common and can screw
          * up our intersection tests where a pixel gets in between 2 faces or the middle of a quad,
@@ -802,7 +803,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
     zbuf_free_span(&bd.zspan[i]);
   }
 
-  MEM_freeN(looptri);
+  MEM_freeN(corner_tris);
   MEM_freeN(bd.zspan);
 }
 

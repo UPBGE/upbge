@@ -2,8 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.h"
@@ -12,6 +13,7 @@
 #include "BKE_scene.h"
 
 #include "BLI_length_parameterize.hh"
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -165,6 +167,7 @@ struct PaintOperationExecutor {
                                                      brush_->rgb[2],
                                                      settings_->vertex_factor) :
                                               float4(0.0f);
+    srgb_to_linearrgb_v4(vertex_color_, vertex_color_);
 
     // const bool use_vertex_color_fill = use_vertex_color && ELEM(
     //     brush->gpencil_settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH);
@@ -225,9 +228,9 @@ struct PaintOperationExecutor {
 
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
-        "material_index", ATTR_DOMAIN_CURVE);
+        "material_index", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
-        "cyclic", ATTR_DOMAIN_CURVE);
+        "cyclic", bke::AttrDomain::Curve);
     cyclic.span.last() = false;
     materials.span.last() = material_index;
 
@@ -238,27 +241,14 @@ struct PaintOperationExecutor {
     curves.update_curve_types();
 
     /* Initialize the rest of the attributes with default values. */
-    Set<std::string> attributes_to_skip{{"position",
-                                         "curve_type",
-                                         "material_index",
-                                         "cyclic",
-                                         "radius",
-                                         "opacity",
-                                         "vertex_color"}};
-    attributes.for_all(
-        [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData /*meta_data*/) {
-          if (attributes_to_skip.contains(id.name())) {
-            return true;
-          }
-          bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-          const CPPType &type = attribute.span.type();
-          GMutableSpan new_data = attribute.span.slice(attribute.domain == ATTR_DOMAIN_POINT ?
-                                                           curves.points_range().take_back(1) :
-                                                           curves.curves_range().take_back(1));
-          type.fill_assign_n(type.default_value(), new_data.data(), new_data.size());
-          attribute.finish();
-          return true;
-        });
+    bke::fill_attribute_range_default(attributes,
+                                      bke::AttrDomain::Point,
+                                      {"position", "radius", "opacity", "vertex_color"},
+                                      curves.points_range().take_back(1));
+    bke::fill_attribute_range_default(attributes,
+                                      bke::AttrDomain::Curve,
+                                      {"curve_type", "material_index", "cyclic"},
+                                      curves.curves_range().take_back(1));
 
     drawing_->tag_topology_changed();
   }
@@ -417,18 +407,10 @@ struct PaintOperationExecutor {
     }
 
     /* Initialize the rest of the attributes with default values. */
-    Set<std::string> attributes_to_skip{{"position", "radius", "opacity", "vertex_color"}};
-    attributes.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
-      if (attributes_to_skip.contains(id.name()) || meta_data.domain != ATTR_DOMAIN_POINT) {
-        return true;
-      }
-      bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-      const CPPType &type = attribute.span.type();
-      GMutableSpan new_data = attribute.span.slice(new_points);
-      type.fill_assign_n(type.default_value(), new_data.data(), new_data.size());
-      attribute.finish();
-      return true;
-    });
+    bke::fill_attribute_range_default(attributes,
+                                      bke::AttrDomain::Point,
+                                      {"position", "radius", "opacity", "vertex_color"},
+                                      curves.points_range().take_back(1));
   }
 
   void execute(PaintOperation &self, const bContext &C, const InputSample &extension_sample)
@@ -535,7 +517,7 @@ void PaintOperation::simplify_stroke(bke::greasepencil::Drawing &drawing, const 
 
   if (total_points_to_delete > 0) {
     IndexMaskMemory memory;
-    curves.remove_points(IndexMask::from_bools(points_to_delete, memory));
+    curves.remove_points(IndexMask::from_bools(points_to_delete, memory), {});
   }
 }
 
@@ -571,7 +553,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
 
   /* Grease Pencil should have an active layer. */
   BLI_assert(grease_pencil.has_active_layer());
-  bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer_for_write();
+  bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
   const int drawing_index = active_layer.drawing_index_at(scene->r.cfra);
 
   /* Drawing should exist. */

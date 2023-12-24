@@ -96,6 +96,8 @@ void PlanarProbeModule::end_sync()
 
 void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_extent)
 {
+  GBuffer &gbuf = instance_.gbuffer;
+
   const int64_t num_probes = probes_.size();
 
   /* TODO resolution percentage. */
@@ -111,6 +113,7 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ;
   radiance_tx_.ensure_2d_array(GPU_R11F_G11F_B10F, extent, layer_count, usage);
   depth_tx_.ensure_2d_array(GPU_DEPTH_COMPONENT32F, extent, layer_count, usage);
+  depth_tx_.ensure_layer_views();
 
   do_display_draw_ = DRW_state_draw_support() && num_probes > 0;
 
@@ -133,10 +136,9 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
     world_clip_buf_.plane = probe.reflection_clip_plane_get();
     world_clip_buf_.push_update();
 
-    GBuffer &gbuf = instance_.gbuffer;
     gbuf.acquire(extent,
                  instance_.pipelines.deferred.closure_layer_count(),
-                 instance_.pipelines.deferred.color_layer_count());
+                 instance_.pipelines.deferred.normal_layer_count());
 
     res.combined_fb.ensure(GPU_ATTACHMENT_TEXTURE_LAYER(depth_tx_, resource_index),
                            GPU_ATTACHMENT_TEXTURE_LAYER(radiance_tx_, resource_index));
@@ -144,11 +146,12 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
     res.gbuffer_fb.ensure(GPU_ATTACHMENT_TEXTURE_LAYER(depth_tx_, resource_index),
                           GPU_ATTACHMENT_TEXTURE_LAYER(radiance_tx_, resource_index),
                           GPU_ATTACHMENT_TEXTURE(gbuf.header_tx),
-                          GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.color_tx.layer_view(0), 0),
-                          GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0));
+                          GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.normal_tx.layer_view(0), 0),
+                          GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0),
+                          GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(1), 0));
 
     instance_.pipelines.planar.render(
-        res.view, res.combined_fb, res.gbuffer_fb, resource_index, extent);
+        res.view, depth_tx_.layer_view(resource_index), res.gbuffer_fb, res.combined_fb, extent);
 
     if (do_display_draw_ && probe.viewport_display) {
       display_data_buf_.get_or_resize(display_index++) = {probe.plane_to_world, resource_index};
@@ -156,6 +159,8 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
 
     resource_index++;
   }
+
+  gbuf.release();
 
   if (resource_index < PLANAR_PROBES_MAX) {
     /* Tag the end of the array. */

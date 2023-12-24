@@ -10,7 +10,6 @@
  */
 
 #include "DNA_listBase.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -1115,9 +1114,9 @@ void BM_face_triangulate(BMesh *bm,
       }
 
       /* copy CD data */
-      BM_elem_attrs_copy(*bm, l_tri[0], l_new);
-      BM_elem_attrs_copy(*bm, l_tri[1], l_new->next);
-      BM_elem_attrs_copy(*bm, l_tri[2], l_new->prev);
+      BM_elem_attrs_copy(bm, l_tri[0], l_new);
+      BM_elem_attrs_copy(bm, l_tri[1], l_new->next);
+      BM_elem_attrs_copy(bm, l_tri[2], l_new->prev);
 
       /* add all but the last face which is swapped and removed (below) */
       if (i != last_tri) {

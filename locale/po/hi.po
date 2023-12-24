@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Alpha (b'72b6c44e759b')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'0b00b360f7ae')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-12-04 11:06:00\n"
+"POT-Creation-Date: 2023-12-18 13:45:58\n"
 "PO-Revision-Date: 2015-03-03 16:21+0530\n"
 "Last-Translator: Roshan Lal Gumasta <roshan@anisecrets.com>\n"
 "Language-Team: Hindi <www.anisecrets.com>\n"
@@ -1401,6 +1401,14 @@ msgid "Save"
 msgstr "सहेजें"
 
 
+msgid "Operator"
+msgstr "संचालक"
+
+
+msgid "Label"
+msgstr "सूचक पत्र"
+
+
 msgid "Relative Path"
 msgstr "सापेक्ष पथ"
 
@@ -2220,10 +2228,6 @@ msgstr "शिरोबिन्दु"
 
 msgid "Never"
 msgstr "कभी नहीं"
-
-
-msgid "Label"
-msgstr "सूचक पत्र"
 
 
 msgid "Links"
@@ -3250,6 +3254,10 @@ msgid "Equal"
 msgstr "बराबर"
 
 
+msgid "Bake"
+msgstr "भर्जन"
+
+
 msgid "Z Up"
 msgstr "Z ऊर्ध्व"
 
@@ -3590,6 +3598,10 @@ msgid "Report"
 msgstr "विवरण"
 
 
+msgid "Duplicate"
+msgstr "अनुकृति"
+
+
 msgctxt "Operator"
 msgid "Toggle Cyclic"
 msgstr "चक्रीय बंद/बुझ"
@@ -3774,10 +3786,6 @@ msgstr "अगले अनुबोधक चिन्ह"
 
 msgid "Flat"
 msgstr "समतल"
-
-
-msgid "Duplicate"
-msgstr "अनुकृति"
 
 
 msgctxt "Operator"
@@ -4110,10 +4118,6 @@ msgid "Copy Pose"
 msgstr "मुद्रा की प्रतिलिपि बनाएँ"
 
 
-msgid "Bake"
-msgstr "भर्जन"
-
-
 msgctxt "Operator"
 msgid "Bake All Physics"
 msgstr "सभी भौतिकी भर्जन"
@@ -4203,10 +4207,6 @@ msgstr "पिछला दोहराएँ"
 msgctxt "Operator"
 msgid "Sculpt"
 msgstr "गढन"
-
-
-msgid "Operator"
-msgstr "संचालक"
 
 
 msgctxt "Operator"
@@ -4627,10 +4627,6 @@ msgstr "तालाबंदी x"
 
 msgid "Lock Y"
 msgstr "तालाबंदी y"
-
-
-msgid "Refraction"
-msgstr "अपवर्तन"
 
 
 msgid "Film"
@@ -5589,6 +5585,10 @@ msgstr "ऊपरी"
 
 msgid "Auto-Step"
 msgstr "स्वत:-चरण"
+
+
+msgid "Refraction"
+msgstr "अपवर्तन"
 
 
 msgid "Paths:"

@@ -16,15 +16,13 @@
 #include "BLI_task.h"
 
 #include "DNA_brush_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_mesh.hh"
@@ -1201,7 +1199,7 @@ static void write_mask_data(SculptSession *ss, const Span<float> mask)
       Mesh *mesh = BKE_pbvh_get_mesh(ss->pbvh);
       bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
       bke::SpanAttributeWriter<float> attribute = attributes.lookup_or_add_for_write_span<float>(
-          ".sculpt_mask", ATTR_DOMAIN_POINT);
+          ".sculpt_mask", bke::AttrDomain::Point);
       for (PBVHNode *node : nodes) {
         PBVHVertexIter vd;
         BKE_pbvh_vertex_iter_begin (ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
@@ -1344,7 +1342,7 @@ static void sculpt_expand_face_sets_update(Object &object, Cache *expand_cache)
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(object);
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", ATTR_DOMAIN_FACE);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   for (const int f : face_sets.span.index_range()) {
     const bool enabled = sculpt_expand_face_state_get(
         object.sculpt, hide_poly, face_sets.span, expand_cache, f);

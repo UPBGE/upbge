@@ -7,14 +7,13 @@
  * \ingroup bke
  */
 
+#include "BKE_customdata.hh" // UPBGE
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_compiler_compat.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_customdata.hh"
 
 struct BMesh;
 struct BMeshCreateParams;
@@ -29,16 +28,11 @@ struct ListBase;
 struct MDeformVert;
 struct MDisps;
 struct MFace;
-struct MLoopTri;
 struct Main;
 struct MemArena;
 struct Mesh;
 struct Object;
 struct Scene;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* TODO: Move to `BKE_mesh_types.hh` when possible. */
 typedef enum eMeshBatchDirtyMode {
@@ -49,39 +43,6 @@ typedef enum eMeshBatchDirtyMode {
   BKE_MESH_BATCH_DIRTY_UVEDIT_ALL,
   BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT,
 } eMeshBatchDirtyMode;
-
-/*  mesh_runtime.cc  */
-
-/**
- * Call after changing vertex positions to tag lazily calculated caches for recomputation.
- */
-void BKE_mesh_tag_positions_changed(struct Mesh *mesh);
-
-/**
- * The same as #BKE_mesh_tag_positions_changed but doesn't tag normals dirty, instead expecting
- * them to be updated separately.
- */
-void BKE_mesh_tag_positions_changed_no_normals(struct Mesh *mesh);
-
-/**
- * Call after moving every mesh vertex by the same translation.
- */
-void BKE_mesh_tag_positions_changed_uniformly(struct Mesh *mesh);
-
-void BKE_mesh_tag_topology_changed(struct Mesh *mesh);
-
-/**
- * Call when new edges and vertices have been created but positions and faces haven't changed.
- */
-void BKE_mesh_tag_edges_split(struct Mesh *mesh);
-
-/** Call when changing "sharp_face" or "sharp_edge" data. */
-void BKE_mesh_tag_sharpness_changed(struct Mesh *mesh);
-
-/**
- * Call when face vertex order has changed but positions and faces haven't changed
- */
-void BKE_mesh_tag_face_winding_changed(struct Mesh *mesh);
 
 /* `mesh.cc` */
 
@@ -153,15 +114,15 @@ void BKE_mesh_ensure_skin_customdata(struct Mesh *mesh);
 /** Add face offsets to describe faces to a new mesh. */
 void BKE_mesh_face_offsets_ensure_alloc(struct Mesh *mesh);
 
-struct Mesh *BKE_mesh_new_nomain(int verts_num, int edges_num, int faces_num, int loops_num);
+struct Mesh *BKE_mesh_new_nomain(int verts_num, int edges_num, int faces_num, int corners_num);
 struct Mesh *BKE_mesh_new_nomain_from_template(
-    const struct Mesh *me_src, int verts_num, int edges_num, int faces_num, int loops_num);
+    const struct Mesh *me_src, int verts_num, int edges_num, int faces_num, int corners_num);
 struct Mesh *BKE_mesh_new_nomain_from_template_ex(const struct Mesh *me_src,
                                                   int verts_num,
                                                   int edges_num,
                                                   int tessface_num,
                                                   int faces_num,
-                                                  int loops_num,
+                                                  int corners_num,
                                                   struct CustomData_MeshMasks mask);
 
 void BKE_mesh_eval_delete(struct Mesh *mesh_eval);
@@ -211,8 +172,6 @@ void BKE_mesh_material_index_remove(struct Mesh *mesh, short index);
 bool BKE_mesh_material_index_used(struct Mesh *mesh, short index);
 void BKE_mesh_material_index_clear(struct Mesh *mesh);
 void BKE_mesh_material_remap(struct Mesh *mesh, const unsigned int *remap, unsigned int remap_len);
-void BKE_mesh_smooth_flag_set(struct Mesh *mesh, bool use_smooth);
-void BKE_mesh_sharp_edges_set_from_angle(struct Mesh *mesh, float angle);
 
 void BKE_mesh_texspace_calc(struct Mesh *mesh);
 void BKE_mesh_texspace_ensure(struct Mesh *mesh);
@@ -356,8 +315,6 @@ void BKE_lnor_spacearr_tls_join(MLoopNorSpaceArray *lnors_spacearr,
 
 MLoopNorSpace *BKE_lnor_space_create(MLoopNorSpaceArray *lnors_spacearr);
 
-#ifdef __cplusplus
-
 /**
  * Should only be called once.
  * Beware, this modifies ref_vec and other_vec in place!
@@ -369,8 +326,6 @@ void BKE_lnor_space_define(MLoopNorSpace *lnor_space,
                            const float vec_ref[3],
                            const float vec_other[3],
                            blender::Span<blender::float3> edge_vectors);
-
-#endif
 
 /**
  * Add a new given loop to given lnor_space.
@@ -451,8 +406,8 @@ bool BKE_mesh_center_of_volume(const struct Mesh *mesh, float r_cent[3]);
  */
 void BKE_mesh_calc_volume(const float (*vert_positions)[3],
                           int mverts_num,
-                          const struct MLoopTri *mlooptri,
-                          int looptri_num,
+                          const blender::int3 *corner_tris,
+                          int corner_tris_num,
                           const int *corner_verts,
                           float *r_volume,
                           float r_center[3]);
@@ -524,14 +479,14 @@ bool BKE_mesh_validate_material_indices(struct Mesh *mesh);
  */
 bool BKE_mesh_validate_arrays(struct Mesh *mesh,
                               float (*vert_positions)[3],
-                              unsigned int totvert,
+                              unsigned int verts_num,
                               blender::int2 *edges,
-                              unsigned int totedge,
-                              struct MFace *mfaces,
-                              unsigned int totface,
+                              unsigned int edges_num,
+                              struct MFace *legacy_faces,
+                              unsigned int legacy_faces_num,
                               int *corner_verts,
                               int *corner_edges,
-                              unsigned int totloop,
+                              unsigned int corners_num,
                               int *face_offsets,
                               unsigned int faces_num,
                               struct MDeformVert *dverts, /* assume totvert length */
@@ -547,10 +502,10 @@ bool BKE_mesh_validate_arrays(struct Mesh *mesh,
 bool BKE_mesh_validate_all_customdata(struct CustomData *vert_data,
                                       uint totvert,
                                       struct CustomData *edge_data,
-                                      uint totedge,
-                                      struct CustomData *loop_data,
-                                      uint totloop,
-                                      struct CustomData *pdata,
+                                      uint edges_num,
+                                      struct CustomData *corner_data,
+                                      uint corners_num,
+                                      struct CustomData *face_data,
                                       uint faces_num,
                                       bool check_meshmask,
                                       bool do_verbose,
@@ -558,17 +513,6 @@ bool BKE_mesh_validate_all_customdata(struct CustomData *vert_data,
                                       bool *r_change);
 
 void BKE_mesh_strip_loose_faces(struct Mesh *mesh);
-
-/**
- * Calculate edges from faces.
- */
-void BKE_mesh_calc_edges(struct Mesh *mesh, bool keep_existing_edges, bool select_new_edges);
-/**
- * Calculate/create edges from tessface data
- *
- * \param mesh: The mesh to add edges into
- */
-void BKE_mesh_calc_edges_tessface(struct Mesh *mesh);
 
 /* In DerivedMesh.cc */
 void BKE_mesh_wrapper_deferred_finalize_mdata(struct Mesh *me_eval);
@@ -592,49 +536,6 @@ char *BKE_mesh_debug_info(const struct Mesh *mesh)
 void BKE_mesh_debug_print(const struct Mesh *mesh) ATTR_NONNULL(1);
 #endif
 
-/* -------------------------------------------------------------------- */
-/** \name Inline Mesh Data Access
- * \{ */
-
-/**
- * \return The material index for each face. May be null.
- * \note In C++ code, prefer using the attribute API (#AttributeAccessor).
- */
-BLI_INLINE const int *BKE_mesh_material_indices(const Mesh *mesh)
-{
-  return (const int *)CustomData_get_layer_named(
-      &mesh->face_data, CD_PROP_INT32, "material_index");
-}
-
-/**
- * \return The material index for each face. Create the layer if it doesn't exist.
- * \note In C++ code, prefer using the attribute API (#MutableAttributeAccessor).
- */
-BLI_INLINE int *BKE_mesh_material_indices_for_write(Mesh *mesh)
-{
-  int *indices = (int *)CustomData_get_layer_named_for_write(
-      &mesh->face_data, CD_PROP_INT32, "material_index", mesh->faces_num);
-  if (indices) {
-    return indices;
-  }
-  return (int *)CustomData_add_layer_named(
-      &mesh->face_data, CD_PROP_INT32, CD_SET_DEFAULT, mesh->faces_num, "material_index");
-}
-
-BLI_INLINE const MDeformVert *BKE_mesh_deform_verts(const Mesh *mesh)
-{
-  return (const MDeformVert *)CustomData_get_layer(&mesh->vert_data, CD_MDEFORMVERT);
-}
-BLI_INLINE MDeformVert *BKE_mesh_deform_verts_for_write(Mesh *mesh)
-{
-  MDeformVert *dvert = (MDeformVert *)CustomData_get_layer_for_write(
-      &mesh->vert_data, CD_MDEFORMVERT, mesh->totvert);
-  if (dvert) {
-    return dvert;
-  }
-  return (MDeformVert *)CustomData_add_layer(
-      &mesh->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, mesh->totvert);
-}
 
 /* UPBGE: KEEP THIS EVEN AFTER DerivedMesh removal!!!!!!! */
 BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
@@ -650,10 +551,4 @@ BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 }
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
-/**********************************************************/
 
-#ifdef __cplusplus
-}
-#endif
-
-/** \} */

@@ -211,6 +211,8 @@ typedef struct bNodeSocketType {
   const CPPTypeHandle *geometry_nodes_cpp_type;
   /* Get geometry nodes cpp value. */
   SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value;
+  /* Default value for this socket type. */
+  const void *geometry_nodes_default_cpp_value;
 } bNodeSocketType;
 
 typedef void *(*NodeInitExecFunction)(struct bNodeExecContext *context,
@@ -1097,10 +1099,6 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define CMP_CHAN_RGB 1
 #define CMP_CHAN_A 2
 
-/* Cryptomatte source. */
-#define CMP_CRYPTOMATTE_SRC_RENDER 0
-#define CMP_CRYPTOMATTE_SRC_IMAGE 1
-
 /* Default SMAA configuration values. */
 #define CMP_DEFAULT_SMAA_THRESHOLD 1.0f
 #define CMP_DEFAULT_SMAA_CONTRAST_LIMIT 0.2f
@@ -1326,6 +1324,10 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define GEO_NODE_SPLIT_TO_INSTANCES 2116
 #define GEO_NODE_INPUT_NAMED_LAYER_SELECTION 2117
 #define GEO_NODE_INDEX_SWITCH 2118
+#define GEO_NODE_INPUT_ACTIVE_CAMERA 2119
+#define GEO_NODE_BAKE 2120
+#define GEO_NODE_GET_NAMED_GRID 2121
+#define GEO_NODE_STORE_NAMED_GRID 2122
 
 /** \} */
 

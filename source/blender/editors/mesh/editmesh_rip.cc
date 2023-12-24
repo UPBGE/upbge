@@ -494,20 +494,20 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
       l_iter = BM_FACE_FIRST_LOOP(f);
 
       if (f_verts[3]) {
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
       }
       else {
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(*bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
       }
     }
   }
@@ -1103,7 +1103,7 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     error_rip_failed = false;
 
     EDBMUpdate_Params params{};
-    params.calc_looptri = true;
+    params.calc_looptris = true;
     params.calc_normals = true;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);

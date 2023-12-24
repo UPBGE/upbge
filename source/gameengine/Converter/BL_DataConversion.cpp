@@ -72,6 +72,7 @@
 #include "BKE_scene.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_python_proxy_types.h"
 #include "wm_event_types.hh"
 
@@ -380,7 +381,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   BKE_mesh_tessface_ensure(final_me);
 
   const blender::Span<blender::float3> positions = final_me->vert_positions();
-  const int totverts = final_me->totvert;
+  const int totverts = final_me->verts_num;
 
   const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata_legacy, CD_MFACE);
   const int totfaces = final_me->totface_legacy;
@@ -388,68 +389,76 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   /* Extract available layers.
    * Get the active color and uv layer. */
-  const short activeUv = CustomData_get_active_layer(&final_me->loop_data, CD_PROP_FLOAT2);
-  const short activeColor = CustomData_get_active_layer(&final_me->loop_data, CD_PROP_BYTE_COLOR);
+  const short activeUv = CustomData_get_active_layer(&final_me->corner_data, CD_PROP_FLOAT2);
+  const short activeColor = CustomData_get_active_layer(&final_me->corner_data,
+                                                        CD_PROP_BYTE_COLOR);
 
   RAS_MeshObject::LayersInfo layersInfo;
   layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
   layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
-  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->loop_data, CD_PROP_FLOAT2);
-  const unsigned short colorLayers = CustomData_number_of_layers(&final_me->loop_data, CD_PROP_BYTE_COLOR);
+  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->corner_data,
+                                                              CD_PROP_FLOAT2);
+  const unsigned short colorLayers = CustomData_number_of_layers(&final_me->corner_data,
+                                                                 CD_PROP_BYTE_COLOR);
 
   // Extract UV loops.
   for (unsigned short i = 0; i < uvLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&final_me->loop_data, CD_PROP_FLOAT2, i);
-    const float(*uv)[2] = (const float(*)[2])CustomData_get_layer_n(&final_me->loop_data, CD_PROP_FLOAT2, i);
+    const std::string name = CustomData_get_layer_name(&final_me->corner_data, CD_PROP_FLOAT2, i);
+    const float(*uv)[2] = (const float(*)[2])CustomData_get_layer_n(
+        &final_me->corner_data, CD_PROP_FLOAT2, i);
     layersInfo.layers.push_back({uv, nullptr, i, name});
   }
   // Extract color loops.
   for (unsigned short i = 0; i < colorLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&final_me->loop_data, CD_PROP_BYTE_COLOR, i);
-    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&final_me->loop_data, CD_PROP_BYTE_COLOR, i);
+    const std::string name = CustomData_get_layer_name(
+        &final_me->corner_data, CD_PROP_BYTE_COLOR, i);
+    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(
+        &final_me->corner_data, CD_PROP_BYTE_COLOR, i);
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
   blender::Span<float3> loop_nors_dst;
-  float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->loop_data, CD_NORMAL);
+  float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->corner_data, CD_NORMAL);
   const bool do_loop_nors = (loop_normals == nullptr);
   if (do_loop_nors) {
     loop_nors_dst = final_me->corner_normals();
   }
 
+  const bke::AttributeAccessor attributes = final_me->attributes();
+
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
-    if (CustomData_get_layer_index(&final_me->loop_data, CD_TANGENT) == -1) {
+    if (CustomData_get_layer_index(&final_me->corner_data, CD_TANGENT) == -1) {
       short tangent_mask = 0;
-      const Span<MLoopTri> looptris = final_me->looptris();
+      const blender::Span<int3> corner_tris = final_me->corner_tris();
+      const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
       BKE_mesh_calc_loop_tangent_ex(
           reinterpret_cast<const float(*)[3]>(positions.data()),
           final_me->faces(),
           final_me->corner_verts().data(),
-          looptris.data(),
-          final_me->looptri_faces().data(),
-          uint(looptris.size()),
-          static_cast<const bool *>(
-              CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face")),
-          &final_me->loop_data,
+          corner_tris.data(),
+          final_me->corner_tri_faces().data(),
+          uint(corner_tris.size()),
+          sharp_face,
+          &final_me->corner_data,
           true,
           nullptr,
           0,
           reinterpret_cast<const float(*)[3]>(final_me->vert_normals().data()),
           reinterpret_cast<const float(*)[3]>(final_me->face_normals().data()),
-          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->loop_data, CD_NORMAL)),
+          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->corner_data, CD_NORMAL)),
           /* may be nullptr */
           static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vert_data, CD_ORCO)),
           /* result */
-          &final_me->loop_data,
-          uint(final_me->totloop),
+          &final_me->corner_data,
+          uint(final_me->corners_num),
           &tangent_mask);
     }
-    tangent = (float(*)[4])CustomData_get_layer(&final_me->loop_data, CD_TANGENT);
+    tangent = (float(*)[4])CustomData_get_layer(&final_me->corner_data, CD_TANGENT);
   }
 
-  meshobj = new RAS_MeshObject(mesh, final_me->totvert, blenderobj, layersInfo);
+  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo);
   meshobj->m_sharedvertex_map.resize(totverts);
 
   // Initialize vertex format with used uv and color layers.
@@ -504,9 +513,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
   std::vector<unsigned int> vertices(totverts, -1);
 
-  const AttributeAccessor attributes = final_me->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", ATTR_DOMAIN_FACE, 0);
+      "material_index", AttrDomain::Face, 0);
 
   const bool *sharp_faces = static_cast<const bool *>(
       CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));

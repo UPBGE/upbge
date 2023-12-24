@@ -104,10 +104,10 @@ static void deform_verts(ModifierData *md,
     if (kb && kb->data != nullptr) {
       float(*layerorco)[3];
       if (!(layerorco = static_cast<float(*)[3]>(
-                CustomData_get_layer_for_write(&mesh->vert_data, CD_CLOTH_ORCO, mesh->totvert))))
+                CustomData_get_layer_for_write(&mesh->vert_data, CD_CLOTH_ORCO, mesh->verts_num))))
       {
-        layerorco = static_cast<float(*)[3]>(
-            CustomData_add_layer(&mesh->vert_data, CD_CLOTH_ORCO, CD_SET_DEFAULT, mesh->totvert));
+        layerorco = static_cast<float(*)[3]>(CustomData_add_layer(
+            &mesh->vert_data, CD_CLOTH_ORCO, CD_SET_DEFAULT, mesh->verts_num));
       }
 
       memcpy(layerorco, kb->data, sizeof(float[3]) * positions.size());
@@ -115,7 +115,7 @@ static void deform_verts(ModifierData *md,
   }
 
   mesh->vert_positions_for_write().copy_from(positions);
-  BKE_mesh_tag_positions_changed(mesh);
+  mesh->tag_positions_changed();
 
   clothModifier_do(clmd,
                    ctx->depsgraph,

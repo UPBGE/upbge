@@ -47,7 +47,7 @@
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_collection.h"
 #include "BKE_curve.hh"
 #include "BKE_effect.h"
@@ -83,9 +83,9 @@
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (node->id == nullptr &&
-        ((node->type == CMP_NODE_R_LAYERS) ||
-         (node->type == CMP_NODE_CRYPTOMATTE && node->custom1 == CMP_CRYPTOMATTE_SRC_RENDER)))
+    if (node->id == nullptr && ((node->type == CMP_NODE_R_LAYERS) ||
+                                (node->type == CMP_NODE_CRYPTOMATTE &&
+                                 node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)))
     {
       node->id = &scene->id;
     }
@@ -875,8 +875,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       nodeAddLink(ntree, sub1_node, sub1_socket_out, min_node, min_socket_A);
       nodeAddLink(ntree, min_node, min_socket_out, node, detail_socket);
 
-      if ((noise_type == SHD_NOISE_RIDGED_MULTIFRACTAL) ||
-          (noise_type == SHD_NOISE_HETERO_TERRAIN)) {
+      if (ELEM(noise_type, SHD_NOISE_RIDGED_MULTIFRACTAL, SHD_NOISE_HETERO_TERRAIN)) {
         locy_offset -= 40.0f;
 
         /* Add Greater Than Math node before Subtract Math node. */
@@ -1382,7 +1381,11 @@ static void version_geometry_nodes_use_rotation_socket(bNodeTree &ntree)
       bNodeSocket *socket = nodeFindSocket(node, SOCK_IN, "Rotation");
       change_input_socket_to_rotation_type(ntree, *node, *socket);
     }
-    if (STR_ELEM(node->idname, "GeometryNodeDistributePointsOnFaces", "GeometryNodeObjectInfo")) {
+    if (STR_ELEM(node->idname,
+                 "GeometryNodeDistributePointsOnFaces",
+                 "GeometryNodeObjectInfo",
+                 "GeometryNodeInputInstanceRotation"))
+    {
       bNodeSocket *socket = nodeFindSocket(node, SOCK_OUT, "Rotation");
       change_output_socket_to_rotation_type(ntree, *node, *socket);
     }
@@ -1391,39 +1394,37 @@ static void version_geometry_nodes_use_rotation_socket(bNodeTree &ntree)
 static bNodeTreeInterfaceItem *legacy_socket_move_to_interface(bNodeSocket &legacy_socket,
                                                                const eNodeSocketInOut in_out)
 {
-  bNodeTreeInterfaceItem *new_item = static_cast<bNodeTreeInterfaceItem *>(
-      MEM_mallocN(sizeof(bNodeTreeInterfaceSocket), __func__));
-  new_item->item_type = NODE_INTERFACE_SOCKET;
-  bNodeTreeInterfaceSocket &new_socket = *reinterpret_cast<bNodeTreeInterfaceSocket *>(new_item);
+  bNodeTreeInterfaceSocket *new_socket = MEM_cnew<bNodeTreeInterfaceSocket>(__func__);
+  new_socket->item.item_type = NODE_INTERFACE_SOCKET;
 
   /* Move reusable data. */
-  new_socket.name = BLI_strdup(legacy_socket.name);
-  new_socket.identifier = BLI_strdup(legacy_socket.identifier);
-  new_socket.description = BLI_strdup(legacy_socket.description);
-  new_socket.socket_type = BLI_strdup(legacy_socket.idname);
-  new_socket.flag = (in_out == SOCK_IN ? NODE_INTERFACE_SOCKET_INPUT :
-                                         NODE_INTERFACE_SOCKET_OUTPUT);
+  new_socket->name = BLI_strdup(legacy_socket.name);
+  new_socket->identifier = BLI_strdup(legacy_socket.identifier);
+  new_socket->description = BLI_strdup(legacy_socket.description);
+  new_socket->socket_type = BLI_strdup(legacy_socket.idname);
+  new_socket->flag = (in_out == SOCK_IN ? NODE_INTERFACE_SOCKET_INPUT :
+                                          NODE_INTERFACE_SOCKET_OUTPUT);
   SET_FLAG_FROM_TEST(
-      new_socket.flag, legacy_socket.flag & SOCK_HIDE_VALUE, NODE_INTERFACE_SOCKET_HIDE_VALUE);
-  SET_FLAG_FROM_TEST(new_socket.flag,
+      new_socket->flag, legacy_socket.flag & SOCK_HIDE_VALUE, NODE_INTERFACE_SOCKET_HIDE_VALUE);
+  SET_FLAG_FROM_TEST(new_socket->flag,
                      legacy_socket.flag & SOCK_HIDE_IN_MODIFIER,
                      NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER);
-  new_socket.attribute_domain = legacy_socket.attribute_domain;
+  new_socket->attribute_domain = legacy_socket.attribute_domain;
 
   /* The following data are stolen from the old data, the ownership of their memory is directly
    * transferred to the new data. */
-  new_socket.default_attribute_name = legacy_socket.default_attribute_name;
+  new_socket->default_attribute_name = legacy_socket.default_attribute_name;
   legacy_socket.default_attribute_name = nullptr;
-  new_socket.socket_data = legacy_socket.default_value;
+  new_socket->socket_data = legacy_socket.default_value;
   legacy_socket.default_value = nullptr;
-  new_socket.properties = legacy_socket.prop;
+  new_socket->properties = legacy_socket.prop;
   legacy_socket.prop = nullptr;
 
   /* Unused data. */
   MEM_delete(legacy_socket.runtime);
   legacy_socket.runtime = nullptr;
 
-  return new_item;
+  return &new_socket->item;
 }
 
 static void versioning_convert_node_tree_socket_lists_to_interface(bNodeTree *ntree)
@@ -1764,6 +1765,17 @@ static void versioning_nodes_dynamic_sockets(bNodeTree &ntree)
   }
 }
 
+static void versioning_nodes_dynamic_sockets_2(bNodeTree &ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (!ELEM(node->type, GEO_NODE_SWITCH, GEO_NODE_SAMPLE_CURVE)) {
+      continue;
+    }
+    version_socket_identifier_suffixes_for_dynamic_types(node->inputs, "_");
+    version_socket_identifier_suffixes_for_dynamic_types(node->outputs, "_");
+  }
+}
+
 static void versioning_grease_pencil_stroke_radii_scaling(GreasePencil *grease_pencil)
 {
   using namespace blender;
@@ -1962,21 +1974,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 14)) {
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "reflection_options")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "ray_tracing_method")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.reflection_options.flag = RAYTRACE_EEVEE_USE_DENOISE;
-        scene->eevee.reflection_options.denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL |
-                                                         RAYTRACE_EEVEE_DENOISE_TEMPORAL |
-                                                         RAYTRACE_EEVEE_DENOISE_BILATERAL;
-        scene->eevee.reflection_options.screen_trace_quality = 0.25f;
-        scene->eevee.reflection_options.screen_trace_thickness = 0.2f;
-        scene->eevee.reflection_options.sample_clamp = 10.0f;
-        scene->eevee.reflection_options.resolution_scale = 2;
-
-        scene->eevee.refraction_options = scene->eevee.reflection_options;
-
-        scene->eevee.ray_split_settings = 0;
         scene->eevee.ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
       }
     }
@@ -2160,7 +2159,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type == GEO_NODE_SET_SHADE_SMOOTH) {
-            node->custom1 = ATTR_DOMAIN_FACE;
+            node->custom1 = int8_t(blender::bke::AttrDomain::Face);
           }
         }
       }
@@ -2272,13 +2271,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
         light->shadow_softness_factor = default_light.shadow_softness_factor;
         light->shadow_trace_distance = default_light.shadow_trace_distance;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "diffuse_options"))
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.diffuse_options = scene->eevee.reflection_options;
       }
     }
   }
@@ -2523,22 +2515,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 9)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        version_geometry_nodes_use_rotation_socket(*ntree);
-      }
-    }
-
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "RaytraceEEVEE", "float", "screen_trace_max_roughness"))
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.reflection_options.screen_trace_max_roughness = 0.5f;
-        scene->eevee.refraction_options.screen_trace_max_roughness = 0.5f;
-        scene->eevee.diffuse_options.screen_trace_max_roughness = 0.5f;
-      }
-    }
-
     if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "displacement_method")) {
       /* Replace Cycles.displacement_method by Material::displacement_method. */
       LISTBASE_FOREACH (Material *, material, &bmain->materials) {
@@ -2591,6 +2567,28 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
+
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "ray_tracing_options")) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->eevee.ray_tracing_options.flag = RAYTRACE_EEVEE_USE_DENOISE;
+        scene->eevee.ray_tracing_options.denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL |
+                                                          RAYTRACE_EEVEE_DENOISE_TEMPORAL |
+                                                          RAYTRACE_EEVEE_DENOISE_BILATERAL;
+        scene->eevee.ray_tracing_options.screen_trace_quality = 0.25f;
+        scene->eevee.ray_tracing_options.screen_trace_thickness = 0.2f;
+        scene->eevee.ray_tracing_options.screen_trace_max_roughness = 0.5f;
+        scene->eevee.ray_tracing_options.sample_clamp = 10.0f;
+        scene->eevee.ray_tracing_options.resolution_scale = 2;
+      }
+    }
+
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        version_geometry_nodes_use_rotation_socket(*ntree);
+        versioning_nodes_dynamic_sockets_2(*ntree);
+      }
+    }
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to

@@ -762,9 +762,6 @@ static void writelist_id(WriteData *wd, int filecode, const char *structname, co
 #define writestruct(wd, filecode, struct_id, nr, adr) \
   writestruct_nr(wd, filecode, SDNA_TYPE_FROM_STRUCT(struct_id), nr, adr)
 
-#define writelist(wd, filecode, struct_id, lb) \
-  writelist_nr(wd, filecode, SDNA_TYPE_FROM_STRUCT(struct_id), lb)
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1234,6 +1231,22 @@ static bool write_file_handle(Main *mainvar,
            * FIXME: Workaround some BAT tool limitations for Heist production, should be removed
            * asap afterward. */
           id_lib_extern(id_iter);
+        }
+        else if (GS(id_iter->name) == ID_SCE) {
+          /* For scenes, do not force them into 'indirectly linked' status.
+           * The main reason is that scenes typically have no users, so most linked scene would be
+           * systematically 'lost' on file save.
+           *
+           * While this change re-introduces the 'no-more-used data laying around in files for
+           * ever' issue when it comes to scenes, this solution seems to be the most sensible one
+           * for the time being, considering that:
+           *   - Scene are a top-level container.
+           *   - Linked scenes are typically explicitly linked by the user.
+           *   - Cases where scenes would be indirectly linked by other data (e.g. when linking a
+           *     collection or material) can be considered at the very least as not following sane
+           *     practice in data dependencies.
+           *   - There are typically not hundreds of scenes in a file, and they are always very
+           *     easily discoverable and browsable from the main UI. */
         }
         else {
           id_iter->tag |= LIB_TAG_INDIRECT;

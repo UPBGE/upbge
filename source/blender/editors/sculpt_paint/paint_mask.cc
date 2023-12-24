@@ -10,8 +10,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_vec_types.h"
@@ -149,7 +147,7 @@ static bool try_remove_mask_mesh(Object &object, const Span<PBVHNode *> nodes)
 {
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", ATTR_DOMAIN_POINT);
+  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
   if (mask.is_empty()) {
     return true;
   }
@@ -157,7 +155,7 @@ static bool try_remove_mask_mesh(Object &object, const Span<PBVHNode *> nodes)
   /* If there are any hidden vertices that shouldn't be affected with a mask value set, the
    * attribute cannot be removed. This could also be done by building an IndexMask in the full
    * vertex domain. */
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", ATTR_DOMAIN_POINT);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   threading::EnumerableThreadSpecific<Vector<int>> all_index_data;
   const bool hidden_masked_verts = threading::parallel_reduce(
       nodes.index_range(),
@@ -201,7 +199,7 @@ static void fill_mask_mesh(Object &object, const float value, const Span<PBVHNod
 {
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", ATTR_DOMAIN_POINT);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   if (value == 0.0f) {
     if (try_remove_mask_mesh(object, nodes)) {
       return;
@@ -209,7 +207,7 @@ static void fill_mask_mesh(Object &object, const float value, const Span<PBVHNod
   }
 
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_only_span<float>(
-      ".sculpt_mask", ATTR_DOMAIN_POINT);
+      ".sculpt_mask", bke::AttrDomain::Point);
 
   threading::EnumerableThreadSpecific<Vector<int>> all_index_data;
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
@@ -356,9 +354,9 @@ static void invert_mask_mesh(Object &object, const Span<PBVHNode *> nodes)
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
 
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", ATTR_DOMAIN_POINT);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
-      ".sculpt_mask", ATTR_DOMAIN_POINT);
+      ".sculpt_mask", bke::AttrDomain::Point);
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     for (PBVHNode *node : nodes.slice(range)) {
       undo::push_node(&object, node, undo::Type::Mask);
@@ -1125,10 +1123,7 @@ static void sculpt_gesture_face_set_apply_for_symmetry_pass(bContext * /*C*/,
   }
 }
 
-static void sculpt_gesture_face_set_end(bContext * /*C*/, SculptGestureContext *sgcontext)
-{
-  BKE_pbvh_update_visibility(sgcontext->ss->pbvh);
-}
+static void sculpt_gesture_face_set_end(bContext * /*C*/, SculptGestureContext * /*sgcontext*/) {}
 
 static void sculpt_gesture_init_face_set_properties(SculptGestureContext *sgcontext,
                                                     wmOperator * /*op*/)
@@ -1224,7 +1219,7 @@ static void sculpt_gesture_mask_end(bContext *C, SculptGestureContext *sgcontext
   if (BKE_pbvh_type(sgcontext->ss->pbvh) == PBVH_GRIDS) {
     multires_mark_as_modified(depsgraph, sgcontext->vc.obact, MULTIRES_COORDS_MODIFIED);
   }
-  BKE_pbvh_update_mask(sgcontext->ss->pbvh);
+  blender::bke::pbvh::update_mask(*sgcontext->ss->pbvh);
 }
 
 static void sculpt_gesture_init_mask_properties(bContext *C,
@@ -1650,9 +1645,8 @@ static void sculpt_gesture_trim_geometry_generate(SculptGestureContext *sgcontex
     loop_index += 3;
   }
 
-  BKE_mesh_smooth_flag_set(trim_operation->mesh, false);
-
-  BKE_mesh_calc_edges(trim_operation->mesh, false, false);
+  bke::mesh_smooth_set(*trim_operation->mesh, false);
+  bke::mesh_calc_edges(*trim_operation->mesh, false, false);
   sculpt_gesture_trim_normals_update(sgcontext);
 }
 
@@ -1686,10 +1680,10 @@ static void sculpt_gesture_apply_trim(SculptGestureContext *sgcontext)
   BM_mesh_bm_from_me(bm, trim_mesh, &bm_from_me_params);
   BM_mesh_bm_from_me(bm, sculpt_mesh, &bm_from_me_params);
 
-  const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  BMLoop *(*looptris)[3] = static_cast<BMLoop *(*)[3]>(
-      MEM_malloc_arrayN(looptris_tot, sizeof(*looptris), __func__));
-  BM_mesh_calc_tessellation_beauty(bm, looptris);
+  const int corner_tris_tot = poly_to_tri_count(bm->totface, bm->totloop);
+  BMLoop *(*corner_tris)[3] = static_cast<BMLoop *(*)[3]>(
+      MEM_malloc_arrayN(corner_tris_tot, sizeof(*corner_tris), __func__));
+  BM_mesh_calc_tessellation_beauty(bm, corner_tris);
 
   BMIter iter;
   int i;
@@ -1737,8 +1731,8 @@ static void sculpt_gesture_apply_trim(SculptGestureContext *sgcontext)
         break;
     }
     BM_mesh_boolean(bm,
-                    looptris,
-                    looptris_tot,
+                    corner_tris,
+                    corner_tris_tot,
                     bm_face_isect_pair,
                     nullptr,
                     2,
@@ -1748,7 +1742,7 @@ static void sculpt_gesture_apply_trim(SculptGestureContext *sgcontext)
                     boolean_mode);
   }
 
-  MEM_freeN(looptris);
+  MEM_freeN(corner_tris);
 
   BMeshToMeshParams convert_params{};
   convert_params.calc_object_remap = false;
@@ -1778,7 +1772,7 @@ static void sculpt_gesture_trim_apply_for_symmetry_pass(bContext * /*C*/,
   SculptGestureTrimOperation *trim_operation = (SculptGestureTrimOperation *)sgcontext->operation;
   Mesh *trim_mesh = trim_operation->mesh;
   MutableSpan<float3> positions = trim_mesh->vert_positions_for_write();
-  for (int i = 0; i < trim_mesh->totvert; i++) {
+  for (int i = 0; i < trim_mesh->verts_num; i++) {
     flip_v3_v3(positions[i], trim_operation->true_mesh_co[i], sgcontext->symmpass);
   }
   sculpt_gesture_trim_normals_update(sgcontext);

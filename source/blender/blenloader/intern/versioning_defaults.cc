@@ -48,7 +48,7 @@
 #include "BKE_appdir.h"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_curveprofile.h"
 #include "BKE_customdata.hh"
 #include "BKE_gpencil_legacy.h"
@@ -176,7 +176,7 @@ static void blo_update_defaults_screen(bScreen *screen,
       seq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_SOURCE | SEQ_TIMELINE_SHOW_STRIP_NAME |
                                     SEQ_TIMELINE_SHOW_STRIP_DURATION | SEQ_TIMELINE_SHOW_GRID |
                                     SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG |
-                                    SEQ_TIMELINE_SHOW_STRIP_RETIMING;
+                                    SEQ_TIMELINE_SHOW_STRIP_RETIMING | SEQ_TIMELINE_ALL_WAVEFORMS;
       seq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
     }
     else if (area->spacetype == SPACE_TEXT) {
@@ -363,7 +363,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Correct default startup UVs. */
   Mesh *mesh = static_cast<Mesh *>(BLI_findstring(&bmain->meshes, "Cube", offsetof(ID, name) + 2));
-  if (mesh && (mesh->totloop == 24) && CustomData_has_layer(&mesh->loop_data, CD_PROP_FLOAT2)) {
+  if (mesh && (mesh->corners_num == 24) &&
+      CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
     const float uv_values[24][2] = {
         {0.625, 0.50}, {0.875, 0.50}, {0.875, 0.75}, {0.625, 0.75}, {0.375, 0.75}, {0.625, 0.75},
         {0.625, 1.00}, {0.375, 1.00}, {0.375, 0.00}, {0.625, 0.00}, {0.625, 0.25}, {0.375, 0.25},
@@ -371,8 +372,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
         {0.625, 0.75}, {0.375, 0.75}, {0.375, 0.25}, {0.625, 0.25}, {0.625, 0.50}, {0.375, 0.50},
     };
     float(*mloopuv)[2] = static_cast<float(*)[2]>(
-        CustomData_get_layer_for_write(&mesh->loop_data, CD_PROP_FLOAT2, mesh->totloop));
-    memcpy(mloopuv, uv_values, sizeof(float[2]) * mesh->totloop);
+        CustomData_get_layer_for_write(&mesh->corner_data, CD_PROP_FLOAT2, mesh->corners_num));
+    memcpy(mloopuv, uv_values, sizeof(float[2]) * mesh->corners_num);
   }
 
   /* Make sure that the curve profile is initialized */
@@ -713,12 +714,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     /* For Sculpting template. */
     if (app_template && STREQ(app_template, "Sculpting")) {
       mesh->remesh_voxel_size = 0.035f;
-      BKE_mesh_smooth_flag_set(mesh, false);
+      blender::bke::mesh_smooth_set(*mesh, false);
     }
     else {
       /* Remove sculpt-mask data in default mesh objects for all non-sculpt templates. */
-      CustomData_free_layers(&mesh->vert_data, CD_PAINT_MASK, mesh->totvert);
-      CustomData_free_layers(&mesh->loop_data, CD_GRID_PAINT_MASK, mesh->totloop);
+      CustomData_free_layers(&mesh->vert_data, CD_PAINT_MASK, mesh->verts_num);
+      CustomData_free_layers(&mesh->corner_data, CD_GRID_PAINT_MASK, mesh->corners_num);
     }
     mesh->attributes_for_write().remove(".sculpt_face_set");
   }

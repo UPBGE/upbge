@@ -43,10 +43,10 @@
 
 #include "BKE_action.h"
 #include "BKE_blender_version.h"
-#include "BKE_blendfile.h"
+#include "BKE_blendfile.hh"
 #include "BKE_cachefile.h"
-#include "BKE_colorband.h"
-#include "BKE_colortools.h"
+#include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
@@ -5302,8 +5302,15 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   /* There is probably potential to use simpler "uiItemR" functions here, but automatic updating
    * after a preset is selected would be more complicated. */
   uiLayout *row = uiLayoutRow(layout, true);
-  bt = uiDefBlockBut(
-      block, CurveProfile_buttons_presets, profile, "Preset", 0, 0, UI_UNIT_X, UI_UNIT_X, "");
+  bt = uiDefBlockBut(block,
+                     CurveProfile_buttons_presets,
+                     profile,
+                     IFACE_("Preset"),
+                     0,
+                     0,
+                     UI_UNIT_X,
+                     UI_UNIT_X,
+                     "");
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), nullptr);
 
   /* Show a "re-apply" preset button when it has been changed from the preset. */
@@ -5314,7 +5321,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
                             UI_BTYPE_BUT,
                             0,
                             ICON_NONE,
-                            "Apply Preset",
+                            IFACE_("Apply Preset"),
                             0,
                             0,
                             UI_UNIT_X,

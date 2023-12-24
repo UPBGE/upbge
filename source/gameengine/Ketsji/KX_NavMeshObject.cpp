@@ -32,6 +32,7 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BLI_sort.h"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_meshdata_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BL_Converter.h"
@@ -150,7 +151,7 @@ static int buildRawVertIndicesData(Mesh *me,
   int nfaces;
   MFace *faces;
 
-  nverts = me->totvert;
+  nverts = me->verts_num;
   if (nverts >= 0xffff) {
     printf("Converting navmesh: Error! Too many vertices. Max number of vertices %d\n", 0xffff);
     return 0;
@@ -160,8 +161,8 @@ static int buildRawVertIndicesData(Mesh *me,
     return 0;
   }
 
-  float(*v)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * me->totvert, __func__);
-  blender::MutableSpan(reinterpret_cast<blender::float3 *>(v), me->totvert).copy_from(me->vert_positions());
+  float(*v)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * me->verts_num, __func__);
+  blender::MutableSpan(reinterpret_cast<blender::float3 *>(v), me->verts_num).copy_from(me->vert_positions());
   verts = (float *)v;
 
   /* flip coordinates */

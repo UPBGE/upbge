@@ -494,7 +494,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
 
         DEG_id_tag_update(&mesh->id, 0);
 
-        BKE_editmesh_looptri_and_normals_calc(em);
+        BKE_editmesh_looptris_and_normals_calc(em);
         break;
       }
       case OB_CURVES_LEGACY:
@@ -1100,8 +1100,8 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
   if (ob->type == OB_MESH && ob->data) {
     mesh = static_cast<Mesh *>(ob->data);
 
-    for (a = 0; a < mesh->loop_data.totlayer; a++) {
-      layer = &mesh->loop_data.layers[a];
+    for (a = 0; a < mesh->corner_data.totlayer; a++) {
+      layer = &mesh->corner_data.layers[a];
 
       if (layer->type == CD_PROP_FLOAT2 && STREQ(layer->name, value)) {
         BLI_strncpy(result, value, result_maxncpy);

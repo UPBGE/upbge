@@ -111,6 +111,7 @@ struct wmWindowManager;
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
 #include "DNA_vec_types.h"
@@ -632,11 +633,11 @@ enum eWM_EventFlag {
    */
   WM_EVENT_IS_REPEAT = (1 << 1),
   /**
-   * Generated for consecutive track-pad or NDOF-motion events,
+   * Generated for consecutive trackpad or NDOF-motion events,
    * the repeat chain is broken by key/button events,
    * or cursor motion exceeding #WM_EVENT_CURSOR_MOTION_THRESHOLD.
    *
-   * Changing the type of track-pad or gesture event also breaks the chain.
+   * Changing the type of trackpad or gesture event also breaks the chain.
    */
   WM_EVENT_IS_CONSECUTIVE = (1 << 2),
   /**
@@ -674,7 +675,7 @@ struct wmTabletData {
  *   See: #ISKEYBOARD_OR_BUTTON.
  *
  * - Previous x/y are exceptions: #wmEvent.prev
- *   these are set on mouse motion, see #MOUSEMOVE & track-pad events.
+ *   these are set on mouse motion, see #MOUSEMOVE & trackpad events.
  *
  * - Modal key-map handling sets `prev_val` & `prev_type` to `val` & `type`,
  *   this allows modal keys-maps to check the original values (needed in some cases).
@@ -1180,10 +1181,12 @@ struct wmDragAssetListItem {
 };
 
 struct wmDragPath {
-  char *path;
-  /* Note that even though the enum type uses bit-flags, this should never have multiple type-bits
-   * set, so `ELEM()` like comparison is possible. */
-  int file_type; /* eFileSel_File_Types */
+  blender::Vector<std::string> paths;
+  /* File type of each path in #paths. */
+  blender::Vector<int> file_types; /* eFileSel_File_Types */
+  /* Bit flag of file types in #paths. */
+  int file_types_bit_flag; /* eFileSel_File_Types */
+  std::string tooltip;
 };
 
 struct wmDragGreasePencilLayer {

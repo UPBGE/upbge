@@ -13,8 +13,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_vector.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_lib_id.h"
@@ -196,8 +194,8 @@ class MeshFairingContext : public FairingContext {
  public:
   MeshFairingContext(Mesh *mesh, MutableSpan<float3> deform_positions)
   {
-    totvert_ = mesh->totvert;
-    totloop_ = mesh->totloop;
+    totvert_ = mesh->verts_num;
+    totloop_ = mesh->corners_num;
 
     MutableSpan<float3> positions = mesh->vert_positions_for_write();
     edges_ = mesh->edges();
@@ -207,14 +205,14 @@ class MeshFairingContext : public FairingContext {
     vlmap_ = mesh->vert_to_corner_map();
 
     /* Deformation coords. */
-    co_.resize(mesh->totvert);
+    co_.resize(mesh->verts_num);
     if (!deform_positions.is_empty()) {
-      for (int i = 0; i < mesh->totvert; i++) {
+      for (int i = 0; i < mesh->verts_num; i++) {
         co_[i] = deform_positions[i];
       }
     }
     else {
-      for (int i = 0; i < mesh->totvert; i++) {
+      for (int i = 0; i < mesh->verts_num; i++) {
         co_[i] = positions[i];
       }
     }
@@ -229,9 +227,9 @@ class MeshFairingContext : public FairingContext {
     using namespace blender;
     const int vert = corner_verts_[loop];
     const blender::IndexRange face = faces[loop_to_face_map_[loop]];
-    const int2 adjecent_verts = bke::mesh::face_find_adjecent_verts(face, corner_verts_, vert);
-    copy_v3_v3(r_adj_next, co_[adjecent_verts[0]]);
-    copy_v3_v3(r_adj_prev, co_[adjecent_verts[1]]);
+    const int2 adjacent_verts = bke::mesh::face_find_adjacent_verts(face, corner_verts_, vert);
+    copy_v3_v3(r_adj_next, co_[adjacent_verts[0]]);
+    copy_v3_v3(r_adj_prev, co_[adjacent_verts[1]]);
   }
 
   int other_vertex_index_from_loop(const int loop, const int v) override

@@ -76,10 +76,10 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
 
   if (paint && (paint->flags & PAINT_SCULPT_DELAY_UPDATES)) {
     if (navigating) {
-      BKE_pbvh_get_frustum_planes(pbvh, &update_frustum);
+      bke::pbvh::get_frustum_planes(pbvh, &update_frustum);
     }
     else {
-      BKE_pbvh_set_frustum_planes(pbvh, &update_frustum);
+      bke::pbvh::set_frustum_planes(pbvh, &update_frustum);
     }
   }
 
@@ -97,26 +97,26 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   }
 
   const Mesh *mesh = static_cast<const Mesh *>(ob->data);
-  BKE_pbvh_update_normals(pbvh, mesh->runtime->subdiv_ccg.get());
+  bke::pbvh::update_normals(*pbvh, mesh->runtime->subdiv_ccg.get());
 
   Vector<SculptBatch> result_batches;
-  BKE_pbvh_draw_cb(*mesh,
-                   pbvh,
-                   update_only_visible,
-                   update_frustum,
-                   draw_frustum,
-                   [&](pbvh::PBVHBatches *batches, const pbvh::PBVH_GPU_Args &args) {
-                     SculptBatch batch{};
-                     if (use_wire) {
-                       batch.batch = pbvh::lines_get(batches, attrs, args, fast_mode);
-                     }
-                     else {
-                       batch.batch = pbvh::tris_get(batches, attrs, args, fast_mode);
-                     }
-                     batch.material_slot = pbvh::material_index_get(batches);
-                     batch.debug_index = result_batches.size();
-                     result_batches.append(batch);
-                   });
+  bke::pbvh::draw_cb(*mesh,
+                     pbvh,
+                     update_only_visible,
+                     update_frustum,
+                     draw_frustum,
+                     [&](pbvh::PBVHBatches *batches, const pbvh::PBVH_GPU_Args &args) {
+                       SculptBatch batch{};
+                       if (use_wire) {
+                         batch.batch = pbvh::lines_get(batches, attrs, args, fast_mode);
+                       }
+                       else {
+                         batch.batch = pbvh::tris_get(batches, attrs, args, fast_mode);
+                       }
+                       batch.material_slot = pbvh::material_index_get(batches);
+                       batch.debug_index = result_batches.size();
+                       result_batches.append(batch);
+                     });
   return result_batches;
 }
 
@@ -146,8 +146,8 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   }
 
   if (features & SCULPT_BATCH_UV) {
-    if (const char *name = CustomData_get_active_layer_name(&mesh->loop_data, CD_PROP_FLOAT2)) {
-      attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2, ATTR_DOMAIN_CORNER});
+    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+      attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
     }
   }
 
@@ -177,10 +177,10 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   /* UV maps are not in attribute requests. */
   for (uint i = 0; i < 32; i++) {
     if (cd_needed.uv & (1 << i)) {
-      int layer_i = CustomData_get_layer_index_n(&mesh->loop_data, CD_PROP_FLOAT2, i);
-      CustomDataLayer *layer = layer_i != -1 ? mesh->loop_data.layers + layer_i : nullptr;
+      int layer_i = CustomData_get_layer_index_n(&mesh->corner_data, CD_PROP_FLOAT2, i);
+      CustomDataLayer *layer = layer_i != -1 ? mesh->corner_data.layers + layer_i : nullptr;
       if (layer) {
-        attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, ATTR_DOMAIN_CORNER});
+        attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
       }
     }
   }

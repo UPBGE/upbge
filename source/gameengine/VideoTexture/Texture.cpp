@@ -445,11 +445,11 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
        * "refresh" method), because the depsgraph has not been warned yet. */
       bool needs_notifier = m_source && (
 #ifdef WITH_FFMPEG
-                            _Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType) ||
-                             _Py_IS_TYPE(&m_source->ob_base, &ImageFFmpegType) ||
+                            PyObject_TypeCheck(&m_source->ob_base, &VideoFFmpegType) ||
+                                PyObject_TypeCheck(&m_source->ob_base, &ImageFFmpegType) ||
 #endif  // WITH_FFMPEG
-                             _Py_IS_TYPE(&m_source->ob_base, &ImageMixType) ||
-                             _Py_IS_TYPE(&m_source->ob_base, &ImageViewportType));
+                                PyObject_TypeCheck(&m_source->ob_base, &ImageMixType) ||
+                                PyObject_TypeCheck(&m_source->ob_base, &ImageViewportType));
       if (needs_notifier) {
         /* This update notifier will be flushed next time
          * BKE_scene_graph_update_tagged will be called */

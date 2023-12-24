@@ -13,9 +13,10 @@
   image(slot, format, qualifier, ImageType::FLOAT_2D_ARRAY, name, Frequency::PASS)
 
 GPU_SHADER_CREATE_INFO(eevee_gbuffer_data)
+    .define("GBUFFER_LOAD")
     .sampler(8, ImageType::UINT_2D, "gbuf_header_tx")
     .sampler(9, ImageType::FLOAT_2D_ARRAY, "gbuf_closure_tx")
-    .sampler(10, ImageType::FLOAT_2D_ARRAY, "gbuf_color_tx");
+    .sampler(10, ImageType::FLOAT_2D_ARRAY, "gbuf_normal_tx");
 
 GPU_SHADER_CREATE_INFO(eevee_deferred_tile_classify)
     .fragment_source("eevee_deferred_tile_classify_frag.glsl")
@@ -85,7 +86,8 @@ GPU_SHADER_CREATE_INFO(eevee_deferred_light_double)
 
 GPU_SHADER_CREATE_INFO(eevee_deferred_light_triple)
     .additional_info("eevee_deferred_light")
-    .define("SSS_TRANSMITTANCE")
+    .define("SHADOW_SUBSURFACE")
+    .define("MAT_SUBSURFACE")
     .define("LIGHT_CLOSURE_EVAL_COUNT", "3")
     .do_static_compilation(true);
 
@@ -112,7 +114,7 @@ GPU_SHADER_CREATE_INFO(eevee_deferred_capture_eval)
     .early_fragment_test(true)
     /* Inputs. */
     .fragment_out(0, Type::VEC4, "out_radiance")
-    .define("SSS_TRANSMITTANCE")
+    .define("SHADOW_SUBSURFACE")
     .additional_info("eevee_shared",
                      "eevee_gbuffer_data",
                      "eevee_utility_texture",
@@ -132,7 +134,7 @@ GPU_SHADER_CREATE_INFO(eevee_deferred_planar_eval)
     /* Inputs. */
     .fragment_out(0, Type::VEC4, "out_radiance")
     .define("REFLECTION_PROBE")
-    .define("SSS_TRANSMITTANCE")
+    .define("SHADOW_SUBSURFACE")
     .define("LIGHT_CLOSURE_EVAL_COUNT", "2")
     .additional_info("eevee_shared",
                      "eevee_gbuffer_data",

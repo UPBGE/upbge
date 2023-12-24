@@ -14,7 +14,6 @@
 #include "BKE_fcurve.h"
 #include "BLI_math_vector_types.hh"
 #include "DNA_anim_types.h"
-#include "ED_anim_api.hh"
 #include "MEM_guardedalloc.h"
 
 namespace blender::animrig {
@@ -240,8 +239,8 @@ void initialize_bezt(BezTriple *beztr,
     beztr->ipo = BEZT_IPO_LIN;
   }
 
-  /* Set keyframe type value (supplied), which should come from the scene
-   * settings in most cases. */
+  /* Set keyframe type value (supplied),
+   * which should come from the scene settings in most cases. */
   BEZKEYTYPE(beztr) = settings.keyframe_type;
 
   /* Set default values for "easing" interpolation mode settings.

@@ -9,8 +9,6 @@
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -22,6 +20,7 @@
 #include "BKE_DerivedMesh.hh"
 #include "BKE_action.h"
 #include "BKE_armature.hh"
+#include "BKE_attribute.hh"
 #include "BKE_curve.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
@@ -213,7 +212,7 @@ struct foreachScreenObjectVert_userData {
   void (*func)(void *user_data, const float screen_co[2], int index);
   void *user_data;
   ViewContext vc;
-  const bool *hide_vert;
+  blender::VArraySpan<bool> hide_vert;
   eV3DProjTest clip_flag;
 };
 
@@ -272,7 +271,7 @@ static void meshobject_foreachScreenVert__mapFunc(void *user_data,
 {
   foreachScreenObjectVert_userData *data = static_cast<foreachScreenObjectVert_userData *>(
       user_data);
-  if (data->hide_vert && data->hide_vert[index]) {
+  if (!data->hide_vert.is_empty() && data->hide_vert[index]) {
     return;
   }
 
@@ -294,11 +293,13 @@ void meshobject_foreachScreenVert(ViewContext *vc,
                                   void *user_data,
                                   eV3DProjTest clip_flag)
 {
+  using namespace blender;
   BLI_assert((clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) == 0);
   foreachScreenObjectVert_userData data;
 
   const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, vc->obact);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(ob_eval);
+  const bke::AttributeAccessor attributes = mesh->attributes();
 
   ED_view3d_check_mats_rv3d(vc->rv3d);
 
@@ -306,8 +307,7 @@ void meshobject_foreachScreenVert(ViewContext *vc,
   data.func = func;
   data.user_data = user_data;
   data.clip_flag = clip_flag;
-  data.hide_vert = (const bool *)CustomData_get_layer_named(
-      &mesh->vert_data, CD_PROP_BOOL, ".hide_vert");
+  data.hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
 
   if (clip_flag & V3D_PROJ_TEST_CLIP_BB) {
     ED_view3d_clipping_local(vc->rv3d, vc->obact->object_to_world);
@@ -589,7 +589,7 @@ void mesh_foreachScreenFace(
   BM_mesh_elem_table_ensure(vc->em->bm, BM_FACE);
 
   const int face_dot_tags_num = mesh->runtime->subsurf_face_dot_tags.size();
-  if (face_dot_tags_num && (face_dot_tags_num != mesh->totvert)) {
+  if (face_dot_tags_num && (face_dot_tags_num != mesh->verts_num)) {
     BKE_mesh_foreach_mapped_subdiv_face_center(
         mesh, mesh_foreachScreenFace__mapFunc, &data, MESH_FOREACH_NOP);
   }

@@ -44,7 +44,7 @@
 #include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.h"
 #include "BKE_camera.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
@@ -65,6 +65,8 @@
 #include "BKE_writeavi.h" /* <------ should be replaced once with generic movie module */
 
 #include "NOD_composite.hh"
+
+#include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -1267,10 +1269,18 @@ static void do_render_compositor(Render *re)
           /* If we have consistent depsgraph now would be a time to update them. */
         }
 
+        blender::realtime_compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
-          ntreeCompositExecTree(
-              re, re->pipeline_scene_eval, ntree, &re->r, true, G.background == 0, rv->name);
+          ntreeCompositExecTree(re,
+                                re->pipeline_scene_eval,
+                                ntree,
+                                &re->r,
+                                true,
+                                G.background == 0,
+                                rv->name,
+                                &compositor_render_context);
         }
+        compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
         ntree->runtime->stats_draw = nullptr;
         ntree->runtime->test_break = nullptr;

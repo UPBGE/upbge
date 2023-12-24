@@ -24,7 +24,7 @@
 #include "BLI_utildefines_stack.h"
 #include "BLI_vector.hh"
 
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.h"
@@ -4350,7 +4350,7 @@ static int edbm_select_nth_exec(bContext *C, wmOperator *op)
     if (edbm_deselect_nth(em, &op_params) == true) {
       found_active_elt = true;
       EDBMUpdate_Params params{};
-      params.calc_looptri = false;
+      params.calc_looptris = false;
       params.calc_normals = false;
       params.is_destructive = false;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
@@ -5358,6 +5358,7 @@ void MESH_OT_loop_to_region(wmOperatorType *ot)
 
 static bool edbm_select_by_attribute_poll(bContext *C)
 {
+  using namespace blender;
   if (!ED_operator_editmesh(C)) {
     return false;
   }
@@ -5372,7 +5373,7 @@ static bool edbm_select_by_attribute_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "The active attribute must have a boolean type");
     return false;
   }
-  if (BKE_id_attribute_domain(&mesh->id, layer) == ATTR_DOMAIN_CORNER) {
+  if (BKE_id_attribute_domain(&mesh->id, layer) == bke::AttrDomain::Corner) {
     CTX_wm_operator_poll_msg_set(
         C, "The active attribute must be on the vertex, edge, or face domain");
     return false;
@@ -5380,14 +5381,15 @@ static bool edbm_select_by_attribute_poll(bContext *C)
   return true;
 }
 
-static std::optional<BMIterType> domain_to_iter_type(const eAttrDomain domain)
+static std::optional<BMIterType> domain_to_iter_type(const blender::bke::AttrDomain domain)
 {
+  using namespace blender;
   switch (domain) {
-    case ATTR_DOMAIN_POINT:
+    case bke::AttrDomain::Point:
       return BM_VERTS_OF_MESH;
-    case ATTR_DOMAIN_EDGE:
+    case bke::AttrDomain::Edge:
       return BM_EDGES_OF_MESH;
-    case ATTR_DOMAIN_FACE:
+    case bke::AttrDomain::Face:
       return BM_FACES_OF_MESH;
     default:
       return std::nullopt;
@@ -5396,6 +5398,7 @@ static std::optional<BMIterType> domain_to_iter_type(const eAttrDomain domain)
 
 static int edbm_select_by_attribute_exec(bContext *C, wmOperator * /*op*/)
 {
+  using namespace blender;
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
@@ -5414,7 +5417,7 @@ static int edbm_select_by_attribute_exec(bContext *C, wmOperator * /*op*/)
     if (layer->type != CD_PROP_BOOL) {
       continue;
     }
-    if (BKE_id_attribute_domain(&mesh->id, layer) == ATTR_DOMAIN_CORNER) {
+    if (BKE_id_attribute_domain(&mesh->id, layer) == bke::AttrDomain::Corner) {
       continue;
     }
     const std::optional<BMIterType> iter_type = domain_to_iter_type(

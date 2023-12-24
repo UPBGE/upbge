@@ -296,14 +296,15 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
   BKE_callback_exec_id(cj->bmain, &scene->id, BKE_CB_EVT_COMPOSITE_PRE);
 
   if ((cj->scene->r.scemode & R_MULTIVIEW) == 0) {
-    ntreeCompositExecTree(cj->re, cj->scene, ntree, &cj->scene->r, false, true, "");
+    ntreeCompositExecTree(cj->re, cj->scene, ntree, &cj->scene->r, false, true, "", nullptr);
   }
   else {
     LISTBASE_FOREACH (SceneRenderView *, srv, &scene->r.views) {
       if (BKE_scene_multiview_is_render_view_active(&scene->r, srv) == false) {
         continue;
       }
-      ntreeCompositExecTree(cj->re, cj->scene, ntree, &cj->scene->r, false, true, srv->name);
+      ntreeCompositExecTree(
+          cj->re, cj->scene, ntree, &cj->scene->r, false, true, srv->name, nullptr);
     }
   }
 
@@ -1506,8 +1507,8 @@ static int node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
   }
 
   for (bNode *node : edit_tree.all_nodes()) {
-    if ((node->type == CMP_NODE_R_LAYERS) ||
-        (node->type == CMP_NODE_CRYPTOMATTE && node->custom1 == CMP_CRYPTOMATTE_SRC_RENDER))
+    if ((node->type == CMP_NODE_R_LAYERS) || (node->type == CMP_NODE_CRYPTOMATTE &&
+                                              node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER))
     {
       ID *id = node->id;
       if (id == nullptr) {

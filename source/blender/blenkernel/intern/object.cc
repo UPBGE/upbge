@@ -488,7 +488,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     }
   }
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->parent, IDWALK_CB_NEVER_SELF);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(
+      data, object->parent, IDWALK_CB_NEVER_SELF | IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_DEFAULT);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->track, IDWALK_CB_NEVER_SELF);
 
   for (int i = 0; i < object->totcol; i++) {
@@ -1926,10 +1927,10 @@ static void copy_ccg_data(Mesh *mesh_destination,
                           Mesh *mesh_source,
                           const eCustomDataType layer_type)
 {
-  BLI_assert(mesh_destination->totloop == mesh_source->totloop);
-  CustomData *data_destination = &mesh_destination->loop_data;
-  CustomData *data_source = &mesh_source->loop_data;
-  const int num_elements = mesh_source->totloop;
+  BLI_assert(mesh_destination->corners_num == mesh_source->corners_num);
+  CustomData *data_destination = &mesh_destination->corner_data;
+  CustomData *data_source = &mesh_source->corner_data;
+  const int num_elements = mesh_source->corners_num;
   if (!CustomData_has_layer(data_source, layer_type)) {
     return;
   }
@@ -3675,7 +3676,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
     if (me_eval) {
       const Span<float3> positions = me_eval->vert_positions();
       int count = 0;
-      int numVerts = me_eval->totvert;
+      int numVerts = me_eval->verts_num;
 
       if (em && me_eval->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
         numVerts = em->bm->totvert;
@@ -3728,7 +3729,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
       }
       else {
         /* use first index if its out of range */
-        if (me_eval->totvert) {
+        if (me_eval->verts_num) {
           copy_v3_v3(vec, positions[0]);
         }
       }
@@ -4101,13 +4102,6 @@ void BKE_object_apply_parent_inverse(Object *ob)
 /** \name Object Bounding Box API
  * \{ */
 
-BoundBox *BKE_boundbox_alloc_unit()
-{
-  BoundBox *bb = MEM_cnew<BoundBox>(__func__);
-  BKE_boundbox_init_from_minmax(bb, float3(-1), float3(1));
-  return bb;
-}
-
 void BKE_boundbox_init_from_minmax(BoundBox *bb, const float min[3], const float max[3])
 {
   bb->vec[0][0] = bb->vec[1][0] = bb->vec[2][0] = bb->vec[3][0] = min[0];
@@ -4118,20 +4112,6 @@ void BKE_boundbox_init_from_minmax(BoundBox *bb, const float min[3], const float
 
   bb->vec[0][2] = bb->vec[3][2] = bb->vec[4][2] = bb->vec[7][2] = min[2];
   bb->vec[1][2] = bb->vec[2][2] = bb->vec[5][2] = bb->vec[6][2] = max[2];
-}
-
-void BKE_boundbox_calc_center_aabb(const BoundBox *bb, float r_cent[3])
-{
-  r_cent[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
-  r_cent[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
-  r_cent[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
-}
-
-void BKE_boundbox_calc_size_aabb(const BoundBox *bb, float r_size[3])
-{
-  r_size[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
-  r_size[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
-  r_size[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
 }
 
 void BKE_boundbox_minmax(const BoundBox *bb,
@@ -4263,8 +4243,10 @@ void BKE_object_minmax(Object *ob, float r_min[3], float r_max[3])
 {
   using namespace blender;
   if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(ob)) {
-    copy_v3_v3(r_min, math::transform_point(float4x4(ob->object_to_world), bounds->min));
-    copy_v3_v3(r_max, math::transform_point(float4x4(ob->object_to_world), bounds->max));
+    minmax_v3v3_v3(
+        r_min, r_max, math::transform_point(float4x4(ob->object_to_world), bounds->min));
+    minmax_v3v3_v3(
+        r_min, r_max, math::transform_point(float4x4(ob->object_to_world), bounds->max));
     return;
   }
   float3 size = ob->scale;
@@ -5136,7 +5118,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
           Mesh *mesh = (Mesh *)ob->data;
           MutableSpan<float3> positions = mesh->vert_positions_for_write();
           BKE_keyblock_convert_to_mesh(
-              key->refkey, reinterpret_cast<float(*)[3]>(positions.data()), mesh->totvert);
+              key->refkey, reinterpret_cast<float(*)[3]>(positions.data()), mesh->verts_num);
           break;
         }
         case OB_CURVES_LEGACY:

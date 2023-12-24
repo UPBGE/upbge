@@ -15,7 +15,7 @@
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
 #include "BKE_modifier.hh"
-#include "BKE_node_socket_value_cpp_type.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.h"
 
@@ -76,7 +76,7 @@ static bke::bake::BakeSocketConfig make_bake_socket_config(
   for (const int item_i : node_simulation_items.index_range()) {
     const NodeSimulationItem &item = node_simulation_items[item_i];
     config.types[item_i] = eNodeSocketDatatype(item.socket_type);
-    config.domains[item_i] = eAttrDomain(item.attribute_domain);
+    config.domains[item_i] = AttrDomain(item.attribute_domain);
     if (item.socket_type == SOCK_GEOMETRY) {
       last_geometry_index = item_i;
     }
@@ -251,7 +251,7 @@ static void mix_with_indices(MutableSpan<float4x4> prev,
 static void mix_attributes(MutableAttributeAccessor prev_attributes,
                            const AttributeAccessor next_attributes,
                            const Span<int> index_map,
-                           const eAttrDomain mix_domain,
+                           const AttrDomain mix_domain,
                            const float factor,
                            const Set<std::string> &names_to_skip = {})
 {
@@ -263,7 +263,7 @@ static void mix_attributes(MutableAttributeAccessor prev_attributes,
 
   for (const AttributeIDRef &id : ids) {
     const GAttributeReader prev = prev_attributes.lookup(id);
-    const eAttrDomain domain = prev.domain;
+    const AttrDomain domain = prev.domain;
     if (domain != mix_domain) {
       continue;
     }
@@ -334,7 +334,7 @@ static void mix_geometries(GeometrySet &prev, const GeometrySet &next, const flo
       mix_attributes(mesh_prev->attributes_for_write(),
                      mesh_next->attributes(),
                      vert_map,
-                     ATTR_DOMAIN_POINT,
+                     AttrDomain::Point,
                      factor,
                      {});
     }
@@ -346,7 +346,7 @@ static void mix_geometries(GeometrySet &prev, const GeometrySet &next, const flo
       mix_attributes(points_prev->attributes_for_write(),
                      points_next->attributes(),
                      index_map,
-                     ATTR_DOMAIN_POINT,
+                     AttrDomain::Point,
                      factor);
     }
   }
@@ -358,7 +358,7 @@ static void mix_geometries(GeometrySet &prev, const GeometrySet &next, const flo
       mix_attributes(prev,
                      next,
                      index_map,
-                     ATTR_DOMAIN_POINT,
+                     AttrDomain::Point,
                      factor,
                      {"handle_type_left", "handle_type_right"});
     }
@@ -370,7 +370,7 @@ static void mix_geometries(GeometrySet &prev, const GeometrySet &next, const flo
       mix_attributes(instances_prev->attributes_for_write(),
                      instances_next->attributes(),
                      index_map,
-                     ATTR_DOMAIN_INSTANCE,
+                     AttrDomain::Instance,
                      factor,
                      {"position"});
       if (index_map.is_empty()) {
@@ -405,16 +405,22 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
     case SOCK_ROTATION:
     case SOCK_RGBA: {
       const CPPType &type = get_simulation_item_cpp_type(socket_type);
-      const bke::ValueOrFieldCPPType &value_or_field_type =
-          *bke::ValueOrFieldCPPType::get_from_self(type);
-      if (value_or_field_type.is_field(prev) || value_or_field_type.is_field(next)) {
+      SocketValueVariant prev_value_variant = *static_cast<const SocketValueVariant *>(prev);
+      SocketValueVariant next_value_variant = *static_cast<const SocketValueVariant *>(next);
+      if (prev_value_variant.is_context_dependent_field() ||
+          next_value_variant.is_context_dependent_field())
+      {
         /* Fields are evaluated on geometries and are mixed there. */
         break;
       }
 
-      void *prev_value = value_or_field_type.get_value_ptr(prev);
-      const void *next_value = value_or_field_type.get_value_ptr(next);
-      bke::attribute_math::convert_to_static_type(value_or_field_type.value, [&](auto dummy) {
+      prev_value_variant.convert_to_single();
+      next_value_variant.convert_to_single();
+
+      void *prev_value = prev_value_variant.get_single_ptr().get();
+      const void *next_value = next_value_variant.get_single_ptr().get();
+
+      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
         using T = decltype(dummy);
         *static_cast<T *>(prev_value) = bke::attribute_math::mix2(
             factor, *static_cast<T *>(prev_value), *static_cast<const T *>(next_value));
@@ -495,26 +501,26 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
     GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
     if (!user_data.call_data->self_object()) {
       /* The self object is currently required for generating anonymous attribute names. */
-      params.set_default_remaining_outputs();
+      this->set_default_outputs(params);
       return;
     }
     if (!user_data.call_data->simulation_params) {
-      params.set_default_remaining_outputs();
+      this->set_default_outputs(params);
       return;
     }
     std::optional<FoundNestedNodeID> found_id = find_nested_node_id(user_data, node_.identifier);
     if (!found_id) {
-      params.set_default_remaining_outputs();
+      this->set_default_outputs(params);
       return;
     }
     if (found_id->is_in_loop) {
-      params.set_default_remaining_outputs();
+      this->set_default_outputs(params);
       return;
     }
     SimulationZoneBehavior *zone_behavior = user_data.call_data->simulation_params->get(
         found_id->id);
     if (!zone_behavior) {
-      params.set_default_remaining_outputs();
+      this->set_default_outputs(params);
       return;
     }
     sim_output::Behavior &output_behavior = zone_behavior->output;
@@ -538,6 +544,11 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
     else {
       BLI_assert_unreachable();
     }
+  }
+
+  void set_default_outputs(lf::Params &params) const
+  {
+    set_default_remaining_node_outputs(params, node_);
   }
 
   void output_cached_state(lf::Params &params,
@@ -627,17 +638,19 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
                        GeoNodesLFUserData &user_data,
                        const sim_output::StoreNewState &info) const
   {
-    const bool *skip = params.try_get_input_data_ptr_or_request<bool>(skip_input_index_);
-    if (skip == nullptr) {
+    const SocketValueVariant *skip_variant =
+        params.try_get_input_data_ptr_or_request<SocketValueVariant>(skip_input_index_);
+    if (skip_variant == nullptr) {
       /* Wait for skip input to be computed. */
       return;
     }
+    const bool skip = skip_variant->get<bool>();
 
     /* Instead of outputting the values directly, convert them to a bake state and then back. This
      * ensures that some geometry processing happens on the data consistently (e.g. removing
      * anonymous attributes). */
     std::optional<bke::bake::BakeState> bake_state = this->get_bake_state_from_inputs(params,
-                                                                                      *skip);
+                                                                                      skip);
     if (!bake_state) {
       /* Wait for inputs to be computed. */
       return;
@@ -785,10 +798,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
     {
       const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
       if (node_cache.cache_status == bke::bake::CacheStatus::Baked &&
-          !node_cache.frame_caches.is_empty())
-      {
-        const int first_frame = node_cache.frame_caches.first()->frame.frame();
-        const int last_frame = node_cache.frame_caches.last()->frame.frame();
+          !node_cache.bake.frames.is_empty()) {
+        const int first_frame = node_cache.bake.frames.first()->frame.frame();
+        const int last_frame = node_cache.bake.frames.last()->frame.frame();
         baked_range = IndexRange(first_frame, last_frame - first_frame + 1);
       }
     }
@@ -806,7 +818,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
       PointerRNA ptr;
       uiItemFullO(row,
-                  "OBJECT_OT_simulation_nodes_cache_bake_single",
+                  "OBJECT_OT_geometry_node_bake_single",
                   bake_label,
                   ICON_NONE,
                   nullptr,
@@ -820,7 +832,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
     {
       PointerRNA ptr;
       uiItemFullO(row,
-                  "OBJECT_OT_simulation_nodes_cache_delete_single",
+                  "OBJECT_OT_geometry_node_bake_delete_single",
                   "",
                   ICON_TRASH,
                   nullptr,

@@ -187,7 +187,7 @@ GHOST_SystemX11::GHOST_SystemX11()
   }
 
   {
-    struct timespec ts = {0, 0};
+    timespec ts = {0, 0};
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
       GHOST_ASSERT(false, "Could not instantiate monotonic timer!");
     }
@@ -1785,8 +1785,6 @@ GHOST_TCapabilityFlag GHOST_SystemX11::getCapabilities() const
 {
   return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
                                ~(
-                                   /* No support yet for desktop sampling. */
-                                   GHOST_kCapabilityDesktopSample |
                                    /* No support yet for image copy/paste. */
                                    GHOST_kCapabilityClipboardImages |
                                    /* No support yet for IME input methods. */

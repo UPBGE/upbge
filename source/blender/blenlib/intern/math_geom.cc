@@ -2409,56 +2409,56 @@ static bool isect_tri_tri_v2_impl_vert(const float t_a0[2],
     if (line_point_side_v2(t_b2, t_b1, t_a1) <= 0.0f) {
       if (line_point_side_v2(t_a0, t_b0, t_a1) > 0.0f) {
         if (line_point_side_v2(t_a0, t_b1, t_a1) <= 0.0f) {
-          return 1;
+          return true;
         }
 
-        return 0;
+        return false;
       }
 
       if (line_point_side_v2(t_a0, t_b0, t_a2) >= 0.0f) {
         if (line_point_side_v2(t_a1, t_a2, t_b0) >= 0.0f) {
-          return 1;
+          return true;
         }
 
-        return 0;
+        return false;
       }
 
-      return 0;
+      return false;
     }
     if (line_point_side_v2(t_a0, t_b1, t_a1) <= 0.0f) {
       if (line_point_side_v2(t_b2, t_b1, t_a2) <= 0.0f) {
         if (line_point_side_v2(t_a1, t_a2, t_b1) >= 0.0f) {
-          return 1;
+          return true;
         }
 
-        return 0;
+        return false;
       }
 
-      return 0;
+      return false;
     }
 
-    return 0;
+    return false;
   }
   if (line_point_side_v2(t_b2, t_b0, t_a2) >= 0.0f) {
     if (line_point_side_v2(t_a1, t_a2, t_b2) >= 0.0f) {
       if (line_point_side_v2(t_a0, t_b0, t_a2) >= 0.0f) {
-        return 1;
+        return true;
       }
 
-      return 0;
+      return false;
     }
     if (line_point_side_v2(t_a1, t_a2, t_b1) >= 0.0f) {
       if (line_point_side_v2(t_b2, t_a2, t_b1) >= 0.0f) {
-        return 1;
+        return true;
       }
 
-      return 0;
+      return false;
     }
 
-    return 0;
+    return false;
   }
 
-  return 0;
+  return false;
 }
 
 static bool isect_tri_tri_v2_impl_edge(const float t_a0[2],
@@ -2473,40 +2473,40 @@ static bool isect_tri_tri_v2_impl_edge(const float t_a0[2],
   if (line_point_side_v2(t_b2, t_b0, t_a1) >= 0.0f) {
     if (line_point_side_v2(t_a0, t_b0, t_a1) >= 0.0f) {
       if (line_point_side_v2(t_a0, t_a1, t_b2) >= 0.0f) {
-        return 1;
+        return true;
       }
 
-      return 0;
+      return false;
     }
 
     if (line_point_side_v2(t_a1, t_a2, t_b0) >= 0.0f) {
       if (line_point_side_v2(t_a2, t_a0, t_b0) >= 0.0f) {
-        return 1;
+        return true;
       }
 
-      return 0;
+      return false;
     }
 
-    return 0;
+    return false;
   }
 
   if (line_point_side_v2(t_b2, t_b0, t_a2) >= 0.0f) {
     if (line_point_side_v2(t_a0, t_b0, t_a2) >= 0.0f) {
       if (line_point_side_v2(t_a0, t_a2, t_b2) >= 0.0f) {
-        return 1;
+        return true;
       }
 
       if (line_point_side_v2(t_a1, t_a2, t_b2) >= 0.0f) {
-        return 1;
+        return true;
       }
 
-      return 0;
+      return false;
     }
 
-    return 0;
+    return false;
   }
 
-  return 0;
+  return false;
 }
 
 static int isect_tri_tri_impl_ccw_v2(const float t_a0[2],
@@ -2701,7 +2701,7 @@ bool isect_sweeping_sphere_tri_v3(const float p1[3],
     z = x + y - (a * c - b * b);
 
     if (z <= 0.0f && (x >= 0.0f && y >= 0.0f)) {
-      //(((uint)z)& ~(((uint)x)|((uint)y))) & 0x80000000) {
+      // ((uint32_t(z) & ~(uint32_t(x) | uint32_t(y))) & 0x80000000)
       *r_lambda = t0;
       copy_v3_v3(ipoint, point);
       return true;

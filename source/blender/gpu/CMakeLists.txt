@@ -628,7 +628,7 @@ set(MSL_SRC
 )
 
 if(WITH_GTESTS)
-  if(WITH_OPENGL_DRAW_TESTS)
+  if(WITH_GPU_DRAW_TESTS)
     list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
   endif()
 endif()
@@ -777,7 +777,7 @@ set(SRC_SHADER_CREATE_INFOS_MTL
 )
 
 if(WITH_GTESTS)
-  if(WITH_OPENGL_DRAW_TESTS)
+  if(WITH_GPU_DRAW_TESTS)
     list(APPEND SRC_SHADER_CREATE_INFOS ${SRC_SHADER_CREATE_INFOS_TEST})
   endif()
 endif()
@@ -894,10 +894,8 @@ if(WITH_GTESTS)
   set(TEST_INC)
   set(TEST_LIB)
 
-  if(WITH_OPENGL_DRAW_TESTS)
+  if(WITH_GPU_DRAW_TESTS)
     list(APPEND TEST_SRC
-      tests/gpu_testing.cc
-
       tests/buffer_texture_test.cc
       tests/compute_test.cc
       tests/framebuffer_test.cc
@@ -909,19 +907,30 @@ if(WITH_GTESTS)
       tests/storage_buffer_test.cc
       tests/texture_test.cc
       tests/vertex_buffer_test.cc
-
-      tests/gpu_testing.hh
+      tests/shader_create_info_test.cc
     )
   endif()
 
   if(WITH_VULKAN_BACKEND)
     list(APPEND TEST_SRC
-      vulkan/vk_memory_layout_test.cc
       vulkan/vk_data_conversion_test.cc
+      vulkan/vk_memory_layout_test.cc
+    )
+  endif()
+
+  # Enable shader validation on buildbot for Metal
+  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS)
+    list(APPEND TEST_SRC
+      tests/shader_create_info_test.cc
     )
   endif()
 
   if (TEST_SRC)
+    list(APPEND TEST_SRC
+      tests/gpu_testing.cc
+      tests/gpu_testing.hh
+    )
+
     include(GTestTesting)
     blender_add_test_lib(bf_gpu_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()

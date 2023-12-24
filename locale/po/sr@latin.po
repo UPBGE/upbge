@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Alpha (b'72b6c44e759b')\n"
+"Project-Id-Version: Blender 4.1.0 Alpha (b'0b00b360f7ae')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-12-04 11:06:00\n"
+"POT-Creation-Date: 2023-12-18 13:45:58\n"
 "PO-Revision-Date: 2012-09-07 22:32+0100\n"
 "Last-Translator: Nikola Radovanovic <cobisimo@gmail.com>\n"
 "Language-Team: Nikola Radovanovic\n"
@@ -4241,6 +4241,18 @@ msgid "Save"
 msgstr "Sačuvaj"
 
 
+msgid "File Extensions"
+msgstr "Nastavci datoteka"
+
+
+msgid "Operator"
+msgstr "Operator"
+
+
+msgid "Label"
+msgstr "Naziv"
+
+
 msgid "Relative Path"
 msgstr "Relativna putanja"
 
@@ -6692,10 +6704,6 @@ msgstr "Datoteka filma"
 
 msgid "Node tree consisting of linked nodes used for shading, textures and compositing"
 msgstr "Drvo čvorova koje čine povezani čvorovi senčenja, tekstura i slaganja"
-
-
-msgid "Label"
-msgstr "Naziv"
 
 
 msgid "Grease Pencil Data"
@@ -11563,6 +11571,10 @@ msgid "Component"
 msgstr "Komponenta"
 
 
+msgid "Bake"
+msgstr "Ispeci"
+
+
 msgid "Original"
 msgstr "Original"
 
@@ -13551,9 +13563,22 @@ msgid "Reset Original Length"
 msgstr "Vrati originalnu dužinu"
 
 
+msgid "Duplicate"
+msgstr "Dupliraj"
+
+
 msgctxt "Operator"
 msgid "Select Random"
 msgstr "Izaberi nasumično"
+
+
+msgctxt "Operator"
+msgid "Clear Tilt"
+msgstr "Očisti uvrtanje"
+
+
+msgid "Clear the tilt of selected control points"
+msgstr "Čisti uvrtanje izabranih kontrolnih tačaka"
 
 
 msgid "Cyclic U"
@@ -13848,15 +13873,6 @@ msgstr "Razdvoj izabrane tačke od neizabranih povezanih tačaka"
 
 msgid "Subdivide selected segments"
 msgstr "Izdeli izabrane segmente"
-
-
-msgctxt "Operator"
-msgid "Clear Tilt"
-msgstr "Očisti uvrtanje"
-
-
-msgid "Clear the tilt of selected control points"
-msgstr "Čisti uvrtanje izabranih kontrolnih tačaka"
 
 
 msgid "Add a new control point (linked to only selected end-curve one, if any)"
@@ -14870,10 +14886,6 @@ msgstr "Generiši mek šum (mekan prelaz)"
 
 msgid "Flat"
 msgstr "Ravno"
-
-
-msgid "Duplicate"
-msgstr "Dupliraj"
 
 
 msgctxt "Operator"
@@ -18068,10 +18080,6 @@ msgid "Bake physics"
 msgstr "Peče fiziku"
 
 
-msgid "Bake"
-msgstr "Ispeci"
-
-
 msgctxt "Operator"
 msgid "Bake All Physics"
 msgstr "Ispeci svu fiziku"
@@ -18460,10 +18468,6 @@ msgstr "Ignoriši klik na pozadinu"
 
 msgid "Falloff Type"
 msgstr "Vrsta opadanja"
-
-
-msgid "Operator"
-msgstr "Operator"
 
 
 msgid "Sharpen"
@@ -22127,10 +22131,6 @@ msgstr "Ručno odredi broj procesa"
 
 msgid "Process the render result through the compositing pipeline, if compositing nodes are enabled"
 msgstr "Obradi rezultat renderovanja kroz proces slaganje, ako su omogućeni čvorovi slaganja"
-
-
-msgid "File Extensions"
-msgstr "Nastavci datoteka"
 
 
 msgid "Draw stylized strokes using Freestyle"

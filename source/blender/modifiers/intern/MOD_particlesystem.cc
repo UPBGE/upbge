@@ -148,7 +148,7 @@ static void deform_verts(ModifierData *md,
   /* make new mesh */
   psmd->mesh_final = BKE_mesh_copy_for_eval(mesh);
   psmd->mesh_final->vert_positions_for_write().copy_from(positions);
-  BKE_mesh_tag_positions_changed(psmd->mesh_final);
+  psmd->mesh_final->tag_positions_changed();
 
   BKE_mesh_tessface_ensure(psmd->mesh_final);
 
@@ -188,14 +188,14 @@ static void deform_verts(ModifierData *md,
    * This is an unreliable check for the topology check, but allows some
    * handy configuration like emitting particles from inside particle
    * instance. */
-  if (had_mesh_final && (psmd->mesh_final->totvert != psmd->totdmvert ||
-                         psmd->mesh_final->totedge != psmd->totdmedge ||
+  if (had_mesh_final && (psmd->mesh_final->verts_num != psmd->totdmvert ||
+                         psmd->mesh_final->edges_num != psmd->totdmedge ||
                          psmd->mesh_final->totface_legacy != psmd->totdmface))
   {
     psys->recalc |= ID_RECALC_PSYS_RESET;
   }
-  psmd->totdmvert = psmd->mesh_final->totvert;
-  psmd->totdmedge = psmd->mesh_final->totedge;
+  psmd->totdmvert = psmd->mesh_final->verts_num;
+  psmd->totdmedge = psmd->mesh_final->edges_num;
   psmd->totdmface = psmd->mesh_final->totface_legacy;
 
   {

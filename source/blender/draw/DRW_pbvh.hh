@@ -15,18 +15,22 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_struct_equality_utils.hh"
+#include "BLI_virtual_array.hh"
 
-#include "BKE_attribute.hh"
+#include "DNA_customdata_types.h"
+
 #include "BKE_ccg.h"
 
 struct GPUBatch;
 struct PBVHNode;
 struct Mesh;
-struct MLoopTri;
 struct CustomData;
 struct SubdivCCG;
 struct BMesh;
 struct BMFace;
+namespace blender::bke {
+enum class AttrDomain : int8_t;
+}
 
 namespace blender::draw::pbvh {
 
@@ -34,8 +38,8 @@ class GenericRequest {
  public:
   std::string name;
   eCustomDataType type;
-  eAttrDomain domain;
-  GenericRequest(const StringRef name, const eCustomDataType type, const eAttrDomain domain)
+  bke::AttrDomain domain;
+  GenericRequest(const StringRef name, const eCustomDataType type, const bke::AttrDomain domain)
       : name(name), type(type), domain(domain)
   {
   }
@@ -62,7 +66,7 @@ struct PBVH_GPU_Args {
   Span<int> corner_verts;
   Span<int> corner_edges;
   const CustomData *vert_data;
-  const CustomData *loop_data;
+  const CustomData *corner_data;
   const CustomData *face_data;
   Span<float3> vert_normals;
   Span<float3> face_normals;
@@ -80,10 +84,10 @@ struct PBVH_GPU_Args {
 
   Span<int> prim_indices;
 
-  const bool *hide_poly;
+  VArraySpan<bool> hide_poly;
 
-  Span<MLoopTri> mlooptri;
-  Span<int> looptri_faces;
+  Span<int3> corner_tris;
+  Span<int> tri_faces;
 
   /* BMesh. */
   const Set<BMFace *, 0> *bm_faces;

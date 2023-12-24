@@ -221,6 +221,7 @@ set(SRC
   engines/overlay/overlay_sculpt_curves.cc
   engines/overlay/overlay_shader.cc
   engines/overlay/overlay_viewer_attribute.cc
+  engines/overlay/overlay_viewer_text.cc
   engines/overlay/overlay_volume.cc
   engines/overlay/overlay_wireframe.cc
 
@@ -250,7 +251,7 @@ set(SRC
   intern/draw_manager.hh
   intern/draw_manager_profiling.hh
   intern/draw_manager_testing.h
-  intern/draw_manager_text.h
+  intern/draw_manager_text.hh
   intern/draw_pass.hh
   intern/draw_pbvh.hh
   intern/draw_resource.hh
@@ -508,7 +509,9 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_film_cryptomatte_post_comp.glsl
   engines/eevee_next/shaders/eevee_film_frag.glsl
   engines/eevee_next/shaders/eevee_film_lib.glsl
+  engines/eevee_next/shaders/eevee_forward_lib.glsl
   engines/eevee_next/shaders/eevee_gbuffer_lib.glsl
+  engines/eevee_next/shaders/eevee_gbuffer_test.glsl
   engines/eevee_next/shaders/eevee_geom_curves_vert.glsl
   engines/eevee_next/shaders/eevee_geom_gpencil_vert.glsl
   engines/eevee_next/shaders/eevee_geom_mesh_vert.glsl
@@ -599,6 +602,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_surf_deferred_frag.glsl
   engines/eevee_next/shaders/eevee_surf_depth_frag.glsl
   engines/eevee_next/shaders/eevee_surf_forward_frag.glsl
+  engines/eevee_next/shaders/eevee_surf_hybrid_frag.glsl
   engines/eevee_next/shaders/eevee_surf_lib.glsl
   engines/eevee_next/shaders/eevee_surf_occupancy_frag.glsl
   engines/eevee_next/shaders/eevee_surf_shadow_frag.glsl
@@ -913,6 +917,20 @@ if(WITH_OPENSUBDIV)
   )
 endif()
 
+if(WITH_OPENVDB)
+  list(APPEND INC
+    ../../../intern/openvdb
+  )
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    bf_intern_openvdb
+    ${OPENVDB_LIBRARIES}
+  )
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+endif()
+
 if(WITH_MOD_FLUID)
   list(APPEND INC
     ../../../intern/mantaflow/extern
@@ -929,8 +947,8 @@ if(WITH_XR_OPENXR)
 endif()
 
 if(WITH_GTESTS)
-  if(WITH_OPENGL_DRAW_TESTS)
-    add_definitions(-DWITH_OPENGL_DRAW_TESTS)
+  if(WITH_GPU_DRAW_TESTS)
+    add_definitions(-DWITH_GPU_DRAW_TESTS)
     if(WITH_OPENGL_BACKEND)
       add_definitions(-DWITH_OPENGL_BACKEND)
     endif()
@@ -965,7 +983,7 @@ blender_add_lib(bf_draw "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 
 if(WITH_GTESTS)
-  if(WITH_OPENGL_DRAW_TESTS)
+  if(WITH_GPU_DRAW_TESTS)
     set(TEST_SRC
       tests/draw_pass_test.cc
       tests/draw_testing.cc

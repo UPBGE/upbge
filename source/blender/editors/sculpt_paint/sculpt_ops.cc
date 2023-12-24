@@ -21,14 +21,12 @@
 #include "DNA_brush_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_listBase.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.h"
 #include "BKE_context.hh"
@@ -77,6 +75,7 @@
 
 static int sculpt_set_persistent_base_exec(bContext *C, wmOperator * /*op*/)
 {
+  using namespace blender;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object *ob = CTX_data_active_object(C);
   SculptSession *ss = ob->sculpt;
@@ -92,11 +91,11 @@ static int sculpt_set_persistent_base_exec(bContext *C, wmOperator * /*op*/)
   params.permanent = true;
 
   ss->attrs.persistent_co = BKE_sculpt_attribute_ensure(
-      ob, ATTR_DOMAIN_POINT, CD_PROP_FLOAT3, SCULPT_ATTRIBUTE_NAME(persistent_co), &params);
+      ob, bke::AttrDomain::Point, CD_PROP_FLOAT3, SCULPT_ATTRIBUTE_NAME(persistent_co), &params);
   ss->attrs.persistent_no = BKE_sculpt_attribute_ensure(
-      ob, ATTR_DOMAIN_POINT, CD_PROP_FLOAT3, SCULPT_ATTRIBUTE_NAME(persistent_no), &params);
+      ob, bke::AttrDomain::Point, CD_PROP_FLOAT3, SCULPT_ATTRIBUTE_NAME(persistent_no), &params);
   ss->attrs.persistent_disp = BKE_sculpt_attribute_ensure(
-      ob, ATTR_DOMAIN_POINT, CD_PROP_FLOAT, SCULPT_ATTRIBUTE_NAME(persistent_disp), &params);
+      ob, bke::AttrDomain::Point, CD_PROP_FLOAT, SCULPT_ATTRIBUTE_NAME(persistent_disp), &params);
 
   const int totvert = SCULPT_vertex_count_get(ss);
 
@@ -371,7 +370,7 @@ void ED_object_sculptmode_enter_ex(Main *bmain,
     MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
 
     const char *message_unsupported = nullptr;
-    if (mesh->totloop != mesh->faces_num * 3) {
+    if (mesh->corners_num != mesh->faces_num * 3) {
       message_unsupported = TIP_("non-triangle face");
     }
     else if (mmd != nullptr) {
@@ -956,7 +955,7 @@ static int sculpt_mask_by_color_invoke(bContext *C, wmOperator *op, const wmEven
     sculpt_mask_by_color_full_mesh(ob, active_vertex, threshold, invert, preserve_mask);
   }
 
-  BKE_pbvh_update_mask(ss->pbvh);
+  bke::pbvh::update_mask(*ss->pbvh);
   undo::push_end(ob);
 
   SCULPT_flush_update_done(C, ob, SCULPT_UPDATE_MASK);
@@ -1161,7 +1160,7 @@ static int sculpt_bake_cavity_exec(bContext *C, wmOperator *op)
 
   auto_mask::cache_free(automasking);
 
-  BKE_pbvh_update_mask(ss->pbvh);
+  bke::pbvh::update_mask(*ss->pbvh);
   undo::push_end(ob);
 
   SCULPT_flush_update_done(C, ob, SCULPT_UPDATE_MASK);

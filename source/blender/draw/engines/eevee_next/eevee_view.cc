@@ -82,12 +82,13 @@ void ShadingView::render()
 
   DRW_stats_group_start(name_);
 
-  /* Needs to be before anything else because it query its own gbuffer. */
-  inst_.planar_probes.set_view(render_view_, extent_);
-
-  /* Query temp textures and create frame-buffers. */
+  /* Needs to be before planar_probes because it needs correct crypto-matte & render-pass buffers
+   * to reuse the same deferred shaders. */
   RenderBuffers &rbufs = inst_.render_buffers;
   rbufs.acquire(extent_);
+
+  /* Needs to be before anything else because it query its own gbuffer. */
+  inst_.planar_probes.set_view(render_view_, extent_);
 
   combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                       GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx));
@@ -97,13 +98,14 @@ void ShadingView::render()
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
                inst_.pipelines.deferred.closure_layer_count(),
-               inst_.pipelines.deferred.color_layer_count());
+               inst_.pipelines.deferred.normal_layer_count());
 
   gbuffer_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                      GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx),
                      GPU_ATTACHMENT_TEXTURE(gbuf.header_tx),
-                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.color_tx.layer_view(0), 0),
-                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0));
+                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.normal_tx.layer_view(0), 0),
+                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0),
+                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(1), 0));
 
   /* If camera has any motion, compute motion vector in the film pass. Otherwise, we avoid float
    * precision issue by setting the motion of all static geometry to 0. */
@@ -116,14 +118,13 @@ void ShadingView::render()
   GPU_framebuffer_bind(combined_fb_);
   GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, 1.0f);
 
-  inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
-  inst_.hiz_buffer.set_dirty();
-
-  inst_.pipelines.background.render(render_view_);
-
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
   inst_.lights.set_view(render_view_, extent_);
   inst_.reflection_probes.set_view(render_view_);
+
+  inst_.pipelines.background.render(render_view_);
+
+  inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
 
   inst_.volume.draw_prepass(render_view_);
 
@@ -211,7 +212,7 @@ void ShadingView::update_view()
   jitter *= 2.0f;
 
   window_translate_m4(winmat.ptr(), winmat.ptr(), UNPACK2(jitter));
-  jitter_view_.sync(winmat, winmat);
+  jitter_view_.sync(viewmat, winmat);
 
   /* FIXME(fclem): The offset may be noticeably large and the culling might make object pop
    * out of the blurring radius. To fix this, use custom enlarged culling matrix. */
@@ -285,7 +286,7 @@ void CaptureView::render_probes()
 
     inst_.gbuffer.acquire(extent,
                           inst_.pipelines.probe.closure_layer_count(),
-                          inst_.pipelines.probe.color_layer_count());
+                          inst_.pipelines.probe.normal_layer_count());
 
     for (int face : IndexRange(6)) {
       float4x4 view_m4 = cubeface_mat(face);
@@ -306,8 +307,9 @@ void CaptureView::render_probes()
           GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
           GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.reflection_probes.cubemap_tx_, face),
           GPU_ATTACHMENT_TEXTURE(inst_.gbuffer.header_tx),
-          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.color_tx.layer_view(0), 0),
-          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(0), 0));
+          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.normal_tx.layer_view(0), 0),
+          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(0), 0),
+          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
       GPU_framebuffer_bind(combined_fb_);
       GPU_framebuffer_clear_color_depth(combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);

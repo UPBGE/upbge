@@ -53,7 +53,6 @@
 
 #include "BKE_action.h"
 #include "BKE_armature.hh"
-#include "BKE_colortools.h"
 #include "BKE_constraint.h"
 #include "BKE_deform.h"
 #include "BKE_fcurve.h"
@@ -270,17 +269,17 @@ static void customdata_version_242(Mesh *mesh)
 
   if (!mesh->vert_data.totlayer) {
     CustomData_add_layer_with_data(
-        &mesh->vert_data, CD_MVERT, mesh->mvert, mesh->totvert, nullptr);
+        &mesh->vert_data, CD_MVERT, mesh->mvert, mesh->verts_num, nullptr);
 
     if (mesh->dvert) {
       CustomData_add_layer_with_data(
-          &mesh->vert_data, CD_MDEFORMVERT, mesh->dvert, mesh->totvert, nullptr);
+          &mesh->vert_data, CD_MDEFORMVERT, mesh->dvert, mesh->verts_num, nullptr);
     }
   }
 
   if (!mesh->edge_data.totlayer) {
     CustomData_add_layer_with_data(
-        &mesh->edge_data, CD_MEDGE, mesh->medge, mesh->totedge, nullptr);
+        &mesh->edge_data, CD_MEDGE, mesh->medge, mesh->edges_num, nullptr);
   }
 
   if (!mesh->fdata_legacy.totlayer) {
