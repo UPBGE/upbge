@@ -341,7 +341,7 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   ShaderCreateInfo info("s_Display");
   info.push_constant(Type::FLOAT, "bgl_RenderedTextureWidth");
   info.push_constant(Type::FLOAT, "bgl_RenderedTextureHeight");
-  info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  //info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
   }
