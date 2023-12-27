@@ -15,7 +15,6 @@
 #include "BLI_math_base_safe.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
-#include "BLI_task.h"
 #include "BLI_vector.hh"
 
 #include "DNA_brush_types.h"
@@ -653,7 +652,6 @@ static void SCULPT_topology_automasking_init(Sculpt *sd, Object *ob)
 
   copy_v3_v3(fdata.location, SCULPT_active_vertex_co_get(ss));
   flood_fill::execute(ss, &flood, automask_floodfill_cb, &fdata);
-  flood_fill::free_fill(&flood);
 }
 
 static void sculpt_face_sets_automasking_init(Sculpt *sd, Object *ob)

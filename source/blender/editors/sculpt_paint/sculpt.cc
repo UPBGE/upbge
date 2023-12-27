@@ -19,7 +19,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
 #include "BLI_ghash.h"
-#include "BLI_gsqueue.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_set.hh"
@@ -31,6 +30,7 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_customdata_types.h"
+#include "DNA_key_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -40,6 +40,7 @@
 #include "BKE_ccg.h"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
+#include "BKE_customdata.hh"
 #include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
@@ -1010,22 +1011,19 @@ namespace blender::ed::sculpt_paint::flood_fill {
 
 void init_fill(SculptSession *ss, SculptFloodFill *flood)
 {
-  int vertex_count = SCULPT_vertex_count_get(ss);
   SCULPT_vertex_random_access_ensure(ss);
-
-  flood->queue = BLI_gsqueue_new(sizeof(intptr_t));
-  flood->visited_verts = BLI_BITMAP_NEW(vertex_count, "visited verts");
+  flood->visited_verts.resize(SCULPT_vertex_count_get(ss));
 }
 
 void add_initial(SculptFloodFill *flood, PBVHVertRef vertex)
 {
-  BLI_gsqueue_push(flood->queue, &vertex);
+  flood->queue.push(vertex);
 }
 
 void add_and_skip_initial(SculptFloodFill *flood, PBVHVertRef vertex)
 {
-  BLI_gsqueue_push(flood->queue, &vertex);
-  BLI_BITMAP_ENABLE(flood->visited_verts, vertex.i);
+  flood->queue.push(vertex);
+  flood->visited_verts[vertex.i].set(vertex.i);
 }
 
 void add_initial_with_symmetry(Sculpt *sd,
@@ -1094,16 +1092,16 @@ void execute(SculptSession *ss,
                           void *userdata),
              void *userdata)
 {
-  while (!BLI_gsqueue_is_empty(flood->queue)) {
-    PBVHVertRef from_v;
+  while (!flood->queue.empty()) {
+    PBVHVertRef from_v = flood->queue.front();
+    flood->queue.pop();
 
-    BLI_gsqueue_pop(flood->queue, &from_v);
     SculptVertexNeighborIter ni;
     SCULPT_VERTEX_DUPLICATES_AND_NEIGHBORS_ITER_BEGIN (ss, from_v, ni) {
       const PBVHVertRef to_v = ni.vertex;
       int to_v_i = BKE_pbvh_vertex_to_index(ss->pbvh, to_v);
 
-      if (BLI_BITMAP_TEST(flood->visited_verts, to_v_i)) {
+      if (flood->visited_verts[to_v_i]) {
         continue;
       }
 
@@ -1111,21 +1109,14 @@ void execute(SculptSession *ss,
         continue;
       }
 
-      BLI_BITMAP_ENABLE(flood->visited_verts, BKE_pbvh_vertex_to_index(ss->pbvh, to_v));
+      flood->visited_verts[BKE_pbvh_vertex_to_index(ss->pbvh, to_v)].set();
 
       if (func(ss, from_v, to_v, ni.is_duplicate, userdata)) {
-        BLI_gsqueue_push(flood->queue, &to_v);
+        flood->queue.push(to_v);
       }
     }
     SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
   }
-}
-
-void free_fill(SculptFloodFill *flood)
-{
-  MEM_SAFE_FREE(flood->visited_verts);
-  BLI_gsqueue_free(flood->queue);
-  flood->queue = nullptr;
 }
 
 }  // namespace blender::ed::sculpt_paint::flood_fill
@@ -2963,6 +2954,39 @@ void SCULPT_flip_quat_by_symm_area(float quat[4],
       flip_qt(quat, symm_it);
     }
   }
+}
+
+bool SCULPT_tool_needs_all_pbvh_nodes(const Brush *brush)
+{
+  if (brush->sculpt_tool == SCULPT_TOOL_ELASTIC_DEFORM) {
+    /* Elastic deformations in any brush need all nodes to avoid artifacts as the effect
+     * of the Kelvinlet is not constrained by the radius. */
+    return true;
+  }
+
+  if (brush->sculpt_tool == SCULPT_TOOL_POSE) {
+    /* Pose needs all nodes because it applies all symmetry iterations at the same time
+     * and the IK chain can grow to any area of the model. */
+    /* TODO: This can be optimized by filtering the nodes after calculating the chain. */
+    return true;
+  }
+
+  if (brush->sculpt_tool == SCULPT_TOOL_BOUNDARY) {
+    /* Boundary needs all nodes because it is not possible to know where the boundary
+     * deformation is going to be propagated before calculating it. */
+    /* TODO: after calculating the boundary info in the first iteration, it should be
+     * possible to get the nodes that have vertices included in any boundary deformation
+     * and cache them. */
+    return true;
+  }
+
+  if (brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK &&
+      brush->snake_hook_deform_type == BRUSH_SNAKE_HOOK_DEFORM_ELASTIC)
+  {
+    /* Snake hook in elastic deform type has same requirements as the elastic deform tool. */
+    return true;
+  }
+  return false;
 }
 
 void SCULPT_calc_brush_plane(
