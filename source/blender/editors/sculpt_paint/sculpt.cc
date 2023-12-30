@@ -168,9 +168,9 @@ const float *SCULPT_vertex_co_get(const SculptSession *ss, PBVHVertRef vertex)
     case PBVH_GRIDS: {
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
       const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
+      const int index_in_grid = vertex.i - grid_index * key->grid_area;
       CCGElem *elem = ss->subdiv_ccg->grids[grid_index];
-      return CCG_elem_co(key, CCG_elem_offset(key, elem, vertex_index));
+      return CCG_elem_co(key, CCG_elem_offset(key, elem, index_in_grid));
     }
   }
   return nullptr;
@@ -225,9 +225,9 @@ void SCULPT_vertex_normal_get(const SculptSession *ss, PBVHVertRef vertex, float
     case PBVH_GRIDS: {
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
       const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
+      const int index_in_grid = vertex.i - grid_index * key->grid_area;
       CCGElem *elem = ss->subdiv_ccg->grids[grid_index];
-      copy_v3_v3(no, CCG_elem_no(key, CCG_elem_offset(key, elem, vertex_index)));
+      copy_v3_v3(no, CCG_elem_no(key, CCG_elem_offset(key, elem, index_in_grid)));
       break;
     }
   }
@@ -269,12 +269,12 @@ void SCULPT_vertex_limit_surface_get(SculptSession *ss, PBVHVertRef vertex, floa
     case PBVH_GRIDS: {
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
       const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
+      const int index_in_grid = vertex.i - grid_index * key->grid_area;
 
       SubdivCCGCoord coord{};
       coord.grid_index = grid_index;
-      coord.x = vertex_index % key->grid_size;
-      coord.y = vertex_index / key->grid_size;
+      coord.x = index_in_grid % key->grid_size;
+      coord.y = index_in_grid / key->grid_size;
       BKE_subdiv_ccg_eval_limit_point(*ss->subdiv_ccg, coord, r_co);
       break;
     }
@@ -290,39 +290,17 @@ void SCULPT_vertex_persistent_normal_get(SculptSession *ss, PBVHVertRef vertex, 
   SCULPT_vertex_normal_get(ss, vertex, no);
 }
 
-float SCULPT_vertex_mask_get(SculptSession *ss, PBVHVertRef vertex)
+float SCULPT_mask_get_at_grids_vert_index(const SubdivCCG &subdiv_ccg,
+                                          const CCGKey &key,
+                                          const int vert_index)
 {
-  using namespace blender;
-  switch (BKE_pbvh_type(ss->pbvh)) {
-    case PBVH_FACES: {
-      const Mesh *mesh = BKE_pbvh_get_mesh(ss->pbvh);
-      const bke::AttributeAccessor attributes = mesh->attributes();
-      const VArray mask = *attributes.lookup_or_default<float>(
-          ".sculpt_mask", bke::AttrDomain::Point, 0.0f);
-      return mask[vertex.i];
-    }
-    case PBVH_BMESH: {
-      BMVert *v;
-      int cd_mask = CustomData_get_offset_named(&ss->bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
-      v = (BMVert *)vertex.i;
-      return cd_mask != -1 ? BM_ELEM_CD_GET_FLOAT(v, cd_mask) : 0.0f;
-    }
-    case PBVH_GRIDS: {
-      const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
-
-      if (key->mask_offset == -1) {
-        return 0.0f;
-      }
-
-      const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
-      CCGElem *elem = ss->subdiv_ccg->grids[grid_index];
-      return *CCG_elem_mask(key, CCG_elem_offset(key, elem, vertex_index));
-    }
+  if (key.mask_offset == -1) {
+    return 0.0f;
   }
-
-  return 0.0f;
+  const int grid_index = vert_index / key.grid_area;
+  const int index_in_grid = vert_index - grid_index * key.grid_area;
+  CCGElem *elem = subdiv_ccg.grids[grid_index];
+  return *CCG_elem_offset_mask(&key, elem, index_in_grid);
 }
 
 PBVHVertRef SCULPT_active_vertex_get(SculptSession *ss)
@@ -418,9 +396,9 @@ bool vert_visible_get(const SculptSession *ss, PBVHVertRef vertex)
     case PBVH_GRIDS: {
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
       const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
+      const int index_in_grid = vertex.i - grid_index * key->grid_area;
       if (!ss->subdiv_ccg->grid_hidden.is_empty()) {
-        return !ss->subdiv_ccg->grid_hidden[grid_index][vertex_index];
+        return !ss->subdiv_ccg->grid_hidden[grid_index][index_in_grid];
       }
     }
   }
@@ -627,11 +605,11 @@ bool vert_has_unique_face_set(SculptSession *ss, PBVHVertRef vertex)
       }
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
       const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
+      const int index_in_grid = vertex.i - grid_index * key->grid_area;
       SubdivCCGCoord coord{};
       coord.grid_index = grid_index;
-      coord.x = vertex_index % key->grid_size;
-      coord.y = vertex_index / key->grid_size;
+      coord.x = index_in_grid % key->grid_size;
+      coord.y = index_in_grid / key->grid_size;
       int v1, v2;
       const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
           *ss->subdiv_ccg, coord, ss->corner_verts, ss->faces, v1, v2);
@@ -762,12 +740,12 @@ static void sculpt_vertex_neighbors_get_grids(SculptSession *ss,
    * back and forth between #CCGElem and global index. */
   const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
   const int grid_index = vertex.i / key->grid_area;
-  const int vertex_index = vertex.i - grid_index * key->grid_area;
+  const int index_in_grid = vertex.i - grid_index * key->grid_area;
 
   SubdivCCGCoord coord{};
   coord.grid_index = grid_index;
-  coord.x = vertex_index % key->grid_size;
-  coord.y = vertex_index / key->grid_size;
+  coord.x = index_in_grid % key->grid_size;
+  coord.y = index_in_grid / key->grid_size;
 
   SubdivCCGNeighbors neighbors;
   BKE_subdiv_ccg_neighbor_coords_get(*ss->subdiv_ccg, coord, include_duplicates, neighbors);
@@ -839,11 +817,11 @@ bool SCULPT_vertex_is_boundary(const SculptSession *ss, const PBVHVertRef vertex
     case PBVH_GRIDS: {
       const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
       const int grid_index = vertex.i / key->grid_area;
-      const int vertex_index = vertex.i - grid_index * key->grid_area;
+      const int index_in_grid = vertex.i - grid_index * key->grid_area;
       SubdivCCGCoord coord{};
       coord.grid_index = grid_index;
-      coord.x = vertex_index % key->grid_size;
-      coord.y = vertex_index / key->grid_size;
+      coord.x = index_in_grid % key->grid_size;
+      coord.y = index_in_grid / key->grid_size;
       int v1, v2;
       const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
           *ss->subdiv_ccg, coord, ss->corner_verts, ss->faces, v1, v2);
@@ -3569,10 +3547,10 @@ static void do_brush_action(Sculpt *sd,
   {
     if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
       smooth::do_smooth_brush(
-          sd, ob, nodes, brush->autosmooth_factor * (1.0f - ss->cache->pressure), false);
+          sd, ob, nodes, brush->autosmooth_factor * (1.0f - ss->cache->pressure));
     }
     else {
-      smooth::do_smooth_brush(sd, ob, nodes, brush->autosmooth_factor, false);
+      smooth::do_smooth_brush(sd, ob, nodes, brush->autosmooth_factor);
     }
   }
 

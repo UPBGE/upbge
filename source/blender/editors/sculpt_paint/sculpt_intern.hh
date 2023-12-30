@@ -29,6 +29,9 @@ namespace auto_mask {
 struct NodeData;
 struct Cache;
 }
+namespace cloth {
+struct SimulationData;
+}
 namespace undo {
 struct Node;
 }
@@ -341,7 +344,7 @@ struct Cache {
   Vector<PBVHNode *> nodes;
 
   /* Cloth filter. */
-  SculptClothSimulation *cloth_sim;
+  cloth::SimulationData *cloth_sim;
   float cloth_sim_pinch_point[3];
 
   /* mask expand iteration caches */
@@ -509,7 +512,7 @@ struct StrokeCache {
   int clay_pressure_stabilizer_index;
 
   /* Cloth brush */
-  SculptClothSimulation *cloth_sim;
+  cloth::SimulationData *cloth_sim;
   float3 initial_location;
   float3 true_initial_location;
   float3 initial_normal;
@@ -706,7 +709,7 @@ struct Cache {
   Array<int> initial_face_sets;
 
   /* Original data of the sculpt as it was before running the Expand operator. */
-  float *original_mask;
+  Array<float> original_mask;
   Array<int> original_face_sets;
   float (*original_colors)[4];
 
@@ -871,7 +874,9 @@ const float *SCULPT_vertex_co_get(const SculptSession *ss, PBVHVertRef vertex);
 /** Get the normal for a given sculpt vertex; do not modify the result */
 void SCULPT_vertex_normal_get(const SculptSession *ss, PBVHVertRef vertex, float no[3]);
 
-float SCULPT_vertex_mask_get(SculptSession *ss, PBVHVertRef vertex);
+float SCULPT_mask_get_at_grids_vert_index(const SubdivCCG &subdiv_ccg,
+                                          const CCGKey &key,
+                                          int vert_index);
 void SCULPT_vertex_color_get(const SculptSession *ss, PBVHVertRef vertex, float r_color[4]);
 void SCULPT_vertex_color_set(SculptSession *ss, PBVHVertRef vertex, const float color[4]);
 
@@ -1366,34 +1371,116 @@ void zero_disabled_axis_components(float r_v[3], filter::Cache *filter_cache);
 
 namespace blender::ed::sculpt_paint::cloth {
 
-/* Main cloth brush function */
-void do_cloth_brush(Sculpt *sd, Object *ob, blender::Span<PBVHNode *> nodes);
+/* Cloth Simulation. */
+enum NodeSimState {
+  /* Constraints were not built for this node, so it can't be simulated. */
+  SCULPT_CLOTH_NODE_UNINITIALIZED,
 
-void simulation_free(SculptClothSimulation *cloth_sim);
+  /* There are constraints for the geometry in this node, but it should not be simulated. */
+  SCULPT_CLOTH_NODE_INACTIVE,
+
+  /* There are constraints for this node and they should be used by the solver. */
+  SCULPT_CLOTH_NODE_ACTIVE,
+};
+
+enum ConstraintType {
+  /* Constraint that creates the structure of the cloth. */
+  SCULPT_CLOTH_CONSTRAINT_STRUCTURAL = 0,
+  /* Constraint that references the position of a vertex and a position in deformation_pos which
+   * can be deformed by the tools. */
+  SCULPT_CLOTH_CONSTRAINT_DEFORMATION = 1,
+  /* Constraint that references the vertex position and a editable soft-body position for
+   * plasticity. */
+  SCULPT_CLOTH_CONSTRAINT_SOFTBODY = 2,
+  /* Constraint that references the vertex position and its initial position. */
+  SCULPT_CLOTH_CONSTRAINT_PIN = 3,
+};
+
+struct LengthConstraint {
+  /* Elements that are affected by the constraint. */
+  /* Element a should always be a mesh vertex with the index stored in elem_index_a as it is always
+   * deformed. Element b could be another vertex of the same mesh or any other position (arbitrary
+   * point, position for a previous state). In that case, elem_index_a and elem_index_b should be
+   * the same to avoid affecting two different vertices when solving the constraints.
+   * *elem_position points to the position which is owned by the element. */
+  int elem_index_a;
+  float *elem_position_a;
+
+  int elem_index_b;
+  float *elem_position_b;
+
+  float length;
+  float strength;
+
+  /* Index in #SimulationData.node_state of the node from where this constraint was created.
+   * This constraints will only be used by the solver if the state is active. */
+  int node;
+
+  ConstraintType type;
+};
+
+struct SimulationData {
+  LengthConstraint *length_constraints;
+  int tot_length_constraints;
+  Set<OrderedEdge> created_length_constraints;
+  int capacity_length_constraints;
+  float *length_constraint_tweak;
+
+  /* Position anchors for deformation brushes. These positions are modified by the brush and the
+   * final positions of the simulated vertices are updated with constraints that use these points
+   * as targets. */
+  float (*deformation_pos)[3];
+  float *deformation_strength;
+
+  float mass;
+  float damping;
+  float softbody_strength;
+
+  float (*acceleration)[3];
+  float (*pos)[3];
+  float (*init_pos)[3];
+  float (*init_no)[3];
+  float (*softbody_pos)[3];
+  float (*prev_pos)[3];
+  float (*last_iteration_pos)[3];
+
+  ListBase *collider_list;
+
+  int totnode;
+  /** #PBVHNode pointer as a key, index in #SimulationData.node_state as value. */
+  GHash *node_state_index;
+  NodeSimState *node_state;
+
+  VArraySpan<float> mask_mesh;
+  int mask_cd_offset_bmesh;
+  CCGKey grid_key;
+};
+
+/* Main cloth brush function */
+void do_cloth_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nodes);
+
+void simulation_free(SimulationData *cloth_sim);
 
 /* Public functions. */
 
-SculptClothSimulation *brush_simulation_create(Object *ob,
-                                               float cloth_mass,
-                                               float cloth_damping,
-                                               float cloth_softbody_strength,
-                                               bool use_collisions,
-                                               bool needs_deform_coords);
-void brush_simulation_init(SculptSession *ss, SculptClothSimulation *cloth_sim);
+SimulationData *brush_simulation_create(Object *ob,
+                                        float cloth_mass,
+                                        float cloth_damping,
+                                        float cloth_softbody_strength,
+                                        bool use_collisions,
+                                        bool needs_deform_coords);
+void brush_simulation_init(SculptSession *ss, SimulationData *cloth_sim);
 
-void sim_activate_nodes(SculptClothSimulation *cloth_sim, blender::Span<PBVHNode *> nodes);
+void sim_activate_nodes(SimulationData *cloth_sim, Span<PBVHNode *> nodes);
 
-void brush_store_simulation_state(SculptSession *ss, SculptClothSimulation *cloth_sim);
+void brush_store_simulation_state(SculptSession *ss, SimulationData *cloth_sim);
 
-void do_simulation_step(Sculpt *sd,
-                        Object *ob,
-                        SculptClothSimulation *cloth_sim,
-                        blender::Span<PBVHNode *> nodes);
+void do_simulation_step(Sculpt *sd, Object *ob, SimulationData *cloth_sim, Span<PBVHNode *> nodes);
 
 void ensure_nodes_constraints(Sculpt *sd,
                               Object *ob,
-                              blender::Span<PBVHNode *> nodes,
-                              SculptClothSimulation *cloth_sim,
+                              Span<PBVHNode *> nodes,
+                              SimulationData *cloth_sim,
                               float initial_location[3],
                               float radius);
 
@@ -1413,7 +1500,7 @@ void plane_falloff_preview_draw(uint gpuattr,
                                 const float outline_col[3],
                                 float outline_alpha);
 
-blender::Vector<PBVHNode *> brush_affected_nodes_gather(SculptSession *ss, Brush *brush);
+Vector<PBVHNode *> brush_affected_nodes_gather(SculptSession *ss, Brush *brush);
 
 bool is_cloth_deform_brush(const Brush *brush);
 
@@ -1434,7 +1521,7 @@ namespace blender::ed::sculpt_paint::smooth {
 void bmesh_four_neighbor_average(float avg[3], float direction[3], BMVert *v);
 
 void neighbor_coords_average(SculptSession *ss, float result[3], PBVHVertRef vertex);
-float neighbor_mask_average(SculptSession *ss, PBVHVertRef vertex);
+float neighbor_mask_average(SculptSession *ss, SculptMaskWriteInfo write_info, PBVHVertRef vertex);
 void neighbor_color_average(SculptSession *ss, float result[4], PBVHVertRef vertex);
 
 /**
@@ -1442,9 +1529,10 @@ void neighbor_color_average(SculptSession *ss, float result[4], PBVHVertRef vert
  */
 void neighbor_coords_average_interior(SculptSession *ss, float result[3], PBVHVertRef vertex);
 
-void do_smooth_brush(
-    Sculpt *sd, Object *ob, blender::Span<PBVHNode *> nodes, float bstrength, bool smooth_mask);
-void do_smooth_brush(Sculpt *sd, Object *ob, blender::Span<PBVHNode *> nodes);
+void do_smooth_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nodes, float bstrength);
+void do_smooth_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nodes);
+
+void do_smooth_mask_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nodes, float bstrength);
 
 /* Surface Smooth Brush. */
 
@@ -1461,7 +1549,7 @@ void surface_smooth_displace_step(SculptSession *ss,
                                   PBVHVertRef vertex,
                                   float beta,
                                   float fade);
-void do_surface_smooth_brush(Sculpt *sd, Object *ob, blender::Span<PBVHNode *> nodes);
+void do_surface_smooth_brush(Sculpt *sd, Object *ob, Span<PBVHNode *> nodes);
 
 /* Slide/Relax */
 void relax_vertex(SculptSession *ss,

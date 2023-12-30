@@ -2729,6 +2729,8 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
                                       PointerRNA *ptr,
                                       const char *propname);
 
+void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C);
+
 #ifdef WITH_GREASE_PENCIL_V3
 void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C);
 #endif
