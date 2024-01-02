@@ -246,6 +246,26 @@ static int rna_iterator_bone_collection_children_length(PointerRNA *ptr)
   return bcoll->child_count;
 }
 
+static PointerRNA rna_BoneCollection_parent_get(PointerRNA *ptr)
+{
+  bArmature *arm = (bArmature *)ptr->owner_id;
+  const BoneCollection *bcoll = (BoneCollection *)ptr->data;
+
+  /* Note that this performs two scans of the array. This might look bad, but as
+   * long as `Object.children` still loops in Python over all of
+   * `bpy.data.objects`, this should also be acceptable. */
+  using namespace blender::animrig;
+  const int bcoll_index = armature_bonecoll_find_index(arm, bcoll);
+  const int parent_index = armature_bonecoll_find_parent_index(arm, bcoll_index);
+
+  if (parent_index < 0) {
+    return PointerRNA_NULL;
+  }
+
+  BoneCollection *parent = arm->collection_array[parent_index];
+  return RNA_pointer_create(&arm->id, &RNA_BoneCollection, parent);
+}
+
 static int rna_BoneCollections_active_index_get(PointerRNA *ptr)
 {
   bArmature *arm = (bArmature *)ptr->data;
@@ -351,6 +371,13 @@ static bool rna_BoneCollection_is_editable_get(PointerRNA *ptr)
   bArmature *arm = reinterpret_cast<bArmature *>(ptr->owner_id);
   BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
   return ANIM_armature_bonecoll_is_editable(arm, bcoll);
+}
+
+static int rna_BoneCollection_index_get(PointerRNA *ptr)
+{
+  bArmature *arm = reinterpret_cast<bArmature *>(ptr->owner_id);
+  BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
+  return blender::animrig::armature_bonecoll_find_index(arm, bcoll);
 }
 
 /* BoneCollection.bones iterator functions. */
@@ -2239,6 +2266,24 @@ static void rna_def_bonecollection(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+
+  prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "BoneCollection");
+  RNA_def_property_pointer_funcs(prop, "rna_BoneCollection_parent_get", nullptr, nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Parent",
+                           "Parent bone collection. Note that accessing this requires a scan of "
+                           "all the bone collections to find the parent");
+
+  prop = RNA_def_property(srna, "index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_BoneCollection_index_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Index",
+      "Index of this bone collection in the armature.collections.all array. Note that finding "
+      "this index requires a scan of all the bone collections, so do access this with care");
 
   RNA_api_bonecollection(srna);
 }

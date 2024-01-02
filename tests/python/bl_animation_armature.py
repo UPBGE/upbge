@@ -16,7 +16,7 @@ class BoneCollectionTest(unittest.TestCase):
     arm: bpy.types.Armature
 
     def setUp(self):
-        bpy.ops.wm.read_homefile()
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
         self.arm_ob, self.arm = self.create_armature()
 
     def create_armature(self) -> tuple[bpy.types.Object, bpy.types.Armature]:
@@ -29,16 +29,35 @@ class BoneCollectionTest(unittest.TestCase):
 
         return arm_ob, arm
 
-    def add_bones(self, arm_ob: bpy.types.Object) -> None:
-        # Switch to edit mode to add some bones.
+    def add_bones(self, arm_ob: bpy.types.Object) -> dict[str, bpy.types.Bone]:
+        """Add some test bones to the armature."""
 
+        # Switch to edit mode to add some bones.
         bpy.context.view_layer.objects.active = arm_ob
         bpy.ops.object.mode_set(mode='EDIT')
+        self.assertEqual('EDIT', arm_ob.mode, 'Armature should be in edit mode now')
 
+        arm = arm_ob.data
+        bone_names = ('root', 'child_L', 'child_R', 'child_L_L', 'child_L_R', 'child_R_L', 'child_R_R')
         try:
-            pass
+            for bone_name in bone_names:
+                ebone = arm.edit_bones.new(name=bone_name)
+                # Bones have to have a length, or they will be removed when exiting edit mode.
+                ebone.tail = (1, 0, 0)
+
+            arm.edit_bones['child_L'].parent = arm.edit_bones['root']
+            arm.edit_bones['child_R'].parent = arm.edit_bones['root']
+            arm.edit_bones['child_L_L'].parent = arm.edit_bones['child_L']
+            arm.edit_bones['child_L_R'].parent = arm.edit_bones['child_L']
+            arm.edit_bones['child_R_L'].parent = arm.edit_bones['child_R']
+            arm.edit_bones['child_R_R'].parent = arm.edit_bones['child_R']
+
         finally:
             bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Return the bones, not the editbones.
+        return {bone_name: arm.bones[bone_name]
+                for bone_name in bone_names}
 
     def test_bone_collection_api(self):
         # Just to keep the rest of the code shorter.
@@ -61,6 +80,8 @@ class BoneCollectionTest(unittest.TestCase):
         self.assertEqual([r1_child1, r1_child1_001], list(root1.children), 'root1.children should have its children')
         self.assertEqual([r2_child1, r2_child2], list(root2.children), 'root2.children should have its children')
         self.assertEqual([], list(r1_child1.children))
+        self.assertIsNone(root1.parent)
+        self.assertEqual(root1, r1_child1.parent)
 
         # Check the array order.
         self.assertEqual([root1, root2, r1_child1, r1_child1_001, r2_child1, r2_child2], list(bcolls.all))
@@ -73,6 +94,7 @@ class BoneCollectionTest(unittest.TestCase):
         self.assertEqual([root2], list(r1_child1.children))
         self.assertEqual([r1_child1, r1_child1_001], list(root1.children), 'root1.children should have its children')
         self.assertEqual([r2_child1, r2_child2], list(root2.children), 'root2.children should have its children')
+        self.assertEqual(r1_child1, root2.parent)
 
         # Check the array order.
         self.assertEqual([root1, r1_child1, r1_child1_001, r2_child1, r2_child2, root2], list(bcolls.all))
@@ -88,6 +110,41 @@ class BoneCollectionTest(unittest.TestCase):
 
         # Check the array order.
         self.assertEqual([root1, r1_child1, root2, r1_child1_001, r2_child1, r2_child2], list(bcolls.all))
+
+    def test_bone_collection_bones(self):
+        # Build a hierarchy on the armature.
+        bcolls = self.arm.collections
+        bcoll_root = bcolls.new('root')
+        bcoll_child1 = bcolls.new('child1', parent=bcoll_root)
+        bcoll_child2 = bcolls.new('child2', parent=bcoll_child1)
+
+        # Add bones to the armature & assign to collections.
+        bone_dict = self.add_bones(self.arm_ob)
+        bcoll_root.assign(bone_dict['root'])
+
+        bcoll_child1_bone_names = {'child_L', 'child_L_L', 'child_L_R'}
+        for bone_name in bcoll_child1_bone_names:
+            bcoll_child1.assign(bone_dict[bone_name])
+
+        bcoll_child2_bone_names = {'child_R', 'child_R_L', 'child_R_R'}
+        for bone_name in bcoll_child2_bone_names:
+            bcoll_child2.assign(bone_dict[bone_name])
+
+        # Check that the `.bones` property returns the expected ones.
+        self.assertEqual([self.arm.bones['root']], list(bcoll_root.bones))
+        self.assertEqual(bcoll_child1_bone_names, {b.name for b in bcoll_child1.bones})
+        self.assertEqual(bcoll_child2_bone_names, {b.name for b in bcoll_child2.bones})
+
+        # Check that the `.bones_recursive` property returns the expected bones.
+        all_bones = set(self.arm.bones)
+        self.assertEqual(all_bones, set(bcoll_root.bones_recursive),
+                         'All bones should have been assigned to at least one bone collection')
+
+        self.assertEqual(bcoll_child1_bone_names | bcoll_child2_bone_names,
+                         {b.name for b in bcoll_child1.bones_recursive},
+                         "All bones of child1 and child2 should be in child1.bones_recursive")
+
+        self.assertEqual(bcoll_child2_bone_names, {b.name for b in bcoll_child2.bones_recursive})
 
     def test_bone_collection_armature_join(self):
         other_arm_ob, other_arm = self.create_armature()
