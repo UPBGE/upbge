@@ -119,19 +119,19 @@ struct wmWindowManager;
 #include "RNA_types.hh"
 
 /* exported types for WM */
-#include "gizmo/WM_gizmo_types.h"
+#include "gizmo/WM_gizmo_types.hh"
 #include "wm_cursors.hh"
 #include "wm_event_types.hh"
 
 /* Include external gizmo API's */
-#include "gizmo/WM_gizmo_api.h"
+#include "gizmo/WM_gizmo_api.hh"
 
 namespace blender::asset_system {
 class AssetRepresentation;
 }
 using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
 
-typedef void (*wmGenericUserDataFreeFn)(void *data);
+using wmGenericUserDataFreeFn = void (*)(void *data);
 
 struct wmGenericUserData {
   void *data;
@@ -920,6 +920,31 @@ struct wmTimer {
   bool sleep;
 };
 
+enum wmWarningSize {
+  WM_WARNING_SIZE_SMALL = 0,
+  WM_WARNING_SIZE_LARGE,
+};
+
+enum wmWarningPosition {
+  WM_WARNING_POSITION_MOUSE = 0,
+  WM_WARNING_POSITION_CENTER,
+};
+
+struct wmWarningDetails {
+  char title[1024];
+  char message[1024];
+  char message2[1024];
+  char confirm_button[256];
+  char cancel_button[256];
+  int icon;
+  wmWarningSize size;
+  wmWarningPosition position;
+  bool confirm_default;
+  bool cancel_default;
+  bool mouse_move_quit;
+  bool red_alert;
+};
+
 /**
  * Communication/status data owned by the wmJob, and passed to the worker code when calling
  * `startjob` callback.
@@ -1046,6 +1071,11 @@ struct wmOperatorType {
    * The returned string is expected to be translated if needed.
    */
   std::string (*get_description)(bContext *C, wmOperatorType *ot, PointerRNA *ptr);
+
+  /**
+   * If using WM_operator_confirm the following can override all parts of the dialog.
+   */
+  void (*warning)(bContext *C, wmOperator *, wmWarningDetails *warning);
 
   /** RNA for properties */
   StructRNA *srna;
