@@ -57,8 +57,8 @@
 #include "GPU_viewport.h"
 #include "WM_api.hh"
 #include "wm_draw.hh"
-#include "wm_event_system.h"
-#include "xr/wm_xr.h"
+#include "wm_event_system.hh"
+#include "xr/wm_xr.hh"
 
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"

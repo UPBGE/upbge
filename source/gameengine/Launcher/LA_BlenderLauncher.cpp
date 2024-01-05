@@ -33,7 +33,7 @@
 #include "GPU_framebuffer.h"
 #include "GPU_state.h"
 #include "WM_api.hh"
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 #include "wm_window.hh"
 
 #include "CM_Message.h"

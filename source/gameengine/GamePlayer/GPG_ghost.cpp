@@ -111,12 +111,12 @@
 #include "UI_resources.hh"
 #include "WM_api.hh"
 #include "wm.hh"
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 
 #include "wm_message_bus.hh"
 #include "wm_surface.hh"
 #include "wm_window.hh"
-#include "windowmanager/intern/wm_window_private.h"
+#include "windowmanager/intern/wm_window_private.hh"
 
 #include "CM_Message.h"
 #include "KX_Globals.h"
