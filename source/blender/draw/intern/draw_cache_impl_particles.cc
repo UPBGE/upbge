@@ -8,7 +8,7 @@
  * \brief Particle API for render engines
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -42,6 +42,8 @@
 
 #include "draw_cache_impl.hh" /* own include */
 #include "draw_hair_private.h"
+
+namespace blender::draw {
 
 static void particle_batch_cache_clear(ParticleSystem *psys);
 
@@ -1763,3 +1765,5 @@ bool particles_ensure_procedural_data(Object *object,
 
   return need_ft_update;
 }
+
+}  // namespace blender::draw

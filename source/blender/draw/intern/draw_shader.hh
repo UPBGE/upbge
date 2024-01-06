@@ -8,9 +8,8 @@
 
 #pragma once
 
-#ifdef __cplusplus
-#  include "draw_curves_private.hh"
-#  include "draw_hair_private.h"
+#include "draw_curves_private.hh"
+#include "draw_hair_private.h"
 
 struct GPUShader;
 
@@ -25,7 +24,8 @@ enum eParticleRefineShaderType {
 GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader refinement,
                                       eParticleRefineShaderType sh_type);
 
-GPUShader *DRW_shader_curves_refine_get(CurvesEvalShader type, eParticleRefineShaderType sh_type);
+GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader type,
+                                        eParticleRefineShaderType sh_type);
 
 GPUShader *DRW_shader_debug_print_display_get();
 GPUShader *DRW_shader_debug_draw_display_get();
@@ -34,14 +34,4 @@ GPUShader *DRW_shader_draw_view_finalize_get();
 GPUShader *DRW_shader_draw_resource_finalize_get();
 GPUShader *DRW_shader_draw_command_generate_get();
 
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void DRW_shaders_free(void);
-
-#ifdef __cplusplus
-}
-#endif

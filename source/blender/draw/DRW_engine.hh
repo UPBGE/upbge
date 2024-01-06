@@ -12,10 +12,6 @@
 
 #include "DNA_object_enums.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct ARegion;
 struct DRWData;
 struct DRWInstanceDataList;
@@ -176,10 +172,15 @@ void DRW_xr_drawing_end(void);
 
 /* For garbage collection */
 void DRW_cache_free_old_batches(struct Main *bmain);
+
+namespace blender::draw {
+
 void DRW_cache_free_old_subdiv(void);
 
 /* For the OpenGL evaluators and garbage collected subdivision data. */
 void DRW_subdiv_free(void);
+
+}  // namespace blender::draw
 
 /* Never use this. Only for closing blender. */
 void DRW_gpu_context_enable_ex(bool restore);
@@ -225,7 +226,3 @@ void DRW_cdlayer_attr_aliases_add(struct GPUVertFormat *format,
 /* UPBGE */
 void DRW_gpu_context_create_blenderplayer(void *syshandle);
 /* End of UPBGE */
-
-#ifdef __cplusplus
-}
-#endif

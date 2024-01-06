@@ -384,6 +384,12 @@ static void rna_BoneCollection_is_visible_set(PointerRNA *ptr, const bool is_vis
   WM_main_add_notifier(NC_OBJECT | ND_POSE, &arm->id);
 }
 
+static bool rna_BoneCollection_is_visible_effectively_get(PointerRNA *ptr)
+{
+  const BoneCollection *bcoll = (BoneCollection *)ptr->data;
+  return bcoll->is_visible_effectively();
+}
+
 static char *rna_BoneCollection_path(const PointerRNA *ptr)
 {
   const BoneCollection *bcoll = (const BoneCollection *)ptr->data;
@@ -417,6 +423,20 @@ static int rna_BoneCollection_index_get(PointerRNA *ptr)
   bArmature *arm = reinterpret_cast<bArmature *>(ptr->owner_id);
   BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
   return blender::animrig::armature_bonecoll_find_index(arm, bcoll);
+}
+
+static int rna_BoneCollection_child_number_get(PointerRNA *ptr)
+{
+  bArmature *arm = reinterpret_cast<bArmature *>(ptr->owner_id);
+  BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
+  return blender::animrig::armature_bonecoll_child_number_find(arm, bcoll);
+}
+static void rna_BoneCollection_child_number_set(PointerRNA *ptr, const int new_child_number)
+{
+  bArmature *arm = reinterpret_cast<bArmature *>(ptr->owner_id);
+  BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
+  blender::animrig::armature_bonecoll_child_number_set(arm, bcoll, new_child_number);
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 /* BoneCollection.bones iterator functions. */
@@ -2265,6 +2285,15 @@ static void rna_def_bonecollection(BlenderRNA *brna)
                            "visible; always True for root bone collections");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
+  prop = RNA_def_property(srna, "is_visible_effectively", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop, "rna_BoneCollection_is_visible_effectively_get", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Effective Visibility",
+      "Whether this bone collection is effectively visible in the viewport. This is True when "
+      "this bone collection and all of its ancestors are visible");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
   prop = RNA_def_property(srna, "is_local_override", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", BONE_COLLECTION_OVERRIDE_LIBRARY_LOCAL);
   RNA_def_property_ui_text(
@@ -2331,6 +2360,15 @@ static void rna_def_bonecollection(BlenderRNA *brna)
       prop,
       "Index",
       "Index of this bone collection in the armature.collections.all array. Note that finding "
+      "this index requires a scan of all the bone collections, so do access this with care");
+
+  prop = RNA_def_property(srna, "child_number", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(
+      prop, "rna_BoneCollection_child_number_get", "rna_BoneCollection_child_number_set", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Child Number",
+      "Index of this collection into its parent's list of children. Note that finding "
       "this index requires a scan of all the bone collections, so do access this with care");
 
   RNA_api_bonecollection(srna);

@@ -81,7 +81,7 @@
 #include "draw_manager_profiling.hh"
 #include "draw_manager_testing.h"
 #include "draw_manager_text.hh"
-#include "draw_shader.h"
+#include "draw_shader.hh"
 #include "draw_subdivision.hh"
 #include "draw_texture_pool.h"
 
@@ -975,6 +975,7 @@ static void drw_drawdata_unlink_dupli(ID *id)
 
 void DRW_cache_free_old_batches(Main *bmain)
 {
+  using namespace blender::draw;
   Scene *scene;
   static int lasttime = 0;
   int ctime = int(PIL_check_seconds_timer());
@@ -1683,6 +1684,7 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
                              GPUViewport *viewport,
                              const bContext *evil_C)
 {
+  using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -2008,6 +2010,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
 void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
 {
+  using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RenderEngineType *engine_type = engine->type;
@@ -2102,6 +2105,7 @@ void DRW_render_object_iter(
     Depsgraph *depsgraph,
     void (*callback)(void *vedata, Object *ob, RenderEngine *engine, Depsgraph *depsgraph))
 {
+  using namespace blender::draw;
   const DRWContextState *draw_ctx = DRW_context_state_get();
   DRW_pointcloud_init();
   DRW_curves_init(DST.vmempool);
@@ -2141,6 +2145,7 @@ void DRW_render_object_iter(
 
 void DRW_custom_pipeline_begin(DrawEngineType *draw_engine_type, Depsgraph *depsgraph)
 {
+  using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
@@ -2206,6 +2211,7 @@ void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
 
 void DRW_cache_restart()
 {
+  using namespace blender::draw;
   DRW_smoke_exit(DST.vmempool);
 
   drw_manager_init(&DST, DST.viewport, blender::int2{int(DST.size[0]), int(DST.size[1])});
@@ -2433,6 +2439,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
                           DRW_ObjectFilterFn object_filter_fn,
                           void *object_filter_user_data)
 {
+  using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
@@ -2677,6 +2684,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          const bool use_basic,
                          const bool use_overlay)
 {
+  using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
@@ -2888,6 +2896,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 void DRW_draw_depth_object(
     Scene *scene, ARegion *region, View3D *v3d, GPUViewport *viewport, Object *object)
 {
+  using namespace blender::draw;
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   GPU_matrix_projection_set(rv3d->winmat);
@@ -3079,6 +3088,7 @@ void DRW_engine_register(DrawEngineType *draw_engine_type)
 
 void DRW_engines_register()
 {
+  using namespace blender::draw;
   RE_engines_register(&DRW_engine_viewport_eevee_type);
   /* Always register EEVEE Next so it can be used in background mode with `--factory-startup`.
    * (Needed for tests). */
@@ -3158,6 +3168,7 @@ static void drw_registered_engines_free()
 
 void DRW_engines_free()
 {
+  using namespace blender::draw;
   drw_registered_engines_free();
 
   if (DST.system_gpu_context == nullptr) {

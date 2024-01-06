@@ -6,7 +6,7 @@
  * \ingroup draw_engine
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "BLI_alloca.h"
 #include "BLI_ghash.h"
@@ -971,6 +971,7 @@ void EEVEE_object_curves_cache_populate(EEVEE_Data *vedata,
                                         Object *ob,
                                         bool *cast_shadow)
 {
+  using namespace blender::draw;
   EeveeMaterialCache matcache = eevee_material_cache_get(
       vedata, sldata, ob, CURVES_MATERIAL_NR - 1, true);
 
