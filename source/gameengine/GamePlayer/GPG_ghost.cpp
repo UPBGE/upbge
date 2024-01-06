@@ -82,7 +82,7 @@
 #include "CLG_log.h"
 #include "DEG_depsgraph.hh"
 #include "DNA_genfile.h"
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 #include "ED_asset.hh"
 #include "ED_datafiles.h"
 #include "ED_gpencil_legacy.hh"
@@ -1871,7 +1871,7 @@ int main(int argc,
    */
   G_MAIN = nullptr;
 
-  DRW_subdiv_free();
+  blender::draw::DRW_subdiv_free();
 
   ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();

@@ -48,7 +48,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_property_types.h"
 #include "DNA_rigidbody_types.h"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"

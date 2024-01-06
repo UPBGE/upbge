@@ -39,7 +39,7 @@
 #include <boost/format.hpp>
 
 #include "BLI_rect.h"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 #include "GPU_context.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"

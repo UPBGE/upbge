@@ -3687,6 +3687,7 @@ void DRW_game_render_loop(bContext *C,
                           bool is_overlay_pass,
                           bool called_from_constructor)
 {
+  using namespace blender::draw;
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
 

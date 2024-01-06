@@ -22,7 +22,7 @@
 
 #include "RAS_2DFilter.h"
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "GPU_immediate.h"
 #include <epoxy/gl.h>

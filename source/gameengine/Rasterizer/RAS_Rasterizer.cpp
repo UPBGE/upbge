@@ -39,7 +39,7 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_Polygon.h"
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 

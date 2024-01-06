@@ -43,7 +43,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "DEG_depsgraph_query.hh"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 #include "WM_api.hh"
 
 #include "BL_Action.h"
