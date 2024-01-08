@@ -790,6 +790,7 @@ struct ShaderCreateInfo {
         break;
     }
     specialization_constants_.append(constant);
+    interface_names_size_ += name.size() + 1;
     return *(Self *)this;
   }
 
@@ -905,7 +906,7 @@ struct ShaderCreateInfo {
 
   Self &push_constant(Type type, StringRefNull name, int array_size = 0)
   {
-    /* We don't have support for UINT push constants yet, use INT instead.*/
+    /* We don't have support for UINT push constants yet, use INT instead. */
     BLI_assert(type != Type::UINT);
     BLI_assert_msg(name.find("[") == -1,
                    "Array syntax is forbidden for push constants."
