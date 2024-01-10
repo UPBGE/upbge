@@ -26,14 +26,9 @@ function(blender_test_set_envvars testname envvars_list)
 
   if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
     if(WITH_COMPILER_ASAN)
-      # Don't fail tests on leaks since these often happen in external libraries that we can't fix.
-      # FIXME This is a 'nuke solution', no xSAN errors will ever fail tests. Needs more refined handling,
-      #       see https://projects.blender.org/blender/blender/pulls/116635 .
-      set(_lsan_options "LSAN_OPTIONS=exitcode=0")
+      set(_lsan_options "LSAN_OPTIONS=print_suppressions=false:suppressions=${CMAKE_SOURCE_DIR}/tools/config/analysis/lsan.supp")
       # FIXME That `allocator_may_return_null=true` ASAN option is only needed for the `guardedalloc` test,
       #       would be nice to allow tests definition to pass extra envvars better.
-      # NOTE: This is needed for Mac builds currently, on Linux the `exitcode=0` option passed above to LSAN
-      #       also seems to silence reports from ASAN.
       set(_asan_options "ASAN_OPTIONS=allocator_may_return_null=true")
       if(DEFINED ENV{LSAN_OPTIONS})
         set(_lsan_options "${_lsan_options}:$ENV{LSAN_OPTIONS}")
@@ -54,7 +49,10 @@ macro(blender_src_gtest_ex)
     set(options)
     set(oneValueArgs NAME)
     set(multiValueArgs SRC EXTRA_LIBS COMMAND_ARGS)
-    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
+    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    unset(options)
+    unset(oneValueArgs)
+    unset(multiValueArgs)
 
     set(TARGET_NAME ${ARG_NAME}_test)
     get_property(_current_include_directories
@@ -259,7 +257,10 @@ function(blender_add_test_executable_impl
   )
 
   set(oneValueArgs ADD_CTESTS DISCOVER_TESTS)
+  set(multiValueArgs)
   cmake_parse_arguments(ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  unset(oneValueArgs)
+  unset(multiValueArgs)
 
   add_cc_flags_custom_test(${name} PARENT_SCOPE)
 

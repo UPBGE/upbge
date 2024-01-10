@@ -11,7 +11,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${IMATH_INCLUDE_DIRS}
   ${OPENIMAGEIO_INCLUDE_DIRS}
 )
 
@@ -37,6 +36,15 @@ if(WITH_PUGIXML)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
+  # Keep until APPLE/ARM libraries are updated.
+  if(APPLE)
+    if(CMAKE_OSX_ARCHITECTURES MATCHES arm64)
+      list(APPEND INC_SYS
+        ${IMATH_INCLUDE_DIRS}
+      )
+    endif()
+  endif()
+
   list(APPEND INC_SYS
     ${OPENEXR_INCLUDE_DIRS}
   )
