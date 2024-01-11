@@ -281,11 +281,14 @@ static void rna_BoneCollection_parent_set(PointerRNA *ptr,
   const int from_parent_index = armature_bonecoll_find_parent_index(armature, from_bcoll_index);
   const int to_parent_index = armature_bonecoll_find_index(armature, to_parent);
 
-  if (to_parent_index == from_bcoll_index ||
-      armature_bonecoll_is_descendant_of(armature, from_bcoll_index, to_parent_index))
-  {
-    BKE_report(reports, RPT_ERROR, "Cannot make a bone collection a descendant of itself");
-    return;
+  if (to_parent_index >= 0) {
+    /* No need to check for parenthood cycles when the bone collection is turned into a root. */
+    if (to_parent_index == from_bcoll_index ||
+        armature_bonecoll_is_descendant_of(armature, from_bcoll_index, to_parent_index))
+    {
+      BKE_report(reports, RPT_ERROR, "Cannot make a bone collection a descendant of itself");
+      return;
+    }
   }
 
   armature_bonecoll_move_to_parent(
@@ -506,7 +509,7 @@ static bool rna_Armature_collections_override_apply(Main *bmain,
       /* These are stored by Blender when overridable properties are changed on the root
        * collections, However, these are *also* created on the `armature.collections_all` property,
        * which is actually where these per-collection overrides are handled. This doesn't seem to
-       * be proper behaviour, but I (Sybren) also don't want to spam the console about this as this
+       * be proper behavior, but I (Sybren) also don't want to spam the console about this as this
        * is not something a user could fix. */
       return false;
     default:

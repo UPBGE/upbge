@@ -425,7 +425,7 @@ struct GWL_Cursor {
    * The size of the cursor (when looking up a cursor theme).
    * This must be scaled by the maximum output scale when passing to wl_cursor_theme_load.
    * See #update_cursor_scale.
-   * */
+   */
   int theme_size = 0;
   int custom_scale = 1;
 };
@@ -1327,7 +1327,7 @@ struct GWL_Display {
 };
 
 /**
- * Free the #GWL_Display and it's related members.
+ * Free the #GWL_Display and its related members.
  *
  * \note This may run on a partially initialized struct,
  * so it can't be assumed all members are set.

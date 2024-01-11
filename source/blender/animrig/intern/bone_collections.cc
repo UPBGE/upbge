@@ -73,13 +73,13 @@ BoneCollection *ANIM_bonecoll_new(const char *name)
   return bcoll;
 }
 
-void ANIM_bonecoll_free(BoneCollection *bcoll)
+void ANIM_bonecoll_free(BoneCollection *bcoll, const bool do_id_user_count)
 {
   BLI_assert_msg(BLI_listbase_is_empty(&bcoll->bones),
                  "bone collection still has bones assigned to it, will cause dangling pointers in "
                  "bone runtime data");
   if (bcoll->prop) {
-    IDP_FreeProperty(bcoll->prop);
+    IDP_FreeProperty_ex(bcoll->prop, do_id_user_count);
   }
   MEM_delete(bcoll);
 }
@@ -1157,6 +1157,9 @@ bool armature_bonecoll_is_descendant_of(const bArmature *armature,
                                         const int potential_parent_index,
                                         const int potential_descendant_index)
 {
+  BLI_assert_msg(potential_descendant_index >= 0,
+                 "Potential descendant has to exist for this function call to make sense.");
+
   if (armature_bonecoll_is_child_of(armature, potential_parent_index, potential_descendant_index))
   {
     /* Found a direct child. */

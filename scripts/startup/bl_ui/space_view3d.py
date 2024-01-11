@@ -5846,6 +5846,8 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        layout.operator("grease_pencil.stroke_subdivide", text="Subdivide")
+        layout.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
         layout.operator("grease_pencil.stroke_simplify", text="Simplify")
 
         layout.separator()
@@ -8177,6 +8179,8 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.label(text="Point", icon='GP_SELECT_POINTS')
 
             # Main Strokes Operators
+            col.operator("grease_pencil.stroke_subdivide", text="Subdivide")
+            col.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
             col.operator("grease_pencil.stroke_simplify", text="Simplify")
 
             col.separator()
@@ -8203,6 +8207,8 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.label(text="Stroke", icon='GP_SELECT_STROKES')
 
             # Main Strokes Operators
+            col.operator("grease_pencil.stroke_subdivide", text="Subdivide")
+            col.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
             col.operator("grease_pencil.stroke_simplify", text="Simplify")
 
             col.separator()
