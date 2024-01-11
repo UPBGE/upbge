@@ -1324,7 +1324,7 @@ static bool can_read_node_type(const int type)
   }
 
   /* Check known built-in types. */
-  static blender::Set<int> known_types = get_known_node_types_set();
+  blender::Set<int> known_types = get_known_node_types_set();
   return known_types.contains(type);
 }
 
