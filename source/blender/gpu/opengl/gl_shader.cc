@@ -1590,14 +1590,14 @@ GLuint GLShader::program_get()
 char *GLShader::shader_validate()
 {
   GLint success;
-  glValidateProgram(shader_program_);
-  glGetProgramiv(shader_program_, GL_VALIDATE_STATUS, &success);
+  glValidateProgram(program_active_->program_id);
+  glGetProgramiv(program_active_->program_id, GL_VALIDATE_STATUS, &success);
 
   if (success > 0) {
     GLsizei charlen;
     char *log = (char *)MEM_mallocN(success, "GPU_shader_validate");
 
-    glGetProgramInfoLog(shader_program_, success, &charlen, log);
+    glGetProgramInfoLog(program_active_->program_id, success, &charlen, log);
 
     return log;
   }
@@ -1610,14 +1610,14 @@ void GLShader::shader_bind_attributes(int *locations, const char **names, int le
     delete interface;
   }
   for (unsigned short i = 0; i < len; ++i) {
-    glBindAttribLocation(shader_program_, locations[i], names[i]);
+    glBindAttribLocation(program_active_->program_id, locations[i], names[i]);
   }
-  interface = new GLShaderInterface(shader_program_);
+  interface = new GLShaderInterface(program_active_->program_id);
 }
 
 int GLShader::shader_get_uniform_location_old(const char *name)
 {
-  int loc = glGetUniformLocation(shader_program_, name);
+  int loc = glGetUniformLocation(program_active_->program_id, name);
   return loc;
 }
 /**************End of UPBGE*************/
