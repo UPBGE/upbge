@@ -1119,7 +1119,7 @@ static bool is_minversion_older_than_blender(FileData *fd, ReportList *reports)
       }
       BKE_reportf(reports,
                   RPT_ERROR,
-                  TIP_("The file was saved by a newer version, open it with Blender %s or later"),
+                  "The file was saved by a newer version, open it with Blender %s or later",
                   min_reader_ver_str);
       CLOG_WARN(&LOG,
                 "%s: File saved by a newer version of Blender (%s), Blender %s or later is "
@@ -1183,7 +1183,7 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
                 RPT_WARNING,
                 "Unable to read '%s': %s",
                 filepath,
-                errno ? strerror(errno) : TIP_("insufficient content"));
+                errno ? strerror(errno) : RPT_("insufficient content"));
     if (rawfile) {
       rawfile->close(rawfile);
     }
@@ -1253,7 +1253,7 @@ static FileData *blo_filedata_from_file_open(const char *filepath, BlendFileRead
                 RPT_WARNING,
                 "Unable to open '%s': %s",
                 filepath,
-                errno ? strerror(errno) : TIP_("unknown error reading file"));
+                errno ? strerror(errno) : RPT_("unknown error reading file"));
     return nullptr;
   }
   return blo_filedata_from_file_descriptor(filepath, reports, file);
@@ -1293,7 +1293,7 @@ FileData *blo_filedata_from_memory(const void *mem, int memsize, BlendFileReadRe
 {
   if (!mem || memsize < SIZEOFBLENDERHEADER) {
     BKE_report(
-        reports->reports, RPT_WARNING, (mem) ? TIP_("Unable to read") : TIP_("Unable to open"));
+        reports->reports, RPT_WARNING, (mem) ? RPT_("Unable to read") : RPT_("Unable to open"));
     return nullptr;
   }
 
@@ -2301,7 +2301,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
       if (BLI_path_cmp(newmain->curlib->filepath_abs, lib->filepath_abs) == 0) {
         BLO_reportf_wrap(fd->reports,
                          RPT_WARNING,
-                         TIP_("Library '%s', '%s' had multiple instances, save and reload!"),
+                         RPT_("Library '%s', '%s' had multiple instances, save and reload!"),
                          lib->filepath,
                          lib->filepath_abs);
 
@@ -4063,7 +4063,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
 
       BLO_reportf_wrap(fd->reports,
                        RPT_WARNING,
-                       TIP_("LIB: Data refers to main .blend file: '%s' from %s"),
+                       RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
                        idname,
                        mainvar->curlib->filepath_abs);
       return;
@@ -4577,7 +4577,7 @@ static void read_library_linked_id(
   if (!is_valid) {
     BLO_reportf_wrap(basefd->reports,
                      RPT_ERROR,
-                     TIP_("LIB: %s: '%s' is directly linked from '%s' (parent '%s'), but is a "
+                     RPT_("LIB: %s: '%s' is directly linked from '%s' (parent '%s'), but is a "
                           "non-linkable data type"),
                      BKE_idtype_idcode_to_name(GS(id->name)),
                      id->name + 2,
@@ -4596,7 +4596,7 @@ static void read_library_linked_id(
   else {
     BLO_reportf_wrap(basefd->reports,
                      RPT_INFO,
-                     TIP_("LIB: %s: '%s' missing from '%s', parent '%s'"),
+                     RPT_("LIB: %s: '%s' missing from '%s', parent '%s'"),
                      BKE_idtype_idcode_to_name(GS(id->name)),
                      id->name + 2,
                      mainvar->curlib->filepath_abs,
@@ -4710,7 +4710,7 @@ static FileData *read_library_file_data(FileData *basefd,
 
     BLO_reportf_wrap(basefd->reports,
                      RPT_INFO,
-                     TIP_("Read packed library:  '%s', parent '%s'"),
+                     RPT_("Read packed library:  '%s', parent '%s'"),
                      mainptr->curlib->filepath,
                      library_parent_filepath(mainptr->curlib));
     fd = blo_filedata_from_memory(pf->data, pf->size, basefd->reports);
@@ -4722,7 +4722,7 @@ static FileData *read_library_file_data(FileData *basefd,
     /* Read file on disk. */
     BLO_reportf_wrap(basefd->reports,
                      RPT_INFO,
-                     TIP_("Read library:  '%s', '%s', parent '%s'"),
+                     RPT_("Read library:  '%s', '%s', parent '%s'"),
                      mainptr->curlib->filepath_abs,
                      mainptr->curlib->filepath,
                      library_parent_filepath(mainptr->curlib));
@@ -4763,7 +4763,7 @@ static FileData *read_library_file_data(FileData *basefd,
 
   if (fd == nullptr) {
     BLO_reportf_wrap(
-        basefd->reports, RPT_INFO, TIP_("Cannot find lib '%s'"), mainptr->curlib->filepath_abs);
+        basefd->reports, RPT_INFO, RPT_("Cannot find lib '%s'"), mainptr->curlib->filepath_abs);
     basefd->reports->count.missing_libraries++;
   }
 

@@ -832,6 +832,7 @@ const char *buttons_context_dir[] = {
     "texture",
     "texture_user",
     "texture_user_property",
+    "texture_node",
     "bone",
     "edit_bone",
     "pose_bone",
@@ -847,7 +848,9 @@ const char *buttons_context_dir[] = {
     "line_style",
     "collection",
     "gpencil",
+#ifdef WITH_GREASE_PENCIL_V3
     "grease_pencil",
+#endif
     "curves",
 #ifdef WITH_POINT_CLOUD
     "pointcloud",
