@@ -265,6 +265,14 @@ add_blender_test(
   --run-all-tests
 )
 
+add_blender_test(
+  curves_extrude
+  ${TEST_SRC_DIR}/modeling/curves_extrude.blend
+  --python ${TEST_PYTHON_DIR}/curves_extrude.py
+  --
+  --run-all-tests
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -816,6 +824,7 @@ set(geo_node_tests
   mesh
   mesh/extrude
   mesh/split_edges
+  mesh/triangulate
   points
   texture
   utilities

@@ -406,8 +406,22 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
 GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFieldContext &context,
                                                           const IndexMask & /*mask*/) const
 {
+  const AttrDomain domain = context.domain();
+  if (context.type() == GeometryComponent::Type::GreasePencil) {
+    const AttributeAccessor layer_attributes = context.grease_pencil()->attributes();
+    if (context.domain() == AttrDomain::Layer) {
+      const bool exists = layer_attributes.contains(name_);
+      const int domain_size = layer_attributes.domain_size(AttrDomain::Layer);
+      return VArray<bool>::ForSingle(exists, domain_size);
+    }
+    const greasepencil::Drawing *drawing = context.grease_pencil_layer_drawing();
+    const AttributeAccessor curve_attributes = drawing->strokes().attributes();
+    const bool exists = layer_attributes.contains(name_) || curve_attributes.contains(name_);
+    const int domain_size = curve_attributes.domain_size(domain);
+    return VArray<bool>::ForSingle(exists, domain_size);
+  }
   const bool exists = context.attributes()->contains(name_);
-  const int domain_size = context.attributes()->domain_size(context.domain());
+  const int domain_size = context.attributes()->domain_size(domain);
   return VArray<bool>::ForSingle(exists, domain_size);
 }
 
@@ -752,7 +766,8 @@ bool try_capture_field_on_geometry(GeometryComponent &component,
                                    const fn::Field<bool> &selection,
                                    const fn::GField &field)
 {
-  if (component.type() == GeometryComponent::Type::GreasePencil &&
+  const GeometryComponent::Type component_type = component.type();
+  if (component_type == GeometryComponent::Type::GreasePencil &&
       ELEM(domain, AttrDomain::Point, AttrDomain::Curve))
   {
     /* Capture the field on every layer individually. */
@@ -783,6 +798,10 @@ bool try_capture_field_on_geometry(GeometryComponent &component,
       }
     });
     return any_success;
+  }
+  if (component_type == GeometryComponent::Type::GreasePencil && domain != AttrDomain::Layer) {
+    /* The remaining code only handles the layer domain for grease pencil geometries. */
+    return false;
   }
 
   MutableAttributeAccessor attributes = *component.attributes_for_write();
