@@ -36,7 +36,7 @@
 
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
 #ifdef WITH_PYTHON

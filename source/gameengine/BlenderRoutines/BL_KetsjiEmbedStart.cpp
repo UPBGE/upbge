@@ -39,7 +39,7 @@
 #include "BKE_global.h"
 #include "BKE_main.hh"
 #include "BKE_report.h"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "ED_screen.hh"

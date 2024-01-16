@@ -36,7 +36,7 @@
 
 #include "KX_Scene.h"
 
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_mball.h"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
