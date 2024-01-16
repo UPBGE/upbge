@@ -25,7 +25,7 @@
 
 #include "BKE_animsys.h"
 #include "BKE_idprop.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 
 #include "ANIM_armature_iter.hh"
@@ -614,6 +614,9 @@ void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)
 
   BoneCollection *bcoll = armature->collection_array[index];
 
+  /* Get the active bone collection index before the armature is manipulated. */
+  const int active_collection_index = armature->runtime.active_collection_index;
+
   /* The parent needs updating, so better to find it before this bone collection is removed. */
   int parent_bcoll_index = armature_bonecoll_find_parent_index(armature, index);
   BoneCollection *parent_bcoll = parent_bcoll_index >= 0 ?
@@ -670,7 +673,6 @@ void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)
   armature->collection_array[armature->collection_array_num] = nullptr;
 
   /* Update the active BoneCollection. */
-  const int active_collection_index = armature->runtime.active_collection_index;
   if (active_collection_index >= 0) {
     /* Default: select the next sibling.
      * If there is none: select the previous sibling.

@@ -1037,9 +1037,10 @@ struct ShaderCreateInfo {
   /** \} */
 
   /* -------------------------------------------------------------------- */
-  /** \name API-specific parameters.
-   * Optional parameters exposed by specific backends to enable additional features and performance
-   * tuning.
+  /** \name API-Specific Parameters
+   *
+   * Optional parameters exposed by specific back-ends to enable additional features and
+   * performance tuning.
    * NOTE: These functions can be exposed as a pass-through on unsupported configurations.
    * \{ */
 
@@ -1050,6 +1051,8 @@ struct ShaderCreateInfo {
   {
 #ifdef WITH_METAL_BACKEND
     mtl_max_threads_per_threadgroup_ = max_total_threads_per_threadgroup;
+#else
+    UNUSED_VARS(max_total_threads_per_threadgroup);
 #endif
     return *(Self *)this;
   }

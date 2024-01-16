@@ -56,7 +56,7 @@
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_linestyle.h"
 #include "BKE_main.hh"
@@ -7293,6 +7293,12 @@ static void uiTemplateRecentFiles_tooltip_func(bContext * /*C*/, uiTooltipData *
   BLI_path_split_dir_part(path, root, FILE_MAX);
   UI_tooltip_text_field_add(tip, BLI_strdup(root), nullptr, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
   UI_tooltip_text_field_add(tip, nullptr, nullptr, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+
+  if (!BLI_exists(path)) {
+    UI_tooltip_text_field_add(
+        tip, BLI_strdup(N_("File Not Found")), nullptr, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
+    return;
+  }
 
   /* Blender version. */
   char version_st[128] = {0};

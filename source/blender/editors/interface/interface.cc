@@ -1501,8 +1501,8 @@ static bool ui_but_event_property_operator_string(const bContext *C,
 {
   /* Context toggle operator names to check. */
 
-  /* This function could use a refactor to generalize button type to operator relationship
-   * as well as which operators use properties. - Campbell */
+  /* NOTE(@ideasman42): This function could use a refactor to generalize button type to operator
+   * relationship as well as which operators use properties. */
   const char *ctx_toggle_opnames[] = {
       "WM_OT_context_toggle",
       "WM_OT_context_toggle_enum",
@@ -7096,8 +7096,11 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
         }
       }
     }
+    /* NOTE: Menus will already have their shortcuts displayed.
+     * Pie menus are an exception as they already have a shortcut on display
+     * however this is only used within the context of the pie menu. */
     else if (type == BUT_GET_OP_KEYMAP) {
-      if (!ui_block_is_menu(but->block)) {
+      if (!(ui_block_is_menu(but->block) && !ui_block_is_pie_menu(but->block))) {
         char buf[128];
         if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
           tmp = BLI_strdup(buf);

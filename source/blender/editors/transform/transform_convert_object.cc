@@ -16,7 +16,7 @@
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
@@ -550,8 +550,8 @@ static void createTransObject(bContext *C, TransInfo *t)
         td->flag |= TD_SKIP;
       }
       else if (BKE_object_is_in_editmode(ob)) {
-        /* The object could have edit-mode data from another view-layer,
-         * it's such a corner-case it can be skipped for now - Campbell. */
+        /* NOTE(@ideasman42): The object could have edit-mode data from another view-layer,
+         * it's such a corner-case it can be skipped for now. */
         td->flag |= TD_SKIP;
       }
     }

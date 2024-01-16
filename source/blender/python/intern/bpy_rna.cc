@@ -5304,7 +5304,7 @@ static int foreach_parse_args(BPy_PropertyRNA *self,
                               const char **r_attr,
                               PyObject **r_seq,
                               int *r_tot,
-                              int *r_size,
+                              size_t *r_size,
                               RawPropertyType *r_raw_type,
                               int *r_attr_tot,
                               bool *r_attr_signed)
@@ -5466,7 +5466,8 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
   /* Get/set both take the same args currently. */
   const char *attr;
   PyObject *seq;
-  int tot, size, attr_tot;
+  int tot, attr_tot;
+  size_t size;
   bool attr_signed;
   RawPropertyType raw_type;
 
@@ -5718,6 +5719,8 @@ static PyObject *pyprop_array_foreach_getset(BPy_PropertyArrayRNA *self,
     return nullptr;
   }
 
+  /* NOTE: in this case it's important to use the flat-array size and *not* the result of
+   * `len()`, which uses #pyrna_prop_array_length, see !116457 for details. */
   size = RNA_property_array_length(&self->ptr, self->prop);
   seq_size = PySequence_Size(seq);
 
@@ -8949,13 +8952,13 @@ void pyrna_free_types()
 /**
  * \warning memory leak!
  *
- * There is currently a bug where moving the registration of a Python class does
+ * NOTE(@ideasman42): There is currently a bug where moving the registration of a Python class does
  * not properly manage reference-counts from the Python class. As the `srna` owns
  * the Python class this should not be so tricky, but changing the references as
  * you'd expect when changing ownership crashes blender on exit so I had to comment out
  * the #Py_DECREF. This is not so bad because the leak only happens when re-registering
  * (continuously running `SCRIPT_OT_reload`).
- * - Should still be fixed - Campbell
+ * This should still be fixed.
  */
 PyDoc_STRVAR(pyrna_register_class_doc,
              ".. function:: register_class(cls)\n"

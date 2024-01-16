@@ -72,7 +72,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -82,7 +82,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 #include "BKE_workspace.h"
 
 #include "BLO_undofile.hh" /* to save from an undo memfile */
@@ -3585,7 +3585,7 @@ static void wm_clear_recent_files_confirm(bContext * /*C*/,
                                           wmOperator * /*op*/,
                                           wmConfirmDetails *confirm)
 {
-  STRNCPY(confirm->message, IFACE_("Remove all items from the Recent Files list"));
+  STRNCPY(confirm->message, IFACE_("Remove all items from the recent files list"));
   STRNCPY(confirm->confirm_button, IFACE_("Remove All"));
   confirm->position = WM_WARNING_POSITION_CENTER;
   confirm->size = WM_WARNING_SIZE_LARGE;
@@ -3604,7 +3604,7 @@ void WM_OT_clear_recent_files(wmOperatorType *ot)
 {
   ot->name = "Clear Recent Files List";
   ot->idname = "WM_OT_clear_recent_files";
-  ot->description = "Clear the Recent Files List";
+  ot->description = "Clear the recent files list";
 
   ot->invoke = WM_operator_confirm;
   ot->exec = wm_clear_recent_files_exec;

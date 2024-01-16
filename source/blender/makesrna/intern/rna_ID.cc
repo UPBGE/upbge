@@ -17,7 +17,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_icons.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_object.hh"
 
@@ -286,7 +286,7 @@ void rna_ID_name_set(PointerRNA *ptr, const char *value)
   BKE_main_namemap_remove_name(G_MAIN, id, id->name + 2);
   BLI_strncpy_utf8(id->name + 2, value, sizeof(id->name) - 2);
   BLI_assert(BKE_id_is_in_global_main(id));
-  BLI_libblock_ensure_unique_name(G_MAIN, id->name);
+  BKE_libblock_ensure_unique_name(G_MAIN, id);
 
   if (GS(id->name) == ID_OB) {
     Object *ob = (Object *)id;
