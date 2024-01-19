@@ -34,7 +34,7 @@
 
 #include "BKE_appdir.h"
 #include "BKE_context.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_python_proxy.hh"
 #include "BKE_report.h"

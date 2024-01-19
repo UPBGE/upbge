@@ -47,7 +47,7 @@
 
 #include "BKE_global.h"
 #include "BKE_lib_id.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_sca.hh"
 
