@@ -107,7 +107,7 @@
 #include "BKE_lattice.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_light.h"
 #include "BKE_lightprobe.h"
@@ -681,7 +681,6 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 }
 
-
 static void write_properties(BlendWriter *writer, ListBase *lb)
 {
   bProperty *prop;
@@ -894,6 +893,22 @@ static void write_proxies(BlendWriter *writer, ListBase *lb)
     write_proxy(writer, pp);
 
     pp = pp->next;
+  }
+}
+
+static void object_foreach_cache(ID *id,
+                                 IDTypeForeachCacheFunctionCallback function_callback,
+                                 void *user_data)
+{
+  Object *ob = reinterpret_cast<Object *>(id);
+  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+    if (const ModifierTypeInfo *info = BKE_modifier_get_info(ModifierType(md->type))) {
+      if (info->foreach_cache) {
+        info->foreach_cache(ob, md, [&](const IDCacheKey &cache_key, void **cache_p, uint flags) {
+          function_callback(id, &cache_key, cache_p, flags, user_data);
+        });
+      }
+    }
   }
 }
 
@@ -1496,7 +1511,7 @@ IDTypeInfo IDType_ID_OB = {
     /*free_data*/ object_free_data,
     /*make_local*/ nullptr,
     /*foreach_id*/ object_foreach_id,
-    /*foreach_cache*/ nullptr,
+    /*foreach_cache*/ object_foreach_cache,
     /*foreach_path*/ object_foreach_path,
     /*owner_pointer_get*/ nullptr,
 
