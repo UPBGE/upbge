@@ -16,9 +16,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "PIL_time.h"
-
 #include "BLI_blenlib.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -1792,7 +1791,7 @@ static void ui_do_animate(bContext *C, Panel *panel)
   uiHandlePanelData *data = static_cast<uiHandlePanelData *>(panel->activedata);
   ARegion *region = CTX_wm_region(C);
 
-  float fac = (PIL_check_seconds_timer() - data->starttime) / ANIMATION_TIME;
+  float fac = (BLI_check_seconds_timer() - data->starttime) / ANIMATION_TIME;
   fac = min_ff(sqrtf(fac), 1.0f);
 
   if (uiAlignPanelStep(region, fac, false)) {
@@ -2455,10 +2454,9 @@ int ui_handler_panel_region(bContext *C,
     if (panel == nullptr || panel->type == nullptr) {
       continue;
     }
-    /* We can't expand or collapse panels without headers, they would disappear. */
-    if (panel->type->flag & PANEL_TYPE_NO_HEADER) {
-      continue;
-    }
+    /* We can't expand or collapse panels without headers, they would disappear. Layout panels can
+     * be expanded and collpased though. */
+    const bool has_panel_header = !(panel->type->flag & PANEL_TYPE_NO_HEADER);
 
     int mx = event->xy[0];
     int my = event->xy[1];
@@ -2466,7 +2464,7 @@ int ui_handler_panel_region(bContext *C,
 
     const uiPanelMouseState mouse_state = ui_panel_mouse_state_get(block, panel, mx, my);
 
-    if (mouse_state != PANEL_MOUSE_OUTSIDE) {
+    if (has_panel_header && mouse_state != PANEL_MOUSE_OUTSIDE) {
       /* Mark panels that have been interacted with so their expansion
        * doesn't reset when property search finishes. */
       SET_FLAG_FROM_TEST(panel->flag, UI_panel_is_closed(panel), PNL_CLOSED);
@@ -2489,7 +2487,7 @@ int ui_handler_panel_region(bContext *C,
       continue;
     }
 
-    if (mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
+    if (has_panel_header && mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
       /* All mouse clicks inside panel headers should return in break. */
       if (ELEM(event->type, EVT_RETKEY, EVT_PADENTER, LEFTMOUSE)) {
         retval = WM_UI_HANDLER_BREAK;
@@ -2651,7 +2649,7 @@ static void panel_handle_data_ensure(const bContext *C,
   data->startofsy = panel->ofsy;
   data->start_cur_xmin = region->v2d.cur.xmin;
   data->start_cur_ymin = region->v2d.cur.ymin;
-  data->starttime = PIL_check_seconds_timer();
+  data->starttime = BLI_check_seconds_timer();
 }
 
 /**

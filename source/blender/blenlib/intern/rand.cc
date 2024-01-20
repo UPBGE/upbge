@@ -18,6 +18,7 @@
 #include "BLI_rand.h"
 #include "BLI_rand.hh"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 
 /* defines BLI_INLINE */
 #include "BLI_compiler_compat.h"
@@ -362,6 +363,12 @@ void BLI_hammersley_2d_sequence(uint n, double *r)
 }
 
 namespace blender {
+
+RandomNumberGenerator RandomNumberGenerator::from_random_seed()
+{
+  const double time = BLI_check_seconds_timer() * 1000000.0;
+  return RandomNumberGenerator(*reinterpret_cast<const uint32_t *>(&time));
+}
 
 void RandomNumberGenerator::seed_random(uint32_t seed)
 {

@@ -22,8 +22,6 @@
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
-#include "PIL_time.h"
-
 #include "BLT_translation.h"
 
 #include "BKE_action.h"
@@ -884,7 +882,7 @@ static void update_nested_node_refs_after_moving_nodes_into_group(
     const Map<int32_t, int32_t> &node_identifier_map)
 {
   /* Update nested node references in the parent and child node tree. */
-  RandomNumberGenerator rng(PIL_check_seconds_timer_i() & UINT_MAX);
+  RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
   Vector<bNestedNodeRef> new_nested_node_refs;
   /* Keep all nested node references that were in the group before. */
   for (const bNestedNodeRef &ref : group.nested_node_refs_span()) {

@@ -558,11 +558,8 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
     if (value == TFM_MODAL_EDIT_SNAP_SOURCE_OFF) {
       return true;
     }
-    else if (!ELEM(value,
-                   TFM_MODAL_CANCEL,
-                   TFM_MODAL_CONFIRM,
-                   TFM_MODAL_ADD_SNAP,
-                   TFM_MODAL_REMOVE_SNAP))
+    if (!ELEM(
+            value, TFM_MODAL_CANCEL, TFM_MODAL_CONFIRM, TFM_MODAL_ADD_SNAP, TFM_MODAL_REMOVE_SNAP))
     {
       return false;
     }
@@ -1592,7 +1589,7 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
      *   for objects that will be auto-keyframed (no point otherwise),
      *   AND only for the active region (as showing all is too overwhelming)
      */
-    if ((U.autokey_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
+    if ((U.keying_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
       if (region == t->region) {
         if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
           if (ob && blender::animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {

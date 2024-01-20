@@ -56,8 +56,7 @@
 #include "BLI_memarena.h"
 #include "BLI_mempool.h"
 #include "BLI_threads.h"
-
-#include "PIL_time.h"
+#include "BLI_time.h"
 
 #include "BLT_translation.h"
 
@@ -3754,7 +3753,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   }
 
   if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
-    fd->reports->duration.libraries = PIL_check_seconds_timer();
+    fd->reports->duration.libraries = BLI_check_seconds_timer();
     read_libraries(fd, &mainlist);
 
     blo_join_main(&mainlist);
@@ -3769,7 +3768,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       read_undo_remap_noundo_data(fd);
     }
 
-    fd->reports->duration.libraries = PIL_check_seconds_timer() - fd->reports->duration.libraries;
+    fd->reports->duration.libraries = BLI_check_seconds_timer() - fd->reports->duration.libraries;
 
     /* Skip in undo case. */
     if ((fd->flags & FD_FLAGS_IS_MEMFILE) == 0) {
@@ -3827,7 +3826,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
      * we can re-generate overrides from their references. */
     if ((fd->flags & FD_FLAGS_IS_MEMFILE) == 0) {
       /* Do not apply in undo case! */
-      fd->reports->duration.lib_overrides = PIL_check_seconds_timer();
+      fd->reports->duration.lib_overrides = BLI_check_seconds_timer();
 
       std::string cur_view_layer_name = bfd->cur_view_layer != nullptr ?
                                             bfd->cur_view_layer->name :
@@ -3848,7 +3847,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
        * Proper fix involves first addressing #90610. */
       BKE_main_collections_parent_relations_rebuild(bfd->main);
 
-      fd->reports->duration.lib_overrides = PIL_check_seconds_timer() -
+      fd->reports->duration.lib_overrides = BLI_check_seconds_timer() -
                                             fd->reports->duration.lib_overrides;
     }
 

@@ -28,12 +28,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
-#include "IMB_moviecache.h"
-#include "IMB_openexr.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_metadata.hh"
+#include "IMB_moviecache.hh"
+#include "IMB_openexr.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -56,6 +56,7 @@
 #include "BLI_system.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "BLI_timecode.h" /* For stamp time-code format. */
 #include "BLI_utildefines.h"
 
@@ -80,8 +81,6 @@
 #include "BKE_workspace.h"
 
 #include "BLF_api.h"
-
-#include "PIL_time.h"
 
 #include "RE_pipeline.h"
 
@@ -1485,7 +1484,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
 
 void BKE_image_tag_time(Image *ima)
 {
-  ima->lastused = PIL_check_seconds_timer_i();
+  ima->lastused = BLI_check_seconds_timer_i();
 }
 
 static uintptr_t image_mem_size(Image *image)
