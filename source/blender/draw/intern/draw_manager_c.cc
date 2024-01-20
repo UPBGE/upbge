@@ -3504,6 +3504,7 @@ void DRW_gpu_context_activate(bool drw_state)
 #include "engines/eevee/eevee_private.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
+#include "IMB_colormanagement.hh"
 
 /*--UPBGE Viewport Debug Drawing --*/
 

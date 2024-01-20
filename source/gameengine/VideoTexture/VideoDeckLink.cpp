@@ -34,7 +34,7 @@
 #  include "KX_KetsjiEngine.h"
 #  include "KX_PythonInit.h"
 #  include "MEM_guardedalloc.h"
-#  include "PIL_time.h"
+#  include "BLI_time.h"
 #  include "VideoDeckLink.h"
 
 extern ExceptionID DeckLinkInternalError;

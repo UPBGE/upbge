@@ -26,7 +26,7 @@
 
 #include "KX_LibLoadStatus.h"
 
-#include "PIL_time.h"
+#include "BLI_time.h"
 
 KX_LibLoadStatus::KX_LibLoadStatus(class BL_Converter *kx_converter,
                                    class KX_KetsjiEngine *kx_engine,
@@ -45,14 +45,14 @@ KX_LibLoadStatus::KX_LibLoadStatus(class BL_Converter *kx_converter,
       m_progress_cb(nullptr)
 #endif
 {
-  m_endtime = m_starttime = PIL_check_seconds_timer();
+  m_endtime = m_starttime = BLI_check_seconds_timer();
 }
 
 void KX_LibLoadStatus::Finish()
 {
   m_finished = true;
   m_progress = 1.f;
-  m_endtime = PIL_check_seconds_timer();
+  m_endtime = BLI_check_seconds_timer();
 
   RunFinishCallback();
   RunProgressCallback();

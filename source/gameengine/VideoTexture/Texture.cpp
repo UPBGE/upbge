@@ -16,8 +16,8 @@
 #include "DNA_material_types.h"
 #include <epoxy/gl.h>
 #include "GPU_texture.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "KX_GameObject.h"
 #include "KX_Globals.h"

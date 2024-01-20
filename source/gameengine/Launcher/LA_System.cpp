@@ -28,11 +28,11 @@
 
 #include "LA_System.h"
 
-#include "PIL_time.h"
+#include "BLI_time.h"
 
 LA_System::LA_System()
 {
-  m_starttime = PIL_check_seconds_timer();
+  m_starttime = BLI_check_seconds_timer();
 }
 
 LA_System::~LA_System()
@@ -41,5 +41,5 @@ LA_System::~LA_System()
 
 double LA_System::GetTimeInSeconds()
 {
-  return PIL_check_seconds_timer() - m_starttime;
+  return BLI_check_seconds_timer() - m_starttime;
 }

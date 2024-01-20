@@ -22,7 +22,7 @@
 #  include "MEM_guardedalloc.h"
 
 #  include "Exception.h"
-#  include "PIL_time.h"
+#  include "BLI_time.h"
 
 
 extern "C" {
@@ -464,7 +464,7 @@ void *VideoFFmpeg::cacheThread(void *data)
       }
     }
     // small sleep to avoid unnecessary looping
-    PIL_sleep_ms(10);
+    BLI_sleep_ms(10);
   }
   // before quitting, put back the current frame to queue to allow freeing
   if (currentFrame) {
@@ -763,7 +763,7 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
 {
   if (m_status == SourcePlaying) {
     // get actual time
-    double startTime = PIL_check_seconds_timer();
+    double startTime = BLI_check_seconds_timer();
     double actTime;
     // timestamp passed from audio actuators can sometimes be slightly negative
     if (m_isFile && ts >= -0.5) {
@@ -808,7 +808,7 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
       if ((frame = grabFrame(actFrame)) != nullptr) {
         if (!m_isFile && !m_cacheStarted) {
           // streaming without cache: detect synchronization problem
-          double execTime = PIL_check_seconds_timer() - startTime;
+          double execTime = BLI_check_seconds_timer() - startTime;
           if (execTime > 0.005) {
             // exec time is too long, it means that the function was blocking
             // resynchronize the stream from this time
@@ -844,7 +844,7 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
 void VideoFFmpeg::setPositions(void)
 {
   // set video start time
-  m_startTime = PIL_check_seconds_timer();
+  m_startTime = BLI_check_seconds_timer();
   // if file is played and actual position is before end position
   if (!m_eof && m_lastFrame >= 0 && (!m_isFile || m_lastFrame < m_range[1] * actFrameRate()))
     // continue from actual position

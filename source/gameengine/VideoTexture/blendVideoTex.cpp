@@ -10,7 +10,7 @@
 #include "Texture.h"
 #include "VideoBase.h"
 
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 #include "KX_PythonInit.h" // to find PyMODINIT_FUNC initVideoTexturePythonBinding(void) declaration
 

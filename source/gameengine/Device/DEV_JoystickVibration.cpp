@@ -29,7 +29,7 @@
 #include "CM_Message.h"
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
-#include "PIL_time.h"  // Module to get real time in Game Engine
+#include "BLI_time.h"  // Module to get real time in Game Engine
 
 bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned int duration)
 {
@@ -167,7 +167,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
       return false;
     }
   }
-  m_private->m_hapticEndTime = PIL_check_seconds_timer() * 1000.0 + (double)duration;
+  m_private->m_hapticEndTime = BLI_check_seconds_timer() * 1000.0 + (double)duration;
   return true;
 #endif  // WITH_SDL
   return false;
@@ -215,7 +215,7 @@ void DEV_Joystick::ProcessRumbleStatus()
     return;
   }
 
-  if ((PIL_check_seconds_timer() * 1000.0) >= m_private->m_hapticEndTime) {
+  if ((BLI_check_seconds_timer() * 1000.0) >= m_private->m_hapticEndTime) {
     RumbleStop();
   }
 #endif

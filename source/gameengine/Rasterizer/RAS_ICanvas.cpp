@@ -30,8 +30,8 @@
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "DNA_scene_types.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 #include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
