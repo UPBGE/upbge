@@ -2917,7 +2917,7 @@ void logic_buttons(bContext *C, ARegion *region)
     }
   }
   UI_block_layout_resolve(block, nullptr, &yco); /* stores final height in yco */
-  height = MIN2(height, yco);
+  height = std::min(height, yco);
 
   /* ****************** Actuators ****************** */
 
@@ -3031,7 +3031,7 @@ void logic_buttons(bContext *C, ARegion *region)
     }
   }
   UI_block_layout_resolve(block, nullptr, &yco); /* stores final height in yco */
-  height = MIN2(height, yco);
+  height = std::min(height, yco);
 
   UI_view2d_totRect_set(&region->v2d, 57.5f * U.widget_unit, height - U.widget_unit);
 

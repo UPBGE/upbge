@@ -35,7 +35,7 @@
 #  include <SDL.h>
 #endif
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BLI_path_util.h"
 
 #include "CM_Message.h"

@@ -32,7 +32,7 @@
 #include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"

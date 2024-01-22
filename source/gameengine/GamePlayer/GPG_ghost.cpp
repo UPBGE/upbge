@@ -37,7 +37,7 @@
 #endif   /* __linux__ */
 
 #include "BKE_addon.h"
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_blender.h"
 #include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
@@ -47,7 +47,7 @@
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_icons.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image.h"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
