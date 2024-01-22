@@ -27,7 +27,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_layer.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -2572,7 +2572,7 @@ static int ui_drop_material_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
 
-  Material *ma = (Material *)WM_operator_properties_id_lookup_from_name_or_session_uuid(
+  Material *ma = (Material *)WM_operator_properties_id_lookup_from_name_or_session_uid(
       bmain, op->ptr, ID_MA);
   if (ma == nullptr) {
     return OPERATOR_CANCELLED;

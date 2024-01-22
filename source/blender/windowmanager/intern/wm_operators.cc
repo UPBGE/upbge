@@ -9,6 +9,7 @@
  * as well as some generic operators and shared operator properties.
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cfloat>
@@ -62,7 +63,7 @@
 #include "BKE_screen.hh" /* BKE_ST_MAXNAME */
 #include "BKE_unit.hh"
 
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 
 #include "BLF_api.h"
 
@@ -1245,18 +1246,18 @@ static uiBlock *wm_block_confirm_create(bContext *C, ARegion *region, void *arg_
   UI_block_flag_enable(block, block_flags);
 
   const uiStyle *style = UI_style_get_dpi();
-  int text_width = MAX2(
+  int text_width = std::max(
       120 * UI_SCALE_FAC,
       BLF_width(style->widget.uifont_id, confirm.title, ARRAY_SIZE(confirm.title)));
   if (confirm.message[0]) {
-    text_width = MAX2(
+    text_width = std::max(
         text_width,
-        BLF_width(style->widget.uifont_id, confirm.message, ARRAY_SIZE(confirm.message)));
+        int(BLF_width(style->widget.uifont_id, confirm.message, ARRAY_SIZE(confirm.message))));
   }
   if (confirm.message2[0]) {
-    text_width = MAX2(
+    text_width = std::max(
         text_width,
-        BLF_width(style->widget.uifont_id, confirm.message2, ARRAY_SIZE(confirm.message2)));
+        int(BLF_width(style->widget.uifont_id, confirm.message2, ARRAY_SIZE(confirm.message2))));
   }
 
   const bool small = confirm.size == WM_WARNING_SIZE_SMALL;
@@ -1564,7 +1565,7 @@ ID *WM_operator_drop_load_path(bContext *C, wmOperator *op, const short idcode)
   }
 
   /* Lookup an already existing ID. */
-  id = WM_operator_properties_id_lookup_from_name_or_session_uuid(bmain, op->ptr, ID_Type(idcode));
+  id = WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_Type(idcode));
 
   if (!id) {
     /* Print error with the name if the name is available. */

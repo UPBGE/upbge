@@ -66,7 +66,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_global.h"
 #include "BKE_icons.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BKE_lib_id.hh"
@@ -235,7 +235,7 @@ static void image_foreach_cache(ID *id,
 {
   Image *image = (Image *)id;
   IDCacheKey key;
-  key.id_session_uuid = id->session_uuid;
+  key.id_session_uid = id->session_uid;
   key.identifier = offsetof(Image, cache);
   function_callback(id, &key, (void **)&image->cache, 0, user_data);
 

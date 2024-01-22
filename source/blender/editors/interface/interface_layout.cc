@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstdlib>
@@ -4302,7 +4303,7 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
   int totitem = 0;
   LISTBASE_FOREACH (uiItem *, item, &litem->items) {
     ui_item_size(item, &itemw, &itemh);
-    maxw = MAX2(maxw, itemw);
+    maxw = std::max(maxw, itemw);
     toth += itemh;
     totitem++;
   }
@@ -6166,7 +6167,7 @@ static bool ui_layout_has_panel_label(const uiLayout *layout, const PanelType *p
     if (subitem->type == ITEM_BUTTON) {
       uiButtonItem *bitem = (uiButtonItem *)subitem;
       if (!(bitem->but->flag & UI_HIDDEN) &&
-          STREQ(bitem->but->str.c_str(), CTX_IFACE_(pt->translation_context, pt->label)))
+          bitem->but->str == CTX_IFACE_(pt->translation_context, pt->label))
       {
         return true;
       }
@@ -6382,7 +6383,7 @@ uiLayout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon)
 {
   const uiStyle *style = UI_style_get_dpi();
   const short icon_size = 64 * UI_SCALE_FAC;
-  const int text_points_max = MAX2(style->widget.points, style->widgetlabel.points);
+  const int text_points_max = std::max(style->widget.points, style->widgetlabel.points);
   const int dialog_width = icon_size + (text_points_max * size * UI_SCALE_FAC);
   /* By default, the space between icon and text/buttons will be equal to the 'columnspace',
    * this extra padding will add some space by increasing the left column width,

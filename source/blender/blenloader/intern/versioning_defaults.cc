@@ -45,7 +45,7 @@
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"  // UPBGE
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
