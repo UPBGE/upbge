@@ -73,11 +73,12 @@ void DEV_Joystick::Init()
 
   if (success) {
     /* Game controller data base loading */
-    const char *path = BKE_appdir_folder_id(BLENDER_DATAFILES, "gamecontroller");
+    const std::optional<std::string> path = BKE_appdir_folder_id(BLENDER_DATAFILES,
+                                                                 "gamecontroller");
 
-    if (path) {
+    if (path.has_value()) {
       char fullpath[FILE_MAX];
-      BLI_path_join(fullpath, sizeof(fullpath), path, "gamecontrollerdb.txt");
+      BLI_path_join(fullpath, sizeof(fullpath), path->c_str(), "gamecontrollerdb.txt");
 
       if ((SDL_GameControllerAddMappingsFromFile(fullpath)) == -1) {
         CM_Warning(

@@ -42,6 +42,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
+#include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -339,7 +340,7 @@ static void do_logic_buts(bContext *C, void */*arg*/, int event)
               if (sa->sound)
                 id_us_min(((ID *)sa->sound));
 
-              sa->sound = (struct bSound *)sound;
+              sa->sound = (bSound *)sound;
 
               if (sound) {
                 id_us_plus(sound);

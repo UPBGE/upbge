@@ -720,8 +720,9 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   text = BKE_text_add(maggie, filename);
 
-  BLI_strncpy(
-      respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir), sizeof(respath));
+  const std::optional<std::string> template_path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS,
+                                                                        template_dir);
+  BLI_strncpy(respath, template_path->c_str(), sizeof(respath));
   BLI_path_append(respath, sizeof(respath), template_name);
 
   orgfilecontent = (unsigned char *)BLI_file_read_text_as_mem(respath, 0, &filesize);

@@ -2174,8 +2174,9 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
 
     /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
     {
-      const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
-      if (py_path_bundle != NULL) {
+      const std::optional<std::string> py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON,
+                                                                             NULL);
+      if (py_path_bundle.has_value()) {
 
 #  ifdef __APPLE__
         /* Mac-OS allows file/directory names to contain `:` character
@@ -2188,7 +2189,7 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
         }
 #  endif /* __APPLE__ */
 
-        status = PyConfig_SetBytesString(&config, &config.home, py_path_bundle);
+        status = PyConfig_SetBytesString(&config, &config.home, py_path_bundle->c_str());
         pystatus_exit_on_error(status);
       }
       else {
@@ -2416,8 +2417,9 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
 
     /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
     {
-      const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
-      if (py_path_bundle != NULL) {
+      const std::optional<std::string> py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON,
+                                                                             NULL);
+      if (py_path_bundle.has_value()) {
 
 #  ifdef __APPLE__
         /* Mac-OS allows file/directory names to contain `:` character
@@ -2430,7 +2432,7 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
         }
 #  endif /* __APPLE__ */
 
-        status = PyConfig_SetBytesString(&config, &config.home, py_path_bundle);
+        status = PyConfig_SetBytesString(&config, &config.home, py_path_bundle->c_str());
         pystatus_exit_on_error(status);
       }
       else {
@@ -2559,7 +2561,9 @@ void createPythonConsole()
 {
   // Use an external file, by this way the user can modify it.
   char filepath[FILE_MAX];
-  BLI_strncpy(filepath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "bge"), sizeof(filepath));
+  const std::optional<std::string> bge_folder_path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS,
+                                                                          "bge");
+  BLI_strncpy(filepath, bge_folder_path->c_str(), sizeof(filepath));
   BLI_path_append(filepath, sizeof(filepath), "interpreter.py");
 
   FILE *fp = fopen(filepath, "r+");
