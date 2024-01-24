@@ -10,18 +10,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <random>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_compiler_compat.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 #include "BLI_rand.hh"
 #include "BLI_threads.h"
-#include "BLI_time.h"
-
-/* defines BLI_INLINE */
-#include "BLI_compiler_compat.h"
 
 #include "BLI_strict_flags.h"
 #include "BLI_sys_types.h"
@@ -366,8 +364,11 @@ namespace blender {
 
 RandomNumberGenerator RandomNumberGenerator::from_random_seed()
 {
-  const double time = BLI_check_seconds_timer() * 1000000.0;
-  return RandomNumberGenerator(*reinterpret_cast<const uint32_t *>(&time));
+  std::random_device rd;
+  std::mt19937 e{rd()};
+  std::uniform_int_distribution<uint32_t> dist;
+  const uint32_t seed = dist(e);
+  return RandomNumberGenerator(seed);
 }
 
 void RandomNumberGenerator::seed_random(uint32_t seed)

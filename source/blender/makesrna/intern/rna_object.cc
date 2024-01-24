@@ -39,7 +39,7 @@
 #include "BKE_collection.h"
 #include "BKE_editlattice.h"
 #include "BKE_editmesh.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
 #include "BKE_python_proxy.hh"
