@@ -60,7 +60,7 @@
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_mesh.hh"

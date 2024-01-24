@@ -318,3 +318,12 @@ void MESH_OT_customdata_skin_add(wmOperatorType *ot);
 void MESH_OT_customdata_skin_clear(wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_add(wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_clear(wmOperatorType *ot);
+
+/* UPBGE */
+/* *** mesh_navmesh.c *** */
+void MESH_OT_navmesh_make(wmOperatorType *ot);
+void MESH_OT_navmesh_face_copy(wmOperatorType *ot);
+void MESH_OT_navmesh_face_add(wmOperatorType *ot);
+void MESH_OT_navmesh_reset(wmOperatorType *ot);
+void MESH_OT_navmesh_clear(wmOperatorType *ot);
+/**********/
