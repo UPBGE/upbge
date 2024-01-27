@@ -1837,7 +1837,7 @@ int main(int argc,
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
   ED_preview_restart_queue_free();
-  ED_assetlist_storage_exit();
+  blender::ed::asset::list::storage_exit();
 
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
