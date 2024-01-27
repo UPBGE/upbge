@@ -2884,10 +2884,10 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
       ToolSettings *ts = scene->toolsettings;
 
       /* Ensure new Paint modes. */
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_GPENCIL);
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_VERTEX_GPENCIL);
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_SCULPT_GPENCIL);
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_WEIGHT_GPENCIL);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::GPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::VertexGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::SculptGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::WeightGPencil);
 
       /* Set default Draw brush. */
       if (brush != nullptr) {
@@ -2928,9 +2928,9 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
     /* Reset all grease pencil brushes. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       /* Ensure new Paint modes. */
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_VERTEX_GPENCIL);
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_SCULPT_GPENCIL);
-      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_WEIGHT_GPENCIL);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::VertexGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::SculptGPencil);
+      BKE_paint_ensure_from_paintmode(scene, PaintMode::WeightGPencil);
     }
   }
 
@@ -4888,7 +4888,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      arm->flag &= ~(ARM_FLAG_UNUSED_1 | ARM_DRAW_RELATION_FROM_HEAD | ARM_FLAG_UNUSED_6 |
+      arm->flag &= ~(ARM_FLAG_UNUSED_1 | ARM_DRAW_RELATION_FROM_HEAD | ARM_BCOLL_SOLO_ACTIVE |
                      ARM_FLAG_UNUSED_7 | ARM_FLAG_UNUSED_12);
     }
 
@@ -5367,7 +5367,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      arm->flag &= ~(ARM_FLAG_UNUSED_6);
+      arm->flag &= ~(ARM_BCOLL_SOLO_ACTIVE);
     }
   }
 
