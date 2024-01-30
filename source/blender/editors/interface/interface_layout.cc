@@ -1286,7 +1286,7 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
 
   /* assign properties */
   if (properties || r_opptr) {
-    PointerRNA *opptr = UI_but_operator_ptr_get(but);
+    PointerRNA *opptr = UI_but_operator_ptr_ensure(but);
     if (properties) {
       opptr->data = properties;
     }
@@ -4974,10 +4974,10 @@ uiLayout *uiLayoutRow(uiLayout *layout, bool align)
   return litem;
 }
 
-PanelLayout uiLayoutPanelWithHeader(const bContext *C,
-                                    uiLayout *layout,
-                                    PointerRNA *open_prop_owner,
-                                    const char *open_prop_name)
+PanelLayout uiLayoutPanelProp(const bContext *C,
+                              uiLayout *layout,
+                              PointerRNA *open_prop_owner,
+                              const char *open_prop_name)
 {
   const ARegion *region = CTX_wm_region(C);
 
@@ -5035,14 +5035,40 @@ PanelLayout uiLayoutPanelWithHeader(const bContext *C,
   return panel_layout;
 }
 
+uiLayout *uiLayoutPanelProp(const bContext *C,
+                            uiLayout *layout,
+                            PointerRNA *open_prop_owner,
+                            const char *open_prop_name,
+                            const char *label)
+{
+  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
+  uiItemL(panel.header, label, ICON_NONE);
+
+  return panel.body;
+}
+
+PanelLayout uiLayoutPanel(const bContext *C,
+                          uiLayout *layout,
+                          const char *idname,
+                          const bool default_closed)
+{
+  Panel *panel = uiLayoutGetRootPanel(layout);
+  BLI_assert(panel != nullptr);
+
+  LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(panel, idname, default_closed);
+  PointerRNA state_ptr = RNA_pointer_create(nullptr, &RNA_LayoutPanelState, state);
+
+  return uiLayoutPanelProp(C, layout, &state_ptr, "is_open");
+}
+
 uiLayout *uiLayoutPanel(const bContext *C,
                         uiLayout *layout,
-                        const char *name,
-                        PointerRNA *open_prop_owner,
-                        const char *open_prop_name)
+                        const char *idname,
+                        const bool default_closed,
+                        const char *label)
 {
-  PanelLayout panel = uiLayoutPanelWithHeader(C, layout, open_prop_owner, open_prop_name);
-  uiItemL(panel.header, name, ICON_NONE);
+  PanelLayout panel = uiLayoutPanel(C, layout, idname, default_closed);
+  uiItemL(panel.header, label, ICON_NONE);
 
   return panel.body;
 }
@@ -6287,25 +6313,23 @@ static void ui_layout_introspect_button(DynStr *ds, uiButtonItem *bitem)
   BLI_dynstr_appendf(ds, "'tip':'''%s''', ", but->tip ? but->tip : "");
 
   if (but->optype) {
-    char *opstr = WM_operator_pystring_ex(static_cast<bContext *>(but->block->evil_C),
-                                          nullptr,
-                                          false,
-                                          true,
-                                          but->optype,
-                                          but->opptr);
-    BLI_dynstr_appendf(ds, "'operator':'''%s''', ", opstr ? opstr : "");
-    MEM_freeN(opstr);
+    std::string opstr = WM_operator_pystring_ex(static_cast<bContext *>(but->block->evil_C),
+                                                nullptr,
+                                                false,
+                                                true,
+                                                but->optype,
+                                                but->opptr);
+    BLI_dynstr_appendf(ds, "'operator':'''%s''', ", opstr.c_str());
   }
 
   {
     PropertyRNA *prop = nullptr;
     wmOperatorType *ot = UI_but_operatortype_get_from_enum_menu(but, &prop);
     if (ot) {
-      char *opstr = WM_operator_pystring_ex(
+      std::string opstr = WM_operator_pystring_ex(
           static_cast<bContext *>(but->block->evil_C), nullptr, false, true, ot, nullptr);
-      BLI_dynstr_appendf(ds, "'operator':'''%s''', ", opstr ? opstr : "");
+      BLI_dynstr_appendf(ds, "'operator':'''%s''', ", opstr.c_str());
       BLI_dynstr_appendf(ds, "'property':'''%s''', ", prop ? RNA_property_identifier(prop) : "");
-      MEM_freeN(opstr);
     }
   }
 

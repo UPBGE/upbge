@@ -37,7 +37,7 @@
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
@@ -1415,7 +1415,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
                               (x = UI_UNIT_X * 5),
                               UI_UNIT_Y,
                               "");
-          but_ptr = UI_but_operator_ptr_get(but);
+          but_ptr = UI_but_operator_ptr_ensure(but);
           RNA_int_set(but_ptr, "weight_group", i);
           UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
           if (BKE_object_defgroup_active_index_get(ob) != i + 1) {

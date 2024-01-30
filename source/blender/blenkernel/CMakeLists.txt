@@ -384,7 +384,7 @@ set(SRC
   BKE_customdata.hh
   BKE_customdata_file.h
   BKE_data_transfer.h
-  BKE_deform.h
+  BKE_deform.hh
   BKE_displist.h
   BKE_duplilist.h
   BKE_dynamicpaint.h
@@ -422,7 +422,7 @@ set(SRC
   BKE_instances.hh
   BKE_ipo.h
   BKE_kelvinlet.h
-  BKE_key.h
+  BKE_key.hh
   BKE_keyconfig.h
   BKE_lattice.hh
   BKE_layer.hh

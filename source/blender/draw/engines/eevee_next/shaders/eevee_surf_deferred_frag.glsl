@@ -48,8 +48,10 @@ void main()
   float thickness = nodetree_thickness();
 
   g_diffuse_data.color *= g_diffuse_data.weight;
+  g_translucent_data.color *= g_translucent_data.weight;
   g_reflection_data.color *= g_reflection_data.weight;
   g_refraction_data.color *= g_refraction_data.weight;
+  g_translucent_data.color *= g_translucent_data.weight;
 
   /* TODO(fclem): This feels way too complex for what is it. */
   bool has_any_bsdf_weight = g_diffuse_data.weight != 0.0 || g_reflection_data.weight != 0.0 ||
@@ -82,7 +84,7 @@ void main()
 
   /* ----- GBuffer output ----- */
 
-  GBufferDataUndetermined gbuf_data;
+  GBufferData gbuf_data;
   gbuf_data.diffuse = g_diffuse_data;
   gbuf_data.translucent = g_translucent_data;
   gbuf_data.reflection = g_reflection_data;
