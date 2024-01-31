@@ -68,7 +68,7 @@
 #include "BKE_tracking.h"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
-#include "BLF_api.h"
+#include "BLF_api.hh"
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
 #include "BLI_system.h"

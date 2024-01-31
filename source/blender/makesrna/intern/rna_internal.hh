@@ -217,6 +217,18 @@ void RNA_def_tracking(BlenderRNA *brna);
 void RNA_def_mask(BlenderRNA *brna);
 void RNA_def_xr(BlenderRNA *brna);
 
+/* UPBGE */
+void RNA_def_actuator(BlenderRNA *brna);
+void RNA_def_controller(BlenderRNA *brna);
+void RNA_def_gameproperty(BlenderRNA *brna);
+void RNA_def_py_proxy(BlenderRNA *brna);
+void RNA_def_sensor(BlenderRNA *brna);
+
+void RNA_api_actuator(StructRNA *srna);
+void RNA_api_controller(StructRNA *srna);
+void RNA_api_sensor(StructRNA *srna);
+/*********/
+
 /* Common Define functions */
 
 void rna_def_attributes_common(StructRNA *srna);

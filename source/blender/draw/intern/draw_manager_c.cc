@@ -3492,7 +3492,7 @@ void DRW_gpu_context_activate(bool drw_state)
 /****************UPBGE**************************/
 
 #include "BKE_colortools.hh"
-#include "BLF_api.h"
+#include "BLF_api.hh"
 #include "BLI_link_utils.h"
 #include "engines/eevee/eevee_private.h"
 #include "GPU_immediate.h"

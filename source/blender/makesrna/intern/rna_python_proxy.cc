@@ -26,7 +26,7 @@
 
 #include "DNA_property_types.h"
 #include "DNA_python_proxy_types.h"
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_types.hh"
 

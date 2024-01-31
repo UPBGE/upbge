@@ -763,9 +763,9 @@ static std::optional<std::string> rna_FieldSettings_path(const PointerRNA *ptr)
   return std::nullopt;
 }
 
-static char *rna_game_soft_body_settings_path(const PointerRNA */*ptr*/)
+static std::optional<std::string> rna_game_soft_body_settings_path(const PointerRNA * /*ptr*/)
 {
-  return BLI_strdup("game.soft_body");
+  return "game.soft_body";
 }
 
 static void rna_EffectorWeight_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
