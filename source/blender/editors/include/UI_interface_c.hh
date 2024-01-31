@@ -1505,15 +1505,6 @@ int UI_text_colorid_from_report_type(int type);
 int UI_icon_from_event_type(short event_type, short event_value);
 int UI_icon_from_keymap_item(const wmKeyMapItem *kmi, int r_icon_mod[4]);
 
-uiBut *uiDefPulldownBut(uiBlock *block,
-                        uiBlockCreateFunc func,
-                        void *arg,
-                        const char *str,
-                        int x,
-                        int y,
-                        short width,
-                        short height,
-                        const char *tip);
 uiBut *uiDefMenuBut(uiBlock *block,
                     uiMenuCreateFunc func,
                     void *arg,
@@ -1575,19 +1566,6 @@ uiBut *uiDefIconBlockBut(uiBlock *block,
                          short width,
                          short height,
                          const char *tip);
-/**
- * Block button containing both string label and icon.
- */
-uiBut *uiDefIconTextBlockBut(uiBlock *block,
-                             uiBlockCreateFunc func,
-                             void *arg,
-                             int icon,
-                             const char *str,
-                             int x,
-                             int y,
-                             short width,
-                             short height,
-                             const char *tip);
 
 /**
  * \param arg: A pointer to string/name, use #UI_but_func_search_set() below to make this work.
@@ -3127,7 +3105,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
                                       PropertyRNA *prop,
                                       ListBase *r_lb,
                                       bool *r_use_path_from_id,
-                                      char **r_path);
+                                      std::optional<std::string> *r_path);
 bool UI_context_copy_to_selected_check(PointerRNA *ptr,
                                        PointerRNA *ptr_link,
                                        PropertyRNA *prop,

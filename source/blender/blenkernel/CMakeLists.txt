@@ -153,6 +153,7 @@ set(SRC
   intern/gpencil_update_cache_legacy.cc
   intern/grease_pencil.cc
   intern/grease_pencil_convert_legacy.cc
+  intern/grease_pencil_vertex_groups.cc
   intern/icons.cc
   intern/icons_rasterize.cc
   intern/idprop.cc
@@ -410,6 +411,7 @@ set(SRC
   BKE_gpencil_update_cache_legacy.h
   BKE_grease_pencil.h
   BKE_grease_pencil.hh
+  BKE_grease_pencil_vertex_groups.hh
   BKE_icons.h
   BKE_idprop.h
   BKE_idprop.hh

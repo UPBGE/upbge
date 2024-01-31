@@ -48,7 +48,7 @@
 #include "GPU_matrix.h"
 #include "GPU_state.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 #include "BLT_translation.h"
 
 #include "UI_interface.hh"
@@ -3342,13 +3342,6 @@ bool ui_but_string_eval_number(bContext *C, const uiBut *but, const char *str, d
   return ui_number_from_string(C, str, r_value);
 }
 
-/* just the assignment/free part */
-static void ui_but_string_set_internal(uiBut *but, const char *str, size_t str_len)
-{
-  BLI_assert(str_len == strlen(str));
-  but->str = std::string(str, str_len);
-}
-
 bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 {
   if (but->rnaprop && but->rnapoin.data && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -4049,12 +4042,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
       break;
   }
 
-  /* safety is 4 to enable small number buttons (like 'users') */
-  // okwidth = -4 + (BLI_rcti_size_x(&but->rect)); /* UNUSED */
-
-  /* name: */
   switch (but->type) {
-
     case UI_BTYPE_MENU:
       if (BLI_rctf_size_x(&but->rect) >= (UI_UNIT_X * 2)) {
         /* only needed for menus in popup blocks that don't recreate buttons on redraw */
@@ -4070,9 +4058,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
                     value_enum,
                     &item))
             {
-              const size_t slen = strlen(item.name);
-              but->str.clear();
-              ui_but_string_set_internal(but, item.name, slen);
+              but->str = item.name;
               but->icon = item.icon;
             }
           }
@@ -4356,8 +4342,7 @@ static uiBut *ui_def_but(uiBlock *block,
 
   but->retval = retval;
 
-  const int slen = strlen(str);
-  ui_but_string_set_internal(but, str, slen);
+  but->str = str;
 
   but->rect.xmin = x;
   but->rect.ymin = y;
@@ -4392,7 +4377,7 @@ static uiBut *ui_def_but(uiBlock *block,
   but->pos = -1; /* cursor invisible */
 
   if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) { /* add a space to name */
-    if (slen > 0 && slen < UI_MAX_NAME_STR - 2) {
+    if (!but->str.empty() && but->str.size() < UI_MAX_NAME_STR - 2) {
       if (but->str[but->str.size() - 1] != ' ') {
         but->str += ' ';
       }
@@ -4420,7 +4405,7 @@ static uiBut *ui_def_but(uiBlock *block,
   }
 #ifdef USE_NUMBUTS_LR_ALIGN
   else if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) {
-    if (slen != 0) {
+    if (!but->str.empty()) {
       but->drawflag |= UI_BUT_TEXT_LEFT;
     }
   }
@@ -6392,23 +6377,6 @@ uiBut *uiDefBlockButN(uiBlock *block,
   return but;
 }
 
-uiBut *uiDefPulldownBut(uiBlock *block,
-                        uiBlockCreateFunc func,
-                        void *arg,
-                        const char *str,
-                        int x,
-                        int y,
-                        short width,
-                        short height,
-                        const char *tip)
-{
-  uiBut *but = ui_def_but(
-      block, UI_BTYPE_PULLDOWN, 0, str, x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
-  but->block_create_func = func;
-  ui_but_update(but);
-  return but;
-}
-
 uiBut *uiDefMenuBut(uiBlock *block,
                     uiMenuCreateFunc func,
                     void *arg,
@@ -6468,34 +6436,6 @@ uiBut *uiDefIconMenuBut(uiBlock *block,
   but->drawflag &= ~UI_BUT_ICON_LEFT;
 
   but->menu_create_func = func;
-  ui_but_update(but);
-
-  return but;
-}
-
-uiBut *uiDefIconTextBlockBut(uiBlock *block,
-                             uiBlockCreateFunc func,
-                             void *arg,
-                             int icon,
-                             const char *str,
-                             int x,
-                             int y,
-                             short width,
-                             short height,
-                             const char *tip)
-{
-  uiBut *but = ui_def_but(
-      block, UI_BTYPE_BLOCK, 0, str, x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
-
-  /* XXX temp, old menu calls pass on icon arrow, which is now UI_BUT_ICON_SUBMENU flag */
-  if (icon != ICON_RIGHTARROW_THIN) {
-    ui_def_but_icon(but, icon, 0);
-    but->drawflag |= UI_BUT_ICON_LEFT;
-  }
-  but->flag |= UI_HAS_ICON;
-  ui_but_submenu_enable(block, but);
-
-  but->block_create_func = func;
   ui_but_update(but);
 
   return but;

@@ -61,7 +61,7 @@
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "interface_intern.hh"
 
@@ -1833,7 +1833,6 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
   PropertyRNA *lprop;
   bool success = false;
 
-  char *path = nullptr;
   ListBase lb = {nullptr};
 
   PointerRNA ptr = but->rnapoin;
@@ -1853,6 +1852,7 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
     const bool is_array = RNA_property_array_check(prop);
     const int rna_type = RNA_property_type(prop);
 
+    std::optional<std::string> path;
     if (UI_context_copy_to_selected_list(C, &ptr, prop, &lb, &use_path_from_id, &path) &&
         !BLI_listbase_is_empty(&lb))
     {
@@ -1865,8 +1865,13 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
           break;
         }
 
-        if (!UI_context_copy_to_selected_check(
-                &ptr, &link->ptr, prop, path, use_path_from_id, &lptr, &lprop))
+        if (!UI_context_copy_to_selected_check(&ptr,
+                                               &link->ptr,
+                                               prop,
+                                               path.has_value() ? path->c_str() : nullptr,
+                                               use_path_from_id,
+                                               &lptr,
+                                               &lprop))
         {
           selctx_data->elems_len -= 1;
           i -= 1;
@@ -1915,7 +1920,6 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
     MEM_SAFE_FREE(selctx_data->elems);
   }
 
-  MEM_SAFE_FREE(path);
   BLI_freelistN(&lb);
 
   /* caller can clear */

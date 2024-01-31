@@ -42,7 +42,7 @@
 
 #include "UI_interface_icons.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -190,7 +190,7 @@ static const EnumPropertyItem rna_enum_preference_gpu_backend_items[] = {
 #  include "GPU_select.hh"
 #  include "GPU_texture.h"
 
-#  include "BLF_api.h"
+#  include "BLF_api.hh"
 
 #  include "BLI_path_util.h"
 
