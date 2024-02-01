@@ -26,7 +26,7 @@
 
 #include "BL_Texture.h"
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
     : EXP_Value(),
@@ -40,7 +40,7 @@ BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarge
   m_name = m_gpuMatTex->ima->id.name;
 
   ImageUser *iuser = m_gpuMatTex->iuser_available ? &m_gpuMatTex->iuser : NULL;
-  m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser, nullptr);
+  m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser);
 
   if (m_gpuTex) {
     m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -76,7 +76,7 @@ void BL_Texture::CheckValidTexture()
     GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
     GPU_texture_free(m_gpuTex);
     ImageUser *iuser = m_gpuMatTex->iuser_available ? &m_gpuMatTex->iuser : NULL;
-    m_gpuTex = (m_gpuMatTex->ima ? BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser, nullptr) :
+    m_gpuTex = (m_gpuMatTex->ima ? BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser) :
                     nullptr);
 
     if (m_gpuTex) {

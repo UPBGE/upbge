@@ -98,7 +98,7 @@
 #include "GHOST_Path-api.hh"
 #include "GPU_context.h"
 #include "GPU_init_exit.h"
-#include "GPU_material.h"
+#include "GPU_material.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_thumbs.hh"
 #include "MEM_CacheLimiterC-Api.h"
