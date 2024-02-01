@@ -903,7 +903,7 @@ static void id_embedded_swap(ID **embedded_id_a,
             remapper_id_b,
             0);
     /* Manual 'remap' of owning embedded pointer in owner ID. */
-    SWAP(ID *, *embedded_id_a, *embedded_id_b);
+    std::swap(*embedded_id_a, *embedded_id_b);
 
     /* Restore internal pointers to the swapped embedded IDs in their owners' data. This also
      * includes the potential self-references inside the embedded IDs themselves. */
@@ -1485,6 +1485,31 @@ ID *BKE_libblock_find_session_uid(Main *bmain, const short type, const uint32_t 
     if (id->session_uid == session_uid) {
       return id;
     }
+  }
+  return nullptr;
+}
+
+ID *BKE_libblock_find_name_and_library(Main *bmain,
+                                       const short type,
+                                       const char *name,
+                                       const char *lib_name)
+{
+  ListBase *lb = which_libbase(bmain, type);
+  BLI_assert(lb != nullptr);
+  LISTBASE_FOREACH (ID *, id, lb) {
+    if (!STREQ(id->name + 2, name)) {
+      continue;
+    }
+    if (lib_name == nullptr || lib_name[0] == '\0') {
+      if (id->lib == nullptr) {
+        return id;
+      }
+      return nullptr;
+    }
+    if (!STREQ(id->lib->id.name + 2, lib_name)) {
+      continue;
+    }
+    return id;
   }
   return nullptr;
 }
