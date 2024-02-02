@@ -327,7 +327,7 @@ static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_logic()
 {
-  SpaceType *st = MEM_cnew<SpaceType>("spacetype logic");
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_LOGIC;
@@ -377,5 +377,5 @@ void ED_spacetype_logic()
 
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }
