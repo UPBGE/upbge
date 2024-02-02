@@ -979,7 +979,7 @@ static bool try_find_baked_data(bake::NodeBakeCache &bake,
     bake.frames.append(std::move(frame_cache));
   }
   bake.blobs_dir = bake_path->blobs_dir;
-  bake.blob_sharing = std::make_unique<bake::BlobSharing>();
+  bake.blob_sharing = std::make_unique<bake::BlobReadSharing>();
   return true;
 }
 
@@ -1567,8 +1567,7 @@ static void add_data_block_items_writeback(const ModifierEvalContext &ctx,
 
   deg::sync_writeback::add(
       *depsgraph,
-      [depsgraph = depsgraph,
-       object_eval = ctx.object,
+      [object_eval = ctx.object,
        bmain,
        &nmd_orig,
        &nmd_eval,
