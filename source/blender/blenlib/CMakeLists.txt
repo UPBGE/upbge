@@ -14,7 +14,6 @@ set(INC
 set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
-  ../../../extern/fmtlib/include
 
   ${EIGEN3_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
@@ -254,6 +253,7 @@ set(SRC
   BLI_implicit_sharing.hh
   BLI_implicit_sharing_ptr.hh
   BLI_index_mask.hh
+  BLI_index_mask_fwd.hh
   BLI_index_range.hh
   BLI_inplace_priority_queue.hh
   BLI_iterator.h
@@ -383,6 +383,7 @@ set(SRC
   BLI_vector_set.hh
   BLI_vector_set_slots.hh
   BLI_virtual_array.hh
+  BLI_virtual_array_fwd.hh
   BLI_virtual_vector_array.hh
   BLI_voxel.h
   BLI_winstuff.h
@@ -396,6 +397,7 @@ set(SRC
 
 set(LIB
   PUBLIC bf::dna
+  PRIVATE bf::extern::fmtlib
   bf_intern_eigen
   PRIVATE bf::intern::guardedalloc
   extern_wcwidth
