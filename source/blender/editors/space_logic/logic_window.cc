@@ -1044,8 +1044,6 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
                          (int *)&(cont->state_mask),
                          0,
                          0,
-                         0,
-                         0,
                          "");
       UI_but_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
     }
@@ -1060,8 +1058,6 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
                          12,
                          12,
                          (int *)&(cont->state_mask),
-                         0,
-                         0,
                          0,
                          0,
                          "");
@@ -2695,8 +2691,6 @@ void logic_buttons(bContext *C, ARegion *region)
                  &ob->scaflag,
                  0,
                  31,
-                 0,
-                 0,
                  TIP_("Object name, click to show/hide controllers"));
 
     PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);
@@ -2852,8 +2846,6 @@ void logic_buttons(bContext *C, ARegion *region)
                  &ob->scaflag,
                  0,
                  31,
-                 0,
-                 0,
                  TIP_("Object name, click to show/hide sensors"));
 
     PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);
@@ -2967,8 +2959,6 @@ void logic_buttons(bContext *C, ARegion *region)
                  &ob->scaflag,
                  0,
                  31,
-                 0,
-                 0,
                  TIP_("Object name, click to show/hide actuators"));
 
     PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);

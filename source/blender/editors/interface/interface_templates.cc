@@ -6119,8 +6119,6 @@ void uiTemplateGameStates(uiLayout *layout,
                                  state,
                                  0,
                                  0,
-                                 -1,
-                                 -1,
                                  BKE_sca_get_name_state(ob, state));
         UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
         but->type = UI_BTYPE_TOGGLE;
