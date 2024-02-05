@@ -1581,7 +1581,7 @@ static const char arg_handle_audio_set_doc[] =
 static int arg_handle_audio_set(int argc, const char **argv, void * /*data*/)
 {
   if (argc < 1) {
-    fprintf(stderr, "-setaudio require one argument\n");
+    fprintf(stderr, "-setaudio requires one argument\n");
     exit(1);
   }
 

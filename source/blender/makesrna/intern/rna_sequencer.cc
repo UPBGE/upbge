@@ -860,7 +860,7 @@ static bool rna_MovieSequence_reload_if_needed(ID *scene_id, Sequence *seq, Main
   return can_produce_frames;
 }
 
-static PointerRNA rna_MovieSequence_metadata_get(Sequence *seq)
+static PointerRNA rna_MovieSequence_metadata_get(ID *scene_id, Sequence *seq)
 {
   if (seq == nullptr || seq->anims.first == nullptr) {
     return PointerRNA_NULL;
@@ -876,7 +876,7 @@ static PointerRNA rna_MovieSequence_metadata_get(Sequence *seq)
     return PointerRNA_NULL;
   }
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_IDPropertyWrapPtr, metadata);
+  PointerRNA ptr = RNA_pointer_create(scene_id, &RNA_IDPropertyWrapPtr, metadata);
   return ptr;
 }
 
@@ -1471,7 +1471,7 @@ static void rna_SequenceModifier_strip_set(PointerRNA *ptr, PointerRNA value, Re
   Sequence *target = (Sequence *)value.data;
 
   if (target != nullptr && SEQ_relations_render_loop_check(target, seq)) {
-    BKE_report(reports, RPT_ERROR, "Recursion detected, can not use this strip");
+    BKE_report(reports, RPT_ERROR, "Recursion detected, cannot use this strip");
     return;
   }
 
@@ -1696,6 +1696,11 @@ static void rna_def_strip_crop(BlenderRNA *brna)
 }
 
 static const EnumPropertyItem transform_filter_items[] = {
+    {SEQ_TRANSFORM_FILTER_AUTO,
+     "AUTO",
+     0,
+     "Auto",
+     "Automatically choose filter based on scaling factor"},
     {SEQ_TRANSFORM_FILTER_NEAREST, "NEAREST", 0, "Nearest", "Use nearest sample"},
     {SEQ_TRANSFORM_FILTER_BILINEAR,
      "BILINEAR",
@@ -1770,7 +1775,7 @@ static void rna_def_strip_transform(BlenderRNA *brna)
   prop = RNA_def_property(srna, "filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "filter");
   RNA_def_property_enum_items(prop, transform_filter_items);
-  RNA_def_property_enum_default(prop, SEQ_TRANSFORM_FILTER_BILINEAR);
+  RNA_def_property_enum_default(prop, SEQ_TRANSFORM_FILTER_AUTO);
   RNA_def_property_ui_text(prop, "Filter", "Type of filter to use for image transformation");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceTransform_update");
 
@@ -2957,6 +2962,7 @@ static void rna_def_movie(BlenderRNA *brna)
 
   /* metadata */
   func = RNA_def_function(srna, "metadata", "rna_MovieSequence_metadata_get");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Retrieve metadata of the movie file");
   /* return type */
   parm = RNA_def_pointer(
