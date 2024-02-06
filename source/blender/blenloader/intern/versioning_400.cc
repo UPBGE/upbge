@@ -2867,6 +2867,26 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 19)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        version_node_socket_name(ntree, FN_NODE_ROTATE_ROTATION, "Rotation 1", "Rotation");
+        version_node_socket_name(ntree, FN_NODE_ROTATE_ROTATION, "Rotation 2", "Rotate By");
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 20)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      int uid = 1;
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        /* These identifiers are not necessarily stable for linked data. If the linked data has a
+         * new modifier inserted, the identifiers of other modifiers can change. */
+        md->persistent_uid = uid++;
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

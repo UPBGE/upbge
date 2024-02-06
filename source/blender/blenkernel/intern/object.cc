@@ -276,6 +276,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   BLI_listbase_clear(&ob_dst->greasepencil_modifiers);
   /* NOTE: Also takes care of soft-body and particle systems copying. */
   BKE_object_modifier_stack_copy(ob_dst, ob_src, true, flag_subdata);
+  BLI_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
 
   BLI_listbase_clear((ListBase *)&ob_dst->drawdata);
   BLI_listbase_clear(&ob_dst->pc_ids);
@@ -1093,6 +1094,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
       wmd->width = wav->width;
 
       BLI_addtail(&ob->modifiers, wmd);
+      BKE_modifiers_persistent_uid_init(*ob, wmd->modifier);
 
       BLI_remlink(&ob->effect, paf);
       MEM_freeN(paf);
@@ -1111,6 +1113,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
       bmd->seed = 1;
 
       BLI_addtail(&ob->modifiers, bmd);
+      BKE_modifiers_persistent_uid_init(*ob, bmd->modifier);
 
       BLI_remlink(&ob->effect, paf);
       MEM_freeN(paf);
@@ -1281,6 +1284,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     BLI_remlink(&ob->hooks, hook);
 
     BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)hmd);
+    BKE_modifiers_persistent_uid_init(*ob, hmd->modifier);
 
     MEM_freeN(hook);
   }
@@ -1857,6 +1861,7 @@ bool BKE_object_copy_modifier(
 
     BLI_addtail(&ob_dst->modifiers, md_dst);
     BKE_modifier_unique_name(&ob_dst->modifiers, md_dst);
+    BKE_modifiers_persistent_uid_init(*ob_dst, *md_dst);
   }
 
   BKE_object_modifier_set_active(ob_dst, md_dst);
@@ -5910,7 +5915,6 @@ void BKE_object_to_curve_clear(Object *object)
 void BKE_object_check_uids_unique_and_report(const Object *object)
 {
   BKE_pose_check_uids_unique_and_report(object->pose);
-  BKE_modifier_check_uids_unique_and_report(object);
 }
 
 SubsurfModifierData *BKE_object_get_last_subsurf_modifier(const Object *ob)
