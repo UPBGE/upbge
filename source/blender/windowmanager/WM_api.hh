@@ -40,6 +40,7 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
+struct uiListType;
 struct WorkSpace;
 struct WorkSpaceLayout;
 struct wmDrag;
@@ -729,8 +730,8 @@ int WM_operator_props_popup(bContext *C, wmOperator *op, const wmEvent *event);
 int WM_operator_props_dialog_popup(bContext *C,
                                    wmOperator *op,
                                    int width,
-                                   const char *title = nullptr,
-                                   const char *confirm_text = nullptr);
+                                   std::optional<std::string> title = std::nullopt,
+                                   std::optional<std::string> confirm_text = std::nullopt);
 
 int WM_operator_redo_popup(bContext *C, wmOperator *op);
 int WM_operator_ui_popup(bContext *C, wmOperator *op, int width);
@@ -903,7 +904,6 @@ enum eFileSel_Flag {
   WM_FILESEL_FILES = 1 << 4,
   /** Show the properties sidebar by default. */
   WM_FILESEL_SHOW_PROPS = 1 << 5,
-  WM_FILESEL_SKIP_PATHS_PRESETS = 1 << 5,
 };
 ENUM_OPERATORS(eFileSel_Flag, WM_FILESEL_SHOW_PROPS)
 

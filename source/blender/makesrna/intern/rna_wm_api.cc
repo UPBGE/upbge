@@ -75,7 +75,8 @@ static bool rna_KeyMapItem_compare(wmKeyMapItem *k1, wmKeyMapItem *k2)
 
 static void rna_KeyMapItem_to_string(wmKeyMapItem *kmi, bool compact, char *result)
 {
-  WM_keymap_item_to_string(kmi, compact, result, UI_MAX_SHORTCUT_STR);
+  BLI_strncpy(
+      result, WM_keymap_item_to_string(kmi, compact).value_or("").c_str(), UI_MAX_SHORTCUT_STR);
 }
 
 static wmKeyMap *rna_keymap_active(wmKeyMap *km, bContext *C)
@@ -240,7 +241,12 @@ static int rna_Operator_props_dialog_popup(bContext *C,
 {
   title = RNA_translate_ui_text(title, text_ctxt, nullptr, nullptr, translate);
   confirm_text = RNA_translate_ui_text(confirm_text, text_ctxt, nullptr, nullptr, translate);
-  return WM_operator_props_dialog_popup(C, op, width, title, confirm_text);
+  return WM_operator_props_dialog_popup(
+      C,
+      op,
+      width,
+      title ? std::make_optional<std::string>(title) : std::nullopt,
+      confirm_text ? std::make_optional<std::string>(confirm_text) : std::nullopt);
 }
 
 static int keymap_item_modifier_flag_from_args(bool any, int shift, int ctrl, int alt, int oskey)
