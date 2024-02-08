@@ -2274,7 +2274,7 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
-  void *_pad9;
+  //void *_pad9;
 } Scene;
 
 /** \} */
