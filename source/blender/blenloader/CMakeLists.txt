@@ -51,9 +51,10 @@ set(SRC
   BLO_blend_defs.hh
   BLO_blend_validate.hh
   BLO_read_write.hh
-  BLO_readfile.h
+  BLO_readfile.hh
   BLO_runtime.hh
   BLO_undofile.hh
+  BLO_userdef_default.h
   BLO_writefile.hh
   intern/readfile.hh
   intern/versioning_common.hh
