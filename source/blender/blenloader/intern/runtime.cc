@@ -48,7 +48,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 #include "BLO_runtime.hh"
 
 #include "BKE_report.h"

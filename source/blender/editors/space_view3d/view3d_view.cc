@@ -47,7 +47,7 @@
 #include "RNA_define.hh"
 
 #ifdef WITH_GAMEENGINE
-#  include "BKE_callbacks.h"
+#  include "BKE_callbacks.hh"
 #  include "BKE_image.h"
 #  include "BLI_listbase.h"
 

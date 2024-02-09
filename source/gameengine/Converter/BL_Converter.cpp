@@ -43,7 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_task.h"
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"

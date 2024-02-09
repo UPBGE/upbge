@@ -35,7 +35,7 @@
 
 #include "KX_Camera.h"
 
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

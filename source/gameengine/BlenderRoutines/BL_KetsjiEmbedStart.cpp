@@ -41,7 +41,7 @@
 #include "BKE_report.h"
 #include "BKE_undo_system.hh"
 #include "BLI_blenlib.h"
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 #include "ED_screen.hh"
 #include "GPU_context.h"
 #include "WM_api.hh"

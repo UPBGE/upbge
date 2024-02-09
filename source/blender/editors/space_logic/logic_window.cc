@@ -59,7 +59,7 @@
 
 #include "ED_undo.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_interface.hh"
 #include "UI_view2d.hh"

@@ -59,7 +59,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "wm_event_types.hh"
 
