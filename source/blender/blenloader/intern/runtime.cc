@@ -51,7 +51,7 @@
 #include "BLO_readfile.hh"
 #include "BLO_runtime.hh"
 
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 /* Runtime reading */
 

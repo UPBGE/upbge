@@ -65,6 +65,7 @@
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
+#include "BKE_property.hh"
 #include "BKE_report.hh"
 #include "BKE_sca.hh"
 #include "BKE_scene.hh"

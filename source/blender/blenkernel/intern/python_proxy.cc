@@ -37,7 +37,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_python_proxy.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_text.h"
 
 #include "RNA_types.hh"

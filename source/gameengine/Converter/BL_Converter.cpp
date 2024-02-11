@@ -39,7 +39,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_task.h"

@@ -69,7 +69,7 @@
 #include "BKE_mesh_tangent.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
 #include "DNA_meshdata_types.h"

@@ -45,7 +45,7 @@
 #include "BLI_ghash.h"
 #include "BLI_math_rotation.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
