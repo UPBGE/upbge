@@ -1726,7 +1726,7 @@ typedef struct ToolSettings {
   /** Weight paint. */
   VPaint *wpaint;
   Sculpt *sculpt;
-  /** Uv smooth. */
+  /** UV smooth. */
   UvSculpt *uvsculpt;
   /** Gpencil paint. */
   GpPaint *gp_paint;

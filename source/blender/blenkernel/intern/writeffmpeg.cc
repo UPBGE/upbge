@@ -29,12 +29,12 @@
 #  include "BLI_threads.h"
 #  include "BLI_utildefines.h"
 
-#  include "BKE_global.h"
+#  include "BKE_global.hh"
 #  include "BKE_idprop.h"
 #  include "BKE_image.h"
 #  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
-#  include "BKE_report.h"
+#  include "BKE_report.hh"
 #  include "BKE_sound.h"
 #  include "BKE_writeffmpeg.hh"
 
