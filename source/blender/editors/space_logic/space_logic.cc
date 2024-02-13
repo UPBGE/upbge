@@ -290,16 +290,16 @@ static void logic_header_region_draw(const bContext *C, ARegion *region)
 /**************************** spacetype *****************************/
 
 static void logic_id_remap(ScrArea */*area*/,
-                            SpaceLink *slink,
-                            const struct IDRemapper *mappings)
+                           SpaceLink *slink,
+                           const blender::bke::id::IDRemapper &mappings)
 {
   SpaceLogic *slog = (SpaceLogic *)slink;
 
-  if (!BKE_id_remapper_has_mapping_for(mappings, FILTER_ID_GD_LEGACY)) {
+  if (!mappings.contains_mappings_for_any(FILTER_ID_GD_LEGACY)) {
     return;
   }
 
-  BKE_id_remapper_apply(mappings, (ID **)&slog->gpd, ID_REMAP_APPLY_UPDATE_REFCOUNT);
+  mappings.apply((ID **)&slog->gpd, ID_REMAP_APPLY_UPDATE_REFCOUNT);
 }
 
 static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
