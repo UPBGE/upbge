@@ -44,6 +44,7 @@
 #include "BKE_main.hh"
 #include "BKE_mball_tessellate.hh"
 #include "BKE_preview_image.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"

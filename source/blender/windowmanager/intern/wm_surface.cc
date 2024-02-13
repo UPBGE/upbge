@@ -11,6 +11,8 @@
 #  include "BLI_threads.h"
 #endif
 
+#include "BKE_context.hh"
+
 #include "DNA_scene_types.h"
 
 #include "GHOST_C-api.h"
