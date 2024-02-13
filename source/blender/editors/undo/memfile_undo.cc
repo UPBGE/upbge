@@ -24,7 +24,6 @@
 #include "BKE_blender_undo.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh" //UPBGE
-#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
@@ -37,7 +36,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_object.hh"
 #include "ED_render.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"

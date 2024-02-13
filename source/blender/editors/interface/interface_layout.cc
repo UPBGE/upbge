@@ -29,8 +29,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.h"
@@ -3448,9 +3446,8 @@ void uiItemS_ex(uiLayout *layout, float factor, const LayoutSeparatorType type)
     return;
   }
 
-  bool is_vertical = (layout->w > 0);
-  int width = is_vertical ? int(UI_UNIT_X) : int(0.3f * UI_UNIT_X * factor);
-  int height = is_vertical ? int(0.35f * UI_UNIT_X * factor) : int(UI_UNIT_Y);
+  int space = (is_menu) ? int(0.35f * UI_UNIT_X) : int(0.3f * UI_UNIT_X);
+  space *= factor;
 
   eButType but_type;
 
@@ -3465,7 +3462,7 @@ void uiItemS_ex(uiLayout *layout, float factor, const LayoutSeparatorType type)
       but_type = UI_BTYPE_SEPR;
   }
 
-  bool is_vertical_bar = !is_vertical && but_type == UI_BTYPE_SEPR_LINE;
+  bool is_vertical_bar = (layout->w == 0) && but_type == UI_BTYPE_SEPR_LINE;
 
   UI_block_layout_set_current(block, layout);
   uiDefBut(block,
@@ -3474,8 +3471,8 @@ void uiItemS_ex(uiLayout *layout, float factor, const LayoutSeparatorType type)
            "",
            0,
            0,
-           width,
-           height,
+           space,
+           is_vertical_bar ? UI_UNIT_Y : space,
            nullptr,
            0.0,
            0.0,
