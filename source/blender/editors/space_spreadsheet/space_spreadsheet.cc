@@ -152,7 +152,9 @@ static void spreadsheet_keymap(wmKeyConfig *keyconf)
   WM_keymap_ensure(keyconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
 }
 
-static void spreadsheet_id_remap(ScrArea * /*area*/, SpaceLink *slink, const IDRemapper *mappings)
+static void spreadsheet_id_remap(ScrArea * /*area*/,
+                                 SpaceLink *slink,
+                                 const blender::bke::id::IDRemapper &mappings)
 {
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)slink;
   BKE_viewer_path_id_remap(&sspreadsheet->viewer_path, mappings);
@@ -339,6 +341,7 @@ static float get_default_column_width(const ColumnValues &values)
   static const float float_width = 3;
   switch (values.type()) {
     case SPREADSHEET_VALUE_TYPE_BOOL:
+    case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
       return 2.0f;
     case SPREADSHEET_VALUE_TYPE_INT8:
     case SPREADSHEET_VALUE_TYPE_INT32:

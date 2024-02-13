@@ -24,7 +24,6 @@
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_genfile.h"
-#include "DNA_key_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -35,7 +34,6 @@
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
@@ -53,19 +51,15 @@
 #include "BLI_math_vector.h"
 #include "BLI_string_utils.hh"
 
-#include "BLT_translation.hh"
-
 #include "BKE_anim_visualization.h"
 #include "BKE_customdata.hh"
 #include "BKE_image.h"
 #include "BKE_main.hh" /* for Main */
-#include "BKE_mesh.hh" /* for ME_ defines (patching) */
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_particle.h"
-#include "BKE_pointcache.h"
 #include "BKE_property.hh"  // for BKE_bproperty_object_get
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -85,7 +79,6 @@
 
 #include "NOD_common.h"
 #include "NOD_composite.hh"
-#include "NOD_texture.h"
 
 #include "BLO_readfile.hh"
 
