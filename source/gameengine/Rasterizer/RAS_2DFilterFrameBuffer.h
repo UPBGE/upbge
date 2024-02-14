@@ -82,6 +82,8 @@ class RAS_2DFilterFrameBuffer {
 
   int GetColorBindCode(unsigned short index) const;
   int GetDepthBindCode() const;
+  GPUTexture *GetColorTexture(int slot = 0);
+  GPUTexture *GetDepthTexture();
 
   unsigned int GetWidth() const;
   unsigned int GetHeight() const;

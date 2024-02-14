@@ -27,6 +27,7 @@
 #include "KX_2DFilterFrameBuffer.h"
 
 #include "EXP_ListWrapper.h"
+#include "../../blender/python/gpu/gpu_py_texture.h"
 
 KX_2DFilterFrameBuffer::KX_2DFilterFrameBuffer(unsigned short colorSlots,
                                                Flag flag,
@@ -87,9 +88,10 @@ PyTypeObject KX_2DFilterFrameBuffer::Type = {
     py_base_new};
 
 PyMethodDef KX_2DFilterFrameBuffer::Methods[] = {
+    {"getColorTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetColorTexture, METH_VARARGS},
+    {"getDepthTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetDepthTexture, METH_VARARGS},
     {nullptr, nullptr}  // Sentinel
 };
-
 PyAttributeDef KX_2DFilterFrameBuffer::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("width", KX_2DFilterFrameBuffer, pyattr_get_width),
     EXP_PYATTRIBUTE_RO_FUNCTION("height", KX_2DFilterFrameBuffer, pyattr_get_height),
@@ -145,5 +147,27 @@ PyObject *KX_2DFilterFrameBuffer::pyattr_get_depthBindCode(EXP_PyObjectPlus *sel
   KX_2DFilterFrameBuffer *self = static_cast<KX_2DFilterFrameBuffer *>(self_v);
   return PyLong_FromLong(self->GetDepthBindCode());
 }
+
+PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
+{
+  int slot = 0;
+  if (PyArg_ParseTuple(args, "|i:getColorTexture", &slot)) {
+    GPUTexture *tex = GetColorTexture(slot);
+    if (tex) {
+      return BPyGPUTexture_CreatePyObject(tex, true);
+    }
+  }
+  Py_RETURN_NONE;
+}
+
+PyObject *KX_2DFilterFrameBuffer::PyGetDepthTexture(PyObject *args)
+{
+  GPUTexture *tex = GetDepthTexture();
+  if (tex) {
+    return BPyGPUTexture_CreatePyObject(tex, true);
+  }
+  Py_RETURN_NONE;
+}
+
 
 #endif  // WITH_PYTHON

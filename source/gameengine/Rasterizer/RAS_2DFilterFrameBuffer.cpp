@@ -155,6 +155,24 @@ int RAS_2DFilterFrameBuffer::GetDepthBindCode() const
   return GPU_texture_opengl_bindcode(m_depthTexture);
 }
 
+GPUTexture *RAS_2DFilterFrameBuffer::GetColorTexture(int slot)
+{
+  if (!m_colorTextures[slot]) {
+    return nullptr;
+  }
+  GPUTexture *texture = m_colorTextures[slot];
+  return texture;
+}
+
+GPUTexture *RAS_2DFilterFrameBuffer::GetDepthTexture()
+{
+  if (!m_depthTexture) {
+    return nullptr;
+  }
+  GPUTexture *texture = m_depthTexture;
+  return texture;
+}
+
 unsigned int RAS_2DFilterFrameBuffer::GetWidth() const
 {
   return m_width;
