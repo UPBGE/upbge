@@ -92,6 +92,7 @@ PyMethodDef KX_2DFilterFrameBuffer::Methods[] = {
     {"getDepthTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetDepthTexture, METH_VARARGS},
     {nullptr, nullptr}  // Sentinel
 };
+
 PyAttributeDef KX_2DFilterFrameBuffer::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("width", KX_2DFilterFrameBuffer, pyattr_get_width),
     EXP_PYATTRIBUTE_RO_FUNCTION("height", KX_2DFilterFrameBuffer, pyattr_get_height),
