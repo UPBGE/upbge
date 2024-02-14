@@ -35,6 +35,7 @@
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
+#include "BKE_object_types.hh"
 #include "BLI_math_rotation.h"
 #include "DNA_armature_types.h"
 #include "RNA_access.hh"
@@ -230,7 +231,7 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   // m_objArma->pose->flag |= POSE_GAME_ENGINE;
 
   if (m_objArma) {
-    memcpy(m_object_to_world, m_objArma->object_to_world, sizeof(m_object_to_world));
+    memcpy(m_object_to_world, m_objArma->object_to_world().ptr(), sizeof(m_object_to_world));
     LoadChannels();
   }
 }
@@ -426,7 +427,7 @@ void BL_ArmatureObject::ApplyPose()
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
     // restore ourself
-    memcpy(m_objArma->object_to_world, m_object_to_world, sizeof(m_object_to_world));
+    memcpy(m_objArma->runtime->object_to_world.ptr(), m_object_to_world, sizeof(m_object_to_world));
     m_lastapplyframe = m_lastframe;
   }
 }

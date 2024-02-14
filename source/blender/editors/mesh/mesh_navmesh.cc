@@ -125,7 +125,7 @@ static void createVertsTrisData(
       const float *v = &positions[i][0];
 
       copy_v3_v3(co, v);
-      mul_v3_m4v3(wco, ob->object_to_world, co);
+      mul_v3_m4v3(wco, ob->object_to_world().ptr(), co);
 
       verts[3 * (basenverts + i) + 0] = wco[0];
       verts[3 * (basenverts + i) + 1] = wco[2];

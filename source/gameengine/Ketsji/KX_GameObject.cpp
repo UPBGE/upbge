@@ -234,7 +234,7 @@ void KX_GameObject::SyncTransformWithDepsgraph()
   Object *ob = GetBlenderObject();
   if (ob) {
     float loc[3], rot[3][3], size[3];
-    mat4_to_loc_rot_size(loc, rot, size, ob->object_to_world);
+    mat4_to_loc_rot_size(loc, rot, size, ob->object_to_world().ptr());
     MT_Matrix3x3 orientation;
     NodeSetWorldPosition(MT_Vector3(loc));
     // MT_Matrix3x3's constructor expects a 4x4 matrix
@@ -286,9 +286,11 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
 
     if (applyTransformToOrig) {
-      copy_m4_m4(ob_orig->object_to_world, object_to_world);
-      BKE_object_apply_mat4(
-          ob_orig, ob_orig->object_to_world, false, ob_orig->parent && ob_orig->partype != PARVERT1);
+      copy_m4_m4(ob_orig->runtime->object_to_world.ptr(), object_to_world);
+      BKE_object_apply_mat4(ob_orig,
+                            ob_orig->object_to_world().ptr(),
+                            false,
+                            ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
     if (!staticObject || m_forceIgnoreParentTx) {
@@ -344,8 +346,8 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
 
   if (ob_orig && !skip_transform) {
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
-    copy_m4_m4(ob_eval->object_to_world, object_to_world);
-    BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world, false, true);
+    copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
+    BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
   }
 }
 
@@ -1073,9 +1075,9 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
   if (blendobj) {
     float object_to_world[4][4];
     NodeGetWorldTransform().getValue(&object_to_world[0][0]);
-    copy_m4_m4(blendobj->object_to_world, object_to_world);
+    copy_m4_m4(blendobj->runtime->object_to_world.ptr(), object_to_world);
     /* Making sure it's updated. (To move volumes) */
-    invert_m4_m4(blendobj->world_to_object, blendobj->object_to_world);
+    invert_m4_m4(blendobj->runtime->world_to_object.ptr(), blendobj->object_to_world().ptr());
   }
 }
 

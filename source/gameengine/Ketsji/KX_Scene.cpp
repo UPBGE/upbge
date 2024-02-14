@@ -1270,9 +1270,9 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
     if (child->parent == ob) {
       ob_child = child;
       Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
-      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world, true, false);
+      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world().ptr(), true, false);
       BKE_object_workob_calc_parent(depsgraph, GetBlenderScene(), ob_child_eval, &workob);
-      invert_m4_m4(ob_child->parentinv, workob.object_to_world);
+      invert_m4_m4(ob_child->parentinv, workob.object_to_world().ptr());
       /* Copy result of BKE_object_apply_mat4(). */
       BKE_object_transform_copy(ob_child, ob_child_eval);
       /* Make sure evaluated object is in a consistent state with the original one.
@@ -1301,8 +1301,10 @@ void KX_Scene::TagForObjectsMatToWorldRestore()
       bool applyTransformToOrig = OrigObCanBeTransformedInRealtime(ob_orig);
 
       if (applyTransformToOrig) {
-        BKE_object_apply_mat4(
-            ob_orig, ob_orig->object_to_world, false, ob_orig->parent && ob_orig->partype != PARVERT1);
+        BKE_object_apply_mat4(ob_orig,
+                              ob_orig->object_to_world().ptr(),
+                              false,
+                              ob_orig->parent && ob_orig->partype != PARVERT1);
       }
 
       if (applyTransformToOrig) {
@@ -1332,7 +1334,7 @@ bool KX_Scene::SomethingIsMoving()
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObjectMatToWorld()),
-                       gameobj->GetBlenderObject()->object_to_world,
+                       gameobj->GetBlenderObject()->object_to_world().ptr(),
                        FLT_MIN))) {
       return true;
     }
