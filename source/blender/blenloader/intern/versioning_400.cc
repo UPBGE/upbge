@@ -2882,7 +2882,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   /* Keep point/spot light soft falloff for files created before 4.0. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 0)) {
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      if (light->type == LA_LOCAL || light->type == LA_SPOT) {
+      if (ELEM(light->type, LA_LOCAL, LA_SPOT)) {
         light->mode |= LA_USE_SOFT_FALLOFF;
       }
     }
@@ -2916,6 +2916,26 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         scene->r.motion_blur_shutter = scene->eevee.motion_blur_shutter_deprecated;
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 3)) {
+    constexpr int NTREE_EXECUTION_MODE_FULL_FRAME = 1;
+
+    constexpr int NTREE_COM_GROUPNODE_BUFFER = 1 << 3;
+    constexpr int NTREE_COM_OPENCL = 1 << 1;
+
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+
+      ntree->flag &= ~(NTREE_COM_GROUPNODE_BUFFER | NTREE_COM_OPENCL);
+
+      if (ntree->execution_mode == NTREE_EXECUTION_MODE_FULL_FRAME) {
+        ntree->execution_mode = NTREE_EXECUTION_MODE_CPU;
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**

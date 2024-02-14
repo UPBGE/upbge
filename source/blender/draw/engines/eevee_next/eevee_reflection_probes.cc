@@ -46,9 +46,19 @@ void SphereProbeModule::begin_sync()
     pass.push_constant("probe_coord_packed", reinterpret_cast<int4 *>(&probe_sampling_coord_));
     pass.push_constant("write_coord_packed", reinterpret_cast<int4 *>(&probe_write_coord_));
     pass.push_constant("world_coord_packed", reinterpret_cast<int4 *>(&world_data.atlas_coord));
-    pass.push_constant("mip_level", &probe_mip_level_);
     pass.push_constant("probe_brightness_clamp", probe_brightness_clamp);
     pass.dispatch(&dispatch_probe_pack_);
+  }
+  {
+    PassSimple &pass = convolve_ps_;
+    pass.init();
+    pass.shader_set(instance_.shaders.static_shader_get(SPHERE_PROBE_CONVOLVE));
+    pass.bind_image("in_atlas_mip_img", &convolve_input_);
+    pass.bind_image("out_atlas_mip_img", &convolve_output_);
+    pass.push_constant("write_coord_packed", reinterpret_cast<int4 *>(&probe_write_coord_));
+    pass.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
+    pass.dispatch(&dispatch_probe_convolve_);
+    pass.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
   }
   {
     PassSimple &pass = update_irradiance_ps_;
@@ -85,6 +95,7 @@ bool SphereProbeModule::ensure_atlas()
                                  nullptr,
                                  SPHERE_PROBE_MIPMAP_LEVELS))
   {
+    probes_tx_.ensure_mip_views();
     /* TODO(fclem): Clearing means that we need to render all probes again.
      * If existing data exists, copy it using `CopyImageSubData`. */
     probes_tx_.clear(float4(0.0f));
@@ -122,11 +133,8 @@ void SphereProbeModule::end_sync()
 
 void SphereProbeModule::ensure_cubemap_render_target(int resolution)
 {
-  if (cubemap_tx_.ensure_cube(
-          GPU_RGBA16F, resolution, GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ))
-  {
-    GPU_texture_mipmap_mode(cubemap_tx_, false, true);
-  }
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ;
+  cubemap_tx_.ensure_cube(GPU_RGBA16F, resolution, usage);
   /* TODO(fclem): deallocate it. */
 }
 
@@ -185,20 +193,27 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
   /* Update shader parameters that change per dispatch. */
   probe_sampling_coord_ = atlas_coord.as_sampling_coord(max_resolution_);
   probe_write_coord_ = atlas_coord.as_write_coord(max_resolution_, 0);
-  probe_mip_level_ = atlas_coord.subdivision_lvl;
   dispatch_probe_pack_ = int3(int2(ceil_division(resolution, SPHERE_PROBE_GROUP_SIZE)), 1);
-
   instance_.manager->submit(remap_ps_);
+
+  /* Populate the mip levels */
+  for (auto i : IndexRange(SPHERE_PROBE_MIPMAP_LEVELS - 1)) {
+    convolve_input_ = probes_tx_.mip_view(i);
+    convolve_output_ = probes_tx_.mip_view(i + 1);
+    probe_write_coord_ = atlas_coord.as_write_coord(max_resolution_, i + 1);
+    int out_mip_res = resolution >> (i + 1);
+    dispatch_probe_convolve_ = int3(int2(ceil_division(out_mip_res, SPHERE_PROBE_GROUP_SIZE)), 1);
+    instance_.manager->submit(convolve_ps_);
+  }
+  /* Sync with atlas usage for shading. */
+  GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH);
 }
 
 void SphereProbeModule::update_world_irradiance()
 {
   instance_.manager->submit(update_irradiance_ps_);
-}
-
-void SphereProbeModule::update_probes_texture_mipmaps()
-{
-  GPU_texture_update_mipmap_chain(probes_tx_);
+  /* All volume probe that needs to composite the world probe need to be updated. */
+  instance_.volume_probes.do_update_world_ = true;
 }
 
 void SphereProbeModule::set_view(View & /*view*/)
@@ -254,27 +269,36 @@ void SphereProbeModule::set_view(View & /*view*/)
   }
   data_buf_.push_update();
 
-  do_display_draw_ = DRW_state_draw_support() && probe_active.size() > 0;
-  if (do_display_draw_) {
-    int display_index = 0;
-    for (int i : probe_active.index_range()) {
-      if (probe_active[i]->viewport_display) {
-        display_data_buf_.get_or_resize(display_index++) = {
-            i, probe_active[i]->viewport_display_size};
-      }
-    }
-    do_display_draw_ = display_index > 0;
-    if (do_display_draw_) {
-      display_data_buf_.resize(display_index);
-      display_data_buf_.push_update();
-    }
-  }
-
-  /* Add one for world probe. */
-  reflection_probe_count_ = probe_active.size() + 1;
+  reflection_probe_count_ = probe_id;
   dispatch_probe_select_.x = divide_ceil_u(reflection_probe_count_,
                                            SPHERE_PROBE_SELECT_GROUP_SIZE);
   instance_.manager->submit(select_ps_);
+
+  sync_display(probe_active);
+}
+
+void SphereProbeModule::sync_display(Vector<SphereProbe *> &probe_active)
+{
+  do_display_draw_ = false;
+  if (!DRW_state_draw_support()) {
+    return;
+  }
+
+  int display_index = 0;
+  for (int i : probe_active.index_range()) {
+    if (probe_active[i]->viewport_display) {
+      SphereProbeDisplayData &sph_data = display_data_buf_.get_or_resize(display_index++);
+      sph_data.probe_index = i;
+      sph_data.display_size = probe_active[i]->viewport_display_size;
+    }
+  }
+
+  if (display_index == 0) {
+    return;
+  }
+  do_display_draw_ = true;
+  display_data_buf_.resize(display_index);
+  display_data_buf_.push_update();
 }
 
 void SphereProbeModule::viewport_draw(View &view, GPUFrameBuffer *view_fb)

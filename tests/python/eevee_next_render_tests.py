@@ -52,28 +52,34 @@ def setup():
         # Light-probes
         eevee.gi_cubemap_resolution = '256'
 
-        # Does not work in edit mode
-        if bpy.context.mode == 'OBJECT':
-            # Simple probe setup
-            bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.0, 0.0))
-            cubemap = bpy.context.selected_objects[0]
-            cubemap.scale = (1.0, 1.0, 1.0)
-            cubemap.data.falloff = 0.0
-            cubemap.data.clip_start = 0.8
-            cubemap.data.influence_distance = 1.2
-
-            bpy.ops.object.lightprobe_add(type='VOLUME', location=(0.0, 0.0, 0.0))
-            grid = bpy.context.selected_objects[0]
-            grid.scale = (1.735, 1.735, 1.735)
-            grid.data.grid_bake_samples = 256
-            bpy.ops.object.lightprobe_cache_bake(subset='ACTIVE')
-
         # Only include the plane in probes
         for ob in scene.objects:
             if ob.name != 'Plane' and ob.type != 'LIGHT':
                 ob.hide_probe_volume = True
                 ob.hide_probe_sphere = True
                 ob.hide_probe_plane = True
+
+        # Does not work in edit mode
+        if bpy.context.mode == 'OBJECT':
+            # Simple probe setup
+            bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.0, 1.0))
+            cubemap = bpy.context.selected_objects[0]
+            cubemap.scale = (5.0, 5.0, 2.0)
+            cubemap.data.falloff = 0.0
+            cubemap.data.clip_start = 0.8
+            cubemap.data.influence_distance = 1.2
+
+            bpy.ops.object.lightprobe_add(type='VOLUME', location=(0.0, 0.0, 2.0))
+            grid = bpy.context.selected_objects[0]
+            grid.scale = (8.0, 4.5, 4.5)
+            grid.data.grid_resolution_x = 32
+            grid.data.grid_resolution_y = 16
+            grid.data.grid_resolution_z = 8
+            grid.data.grid_bake_samples = 128
+            grid.data.grid_capture_world = True
+            # Make lighting smoother for most of the case.
+            grid.data.grid_dilation_threshold = 1.0
+            bpy.ops.object.lightprobe_cache_bake(subset='ACTIVE')
 
 
 # When run from inside Blender, render and exit.

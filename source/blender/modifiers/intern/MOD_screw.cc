@@ -44,9 +44,9 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "BLI_strict_flags.h"
-
 #include "GEO_mesh_merge_by_distance.hh"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 using namespace blender;
 
@@ -286,8 +286,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   if (ob_axis != nullptr) {
     /* Calculate the matrix relative to the axis object. */
-    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world);
-    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world);
+    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world().ptr());
+    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world().ptr());
     mul_m4_m4m4(mtx_tx, mtx_tmp_a, mtx_tx_inv);
 
     /* Calculate the axis vector. */
