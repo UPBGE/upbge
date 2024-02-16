@@ -440,6 +440,7 @@ constexpr IDTypeInfo get_type_info()
   IDTypeInfo info{};
   info.id_code = ID_IM;
   info.id_filter = FILTER_ID_IM;
+  info.dependencies_id_types = 0;
   info.main_listbase_index = INDEX_ID_IM;
   info.struct_size = sizeof(Image);
   info.name = "Image";
@@ -1494,7 +1495,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
 
 void BKE_image_tag_time(Image *ima)
 {
-  ima->lastused = BLI_check_seconds_timer_i();
+  ima->lastused = BLI_time_now_seconds_i();
 }
 
 static uintptr_t image_mem_size(Image *image)

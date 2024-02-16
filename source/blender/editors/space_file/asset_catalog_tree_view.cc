@@ -181,11 +181,14 @@ class AssetCatalogTreeViewUnassignedItem : public ui::BasicTreeViewItem {
 AssetCatalogTreeView::AssetCatalogTreeView(asset_system::AssetLibrary *library,
                                            FileAssetSelectParams *params,
                                            SpaceFile &space_file)
-    : asset_library_(library),
-      catalog_tree_(AS_asset_library_get_catalog_tree(library)),
-      params_(params),
-      space_file_(space_file)
+    : asset_library_(library), params_(params), space_file_(space_file)
 {
+  if (library && library->catalog_service) {
+    catalog_tree_ = library->catalog_service->get_catalog_tree();
+  }
+  else {
+    catalog_tree_ = nullptr;
+  }
 }
 
 void AssetCatalogTreeView::build_tree()
@@ -502,8 +505,7 @@ AssetCatalog *AssetCatalogDropTarget::get_drag_catalog(
   if (drag.type != WM_DRAG_ASSET_CATALOG) {
     return nullptr;
   }
-  const AssetCatalogService *catalog_service = AS_asset_library_get_catalog_service(
-      &asset_library);
+  const AssetCatalogService *catalog_service = asset_library.catalog_service.get();
   const wmDragAssetCatalog *catalog_drag = WM_drag_get_asset_catalog_data(&drag);
 
   return catalog_service->find_catalog(catalog_drag->drag_catalog_id);
