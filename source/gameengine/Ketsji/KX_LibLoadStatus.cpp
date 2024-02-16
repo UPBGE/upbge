@@ -45,14 +45,14 @@ KX_LibLoadStatus::KX_LibLoadStatus(class BL_Converter *kx_converter,
       m_progress_cb(nullptr)
 #endif
 {
-  m_endtime = m_starttime = BLI_check_seconds_timer();
+  m_endtime = m_starttime = BLI_time_now_seconds();
 }
 
 void KX_LibLoadStatus::Finish()
 {
   m_finished = true;
   m_progress = 1.f;
-  m_endtime = BLI_check_seconds_timer();
+  m_endtime = BLI_time_now_seconds();
 
   RunFinishCallback();
   RunProgressCallback();

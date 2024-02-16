@@ -167,7 +167,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
       return false;
     }
   }
-  m_private->m_hapticEndTime = BLI_check_seconds_timer() * 1000.0 + (double)duration;
+  m_private->m_hapticEndTime = BLI_time_now_seconds() * 1000.0 + (double)duration;
   return true;
 #endif  // WITH_SDL
   return false;
@@ -215,7 +215,7 @@ void DEV_Joystick::ProcessRumbleStatus()
     return;
   }
 
-  if ((BLI_check_seconds_timer() * 1000.0) >= m_private->m_hapticEndTime) {
+  if ((BLI_time_now_seconds() * 1000.0) >= m_private->m_hapticEndTime) {
     RumbleStop();
   }
 #endif

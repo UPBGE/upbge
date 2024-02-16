@@ -32,7 +32,7 @@
 
 LA_System::LA_System()
 {
-  m_starttime = BLI_check_seconds_timer();
+  m_starttime = BLI_time_now_seconds();
 }
 
 LA_System::~LA_System()
@@ -41,5 +41,5 @@ LA_System::~LA_System()
 
 double LA_System::GetTimeInSeconds()
 {
-  return BLI_check_seconds_timer() - m_starttime;
+  return BLI_time_now_seconds() - m_starttime;
 }
