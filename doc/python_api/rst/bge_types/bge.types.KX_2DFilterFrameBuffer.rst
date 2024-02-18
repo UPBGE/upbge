@@ -36,3 +36,17 @@ base class --- :class:`~bge.types.EXP_Value`
       .. warning:: If the off screen can be resized dynamically (:data:`width` of :data:`height` equal to -1), the bind code may change.
 
       :type: integer
+
+   .. method:: getColorTexture(slot=0)
+      Returns the color buffer as texture.
+
+      :arg slot: index of the slot (0-7).
+      :type vect: integer
+      :return: Texture object.
+      :rtype: :class:`~gpu.types.GPUTexture`
+
+   .. method:: getDepthTexture()
+      Returns the depth buffer as texture.
+
+      :return: Texture object.
+      :rtype: :class:`~gpu.types.GPUTexture`
