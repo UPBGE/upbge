@@ -41,7 +41,7 @@ base class --- :class:`~bge.types.EXP_Value`
       Returns the color buffer as texture.
 
       :arg slot: index of the slot (0-7).
-      :type vect: integer
+      :type slot: integer
       :return: Texture object.
       :rtype: :class:`~gpu.types.GPUTexture`
 
