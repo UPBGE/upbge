@@ -1861,7 +1861,7 @@ void BKE_collection_parent_relations_rebuild(Collection *collection)
 
     /* Can happen when remapping data partially out-of-Main (during advanced ID management
      * operations like lib-override resync e.g.). */
-    if ((child->collection->id.tag & (LIB_TAG_NO_MAIN | LIB_TAG_COPIED_ON_WRITE)) != 0) {
+    if ((child->collection->id.tag & (LIB_TAG_NO_MAIN | LIB_TAG_COPIED_ON_EVAL)) != 0) {
       continue;
     }
 
@@ -1885,7 +1885,7 @@ static void collection_parents_rebuild_recursive(Collection *collection)
 
   LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
     /* See comment above in `BKE_collection_parent_relations_rebuild`. */
-    if ((child->collection->id.tag & (LIB_TAG_NO_MAIN | LIB_TAG_COPIED_ON_WRITE)) != 0) {
+    if ((child->collection->id.tag & (LIB_TAG_NO_MAIN | LIB_TAG_COPIED_ON_EVAL)) != 0) {
       continue;
     }
     collection_parents_rebuild_recursive(child->collection);

@@ -2065,7 +2065,7 @@ static int direct_link_id_restore_recalc(const FileData *fd,
     /* If the contents datablock changed, the depsgraph needs to copy the
      * datablock again to ensure it matches the original datablock. */
     if (!is_identical) {
-      recalc |= ID_RECALC_COPY_ON_WRITE;
+      recalc |= ID_RECALC_SYNC_TO_EVAL;
     }
 
     /* Special exceptions. */
@@ -3325,7 +3325,7 @@ static void lib_link_all(FileData *fd, Main *bmain)
   }
   FOREACH_MAIN_ID_END;
 
-  /* Cleanup `ID.orig_id`, this is now reserved for depsgraph/COW usage only. */
+  /* Cleanup `ID.orig_id`, this is now reserved for depsgraph/copy-on-eval usage only. */
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     id->orig_id = nullptr;
   }
