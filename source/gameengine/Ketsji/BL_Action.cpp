@@ -29,7 +29,7 @@
 #include "BKE_action.h"
 #include "BKE_context.hh"
 #include "BKE_modifier.hh"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "DNA_gpencil_modifier_types.h"

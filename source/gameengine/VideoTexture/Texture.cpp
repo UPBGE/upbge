@@ -10,7 +10,7 @@
 #include "Texture.h"
 
 #include "BKE_image.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_material_types.h"
