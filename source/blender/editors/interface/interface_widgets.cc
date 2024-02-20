@@ -2639,6 +2639,32 @@ static float widget_radius_from_rcti(const rcti *rect, const uiWidgetColors *wco
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Widget Emboss Helper
+ *
+ * Emboss is an (optional) shadow shown under the bottom edge of buttons. For
+ * vertically-aligned stacks of buttons it should only be shown under the bottom one.
+ * \{ */
+
+static bool draw_emboss(const uiBut *but)
+{
+  if (but->drawflag & UI_BUT_ALIGN_DOWN) {
+    return false;
+  }
+
+  if (but->type == UI_BTYPE_TAB &&
+      (BLI_rctf_size_y(&but->block->rect) > BLI_rctf_size_x(&but->block->rect)) &&
+      !(but->next == nullptr || but->next->type == UI_BTYPE_SEPR))
+  {
+    /* Vertical tabs, emboss at end and before separators. */
+    return false;
+  }
+
+  return true;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Widget Types
  * \{ */
 
@@ -3404,7 +3430,8 @@ static void ui_draw_separator(const uiWidgetColors *wcol, uiBut *but, const rcti
 
 #define NUM_BUT_PADDING_FACTOR 0.425f
 
-static void widget_numbut_draw(uiWidgetColors *wcol,
+static void widget_numbut_draw(const uiBut *but,
+                               uiWidgetColors *wcol,
                                rcti *rect,
                                const float zoom,
                                const uiWidgetStateInfo *state,
@@ -3494,12 +3521,12 @@ static void widget_numbut_draw(uiWidgetColors *wcol,
 
     /* outline */
     wtb.draw_inner = false;
-    wtb.draw_emboss = roundboxalign & (UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+    wtb.draw_emboss = draw_emboss(but);
     widgetbase_draw(&wtb, wcol);
   }
   else {
     /* inner and outline */
-    wtb.draw_emboss = roundboxalign & (UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+    wtb.draw_emboss = draw_emboss(but);
     widgetbase_draw(&wtb, wcol);
   }
 
@@ -3511,13 +3538,14 @@ static void widget_numbut_draw(uiWidgetColors *wcol,
   }
 }
 
-static void widget_numbut(uiWidgetColors *wcol,
+static void widget_numbut(uiBut *but,
+                          uiWidgetColors *wcol,
                           rcti *rect,
                           const uiWidgetStateInfo *state,
                           int roundboxalign,
                           const float zoom)
 {
-  widget_numbut_draw(wcol, rect, zoom, state, roundboxalign, false);
+  widget_numbut_draw(but, wcol, rect, zoom, state, roundboxalign, false);
 }
 
 static void widget_menubut(uiWidgetColors *wcol,
@@ -3568,14 +3596,14 @@ static void widget_menubut_embossn(const uiBut * /*but*/,
 /**
  * Draw number buttons still with triangles when field is not embossed
  */
-static void widget_numbut_embossn(const uiBut * /*but*/,
+static void widget_numbut_embossn(const uiBut *but,
                                   uiWidgetColors *wcol,
                                   rcti *rect,
                                   const uiWidgetStateInfo *state,
                                   int roundboxalign,
                                   const float zoom)
 {
-  widget_numbut_draw(wcol, rect, zoom, state, roundboxalign, true);
+  widget_numbut_draw(but, wcol, rect, zoom, state, roundboxalign, true);
 }
 
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
@@ -4494,8 +4522,7 @@ static void widget_box(uiBut *but,
 
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, roundboxalign, rect, rad);
-
-  wtb.draw_emboss = roundboxalign & (UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+  wtb.draw_emboss = draw_emboss(but);
   widgetbase_draw(&wtb, wcol);
 
   copy_v3_v3_uchar(wcol->inner, old_col);
@@ -4531,7 +4558,8 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int /*state*/ int 
 }
 #endif
 
-static void widget_roundbut_exec(uiWidgetColors *wcol,
+static void widget_roundbut_exec(uiBut *but,
+                                 uiWidgetColors *wcol,
                                  rcti *rect,
                                  const uiWidgetStateInfo *state,
                                  int roundboxalign,
@@ -4549,12 +4577,12 @@ static void widget_roundbut_exec(uiWidgetColors *wcol,
 
   /* half rounded */
   round_box_edges(&wtb, roundboxalign, rect, rad);
-
-  wtb.draw_emboss = roundboxalign & (UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+  wtb.draw_emboss = draw_emboss(but);
   widgetbase_draw(&wtb, wcol);
 }
 
-static void widget_tab(uiWidgetColors *wcol,
+static void widget_tab(uiBut *but,
+                       uiWidgetColors *wcol,
                        rcti *rect,
                        const uiWidgetStateInfo *state,
                        int roundboxalign,
@@ -4589,6 +4617,7 @@ static void widget_tab(uiWidgetColors *wcol,
 #ifdef USE_TAB_SHADED_HIGHLIGHT
   wtb.draw_outline = 0;
 #endif
+  wtb.draw_emboss = draw_emboss(but);
   widgetbase_draw(&wtb, wcol);
 
   /* We are drawing on top of widget bases. Flush cache. */
@@ -4683,7 +4712,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
     case UI_WTYPE_NUMBER:
       wt.wcol_theme = &btheme->tui.wcol_num;
-      wt.draw = widget_numbut;
+      wt.custom = widget_numbut;
       break;
 
     case UI_WTYPE_SLIDER:
@@ -4694,17 +4723,17 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
     case UI_WTYPE_EXEC:
       wt.wcol_theme = &btheme->tui.wcol_tool;
-      wt.draw = widget_roundbut_exec;
+      wt.custom = widget_roundbut_exec;
       break;
 
     case UI_WTYPE_TOOLBAR_ITEM:
       wt.wcol_theme = &btheme->tui.wcol_toolbar_item;
-      wt.draw = widget_roundbut_exec;
+      wt.custom = widget_roundbut_exec;
       break;
 
     case UI_WTYPE_TAB:
       wt.wcol_theme = &btheme->tui.wcol_tab;
-      wt.draw = widget_tab;
+      wt.custom = widget_tab;
       break;
 
     case UI_WTYPE_TOOLTIP:
