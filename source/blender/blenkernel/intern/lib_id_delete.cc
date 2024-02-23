@@ -213,7 +213,7 @@ void BKE_id_free_us(Main *bmain, void *idv) /* test users */
   if (id->us == 0) {
     const bool is_lib = GS(id->name) == ID_LI;
 
-    BKE_libblock_unlink(bmain, id, false, false);
+    BKE_libblock_unlink(bmain, id, false);
 
     BKE_id_free(bmain, id);
 
@@ -326,6 +326,10 @@ static size_t id_delete(Main *bmain,
      * deletion (typically, if one deleted ID uses another deleted ID, this may not be cleared by
      * remapping code, depending on order in which these are handled). */
     id->us = ID_FAKE_USERS(id);
+
+    if (!has_deleted_library && GS(id->name) == ID_LI) {
+      has_deleted_library = true;
+    }
 
     id_free(bmain, id, free_flag, false);
   }
