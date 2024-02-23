@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop">
     <id>org.upbge.UPBGE</id>
-    <launchable type="desktop-id">upbge.desktop</launchable>
+    <launchable type="desktop-id">org.upbge.UPBGE.desktop</launchable>
     <name>UPBGE</name>
     <summary>UPBGE is a free and open source 3D Game Engine integrated in Blender</summary>
     <metadata_license>CC0-1.0</metadata_license>
+    <content_rating type="oars-1.1" />
     <project_license>GPL-3.0</project_license>
     <description>
         <p>
@@ -19,7 +20,7 @@
         </p>
     </description>
     <url type="homepage">https://upbge.org</url>
-    <url type="Github">https://github.com/UPBGE/upbge</url>
+    <url type="bugtracker">https://github.com/UPBGE/upbge/issues</url>
     <screenshots>
         <screenshot type="default">
             <image>https://upbge.org/img/1.jpg</image>
