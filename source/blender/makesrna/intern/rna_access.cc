@@ -2039,7 +2039,7 @@ bool RNA_property_enum_item_from_value_gettexted(
 
   if (result && !(prop->flag & PROP_ENUM_NO_TRANSLATE)) {
     r_item->name = BLT_translate_do_iface(prop->translation_context, r_item->name);
-    r_item->description = BLT_translate_do_tooltip(prop->translation_context, r_item->description);
+    r_item->description = BLT_translate_do_tooltip(nullptr, r_item->description);
   }
 
   return result;
@@ -2112,7 +2112,12 @@ static bool rna_property_editable_do(PointerRNA *ptr,
   }
 
   /* Early return if the property itself is not editable. */
-  if ((flag & PROP_EDITABLE) == 0 || (flag & PROP_REGISTER) != 0) {
+  if ((flag & PROP_EDITABLE) == 0) {
+    return false;
+  }
+  /* Only considered registerable properties "internal"
+   * because regular properties may not be editable and still be displayed. */
+  if (flag & PROP_REGISTER) {
     if (r_info != nullptr && (*r_info)[0] == '\0') {
       *r_info = N_("This property is for internal use only and can't be edited");
     }

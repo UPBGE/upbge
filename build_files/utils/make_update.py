@@ -131,7 +131,7 @@ def ensure_git_lfs(args: argparse.Namespace) -> None:
     call((args.git_command, "lfs", "install", "--skip-repo"), exit_on_error=True)
 
 
-def update_precompiled_libraries(args: argparse.Namespace) -> None:
+def update_precompiled_libraries(args: argparse.Namespace) -> str:
     """
     Configure and update submodule for precompiled libraries
 
@@ -153,21 +153,24 @@ def update_precompiled_libraries(args: argparse.Namespace) -> None:
 
     if sys.platform == "linux" and not args.use_linux_libraries:
         print("Skipping Linux libraries configuration")
-        return
+        return ""
 
     submodule_dir = f"lib/{platform}_{arch}"
 
     submodule_directories = get_submodule_directories(args)
 
     if Path(submodule_dir) not in submodule_directories:
-        print("Skipping libraries update: no configured submodule")
-        return
+        return "Skipping libraries update: no configured submodule\n"
 
     make_utils.git_enable_submodule(args.git_command, submodule_dir)
-    make_utils.git_update_submodule(args.git_command, submodule_dir)
+
+    if not make_utils.git_update_submodule(args.git_command, submodule_dir):
+        return "Error updating precompiled libraries\n"
+
+    return ""
 
 
-def update_tests_data_files(args: argparse.Namespace) -> None:
+def update_tests_data_files(args: argparse.Namespace) -> str:
     """
     Configure and update submodule with files used by regression tests
     """
@@ -177,7 +180,11 @@ def update_tests_data_files(args: argparse.Namespace) -> None:
     submodule_dir = "tests/data"
 
     make_utils.git_enable_submodule(args.git_command, submodule_dir)
-    make_utils.git_update_submodule(args.git_command, submodule_dir)
+
+    if not make_utils.git_update_submodule(args.git_command, submodule_dir):
+        return "Error updating test data\n"
+
+    return ""
 
 
 def git_update_skip(args: argparse.Namespace, check_remote_exists: bool = True) -> str:
@@ -555,9 +562,19 @@ def submodules_update(args: argparse.Namespace, branch: Optional[str]) -> str:
     msg += floating_libraries_update(args, branch)
 
     print("* Updating Git submodules")
-    exitcode = call((args.git_command, "submodule", "update", "--init"), exit_on_error=False)
-    if exitcode != 0:
-        msg += "Error updating Git submodules\n"
+
+    submodule_directories = get_submodule_directories(args)
+    for submodule_path in submodule_directories:
+        if submodule_path.parts[0] == "lib" and args.no_libraries:
+            print(f"Skipping library submodule {submodule_path}")
+            continue
+
+        if submodule_path.parts[0] == "tests" and not args.use_tests:
+            print(f"Skipping tests submodule {submodule_path}")
+            continue
+
+        if not make_utils.git_update_submodule(args.git_command, submodule_path):
+            msg += f"Error updating Git submodule {submodule_path}\n"
 
     add_submodule_push_url(args)
 
@@ -567,6 +584,7 @@ def submodules_update(args: argparse.Namespace, branch: Optional[str]) -> str:
 if __name__ == "__main__":
     args = parse_arguments()
     blender_skip_msg = ""
+    libraries_skip_msg = ""
     submodules_skip_msg = ""
 
     blender_version = make_utils. parse_blender_version()
@@ -588,19 +606,18 @@ if __name__ == "__main__":
             blender_skip_msg = "Blender repository skipped: " + blender_skip_msg + "\n"
 
     if not args.no_libraries:
-        update_precompiled_libraries(args)
+        libraries_skip_msg += update_precompiled_libraries(args)
         if args.use_tests:
-            update_tests_data_files(args)
+            libraries_skip_msg += update_tests_data_files(args)
 
     if not args.no_submodules:
         submodules_skip_msg = submodules_update(args, branch)
 
     # Report any skipped repositories at the end, so it's not as easy to miss.
-    skip_msg = blender_skip_msg + submodules_skip_msg
+    skip_msg = blender_skip_msg + libraries_skip_msg + submodules_skip_msg
     if skip_msg:
-        print()
+        print_stage("Update finished with the following messages")
         print(skip_msg.strip())
-        print()
 
     # For failed submodule update we throw an error, since not having correct
     # submodules can make Blender throw errors.
