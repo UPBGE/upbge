@@ -751,7 +751,7 @@ if(UNIX AND NOT APPLE)
 
     install(
       FILES
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/org.upbge.UPBGE.desktop
         ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
         ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
       DESTINATION "."
@@ -806,7 +806,7 @@ file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
     )
     # Misc files.
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/org.upbge.UPBGE.desktop
       DESTINATION "./share/applications"
     )
     install(
