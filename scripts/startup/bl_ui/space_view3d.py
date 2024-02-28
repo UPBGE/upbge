@@ -2589,6 +2589,13 @@ class VIEW3D_MT_grease_pencil_add(Menu):
         layout.operator("object.grease_pencil_add", text="Empty", icon='EMPTY_AXIS').type = 'EMPTY'
         layout.operator("object.grease_pencil_add", text="Stroke", icon='STROKE').type = 'STROKE'
         layout.operator("object.grease_pencil_add", text="Suzanne", icon='MONKEY').type = 'MONKEY'
+        layout.separator()
+        layout.operator("object.grease_pencil_add", text="Scene Line Art", icon='SCENE').type = 'LINEART_SCENE'
+        layout.operator(
+            "object.grease_pencil_add",
+            text="Collection Line Art",
+            icon='GROUP').type = 'LINEART_COLLECTION'
+        layout.operator("object.grease_pencil_add", text="Object Line Art", icon='CUBE').type = 'LINEART_OBJECT'
 
 
 class VIEW3D_MT_add(Menu):
@@ -8782,21 +8789,21 @@ class VIEW3D_PT_curves_sculpt_add_shape(Panel):
         brush = settings.brush
 
         col = layout.column(heading="Interpolate", align=True)
-        col.prop(brush.curves_sculpt_settings, "interpolate_length", text="Length")
-        col.prop(brush.curves_sculpt_settings, "interpolate_radius", text="Radius")
-        col.prop(brush.curves_sculpt_settings, "interpolate_shape", text="Shape")
-        col.prop(brush.curves_sculpt_settings, "interpolate_point_count", text="Point Count")
+        col.prop(brush.curves_sculpt_settings, "use_length_interpolate", text="Length")
+        col.prop(brush.curves_sculpt_settings, "use_radius_interpolate", text="Radius")
+        col.prop(brush.curves_sculpt_settings, "use_shape_interpolate", text="Shape")
+        col.prop(brush.curves_sculpt_settings, "use_point_count_interpolate", text="Point Count")
 
         col = layout.column()
-        col.active = not brush.curves_sculpt_settings.interpolate_length
+        col.active = not brush.curves_sculpt_settings.use_length_interpolate
         col.prop(brush.curves_sculpt_settings, "curve_length", text="Length")
 
         col = layout.column()
-        col.active = not brush.curves_sculpt_settings.interpolate_radius
+        col.active = not brush.curves_sculpt_settings.use_radius_interpolate
         col.prop(brush.curves_sculpt_settings, "curve_radius", text="Radius")
 
         col = layout.column()
-        col.active = not brush.curves_sculpt_settings.interpolate_point_count
+        col.active = not brush.curves_sculpt_settings.use_point_count_interpolate
         col.prop(brush.curves_sculpt_settings, "points_per_curve", text="Points")
 
 
@@ -8838,7 +8845,7 @@ class VIEW3D_PT_curves_sculpt_grow_shrink_scaling(Panel):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        layout.prop(brush.curves_sculpt_settings, "scale_uniform")
+        layout.prop(brush.curves_sculpt_settings, "use_uniform_scale")
         layout.prop(brush.curves_sculpt_settings, "minimum_length")
 
 
