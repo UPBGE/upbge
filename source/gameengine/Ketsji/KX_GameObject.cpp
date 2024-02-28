@@ -303,7 +303,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
             childrenObjects.push_back(child);
           }
         }
-        GetScene()->IgnoreParentTxBGE(bmain, depsgraph, ob_orig, childrenObjects);
+        GetScene()->IgnoreParentTxBGE(bmain, depsgraph, CTX_data_scene(C), ob_orig, childrenObjects);
       }
     }
 

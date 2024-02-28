@@ -364,6 +364,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   bool OrigObCanBeTransformedInRealtime(Object *ob);
   void IgnoreParentTxBGE(struct Main *bmain,
                          struct Depsgraph *depsgraph,
+                         Scene *scene,
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();

@@ -1257,10 +1257,10 @@ bool KX_Scene::OrigObCanBeTransformedInRealtime(Object *ob)
 /* Look at object_transform for original function */
 void KX_Scene::IgnoreParentTxBGE(Main *bmain,
                                  Depsgraph *depsgraph,
+                                 Scene *scene,
                                  Object *ob,
                                  std::vector<Object *> children)
 {
-  Object workob;
   Object *ob_child;
 
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
@@ -1271,8 +1271,8 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
       ob_child = child;
       Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
       BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world().ptr(), true, false);
-      BKE_object_workob_calc_parent(depsgraph, GetBlenderScene(), ob_child_eval, &workob);
-      invert_m4_m4(ob_child->parentinv, workob.object_to_world().ptr());
+      invert_m4_m4(ob_child->parentinv,
+                   BKE_object_calc_parent(depsgraph, scene, ob_child_eval).ptr());
       /* Copy result of BKE_object_apply_mat4(). */
       BKE_object_transform_copy(ob_child, ob_child_eval);
       /* Make sure evaluated object is in a consistent state with the original one.
