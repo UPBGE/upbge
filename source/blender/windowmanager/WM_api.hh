@@ -1722,6 +1722,10 @@ void WM_main_playanim(int argc, const char **argv);
  */
 bool write_crash_blend();
 
+bool WM_autosave_is_scheduled(wmWindowManager *wm);
+/** Flushes all changes from edit modes and stores the auto-save file. */
+void WM_autosave_write(wmWindowManager *wm, Main *bmain);
+
 /**
  * Lock the interface for any communication.
  */
