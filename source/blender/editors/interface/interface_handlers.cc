@@ -485,10 +485,6 @@ struct uiAfterFunc {
   void *handle_func_arg;
   int retval;
 
-  uiMenuHandleFunc butm_func;
-  void *butm_func_arg;
-  int a2;
-
   wmOperator *popup_op;
   wmOperatorType *optype;
   wmOperatorCallContext opcontext;
@@ -816,9 +812,7 @@ static void popup_check(bContext *C, wmOperator *op)
 static bool ui_afterfunc_check(const uiBlock *block, const uiBut *but)
 {
   return (but->func || but->apply_func || but->funcN || but->rename_func || but->optype ||
-          but->rnaprop || block->handle_func ||
-          (but->type == UI_BTYPE_BUT_MENU && block->butm_func) ||
-          (block->handle && block->handle->popup_op));
+          but->rnaprop || block->handle_func || (block->handle && block->handle->popup_op));
 }
 
 /**
@@ -858,12 +852,6 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
   after->handle_func = block->handle_func;
   after->handle_func_arg = block->handle_func_arg;
   after->retval = but->retval;
-
-  if (but->type == UI_BTYPE_BUT_MENU) {
-    after->butm_func = block->butm_func;
-    after->butm_func_arg = block->butm_func_arg;
-    after->a2 = but->a2;
-  }
 
   if (block->handle) {
     after->popup_op = block->handle->popup_op;
@@ -1075,9 +1063,6 @@ static void ui_apply_but_funcs_after(bContext *C)
 
     if (after.handle_func) {
       after.handle_func(C, after.handle_func_arg, after.retval);
-    }
-    if (after.butm_func) {
-      after.butm_func(C, after.butm_func_arg, after.a2);
     }
 
     if (after.rename_func) {

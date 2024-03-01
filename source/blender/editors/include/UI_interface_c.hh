@@ -1004,8 +1004,6 @@ uiBut *uiDefBut(uiBlock *block,
                 void *poin,
                 float min,
                 float max,
-                float a1,
-                float a2,
                 const char *tip);
 uiBut *uiDefButF(uiBlock *block,
                  int type,
@@ -1030,8 +1028,6 @@ uiBut *uiDefButI(uiBlock *block,
                  int *poin,
                  float min,
                  float max,
-                 float a1,
-                 float a2,
                  const char *tip);
 uiBut *uiDefButBitI(uiBlock *block,
                     int type,
@@ -1057,8 +1053,6 @@ uiBut *uiDefButS(uiBlock *block,
                  short *poin,
                  float min,
                  float max,
-                 float a1,
-                 float a2,
                  const char *tip);
 uiBut *uiDefButBitS(uiBlock *block,
                     int type,
@@ -1147,9 +1141,6 @@ uiBut *uiDefButO_ptr(uiBlock *block,
                      short height,
                      const char *tip);
 
-/**
- * If a1==1.0 then a2 is an extra icon blending factor (alpha 0.0 - 1.0).
- */
 uiBut *uiDefIconBut(uiBlock *block,
                     int type,
                     int retval,
@@ -1161,8 +1152,6 @@ uiBut *uiDefIconBut(uiBlock *block,
                     void *poin,
                     float min,
                     float max,
-                    float a1,
-                    float a2,
                     const char *tip);
 uiBut *uiDefIconButI(uiBlock *block,
                      int type,
@@ -1175,8 +1164,6 @@ uiBut *uiDefIconButI(uiBlock *block,
                      int *poin,
                      float min,
                      float max,
-                     float a1,
-                     float a2,
                      const char *tip);
 uiBut *uiDefIconButBitI(uiBlock *block,
                         int type,
@@ -1190,8 +1177,6 @@ uiBut *uiDefIconButBitI(uiBlock *block,
                         int *poin,
                         float min,
                         float max,
-                        float a1,
-                        float a2,
                         const char *tip);
 uiBut *uiDefIconButS(uiBlock *block,
                      int type,
@@ -1204,8 +1189,6 @@ uiBut *uiDefIconButS(uiBlock *block,
                      short *poin,
                      float min,
                      float max,
-                     float a1,
-                     float a2,
                      const char *tip);
 uiBut *uiDefIconButBitS(uiBlock *block,
                         int type,
@@ -1219,8 +1202,6 @@ uiBut *uiDefIconButBitS(uiBlock *block,
                         short *poin,
                         float min,
                         float max,
-                        float a1,
-                        float a2,
                         const char *tip);
 uiBut *uiDefIconButBitC(uiBlock *block,
                         int type,
@@ -1234,8 +1215,6 @@ uiBut *uiDefIconButBitC(uiBlock *block,
                         char *poin,
                         float min,
                         float max,
-                        float a1,
-                        float a2,
                         const char *tip);
 uiBut *uiDefIconButR(uiBlock *block,
                      int type,
@@ -1301,24 +1280,7 @@ uiBut *uiDefIconTextBut(uiBlock *block,
                         void *poin,
                         float min,
                         float max,
-                        float a1,
-                        float a2,
                         const char *tip);
-uiBut *uiDefIconTextButF(uiBlock *block,
-                         int type,
-                         int retval,
-                         int icon,
-                         blender::StringRef str,
-                         int x,
-                         int y,
-                         short width,
-                         short height,
-                         float *poin,
-                         float min,
-                         float max,
-                         float a1,
-                         float a2,
-                         const char *tip);
 uiBut *uiDefIconTextButI(uiBlock *block,
                          int type,
                          int retval,
@@ -1331,8 +1293,6 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          int *poin,
                          float min,
                          float max,
-                         float a1,
-                         float a2,
                          const char *tip);
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
@@ -1552,7 +1512,6 @@ uiBut *uiDefIconBlockBut(uiBlock *block,
 
 /**
  * \param arg: A pointer to string/name, use #UI_but_func_search_set() below to make this work.
- * here `a1` and `a2`, if set, control thumbnail preview rows/cols.
  */
 uiBut *uiDefSearchBut(uiBlock *block,
                       void *arg,
@@ -1563,8 +1522,6 @@ uiBut *uiDefSearchBut(uiBlock *block,
                       int y,
                       short width,
                       short height,
-                      float a1,
-                      float a2,
                       const char *tip);
 /**
  * Same parameters as for #uiDefSearchBut, with additional operator type and properties,
@@ -1581,8 +1538,6 @@ uiBut *uiDefSearchButO_ptr(uiBlock *block,
                            int y,
                            short width,
                            short height,
-                           float a1,
-                           float a2,
                            const char *tip);
 
 /** For #uiDefAutoButsRNA. */
@@ -1739,8 +1694,11 @@ void UI_but_number_precision_set(uiBut *but, float precision);
 void UI_but_number_slider_step_size_set(uiBut *but, float step_size);
 void UI_but_number_slider_precision_set(uiBut *but, float precision);
 
+void UI_but_label_alpha_factor_set(uiBut *but, float alpha_factor);
+
+void UI_but_search_preview_grid_size_set(uiBut *but, int rows, int cols);
+
 void UI_block_func_handle_set(uiBlock *block, uiBlockHandleFunc func, void *arg);
-void UI_block_func_butmenu_set(uiBlock *block, uiMenuHandleFunc func, void *arg);
 void UI_block_func_set(uiBlock *block, uiButHandleFunc func, void *arg1, void *arg2);
 void UI_block_funcN_set(uiBlock *block, uiButHandleNFunc funcN, void *argN, void *arg2);
 
@@ -3347,7 +3305,7 @@ ARegion *UI_tooltip_create_from_search_item_generic(
 
 /* Float precision helpers */
 #define UI_PRECISION_FLOAT_MAX 6
-/* For float buttons the 'step' (or a1), is scaled */
+/* For float buttons the 'step', is scaled */
 #define UI_PRECISION_FLOAT_SCALE 0.01f
 
 /* Typical UI text */
