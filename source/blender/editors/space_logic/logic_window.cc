@@ -723,11 +723,15 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
 {
   uiBlock *block;
   int yco = 0;
+  uiBut *but;
 
   block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
-  UI_block_func_butmenu_set(block, do_sensor_menu, nullptr);
+  /* See
+   * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
+   * if issue */
+  //UI_block_func_butmenu_set(block, do_sensor_menu, nullptr);
 
-  uiDefBut(block,
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Show Objects"),
@@ -738,10 +742,9 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           0,
            "");
-  uiDefBut(block,
+  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 0); });
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Hide Objects"),
@@ -752,12 +755,11 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           1,
            "");
+  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, 0, 0, "");
-  uiDefBut(block,
+      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Show Sensors"),
@@ -768,10 +770,9 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           2,
            "");
-  uiDefBut(block,
+  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 2); });
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Hide Sensors"),
@@ -782,9 +783,8 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           3,
            "");
+  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
   UI_block_end(C, block);
@@ -829,12 +829,16 @@ static void do_controller_menu(bContext *C, void */*arg*/, int event)
 static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
 {
   uiBlock *block;
+  uiBut *but;
   int yco = 0;
 
   block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
-  UI_block_func_butmenu_set(block, do_controller_menu, nullptr);
+  /* See
+   * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
+   * if issue */
+  //UI_block_func_butmenu_set(block, do_controller_menu, nullptr);
 
-  uiDefBut(block,
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Show Objects"),
@@ -845,10 +849,10 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           0,
            "");
-  uiDefBut(block,
+  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 0);
+  });
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Hide Objects"),
@@ -859,12 +863,11 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           1,
            "");
+  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, 0, 0, "");
-  uiDefBut(block,
+      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Show Controllers"),
@@ -875,10 +878,9 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           2,
-           2,
            "");
-  uiDefBut(block,
+  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 2); });
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Hide Controllers"),
@@ -889,9 +891,8 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           3,
-           3,
            "");
+  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
   UI_block_end(C, block);
@@ -937,11 +938,15 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
 {
   uiBlock *block;
   int xco = 0;
+  uiBut *but;
 
   block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
-  UI_block_func_butmenu_set(block, do_actuator_menu, nullptr);
+  /* See
+   * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
+   * if issue */
+  //UI_block_func_butmenu_set(block, do_actuator_menu, nullptr);
 
-  uiDefBut(block,
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Show Objects"),
@@ -952,10 +957,9 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           0,
            "");
-  uiDefBut(block,
+  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 0); });
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Hide Objects"),
@@ -966,12 +970,11 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           1,
            "");
+  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, 0, 0, "");
-  uiDefBut(block,
+      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Show Actuators"),
@@ -982,10 +985,9 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           2,
            "");
-  uiDefBut(block,
+  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 2); });
+  but = uiDefBut(block,
            UI_BTYPE_BUT_MENU,
            1,
            IFACE_("Hide Actuators"),
@@ -996,9 +998,8 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            nullptr,
            0.0,
            0.0,
-           1,
-           3,
            "");
+  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
   UI_block_end(C, block);
@@ -1027,7 +1028,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
   block = UI_block_begin(C, region, __func__, UI_EMBOSS);
 
   /* use this for a fake extra empy space around the buttons */
-  uiDefBut(block, UI_BTYPE_LABEL, 0, "", -5, -5, 200, 34, nullptr, 0, 0, 0, 0, "");
+  uiDefBut(block, UI_BTYPE_LABEL, 0, "", -5, -5, 200, 34, nullptr, 0, 0, "");
 
   for (offset = 0; offset < 15; offset += 5) {
     UI_block_align_begin(block);
@@ -2751,8 +2752,6 @@ void logic_buttons(bContext *C, ARegion *region)
                          cont,
                          LINK_CONTROLLER,
                          0,
-                         0,
-                         0,
                          "");  // CHOOSE BETTER ICON
       if (!RNA_boolean_get(&ptr, "active")) {
         but->upbgeflag |= UI_BUT_SCA_LINK_GREY;
@@ -2784,8 +2783,6 @@ void logic_buttons(bContext *C, ARegion *region)
                          UI_UNIT_X,
                          UI_UNIT_Y,
                          nullptr,
-                         0,
-                         0,
                          0,
                          0,
                          "");  // CHOOSE BETTER ICON
@@ -2896,8 +2893,6 @@ void logic_buttons(bContext *C, ARegion *region)
                            nullptr,
                            0,
                            0,
-                           0,
-                           0,
                            "");  // CHOOSE BETTER ICON
         if (!RNA_boolean_get(&ptr, "active")) {
           but->upbgeflag |= UI_BUT_SCA_LINK_GREY;
@@ -3002,8 +2997,6 @@ void logic_buttons(bContext *C, ARegion *region)
                            UI_UNIT_Y,
                            act,
                            LINK_ACTUATOR,
-                           0,
-                           0,
                            0,
                            "");  // CHOOSE BETTER ICON
         if (!RNA_boolean_get(&ptr, "active")) {
