@@ -2940,8 +2940,6 @@ void uiItemDecoratorR_prop(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop,
  * To force inserting a blank dummy element, NULL can be passed for \a ptr and \a propname.
  */
 void uiItemDecoratorR(uiLayout *layout, PointerRNA *ptr, const char *propname, int index);
-/** Value item */
-void uiItemV(uiLayout *layout, const char *name, int icon, int argval);
 /** Separator item */
 void uiItemS(uiLayout *layout);
 /** Separator item */
@@ -3202,9 +3200,6 @@ const uiStyle *UI_style_get(); /* use for fonts etc */
  * Read a style (with the current DPI applied).
  */
 const uiStyle *UI_style_get_dpi();
-
-/* linker workaround ack! */
-void UI_template_fix_linking();
 
 /* UI_OT_editsource helpers */
 bool UI_editsource_enable_check();
