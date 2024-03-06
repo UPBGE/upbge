@@ -31,7 +31,7 @@
 
 #include "BL_ScalarInterpolator.h"
 
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "DNA_anim_types.h"
 
 BL_ScalarInterpolator::BL_ScalarInterpolator(FCurve *fcu)
