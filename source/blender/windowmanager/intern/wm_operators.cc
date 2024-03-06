@@ -610,7 +610,7 @@ std::optional<std::string> WM_context_path_resolve_property_full(const bContext 
       if (prop != nullptr) {
         std::string prop_str = RNA_path_property_py(ptr, prop, index);
         if (prop_str[0] == '[') {
-          member_id_data_path = fmt::format("{}.{}", *data_path, prop_str);
+          member_id_data_path = fmt::format("{}.{}{}", member_id, *data_path, prop_str);
         }
         else {
           member_id_data_path = fmt::format("{}.{}.{}", member_id, *data_path, prop_str);
@@ -1842,7 +1842,8 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
   ot->exec = wm_debug_menu_exec;
   ot->poll = WM_operator_winactive;
 
-  RNA_def_int(ot->srna, "debug_value", 0, SHRT_MIN, SHRT_MAX, "Debug Value", "", -10000, 10000);
+  ot->prop = RNA_def_int(
+      ot->srna, "debug_value", 0, SHRT_MIN, SHRT_MAX, "Debug Value", "", -10000, 10000);
 }
 
 /** \} */

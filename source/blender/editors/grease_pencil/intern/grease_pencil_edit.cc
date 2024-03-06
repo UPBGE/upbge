@@ -2035,6 +2035,10 @@ static bool grease_pencil_separate_material(bContext &C,
 
   /* Create a new object for each material. */
   for (const int mat_i : IndexRange(object_src.totcol).drop_front(1)) {
+    if (!BKE_object_material_slot_used(&object_src, mat_i + 1)) {
+      continue;
+    }
+
     Object *object_dst = duplicate_grease_pencil_object(
         &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
 
@@ -2188,7 +2192,7 @@ struct Clipboard {
   bke::CurvesGeometry curves;
   /* We store the material uid's of the copied curves, so we can match those when pasting the
    * clipboard into another object. */
-  Vector<std::pair<unsigned int, int>> materials;
+  Vector<std::pair<uint, int>> materials;
   int materials_in_source_num;
 };
 
@@ -2240,7 +2244,7 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
   selection_in_target.finish();
 
   /* Get a list of all materials in the scene. */
-  Map<unsigned int, Material *> scene_materials;
+  Map<uint, Material *> scene_materials;
   LISTBASE_FOREACH (Material *, material, &bmain->materials) {
     scene_materials.add(material->id.session_uid, material);
   }
@@ -2250,7 +2254,7 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
   for (const int i : clipboard.materials.index_range()) {
     /* Check if the material name exists in the scene. */
     int target_index;
-    unsigned int material_id = clipboard.materials[i].first;
+    uint material_id = clipboard.materials[i].first;
     Material *material = scene_materials.lookup_default(material_id, nullptr);
     if (!material) {
       /* Material is removed, so create a new material. */

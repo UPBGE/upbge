@@ -29,7 +29,7 @@
 #include "BKE_armature.hh"
 #include "BKE_blender.hh"
 #include "BKE_collection.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
@@ -2666,7 +2666,7 @@ static bool lib_override_library_resync(Main *bmain,
   return success;
 }
 
-/** Clenup: Remove unused 'place holder' linked IDs. */
+/** Cleanup: Remove unused 'place holder' linked IDs. */
 static void lib_override_cleanup_after_resync(Main *bmain)
 {
   LibQueryUnusedIDsData parameters;
@@ -4236,7 +4236,7 @@ void BKE_lib_override_library_validate(Main *bmain, ID *id, ReportList *reports)
     liboverride = BKE_lib_override_library_get(bmain, id, nullptr, &liboverride_id);
     if (!liboverride) {
       /* Happens in case the given ID is a liboverride-embedded one (actual embedded ID like
-       * NodeTree or master collection, or shapekeys), used by a totally not-liboverride owner ID.
+       * NodeTree or master collection, or shape-keys), used by a totally not-liboverride owner ID.
        * Just clear the relevant ID flag.
        */
       id->flag &= ~LIB_EMBEDDED_DATA_LIB_OVERRIDE;
