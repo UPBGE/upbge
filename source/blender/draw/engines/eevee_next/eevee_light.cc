@@ -113,7 +113,7 @@ void Light::sync(ShadowModule &shadows, const Object *ob, float threshold)
                            radius,
                            this->influence_radius_max,
                            la->shadow_softness_factor,
-                           la->shadow_softness_factor * la->radius);
+                           shadow_radius);
     }
   }
   else {

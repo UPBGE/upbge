@@ -61,6 +61,7 @@ static void init_common(bContext *C, wmOperator *op, GestureData *gesture_data)
   /* Operator properties. */
   gesture_data->front_faces_only = RNA_boolean_get(op->ptr, "use_front_faces_only");
   gesture_data->line.use_side_planes = RNA_boolean_get(op->ptr, "use_limit_to_segment");
+  gesture_data->selection_type = SelectionType::Inside;
 
   /* SculptSession */
   gesture_data->ss = ob->sculpt;
@@ -97,7 +98,7 @@ static void lasso_px_cb(int x, int x_end, int y, void *user_data)
 GestureData *init_from_lasso(bContext *C, wmOperator *op)
 {
   GestureData *gesture_data = MEM_new<GestureData>(__func__);
-  gesture_data->shape_type = SCULPT_GESTURE_SHAPE_LASSO;
+  gesture_data->shape_type = ShapeType::Lasso;
 
   init_common(C, op, gesture_data);
 
@@ -143,7 +144,7 @@ GestureData *init_from_lasso(bContext *C, wmOperator *op)
 GestureData *init_from_box(bContext *C, wmOperator *op)
 {
   GestureData *gesture_data = MEM_new<GestureData>(__func__);
-  gesture_data->shape_type = SCULPT_GESTURE_SHAPE_BOX;
+  gesture_data->shape_type = ShapeType::Box;
 
   init_common(C, op, gesture_data);
 
@@ -230,7 +231,7 @@ static void line_calculate_plane_points(GestureData *gesture_data,
 GestureData *init_from_line(bContext *C, wmOperator *op)
 {
   GestureData *gesture_data = MEM_new<GestureData>(__func__);
-  gesture_data->shape_type = SCULPT_GESTURE_SHAPE_LINE;
+  gesture_data->shape_type = ShapeType::Line;
 
   init_common(C, op, gesture_data);
 
@@ -347,18 +348,26 @@ static void update_affected_nodes_by_clip_planes(GestureData *gesture_data)
   frustum.num_planes = 4;
 
   gesture_data->nodes = bke::pbvh::search_gather(ss->pbvh, [&](PBVHNode &node) {
-    return BKE_pbvh_node_frustum_contain_AABB(&node, &frustum);
+    switch (gesture_data->selection_type) {
+      case SelectionType::Inside:
+        return BKE_pbvh_node_frustum_contain_AABB(&node, &frustum);
+      case SelectionType::Outside:
+        return BKE_pbvh_node_frustum_exclude_AABB(&node, &frustum);
+      default:
+        BLI_assert_unreachable();
+        return true;
+    }
   });
 }
 
 static void update_affected_nodes(GestureData *gesture_data)
 {
   switch (gesture_data->shape_type) {
-    case SCULPT_GESTURE_SHAPE_BOX:
-    case SCULPT_GESTURE_SHAPE_LASSO:
+    case ShapeType::Box:
+    case ShapeType::Lasso:
       update_affected_nodes_by_clip_planes(gesture_data);
       break;
-    case SCULPT_GESTURE_SHAPE_LINE:
+    case ShapeType::Line:
       update_affected_nodes_by_line_plane(gesture_data);
       break;
   }
@@ -400,11 +409,14 @@ bool is_affected(GestureData *gesture_data, const float3 &co, const float3 &vert
   }
 
   switch (gesture_data->shape_type) {
-    case SCULPT_GESTURE_SHAPE_BOX:
-      return isect_point_planes_v3(gesture_data->clip_planes, 4, co);
-    case SCULPT_GESTURE_SHAPE_LASSO:
+    case ShapeType::Box: {
+      const bool is_contained = isect_point_planes_v3(gesture_data->clip_planes, 4, co);
+      return ((is_contained && gesture_data->selection_type == SelectionType::Inside) ||
+              (!is_contained && gesture_data->selection_type == SelectionType::Outside));
+    }
+    case ShapeType::Lasso:
       return is_affected_lasso(gesture_data, co);
-    case SCULPT_GESTURE_SHAPE_LINE:
+    case ShapeType::Line:
       if (gesture_data->line.use_side_planes) {
         return plane_point_side_v3(gesture_data->line.plane, co) > 0.0f &&
                plane_point_side_v3(gesture_data->line.side_plane[0], co) > 0.0f &&
