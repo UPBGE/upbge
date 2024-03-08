@@ -11,7 +11,6 @@
 #include "DNA_object_force_types.h"  // UPBGE
 #include "DNA_vec_defaults.h"
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */

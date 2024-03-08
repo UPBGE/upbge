@@ -1310,11 +1310,12 @@ void wm_homefile_read_ex(bContext *C,
     else if (!use_factory_settings && BLI_exists(filepath_userdef)) {
       UserDef *userdef = BKE_blendfile_userdef_read(filepath_userdef, nullptr);
       if (userdef != nullptr) {
+        CLOG_INFO(&LOG, 0, "read prefs: \"%s\"", filepath_userdef);
+
         BKE_blender_userdef_data_set_and_free(userdef);
         userdef = nullptr;
 
         skip_flags |= BLO_READ_SKIP_USERDEF;
-        printf("Read prefs: \"%s\"\n", filepath_userdef);
       }
     }
   }
@@ -1365,6 +1366,8 @@ void wm_homefile_read_ex(bContext *C,
       BlendFileData *bfd = BKE_blendfile_read(filepath_startup, &params, &bf_reports);
 
       if (bfd != nullptr) {
+        CLOG_INFO(&LOG, 0, "read startup: \"%s\"", filepath_startup);
+
         /* Frees the current main and replaces it with the new one read from file. */
         BKE_blendfile_read_setup_readfile(C,
                                           bfd,
@@ -1439,6 +1442,9 @@ void wm_homefile_read_ex(bContext *C,
       /* just avoids missing file warning */
       if (BLI_exists(temp_path)) {
         userdef_template = BKE_blendfile_userdef_read(temp_path, nullptr);
+        if (userdef_template) {
+          CLOG_INFO(&LOG, 0, "read prefs from app-template: \"%s\"", temp_path);
+        }
       }
       if (userdef_template == nullptr) {
         /* we need to have preferences load to overwrite preferences from previous template */
@@ -2329,7 +2335,9 @@ static int wm_homefile_write_exec(bContext *C, wmOperator *op)
 
   BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_STARTUP_FILE);
 
-  printf("Writing homefile: \"%s\" ", filepath);
+  if (!G.quiet) {
+    printf("Writing homefile: \"%s\" ", filepath);
+  }
 
   ED_editors_flush_edits(bmain);
 
@@ -2350,11 +2358,15 @@ static int wm_homefile_write_exec(bContext *C, wmOperator *op)
   BKE_callback_exec_string(bmain, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL, "");
 
   if (success) {
-    printf("ok\n");
+    if (!G.quiet) {
+      printf("ok\n");
+    }
     BKE_report(op->reports, RPT_INFO, "Startup file saved");
     return OPERATOR_FINISHED;
   }
-  printf("fail\n");
+  if (!G.quiet) {
+    printf("fail\n");
+  }
   return OPERATOR_CANCELLED;
 }
 
@@ -2803,8 +2815,8 @@ void WM_OT_read_homefile(wmOperatorType *ot)
                          "use_factory_startup",
                          false,
                          "Factory Startup",
-                         "Load the default ('factory startup') blend file. This is independent of "
-                         "the normal start-up file that the user can save");
+                         "Load the default ('factory startup') blend file. "
+                         "This is independent of the normal start-up file that the user can save");
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
   read_factory_reset_props(ot);
 
@@ -2835,10 +2847,9 @@ static int wm_read_factory_settings_invoke(bContext *C, wmOperator *op, const wm
       C,
       op,
       title.c_str(),
-      unsaved ? IFACE_("To make changes to Preferences permanent, use \"Save "
-                       "Preferences\"\nWarning: Your file is "
-                       "unsaved! Proceeding will abandon your changes.") :
-                IFACE_("To make changes to Preferences permanent, use \"Save Preferences.\""),
+      unsaved ? IFACE_("To make changes to Preferences permanent, use \"Save Preferences\".\n"
+                       "Warning: Your file is unsaved! Proceeding will abandon your changes.") :
+                IFACE_("To make changes to Preferences permanent, use \"Save Preferences\"."),
       IFACE_("Load"),
       ALERT_ICON_WARNING,
       false);
