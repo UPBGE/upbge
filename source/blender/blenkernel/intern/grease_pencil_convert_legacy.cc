@@ -400,6 +400,15 @@ void legacy_gpencil_to_grease_pencil(Main &bmain, GreasePencil &grease_pencil, b
     grease_pencil.id.properties = IDP_CopyProperty(gpd.id.properties);
   }
 
+  /** Convert Grease Pencil data flag. */
+  SET_FLAG_FROM_TEST(
+      grease_pencil.flag, (gpd.flag & GP_DATA_EXPAND) != 0, GREASE_PENCIL_ANIM_CHANNEL_EXPANDED);
+  SET_FLAG_FROM_TEST(grease_pencil.flag,
+                     (gpd.flag & GP_DATA_AUTOLOCK_LAYERS) != 0,
+                     GREASE_PENCIL_AUTOLOCK_LAYERS);
+  SET_FLAG_FROM_TEST(
+      grease_pencil.flag, (gpd.draw_mode == GP_DRAWMODE_3D), GREASE_PENCIL_STROKE_ORDER_3D);
+
   int num_drawings = 0;
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd.layers) {
     num_drawings += BLI_listbase_count(&gpl->frames);
@@ -426,6 +435,8 @@ void legacy_gpencil_to_grease_pencil(Main &bmain, GreasePencil &grease_pencil, b
     SET_FLAG_FROM_TEST(new_layer.base.flag,
                        (gpl->onion_flag & GP_LAYER_ONIONSKIN),
                        GP_LAYER_TREE_NODE_USE_ONION_SKINNING);
+    SET_FLAG_FROM_TEST(
+        new_layer.base.flag, (gpl->flag & GP_LAYER_USE_MASK) == 0, GP_LAYER_TREE_NODE_HIDE_MASKS);
 
     new_layer.blend_mode = int8_t(gpl->blend_mode);
 
@@ -436,9 +447,11 @@ void legacy_gpencil_to_grease_pencil(Main &bmain, GreasePencil &grease_pencil, b
     copy_v3_v3(new_layer.rotation, gpl->rotation);
     copy_v3_v3(new_layer.scale, gpl->scale);
 
+    new_layer.set_view_layer_name(gpl->viewlayername);
+
     /* Convert the layer masks. */
     LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl->mask_layers) {
-      LayerMask *new_mask = MEM_new<LayerMask>(mask->name);
+      LayerMask *new_mask = MEM_new<LayerMask>(__func__, mask->name);
       new_mask->flag = mask->flag;
       BLI_addtail(&new_layer.masks, new_mask);
     }
