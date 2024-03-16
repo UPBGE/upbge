@@ -768,7 +768,7 @@ def km_window(params):
                 ("wm.search_menu", {"type": 'SPACE', "value": 'PRESS'}, None),
             )
         else:
-            assert False
+            assert False, "unreachable"
 
     return keymap
 
@@ -3551,7 +3551,7 @@ def km_frames(params):
                 ("screen.animation_play", {"type": 'SPACE', "value": 'PRESS'}, None),
             )
         else:
-            assert False
+            assert False, "unreachable"
 
         items.extend([
             ("screen.animation_play", {"type": 'SPACE', "value": 'PRESS', "shift": True, "ctrl": True},

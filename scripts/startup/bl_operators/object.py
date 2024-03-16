@@ -224,8 +224,7 @@ class SubdivisionSet(Operator):
     )
     relative: BoolProperty(
         name="Relative",
-        description=("Apply the subdivision surface level as an offset "
-                     "relative to the current level"),
+        description="Apply the subdivision surface level as an offset relative to the current level",
         default=False,
     )
 
@@ -289,8 +288,7 @@ class SubdivisionSet(Operator):
                     mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                     mod.levels = level
             except BaseException:
-                self.report({'WARNING'},
-                            "Modifiers cannot be added to object: " + obj.name)
+                self.report({'WARNING'}, "Modifiers cannot be added to object: " + obj.name)
 
         for obj in context.selected_editable_objects:
             set_object_subd(obj)
@@ -326,8 +324,7 @@ class ShapeTransfer(Operator):
     )
     use_clamp: BoolProperty(
         name="Clamp Offset",
-        description=("Clamp the transformation to the distance each "
-                     "vertex moves in the original shape"),
+        description="Clamp the transformation to the distance each vertex moves in the original shape",
         default=False,
     )
 
@@ -448,8 +445,7 @@ class ShapeTransfer(Operator):
                     if use_clamp:
                         # clamp to the same movement as the original
                         # breaks copy between different scaled meshes.
-                        len_from = (orig_shape_coords[i] -
-                                    orig_coords[i]).length
+                        len_from = (orig_shape_coords[i] - orig_coords[i]).length
                         ofs = co - target_coords[i]
                         ofs.length = len_from
                         co = target_coords[i] + ofs

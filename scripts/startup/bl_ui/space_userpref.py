@@ -876,7 +876,7 @@ class USERPREF_PT_theme(ThemePanel, Panel):
         row = split.row(align=True)
         row.menu("USERPREF_MT_interface_theme_presets", text=USERPREF_MT_interface_theme_presets.bl_label)
         row.operator("wm.interface_theme_preset_add", text="", icon='ADD')
-        row.operator("wm.interface_theme_preset_add", text="", icon='REMOVE').remove_active = True
+        row.operator("wm.interface_theme_preset_remove", text="", icon='REMOVE')
 
         row = split.row(align=True)
         row.operator("preferences.theme_install", text="Install...", icon='IMPORT')
@@ -1021,8 +1021,7 @@ class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMix
         theme = context.preferences.themes[0]
         ui = theme.user_interface
 
-        flow = layout.grid_flow(
-            row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
         col.prop(ui, "transparent_checker_primary")
