@@ -1105,6 +1105,16 @@ struct SphereProbeDisplayData {
 };
 BLI_STATIC_ASSERT_ALIGN(SphereProbeDisplayData, 16)
 
+/* Used for sphere probe spherical harmonics extraction. Output one for each thread-group
+ * and do a sum afterward. Reduces bandwidth usage. */
+struct SphereProbeHarmonic {
+  float4 L0_M0;
+  float4 L1_Mn1;
+  float4 L1_M0;
+  float4 L1_Mp1;
+};
+BLI_STATIC_ASSERT_ALIGN(SphereProbeHarmonic, 16)
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1323,6 +1333,9 @@ struct RayTraceData {
   int resolution_scale;
   /** View space thickness the objects. */
   float thickness;
+  /** Scale and bias to go from horizon-trace resolution to input resolution. */
+  int2 horizon_resolution_bias;
+  int horizon_resolution_scale;
   /** Determine how fast the sample steps are getting bigger. */
   float quality;
   /** Maximum brightness during lighting evaluation. */
@@ -1613,6 +1626,5 @@ using VelocityIndexBuf = draw::StorageArrayBuffer<VelocityIndex, 16>;
 using VelocityObjectBuf = draw::StorageArrayBuffer<float4x4, 16>;
 using CryptomatteObjectBuf = draw::StorageArrayBuffer<float2, 16>;
 using ClipPlaneBuf = draw::UniformBuffer<ClipPlaneData>;
-
 }  // namespace blender::eevee
 #endif

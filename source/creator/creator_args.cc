@@ -78,7 +78,7 @@
 
 #  include "WM_types.hh"
 
-#  include "creator_intern.h" /* own include */
+#  include "creator_intern.h" /* Own include. */
 
 /* -------------------------------------------------------------------- */
 /** \name Build Defines
@@ -341,13 +341,13 @@ static int *parse_int_relative_clamp_n(
       i++;
     }
     else {
-      goto fail; /* error message already set */
+      goto fail; /* Error message already set. */
     }
 
-    if (str_end) { /* next */
+    if (str_end) { /* Next. */
       str = str_end + 1;
     }
-    else { /* finished */
+    else { /* Finished. */
       break;
     }
   }
@@ -406,13 +406,13 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
       i++;
     }
     else {
-      goto fail; /* error message already set */
+      goto fail; /* Error message already set. */
     }
 
-    if (str_end) { /* next */
+    if (str_end) { /* Next. */
       str = str_end + 1;
     }
-    else { /* finished */
+    else { /* Finished. */
       break;
     }
   }
@@ -460,7 +460,7 @@ static void arg_py_context_backup(bContext *C, BlendePyContextStore *c_py, const
 
 static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
 {
-  /* script may load a file, check old data is valid before using */
+  /* Script may load a file, check old data is valid before using. */
   if (c_py->has_win) {
     if ((c_py->win == nullptr) || ((BLI_findindex(&G_MAIN->wm, c_py->wm) != -1) &&
                                    (BLI_findindex(&c_py->wm->windows, c_py->win) != -1)))
@@ -474,7 +474,7 @@ static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
   }
 }
 
-/* macro for context setup/reset */
+/* Macro for context setup/reset. */
 #    define BPY_CTX_SETUP(_cmd) \
       { \
         BlendePyContextStore py_c; \
@@ -717,7 +717,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--help");
   BLI_args_print_arg_doc(ba, "/?");
 
-  /* WIN32 only (ignored for non-win32) */
+  /* WIN32 only (ignored for non-WIN32). */
   BLI_args_print_arg_doc(ba, "--register");
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
@@ -841,8 +841,8 @@ static int arg_handle_arguments_end(int /*argc*/, const char ** /*argv*/, void *
   return -1;
 }
 
-/* only to give help message */
-#  ifdef WITH_PYTHON_SECURITY /* default */
+/* Only to give help message. */
+#  ifdef WITH_PYTHON_SECURITY /* Default. */
 #    define PY_ENABLE_AUTO ""
 #    define PY_DISABLE_AUTO ", (default)"
 #  else
@@ -1101,7 +1101,7 @@ static const char arg_handle_debug_mode_set_doc[] =
     "\t* Keeps Python's 'sys.stdin' rather than setting it to None";
 static int arg_handle_debug_mode_set(int /*argc*/, const char ** /*argv*/, void *data)
 {
-  G.debug |= G_DEBUG; /* std output printf's */
+  G.debug |= G_DEBUG;
   printf("Blender %s\n", BKE_blender_version_string());
   MEM_set_memory_debug();
 #  ifndef NDEBUG
@@ -1423,8 +1423,8 @@ static int arg_handle_env_system_set(int argc, const char **argv, void * /*data*
   /* `--env-system-scripts` -> `BLENDER_SYSTEM_SCRIPTS` */
 
   char env[64] = "BLENDER";
-  char *ch_dst = env + 7;           /* skip BLENDER */
-  const char *ch_src = argv[0] + 5; /* skip --env */
+  char *ch_dst = env + 7;           /* Skip `BLENDER`. */
+  const char *ch_src = argv[0] + 5; /* Skip `--env`. */
 
   if (argc < 2) {
     fprintf(stderr, "%s requires one argument\n", argv[0]);
@@ -1433,7 +1433,7 @@ static int arg_handle_env_system_set(int argc, const char **argv, void * /*data*
   }
 
   for (; *ch_src; ch_src++, ch_dst++) {
-    *ch_dst = (*ch_src == '-') ? '_' : (*ch_src) - 32; /* Inline #toupper() */
+    *ch_dst = (*ch_src == '-') ? '_' : (*ch_src) - 32; /* Inline #toupper(). */
   }
 
   *ch_dst = '\0';
@@ -1958,7 +1958,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
       RE_SetReports(re, &reports);
       for (int i = 0; i < frames_range_len; i++) {
         /* We could pass in frame ranges,
-         * but prefer having exact behavior as passing in multiple frames */
+         * but prefer having exact behavior as passing in multiple frames. */
         if ((frame_range_arr[i][0] <= frame_range_arr[i][1]) == 0) {
           fprintf(stderr, "\nWarning: negative range ignored '%s %s'.\n", arg_id, argv[1]);
         }
@@ -2132,9 +2132,9 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
 #  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
-  /* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
+  /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
-    /* Make the path absolute because its needed for relative linked blends to be found */
+    /* Make the path absolute because its needed for relative linked blends to be found. */
     char filepath[FILE_MAX];
     STRNCPY(filepath, argv[1]);
     BLI_path_canonicalize_native(filepath, sizeof(filepath));
@@ -2165,10 +2165,10 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
 #  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
-  /* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
+  /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
     Main *bmain = CTX_data_main(C);
-    /* Make the path absolute because its needed for relative linked blends to be found */
+    /* Make the path absolute because its needed for relative linked blends to be found. */
     Text *text = (Text *)BKE_libblock_find_name(bmain, ID_TXT, argv[1]);
     bool ok;
 
@@ -2205,7 +2205,7 @@ static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
 #  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
-  /* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
+  /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
     bool ok;
     BPY_CTX_SETUP(ok = BPY_run_string_exec(C, nullptr, argv[1]));
@@ -2292,7 +2292,7 @@ static const char arg_handle_addons_set_doc[] =
     "\tComma separated list (no spaces) of add-ons to enable in addition to any default add-ons.";
 static int arg_handle_addons_set(int argc, const char **argv, void *data)
 {
-  /* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
+  /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
 #  ifdef WITH_PYTHON
     const char script_str[] =
@@ -2323,12 +2323,12 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
  */
 static bool handle_load_file(bContext *C, const char *filepath_arg, const bool load_empty_file)
 {
-  /* Make the path absolute because its needed for relative linked blends to be found */
+  /* Make the path absolute because its needed for relative linked blends to be found. */
   char filepath[FILE_MAX];
   STRNCPY(filepath, filepath_arg);
   BLI_path_canonicalize_native(filepath, sizeof(filepath));
 
-  /* load the file */
+  /* Load the file. */
   ReportList reports;
   BKE_reports_init(&reports, RPT_PRINT);
   WM_file_autoexec_init(filepath);
@@ -2342,13 +2342,12 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
     }
   }
   else {
-    /* failed to load file, stop processing arguments if running in background mode */
+    /* Failed to load file, stop processing arguments if running in background mode. */
     if (G.background) {
-      /* Set is_break if running in the background mode so
+      /* Set `is_break` if running in the background mode so
        * blender will return non-zero exit code which then
        * could be used in automated script to control how
-       * good or bad things are.
-       */
+       * good or bad things are. */
       G.is_break = true;
       return false;
     }
@@ -2480,7 +2479,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
    * Also and commands that exit after usage. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS);
   BLI_args_add(ba, "-h", "--help", CB(arg_handle_print_help), ba);
-  /* Windows only */
+  /* MS-Windows only. */
   BLI_args_add(ba, "/?", nullptr, CB_EX(arg_handle_print_help, win32), ba);
 
   BLI_args_add(ba, "-v", "--version", CB(arg_handle_print_version), nullptr);

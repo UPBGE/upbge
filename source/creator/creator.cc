@@ -123,7 +123,7 @@
 /** \name Local Application State
  * \{ */
 
-/* written to by 'creator_args.c' */
+/* Written to by `creator_args.cc`. */
 ApplicationState app_state = []() {
   ApplicationState app_state{};
   app_state.signal.use_crash_handler = true;
@@ -323,7 +323,7 @@ int main(int argc,
   /* Win32 Unicode Arguments. */
   {
     /* NOTE: Can't use `guardedalloc` allocation here, as it's not yet initialized
-     * (it depends on the arguments passed in, which is what we're getting here!) */
+     * (it depends on the arguments passed in, which is what we're getting here!). */
     wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
     argv = static_cast<char **>(malloc(argc * sizeof(char *)));
     for (argv_num = 0; argv_num < argc; argv_num++) {
@@ -331,7 +331,7 @@ int main(int argc,
     }
     LocalFree(argv_16);
 
-    /* free on early-exit */
+    /* Free on early-exit. */
     app_init_data.argv = argv;
     app_init_data.argv_num = argv_num;
   }
@@ -350,7 +350,7 @@ int main(int argc,
         MEM_use_guarded_allocator();
         break;
       }
-      if (STREQ(argv[i], "--")) {
+      if (STR_ELEM(argv[i], "--", "--command")) {
         break;
       }
     }
@@ -409,7 +409,7 @@ int main(int argc,
   main_callback_setup();
 
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE) && !defined(WITH_HEADLESS)
-  /* Patch to ignore argument finder gives us (PID?) */
+  /* Patch to ignore argument finder gives us (PID?). */
   if (argc == 2 && STRPREFIX(argv[1], "-psn_")) {
     static char firstfilebuf[512];
 
@@ -455,9 +455,9 @@ int main(int argc,
   syshandle = 0;
 #endif
 
-/* First test for background-mode (#Global.background) */
+/* First test for background-mode (#Global.background). */
 #ifndef WITH_PYTHON_MODULE
-  ba = BLI_args_create(argc, (const char **)argv); /* skip binary path */
+  ba = BLI_args_create(argc, (const char **)argv); /* Skip binary path. */
 
   /* Ensure we free on early exit. */
   app_init_data.ba = ba;
@@ -553,7 +553,7 @@ int main(int argc,
   FRS_set_context(C);
 #endif
 
-/* OK we are ready for it */
+/* OK we are ready for it. */
 #ifndef WITH_PYTHON_MODULE
   /* Handles #ARG_PASS_FINAL. */
   BLI_args_parse(ba, ARG_PASS_FINAL, main_args_handle_load_file, C);
