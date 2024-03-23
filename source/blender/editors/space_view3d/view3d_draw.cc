@@ -57,14 +57,14 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_batch.h"
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
+#include "GPU_batch.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
 #include "GPU_material.hh"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
-#include "GPU_viewport.h"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
+#include "GPU_viewport.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -1506,7 +1506,10 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
   if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
-    BLF_default_size(UI_style_get()->widgetlabel.points);
+
+    const uiFontStyle *fstyle = UI_FSTYLE_WIDGET_LABEL;
+    UI_fontstyle_set(fstyle);
+    BLF_default_size(fstyle->points);
     BLF_set_default();
 
     if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {

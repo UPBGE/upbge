@@ -6136,11 +6136,19 @@ static bool ui_layout_has_panel_label(const uiLayout *layout, const PanelType *p
 
 static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, uiLayout *layout, bool show_header)
 {
+  uiBlock *block = uiLayoutGetBlock(layout);
   Panel *panel = BKE_panel_new(pt);
   panel->flag = PNL_POPOVER;
 
   if (pt->listener) {
-    ui_block_add_dynamic_listener(uiLayoutGetBlock(layout), pt->listener);
+    ui_block_add_dynamic_listener(block, pt->listener);
+  }
+
+  /* This check may be paranoid, this function might run outside the context of a popup or can run
+   * in popopers that are not supposed to support refreshing, see #ui_popover_create_block. */
+  if (block->handle && block->handle->region) {
+    /* Allow popovers to contain collapsible sections, see #uiItemPopoverPanel. */
+    UI_popup_dummy_panel_set(block->handle->region, block);
   }
 
   uiLayout *last_item = static_cast<uiLayout *>(layout->items.last);

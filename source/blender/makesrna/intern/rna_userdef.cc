@@ -39,7 +39,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "GPU_platform.h"
+#include "GPU_platform.hh"
 
 #include "UI_interface_icons.hh"
 
@@ -189,9 +189,9 @@ static const EnumPropertyItem rna_enum_preference_gpu_backend_items[] = {
 
 #  include "DEG_depsgraph.hh"
 
-#  include "GPU_capabilities.h"
+#  include "GPU_capabilities.hh"
 #  include "GPU_select.hh"
-#  include "GPU_texture.h"
+#  include "GPU_texture.hh"
 
 #  include "BLF_api.hh"
 
@@ -7184,6 +7184,15 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   /* The key-map depends on this setting, it needs to be reloaded. */
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_use_grease_pencil_version3_update");
+
+  prop = RNA_def_property(
+      srna, "use_grease_pencil_version3_convert_on_load", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_grease_pencil_version3_convert_on_load", 1);
+  RNA_def_property_ui_text(prop,
+                           "Grease Pencil 3.0 Automatic Conversion",
+                           "Enable automatic conversion to grease pencil 3.0 data when opening a "
+                           "blendfile (only active if 'Grease Pencil 3.0' is enabled)");
+  RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
   prop = RNA_def_property(srna, "use_new_matrix_socket", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_new_matrix_socket", 1);

@@ -468,7 +468,7 @@ void ED_object_add_mesh_props(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "calc_uvs", true, "Generate UVs", "Generate a default UV map");
 }
 
-bool ED_object_add_generic_get_opts(bContext *C,
+void ED_object_add_generic_get_opts(bContext *C,
                                     wmOperator *op,
                                     const char view_align_axis,
                                     float r_loc[3],
@@ -485,7 +485,7 @@ bool ED_object_add_generic_get_opts(bContext *C,
       r_enter_editmode = &_enter_editmode;
     }
     /* Only to ensure the value is _always_ set.
-     * Typically the property will exist when the argument is non-nullptr. */
+     * Typically the property will exist when the argument is non-null. */
     *r_enter_editmode = false;
 
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "enter_editmode");
@@ -605,8 +605,6 @@ bool ED_object_add_generic_get_opts(bContext *C,
       }
     }
   }
-
-  return true;
 }
 
 Object *ED_object_add_type_with_obdata(bContext *C,
@@ -706,11 +704,9 @@ static int object_add_exec(bContext *C, wmOperator *op)
   bool enter_editmode;
   float loc[3], rot[3], radius;
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
   radius = RNA_float_get(op->ptr, "radius");
   Object *ob = ED_object_add_type(
       C, RNA_enum_get(op->ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
@@ -776,11 +772,9 @@ static int lightprobe_add_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   float loc[3], rot[3];
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
   int type = RNA_enum_get(op->ptr, "type");
   float radius = RNA_float_get(op->ptr, "radius");
 
@@ -869,11 +863,9 @@ static int effector_add_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   float loc[3], rot[3];
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
   const ePFieldType type = static_cast<ePFieldType>(RNA_enum_get(op->ptr, "type"));
   float dia = RNA_float_get(op->ptr, "radius");
 
@@ -949,11 +941,9 @@ static int object_camera_add_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   bool enter_editmode;
   float loc[3], rot[3];
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
   Object *ob = ED_object_add_type(C, OB_CAMERA, nullptr, loc, rot, false, local_view_bits);
 
   if (v3d) {
@@ -1011,11 +1001,8 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
   bool enter_editmode;
   float loc[3], rot[3];
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
   bool newob = false;
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -1084,11 +1071,9 @@ static int object_add_text_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3];
 
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
   if (obedit && obedit->type == OB_FONT) {
     return OPERATOR_CANCELLED;
   }
@@ -1140,11 +1125,9 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
   bool view_aligned = rv3d && (U.flag & USER_ADD_VIEWALIGNED);
 
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
   if ((obedit == nullptr) || (obedit->type != OB_ARMATURE)) {
     obedit = ED_object_add_type(C, OB_ARMATURE, nullptr, loc, rot, true, local_view_bits);
     ED_object_editmode_enter_ex(bmain, scene, obedit, 0);
@@ -1208,11 +1191,9 @@ static int object_empty_add_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3];
 
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
+
   ob = ED_object_add_type(C, OB_EMPTY, nullptr, loc, rot, false, local_view_bits);
 
   BKE_object_empty_draw_type_set(ob, type);
@@ -1252,20 +1233,18 @@ static int object_image_add_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* add new empty */
+  /* Add new empty. */
   ushort local_view_bits;
   float loc[3], rot[3];
 
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
+
   Object *ob = ED_object_add_type(C, OB_EMPTY, nullptr, loc, rot, false, local_view_bits);
   ob->empty_drawsize = 5.0f;
 
   if (RNA_boolean_get(op->ptr, "background")) {
-    /* "background" has been set to "true", set image to render in the background. */
+    /* When "background" has been set to "true", set image to render in the background. */
     ob->empty_image_depth = OB_EMPTY_IMAGE_DEPTH_BACK;
     ob->empty_image_visibility_flag = OB_EMPTY_IMAGE_HIDE_BACK;
 
@@ -1285,13 +1264,12 @@ static int object_image_add_exec(bContext *C, wmOperator *op)
 static int object_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!RNA_struct_property_is_set(op->ptr, "align")) {
-    /* Default to Aligned unless something else was explicitly passed */
+    /* Default to Aligned unless something else was explicitly passed. */
     RNA_enum_set(op->ptr, "align", ALIGN_VIEW);
   }
 
   /* Check if the user has not specified the image to load.
-   * If they have not, assume this is a drag an drop operation.
-   */
+   * If they have not, assume this is a drag an drop operation. */
   if (!RNA_struct_property_is_set(op->ptr, "filepath") &&
       !WM_operator_properties_id_lookup_is_set(op->ptr))
   {
@@ -1314,18 +1292,18 @@ static int object_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
   Object *ob_cursor = ED_view3d_give_object_under_cursor(C, event->mval);
 
-  /* Either change empty under cursor or create a new empty */
+  /* Either change empty under cursor or create a new empty. */
   if (!ob_cursor || ob_cursor->type != OB_EMPTY) {
     return object_image_add_exec(C, op);
   }
-  /* User dropped an image on an existing image */
+  /* User dropped an image on an existing image. */
   Image *ima = nullptr;
 
   ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
   if (!ima) {
     return OPERATOR_CANCELLED;
   }
-  /* handled below */
+  /* Handled below. */
   id_us_min(&ima->id);
 
   Scene *scene = CTX_data_scene(C);
@@ -1422,11 +1400,9 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
 
   /* NOTE: We use 'Y' here (not 'Z'), as. */
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Y', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Y', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
+
   /* Add new object if not currently editing a GP object. */
   if ((gpd == nullptr) || (GPENCIL_ANY_MODE(gpd) == false)) {
     const char *ob_name = nullptr;
@@ -1560,7 +1536,7 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
 
   /* If this is a new object, initialize default stuff (colors, etc.) */
   if (newob) {
-    /* set default viewport color to black */
+    /* Set default viewport color to black. */
     copy_v3_fl(ob->color, 0.0f);
 
     ED_gpencil_add_defaults(C, ob);
@@ -1674,11 +1650,8 @@ static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
 
   /* NOTE: We use 'Y' here (not 'Z'), as. */
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Y', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Y', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
   const char *ob_name = nullptr;
   switch (type) {
@@ -1876,11 +1849,9 @@ static int object_light_add_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3];
 
   WM_operator_view3d_unit_defaults(C, op);
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
+
   ob = ED_object_add_type(C, OB_LAMP, get_light_defname(type), loc, rot, false, local_view_bits);
 
   float size = RNA_float_get(op->ptr, "radius");
@@ -1983,18 +1954,15 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
     return std::nullopt;
   }
 
-  if (!ED_object_add_generic_get_opts(C,
-                                      op,
-                                      'Z',
-                                      add_info.loc,
-                                      add_info.rot,
-                                      nullptr,
-                                      nullptr,
-                                      &add_info.local_view_bits,
-                                      nullptr))
-  {
-    return std::nullopt;
-  }
+  ED_object_add_generic_get_opts(C,
+                                 op,
+                                 'Z',
+                                 add_info.loc,
+                                 add_info.rot,
+                                 nullptr,
+                                 nullptr,
+                                 &add_info.local_view_bits,
+                                 nullptr);
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -2219,11 +2187,8 @@ static int object_data_instance_add_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
   ED_object_add_type_with_obdata(
       C, object_type, id->name + 2, loc, rot, false, local_view_bits, id);
@@ -2268,11 +2233,9 @@ static int object_speaker_add_exec(bContext *C, wmOperator *op)
 
   ushort local_view_bits;
   float loc[3], rot[3];
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
+
   Object *ob = ED_object_add_type(C, OB_SPEAKER, nullptr, loc, rot, false, local_view_bits);
   const bool is_liboverride = ID_IS_OVERRIDE_LIBRARY(ob);
 
@@ -2329,11 +2292,8 @@ static int object_curves_random_add_exec(bContext *C, wmOperator *op)
 
   ushort local_view_bits;
   float loc[3], rot[3];
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
   Object *object = ED_object_add_type(C, OB_CURVES, nullptr, loc, rot, false, local_view_bits);
 
@@ -2365,11 +2325,8 @@ static int object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
 
   ushort local_view_bits;
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', nullptr, nullptr, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', nullptr, nullptr, nullptr, nullptr, &local_view_bits, nullptr);
 
   Object *surface_ob = CTX_data_active_object(C);
   BLI_assert(surface_ob != nullptr);
@@ -2449,11 +2406,8 @@ static int object_pointcloud_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  ED_object_add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
   Object *object = ED_object_add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
   object->dtx |= OB_DRAWBOUNDOX; /* TODO: remove once there is actual drawing. */
@@ -4253,8 +4207,8 @@ static int object_add_named_exec(bContext *C, wmOperator *op)
   /* Do immediately, as #copy_object_set_idnew() below operates on visible objects. */
   BKE_base_eval_flags(basen);
 
-  /* object_add_duplicate_internal() doesn't deselect other objects, unlike object_add_common() or
-   * BKE_view_layer_base_deselect_all(). */
+  /* #object_add_duplicate_internal() doesn't deselect other objects,
+   * unlike #object_add_common() or #BKE_view_layer_base_deselect_all(). */
   ED_object_base_deselect_all(scene, view_layer, nullptr, SEL_DESELECT);
   ED_object_base_select(basen, BA_SELECT);
   ED_object_base_activate(C, basen);

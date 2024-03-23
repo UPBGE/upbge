@@ -96,7 +96,7 @@ def write_sysinfo(filepath):
             output.write("datafiles: %r\n" % (bpy.utils.user_resource('DATAFILES')))
             output.write("config: %r\n" % (bpy.utils.user_resource('CONFIG')))
             output.write("scripts: %r\n" % (bpy.utils.user_resource('SCRIPTS')))
-            output.write("autosave: %r\n" % (bpy.utils.user_resource('AUTOSAVE')))
+            output.write("extensions: %r\n" % (bpy.utils.user_resource('EXTENSIONS')))
             output.write("tempdir: %r\n" % (bpy.app.tempdir))
 
             output.write(title("FFmpeg"))

@@ -626,7 +626,7 @@ typedef struct bUserExtensionRepo {
 
   /**
    * The "local" directory where extensions are stored.
-   * When unset, use `{BLENDER_RESOURCE_PATH_USER}/extensions/{bUserExtensionRepo::module}`.
+   * When unset, use `{BLENDER_USER_EXTENSIONS}/{bUserExtensionRepo::module}`.
    */
   char custom_dirpath[1024]; /* FILE_MAX */
   char remote_path[1024];    /* FILE_MAX */
@@ -723,8 +723,9 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_extension_repos;
   char use_extension_utils;
+  char use_grease_pencil_version3_convert_on_load;
 
-  char _pad[2];
+  char _pad[1];
   /** `makesdna` does not allow empty structs. */
 } UserDef_Experimental;
 

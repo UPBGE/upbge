@@ -30,11 +30,11 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
-#include "GPU_capabilities.h"
-#include "GPU_compute.h"
-#include "GPU_index_buffer.h"
-#include "GPU_state.h"
-#include "GPU_vertex_buffer.h"
+#include "GPU_capabilities.hh"
+#include "GPU_compute.hh"
+#include "GPU_index_buffer.hh"
+#include "GPU_state.hh"
+#include "GPU_vertex_buffer.hh"
 
 #include "opensubdiv_capi.hh"
 #include "opensubdiv_capi_type.hh"
@@ -2109,9 +2109,9 @@ static bool draw_subdiv_create_requested_buffers(Object *ob,
 
   Mesh *mesh_eval = mesh;
   BMesh *bm = nullptr;
-  if (mesh->edit_mesh) {
+  if (mesh->runtime->edit_mesh) {
     mesh_eval = BKE_object_get_editmesh_eval_final(ob);
-    bm = mesh->edit_mesh->bm;
+    bm = mesh->runtime->edit_mesh->bm;
   }
 
   draw_subdiv_invalidate_evaluator_for_orco(runtime_data->subdiv_gpu, mesh_eval);

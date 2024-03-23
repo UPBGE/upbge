@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include <fmt/format.h>
 
 #include "BKE_anim_data.hh"
@@ -19,15 +21,20 @@
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_remap.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
 
+#include "BLO_readfile.hh"
+
 #include "BLI_color.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
@@ -157,7 +164,7 @@ static void find_used_vertex_groups(const bGPDframe &gpf,
 }
 
 /*
- * This takes the legacy uv tranforms and returns the stroke-space to texture-space matrix.
+ * This takes the legacy UV transforms and returns the stroke-space to texture-space matrix.
  */
 static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
                                                     const float uv_rotation,
@@ -628,11 +635,10 @@ static bNodeTree *add_offset_radius_node_tree(Main &bmain)
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
-  group->tree_interface.add_socket(DATA_("Geometry"),
-                                   "",
-                                   "NodeSocketGeometry",
-                                   NODE_INTERFACE_SOCKET_INPUT | NODE_INTERFACE_SOCKET_OUTPUT,
-                                   nullptr);
+  group->tree_interface.add_socket(
+      DATA_("Geometry"), "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  group->tree_interface.add_socket(
+      DATA_("Geometry"), "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
   bNodeTreeInterfaceSocket *radius_offset = group->tree_interface.add_socket(
       DATA_("Offset"), "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_INPUT, nullptr);
@@ -676,11 +682,11 @@ static bNodeTree *add_offset_radius_node_tree(Main &bmain)
               set_curve_radius,
               nodeFindSocket(set_curve_radius, SOCK_OUT, "Curve"),
               group_output,
-              nodeFindSocket(group_output, SOCK_IN, "Socket_0"));
+              nodeFindSocket(group_output, SOCK_IN, "Socket_1"));
 
   nodeAddLink(group,
               group_input,
-              nodeFindSocket(group_input, SOCK_OUT, "Socket_2"),
+              nodeFindSocket(group_input, SOCK_OUT, "Socket_3"),
               named_layer_selection,
               nodeFindSocket(named_layer_selection, SOCK_IN, "Name"));
   nodeAddLink(group,
@@ -691,7 +697,7 @@ static bNodeTree *add_offset_radius_node_tree(Main &bmain)
 
   nodeAddLink(group,
               group_input,
-              nodeFindSocket(group_input, SOCK_OUT, "Socket_1"),
+              nodeFindSocket(group_input, SOCK_OUT, "Socket_2"),
               add,
               nodeFindSocket(add, SOCK_IN, "Value"));
   nodeAddLink(group,
@@ -781,14 +787,14 @@ void layer_adjustments_to_modifiers(Main &bmain,
 
       md->settings.properties = bke::idprop::create_group("Nodes Modifier Settings").release();
       IDProperty *radius_offset_prop =
-          bke::idprop::create(DATA_("Socket_1"), radius_offset).release();
+          bke::idprop::create(DATA_("Socket_2"), radius_offset).release();
       auto *ui_data = reinterpret_cast<IDPropertyUIDataFloat *>(
           IDP_ui_data_ensure(radius_offset_prop));
       ui_data->soft_min = 0.0f;
       ui_data->base.rna_subtype = PROP_TRANSLATION;
       IDP_AddToGroup(md->settings.properties, radius_offset_prop);
       IDP_AddToGroup(md->settings.properties,
-                     bke::idprop::create(DATA_("Socket_2"), gpl->info).release());
+                     bke::idprop::create(DATA_("Socket_3"), gpl->info).release());
     }
   }
 
@@ -2024,21 +2030,41 @@ static void legacy_object_modifiers(Main & /*bmain*/, Object &object)
   }
 }
 
-void legacy_gpencil_object(Main &bmain, Object &object)
+static void legacy_gpencil_object_ex(
+    Main &bmain,
+    Object &object,
+    std::optional<blender::Map<bGPdata *, GreasePencil *>> legacy_to_greasepencil_data)
 {
-  bGPdata *gpd = static_cast<bGPdata *>(object.data);
+  BLI_assert((GS(static_cast<ID *>(object.data)->name) == ID_GD_LEGACY));
 
-  GreasePencil *new_grease_pencil = static_cast<GreasePencil *>(
-      BKE_id_new(&bmain, ID_GP, gpd->id.name + 2));
+  bGPdata *gpd = static_cast<bGPdata *>(object.data);
+  GreasePencil *new_grease_pencil = nullptr;
+  bool do_gpencil_data_conversion = true;
+
+  if (legacy_to_greasepencil_data) {
+    new_grease_pencil = legacy_to_greasepencil_data->lookup_default(gpd, nullptr);
+    do_gpencil_data_conversion = (new_grease_pencil == nullptr);
+  }
+
+  if (!new_grease_pencil) {
+    new_grease_pencil = static_cast<GreasePencil *>(
+        BKE_id_new_in_lib(&bmain, gpd->id.lib, ID_GP, gpd->id.name + 2));
+    id_us_min(&new_grease_pencil->id);
+  }
+
   object.data = new_grease_pencil;
   object.type = OB_GREASE_PENCIL;
 
   /* NOTE: Could also use #BKE_id_free_us, to also free the legacy GP if not used anymore? */
   id_us_min(&gpd->id);
-  /* No need to increase user-count of `new_grease_pencil`,
-   * since ID creation already set it to 1. */
+  id_us_plus(&new_grease_pencil->id);
 
-  legacy_gpencil_to_grease_pencil(bmain, *new_grease_pencil, *gpd);
+  if (do_gpencil_data_conversion) {
+    legacy_gpencil_to_grease_pencil(bmain, *new_grease_pencil, *gpd);
+    if (legacy_to_greasepencil_data) {
+      legacy_to_greasepencil_data->add(gpd, new_grease_pencil);
+    }
+  }
 
   legacy_object_modifiers(bmain, object);
 
@@ -2048,6 +2074,45 @@ void legacy_gpencil_object(Main &bmain, Object &object)
   thickness_factor_to_modifier(*gpd, object);
 
   BKE_object_free_derived_caches(&object);
+}
+
+void legacy_gpencil_object(Main &bmain, Object &object)
+{
+  legacy_gpencil_object_ex(bmain, object, std::nullopt);
+}
+
+void legacy_main(Main &bmain, BlendFileReadReport & /*reports*/)
+{
+  /* Allows to convert a legacy GPencil data only once, in case it's used by several objects. */
+  blender::Map<bGPdata *, GreasePencil *> legacy_to_greasepencil_data;
+
+  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
+    if (object->type != OB_GPENCIL_LEGACY) {
+      continue;
+    }
+    legacy_gpencil_object_ex(bmain, *object, std::make_optional(legacy_to_greasepencil_data));
+  }
+
+  /* Potential other usages of legacy bGPdata IDs also need to be remapped to their matching new
+   * GreasePencil counterparts. */
+  blender::bke::id::IDRemapper gpd_remapper;
+  /* Allow remapping from legacy bGPdata IDs to new GreasePencil ones. */
+  gpd_remapper.allow_idtype_mismatch = true;
+
+  LISTBASE_FOREACH (bGPdata *, legacy_gpd, &bmain.gpencils) {
+    GreasePencil *new_grease_pencil = legacy_to_greasepencil_data.lookup_default(legacy_gpd,
+                                                                                 nullptr);
+    if (!new_grease_pencil) {
+      new_grease_pencil = static_cast<GreasePencil *>(
+          BKE_id_new_in_lib(&bmain, legacy_gpd->id.lib, ID_GP, legacy_gpd->id.name + 2));
+      id_us_min(&new_grease_pencil->id);
+      legacy_gpencil_to_grease_pencil(bmain, *new_grease_pencil, *legacy_gpd);
+      legacy_to_greasepencil_data.add(legacy_gpd, new_grease_pencil);
+    }
+    gpd_remapper.add(&legacy_gpd->id, &new_grease_pencil->id);
+  }
+
+  BKE_libblock_remap_multiple(&bmain, gpd_remapper, ID_REMAP_ALLOW_IDTYPE_MISMATCH);
 }
 
 void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
