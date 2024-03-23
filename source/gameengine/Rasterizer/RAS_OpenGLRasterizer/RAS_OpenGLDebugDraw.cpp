@@ -28,8 +28,8 @@
 
 #include "BLF_api.hh"
 #include "DRW_render.hh"
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"

@@ -24,7 +24,7 @@
 
 #include "KX_BlenderMaterial.h"
 
-#include "GPU_context.h"
+#include "GPU_context.hh"
 #include "GPU_material.hh"
 #include "draw_manager.h"
 #include "eevee_private.h"

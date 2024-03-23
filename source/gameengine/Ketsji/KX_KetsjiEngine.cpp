@@ -40,9 +40,9 @@
 
 #include "BLI_rect.h"
 #include "DRW_render.hh"
-#include "GPU_context.h"
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
+#include "GPU_context.hh"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 #include "WM_api.hh"
 
 #include "BL_Converter.h"

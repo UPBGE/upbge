@@ -15,7 +15,7 @@
 #include "DEG_depsgraph_query.hh"
 #include "DNA_material_types.h"
 #include <epoxy/gl.h>
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 

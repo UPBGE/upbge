@@ -57,7 +57,7 @@
 
 #include "logic_intern.hh"
 
-#include "GPU_framebuffer.h"
+#include "GPU_framebuffer.hh"
 
 /* ******************** manage regions ********************* */
 

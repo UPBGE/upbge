@@ -43,7 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.hh"
 #include "ED_screen.hh"
-#include "GPU_context.h"
+#include "GPU_context.hh"
 #include "WM_api.hh"
 #include "wm_window.hh"
 

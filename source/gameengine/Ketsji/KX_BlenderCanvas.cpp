@@ -38,7 +38,7 @@
 #include "BLI_string.h"
 #include "DNA_scene_types.h"
 #include "GHOST_IWindow.hh"
-#include "GPU_context.h"
+#include "GPU_context.hh"
 #include "MEM_guardedalloc.h"
 #include "WM_api.hh"
 #include "wm_window.hh"

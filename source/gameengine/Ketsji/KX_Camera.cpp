@@ -33,8 +33,8 @@
 #include "KX_Camera.h"
 
 #include <epoxy/gl.h>
-#include "GPU_matrix.h"
-#include "GPU_viewport.h"
+#include "GPU_matrix.hh"
+#include "GPU_viewport.hh"
 
 #include "DNA_camera_types.h"
 #include "KX_Globals.h"

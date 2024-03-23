@@ -39,8 +39,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 #include "GHOST_ISystem.hh"
-#include "GPU_context.h"
-#include "GPU_framebuffer.h"
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
 #include "MEM_guardedalloc.h"
 
 #include "KX_Globals.h"

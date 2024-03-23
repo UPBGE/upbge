@@ -3494,8 +3494,8 @@ void DRW_gpu_context_activate(bool drw_state)
 #include "BLF_api.hh"
 #include "BLI_link_utils.h"
 #include "engines/eevee/eevee_private.h"
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 #include "IMB_colormanagement.hh"
 
 /*--UPBGE Viewport Debug Drawing --*/

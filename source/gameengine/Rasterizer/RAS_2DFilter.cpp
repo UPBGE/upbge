@@ -24,7 +24,7 @@
 
 #include "DRW_render.hh"
 
-#include "GPU_immediate.h"
+#include "GPU_immediate.hh"
 #include <epoxy/gl.h>
 
 #include "EXP_Value.h"

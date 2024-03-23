@@ -32,8 +32,8 @@
 #include "RAS_OpenGLRasterizer.h"
 
 #include <epoxy/gl.h>
-#include "GPU_context.h"
-#include "GPU_state.h"
+#include "GPU_context.hh"
+#include "GPU_state.hh"
 
 #include "CM_Message.h"
 #include "RAS_IPolygonMaterial.h"

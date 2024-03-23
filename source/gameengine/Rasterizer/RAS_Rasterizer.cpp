@@ -40,8 +40,8 @@
 #include "RAS_Polygon.h"
 
 #include "DRW_render.hh"
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)
 {
