@@ -1647,14 +1647,7 @@ static const float cubefacemat[6][4][4] = {
      {0.0f, 0.0f, 1.0f, 0.0f},
      {0.0f, 0.0f, 0.0f, 1.0f}},
 };
-<<<<<<< HEAD:source/blender/draw/engines/eevee/eevee_private.h
 
 /* UPBGE */
-EEVEE_Data *EEVEE_engine_data_get(void);
+EEVEE_Data *EEVEE_engine_data_get();
 /* End of UPBGE */
-
-#ifdef __cplusplus
-}
-#endif
-=======
->>>>>>> b/main:source/blender/draw/engines/eevee/eevee_private.hh

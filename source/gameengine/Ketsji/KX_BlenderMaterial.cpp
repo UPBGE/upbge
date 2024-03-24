@@ -26,8 +26,8 @@
 
 #include "GPU_context.hh"
 #include "GPU_material.hh"
-#include "draw_manager.h"
-#include "eevee_private.h"
+#include "draw_manager.hh"
+#include "eevee_private.hh"
 
 #include "BL_Shader.h"
 #include "EXP_ListWrapper.h"

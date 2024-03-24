@@ -9,7 +9,7 @@
 
 #include "ImageRender.h"
 
-#include "eevee_private.h"
+#include "eevee_private.hh"
 
 #include "CM_Message.h"
 #include "EXP_PythonCallBack.h"

@@ -67,7 +67,7 @@
 #  include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
 #  include "bpy_path.h"
 #  include "bpy_rna.h"
-#  include "gpu/gpu_py_api.h"
+#  include "gpu/gpu_py_api.hh"
 #  include "idprop_py_api.h"
 #  include "imbuf_py_api.h"
 #  include "marshal.h"    /* python header for loading/saving dicts */

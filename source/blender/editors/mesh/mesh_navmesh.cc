@@ -371,7 +371,7 @@ static Object *createRepresentation(bContext *C,
 
   if (!createob) {
     /* clear */
-    EDBM_mesh_clear(em);
+    BM_mesh_clear(em->bm);
   }
 
   /* create verts for polygon mesh */
