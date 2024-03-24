@@ -15,13 +15,11 @@
 #include "GPU_capabilities.hh"
 #include "GPU_debug.hh"
 
-#include "DEG_depsgraph_query.hh"
-
-#include "draw_debug.h"
 #include "draw_debug.hh"
-#include "draw_manager.h"
+#include "draw_debug_c.hh"
+#include "draw_manager_c.hh"
 #include "draw_shader.hh"
-#include "draw_shader_shared.h"
+#include "draw_shader_shared.hh"
 
 #include <iomanip>
 #include <sstream>
