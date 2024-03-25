@@ -1814,6 +1814,24 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
   newobj->ResetState();
 }
 
+static void remap_parents_recursive(KX_GameObject *parent)
+{
+  std::vector<KX_GameObject *>children = parent->GetChildren();
+  for (KX_GameObject *child : children) {
+    child->GetBlenderObject()->parent = parent->GetBlenderObject();
+    if (parent->GetBlenderObject()->type == OB_ARMATURE) {
+      ModifierData *mod;
+      for (mod = (ModifierData *)child->GetBlenderObject()->modifiers.first; mod; mod = mod->next)
+      {
+        if (mod->type == eModifierType_Armature) {
+          ((ArmatureModifierData *)mod)->object = child->GetBlenderObject()->parent;
+        }
+      }
+    }
+    remap_parents_recursive(child);
+  }
+}
+
 void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 {
   Object *blgroupobj = groupobj->GetBlenderObject();
@@ -1911,6 +1929,8 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     // update scenegraph for entire tree of children
     replica->GetSGNode()->UpdateWorldData(0);
 
+    remap_parents_recursive(replica);
+
     // done with replica
     replica->Release();
   }
@@ -1966,24 +1986,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 
   for (KX_GameObject *gameobj : duplilist) {
     DupliGroupRecurse(gameobj, level + 1);
-  }
-}
-
-static void remap_parents_recursive(KX_GameObject *parent)
-{
-  std::vector<KX_GameObject *>children = parent->GetChildren();
-  for (KX_GameObject *child : children) {
-    child->GetBlenderObject()->parent = parent->GetBlenderObject();
-    if (parent->GetBlenderObject()->type == OB_ARMATURE) {
-      ModifierData *mod;
-      for (mod = (ModifierData *)child->GetBlenderObject()->modifiers.first; mod; mod = mod->next)
-      {
-        if (mod->type == eModifierType_Armature) {
-          ((ArmatureModifierData *)mod)->object = child->GetBlenderObject()->parent;
-        }
-      }
-    }
-    remap_parents_recursive(child);
   }
 }
 
