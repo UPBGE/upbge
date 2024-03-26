@@ -60,7 +60,6 @@
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.h"
 #include "BKE_global.hh"
-#include "BKE_idprop.h"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image_format.h"
@@ -4383,6 +4382,8 @@ std::optional<eNodeSocketDatatype> custom_data_type_to_socket_type(eCustomDataTy
   switch (type) {
     case CD_PROP_FLOAT:
       return SOCK_FLOAT;
+    case CD_PROP_INT8:
+      return SOCK_INT;
     case CD_PROP_INT32:
       return SOCK_INT;
     case CD_PROP_FLOAT3:

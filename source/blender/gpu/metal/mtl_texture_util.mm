@@ -253,7 +253,7 @@ size_t get_mtl_format_bytesize(MTLPixelFormat tex_format)
       return 2;
     case MTLPixelFormatBC1_RGBA:
     case MTLPixelFormatBC1_RGBA_sRGB:
-      return 1; /* Note: not quite correct (BC1 is 0.5 bpp). */
+      return 1; /* NOTE: not quite correct (BC1 is 0.5 BPP). */
     case MTLPixelFormatBC2_RGBA:
     case MTLPixelFormatBC2_RGBA_sRGB:
     case MTLPixelFormatBC3_RGBA:
@@ -643,7 +643,7 @@ void gpu::MTLTexture::update_sub_depth_2d(
 
   GPUShader *depth_2d_update_sh = depth_2d_update_sh_get(specialization);
   BLI_assert(depth_2d_update_sh != nullptr);
-  GPUBatch *quad = GPU_batch_preset_quad();
+  Batch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, depth_2d_update_sh);
 
   GPU_batch_texture_bind(quad, "source_data", r32_tex_tmp);
