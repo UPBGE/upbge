@@ -390,7 +390,7 @@ static void view3d_camera_border(const Scene *scene,
   /* get viewport viewplane */
   BKE_camera_params_init(&params);
   BKE_camera_params_from_view3d(&params, depsgraph, v3d, rv3d);
-  if (no_zoom) {
+  if (no_zoom || scene->flag & SCE_INTERACTIVE) { // UPBGE for compositing
     params.zoom = 1.0f;
   }
   BKE_camera_params_compute_viewplane(&params, region->winx, region->winy, 1.0f, 1.0f);
