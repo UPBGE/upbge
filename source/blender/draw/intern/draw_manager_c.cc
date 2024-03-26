@@ -4021,7 +4021,7 @@ void DRW_transform_to_display(GPUViewport *viewport,
     SWAP(float, uv_rect.ymin, uv_rect.ymax);
   }
 
-  GPUBatch *batch = gpu_viewport_batch_get(viewport, &pos_rect, &uv_rect);
+  blender::gpu::Batch *batch = gpu_viewport_batch_get(viewport, &pos_rect, &uv_rect);
   if (use_ocio) {
     GPU_batch_program_set_imm_shader(batch);
   }

@@ -26,7 +26,7 @@
 
 #include "KX_PythonMain.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_text.h"
 #include "BLI_listbase.h"
