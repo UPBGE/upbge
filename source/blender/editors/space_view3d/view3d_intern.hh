@@ -103,6 +103,7 @@ void VIEW3D_OT_camera_to_view_selected(wmOperatorType *ot);
 void VIEW3D_OT_object_as_camera(wmOperatorType *ot);
 void VIEW3D_OT_localview(wmOperatorType *ot);
 void VIEW3D_OT_localview_remove_from(wmOperatorType *ot);
+void VIEW3D_OT_game_start(wmOperatorType *ot);
 
 /**
  * \param rect: optional for picking (can be NULL).

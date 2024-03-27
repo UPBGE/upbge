@@ -86,6 +86,14 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot);
 void OBJECT_OT_paths_update_visible(wmOperatorType *ot);
 void OBJECT_OT_forcefield_toggle(wmOperatorType *ot);
 
+void OBJECT_OT_game_property_new(wmOperatorType *ot);
+void OBJECT_OT_game_property_remove(wmOperatorType *ot);
+void OBJECT_OT_game_property_copy(wmOperatorType *ot);
+void OBJECT_OT_game_property_clear(wmOperatorType *ot);
+void OBJECT_OT_game_property_move(wmOperatorType *ot);
+void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot);
+void OBJECT_OT_game_physics_copy(wmOperatorType *ot);
+
 void OBJECT_OT_move_to_collection(wmOperatorType *ot);
 void OBJECT_OT_link_to_collection(wmOperatorType *ot);
 
@@ -174,6 +182,10 @@ void OBJECT_OT_light_linking_blockers_select(wmOperatorType *ot);
 void OBJECT_OT_light_linking_blockers_link(wmOperatorType *ot);
 
 void OBJECT_OT_light_linking_unlink_from_collection(wmOperatorType *ot);
+
+/* object_lod.c */
+void OBJECT_OT_lod_add(wmOperatorType *ot);
+void OBJECT_OT_lod_remove(wmOperatorType *ot);
 
 /* `object_modifier.cc` */
 

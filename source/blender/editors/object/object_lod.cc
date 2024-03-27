@@ -48,7 +48,7 @@
 #  include "RNA_enum_types.hh"
 #endif
 
-#include "object_intern.h"
+#include "object_intern.hh"
 
 static int object_lod_add_exec(bContext *C, wmOperator */*op*/)
 {
