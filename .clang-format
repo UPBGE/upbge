@@ -280,5 +280,5 @@ MacroBlockBegin: "^OSL_CLOSURE_STRUCT_BEGIN$"
 MacroBlockEnd: "^OSL_CLOSURE_STRUCT_END$"
 
 # Ensure single new line at the end of source files.
-InsertNewlineAtEOF: True
-KeepEmptyLinesAtEOF: False
+# InsertNewlineAtEOF: True // causes warning in Visual studio 2019 (UPBGE)
+# KeepEmptyLinesAtEOF: False // causes warning in Visual studio 2019 (UPBGE)
