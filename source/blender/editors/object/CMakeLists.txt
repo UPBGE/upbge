@@ -57,7 +57,7 @@ set(SRC
   object_volume.cc
   object_warp.cc
 
-  object_intern.h
+  object_intern.hh
 )
 
 set(LIB

@@ -271,9 +271,6 @@ static void object_copy_data(Main *bmain,
 
   if (ob_src->pd) {
     ob_dst->pd = (PartDeflect *)MEM_dupallocN(ob_src->pd);
-    if (ob_dst->pd->rng) {
-      ob_dst->pd->rng = (RNG *)MEM_dupallocN(ob_src->pd->rng);
-    }
   }
   BKE_rigidbody_object_copy(bmain, ob_dst, ob_src, flag_subdata);
 
@@ -513,11 +510,9 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   if (object->pose) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-          data,
-          IDP_foreach_property(pchan->prop,
-                               IDP_TYPE_FILTER_ID,
-                               BKE_lib_query_idpropertiesForeachIDLink_callback,
-                               data));
+          data, IDP_foreach_property(pchan->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+            BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+          }));
 
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan->custom, IDWALK_CB_USER);
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -1472,20 +1467,13 @@ static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
 
 static IDProperty *object_asset_dimensions_property(Object *ob)
 {
+  using namespace blender::bke;
   float3 dimensions;
   BKE_object_dimensions_get(ob, dimensions);
   if (is_zero_v3(dimensions)) {
     return nullptr;
   }
-
-  IDPropertyTemplate idprop{};
-  idprop.array.len = 3;
-  idprop.array.type = IDP_FLOAT;
-
-  IDProperty *property = IDP_New(IDP_ARRAY, &idprop, "dimensions");
-  memcpy(IDP_Array(property), dimensions, sizeof(dimensions));
-
-  return property;
+  return idprop::create("dimensions", Span(&dimensions.x, 3)).release();
 }
 
 static void object_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
@@ -1494,8 +1482,7 @@ static void object_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_d
   BLI_assert(GS(ob->id.name) == ID_OB);
 
   /* Update dimensions hint for the asset. */
-  IDProperty *dimensions_prop = object_asset_dimensions_property(ob);
-  if (dimensions_prop) {
+  if (IDProperty *dimensions_prop = object_asset_dimensions_property(ob)) {
     BKE_asset_metadata_idprop_ensure(asset_data, dimensions_prop);
   }
 }

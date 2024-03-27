@@ -57,6 +57,7 @@
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
 
 #include "ANIM_bone_collections.hh"
@@ -64,7 +65,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* ******************* view3d space & buttons ************** */
 enum {

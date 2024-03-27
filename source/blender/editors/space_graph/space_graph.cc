@@ -48,7 +48,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "graph_intern.h" /* own include */
+#include "graph_intern.hh" /* own include */
 
 /* ******************** default callbacks for ipo space ***************** */
 
@@ -530,7 +530,7 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
   }
 
   /* All dopesheet filter settings, etc. affect the drawing of this editor,
-   * also same applies for all animation-related datatypes that may appear here,
+   * also same applies for all animation-related data-types that may appear here,
    * so just whitelist the entire structs for updates
    */
   {

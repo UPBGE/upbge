@@ -1166,8 +1166,9 @@ static const int *knife_bm_tri_index_get(const KnifeTool_OpData *kcd,
   if (obinfo->tri_indices) {
     return obinfo->tri_indices[tri_index];
   }
+  const std::array<BMLoop *, 3> &ltri = obinfo->em->looptris[tri_index];
   for (int i = 0; i < 3; i++) {
-    tri_index_buf[i] = BM_elem_index_get(obinfo->em->looptris[tri_index][i]->v);
+    tri_index_buf[i] = BM_elem_index_get(ltri[i]->v);
   }
   return tri_index_buf;
 }
@@ -1313,7 +1314,7 @@ static void knife_bvh_raycast_cb(void *userdata,
   }
 
   KnifeTool_OpData *kcd = static_cast<KnifeTool_OpData *>(userdata);
-  std::array<BMLoop *, 3> ltri;
+  BMLoop *const *ltri = nullptr;
   Object *ob;
   BMEditMesh *em;
 
@@ -1329,10 +1330,11 @@ static void knife_bvh_raycast_cb(void *userdata,
     em = BKE_editmesh_from_object(ob);
     tottri = em->looptris.size();
     if (index < tottri) {
-      ltri = em->looptris[index];
+      ltri = em->looptris[index].data();
       break;
     }
   }
+  BLI_assert(ltri != nullptr);
 
   if (kcd->bvh.filter_cb) {
     if (!kcd->bvh.filter_cb(ltri[0]->f, kcd->bvh.filter_data)) {
@@ -2505,7 +2507,6 @@ static bool knife_ray_intersect_face(KnifeTool_OpData *kcd,
   float tri_norm[3], tri_plane[4];
   float se1[2], se2[2];
   float d, lambda;
-  std::array<BMLoop *, 3> tri;
   ListBase *list;
   KnifeEdge *kfe;
 
@@ -2519,8 +2520,8 @@ static bool knife_ray_intersect_face(KnifeTool_OpData *kcd,
     float tri_cos[3][3];
     float ray_tri_uv[2];
 
-    tri = em->looptris[tri_i];
-    if (tri[0]->f != f) {
+    const std::array<BMLoop *, 3> &ltri = em->looptris[tri_i];
+    if (ltri[0]->f != f) {
       break;
     }
 
@@ -2555,7 +2556,7 @@ static bool knife_ray_intersect_face(KnifeTool_OpData *kcd,
           return false;
         }
       }
-      interp_v3_v3v3v3_uv(hit_co, tri[0]->v->co, tri[1]->v->co, tri[2]->v->co, ray_tri_uv);
+      interp_v3_v3v3v3_uv(hit_co, ltri[0]->v->co, ltri[1]->v->co, ltri[2]->v->co, ray_tri_uv);
       return true;
     }
   }
@@ -2818,7 +2819,6 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 {
   float v1[3], v2[3], v3[3], v4[3], s1[2], s2[2];
   int *results, *result;
-  std::array<BMLoop *, 3> ls;
   ListBase *list;
   KnifeLineHit *linehits = nullptr;
   BLI_array_declare(linehits);
@@ -2902,17 +2902,18 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 
   for (i = 0, result = results; i < tot; i++, result++) {
     uint ob_index = 0;
+    BMLoop *const *ltri = nullptr;
     for (ob_index = 0; ob_index < kcd->objects.size(); ob_index++) {
       ob = kcd->objects[ob_index];
       em = BKE_editmesh_from_object(ob);
       if (*result >= 0 && *result < em->looptris.size()) {
-        ls = em->looptris[*result];
+        ltri = em->looptris[*result].data();
         break;
       }
       *result -= em->looptris.size();
     }
-
-    BMFace *f = ls[0]->f;
+    BLI_assert(ltri != nullptr);
+    BMFace *f = ltri[0]->f;
     set_lowest_face_tri(kcd, em, f, *result);
 
     /* Occlude but never cut unselected faces (when only_select is used). */
@@ -3584,6 +3585,7 @@ static bool knife_snap_angle_relative(KnifeTool_OpData *kcd)
 
   /* Choose best face for plane. */
   BMFace *fprev = nullptr;
+  int fprev_ob_index = kcd->prev.ob_index;
   if (kcd->prev.vert && kcd->prev.vert->v) {
     LISTBASE_FOREACH (LinkData *, ref, &kcd->prev.vert->faces) {
       f = ((BMFace *)(ref->data));
@@ -3614,7 +3616,7 @@ static bool knife_snap_angle_relative(KnifeTool_OpData *kcd)
 
     /* kcd->prev.face is usually not set. */
     fprev = knife_bvh_raycast(
-        kcd, prev_origin, prev_ray_normal, 0.0f, nullptr, prev_cage, nullptr);
+        kcd, prev_origin, prev_ray_normal, 0.0f, nullptr, prev_cage, &fprev_ob_index);
   }
 
   if (!fprev || fprev != fcurr) {
@@ -3622,7 +3624,7 @@ static bool knife_snap_angle_relative(KnifeTool_OpData *kcd)
   }
 
   /* Use normal global direction. */
-  Object *ob = kcd->objects[kcd->curr.ob_index];
+  Object *ob = kcd->objects[fprev_ob_index];
   float no_global[3];
   copy_v3_v3(no_global, fprev->no);
   mul_transposed_mat3_m4_v3(ob->world_to_object().ptr(), no_global);
@@ -3960,10 +3962,10 @@ static void knifetool_init_obinfo(KnifeTool_OpData *kcd,
     int(*tri_indices)[3] = static_cast<int(*)[3]>(
         MEM_mallocN(sizeof(int[3]) * em_eval->looptris.size(), __func__));
     for (int i = 0; i < em_eval->looptris.size(); i++) {
-      const std::array<BMLoop *, 3> &tri = em_eval->looptris[i];
-      tri_indices[i][0] = BM_elem_index_get(tri[0]->v);
-      tri_indices[i][1] = BM_elem_index_get(tri[1]->v);
-      tri_indices[i][2] = BM_elem_index_get(tri[2]->v);
+      const std::array<BMLoop *, 3> &ltri = em_eval->looptris[i];
+      tri_indices[i][0] = BM_elem_index_get(ltri[0]->v);
+      tri_indices[i][1] = BM_elem_index_get(ltri[1]->v);
+      tri_indices[i][2] = BM_elem_index_get(ltri[2]->v);
     }
     obinfo->tri_indices = tri_indices;
   }

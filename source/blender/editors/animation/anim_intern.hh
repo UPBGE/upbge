@@ -8,9 +8,7 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct ListBase;
 
 /* KeyingSets/Keyframing Interface ------------- */
 
@@ -26,10 +24,10 @@ extern ListBase builtin_keyingsets;
  * They only make use of Keying Sets.
  * \{ */
 
-void ANIM_OT_keyframe_insert(struct wmOperatorType *ot);
-void ANIM_OT_keyframe_delete(struct wmOperatorType *ot);
-void ANIM_OT_keyframe_insert_by_name(struct wmOperatorType *ot);
-void ANIM_OT_keyframe_delete_by_name(struct wmOperatorType *ot);
+void ANIM_OT_keyframe_insert(wmOperatorType *ot);
+void ANIM_OT_keyframe_delete(wmOperatorType *ot);
+void ANIM_OT_keyframe_insert_by_name(wmOperatorType *ot);
+void ANIM_OT_keyframe_delete_by_name(wmOperatorType *ot);
 
 /** \} */
 
@@ -40,10 +38,10 @@ void ANIM_OT_keyframe_delete_by_name(struct wmOperatorType *ot);
  * They will handle the menus required for each space.
  * \{ */
 
-void ANIM_OT_keyframe_insert_menu(struct wmOperatorType *ot);
+void ANIM_OT_keyframe_insert_menu(wmOperatorType *ot);
 
-void ANIM_OT_keyframe_delete_v3d(struct wmOperatorType *ot);
-void ANIM_OT_keyframe_clear_v3d(struct wmOperatorType *ot);
+void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot);
+void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot);
 
 /** \} */
 
@@ -51,9 +49,9 @@ void ANIM_OT_keyframe_clear_v3d(struct wmOperatorType *ot);
 /** \name Keyframe management operators for UI buttons (RMB menu)
  * \{ */
 
-void ANIM_OT_keyframe_insert_button(struct wmOperatorType *ot);
-void ANIM_OT_keyframe_delete_button(struct wmOperatorType *ot);
-void ANIM_OT_keyframe_clear_button(struct wmOperatorType *ot);
+void ANIM_OT_keyframe_insert_button(wmOperatorType *ot);
+void ANIM_OT_keyframe_delete_button(wmOperatorType *ot);
+void ANIM_OT_keyframe_clear_button(wmOperatorType *ot);
 
 /** \} */
 
@@ -61,8 +59,8 @@ void ANIM_OT_keyframe_clear_button(struct wmOperatorType *ot);
 /** \name KeyingSet management operators for UI buttons (RMB menu)
  * \{ */
 
-void ANIM_OT_keyingset_button_add(struct wmOperatorType *ot);
-void ANIM_OT_keyingset_button_remove(struct wmOperatorType *ot);
+void ANIM_OT_keyingset_button_add(wmOperatorType *ot);
+void ANIM_OT_keyingset_button_remove(wmOperatorType *ot);
 
 /** \} */
 
@@ -70,10 +68,10 @@ void ANIM_OT_keyingset_button_remove(struct wmOperatorType *ot);
 /** \name KeyingSet management operators for RNA collections/UI buttons
  * \{ */
 
-void ANIM_OT_keying_set_add(struct wmOperatorType *ot);
-void ANIM_OT_keying_set_remove(struct wmOperatorType *ot);
-void ANIM_OT_keying_set_path_add(struct wmOperatorType *ot);
-void ANIM_OT_keying_set_path_remove(struct wmOperatorType *ot);
+void ANIM_OT_keying_set_add(wmOperatorType *ot);
+void ANIM_OT_keying_set_remove(wmOperatorType *ot);
+void ANIM_OT_keying_set_path_add(wmOperatorType *ot);
+void ANIM_OT_keying_set_path_remove(wmOperatorType *ot);
 
 /** \} */
 
@@ -81,7 +79,7 @@ void ANIM_OT_keying_set_path_remove(struct wmOperatorType *ot);
 /** \name KeyingSet general operators
  * \{ */
 
-void ANIM_OT_keying_set_active_set(struct wmOperatorType *ot);
+void ANIM_OT_keying_set_active_set(wmOperatorType *ot);
 
 /** \} */
 
@@ -89,14 +87,10 @@ void ANIM_OT_keying_set_active_set(struct wmOperatorType *ot);
 /** \name Driver management operators for UI buttons (RMB menu)
  * \{ */
 
-void ANIM_OT_driver_button_add(struct wmOperatorType *ot);
-void ANIM_OT_driver_button_remove(struct wmOperatorType *ot);
-void ANIM_OT_driver_button_edit(struct wmOperatorType *ot);
-void ANIM_OT_copy_driver_button(struct wmOperatorType *ot);
-void ANIM_OT_paste_driver_button(struct wmOperatorType *ot);
+void ANIM_OT_driver_button_add(wmOperatorType *ot);
+void ANIM_OT_driver_button_remove(wmOperatorType *ot);
+void ANIM_OT_driver_button_edit(wmOperatorType *ot);
+void ANIM_OT_copy_driver_button(wmOperatorType *ot);
+void ANIM_OT_paste_driver_button(wmOperatorType *ot);
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

@@ -58,11 +58,12 @@
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
 
 #include "UI_resources.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
 
 using blender::float3;
 using blender::MutableSpan;

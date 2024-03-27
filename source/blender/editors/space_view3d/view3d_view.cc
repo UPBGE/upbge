@@ -46,6 +46,9 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "view3d_intern.hh" /* own include */
+#include "view3d_navigate.hh"
+
 #ifdef WITH_GAMEENGINE
 #  include "BKE_callbacks.hh"
 #  include "BKE_image.h"
@@ -53,9 +56,6 @@
 
 #  include "LA_SystemCommandLine.h"
 #endif
-
-#include "view3d_intern.h" /* own include */
-#include "view3d_navigate.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Camera to View Operator
