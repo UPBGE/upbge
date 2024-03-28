@@ -6598,8 +6598,7 @@ class VIEW3D_PT_shading_lighting(Panel):
 
                 col.prop(shading, "studiolight_intensity")
                 col.prop(shading, "studiolight_background_alpha")
-                if engine != 'BLENDER_EEVEE_NEXT':
-                    col.prop(shading, "studiolight_background_blur")
+                col.prop(shading, "studiolight_background_blur")
                 col = split.column()  # to align properly with above
 
         elif shading.type == 'RENDERED':
@@ -6624,8 +6623,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col.prop(shading, "studiolight_intensity")
                 col.prop(shading, "studiolight_background_alpha")
                 engine = context.scene.render.engine
-                if engine != 'BLENDER_EEVEE_NEXT':
-                    col.prop(shading, "studiolight_background_blur")
+                col.prop(shading, "studiolight_background_blur")
                 col = split.column()  # to align properly with above
 
 
