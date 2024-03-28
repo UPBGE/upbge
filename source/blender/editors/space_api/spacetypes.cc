@@ -97,7 +97,7 @@ void ED_spacetypes_init()
   asset::operatortypes_asset();
   ED_operatortypes_gpencil_legacy();
   ED_operatortypes_grease_pencil();
-  ED_operatortypes_object();
+  object::operatortypes_object();
   ED_operatortypes_lattice();
   ED_operatortypes_logic();
   ED_operatortypes_mesh();
@@ -151,6 +151,7 @@ void ED_spacetypes_init()
 
 void ED_spacemacros_init()
 {
+  using namespace blender::ed;
   /* Macros must go last since they reference other operators.
    * They need to be registered after python operators too. */
   ED_operatormacros_armature();
@@ -158,7 +159,7 @@ void ED_spacemacros_init()
   ED_operatormacros_uvedit();
   ED_operatormacros_metaball();
   ED_operatormacros_node();
-  ED_operatormacros_object();
+  object::operatormacros_object();
   ED_operatormacros_file();
   ED_operatormacros_graph();
   ED_operatormacros_action();
@@ -183,12 +184,13 @@ void ED_spacemacros_init()
 
 void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 {
+  using namespace blender::ed;
   ED_keymap_screen(keyconf);
   ED_keymap_anim(keyconf);
   ED_keymap_animchannels(keyconf);
   ED_keymap_gpencil_legacy(keyconf);
   ED_keymap_grease_pencil(keyconf);
-  ED_keymap_object(keyconf);
+  object::keymap_object(keyconf);
   ED_keymap_lattice(keyconf);
   ED_keymap_mesh(keyconf);
   ED_keymap_uvedit(keyconf);
