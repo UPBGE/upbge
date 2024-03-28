@@ -50,9 +50,11 @@
 
 #include "object_intern.hh"
 
+namespace blender::ed::object {
+
 static int object_lod_add_exec(bContext *C, wmOperator */*op*/)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
 
 #ifdef WITH_GAMEENGINE
   BKE_object_lod_add(ob);
@@ -80,7 +82,7 @@ void OBJECT_OT_lod_add(wmOperatorType *ot)
 
 static int object_lod_remove_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   int index = RNA_int_get(op->ptr, "index");
 
 #ifdef WITH_GAMEENGINE
@@ -112,3 +114,5 @@ void OBJECT_OT_lod_remove(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_int(ot->srna, "index", 1, 1, INT_MAX, "Index", "", 1, INT_MAX);
 }
+
+}  // namespace blender::ed::object

@@ -2102,7 +2102,7 @@ static const EnumPropertyItem *gameprops_itemf(bContext *C,
                                                PropertyRNA */*prop*/,
                                                bool *r_free)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   EnumPropertyItem *item = nullptr;
   bProperty *prop;
@@ -2126,7 +2126,7 @@ static const EnumPropertyItem *gameprops_itemf(bContext *C,
 
 static int game_property_copy_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   bProperty *prop;
   int type = RNA_enum_get(op->ptr, "operation");
   int propid = RNA_enum_get(op->ptr, "property");
@@ -2216,7 +2216,7 @@ void OBJECT_OT_game_property_clear(wmOperatorType *ot)
 
 static int logicbricks_copy_exec(bContext *C, wmOperator */*op*/)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob != ob_iter) {
@@ -2272,7 +2272,7 @@ void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
 
 static int game_physics_copy_exec(bContext *C, wmOperator */*op*/)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob != ob_iter) {

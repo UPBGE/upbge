@@ -133,7 +133,7 @@ static Object *edit_object_property_get(bContext *C, wmOperator *op)
   if (*ob_name)
     ob = (Object *)BLI_findstring(&(CTX_data_main(C)->objects), ob_name, offsetof(ID, name) + 2);
   else
-    ob = ED_object_active_context(C);
+    ob = blender::ed::object::context_active_object(C);
 
   return ob;
 }
@@ -255,7 +255,8 @@ static int logicbricks_move_property_get(wmOperator *op)
 static bool remove_component_poll(bContext *C)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id :
+                                blender::ed::object::context_active_object(C);
 
   if (!ob || ID_IS_LINKED(ob)) {
     return false;
@@ -1213,7 +1214,8 @@ static int component_move_up_exec(bContext *C, wmOperator *op)
 static bool component_move_up_poll(bContext *C)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id :
+                                blender::ed::object::context_active_object(C);
 
   if (!ob || ID_IS_LINKED(ob)) {
     return false;
@@ -1251,7 +1253,8 @@ static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
 static bool component_move_down_poll(bContext *C)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id :
+                                blender::ed::object::context_active_object(C);
 
   if (!ob || ID_IS_LINKED(ob)) {
     return false;

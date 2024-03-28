@@ -973,7 +973,7 @@ static bool select_grouped_gameprops(bContext *C, Object *ob)
 
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && (objects_share_gameprop(base->object, ob))) {
-      ED_object_base_select(base, BA_SELECT);
+      object::base_select(base, BA_SELECT);
       changed = true;
     }
   }

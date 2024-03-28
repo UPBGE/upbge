@@ -66,6 +66,8 @@
 
 #include "mesh_intern.hh" /* own include */
 
+using namespace blender::ed::object;
+
 static void createVertsTrisData(
     bContext *C, LinkNode *obs, int *nverts_r, float **verts_r, int *ntris_r, int **tris_r)
 {
@@ -335,6 +337,7 @@ static Object *createRepresentation(bContext *C,
                                     struct recast_polyMeshDetail *dmesh,
                                     Base *base)
 {
+  using namespace blender;
   float co[3], rot[3];
   BMEditMesh *em;
   int i, j, k;
@@ -356,7 +359,7 @@ static Object *createRepresentation(bContext *C,
 
   if (createob) {
     /* create new object */
-    obedit = ED_object_add_type(C, OB_MESH, "Navmesh", co, rot, false, 0);
+    obedit = blender::ed::object::add_type(C, OB_MESH, "Navmesh", co, rot, false, 0);
   }
   else {
     obedit = base->object;
@@ -366,7 +369,7 @@ static Object *createRepresentation(bContext *C,
     copy_v3_v3(obedit->rot, rot);
   }
 
-  ED_object_editmode_enter_ex(bmain, scene, obedit, 0);
+  blender::ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
   em = BKE_editmesh_from_object(obedit);
 
   if (!createob) {
@@ -456,7 +459,7 @@ static Object *createRepresentation(bContext *C,
   DEG_id_tag_update((ID *)obedit->data, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
-  ED_object_editmode_exit(C, EM_FREEDATA);
+  blender::ed::object::editmode_exit(C, EM_FREEDATA);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 
   if (createob) {
@@ -670,7 +673,7 @@ void MESH_OT_navmesh_face_add(struct wmOperatorType *ot)
 
 static bool navmesh_obmode_data_poll(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
     Mesh *me = (Mesh *)ob->data;
     return CustomData_has_layer(&me->face_data, CD_RECAST);
@@ -680,7 +683,7 @@ static bool navmesh_obmode_data_poll(bContext *C)
 
 static bool navmesh_obmode_poll(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
     return true;
   }
@@ -689,7 +692,7 @@ static bool navmesh_obmode_poll(bContext *C)
 
 static int navmesh_reset_exec(bContext *C, wmOperator */*op*/)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   Mesh *me = (Mesh *)ob->data;
 
   CustomData_free_layers(&me->face_data, CD_RECAST, me->faces_num);
@@ -719,7 +722,7 @@ void MESH_OT_navmesh_reset(struct wmOperatorType *ot)
 
 static int navmesh_clear_exec(bContext *C, wmOperator */*op*/)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   Mesh *me = (Mesh *)ob->data;
 
   CustomData_free_layers(&me->face_data, CD_RECAST, me->faces_num);
