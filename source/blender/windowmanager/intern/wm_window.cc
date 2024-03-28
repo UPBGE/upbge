@@ -523,7 +523,9 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
     str += "]";
   }
 
-  str += " - UPBGE based on Blender ";
+  str += " - UPBGE ";
+  str += BKE_upbge_version_string_compact();
+  str += " based on Blender ";
   str += BKE_blender_version_string_compact();
 
   GHOST_SetTitle(handle, str.c_str());

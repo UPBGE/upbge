@@ -93,6 +93,7 @@ static char upbge_version_string[48] = "";
 
 /* Only includes patch if non-zero. */
 static char blender_version_string_compact[48] = "";
+static char upbge_version_string_compact[48] = "";
 
 static void blender_version_init()
 {
@@ -184,18 +185,28 @@ static void upbge_version_init()
     BLI_assert(!"Invalid UPBGE version cycle");
   }
 
-  BLI_snprintf(upbge_version_string,
-               ARRAY_SIZE(upbge_version_string),
+  SNPRINTF(upbge_version_string,
                "%d.%d.%d%s",
                UPBGE_VERSION / 100,
                UPBGE_VERSION % 100,
                UPBGE_VERSION_PATCH,
                version_cycle);
+
+  SNPRINTF(upbge_version_string_compact,
+           "%d.%d%s",
+           UPBGE_VERSION / 100,
+           UPBGE_VERSION % 100,
+           version_cycle);
 }
 
 const char *BKE_upbge_version_string()
 {
   return upbge_version_string;
+}
+
+const char *BKE_upbge_version_string_compact()
+{
+  return upbge_version_string_compact;
 }
 
 /** \} */
