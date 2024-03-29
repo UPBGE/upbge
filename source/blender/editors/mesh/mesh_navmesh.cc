@@ -337,7 +337,6 @@ static Object *createRepresentation(bContext *C,
                                     struct recast_polyMeshDetail *dmesh,
                                     Base *base)
 {
-  using namespace blender;
   float co[3], rot[3];
   BMEditMesh *em;
   int i, j, k;
