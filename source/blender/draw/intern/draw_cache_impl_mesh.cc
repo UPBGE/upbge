@@ -107,7 +107,7 @@ static constexpr DRWBatchFlag batches_that_use_buffer(const int buffer_index)
              MBC_WIRE_EDGES | MBC_WIRE_LOOPS | MBC_SCULPT_OVERLAYS | MBC_VIEWER_ATTRIBUTE_OVERLAY |
              MBC_SURFACE_PER_MAT;
     case BUFFER_INDEX(vbo.nor):
-      return MBC_SURFACE | MBC_EDIT_LNOR | MBC_WIRE_LOOPS | MBC_SURFACE_PER_MAT;
+      return MBC_SURFACE | MBC_EDIT_LNOR | MBC_WIRE_LOOPS | MBC_SURFACE_PER_MAT | MBC_ALL_VERTS;
     case BUFFER_INDEX(vbo.edge_fac):
       return MBC_WIRE_EDGES;
     case BUFFER_INDEX(vbo.weights):
@@ -1409,7 +1409,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache.cd_needed.orco != 0) {
       /* Orco is always extracted from final mesh. */
-      Mesh *me_final = (mesh->runtime->edit_mesh) ? BKE_object_get_editmesh_eval_final(ob) : mesh;
+      const Mesh *me_final = (mesh->runtime->edit_mesh) ? BKE_object_get_editmesh_eval_final(ob) :
+                                                          mesh;
       if (CustomData_get_layer(&me_final->vert_data, CD_ORCO) == nullptr) {
         /* Skip orco calculation */
         cache.cd_needed.orco = 0;
@@ -1514,8 +1515,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
 
   bool do_cage = false, do_uvcage = false;
   if (is_editmode && is_mode_active) {
-    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
-    Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
+    const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
+    const Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
 
     do_cage = editmesh_eval_final != editmesh_eval_cage;
     do_uvcage = !(editmesh_eval_final->runtime->is_original_bmesh &&
@@ -1557,9 +1558,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph *task_graph,
     }
     drw_add_attributes_vbo(cache.batch.surface, mbuflist, &cache.attr_used);
   }
-  assert_deps_valid(MBC_ALL_VERTS, {BUFFER_INDEX(vbo.pos)});
+  assert_deps_valid(MBC_ALL_VERTS, {BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.nor)});
   if (DRW_batch_requested(cache.batch.all_verts, GPU_PRIM_POINTS)) {
     DRW_vbo_request(cache.batch.all_verts, &mbuflist->vbo.pos);
+    DRW_vbo_request(cache.batch.all_verts, &mbuflist->vbo.nor);
   }
   assert_deps_valid(
       MBC_SCULPT_OVERLAYS,

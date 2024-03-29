@@ -957,14 +957,15 @@ static bool select_grouped_color(bContext *C, Object *ob)
 
 static bool objects_share_gameprop(Object *a, Object *b)
 {
+  bool changed = false;
   bProperty *prop;
 
   for (prop = (bProperty *)a->prop.first; prop; prop = prop->next) {
     if (BKE_bproperty_object_get(b, prop->name)) {
-      return 1;
+      changed = true;
     }
   }
-  return 0;
+  return changed;
 }
 
 static bool select_grouped_gameprops(bContext *C, Object *ob)
