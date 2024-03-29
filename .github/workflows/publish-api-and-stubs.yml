@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PYTHON_VERSION: "3.10"
+  PYTHON_VERSION: "3.11"
 
 jobs:
   build:
@@ -76,7 +76,7 @@ jobs:
       run: git clone --depth=1 https://projects.blender.org/blender/blender-dev-tools.git
 
     - name: Update Submodules
-      run: git -C upbge submodule update --init --recursive --remote
+      # disable by now     run: git -C upbge submodule update --init --recursive --remote
 
     - name: Configure CMake
       run: |
