@@ -25,10 +25,13 @@ jobs:
           -o /etc/apt/sources.list.d/01lunar.list && \
         sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01ubuntu \
           -o /etc/apt/apt.conf.d/01ubuntu
+    # We downgrade libgbm1 & libglapi-mesa to fix libegl-mesa0 installation
     - name: Install Tools
       run: | 
         sudo apt update && \
         sudo apt dist-upgrade && \
+        sudo apt install libgbm1=23.0.4-0ubuntu1~23.04.1 && \
+        sudo apt install libglapi-mesa=23.0.4-0ubuntu1~23.04.1 && \
         sudo apt install -y build-essential cmake libembree-dev libavutil-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
           libavformat-dev libswscale-dev libavdevice-dev libblas3 libopenimageio-dev \
