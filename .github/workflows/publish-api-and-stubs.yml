@@ -38,9 +38,9 @@ jobs:
           libzstd-dev libopenimageio-dev libfreetype-dev libepoxy-dev libdecor-0-dev
 
     - name: Install Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with: 
-        python-version: "${{env.PYTHON_VERSION}}"
+        python-version: '${{env.PYTHON_VERSION}}'
 
     - name: Install Python Dependencies
       run: | 
@@ -141,9 +141,9 @@ jobs:
           libavformat59 libavdevice59 libboost-locale1.74.0 libopenimageio-dev
 
     - name: Install Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with: 
-        python-version: "${{env.PYTHON_VERSION}}"
+        python-version: '${{env.PYTHON_VERSION}}'
 
     - name: Install Python Dependencies
       run: | 
@@ -224,9 +224,9 @@ jobs:
       run: tar zxvf apidocs.tar.gz
 
     - name: Install Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with: 
-        python-version: "${{env.PYTHON_VERSION}}"
+        python-version: '${{env.PYTHON_VERSION}}'
 
     - name: Install Python Dependencies
       run: | 
