@@ -85,6 +85,8 @@ jobs:
                  -DWITH_INSTALL_PORTABLE=ON \
                  -DWITH_MOD_OCEANSIM=OFF \
                  -DWITH_CYCLES=OFF \
+                 -DWITH_LIBMV=OFF \
+                 -DWITH_LIBMV_SCHUR_SPECIALIZATIONS=OFF \
                  -DWITH_HYDRA=OFF \
                  -DWITH_VULKAN_BACKEND=OFF \
                  -DWITH_GHOST_WAYLAND=OFF \
