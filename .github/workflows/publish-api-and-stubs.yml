@@ -76,7 +76,7 @@ jobs:
       run: git clone --depth=1 https://projects.blender.org/blender/blender-dev-tools.git
 
     - name: Update Submodules
-      # disable by now     run: git -C upbge submodule update --init --recursive --remote
+      run: git -C upbge submodule update --init --recursive --remote
 
     - name: Configure CMake
       run: |
