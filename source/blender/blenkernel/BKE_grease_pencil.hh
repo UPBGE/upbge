@@ -14,6 +14,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_color.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -702,7 +703,8 @@ inline void TreeNode::set_selected(const bool selected)
 }
 inline bool TreeNode::use_onion_skinning() const
 {
-  return ((this->flag & GP_LAYER_TREE_NODE_USE_ONION_SKINNING) != 0);
+  return ((this->flag & GP_LAYER_TREE_NODE_HIDE_ONION_SKINNING) == 0) &&
+         (!this->parent_group() || this->parent_group()->as_node().use_onion_skinning());
 }
 inline bool TreeNode::use_masks() const
 {
@@ -773,7 +775,11 @@ class GreasePencilRuntime {
 
 class GreasePencilDrawingEditHints {
  public:
-  std::optional<Array<float3>> positions;
+  const greasepencil::Drawing *drawing_orig;
+  ImplicitSharingPtrAndData positions_data;
+
+  std::optional<Span<float3>> positions() const;
+  std::optional<MutableSpan<float3>> positions_for_write();
 };
 
 /**

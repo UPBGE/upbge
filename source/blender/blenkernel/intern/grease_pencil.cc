@@ -42,6 +42,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
+#include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array.hh"
 
@@ -52,6 +53,7 @@
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
 #include "DNA_brush_types.h"
+#include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
@@ -80,10 +82,12 @@ static void grease_pencil_init_data(ID *id)
   using namespace blender::bke;
 
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(grease_pencil, id));
+
+  MEMCPY_STRUCT_AFTER(grease_pencil, DNA_struct_default_get(GreasePencil), id);
 
   grease_pencil->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
   grease_pencil->active_layer = nullptr;
-  grease_pencil->flag |= GREASE_PENCIL_ANIM_CHANNEL_EXPANDED;
 
   CustomData_reset(&grease_pencil->layers_data);
 
@@ -578,7 +582,7 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
     const float4x2 texspace = matrices[pos];
 
     /* We do the computation using doubles to avoid numerical precision errors. */
-    double4x3 strokemat4x3 = double4x3(expand_4x2_mat(strokemat));
+    const double4x3 strokemat4x3 = double4x3(expand_4x2_mat(strokemat));
 
     /*
      * We want to solve for `texture_matrix` in the equation: `texspace = texture_matrix *
@@ -766,7 +770,7 @@ TreeNode::TreeNode()
   this->parent = nullptr;
 
   this->GreasePencilLayerTreeNode::name = nullptr;
-  this->flag = GP_LAYER_TREE_NODE_HIDE_MASKS;
+  this->flag = 0;
   this->color[0] = this->color[1] = this->color[2] = 0;
 }
 
@@ -1569,6 +1573,40 @@ void LayerGroup::update_from_dna_read()
 }
 
 }  // namespace blender::bke::greasepencil
+
+namespace blender::bke {
+
+std::optional<Span<float3>> GreasePencilDrawingEditHints::positions() const
+{
+  if (!this->positions_data.has_value()) {
+    return std::nullopt;
+  }
+  const int points_num = this->drawing_orig->geometry.wrap().points_num();
+  return Span(static_cast<const float3 *>(this->positions_data.data), points_num);
+}
+
+std::optional<MutableSpan<float3>> GreasePencilDrawingEditHints::positions_for_write()
+{
+  if (!this->positions_data.has_value()) {
+    return std::nullopt;
+  }
+
+  const int points_num = this->drawing_orig->geometry.wrap().points_num();
+  ImplicitSharingPtrAndData &data = this->positions_data;
+  if (data.sharing_info->is_mutable()) {
+    /* If the referenced component is already mutable, return it directly. */
+    data.sharing_info->tag_ensured_mutable();
+  }
+  else {
+    auto *new_sharing_info = new ImplicitSharedValue<Array<float3>>(*this->positions());
+    data.sharing_info = ImplicitSharingPtr<ImplicitSharingInfo>(new_sharing_info);
+    data.data = new_sharing_info->data.data();
+  }
+
+  return MutableSpan(const_cast<float3 *>(static_cast<const float3 *>(data.data)), points_num);
+}
+
+}  // namespace blender::bke
 
 /* ------------------------------------------------------------------- */
 /** \name Grease Pencil kernel functions
