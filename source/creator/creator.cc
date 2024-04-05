@@ -37,7 +37,6 @@
 /* Mostly initialization functions. */
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
-#include "BKE_blender_cli_command.hh"
 #include "BKE_brush.hh"
 #include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
@@ -129,6 +128,7 @@ ApplicationState app_state = []() {
   app_state.signal.use_crash_handler = true;
   app_state.signal.use_abort_handler = true;
   app_state.exit_code_on_error.python = 0;
+  app_state.main_arg_deferred = nullptr;
   return app_state;
 }();
 
@@ -581,16 +581,9 @@ int main(int argc,
 #ifndef WITH_PYTHON_MODULE
   if (G.background) {
     int exit_code;
-    if (app_state.command.argv) {
-      const char *id = app_state.command.argv[0];
-      if (STREQ(id, "help")) {
-        BKE_blender_cli_command_print_help();
-        exit_code = EXIT_SUCCESS;
-      }
-      else {
-        exit_code = BKE_blender_cli_command_exec(
-            C, id, app_state.command.argc - 1, app_state.command.argv + 1);
-      }
+    if (app_state.main_arg_deferred != nullptr) {
+      exit_code = main_arg_handle_deferred();
+      MEM_freeN(app_state.main_arg_deferred);
     }
     else {
       exit_code = G.is_break ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -612,6 +605,10 @@ int main(int argc,
         }
       }
     }
+
+    /* Not supported, although it could be made to work if needed. */
+    BLI_assert(app_state.main_arg_deferred == nullptr);
+
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
 

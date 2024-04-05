@@ -79,7 +79,7 @@ class Drawing : public ::GreasePencilDrawing {
 
   /**
    * Returns the matrices that transform from a 3D point in layer-space to a 2D point in
-   * texture-space.
+   * texture-space. This is stored per curve.
    */
   Span<float4x2> texture_matrices() const;
   /**
@@ -103,10 +103,18 @@ class Drawing : public ::GreasePencilDrawing {
   MutableSpan<float> opacities_for_write();
 
   /**
-   * Vertex colors of the points. Default is black.
+   * Vertex colors of the points. Default is black. This is mixed on top of the base material
+   * stroke color.
    */
   VArray<ColorGeometry4f> vertex_colors() const;
   MutableSpan<ColorGeometry4f> vertex_colors_for_write();
+
+  /**
+   * Fill colors of the curves. Default is black and fully transparent. This is mixed on top of the
+   * base material fill color.
+   */
+  VArray<ColorGeometry4f> fill_colors() const;
+  MutableSpan<ColorGeometry4f> fill_colors_for_write();
 
   /**
    * Add a user for this drawing. When a drawing has multiple users, both users are allowed to
@@ -245,20 +253,23 @@ class TreeNode : public ::GreasePencilLayerTreeNode {
   /**
    * \returns this node as a #Layer.
    */
-  Layer &as_layer();
   const Layer &as_layer() const;
+  Layer &as_layer();
 
   /**
    * \returns this node as a #LayerGroup.
    */
-  LayerGroup &as_group();
   const LayerGroup &as_group() const;
+  LayerGroup &as_group();
 
   /**
    * \returns the parent layer group or nullptr for the root group.
    */
-  LayerGroup *parent_group() const;
-  TreeNode *parent_node() const;
+  const LayerGroup *parent_group() const;
+  LayerGroup *parent_group();
+
+  const TreeNode *parent_node() const;
+  TreeNode *parent_node();
 
   /**
    * \returns the number of non-null parents of the node.
@@ -374,7 +385,8 @@ class Layer : public ::GreasePencilLayer {
   /**
    * \returns the parent #LayerGroup of this layer.
    */
-  LayerGroup &parent_group() const;
+  const LayerGroup &parent_group() const;
+  LayerGroup &parent_group();
 
   /**
    * \returns the frames mapping.
@@ -750,7 +762,11 @@ inline bool Layer::is_empty() const
 {
   return (this->frames().is_empty());
 }
-inline LayerGroup &Layer::parent_group() const
+inline const LayerGroup &Layer::parent_group() const
+{
+  return *this->as_node().parent_group();
+}
+inline LayerGroup &Layer::parent_group()
 {
   return *this->as_node().parent_group();
 }

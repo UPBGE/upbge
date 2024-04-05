@@ -169,7 +169,7 @@ bool BKE_object_defgroup_clear(Object *ob, bDeformGroup *dg, const bool use_sele
       }
     }
     else {
-      if (!mesh->deform_verts().data()) {
+      if (mesh->deform_verts().data()) {
         const bool *select_vert = (const bool *)CustomData_get_layer_named(
             &mesh->vert_data, CD_PROP_BOOL, ".select_vert");
         int i;
@@ -544,7 +544,7 @@ bool BKE_object_defgroup_array_get(ID *id, MDeformVert **dvert_arr, int *dvert_t
         return true;
       }
       case ID_GP:
-        /* Should not be used with grease pencil objects.*/
+        /* Should not be used with grease pencil objects. */
         BLI_assert_unreachable();
         break;
       default:
