@@ -123,6 +123,9 @@ static const EnumPropertyItem rna_enum_override_library_property_operation_items
 const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
     /* Datablocks */
     {FILTER_ID_AC, "filter_action", ICON_ACTION, "Actions", "Show Action data-blocks"},
+#ifdef WITH_ANIM_BAKLAVA
+    {FILTER_ID_AN, "filter_animation", ICON_ACTION, "Animations", "Show Animation data-blocks"},
+#endif
     {FILTER_ID_AR,
      "filter_armature",
      ICON_ARMATURE_DATA,
@@ -375,6 +378,11 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_Action) {
     return ID_AC;
   }
+#  ifdef WITH_ANIM_BAKLAVA
+  if (base_type == &RNA_Animation) {
+    return ID_AN;
+  }
+#  endif
   if (base_type == &RNA_Armature) {
     return ID_AR;
   }
@@ -498,6 +506,9 @@ StructRNA *ID_code_to_RNA_type(short idcode)
     case ID_AC:
       return &RNA_Action;
     case ID_AN:
+#  ifdef WITH_ANIM_BAKLAVA
+      return &RNA_Animation;
+#  endif
       break;
     case ID_AR:
       return &RNA_Armature;
@@ -1524,9 +1535,9 @@ static IDProperty **rna_IDPropertyWrapPtr_idprops(PointerRNA *ptr)
 static void rna_Library_version_get(PointerRNA *ptr, int *value)
 {
   Library *lib = (Library *)ptr->data;
-  value[0] = lib->versionfile / 100;
-  value[1] = lib->versionfile % 100;
-  value[2] = lib->subversionfile;
+  value[0] = lib->runtime.versionfile / 100;
+  value[1] = lib->runtime.versionfile % 100;
+  value[2] = lib->runtime.subversionfile;
 }
 
 static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
@@ -2513,6 +2524,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Library_filepath_set");
 
   prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "runtime.parent");
   RNA_def_property_struct_type(prop, "Library");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Parent", "");
@@ -2536,7 +2548,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_THICK_WRAP);
 
   prop = RNA_def_property(srna, "needs_liboverride_resync", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "tag", LIBRARY_TAG_RESYNC_REQUIRED);
+  RNA_def_property_boolean_sdna(prop, nullptr, "runtime.tag", LIBRARY_TAG_RESYNC_REQUIRED);
   RNA_def_property_ui_text(prop,
                            "Library Overrides Need resync",
                            "True if this library contains library overrides that are linked in "
