@@ -532,7 +532,7 @@ class RENDER_PT_eevee_volumetric_shadows(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_volumetric_blending(RenderButtonsPanel, Panel):
     bl_label = "Volumetric Blending"
     bl_parent_id = "RENDER_PT_eevee_volumetric"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     def draw_header(self, context):
         scene = context.scene
