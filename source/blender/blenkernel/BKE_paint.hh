@@ -84,6 +84,7 @@ extern const uchar PAINT_CURSOR_VERTEX_PAINT[3];
 extern const uchar PAINT_CURSOR_WEIGHT_PAINT[3];
 extern const uchar PAINT_CURSOR_TEXTURE_PAINT[3];
 extern const uchar PAINT_CURSOR_SCULPT_CURVES[3];
+extern const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3];
 
 enum class PaintMode : int8_t {
   Sculpt = 0,
@@ -102,9 +103,11 @@ enum class PaintMode : int8_t {
   WeightGPencil = 9,
   /** Curves. */
   SculptCurves = 10,
+  /** Grease Pencil. */
+  SculptGreasePencil = 11,
 
   /** Keep last. */
-  Invalid = 11,
+  Invalid = 12,
 };
 
 #define PAINT_MODE_HAS_BRUSH(mode) !ELEM(mode, PaintMode::SculptUV)
@@ -571,14 +574,6 @@ struct SculptSession {
   blender::float3 cursor_normal;
   blender::float3 cursor_sampled_normal;
   blender::float3 cursor_view_normal;
-
-  /* For Sculpt trimming gesture tools, initial ray-cast data from the position of the mouse
-   * when
-   * the gesture starts (intersection with the surface and if they ray hit the surface or not).
-   */
-  blender::float3 gesture_initial_location;
-  blender::float3 gesture_initial_normal;
-  bool gesture_initial_hit;
 
   /* TODO(jbakker): Replace rv3d and v3d with ViewContext */
   RegionView3D *rv3d;
