@@ -13,7 +13,7 @@ description: |
            stable - Latest stable release.
         candidate - Test builds for the upcoming stable release.
 
-icon: ../icons/scalable/apps/upbge.svg
+icon: ../icons/scalable/apps/org.upbge.UPBGE.svg
 
 passthrough:
     license: GPL-3.0
@@ -36,7 +36,7 @@ parts:
         build-attributes: [keep-execstack, no-patchelf]
         override-build: |
             snapcraftctl build
-            sed -i 's|Icon=upbge|Icon=${SNAP}/upbge.svg|' ${SNAPCRAFT_PART_INSTALL}/upbge.desktop
+            sed -i 's|Icon=upbge|Icon=${SNAP}/org.upbge.UPBGE.svg|' ${SNAPCRAFT_PART_INSTALL}/upbge.desktop
         stage-packages:
             - libxcb1
             - libxext6

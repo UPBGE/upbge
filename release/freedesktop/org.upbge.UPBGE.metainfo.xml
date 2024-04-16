@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+ <id>org.upbge.UPBGE</id>
+ <name>UPBGE</name>
+ <summary>UPBGE is a free and open source 3D Game Engine integrated in Blender</summary>
+ <developer id="org.upbge">
+  <name>
+	 UPBGE Community
+	</name>
+ </developer>
+ <content_rating type="oars-1.1" />
+ <metadata_license>CC0-1.0</metadata_license>
+ <project_license>GPL-3.0</project_license>
+ <description>
+  <p>
+      An independent fork of Blender created by Porteries Tristan, aiming to clean up and improve current Blender Game Engine (BGE) code, experiment with new features, and implement forgotten features that currently exist but have not been merged with the official releases of Blender.
+    </p>
+  <p>
+      UPBGE is a public, free and open-source project held together by its community. Hundreds of contributors have volunteered to make this project possible.
+    </p>
+ </description>
+ <url type="homepage">https://upbge.org</url>
+ <url type="bugtracker">https://github.com/UPBGE/upbge/issues</url>
+ <launchable type="desktop-id">org.upbge.UPBGE.desktop</launchable>
+ <screenshots>
+  <screenshot type="default">
+   <image>https://upbge.org/975e00fef0bd07865974.jpg</image>
+  </screenshot>
+  <screenshot>
+   <image>https://upbge.org/1d46281dc23f6cb1ab1a.jpg</image>
+  </screenshot>
+ </screenshots>
+ <releases>
+  <release version="0.36.1" date="2023-08-20">
+   <description>
+    <p>New features:</p>
+    <ul>
+     <li>Most of new features comes from Blender development itself.</li>
+     <li>Convert DupliGroups/Instance collections at bge runtime.</li>
+     <li>BGUI library added to python modules folder.</li>
+     <li>Easy Online addon included.</li>
+     <li>Enable support of SoftBody volumes when we uncheck Shape Match.</li>
+     <li>Added the ability to play NLA tracks with Action actuator.</li>
+     <li>Added the possibility to convert actions at runtime.</li>
+     <li>Remove hardcoded limit for objects linked in logic bricks editor.</li>
+     <li>Allow antialiasing for ImageRender if nothing is moving.</li>
+     <li>Allow full rendered passes in ImageRender.</li>
+     <li>Added number of render passes per frame option.</li>
+     <li>Added an option for AddObject to duplicate object data.</li>
+     <li>Added an option to update LOD physics.</li>
+     <li>Allow hidden lodlevels to be evaluated by depsgraph.</li>
+     <li>Added experimental support for openXR.</li>
+     <li>Allow activity culling for all object types.</li>
+     <li>Blender realtime compositor in viewport works in game engine now.</li>
+     <li>Option for Show Profile and Debug Properties in bigger size for High Dpi Screens.</li>
+     <li>Added a "Soft Shadow Override" per light switch.</li>
+     <li>4 extra buttons added for Mouse.</li>
+     <li>Support for Grease Pencil modifiers animation added.</li>
+     <li>Use the up-to-date dshow format instead of death vfwcap format for camera capture.</li>
+     <li>New video play and video capture component template.</li>
+    </ul>
+   </description>
+  </release>
+ </releases>-
+</component>
