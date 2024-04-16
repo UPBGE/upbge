@@ -743,6 +743,7 @@ if(UNIX AND NOT APPLE)
     install(
       FILES
         ${CMAKE_SOURCE_DIR}/release/freedesktop/org.upbge.UPBGE.desktop
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/org.upbge.UPBGE.metainfo.xml
         ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/org.upbge.UPBGE.svg
         ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/org.upbge.UPBGE-symbolic.svg
       DESTINATION "."
