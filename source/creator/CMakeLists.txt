@@ -743,8 +743,9 @@ if(UNIX AND NOT APPLE)
     install(
       FILES
         ${CMAKE_SOURCE_DIR}/release/freedesktop/org.upbge.UPBGE.desktop
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/org.upbge.UPBGE.metainfo.xml
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/org.upbge.UPBGE.svg
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/org.upbge.UPBGE-symbolic.svg
       DESTINATION "."
     )
 
@@ -805,11 +806,11 @@ file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
       DESTINATION "./share/metainfo"
     )
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/org.upbge.UPBGE.svg
       DESTINATION "./share/icons/hicolor/scalable/apps"
     )
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/org.upbge.UPBGE-symbolic.svg
       DESTINATION "./share/icons/hicolor/symbolic/apps"
     )
     if(WITH_BLENDER_THUMBNAILER)
