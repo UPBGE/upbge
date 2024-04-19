@@ -966,11 +966,9 @@ int main(int argc,
 
     UI_init();
   }
-
-  BKE_subdiv_init();
 #endif
 
-  BKE_subdiv_init();
+  blender::bke::subdiv::init();
 
   ED_spacemacros_init();
 
@@ -1850,7 +1848,7 @@ int main(int argc,
   COM_deinitialize();
 #endif
 
-  BKE_subdiv_exit();
+  blender::bke::subdiv::exit();
 
   BKE_image_free_unused_gpu_textures();
 
