@@ -1,11 +1,20 @@
-Blender uses the GNU General Public License, which describes the rights
-to distribute or change the code. 
+RUDY 3D ENGINE LICENSING
+The default license for Rudy Engine is the Apache License, Version 2.0 
+(see LICENSE_APACHE2.TXT); you may elect at your option to use the Rudy Engine under the MIT License (see LICENSE_MIT.TXT).  Contributions must be 
+made under both licenses.
+ 
+THIRD PARTY COMPONENTS
+Rudy Engine requires the use of (and in some cases makes available to you) 
+software and assets that have been developed by third parties and are subject 
+to separate license terms (such as code licensed under other open source 
+licenses).  It is your responsibility to comply with the applicable licenses. 
+Information on third party materials, and the applicable license terms, are 
+referenced in or included with the materials, such as in separate LICENSE.txt 
+files accompanying the materials.
+ 
+Please note that certain materials are subject to "copyleft" licenses, which 
+require distribution of source code, including:
 
-Please read this file for the full license.
-doc/license/GPL-license.txt
+ 
 
-Apart from the GNU GPL, Blender is not available under other licenses.
-
-2010, Blender Foundation
-foundation@blender.org
-
+ 
