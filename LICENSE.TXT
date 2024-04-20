@@ -13,7 +13,7 @@ referenced in or included with the materials, such as in separate LICENSE.txt
 files accompanying the materials.
  
 Please note that certain materials are subject to "copyleft" licenses, which 
-require distribution of source code, including:
+require distribution of source code.
 
  
 
