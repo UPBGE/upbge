@@ -1,6 +1,6 @@
-RUDY 3D ENGINE LICENSING
-The default license for Rudy Engine is the Apache License, Version 2.0 
-(see LICENSE_APACHE2.TXT); you may elect at your option to use the Rudy Engine under the MIT License (see LICENSE_MIT.TXT).  Contributions must be 
+NPC 3D ENGINE LICENSING
+The default license for NPC 3D Engine is the Apache License, Version 2.0 
+(see LICENSE_APACHE2.TXT); you may elect at your option to use the NPC 3D Engine under the MIT License (see LICENSE_MIT.TXT).  Contributions must be 
 made under both licenses.
  
 THIRD PARTY COMPONENTS
