@@ -140,7 +140,8 @@ void VKBackend::samplers_update()
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)
 {
   VKContext &context = *VKContext::get();
-  context.state_manager_get().apply_bindings();
+  render_graph::VKResourceAccessInfo resource_access_info = {};
+  context.state_manager_get().apply_bindings(context, resource_access_info);
   context.bind_compute_pipeline();
   VKCommandBuffers &command_buffers = context.command_buffers_get();
   command_buffers.dispatch(groups_x_len, groups_y_len, groups_z_len);
@@ -150,7 +151,8 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
 {
   BLI_assert(indirect_buf);
   VKContext &context = *VKContext::get();
-  context.state_manager_get().apply_bindings();
+  render_graph::VKResourceAccessInfo resource_access_info = {};
+  context.state_manager_get().apply_bindings(context, resource_access_info);
   context.bind_compute_pipeline();
   VKStorageBuffer &indirect_buffer = *unwrap(indirect_buf);
   VKCommandBuffers &command_buffers = context.command_buffers_get();
@@ -255,7 +257,6 @@ void VKBackend::capabilities_init(VKDevice &device)
 
   /* Reset all capabilities from previous context. */
   GCaps = {};
-  GCaps.compute_shader_support = true;
   GCaps.geometry_shader_support = true;
   GCaps.shader_draw_parameters_support =
       device.physical_device_vulkan_11_features_get().shaderDrawParameters;
