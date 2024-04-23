@@ -112,6 +112,12 @@ void USDGenericMeshWriter::do_write(HierarchyContext &context)
     }
     throw;
   }
+
+  auto prim = usd_export_context_.stage->GetPrimAtPath(usd_export_context_.usd_path);
+  if (prim.IsValid() && object_eval) {
+    prim.SetActive((object_eval->duplicator_visibility_flag & OB_DUPLI_FLAG_RENDER) != 0);
+    write_id_properties(prim, mesh->id, get_export_time_code());
+  }
 }
 
 void USDGenericMeshWriter::write_custom_data(const Object *obj,
@@ -129,13 +135,11 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
 
   attributes.for_all(
       [&](const bke::AttributeIDRef &attribute_id, const bke::AttributeMetaData &meta_data) {
-        /* Skipping "internal" Blender properties. Skipping
-         * material_index as it's dealt with elsewhere. Skipping
-         * edge domain because USD doesn't have a good
-         * conversion for them. */
+        /* Skip "internal" Blender properties and attributes processed elsewhere.
+         * Skip edge domain because USD doesn't have a good conversion for them. */
         if (attribute_id.name()[0] == '.' || attribute_id.is_anonymous() ||
             meta_data.domain == bke::AttrDomain::Edge ||
-            ELEM(attribute_id.name(), "position", "material_index"))
+            ELEM(attribute_id.name(), "position", "material_index", "velocity"))
         {
           return true;
         }

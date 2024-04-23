@@ -3118,6 +3118,9 @@ static void link_global(FileData *fd, BlendFileData *bfd)
       bfd->curscene = bfd->curscreen->scene;
     }
   }
+  if (bfd->curscene == nullptr) {
+    bfd->curscene = static_cast<Scene *>(bfd->main->scenes.first);
+  }
 }
 
 /** \} */
