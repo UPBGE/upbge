@@ -69,10 +69,6 @@ GPU_SHADER_CREATE_INFO(eevee_geom_point_cloud)
     .vertex_out(eevee_surf_iface)
     .vertex_out(eevee_surf_point_cloud_iface)
     .vertex_out(eevee_surf_point_cloud_flat_iface)
-    /* TODO(Miguel Pozo): Remove once we get rid of old EEVEE. */
-    .define("pointRadius", "point_cloud_interp.radius")
-    .define("pointPosition", "point_cloud_interp.position")
-    .define("pointID", "point_cloud_interp_flat.id")
     .additional_info("draw_pointcloud_new",
                      "draw_modelmat_new",
                      "draw_resource_id_varying",
@@ -235,14 +231,18 @@ GPU_SHADER_CREATE_INFO(eevee_surf_world)
 GPU_SHADER_INTERFACE_INFO(eevee_surf_shadow_atomic_iface, "shadow_iface")
     .flat(Type::INT, "shadow_view_id");
 
+GPU_SHADER_INTERFACE_INFO(eevee_surf_shadow_clipping_iface, "shadow_clip")
+    .smooth(Type::VEC3, "vector");
+
 GPU_SHADER_CREATE_INFO(eevee_surf_shadow)
     .define("DRW_VIEW_LEN", STRINGIFY(SHADOW_VIEW_MAX))
     .define("MAT_SHADOW")
     .builtins(BuiltinBits::VIEWPORT_INDEX)
-    .storage_buf(SHADOW_VIEWPORT_INDEX_BUF_SLOT,
+    .vertex_out(eevee_surf_shadow_clipping_iface)
+    .storage_buf(SHADOW_RENDER_VIEW_BUF_SLOT,
                  Qualifier::READ,
-                 "uint",
-                 "viewport_index_buf[SHADOW_VIEW_MAX]")
+                 "ShadowRenderView",
+                 "render_view_buf[SHADOW_VIEW_MAX]")
     .fragment_source("eevee_surf_shadow_frag.glsl")
     .additional_info("eevee_global_ubo", "eevee_utility_texture", "eevee_sampling_data");
 

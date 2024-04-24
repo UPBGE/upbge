@@ -360,7 +360,7 @@ class AnimDataConvertor {
   /**
    * Convert relevant FCurves, i.e. modify their RNA path to match destination data.
    *
-   * \note: Edited FCurves will remain in the source animation data after this process. Once all
+   * \note Edited FCurves will remain in the source animation data after this process. Once all
    * source animation data has been processed, #fcurves_convert_finalize has to be called.
    */
   void fcurves_convert()
@@ -1227,7 +1227,7 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
 
   /* Ensure values are divided by 2k, to match conversion done for non-animated value. */
   constexpr float thickness_adjustement_factor = 1.0f / 2000.0f;
-  auto fcurve_convert_thickness_cb = [&thickness_adjustement_factor](FCurve &fcurve) {
+  auto fcurve_convert_thickness_cb = [&](FCurve &fcurve) {
     if (fcurve.bezt) {
       for (uint i = 0; i < fcurve.totvert; i++) {
         BezTriple &bezier_triple = fcurve.bezt[i];
