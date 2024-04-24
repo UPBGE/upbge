@@ -1170,14 +1170,14 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   PythonProxy *pp;
   PythonProxyProperty *pprop;
 
-  BLO_read_list(reader, &ob->prop);
+  BLO_read_struct_list(reader, bProperty, &ob->prop);
   for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
     BLO_read_data_address(reader, &prop->poin);
     if (prop->poin == nullptr)
       prop->poin = &prop->data;
   }
 
-  BLO_read_list(reader, &ob->sensors);
+  BLO_read_struct_list(reader, bSensor, &ob->sensors);
   for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
     BLO_read_data_address(reader, &sens->data);
     BLO_read_pointer_array(reader, (void **)&sens->links);
@@ -1214,7 +1214,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_glob_list(reader, &pp->properties);
     pprop = (PythonProxyProperty *)pp->properties.first;
     while (pprop) {
-      BLO_read_list(reader, &pprop->enumval);
+      BLO_read_struct_list(reader, LinkData, &pprop->enumval);
       for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
         BLO_read_data_address(reader, &link->data);
       }
@@ -1230,7 +1230,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_glob_list(reader, &pp->properties);
     pprop = (PythonProxyProperty *)pp->properties.first;
     while (pprop) {
-      BLO_read_list(reader, &pprop->enumval);
+      BLO_read_struct_list(reader, LinkData, &pprop->enumval);
       for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
         BLO_read_data_address(reader, &link->data);
       }
@@ -1240,7 +1240,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_data_address(reader, &ob->bsoft);
 
-  BLO_read_list(reader, &ob->lodlevels);
+  BLO_read_struct_list(reader, LodLevel, &ob->lodlevels);
   ob->currentlod = (LodLevel *)ob->lodlevels.first;
   /* End of UPBGE */
 
