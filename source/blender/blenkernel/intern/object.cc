@@ -1238,7 +1238,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  BLO_read_data_address(reader, &ob->bsoft);
+  BLO_read_struct(reader, BulletSoftBody, &ob->bsoft);
 
   BLO_read_struct_list(reader, LodLevel, &ob->lodlevels);
   ob->currentlod = (LodLevel *)ob->lodlevels.first;
