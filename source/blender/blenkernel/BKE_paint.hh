@@ -96,7 +96,6 @@ enum class PaintMode : int8_t {
   Texture3D = 3,
   /** Image space (2D painting). */
   Texture2D = 4,
-  SculptUV = 5,
   GPencil = 6,
   /* Grease Pencil Vertex Paint */
   VertexGPencil = 7,
@@ -110,8 +109,6 @@ enum class PaintMode : int8_t {
   /** Keep last. */
   Invalid = 12,
 };
-
-#define PAINT_MODE_HAS_BRUSH(mode) !ELEM(mode, PaintMode::SculptUV)
 
 /* overlay invalidation */
 enum ePaintOverlayControlFlags {
@@ -291,18 +288,17 @@ struct SculptPoseIKChainSegment {
   float len;
   blender::float3 scale;
   float rot[4];
-  float *weights;
+  blender::Array<float> weights;
 
   /* Store a 4x4 transform matrix for each of the possible combinations of enabled XYZ symmetry
    * axis. */
-  float trans_mat[PAINT_SYMM_AREAS][4][4];
-  float pivot_mat[PAINT_SYMM_AREAS][4][4];
-  float pivot_mat_inv[PAINT_SYMM_AREAS][4][4];
+  std::array<blender::float4x4, PAINT_SYMM_AREAS> trans_mat;
+  std::array<blender::float4x4, PAINT_SYMM_AREAS> pivot_mat;
+  std::array<blender::float4x4, PAINT_SYMM_AREAS> pivot_mat_inv;
 };
 
 struct SculptPoseIKChain {
-  SculptPoseIKChainSegment *segments;
-  int tot_segments;
+  blender::Array<SculptPoseIKChainSegment> segments;
   blender::float3 grab_delta_offset;
 };
 
@@ -587,7 +583,7 @@ struct SculptSession {
 
   /* Pose Brush Preview */
   blender::float3 pose_origin;
-  SculptPoseIKChain *pose_ik_chain_preview;
+  std::unique_ptr<SculptPoseIKChain> pose_ik_chain_preview;
 
   /* Boundary Brush Preview */
   SculptBoundary *boundary_preview;

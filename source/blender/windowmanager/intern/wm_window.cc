@@ -2079,6 +2079,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityInputIME) {
     flag |= WM_CAPABILITY_INPUT_IME;
   }
+  if (ghost_flag & GHOST_kCapabilityTrackpadPhysicalDirection) {
+    flag |= WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION;
+  }
 
   return flag;
 }

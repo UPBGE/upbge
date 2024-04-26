@@ -330,10 +330,8 @@ bool space_image_main_region_poll(bContext *C)
 static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
-  Scene *scene = CTX_data_scene(C);
-  ToolSettings *toolsettings = scene->toolsettings;
 
-  if (sima && !toolsettings->uvsculpt && (CTX_data_edit_object(C) == nullptr)) {
+  if (sima && (CTX_data_edit_object(C) == nullptr)) {
     return true;
   }
 
@@ -3011,6 +3009,12 @@ static int image_clipboard_paste_exec(bContext *C, wmOperator *op)
 
 static bool image_clipboard_paste_poll(bContext *C)
 {
+  SpaceImage *sima = CTX_wm_space_image(C);
+  if (!sima) {
+    CTX_wm_operator_poll_msg_set(C, "Image Editor not found");
+    return false;
+  }
+
   if (!WM_clipboard_image_available()) {
     CTX_wm_operator_poll_msg_set(C, "No compatible images are on the clipboard");
     return false;
