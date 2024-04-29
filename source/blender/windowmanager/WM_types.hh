@@ -557,6 +557,10 @@ struct wmNotifier {
 
 /* ************** Gesture Manager data ************** */
 
+namespace blender::wm::gesture {
+constexpr float POLYLINE_CLICK_RADIUS = 15.0f;
+}
+
 /** #wmGesture::type */
 #define WM_GESTURE_LINES 1
 #define WM_GESTURE_RECT 2
@@ -564,6 +568,7 @@ struct wmNotifier {
 #define WM_GESTURE_LASSO 4
 #define WM_GESTURE_CIRCLE 5
 #define WM_GESTURE_STRAIGHTLINE 6
+#define WM_GESTURE_POLYLINE 7
 
 /**
  * wmGesture is registered to #wmWindow.gesture, handled by operator callbacks.

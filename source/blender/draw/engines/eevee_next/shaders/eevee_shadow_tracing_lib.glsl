@@ -454,18 +454,19 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
     }
   }
   else {
-    /* FIXME: The returned value seems quite broken as it increases drastically near the view
-     * position. */
-    scale = shadow_punctual_footprint_ratio(light,
-                                            lP,
-                                            drw_view_is_perspective(),
-                                            distance(P, drw_view_position()),
-                                            uniform_buf.shadow.tilemap_projection_ratio);
+    /* Simplification of `coverage_get(shadow_punctual_level_fractional)`. */
+    scale = shadow_punctual_pixel_ratio(light,
+                                        lP,
+                                        drw_view_is_perspective(),
+                                        drw_view_z_distance(P),
+                                        uniform_buf.shadow.film_pixel_radius);
     /* This gives the size of pixels at Z = 1. */
-    scale *= exp2(light.lod_bias);
+    scale = 1.0 / scale;
+    scale *= exp2(-1.0 + light.lod_bias);
     scale = clamp(scale, float(1 << 0), float(1 << SHADOW_TILEMAP_LOD));
+    scale *= shadow_punctual_frustum_padding_get(light);
     /* Now scale by distance to the light. */
-    scale *= length(lP);
+    scale *= reduce_max(abs(lP));
   }
   /* Footprint of a tilemap at unit distance from the camera. */
   const float texel_footprint = 2.0 * M_SQRT2 / SHADOW_MAP_MAX_RES;
@@ -485,7 +486,10 @@ float shadow_normal_offset(float texel_radius, vec3 Ng, vec3 L)
   /* TODO: Should we take the light shape into consideration? */
   float cos_theta = abs(dot(Ng, L));
   float sin_theta = sqrt(saturate(1.0 - square(cos_theta)));
-  return texel_radius * sin_theta;
+  /* Note that we still bias by one pixel anyway to fight quantization artifacts.
+   * This helps with self intersection of slopped surfaces and gives softer soft shadow (?! why).
+   * FIXME: This is likely to hide some issue, and we need a user facing bias parameter anyway. */
+  return texel_radius * (sin_theta + 3.0);
 }
 
 /**

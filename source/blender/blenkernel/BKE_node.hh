@@ -349,6 +349,13 @@ struct bNodeType {
   /** Get extra information that is drawn next to the node. */
   NodeExtraInfoFunction get_extra_info;
 
+  /**
+   * Registers operators that are specific to this node. This allows nodes to be more
+   * self-contained compared to the alternative to registering all operators in a more central
+   * place.
+   */
+  void (*register_operators)();
+
   /** True when the node cannot be muted. */
   bool no_muting;
   /** True when the node still works but it's usage is discouraged. */
@@ -917,6 +924,7 @@ void BKE_nodetree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index
 #define SH_NODE_COMBINE_COLOR 711
 #define SH_NODE_SEPARATE_COLOR 712
 #define SH_NODE_MIX 713
+#define SH_NODE_BSDF_RAY_PORTAL 714
 #define SH_NODE_SPRITES_ANIMATION 800
 
 /** \} */

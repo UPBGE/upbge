@@ -164,7 +164,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
     IndexMask point_mask = brush_influence_mask(scene,
                                                 brush,
                                                 start_sample.mouse_position,
-                                                start_sample.pressure,
+                                                1.0f,
                                                 info.multi_frame_falloff,
                                                 selection,
                                                 view_positions,
