@@ -280,7 +280,7 @@ namespace blender::ed::sculpt_paint {
 static void sculpt_init_session(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   /* Create persistent sculpt mode data. */
-  BKE_sculpt_toolsettings_data_ensure(scene);
+  BKE_sculpt_toolsettings_data_ensure(bmain, scene);
 
   /* Create sculpt mode session data. */
   if (ob->sculpt != nullptr) {
@@ -527,7 +527,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
       depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     }
     ED_object_sculptmode_enter_ex(bmain, depsgraph, scene, ob, false, op->reports);
-    BKE_paint_toolslots_brush_validate(bmain, &ts->sculpt->paint);
+    BKE_paint_brush_validate(bmain, &ts->sculpt->paint);
 
     if (ob->mode & mode_flag) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -1321,6 +1321,7 @@ void ED_operatortypes_sculpt()
   WM_operatortype_append(face_set::SCULPT_OT_face_set_box_gesture);
   WM_operatortype_append(trim::SCULPT_OT_trim_box_gesture);
   WM_operatortype_append(trim::SCULPT_OT_trim_lasso_gesture);
+  WM_operatortype_append(trim::SCULPT_OT_trim_line_gesture);
   WM_operatortype_append(project::SCULPT_OT_project_line_gesture);
 
   WM_operatortype_append(SCULPT_OT_sample_color);

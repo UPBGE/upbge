@@ -327,11 +327,6 @@ struct FontBLF {
   /** Angle in radians. */
   float angle;
 
-#if 0 /* BLF_BLUR_ENABLE */
-  /* blur: 3 or 5 large kernel */
-  int blur;
-#endif
-
   /** Shadow level. */
   int shadow;
 
@@ -344,12 +339,6 @@ struct FontBLF {
 
   /** Main text color. */
   unsigned char color[4];
-
-  /**
-   * Multiplied this matrix with the current one before draw the text!
-   * see #blf_draw_gpu__start.
-   */
-  float m[16];
 
   /** Clipping rectangle. */
   rcti clip_rec;

@@ -386,6 +386,9 @@ void node_node_foreach_id(bNode *node, LibraryForeachIDData *data)
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, library_foreach_node_socket(sock, data));
   }
+
+  /* Note that this ID pointer is only a cache, it may be outdated. */
+  BKE_LIB_FOREACHID_PROCESS_ID(data, node->runtime->owner_tree, IDWALK_CB_LOOPBACK);
 }
 
 static void node_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -4287,7 +4290,7 @@ const char *nodeSocketLabel(const bNodeSocket *sock)
 static void node_type_base_defaults(bNodeType *ntype)
 {
   /* default size values */
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype->height = 100;
   ntype->minheight = 30;
   ntype->maxheight = FLT_MAX;
@@ -4604,16 +4607,16 @@ void node_type_size(bNodeType *ntype, const int width, const int minwidth, const
 void node_type_size_preset(bNodeType *ntype, const eNodeSizePreset size)
 {
   switch (size) {
-    case eNodeSizePreset::DEFAULT:
+    case eNodeSizePreset::Default:
       node_type_size(ntype, 140, 100, NODE_DEFAULT_MAX_WIDTH);
       break;
-    case eNodeSizePreset::SMALL:
+    case eNodeSizePreset::Small:
       node_type_size(ntype, 100, 80, NODE_DEFAULT_MAX_WIDTH);
       break;
-    case eNodeSizePreset::MIDDLE:
+    case eNodeSizePreset::Middle:
       node_type_size(ntype, 150, 120, NODE_DEFAULT_MAX_WIDTH);
       break;
-    case eNodeSizePreset::LARGE:
+    case eNodeSizePreset::Large:
       node_type_size(ntype, 240, 140, NODE_DEFAULT_MAX_WIDTH);
       break;
   }

@@ -2550,6 +2550,7 @@ static void ui_apply_but(
   switch (but_type) {
     case UI_BTYPE_BUT:
     case UI_BTYPE_DECORATOR:
+    case UI_BTYPE_PREVIEW_TILE:
       ui_apply_but_BUT(C, but, data);
       break;
     case UI_BTYPE_TEXT:

@@ -233,7 +233,7 @@ void blf_batch_draw_begin(FontBLF *font)
   }
 
   const bool font_changed = (g_batch.font != font);
-  const bool simple_shader = ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) == 0);
+  const bool simple_shader = ((font->flags & (BLF_ROTATION | BLF_ASPECT)) == 0);
   const bool shader_changed = (simple_shader != g_batch.simple_shader);
 
   g_batch.active = g_batch.enabled && simple_shader;
@@ -1445,10 +1445,6 @@ static void blf_font_fill(FontBLF *font)
   font->pos[1] = 0;
   font->angle = 0.0f;
 
-  for (int i = 0; i < 16; i++) {
-    font->m[i] = 0;
-  }
-
   /* Use an easily identifiable bright color (yellow)
    * so its clear when #BLF_color calls are missing. */
   font->color[0] = 255;
@@ -1468,9 +1464,6 @@ static void blf_font_fill(FontBLF *font)
   font->char_spacing = 0.0f;
 
   font->kerning_cache = nullptr;
-#if BLF_BLUR_ENABLE
-  font->blur = 0;
-#endif
   font->tex_size_max = -1;
 
   font->buf_info.fbuf = nullptr;

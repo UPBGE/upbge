@@ -1334,6 +1334,8 @@ void BKE_nodetree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index
 #define FN_NODE_TRANSPOSE_MATRIX 1238
 #define FN_NODE_PROJECT_POINT 1239
 #define FN_NODE_ALIGN_ROTATION_TO_VECTOR 1240
+#define FN_NODE_COMBINE_MATRIX 1241
+#define FN_NODE_SEPARATE_MATRIX 1242
 
 /** \} */
 
@@ -1630,10 +1632,10 @@ void node_type_socket_templates(bNodeType *ntype,
 void node_type_size(bNodeType *ntype, int width, int minwidth, int maxwidth);
 
 enum class eNodeSizePreset : int8_t {
-  DEFAULT,
-  SMALL,
-  MIDDLE,
-  LARGE,
+  Default,
+  Small,
+  Middle,
+  Large,
 };
 
 void node_type_size_preset(bNodeType *ntype, eNodeSizePreset size);

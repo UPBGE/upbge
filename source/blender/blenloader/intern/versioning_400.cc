@@ -3274,15 +3274,56 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 24)) {
     if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "thickness_mode")) {
       LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        /* EEVEE Legacy used slab assumption. */
-        material->thickness_mode = MA_THICKNESS_SLAB;
         if (material->blend_flag & MA_BL_TRANSLUCENCY) {
           /* EEVEE Legacy used thickness from shadow map when translucency was on. */
           material->blend_flag |= MA_BL_THICKNESS_FROM_SHADOW;
         }
-        if (material->use_nodes && material->nodetree) {
+        if ((material->blend_flag & MA_BL_SS_REFRACTION) && material->use_nodes &&
+            material->nodetree)
+        {
+          /* EEVEE Legacy used slab assumption. */
+          material->thickness_mode = MA_THICKNESS_SLAB;
           version_refraction_depth_to_thickness_value(material->nodetree, material->refract_depth);
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 25)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type != CMP_NODE_BLUR) {
+          continue;
+        }
+
+        NodeBlurData &blur_data = *static_cast<NodeBlurData *>(node->storage);
+
+        if (blur_data.filtertype != R_FILTER_FAST_GAUSS) {
+          continue;
+        }
+
+        /* The size of the Fast Gaussian mode of blur decreased by the following factor to match
+         * other blur sizes. So increase it back. */
+        const float size_factor = 3.0f / 2.0f;
+        blur_data.sizex *= size_factor;
+        blur_data.sizey *= size_factor;
+        blur_data.percentx *= size_factor;
+        blur_data.percenty *= size_factor;
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 26)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "shadow_resolution_scale"))
+    {
+      SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->eevee.shadow_resolution_scale = default_scene_eevee.shadow_resolution_scale;
+        scene->eevee.clamp_world = 10.0f;
       }
     }
   }
