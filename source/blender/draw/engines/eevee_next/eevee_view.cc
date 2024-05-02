@@ -121,7 +121,9 @@ void ShadingView::render()
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
   inst_.lights.set_view(render_view_, extent_);
 
-  inst_.pipelines.background.render(render_view_);
+  if (DRW_state_draw_background()) { //UPBGE (don't render background in overlay pass)
+    inst_.pipelines.background.render(render_view_);
+  }
 
   inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
 
