@@ -787,7 +787,12 @@ class VIEW3D_HT_header(Header):
             )
 
         # Proportional editing
-        if object_mode in {'EDIT', 'PARTICLE_EDIT', 'SCULPT_GPENCIL', 'EDIT_GPENCIL', 'OBJECT'}:
+        if object_mode in {
+            'EDIT',
+            'PARTICLE_EDIT',
+            'SCULPT_GPENCIL',
+            'EDIT_GPENCIL',
+                'OBJECT'} and context.mode != 'EDIT_ARMATURE':
             row = layout.row(align=True)
             kw = {}
             if object_mode == 'OBJECT':
@@ -2888,8 +2893,8 @@ class VIEW3D_MT_object(Menu):
         layout.menu("VIEW3D_MT_object_liboverride", icon='LIBRARY_DATA_OVERRIDE')
         layout.menu("VIEW3D_MT_object_relations")
         layout.menu("VIEW3D_MT_object_parent")
-        layout.menu("VIEW3D_MT_object_constraints")
-        layout.menu("VIEW3D_MT_object_modifiers")
+        layout.menu("VIEW3D_MT_object_modifiers", icon='MODIFIER')
+        layout.menu("VIEW3D_MT_object_constraints", icon='CONSTRAINT')
         layout.menu("VIEW3D_MT_object_track")
         layout.menu("VIEW3D_MT_make_links")
 
@@ -3367,10 +3372,18 @@ class VIEW3D_MT_object_modifiers(Menu):
     bl_label = "Modifiers"
 
     def draw(self, _context):
+        active_object = bpy.context.active_object
+        supported_types = {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'FONT', 'VOLUME', 'GREASEPENCIL'}
+
         layout = self.layout
 
-        layout.menu("OBJECT_MT_modifier_add", text="Add")
-        layout.operator("object.modifiers_copy_to_selected", text="Copy to Selected")
+        if active_object:
+            if active_object.type in supported_types:
+                layout.menu("OBJECT_MT_modifier_add", text="Add Modifier")
+            elif active_object.type == 'GPENCIL':
+                layout.operator("object.gpencil_modifier_add", text="Add Modifier")
+
+        layout.operator("object.modifiers_copy_to_selected", text="Copy Modifiers to Selected Objects")
 
         layout.separator()
 
@@ -6042,6 +6055,10 @@ class VIEW3D_MT_edit_greasepencil(Menu):
 
         layout.separator()
 
+        layout.operator("grease_pencil.extrude_move", text="Extrude")
+
+        layout.separator()
+
         layout.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
         layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
 
@@ -8500,6 +8517,10 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
+            col.operator("grease_pencil.extrude_move", text="Extrude")
+
+            col.separator()
+
             col.operator("grease_pencil.separate", text="Separate").mode = 'SELECTED'
 
             # Removal Operators
@@ -8541,6 +8562,10 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
             col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
             col.operator("grease_pencil.duplicate_move", text="Duplicate")
+
+            col.separator()
+
+            col.operator("grease_pencil.extrude_move", text="Extrude")
 
             col.separator()
 
@@ -9089,6 +9114,7 @@ class VIEW3D_AST_sculpt_brushes(bpy.types.AssetShelf):
     # enabled.
 
     bl_space_type = 'VIEW_3D'
+    bl_default_preview_size = 48
 
     @classmethod
     def poll(cls, context):

@@ -2261,6 +2261,12 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
        "No Asset Dragging",
        "Disable the default asset dragging on drag events. Useful for implementing custom "
        "dragging via custom key-map items"},
+      {ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE,
+       "DEFAULT_VISIBLE",
+       0,
+       "Visible by Default",
+       "Unhide the asset shelf when it's available for the first time, otherwise it will be "
+       "hidden"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2296,6 +2302,13 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, asset_shelf_flag_items);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this asset shelf type");
+
+  prop = RNA_def_property(srna, "bl_default_preview_size", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "type->default_preview_size");
+  RNA_def_property_range(prop, 32, 256);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop, "Default Preview Size", "Default size of the asset preview thumbnails in pixels");
 
   PropertyRNA *parm;
   FunctionRNA *func;

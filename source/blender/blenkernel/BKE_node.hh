@@ -509,8 +509,11 @@ void ntreeSetOutput(bNodeTree *ntree);
 
 /**
  * Returns localized tree for execution in threads.
+ *
+ * \param new_owner_id: the owner ID of the localized nodetree, may be null if unknown or
+ * irrelevant.
  */
-bNodeTree *ntreeLocalize(bNodeTree *ntree);
+bNodeTree *ntreeLocalize(bNodeTree *ntree, ID *new_owner_id);
 
 /**
  * This is only direct data, tree itself should have been written.
@@ -642,7 +645,11 @@ bool nodeIsParentAndChild(const bNode *parent, const bNode *child);
 
 int nodeCountSocketLinks(const bNodeTree *ntree, const bNodeSocket *sock);
 
-void nodeSetSelected(bNode *node, bool select);
+/**
+ * Selects or deselects the node. If the node is deselected, all its sockets are deselected too.
+ * \return True if any selection was changed.
+ */
+bool nodeSetSelected(bNode *node, bool select);
 /**
  * Two active flags, ID nodes have special flag for buttons display.
  */

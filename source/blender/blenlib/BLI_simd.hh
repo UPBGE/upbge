@@ -10,9 +10,14 @@
  * SIMD instruction support.
  */
 
-// TODO: Re-enable this once blenlib is converted to C++
-#if (defined(__ARM_NEON) /* || (defined(_M_ARM64) && defined(_MSC_VER))*/) && \
-    defined(WITH_SSE2NEON)
+/* sse2neon.h uses a newer pre-processor which is no available for C language when using MSVC.
+ * For the consistency require C++ for all build configurations.  */
+#if !defined(__cplusplus)
+#  error Including BLI_simd.hh requires C++
+#endif
+
+#if (defined(__ARM_NEON) || (defined(_M_ARM64) && defined(_MSC_VER))) && \
+    defined(WITH_SSE2NEON) && !defined(DISABLE_SSE2NEON)
 /* SSE/SSE2 emulation on ARM Neon. Match SSE precision. */
 #  if !defined(SSE2NEON_PRECISE_MINMAX)
 #    define SSE2NEON_PRECISE_MINMAX 1
@@ -33,7 +38,8 @@
 #  define BLI_HAVE_SSE2 0
 #endif
 
-#if defined(__ARM_NEON) && defined(WITH_SSE2NEON)
+#if (defined(__ARM_NEON) || (defined(_M_ARM64) && defined(_MSC_VER))) && \
+    defined(WITH_SSE2NEON) && !defined(DISABLE_SSE2NEON)
 /* SSE4 is emulated via sse2neon. */
 #  define BLI_HAVE_SSE4 1
 #elif defined(__SSE4_2__)
