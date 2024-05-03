@@ -517,15 +517,21 @@ bool KX_KetsjiEngine::NextFrame()
       if (i == 0) {  // No need to UpdateObjectActivity several times
         scene->UpdateObjectActivity();
       }
-
-      m_logger.StartLog(tc_physics);
+      // I'm not sure if this goes here, I think this is for calculating
+      //time computing pysics, but physics are calculated in a lower section
+      //Since I don't know the code as well as I wish, if this is needed don't remove
+      //(Opheroth)
+      //m_logger.StartLog(tc_physics);
 
       // set Python hooks for each scene
       KX_SetActiveScene(scene);
 
+      /*Moved this down below to fix the 1 frame lag when copying transformations
+      from an object to another using python (Opheroth)
       // Process sensors, and controllers
       m_logger.StartLog(tc_logic);
       scene->LogicBeginFrame(m_frameTime, times.framestep);
+      -----------------------------------------------*/
 
       // Scenegraph needs to be updated again, because Logic Controllers
       // can affect the local matrices.
@@ -559,6 +565,21 @@ bool KX_KetsjiEngine::NextFrame()
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
 
+      //Moved animations and Process sensors and controllers here, after
+      //physics are evaluated, the order Must be first animations
+      //second the logic, so the script gets the final transformations
+      //(Opheroth)
+      // Process Animations
+      m_logger.StartLog(tc_animations);
+      UpdateAnimations(scene);
+            
+      // Process sensors, and controllers
+      m_logger.StartLog(tc_logic);
+      scene->LogicBeginFrame(m_frameTime, times.framestep);
+      
+      m_logger.StartLog(tc_scenegraph);
+      scene->UpdateParents(m_frameTime);
+      
       m_logger.StartLog(tc_services);
     }
 
@@ -1082,8 +1103,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   m_logger.StartLog(tc_scenegraph);
 
+  /*This was moved to NextFrame() to correct the 1 frame delay when copying transformations
+  from one object to another using python. (Opheroth)
   m_logger.StartLog(tc_animations);
   UpdateAnimations(scene);
+  */
 
   m_logger.StartLog(tc_rasterizer);
 
