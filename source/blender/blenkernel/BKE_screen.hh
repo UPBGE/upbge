@@ -523,6 +523,7 @@ enum AssetShelfTypeFlag {
    * keymap items then. */
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
   ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
+  ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
 
   ASSET_SHELF_TYPE_FLAG_MAX
 };
@@ -532,6 +533,9 @@ struct AssetShelfType {
   char idname[BKE_ST_MAXNAME]; /* unique name */
 
   int space_type;
+
+  /** Operator to call when activating a grid view item. */
+  std::string activate_operator;
 
   AssetShelfTypeFlag flag;
 
@@ -550,6 +554,8 @@ struct AssetShelfType {
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
                             uiLayout *layout);
+
+  const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 
   /* RNA integration */
   ExtensionRNA rna_ext;

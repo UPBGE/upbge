@@ -142,7 +142,7 @@ static AssetShelf *update_active_shelf(const bContext &C,
                                        RegionAssetShelf &shelf_regiondata,
                                        FunctionRef<void(AssetShelf &new_shelf)> on_create)
 {
-  /* Note: Don't access #AssetShelf.type directly, use #type_ensure(). */
+  /* NOTE: Don't access #AssetShelf.type directly, use #type_ensure(). */
 
   /* Case 1: */
   if (shelf_regiondata.active_shelf &&
@@ -250,6 +250,9 @@ static void asset_shelf_region_listen(const wmRegionListenerParams *params)
       if (ELEM(wmn->data, ND_MODE)) {
         ED_region_tag_redraw(region);
       }
+      break;
+    case NC_ASSET:
+      ED_region_tag_redraw(region);
       break;
   }
 }
@@ -553,7 +556,6 @@ AssetShelf *active_shelf_from_area(const ScrArea *area)
   const ARegion *shelf_region = BKE_area_find_region_type(area, RGN_TYPE_ASSET_SHELF);
   if (!shelf_region) {
     /* Called in wrong context, area doesn't have a shelf. */
-    BLI_assert_unreachable();
     return nullptr;
   }
 
@@ -613,7 +615,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   /* XXX hack. Get the asset from the active item, but needs to be the file... */
   if (CTX_data_equals(member, "active_file")) {
     const ARegion *region = CTX_wm_region(C);
-    const uiBut *but = UI_region_views_find_active_item_but(region);
+    const uiBut *but = UI_region_views_find_mouse_over_but(CTX_wm_window(C), region);
     if (!but) {
       return CTX_RESULT_NO_DATA;
     }
@@ -680,9 +682,10 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
   return but;
 }
 
-static void add_catalog_tabs(AssetShelfSettings &shelf_settings, uiLayout &layout)
+static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
+  AssetShelfSettings &shelf_settings = shelf.settings;
 
   /* "All" tab. */
   {
@@ -699,18 +702,17 @@ static void add_catalog_tabs(AssetShelfSettings &shelf_settings, uiLayout &layou
   uiItemS(&layout);
 
   /* Regular catalog tabs. */
-  settings_foreach_enabled_catalog_path(
-      shelf_settings, [&](const asset_system::AssetCatalogPath &path) {
-        uiBut *but = add_tab_button(*block, path.name());
+  settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
+    uiBut *but = add_tab_button(*block, path.name());
 
-        UI_but_func_set(but, [&shelf_settings, path](bContext &C) {
-          settings_set_active_catalog(shelf_settings, path);
-          send_redraw_notifier(C);
-        });
-        UI_but_func_pushed_state_set(but, [&shelf_settings, path](const uiBut &) -> bool {
-          return settings_is_active_catalog(shelf_settings, path);
-        });
-      });
+    UI_but_func_set(but, [&shelf_settings, path](bContext &C) {
+      settings_set_active_catalog(shelf_settings, path);
+      send_redraw_notifier(C);
+    });
+    UI_but_func_pushed_state_set(but, [&shelf_settings, path](const uiBut &) -> bool {
+      return settings_is_active_catalog(shelf_settings, path);
+    });
+  });
 }
 
 /** \} */
@@ -737,7 +739,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 
   PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
   if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
-    add_catalog_tabs(shelf->settings, *layout);
+    add_catalog_tabs(*shelf, *layout);
   }
 
   uiItemSpacer(layout);

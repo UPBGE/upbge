@@ -2784,7 +2784,8 @@ static void read_libblock_undo_restore_at_old_address(FileData *fd, Main *main, 
                        id_old,
                        true,
                        (ID_REMAP_NO_ORIG_POINTERS_ACCESS | ID_REMAP_SKIP_NEVER_NULL_USAGE |
-                        ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_REFCOUNT));
+                        ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_REFCOUNT |
+                        ID_REMAP_SKIP_USER_CLEAR));
 
   /* Special temporary usage of this pointer, necessary for the `undo_preserve` call after
    * lib-linking to restore some data that should never be affected by undo, e.g. the 3D cursor of
@@ -3068,7 +3069,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
   bfd->fileflags = fg->fileflags;
   bfd->globalf = fg->globalf;
 
-  /* Note: since 88b24bc6bb, `fg->filepath` is only written for crash recovery and autosave files,
+  /* NOTE: since 88b24bc6bb, `fg->filepath` is only written for crash recovery and autosave files,
    * so only overwrite `fd->relabase` if it is not empty, in case a regular blendfile is opened
    * through one of the 'recover' operators.
    *
@@ -3406,6 +3407,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
   BLO_read_struct_list(reader, bUserScriptDirectory, &user->script_directories);
   BLO_read_struct_list(reader, bUserAssetLibrary, &user->asset_libraries);
   BLO_read_struct_list(reader, bUserExtensionRepo, &user->extension_repos);
+  BLO_read_struct_list(reader, bUserAssetShelfSettings, &user->asset_shelves_settings);
 
   LISTBASE_FOREACH (wmKeyMap *, keymap, &user->user_keymaps) {
     keymap->modal_items = nullptr;
@@ -3451,6 +3453,10 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
   LISTBASE_FOREACH (bAddon *, addon, &user->addons) {
     BLO_read_struct(reader, IDProperty, &addon->prop);
     IDP_BlendDataRead(reader, &addon->prop);
+  }
+
+  LISTBASE_FOREACH (bUserAssetShelfSettings *, shelf_settings, &user->asset_shelves_settings) {
+    BKE_asset_catalog_path_list_blend_read_data(reader, shelf_settings->enabled_catalog_paths);
   }
 
   /* XXX */
