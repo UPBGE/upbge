@@ -612,9 +612,6 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
   KX_Camera *cullingcam = (overrideCullingCam) ? overrideCullingCam : rendercam;
 
   KX_SetActiveScene(scene);
-#ifdef WITH_PYTHON
-  scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, rendercam);
-#endif
 
   RAS_Rect area;
   RAS_Rect viewport;
