@@ -378,7 +378,7 @@ void SCA_PythonController::Trigger(SCA_LogicManager *logicmgr)
        */
 
       if (!m_pythondictionary) {
-        m_pythondictionary = PyDict_Copy(PyC_DefaultNameSpace(nullptr)); /* new reference */
+        m_pythondictionary = PyDict_Copy(PyC_DefaultNameSpace("<python controller script>")); /* new reference */
 
         /* Without __file__ set the sys.argv[0] is used for the filename
          * which ends up with lines from the blender binary being printed in the console */
