@@ -101,7 +101,6 @@ struct ShadowTileMap : public ShadowTileMapData {
                          int2 origin_offset,
                          int clipmap_level,
                          float lod_bias_,
-                         float filter_radius,
                          eShadowProjectionType projection_type_);
 
   void sync_cubeface(eLightType light_type_,
@@ -111,7 +110,6 @@ struct ShadowTileMap : public ShadowTileMapData {
                      float side,
                      float shift,
                      eCubeFace face,
-                     float filter_radius,
                      float lod_bias_);
 
   void debug_draw() const;
@@ -288,7 +286,7 @@ class ShadowModule {
   int3 scan_dispatch_size_;
   int rendering_tilemap_;
   int rendering_lod_;
-  bool do_full_update = true;
+  bool do_full_update_ = true;
 
   /** \} */
 
@@ -375,6 +373,12 @@ class ShadowModule {
     return lod_bias_;
   }
 
+  /* Set all shadows to update. To be called before `end_sync`. */
+  void reset()
+  {
+    do_full_update_ = true;
+  }
+
  private:
   void remove_unused();
   void debug_page_map_call(DRWPass *pass);
@@ -410,13 +414,6 @@ class ShadowPunctual : public NonCopyable, NonMovable {
   float max_distance_, light_radius_;
   /** Number of tile-maps needed to cover the light angular extents. */
   int tilemaps_needed_;
-  /** Scaling factor to the light shape for shadow ray casting. */
-  float softness_factor_;
-  /**
-   * `radius * softness_factor` (Bypasses LightModule radius modifications
-   * to avoid unnecessary padding in the shadow projection).
-   */
-  float shadow_radius_;
 
  public:
   ShadowPunctual(ShadowModule &module) : shadows_(module){};
@@ -435,9 +432,7 @@ class ShadowPunctual : public NonCopyable, NonMovable {
             const float4x4 &object_mat,
             float cone_aperture,
             float light_shape_radius,
-            float max_distance,
-            float softness_factor,
-            float shadow_radius);
+            float max_distance);
 
   /**
    * Release the tile-maps that will not be used in the current frame.
@@ -455,14 +450,8 @@ class ShadowPunctual : public NonCopyable, NonMovable {
    * Make sure that the projection encompass all possible rays that can start in the projection
    * quadrant.
    */
-  void compute_projection_boundaries(eLightType light_type,
-                                     float light_radius,
-                                     float shadow_radius,
-                                     float max_lit_distance,
-                                     float &near,
-                                     float &far,
-                                     float &side,
-                                     float &back_shift);
+  void compute_projection_boundaries(
+      float max_lit_distance, float &near, float &far, float &side, float &back_shift);
 };
 
 class ShadowDirectional : public NonCopyable, NonMovable {
