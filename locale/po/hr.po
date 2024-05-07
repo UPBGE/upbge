@@ -1,9 +1,0 @@
-
-msgctxt "Operator"
-msgid "Duplicate Objects"
-msgstr "bbbbbbbbbbbbb"
-
-
-msgid "Duplicate Objects"
-msgstr "aaaaaaaaa"
-
