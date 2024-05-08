@@ -115,8 +115,8 @@ void shadow_map_trace_hit_check(inout ShadowMapTracingState state, ShadowTracing
   else {
     /* Compute current occluder slope and record history for when the ray goes behind a surface. */
     vec2 delta = samp.occluder - state.occluder_history;
-    /* Clamping the slope to a mininim avoid light leaking. */
-    /* TODO(fclem): Expose as parameter? */
+    /* Clamping the slope to a minimum avoid light leaking. */
+    /* TODO(@fclem): Expose as parameter? */
     const float min_slope = tan(M_PI * 0.25);
     state.occluder_slope = max(min_slope, abs(delta.y / delta.x));
     state.occluder_history = samp.occluder;
@@ -357,8 +357,10 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
       scale = clamp(scale, float(1 << sun.clipmap_lod_min), float(1 << sun.clipmap_lod_max));
     }
     else {
-      /* Uniform distribution everywhere. No distance scaling. */
-      scale = 1.0 / float(1 << sun.clipmap_lod_min);
+      /* Uniform distribution everywhere. No distance scaling.
+       * shadow_directional_level_fractional returns the cascade level, but all levels have the
+       * same density as the level 0. So the effective density only depends on the `lod_bias`. */
+      scale = exp2(light.lod_bias);
     }
   }
   else {
@@ -436,7 +438,7 @@ float shadow_eval(LightData light,
 
   /* Shadow map texel radius at the receiver position. */
   float texel_radius = shadow_texel_radius_at_position(light, is_directional, P);
-  /* Stochastic Percentage Closer Filtering. */
+
   if (is_transmission && !is_facing_light) {
     /* Ideally, we should bias using the chosen ray direction. In practice, this conflict with our
      * shadow tile usage tagging system as the sampling position becomes heavily shifted from the

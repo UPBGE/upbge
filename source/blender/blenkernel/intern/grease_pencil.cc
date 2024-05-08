@@ -315,6 +315,39 @@ Drawing::Drawing(const Drawing &other)
   this->runtime->curve_texture_matrices = other.runtime->curve_texture_matrices;
 }
 
+Drawing &Drawing::operator=(const Drawing &other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) Drawing(other);
+  return *this;
+}
+
+Drawing::Drawing(Drawing &&other)
+{
+  this->base.type = GP_DRAWING;
+  other.base.type = GP_DRAWING;
+  this->base.flag = other.base.flag;
+  other.base.flag = 0;
+
+  new (&this->geometry) bke::CurvesGeometry(std::move(other.geometry.wrap()));
+
+  this->runtime = other.runtime;
+  other.runtime = nullptr;
+}
+
+Drawing &Drawing::operator=(Drawing &&other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) Drawing(std::move(other));
+  return *this;
+}
+
 Drawing::~Drawing()
 {
   this->strokes().~CurvesGeometry();
@@ -731,29 +764,6 @@ DrawingReference::DrawingReference(const DrawingReference &other)
 
 DrawingReference::~DrawingReference() = default;
 
-const Drawing *get_eval_grease_pencil_layer_drawing(const GreasePencil &grease_pencil,
-                                                    const int layer_index)
-{
-  BLI_assert(layer_index >= 0 && layer_index < grease_pencil.layers().size());
-  const Layer &layer = *grease_pencil.layers()[layer_index];
-  const int drawing_index = layer.drawing_index_at(grease_pencil.runtime->eval_frame);
-  if (drawing_index == -1) {
-    return nullptr;
-  }
-  const GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(drawing_index);
-  if (drawing_base->type != GP_DRAWING) {
-    return nullptr;
-  }
-  const Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(drawing_base)->wrap();
-  return &drawing;
-}
-
-Drawing *get_eval_grease_pencil_layer_drawing_for_write(GreasePencil &grease_pencil,
-                                                        const int layer)
-{
-  return const_cast<Drawing *>(get_eval_grease_pencil_layer_drawing(grease_pencil, layer));
-}
-
 void copy_drawing_array(Span<const GreasePencilDrawingBase *> src_drawings,
                         MutableSpan<GreasePencilDrawingBase *> dst_drawings)
 {
@@ -1003,13 +1013,10 @@ Layer::SortedKeysIterator Layer::remove_leading_null_frames_in_range(
   return next_it;
 }
 
-GreasePencilFrame *Layer::add_frame_internal(const FramesMapKey frame_number,
-                                             const int drawing_index)
+GreasePencilFrame *Layer::add_frame_internal(const FramesMapKey frame_number)
 {
-  BLI_assert(drawing_index != -1);
   if (!this->frames().contains(frame_number)) {
     GreasePencilFrame frame{};
-    frame.drawing_index = drawing_index;
     this->frames_for_write().add_new(frame_number, frame);
     this->tag_frames_map_keys_changed();
     return this->frames_for_write().lookup_ptr(frame_number);
@@ -1017,7 +1024,6 @@ GreasePencilFrame *Layer::add_frame_internal(const FramesMapKey frame_number,
   /* Overwrite null-frames. */
   if (this->frames().lookup(frame_number).is_null()) {
     GreasePencilFrame frame{};
-    frame.drawing_index = drawing_index;
     this->frames_for_write().add_overwrite(frame_number, frame);
     this->tag_frames_map_changed();
     return this->frames_for_write().lookup_ptr(frame_number);
@@ -1025,12 +1031,10 @@ GreasePencilFrame *Layer::add_frame_internal(const FramesMapKey frame_number,
   return nullptr;
 }
 
-GreasePencilFrame *Layer::add_frame(const FramesMapKey key,
-                                    const int drawing_index,
-                                    const int duration)
+GreasePencilFrame *Layer::add_frame(const FramesMapKey key, const int duration)
 {
   BLI_assert(duration >= 0);
-  GreasePencilFrame *frame = this->add_frame_internal(key, drawing_index);
+  GreasePencilFrame *frame = this->add_frame_internal(key);
   if (frame == nullptr) {
     return nullptr;
   }
@@ -2132,19 +2136,25 @@ void GreasePencil::add_duplicate_drawings(const int duplicate_num,
   }
 }
 
-bool GreasePencil::insert_blank_frame(blender::bke::greasepencil::Layer &layer,
-                                      int frame_number,
-                                      int duration,
-                                      eBezTriple_KeyframeType keytype)
+blender::bke::greasepencil::Drawing *GreasePencil::insert_frame(
+    blender::bke::greasepencil::Layer &layer,
+    const int frame_number,
+    const int duration,
+    const eBezTriple_KeyframeType keytype)
 {
   using namespace blender;
-  GreasePencilFrame *frame = layer.add_frame(frame_number, int(this->drawings().size()), duration);
+  GreasePencilFrame *frame = layer.add_frame(frame_number, duration);
   if (frame == nullptr) {
-    return false;
+    return nullptr;
   }
-  frame->type = int8_t(keytype);
   this->add_empty_drawings(1);
-  return true;
+  frame->drawing_index = this->drawings().index_range().last();
+  frame->type = int8_t(keytype);
+
+  GreasePencilDrawingBase *drawing_base = this->drawings().last();
+  BLI_assert(drawing_base->type == GP_DRAWING);
+  GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
+  return &drawing->wrap();
 }
 
 bool GreasePencil::insert_duplicate_frame(blender::bke::greasepencil::Layer &layer,
@@ -2166,13 +2176,11 @@ bool GreasePencil::insert_duplicate_frame(blender::bke::greasepencil::Layer &lay
   const int duration = src_frame.is_implicit_hold() ?
                            0 :
                            layer.get_frame_duration_at(src_frame_number);
-  const int drawing_index = do_instance ? src_frame.drawing_index : int(this->drawings().size());
-  GreasePencilFrame *dst_frame = layer.add_frame(dst_frame_number, drawing_index, duration);
-
+  GreasePencilFrame *dst_frame = layer.add_frame(dst_frame_number, duration);
   if (dst_frame == nullptr) {
     return false;
   }
-
+  dst_frame->drawing_index = do_instance ? src_frame.drawing_index : int(this->drawings().size());
   dst_frame->type = src_frame.type;
 
   const GreasePencilDrawingBase *src_drawing_base = this->drawing(src_frame.drawing_index);
@@ -2394,7 +2402,6 @@ void GreasePencil::move_duplicate_frames(
     if (!src_frame) {
       continue;
     }
-    const int drawing_index = src_frame->drawing_index;
     const int duration = src_layer_frames_durations.lookup_default(src_frame_number, 0);
 
     /* Add and overwrite the frame at the destination number. */
@@ -2406,7 +2413,7 @@ void GreasePencil::move_duplicate_frames(
       }
       layer.remove_frame(dst_frame_number);
     }
-    GreasePencilFrame *frame = layer.add_frame(dst_frame_number, drawing_index, duration);
+    GreasePencilFrame *frame = layer.add_frame(dst_frame_number, duration);
     *frame = *src_frame;
   }
 
@@ -2431,6 +2438,23 @@ const blender::bke::greasepencil::Drawing *GreasePencil::get_drawing_at(
   return &drawing->wrap();
 }
 
+blender::bke::greasepencil::Drawing *GreasePencil::get_drawing_at(
+    const blender::bke::greasepencil::Layer &layer, const int frame_number)
+{
+  const int drawing_index = layer.drawing_index_at(frame_number);
+  if (drawing_index == -1) {
+    /* No drawing found. */
+    return nullptr;
+  }
+  GreasePencilDrawingBase *drawing_base = this->drawing(drawing_index);
+  if (drawing_base->type != GP_DRAWING) {
+    /* TODO: Get reference drawing. */
+    return nullptr;
+  }
+  GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
+  return &drawing->wrap();
+}
+
 blender::bke::greasepencil::Drawing *GreasePencil::get_editable_drawing_at(
     const blender::bke::greasepencil::Layer &layer, const int frame_number)
 {
@@ -2450,6 +2474,18 @@ blender::bke::greasepencil::Drawing *GreasePencil::get_editable_drawing_at(
   }
   GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
   return &drawing->wrap();
+}
+
+const blender::bke::greasepencil::Drawing *GreasePencil::get_eval_drawing(
+    const blender::bke::greasepencil::Layer &layer) const
+{
+  return this->get_drawing_at(layer, this->runtime->eval_frame);
+}
+
+blender::bke::greasepencil::Drawing *GreasePencil::get_eval_drawing(
+    const blender::bke::greasepencil::Layer &layer)
+{
+  return this->get_drawing_at(layer, this->runtime->eval_frame);
 }
 
 std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max(const int frame) const

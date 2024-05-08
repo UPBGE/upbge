@@ -2097,6 +2097,25 @@ static bool seq_proxies_timecode_update(Sequence *seq, void * /*user_data*/)
   return true;
 }
 
+static bool seq_text_data_update(Sequence *seq, void * /*user_data*/)
+{
+  if (seq->type != SEQ_TYPE_TEXT || seq->effectdata == nullptr) {
+    return true;
+  }
+
+  TextVars *data = static_cast<TextVars *>(seq->effectdata);
+  if (data->shadow_angle == 0.0f) {
+    data->shadow_angle = DEG2RADF(65.0f);
+    data->shadow_offset = 0.04f;
+    data->shadow_blur = 0.0f;
+  }
+  if (data->outline_width == 0.0f) {
+    data->outline_color[3] = 0.7f;
+    data->outline_width = 0.05f;
+  }
+  return true;
+}
+
 static void versioning_node_hue_correct_set_wrappng(bNodeTree *ntree)
 {
   if (ntree->type == NTREE_COMPOSIT) {
@@ -2228,7 +2247,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "int", "grid_bake_samples")) {
       LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
         lightprobe->grid_bake_samples = 2048;
-        lightprobe->surfel_density = 1.0f;
         lightprobe->grid_normal_bias = 0.3f;
         lightprobe->grid_view_bias = 0.0f;
         lightprobe->grid_facing_bias = 0.5f;
@@ -3375,6 +3393,33 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
       MovieClipProxy proxy = clip->proxy;
       versioning_update_timecode(&proxy.tc);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 29)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->ed) {
+        SEQ_for_each_callback(&scene->ed->seqbase, seq_text_data_update, nullptr);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 30)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->nodetree) {
+        scene->nodetree->flag &= ~NTREE_UNUSED_2;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 31)) {
+    LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
+      /* Guess a somewhat correct density given the resolution. But very low resolution need
+       * a decent enough density to work. */
+      lightprobe->grid_surfel_density = max_ii(20,
+                                               2 * max_iii(lightprobe->grid_resolution_x,
+                                                           lightprobe->grid_resolution_y,
+                                                           lightprobe->grid_resolution_z));
     }
   }
 

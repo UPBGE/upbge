@@ -71,6 +71,9 @@ class Drawing : public ::GreasePencilDrawing {
  public:
   Drawing();
   Drawing(const Drawing &other);
+  Drawing &operator=(const Drawing &other);
+  Drawing(Drawing &&other);
+  Drawing &operator=(Drawing &&other);
   ~Drawing();
 
   const bke::CurvesGeometry &strokes() const;
@@ -150,10 +153,6 @@ class DrawingReference : public ::GreasePencilDrawingReference {
   ~DrawingReference();
 };
 
-const Drawing *get_eval_grease_pencil_layer_drawing(const GreasePencil &grease_pencil,
-                                                    int layer_index);
-Drawing *get_eval_grease_pencil_layer_drawing_for_write(GreasePencil &grease_pencil,
-                                                        int layer_index);
 /**
  * Copies the drawings from one array to another. Assumes that \a dst_drawings is allocated but not
  * initialized, e.g. it will allocate new drawings and store the pointers.
@@ -422,7 +421,7 @@ class Layer : public ::GreasePencilLayer {
    *
    * \returns a pointer to the added frame on success, otherwise nullptr.
    */
-  GreasePencilFrame *add_frame(FramesMapKey key, int drawing_index, int duration = 0);
+  GreasePencilFrame *add_frame(FramesMapKey key, int duration = 0);
   /**
    * Removes a frame with \a key from the frames map.
    *
@@ -514,7 +513,7 @@ class Layer : public ::GreasePencilLayer {
   using SortedKeysIterator = const int *;
 
  private:
-  GreasePencilFrame *add_frame_internal(int frame_number, int drawing_index);
+  GreasePencilFrame *add_frame_internal(int frame_number);
 
   /**
    * Removes null frames starting from \a begin until \a end (excluded) or until a non-null frame
@@ -905,13 +904,26 @@ inline const blender::bke::greasepencil::LayerGroup &GreasePencilLayerTreeGroup:
   return *reinterpret_cast<const blender::bke::greasepencil::LayerGroup *>(this);
 }
 
-inline const GreasePencilDrawingBase *GreasePencil::drawing(int64_t index) const
+inline const GreasePencilDrawingBase *GreasePencil::drawing(const int64_t index) const
 {
+  BLI_assert(index >= 0 && index < this->drawings().size());
   return this->drawings()[index];
 }
-inline GreasePencilDrawingBase *GreasePencil::drawing(int64_t index)
+inline GreasePencilDrawingBase *GreasePencil::drawing(const int64_t index)
 {
+  BLI_assert(index >= 0 && index < this->drawings().size());
   return this->drawings()[index];
+}
+
+inline const blender::bke::greasepencil::Layer *GreasePencil::layer(const int64_t index) const
+{
+  BLI_assert(index >= 0 && index < this->layers().size());
+  return this->layers()[index];
+}
+inline blender::bke::greasepencil::Layer *GreasePencil::layer(const int64_t index)
+{
+  BLI_assert(index >= 0 && index < this->layers().size());
+  return this->layers_for_write()[index];
 }
 
 inline const blender::bke::greasepencil::LayerGroup &GreasePencil::root_group() const
