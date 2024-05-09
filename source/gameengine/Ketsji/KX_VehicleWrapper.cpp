@@ -111,9 +111,9 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
             "addWheel(...) Unable to add wheel. axleDir must be a vector with 3 elements.");
         return nullptr;
       }
-
+      // This part is not needed if btRaycastVehicle.cpp, line 109 is modified
       // someone reverse some conventions inside Bullet (axle winding)
-      attachAxle = -attachAxle;
+      //attachAxle = -attachAxle;
 
       if (wheelRadius <= 0) {
         PyErr_SetString(PyExc_AttributeError,
@@ -191,8 +191,8 @@ PyObject *KX_VehicleWrapper::PyApplyEngineForce(PyObject *args)
 
   if (PyArg_ParseTuple(args, "fi:applyEngineForce", &force, &wheelIndex)) {
     WHEEL_INDEX_CHECK_OR_RETURN(wheelIndex, "applyEngineForce");
-
-    force *= -1.f;  // someone reverse some conventions inside Bullet (axle winding)
+    // This part is not needed if btRaycastVehicle.cpp, line 109 is modified
+    //force *= -1.f;  // someone reverse some conventions inside Bullet (axle winding)
     m_vehicle->ApplyEngineForce(force, wheelIndex);
   }
   else {
