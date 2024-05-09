@@ -106,7 +106,8 @@ void btRaycastVehicle::updateWheelTransform(int wheelIndex, bool interpolatedTra
 	btQuaternion steeringOrn(up, steering);  //wheel.m_steering);
 	btMatrix3x3 steeringMat(steeringOrn);
 
-	btQuaternion rotatingOrn(right, -wheel.m_rotation);
+	//This rotation makes the wheels to be oriented incorrectly unless sign is changed
+	btQuaternion rotatingOrn(right, wheel.m_rotation);
 	btMatrix3x3 rotatingMat(rotatingOrn);
 
 	btMatrix3x3 basis2;
