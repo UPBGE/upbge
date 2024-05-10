@@ -133,6 +133,9 @@ typedef struct Collection {
   /** CollectionChild. */
   ListBase children;
 
+  char _pad0[4];
+
+  int active_exporter_index;
   ListBase exporters;
 
   struct PreviewImage *preview;
@@ -143,7 +146,7 @@ typedef struct Collection {
   uint16_t flag;
   int8_t color_tag;
 
-  char _pad0;
+  char _pad1[1];
 
   uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags; /* #eCollectionLineArt_Flags */

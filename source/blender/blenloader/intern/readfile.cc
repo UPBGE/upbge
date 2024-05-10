@@ -1343,7 +1343,7 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
 void blo_filedata_free(FileData *fd)
 {
   /* Free all BHeadN data blocks */
-#ifndef NDEBUG
+#ifdef NDEBUG
   BLI_freelistN(&fd->bhead_list);
 #else
   /* Sanity check we're not keeping memory we don't need. */
@@ -4440,6 +4440,8 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   fix_relpaths_library(BKE_main_blendfile_path(mainvar), mainvar);
 
   /* patch to prevent switch_endian happens twice */
+  /* FIXME This is extremely bad design, #library_link_end should probably _always_ free the file
+   * data? */
   if ((*fd)->flags & FD_FLAGS_SWITCH_ENDIAN) {
     blo_filedata_free(*fd);
     *fd = nullptr;
