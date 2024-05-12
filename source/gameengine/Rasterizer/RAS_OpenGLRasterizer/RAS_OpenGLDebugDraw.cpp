@@ -166,7 +166,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       BLF_enable(blf_mono_font, BLF_SHADOW);
 
       static float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-      BLF_shadow(blf_mono_font, 1, black);
+      BLF_shadow(blf_mono_font, FontShadowType::Blur3x3, black);
       BLF_shadow_offset(blf_mono_font, 1, 1);
 
       for (const RAS_DebugDraw::Text2D &text2d : debugDraw->m_texts2D) {
