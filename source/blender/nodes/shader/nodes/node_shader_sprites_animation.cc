@@ -69,7 +69,7 @@ void register_node_type_sh_sprites_animation()
 
   namespace file_ns = blender::nodes::node_shader_sprites_animation_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(
       &ntype, SH_NODE_SPRITES_ANIMATION, "Sprites Animation", NODE_CLASS_SHADER);

@@ -869,7 +869,7 @@ int main(int argc,
   RNA_init();
 
   RE_engines_init();
-  BKE_node_system_init();
+  blender::bke::BKE_node_system_init();
   BKE_particle_init_rng();
 
   BKE_sound_init_once();
