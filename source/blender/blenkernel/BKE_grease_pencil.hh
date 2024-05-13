@@ -637,15 +637,6 @@ class LayerGroup : public ::GreasePencilLayerTreeGroup {
 
  protected:
   /**
-   * Adds a new layer named \a name at the end of this group and returns it.
-   */
-  Layer &add_layer(StringRefNull name);
-  Layer &add_layer(const Layer &duplicate_layer);
-  /**
-   * Adds a new group named \a name at the end of this group and returns it.
-   */
-  LayerGroup &add_group(StringRefNull name);
-  /**
    * Adds an existing \a node at the end of this group.
    */
   TreeNode &add_node(TreeNode &node);
