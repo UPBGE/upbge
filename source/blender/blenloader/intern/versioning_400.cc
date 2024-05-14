@@ -3383,7 +3383,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.shadow_resolution_scale = default_scene_eevee.shadow_resolution_scale;
-        scene->eevee.clamp_world = 10.0f;
       }
     }
   }
@@ -3532,6 +3531,29 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         light->shadow_maximum_resolution = shadow_max_res_local;
         SET_FLAG_FROM_TEST(light->mode, shadow_resolution_absolute, LA_SHAD_RES_ABSOLUTE);
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 36)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      /* Only for grease pencil brushes. */
+      if (brush->gpencil_settings) {
+        /* Use the `Scene` radius unit by default (confusingly named `BRUSH_LOCK_SIZE`).
+         * Convert the radius to be the same visual size as in GPv2. */
+        brush->flag |= BRUSH_LOCK_SIZE;
+        brush->unprojected_radius = brush->size *
+                                    blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 37)) {
+    const World *default_world = DNA_struct_default_get(World);
+    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+      world->sun_threshold = default_world->sun_threshold;
+      world->sun_angle = default_world->sun_angle;
+      world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
+      world->flag |= WO_USE_SUN_SHADOW;
     }
   }
 
