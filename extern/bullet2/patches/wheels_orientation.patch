@@ -1,0 +1,17 @@
+diff --git a/extern/bullet2/src/BulletDynamics/Vehicle/btRaycastVehicle.cpp b/extern/bullet2/src/BulletDynamics/Vehicle/btRaycastVehicle.cpp
+index fc70d8e637d..6799f83e6fe 100644
+--- a/extern/bullet2/src/BulletDynamics/Vehicle/btRaycastVehicle.cpp
++++ b/extern/bullet2/src/BulletDynamics/Vehicle/btRaycastVehicle.cpp
+@@ -110,9 +110,9 @@ void btRaycastVehicle::updateWheelTransform(int wheelIndex, bool interpolatedTra
+ 	btMatrix3x3 rotatingMat(rotatingOrn);
+ 
+ 	btMatrix3x3 basis2;
+-	basis2[0][m_indexRightAxis] = -right[0];
+-	basis2[1][m_indexRightAxis] = -right[1];
+-	basis2[2][m_indexRightAxis] = -right[2];
++	basis2[0][m_indexRightAxis] = right[0];
++	basis2[1][m_indexRightAxis] = right[1];
++	basis2[2][m_indexRightAxis] = right[2];
+ 
+ 	basis2[0][m_indexUpAxis] = up[0];
+ 	basis2[1][m_indexUpAxis] = up[1];

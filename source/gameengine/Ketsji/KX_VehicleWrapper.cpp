@@ -192,7 +192,7 @@ PyObject *KX_VehicleWrapper::PyApplyEngineForce(PyObject *args)
   if (PyArg_ParseTuple(args, "fi:applyEngineForce", &force, &wheelIndex)) {
     WHEEL_INDEX_CHECK_OR_RETURN(wheelIndex, "applyEngineForce");
 
-    force *= -1.f;  // someone reverse some conventions inside Bullet (axle winding)
+    //force *= -1.f;  // someone reverse some conventions inside Bullet (axle winding)
     m_vehicle->ApplyEngineForce(force, wheelIndex);
   }
   else {
