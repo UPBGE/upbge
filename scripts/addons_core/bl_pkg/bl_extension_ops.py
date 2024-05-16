@@ -797,6 +797,9 @@ class CommandHandle:
         handle.wm = context.window_manager
 
         handle.wm.modal_handler_add(op)
+        for window in handle.wm.windows:
+            window.cursor_modal_set('WAIT')
+
         op._runtime_handle = handle
         return {'RUNNING_MODAL'}
 
@@ -840,6 +843,10 @@ class CommandHandle:
             del op._runtime_handle
             context.workspace.status_text_set(None)
             repo_status_text.running = False
+
+            for window in self.wm.windows:
+                window.cursor_modal_restore()
+
             return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
@@ -1656,8 +1663,16 @@ class BlPkgPkgInstallFiles(Operator, _BlPkgCmdMixIn):
     def _invoke_for_drop(self, context, event):
         self._drop_variables = True
         # Drop logic.
-        url = self.url
-        print("DROP FILE:", url)
+        print("DROP FILE:", self.url)
+
+        # Blender calls the drop logic with an un-encoded file-path.
+        # It would be nicer if it used the file URI schema,
+        # however this is only activated from Blender's drop logic.
+        #
+        # TODO: even though Blender supports "remote" repositories referencing `file://` prefixed URL's.
+        # These are not supported for dropping. Since at the time of dropping it's not known that the
+        # path is referenced from a "local" repository or a "remote" that uses a `file://` URL.
+        filepath = self.url
 
         from .bl_extension_ops import repo_iter_valid_local_only
         from .bl_extension_utils import pkg_manifest_dict_from_file_or_error
@@ -1666,7 +1681,7 @@ class BlPkgPkgInstallFiles(Operator, _BlPkgCmdMixIn):
             self.report({'ERROR'}, "No Local Repositories")
             return {'CANCELLED'}
 
-        if isinstance(result := pkg_manifest_dict_from_file_or_error(url), str):
+        if isinstance(result := pkg_manifest_dict_from_file_or_error(filepath), str):
             self.report({'ERROR'}, "Error in manifest {:s}".format(result))
             return {'CANCELLED'}
 
@@ -1678,7 +1693,7 @@ class BlPkgPkgInstallFiles(Operator, _BlPkgCmdMixIn):
 
         # Set to it's self to the property is considered "set".
         self.repo = self.repo
-        self.filepath = url
+        self.filepath = filepath
 
         wm = context.window_manager
         wm.invoke_props_dialog(self)
@@ -2260,8 +2275,10 @@ class BlPkgOnlineAccess(Operator):
                 self.report({'WARNING'}, "Repository \"{:s}\" not found!".format(remote_url))
 
             # Run the first check for updates automatically.
-            if bpy.ops.bl_pkg.repo_sync_all.poll():
-                bpy.ops.bl_pkg.repo_sync_all()
+            # Invoke the modal operator so users can cancel by pressing "Escape".
+            assert bpy.ops.bl_pkg.repo_sync_all.poll()
+            bpy.ops.bl_pkg.repo_sync_all('INVOKE_DEFAULT')
+
         prefs.extensions.use_online_access_handled = True
 
         return {'FINISHED'}
