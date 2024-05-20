@@ -433,8 +433,10 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       short tangent_mask = 0;
       const blender::Span<int3> corner_tris = final_me->corner_tris();
       const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+      const float3 *orco = static_cast<const float3 *>(
+          CustomData_get_layer(&final_me->vert_data, CD_ORCO));
       BKE_mesh_calc_loop_tangent_ex(
-          reinterpret_cast<const float(*)[3]>(positions.data()),
+          final_me->vert_positions(),
           final_me->faces(),
           final_me->corner_verts().data(),
           corner_tris.data(),
@@ -445,11 +447,11 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           true,
           nullptr,
           0,
-          reinterpret_cast<const float(*)[3]>(final_me->vert_normals().data()),
-          reinterpret_cast<const float(*)[3]>(final_me->face_normals().data()),
-          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->corner_data, CD_NORMAL)),
+          final_me->vert_normals(),
+          final_me->face_normals(),
+          final_me->corner_normals(),
           /* may be nullptr */
-          static_cast<const float(*)[3]>(CustomData_get_layer(&final_me->vert_data, CD_ORCO)),
+          orco ? Span(orco, final_me->verts_num) : Span<float3>(),
           /* result */
           &final_me->corner_data,
           uint(final_me->corners_num),
