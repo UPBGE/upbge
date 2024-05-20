@@ -3272,6 +3272,10 @@ class WM_MT_splash_quick_setup(Menu):
 
     def draw(self, context):
         layout = self.layout
+
+        wm = context.window_manager
+        prefs = context.preferences
+
         layout.operator_context = 'EXEC_DEFAULT'
 
         old_version = bpy.types.PREFERENCES_OT_copy_prev.previous_version()
@@ -3307,7 +3311,6 @@ class WM_MT_splash_quick_setup(Menu):
 
         # Languages.
         if bpy.app.build_options.international:
-            prefs = context.preferences
             col.prop(prefs.view, "language")
 
         # Themes.
@@ -3320,7 +3323,6 @@ class WM_MT_splash_quick_setup(Menu):
         col.separator()
 
         # Shortcuts.
-        wm = context.window_manager
         kc = wm.keyconfigs.active
         kc_prefs = kc.preferences
 
@@ -3330,15 +3332,13 @@ class WM_MT_splash_quick_setup(Menu):
             text = "Blender"
         sub.menu("USERPREF_MT_keyconfigs", text=text)
 
-        has_select_mouse = hasattr(kc_prefs, "select_mouse")
-        if has_select_mouse:
+        if hasattr(kc_prefs, "select_mouse"):
             col.row().prop(kc_prefs, "select_mouse", text="Mouse Select", expand=True)
 
-        has_spacebar_action = hasattr(kc_prefs, "spacebar_action")
-        if has_spacebar_action:
+        if hasattr(kc_prefs, "spacebar_action"):
             col.row().prop(kc_prefs, "spacebar_action", text="Spacebar Action")
 
-        # Themes.
+        # Save Preferences.
         sub = col.column()
         sub.separator(factor=2)
 
