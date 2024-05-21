@@ -822,6 +822,21 @@ ID *BKE_id_copy_for_use_in_bmain(Main *bmain, const ID *id)
   return newid;
 }
 
+void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id)
+{
+  BLI_assert(id.lib == nullptr);
+  if (owner_id.lib == nullptr) {
+    return;
+  }
+
+  id.lib = owner_id.lib;
+  id.tag |= LIB_TAG_INDIRECT;
+
+  BKE_main_namemap_remove_name(&bmain, &id, id.name + 2);
+  ListBase *lb = which_libbase(&bmain, GS(id.name));
+  BKE_id_new_name_validate(&bmain, lb, &id, id.name + 2, true);
+}
+
 static void id_embedded_swap(ID **embedded_id_a,
                              ID **embedded_id_b,
                              const bool do_full_id,
@@ -1624,6 +1639,28 @@ ID *BKE_libblock_find_name_and_library(Main *bmain,
   return nullptr;
 }
 
+ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
+                                                short type,
+                                                const char *name,
+                                                const char *lib_filepath_abs)
+{
+  ListBase *lb = which_libbase(bmain, type);
+  BLI_assert(lb != nullptr);
+  LISTBASE_FOREACH (ID *, id, lb) {
+    if (!STREQ(id->name + 2, name)) {
+      continue;
+    }
+    if (id->lib == nullptr && lib_filepath_abs == nullptr) {
+      return id;
+    }
+    else if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime.filepath_abs, lib_filepath_abs))
+    {
+      return id;
+    }
+  }
+  return nullptr;
+}
+
 void id_sort_by_name(ListBase *lb, ID *id, ID *id_sorting_hint)
 {
 #define ID_SORT_STEP_SIZE 512
@@ -1909,7 +1946,8 @@ void BKE_library_make_local(Main *bmain,
                             const Library *lib,
                             GHash *old_to_new_ids,
                             const bool untagged_only,
-                            const bool set_fake)
+                            const bool set_fake,
+                            const bool clear_asset_data)
 {
   /* NOTE: Old (2.77) version was simply making (tagging) data-blocks as local,
    * without actually making any check whether they were also indirectly used or not...
@@ -2024,6 +2062,8 @@ void BKE_library_make_local(Main *bmain,
   TIMEIT_VALUE_PRINT(make_local);
 #endif
 
+  const int make_local_flags = clear_asset_data ? LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR : 0;
+
   /* Step 3: Make IDs local, either directly (quick and simple), or using generic process,
    * which involves more complex checks and might instead
    * create a local copy of original linked ID. */
@@ -2036,7 +2076,7 @@ void BKE_library_make_local(Main *bmain,
        * currently there are some indirect usages. So instead of making a copy that we'll likely
        * get rid of later, directly make that data block local.
        * Saves a tremendous amount of time with complex scenes... */
-      BKE_lib_id_clear_library_data(bmain, id, 0);
+      BKE_lib_id_clear_library_data(bmain, id, make_local_flags);
       BKE_lib_id_expand_local(bmain, id, 0);
       id->tag &= ~LIB_TAG_DOIT;
 
@@ -2046,7 +2086,7 @@ void BKE_library_make_local(Main *bmain,
     }
     else {
       /* In this specific case, we do want to make ID local even if it has no local usage yet... */
-      BKE_lib_id_make_local(bmain, id, LIB_ID_MAKELOCAL_FULL_LIBRARY);
+      BKE_lib_id_make_local(bmain, id, make_local_flags | LIB_ID_MAKELOCAL_FULL_LIBRARY);
 
       if (id->newid) {
         if (GS(id->newid->name) == ID_OB) {
@@ -2151,7 +2191,7 @@ void BKE_libblock_rename(Main *bmain, ID *id, const char *name)
   }
   BKE_main_namemap_remove_name(bmain, id, id->name + 2);
   ListBase *lb = which_libbase(bmain, GS(id->name));
-  if (BKE_id_new_name_validate(bmain, lb, id, name, false)) {
+  if (BKE_id_new_name_validate(bmain, lb, id, name, true)) {
     bmain->is_memfile_undo_written = false;
   }
 }
@@ -2244,6 +2284,20 @@ ID *BKE_id_owner_get(ID *id, const bool debug_relationship_assert)
 bool BKE_id_is_editable(const Main *bmain, const ID *id)
 {
   return ID_IS_EDITABLE(id) && !BKE_lib_override_library_is_system_defined(bmain, id);
+}
+
+bool BKE_id_can_use_id(const ID &id_from, const ID &id_to)
+{
+  /* Can't point from linked to local. */
+  if (id_from.lib && !id_to.lib) {
+    return false;
+  }
+  /* Can't point from ID in main database to one outside of it. */
+  if (!(id_from.tag & LIB_TAG_NO_MAIN) && (id_to.tag & LIB_TAG_NO_MAIN)) {
+    return false;
+  }
+
+  return true;
 }
 
 /************************* Datablock order in UI **************************/

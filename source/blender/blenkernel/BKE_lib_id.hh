@@ -248,6 +248,12 @@ void BKE_libblock_copy_in_lib(Main *bmain,
 void *BKE_libblock_copy(Main *bmain, const ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /**
+ * For newly created IDs, move it into same library as owner ID.
+ * This assumes the ID is local.
+ */
+void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id);
+
+/**
  * Sets the name of a block to name, suitably adjusted for uniqueness.
  */
 void BKE_libblock_rename(Main *bmain, ID *id, const char *name) ATTR_NONNULL();
@@ -259,6 +265,11 @@ ID *BKE_libblock_find_name_and_library(Main *bmain,
                                        short type,
                                        const char *name,
                                        const char *lib_name);
+ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
+                                                short type,
+                                                const char *name,
+                                                const char *lib_filepath_abs);
+
 /**
  * Duplicate (a.k.a. deep copy) common processing options.
  * See also eDupli_ID_Flags for options controlling what kind of IDs to duplicate.
@@ -701,9 +712,15 @@ char *BKE_id_to_unique_string_key(const ID *id);
  * #LIB_TAG_PRE_EXISTING.
  * \param set_fake: If true, set fake user on all localized data-blocks
  * (except group and objects ones).
+ * \param clear_asset_data: If true, clear the asset metadata on all localized data-blocks, making
+ * them normal non-asset data-blocks.
  */
-void BKE_library_make_local(
-    Main *bmain, const Library *lib, GHash *old_to_new_ids, bool untagged_only, bool set_fake);
+void BKE_library_make_local(Main *bmain,
+                            const Library *lib,
+                            GHash *old_to_new_ids,
+                            bool untagged_only,
+                            bool set_fake,
+                            bool clear_asset_data);
 
 void BKE_id_tag_set_atomic(ID *id, int tag);
 void BKE_id_tag_clear_atomic(ID *id, int tag);
@@ -738,6 +755,13 @@ ID *BKE_id_owner_get(ID *id, const bool debug_relationship_assert = true);
  * long-standing TODO of getting an efficient 'owner_id' access for all embedded ID types.
  */
 bool BKE_id_is_editable(const Main *bmain, const ID *id);
+
+/**
+ * Check that a pointer from one ID to another is possible.
+ *
+ * Taking into account lib linking and main database membership.
+ */
+bool BKE_id_can_use_id(const ID &id_from, const ID &id_to);
 
 /**
  * Returns ordered list of data-blocks for display in the UI.

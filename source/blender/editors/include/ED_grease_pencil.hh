@@ -146,7 +146,7 @@ void select_layer_channel(GreasePencil &grease_pencil, bke::greasepencil::Layer 
 struct KeyframeClipboard {
   /* Datatype for use in copy/paste buffer. */
   struct DrawingBufferItem {
-    blender::bke::greasepencil::FramesMapKey frame_number;
+    blender::bke::greasepencil::FramesMapKeyT frame_number;
     bke::greasepencil::Drawing drawing;
     int duration;
     eBezTriple_KeyframeType keytype;
@@ -154,8 +154,8 @@ struct KeyframeClipboard {
 
   struct LayerBufferItem {
     Vector<DrawingBufferItem> drawing_buffers;
-    blender::bke::greasepencil::FramesMapKey first_frame;
-    blender::bke::greasepencil::FramesMapKey last_frame;
+    blender::bke::greasepencil::FramesMapKeyT first_frame;
+    blender::bke::greasepencil::FramesMapKeyT last_frame;
   };
 
   Map<std::string, LayerBufferItem> copy_buffer{};
@@ -544,8 +544,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
                                 const VArray<ColorGeometry4f> &colors,
                                 const float4x4 &layer_to_world,
                                 int mode,
-                                bool use_xray,
-                                bool fill_strokes);
+                                bool use_xray);
 
 }  // namespace image_render
 
