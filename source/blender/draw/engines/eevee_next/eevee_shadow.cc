@@ -9,8 +9,7 @@
  */
 
 #include "BKE_global.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_rect.h"
+#include "BLI_math_matrix.hh"
 
 #include "eevee_instance.hh"
 
@@ -55,14 +54,14 @@ void ShadowTileMap::sync_orthographic(const float4x4 &object_mat_,
 
   half_size = ShadowDirectional::coverage_get(level) / 2.0f;
   center_offset = float2(grid_offset) * tile_size;
-  orthographic_m4(winmat.ptr(),
-                  -half_size + center_offset.x,
-                  half_size + center_offset.x,
-                  -half_size + center_offset.y,
-                  half_size + center_offset.y,
-                  /* Near/far is computed on GPU using casters bounds. */
-                  -1.0,
-                  1.0);
+
+  winmat = math::projection::orthographic(-half_size + center_offset.x,
+                                          half_size + center_offset.x,
+                                          -half_size + center_offset.y,
+                                          half_size + center_offset.y,
+                                          /* Near/far is computed on GPU using casters bounds. */
+                                          -1.0f,
+                                          1.0f);
 }
 
 void ShadowTileMap::sync_cubeface(
@@ -320,6 +319,7 @@ IndexRange ShadowDirectional::cascade_level_range(const Light &light, const Came
   }
 
   /* Level of detail (or size) of every tile-maps of this light. */
+  /* TODO(fclem): Add support for lod bias from light. */
   int lod_level = ceil(log2(max_ff(min_depth_tilemap_size, min_diagonal_tilemap_size)) + 0.5);
 
   /* Tile-maps "rotate" around the first one so their effective range is only half their size. */
@@ -361,6 +361,7 @@ void ShadowDirectional::cascade_tilemaps_distribution(Light &light, const Camera
   /* Offset in tiles between the first and the last tile-maps. */
   int2 offset_vector = int2(round(farthest_tilemap_center / tile_size));
 
+  light.sun.clipmap_base_offset_neg = int2(0); /* Unused. */
   light.sun.clipmap_base_offset_pos = (offset_vector * (1 << 16)) /
                                       max_ii(levels_range.size() - 1, 1);
 
@@ -379,7 +380,7 @@ void ShadowDirectional::cascade_tilemaps_distribution(Light &light, const Camera
     tilemap->set_updated();
   }
 
-  light.sun.clipmap_origin = float2(origin_offset * tile_size);
+  light.sun.clipmap_origin = float2(origin_offset) * tile_size;
 
   light.type = LIGHT_SUN_ORTHO;
 
