@@ -2323,7 +2323,7 @@ void node_draw_link(const bContext &C,
 
   if (link.flag & NODE_LINK_VALID) {
     /* special indicated link, on drop-node */
-    if (link.flag & NODE_LINK_INSERT_TARGET) {
+    if (link.flag & NODE_LINK_INSERT_TARGET && !(link.flag & NODE_LINK_INSERT_TARGET_INVALID)) {
       th_col1 = th_col2 = TH_ACTIVE;
     }
     else if (link.flag & NODE_LINK_MUTED) {
@@ -2334,15 +2334,6 @@ void node_draw_link(const bContext &C,
     /* Invalid link. */
     th_col1 = th_col2 = th_col3 = TH_REDALERT;
     // th_col3 = -1; /* no shadow */
-  }
-
-  /* Links from field to non-field sockets are not allowed. */
-  if (snode.edittree->type == NTREE_GEOMETRY) {
-    if ((link.fromsock && link.fromsock->display_shape == SOCK_DISPLAY_SHAPE_DIAMOND) &&
-        (link.tosock && link.tosock->display_shape == SOCK_DISPLAY_SHAPE_CIRCLE))
-    {
-      th_col1 = th_col2 = th_col3 = TH_REDALERT;
-    }
   }
 
   node_draw_link_bezier(C, v2d, snode, link, th_col1, th_col2, th_col3, selected);

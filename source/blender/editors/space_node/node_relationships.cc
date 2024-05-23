@@ -1822,6 +1822,45 @@ static void node_join_attach_recursive(bNodeTree &ntree,
   }
 }
 
+static Vector<const bNode *> get_sorted_node_parents(const bNode &node)
+{
+  Vector<const bNode *> parents;
+  for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+    parents.append(parent);
+  }
+  /* Reverse so that the root frame is the first element (if there is any). */
+  std::reverse(parents.begin(), parents.end());
+  return parents;
+}
+
+static const bNode *find_common_parent_node(const Span<const bNode *> nodes)
+{
+  if (nodes.is_empty()) {
+    return nullptr;
+  }
+  /* The common parent node also has to be a parent of the first node. */
+  Vector<const bNode *> candidates = get_sorted_node_parents(*nodes[0]);
+  for (const bNode *node : nodes.drop_front(1)) {
+    const Vector<const bNode *> parents = get_sorted_node_parents(*node);
+    /* Possibly shrink set of candidates so that it only contains the parents common with the
+     * current node. */
+    candidates.resize(std::min(candidates.size(), parents.size()));
+    for (const int i : candidates.index_range()) {
+      if (candidates[i] != parents[i]) {
+        candidates.resize(i);
+        break;
+      }
+    }
+    if (candidates.is_empty()) {
+      break;
+    }
+  }
+  if (candidates.is_empty()) {
+    return nullptr;
+  }
+  return candidates.last();
+}
+
 static int node_join_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
@@ -1832,6 +1871,7 @@ static int node_join_exec(bContext *C, wmOperator * /*op*/)
 
   bNode *frame_node = bke::nodeAddStaticNode(C, &ntree, NODE_FRAME);
   bke::nodeSetActive(&ntree, frame_node);
+  frame_node->parent = const_cast<bNode *>(find_common_parent_node(selected_nodes.as_span()));
 
   ntree.ensure_topology_cache();
 
@@ -2068,7 +2108,32 @@ static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
   return selected_node;
 }
 
-void node_insert_on_link_flags_set(SpaceNode &snode, const ARegion &region)
+static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNodeLink &link)
+{
+  const bNodeSocket *main_input = get_main_socket(tree, node, SOCK_IN);
+  const bNodeSocket *main_output = get_main_socket(tree, node, SOCK_IN);
+  if (ELEM(nullptr, main_input, main_output)) {
+    return false;
+  }
+  if (!tree.typeinfo->validate_link) {
+    return true;
+  }
+  if (!tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
+                                    eNodeSocketDatatype(main_input->type)))
+  {
+    return false;
+  }
+  if (!tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
+                                    eNodeSocketDatatype(link.tosock->type)))
+  {
+    return false;
+  }
+  return true;
+}
+
+void node_insert_on_link_flags_set(SpaceNode &snode,
+                                   const ARegion &region,
+                                   const bool attach_enabled)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
@@ -2116,13 +2181,16 @@ void node_insert_on_link_flags_set(SpaceNode &snode, const ARegion &region)
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
+    if (!attach_enabled || !node_can_be_inserted_on_link(node_tree, *node_to_insert, *selink)) {
+      selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
+    }
   }
 }
 
 void node_insert_on_link_flags_clear(bNodeTree &node_tree)
 {
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
-    link->flag &= ~NODE_LINK_INSERT_TARGET;
+    link->flag &= ~(NODE_LINK_INSERT_TARGET | NODE_LINK_INSERT_TARGET_INVALID);
   }
 }
 
@@ -2140,15 +2208,16 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode)
   bNodeLink *old_link = nullptr;
   LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
     if (link->flag & NODE_LINK_INSERT_TARGET) {
-      old_link = link;
+      if (!(link->flag & NODE_LINK_INSERT_TARGET_INVALID)) {
+        old_link = link;
+      }
       break;
     }
   }
+  node_insert_on_link_flags_clear(node_tree);
   if (old_link == nullptr) {
     return;
   }
-
-  old_link->flag &= ~NODE_LINK_INSERT_TARGET;
 
   bNodeSocket *best_input = get_main_socket(ntree, *node_to_insert, SOCK_IN);
   bNodeSocket *best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);

@@ -242,9 +242,9 @@ ShadowRayPunctual shadow_ray_generate_punctual(LightData light, vec2 random_2d, 
 
   vec3 direction;
   if (is_area_light(light.type)) {
-    random_2d *= light_area_data_get(light).size;
+    random_2d *= light_area_data_get(light).size * light_area_data_get(light).shadow_scale;
 
-    vec3 point_on_light_shape = vec3(random_2d * shape_radius, 0.0);
+    vec3 point_on_light_shape = vec3(random_2d, 0.0);
 
     direction = point_on_light_shape - lP;
     direction = shadow_ray_above_horizon_ensure(direction, lNg, shape_radius);
@@ -257,7 +257,6 @@ ShadowRayPunctual shadow_ray_generate_punctual(LightData light, vec2 random_2d, 
     make_orthonormal_basis(lL, right, up);
 
     if (is_sphere_light(light.type)) {
-      /* FIXME(weizhen): this is not well-defined when `dist < light.spot.radius`. */
       shape_radius = light_sphere_disk_radius(shape_radius, dist);
     }
     random_2d *= shape_radius;
@@ -339,17 +338,17 @@ vec3 shadow_pcf_offset(vec3 L, vec3 Ng, vec2 random)
  */
 float shadow_texel_radius_at_position(LightData light, const bool is_directional, vec3 P)
 {
-  vec3 lP = light_world_to_local_point(light, P);
-
   float scale = 1.0;
   if (is_directional) {
+    vec3 lP = light_world_to_local_point(light, P);
+    lP -= light_position_get(light);
     LightSunData sun = light_sun_data_get(light);
     if (light.type == LIGHT_SUN) {
       /* Simplification of `coverage_get(shadow_directional_level_fractional)`. */
       const float narrowing = float(SHADOW_TILEMAP_RES) / (float(SHADOW_TILEMAP_RES) - 1.0001);
       scale = length(lP) * narrowing;
       scale = max(scale * exp2(light.lod_bias), exp2(light.lod_min));
-      scale = min(scale, float(1 << sun.clipmap_lod_max));
+      scale = min(scale, exp2(float(sun.clipmap_lod_max)));
     }
     else {
       /* Uniform distribution everywhere. No distance scaling.
@@ -359,6 +358,7 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
     }
   }
   else {
+    vec3 lP = light_world_to_local_point(light, P);
     lP -= light_local_data_get(light).shadow_position;
     /* Simplification of `exp2(shadow_punctual_level_fractional)`. */
     scale = shadow_punctual_pixel_ratio(light,
