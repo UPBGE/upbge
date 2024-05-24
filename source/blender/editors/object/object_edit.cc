@@ -1525,9 +1525,9 @@ static int object_clear_paths_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string object_clear_paths_description(bContext * /*C*/,
-                                                  wmOperatorType * /*ot*/,
-                                                  PointerRNA *ptr)
+static std::string object_clear_paths_get_description(bContext * /*C*/,
+                                                      wmOperatorType * /*ot*/,
+                                                      PointerRNA *ptr)
 {
   const bool only_selected = RNA_boolean_get(ptr, "only_selected");
   if (only_selected) {
@@ -1545,7 +1545,7 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
   /* api callbacks */
   ot->exec = object_clear_paths_exec;
   ot->poll = ED_operator_object_active_editable;
-  ot->get_description = object_clear_paths_description;
+  ot->get_description = object_clear_paths_get_description;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

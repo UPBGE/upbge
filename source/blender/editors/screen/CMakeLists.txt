@@ -15,6 +15,7 @@ set(INC
   ../../makesrna
   ../../sequencer
   ../../windowmanager
+  ../../../../extern/fmtlib/include
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -50,6 +51,7 @@ set(LIB
   bf_editor_datafiles
   bf_editor_space_sequencer
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::extern::fmtlib
 )
 
 

@@ -6826,7 +6826,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                     )
 
                 col = split.column()
-                col.operator("preferences.studiolight_show", emboss=False, text="", icon='PREFERENCES')
+                col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
 
                 split = layout.split(factor=0.9)
                 col = split.column()
@@ -6843,7 +6843,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 sub.template_icon_view(shading, "studio_light", scale_popup=3.0)
 
                 col = split.column()
-                col.operator("preferences.studiolight_show", emboss=False, text="", icon='PREFERENCES')
+                col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
                 col.operator("view3d.toggle_matcap_flip", emboss=False, text="", icon='ARROW_LEFTRIGHT')
 
         elif shading.type == 'MATERIAL':
@@ -6859,7 +6859,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 sub.template_icon_view(shading, "studio_light", scale_popup=3)
 
                 col = split.column()
-                col.operator("preferences.studiolight_show", emboss=False, text="", icon='PREFERENCES')
+                col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
 
                 split = layout.split(factor=0.9)
                 col = split.column()
@@ -6890,7 +6890,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 sub.template_icon_view(shading, "studio_light", scale_popup=3)
 
                 col = split.column()
-                col.operator("preferences.studiolight_show", emboss=False, text="", icon='PREFERENCES')
+                col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
 
                 split = layout.split(factor=0.9)
                 col = split.column()
