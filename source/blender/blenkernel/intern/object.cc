@@ -4723,6 +4723,9 @@ bool BKE_object_obdata_texspace_get(Object *ob,
 
 Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
 {
+  if (object->currentlod) { //UPBGE: hack to have LOD working in eevee-next
+    return (Mesh *)object->data;
+  }
   /* First attempt to retrieve the evaluated mesh from the evaluated geometry set. Most
    * object types either store it there or add a reference to it if it's owned elsewhere. */
   blender::bke::GeometrySet *geometry_set_eval = object->runtime->geometry_set_eval;
