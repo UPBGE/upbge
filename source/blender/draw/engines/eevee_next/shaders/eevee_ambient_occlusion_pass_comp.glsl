@@ -38,8 +38,10 @@ void main()
                                              uniform_buf.ao.distance,
                                              uniform_buf.ao.thickness,
                                              uniform_buf.ao.angle_bias,
+                                             2,
                                              10,
-                                             false);
+                                             false,
+                                             true);
 
   imageStore(out_ao_img, ivec3(texel, out_ao_img_layer_index), vec4(saturate(scan.result)));
 }

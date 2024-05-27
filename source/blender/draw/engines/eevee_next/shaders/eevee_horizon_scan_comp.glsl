@@ -50,11 +50,13 @@ void main()
                                              vN,
                                              noise,
                                              uniform_buf.ao.pixel_size,
-                                             1.0e16,
+                                             uniform_buf.ao.gi_distance,
                                              uniform_buf.ao.thickness,
                                              uniform_buf.ao.angle_bias,
-                                             8,
-                                             false);
+                                             fast_gi_slice_count,
+                                             fast_gi_step_count,
+                                             false,
+                                             fast_gi_ao_only);
 
   scan.result = spherical_harmonics_compress(scan.result);
 

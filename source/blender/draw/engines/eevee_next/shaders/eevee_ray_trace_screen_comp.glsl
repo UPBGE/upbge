@@ -22,7 +22,7 @@ void main()
   uvec2 tile_coord = unpackUvec2x16(tiles_coord_buf[gl_WorkGroupID.x]);
   ivec2 texel = ivec2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
-  /* Check whether texel is out of bounds for all cases, so we can utilise fast
+  /* Check whether texel is out of bounds for all cases, so we can utilize fast
    * texture funcs and early exit if not. */
   if (any(greaterThanEqual(texel, imageSize(ray_data_img).xy)) || any(lessThan(texel, ivec2(0)))) {
     return;
@@ -69,10 +69,9 @@ void main()
   if (closure_index == 0) {
     float thickness = gbuffer_read_thickness(gbuf_header, gbuf_normal_tx, texel_fullres);
     if (thickness != 0.0) {
-      vec3 surface_N = gbuffer_read_normal(gbuf_normal_tx, texel_fullres);
       ClosureUndetermined cl = gbuffer_read_bin(
           gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
-      ray = raytrace_thickness_ray_ammend(ray, cl, V, surface_N, thickness);
+      ray = raytrace_thickness_ray_ammend(ray, cl, V, thickness);
     }
   }
 

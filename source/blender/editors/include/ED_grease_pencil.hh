@@ -87,6 +87,7 @@ class DrawingPlacement {
   DrawingPlacementDepth depth_;
   DrawingPlacementPlane plane_;
   ViewDepths *depth_cache_ = nullptr;
+  bool use_project_only_selected_ = false;
   float surface_offset_;
 
   float3 placement_loc_;
@@ -526,7 +527,8 @@ void draw_grease_pencil_stroke(const RegionView3D &rv3d,
                                bool cyclic,
                                eGPDstroke_Caps cap_start,
                                eGPDstroke_Caps cap_end,
-                               bool fill_stroke);
+                               bool fill_stroke,
+                               float radius_scale = 1.0f);
 /**
  * Draw points as quads or circles.
  */
@@ -548,7 +550,8 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
                                 const VArray<ColorGeometry4f> &colors,
                                 const float4x4 &layer_to_world,
                                 int mode,
-                                bool use_xray);
+                                bool use_xray,
+                                float radius_scale = 1.0f);
 
 }  // namespace image_render
 

@@ -2667,7 +2667,8 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          GPUViewport *viewport,
                          const bool use_gpencil,
                          const bool use_basic,
-                         const bool use_overlay)
+                         const bool use_overlay,
+                         const bool use_only_selected)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -2748,6 +2749,9 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
         continue;
       }
       if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+        continue;
+      }
+      if (use_only_selected && !(ob->base_flag & BASE_SELECTED)) {
         continue;
       }
       DST.dupli_parent = data_.dupli_parent;

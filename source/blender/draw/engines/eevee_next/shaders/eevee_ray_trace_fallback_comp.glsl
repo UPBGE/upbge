@@ -24,7 +24,7 @@ void main()
   ivec2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
                         uniform_buf.raytrace.resolution_bias;
 
-  /* Check if texel is out of bounds, so we can utilise fast texture funcs and early-out if not. */
+  /* Check if texel is out of bounds, so we can utilize fast texture funcs and early-out if not. */
   if (any(greaterThanEqual(texel, imageSize(ray_time_img).xy))) {
     return;
   }
@@ -54,10 +54,9 @@ void main()
     uint gbuf_header = texelFetch(gbuf_header_tx, texel_fullres, 0).r;
     float thickness = gbuffer_read_thickness(gbuf_header, gbuf_normal_tx, texel_fullres);
     if (thickness != 0.0) {
-      vec3 surface_N = gbuffer_read_normal(gbuf_normal_tx, texel_fullres);
       ClosureUndetermined cl = gbuffer_read_bin(
           gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
-      ray = raytrace_thickness_ray_ammend(ray, cl, V, surface_N, thickness);
+      ray = raytrace_thickness_ray_ammend(ray, cl, V, thickness);
     }
   }
 

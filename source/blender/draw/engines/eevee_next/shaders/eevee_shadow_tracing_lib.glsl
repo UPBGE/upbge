@@ -168,7 +168,7 @@ ShadowRayDirectional shadow_ray_generate_directional(
   float shadow_angle = min(light_sun_data_get(light).shadow_angle, max_tracing_angle);
 
   /* Light shape is 1 unit away from the shading point. */
-  vec3 direction = sample_uniform_cone(sample_cylinder(random_2d), shadow_angle);
+  vec3 direction = sample_uniform_cone(random_2d, cos(shadow_angle));
 
   direction = shadow_ray_above_horizon_ensure(direction, lNg, max_tracing_distance);
 
@@ -316,18 +316,22 @@ SHADOW_MAP_TRACE_FN(ShadowRayPunctual)
  * stochastic percentage closer filtering of shadow-maps. */
 vec3 shadow_pcf_offset(vec3 L, vec3 Ng, vec2 random)
 {
+  /* Angle between Light and normal. */
+  float cos_theta = abs(dot(L, Ng));
+  float sin_theta = sin_from_cos(cos_theta);
+  /* Slope of the receiver plane with respect to light direction. Equal to `tan(theta)`.
+   * Stop at 45° angle to avoid large bias and peter panning artifacts. */
+  float cone_height = saturate(sin_theta * safe_rcp(cos_theta));
   /* We choose a random disk distribution because it is rotationally invariant.
-   * This sames us the trouble of getting the correct orientation for punctual. */
-  vec2 disk_sample = sample_disk(random);
-  /* Compute the offset as a disk around the normal. */
-  mat3x3 tangent_frame = from_up_axis(Ng);
-  vec3 pcf_offset = tangent_frame[0] * disk_sample.x + tangent_frame[1] * disk_sample.y;
-
-  if (dot(pcf_offset, L) < 0.0) {
-    /* Reflect the offset to avoid overshadowing caused by moving the sampling point below another
-     * polygon behind the shading point. */
-    pcf_offset = reflect(pcf_offset, L);
-  }
+   * This saves us the trouble of getting the correct orientation for punctual. */
+  float distance_to_center = sqrt(random.x);
+  vec2 disk_sample = sample_circle(random.y) * distance_to_center;
+  /* Set the samples on a cone up to 45 degree. */
+  vec3 cone_sample = vec3(disk_sample, distance_to_center * cone_height);
+  /* Setup the cone around the light vector. */
+  vec3 pcf_offset = from_up_axis(L) * cone_sample;
+  /* Offset the cone in normal direction to avoid self shadowing when angle is greater than 45°. */
+  pcf_offset += Ng * saturate(sin_theta - cos_theta);
   return pcf_offset;
 }
 
@@ -447,7 +451,7 @@ float shadow_eval(LightData light,
   /* Avoid self intersection with respect to numerical precision. */
   P = offset_ray(P, N_bias);
   /* Stochastic Percentage Closer Filtering. */
-  P += (light.pcf_radius * texel_radius) * shadow_pcf_offset(L, Ng, random_pcf_2d);
+  P += (light.filter_radius * texel_radius) * shadow_pcf_offset(L, Ng, random_pcf_2d);
   /* Add normal bias to avoid aliasing artifacts. */
   P += N_bias * (texel_radius * shadow_normal_offset(Ng, L));
 
