@@ -3844,6 +3844,12 @@ class VIEW3D_MT_sculpt(Menu):
         props = layout.operator("paint.hide_show_masked", text="Hide Masked")
         props.action = 'HIDE'
 
+        props = layout.operator("paint.visibility_filter", text="Grow Visibility")
+        props.action = "GROW"
+
+        props = layout.operator("paint.visibility_filter", text="Shrink Visibility")
+        props.action = "SHRINK"
+
         layout.separator()
 
         props = layout.operator("sculpt.trim_box_gesture", text="Box Trim")
@@ -3855,10 +3861,16 @@ class VIEW3D_MT_sculpt(Menu):
         props = layout.operator("sculpt.trim_line_gesture", text="Line Trim")
         props.trim_mode = 'DIFFERENCE'
 
+        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Trim")
+        props.trim_mode = 'DIFFERENCE'
+
         props = layout.operator("sculpt.trim_box_gesture", text="Box Add")
         props.trim_mode = 'JOIN'
 
         props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Add")
+        props.trim_mode = 'JOIN'
+
+        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Add")
         props.trim_mode = 'JOIN'
 
         layout.operator("sculpt.project_line_gesture", text="Line Project")
@@ -3950,6 +3962,7 @@ class VIEW3D_MT_mask(Menu):
         props.value = 0
 
         props = layout.operator("paint.mask_lasso_gesture", text="Lasso Mask")
+        props = layout.operator("paint.mask_polyline_gesture", text="Polyline Mask")
 
         layout.separator()
 
@@ -6184,6 +6197,7 @@ class VIEW3D_MT_edit_curves_control_points(Menu):
     def draw(self, _context):
         layout = self.layout
 
+        layout.operator("curves.extrude_move")
         layout.operator_menu_enum("curves.handle_type_set", "type")
 
 
@@ -6195,6 +6209,18 @@ class VIEW3D_MT_edit_curves_segments(Menu):
 
         layout.operator("curves.subdivide")
         layout.operator("curves.switch_direction")
+
+
+class VIEW3D_MT_edit_curves_context_menu(Menu):
+    bl_label = "Curves"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_DEFAULT'
+
+        layout.operator("curves.subdivide")
+        layout.operator("curves.extrude_move")
 
 
 class VIEW3D_MT_edit_pointcloud(Menu):
@@ -9360,6 +9386,7 @@ classes = (
     VIEW3D_MT_edit_curves_add,
     VIEW3D_MT_edit_curves_segments,
     VIEW3D_MT_edit_curves_control_points,
+    VIEW3D_MT_edit_curves_context_menu,
     VIEW3D_MT_edit_pointcloud,
     VIEW3D_MT_object_mode_pie,
     VIEW3D_MT_view_pie,

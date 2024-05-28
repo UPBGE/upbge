@@ -316,15 +316,15 @@ const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor, bool 
 void mesh_render_data_face_flag(const MeshRenderData &mr,
                                 const BMFace *efa,
                                 BMUVOffsets offsets,
-                                EditLoopData *eattr);
+                                EditLoopData &eattr);
 void mesh_render_data_loop_flag(const MeshRenderData &mr,
-                                BMLoop *l,
+                                const BMLoop *l,
                                 BMUVOffsets offsets,
-                                EditLoopData *eattr);
+                                EditLoopData &eattr);
 void mesh_render_data_loop_edge_flag(const MeshRenderData &mr,
-                                     BMLoop *l,
+                                     const BMLoop *l,
                                      BMUVOffsets offsets,
-                                     EditLoopData *eattr);
+                                     EditLoopData &eattr);
 
 template<typename GPUType> void convert_normals(Span<float3> src, MutableSpan<GPUType> dst);
 
@@ -377,6 +377,11 @@ void extract_points_subdiv(const MeshRenderData &mr,
                            const DRWSubdivCache &subdiv_cache,
                            gpu::IndexBuf &points);
 
+void extract_edit_data(const MeshRenderData &mr, gpu::VertBuf &vbo);
+void extract_edit_data_subdiv(const MeshRenderData &mr,
+                              const DRWSubdivCache &subdiv_cache,
+                              gpu::VertBuf &vbo);
+
 extern const MeshExtract extract_fdots;
 extern const MeshExtract extract_lines_paint_mask;
 extern const MeshExtract extract_lines_adjacency;
@@ -388,11 +393,9 @@ extern const MeshExtract extract_uv;
 extern const MeshExtract extract_tan;
 extern const MeshExtract extract_tan_hq;
 extern const MeshExtract extract_sculpt_data;
-extern const MeshExtract extract_vcol;
 extern const MeshExtract extract_orco;
 extern const MeshExtract extract_edge_fac;
 extern const MeshExtract extract_weights;
-extern const MeshExtract extract_edit_data;
 extern const MeshExtract extract_edituv_data;
 extern const MeshExtract extract_edituv_stretch_area;
 extern const MeshExtract extract_edituv_stretch_angle;

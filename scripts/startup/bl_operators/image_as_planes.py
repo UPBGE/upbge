@@ -63,8 +63,8 @@ def find_image_sequences(files):
     >>> list(find_image_sequences([
     ...     "test2-001.jp2", "test2-002.jp2",
     ...     "test3-003.jp2", "test3-004.jp2", "test3-005.jp2", "test3-006.jp2",
-    ...     "blaah"]))
-    [("blaah", 1, 1), ("test2-001.jp2", 1, 2), ("test3-003.jp2", 3, 4)]
+    ...     "blah"]))
+    [("blah", 1, 1), ("test2-001.jp2", 1, 2), ("test3-003.jp2", 3, 4)]
 
     """
     from itertools import count
@@ -125,7 +125,7 @@ def find_image_sequences(files):
 
 
 def load_images(filenames, directory, force_reload=False, frame_start=1, find_sequences=False):
-    """Wrapper for bpy's load_image
+    """Wrapper for `bpy_extras.image_utils.load_image`.
 
     Loads a set of images, movies, or even image sequences
     Returns a generator of ImageSpec wrapper objects later used for texture setup
@@ -303,13 +303,14 @@ def clean_node_tree(node_tree):
 
 
 def get_shadeless_node(dest_node_tree):
-    """Return a "shadless" cycles/eevee node, creating a node group if nonexistent"""
-    try:
-        node_tree = bpy.data.node_groups['IAP_SHADELESS']
+    """Return a "shadeless" cycles/EEVEE node, creating a node group if nonexistent"""
 
-    except KeyError:
+    # WARNING: using a hard coded name isn't fool proof!
+    # Users could have this name already in a node-tree (albeit unlikely).
+    node_group_name = "IAP_SHADELESS"
+    if (node_tree := bpy.data.node_groups.get((node_group_name, None))) is None:
         # Need to build node shadeless node group.
-        node_tree = bpy.data.node_groups.new('IAP_SHADELESS', 'ShaderNodeTree')
+        node_tree = bpy.data.node_groups.new(node_group_name, 'ShaderNodeTree')
         output_node = node_tree.nodes.new('NodeGroupOutput')
         input_node = node_tree.nodes.new('NodeGroupInput')
 
@@ -499,11 +500,10 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, Operator):
         if self.size_mode == 'CAMERA':
             self.prev_align_axis = self.align_axis
             self.align_axis = 'CAM'
-        else:
+        elif self.prev_align_axis != 'NONE':
             # If a different alignment was set revert to that when size mode is changed.
-            if self.prev_align_axis != 'NONE':
-                self.align_axis = self.prev_align_axis
-                self._prev_align_axis = 'NONE'
+            self.align_axis = self.prev_align_axis
+            self.prev_align_axis = 'NONE'
 
     size_mode: EnumProperty(
         name="Size Mode",
@@ -916,7 +916,7 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, Operator):
         material.emit = self.emit_strength if shader == 'EMISSION' else 0.0
 
     # -------------------------------------------------------------------------
-    # Cycles/Eevee
+    # Cycles/EEVEE
     def create_cycles_texnode(self, node_tree, img_spec):
         tex_image = node_tree.nodes.new('ShaderNodeTexImage')
         tex_image.image = img_spec.image
@@ -929,7 +929,7 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, Operator):
     def create_cycles_material(self, img_spec, name):
         material = None
         if self.overwrite_material:
-            material = bpy.data.materials.get(name)
+            material = bpy.data.materials.get((name, None))
         if material is None:
             material = bpy.data.materials.new(name=name)
 

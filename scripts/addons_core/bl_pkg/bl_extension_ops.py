@@ -67,6 +67,10 @@ rna_prop_enable_on_install_type_map = {
 }
 
 
+def url_params_append_defaults(url):
+    return bl_extension_utils.url_params_append_for_blender(url, blender_version=bpy.app.version)
+
+
 def rna_prop_repo_enum_local_only_itemf(_self, context):
     if context is None:
         result = []
@@ -264,6 +268,7 @@ class RepoItem(NamedTuple):
     remote_url: str
     module: str
     use_cache: bool
+    access_token: str
 
 
 def repo_cache_store_refresh_from_prefs(include_disabled=False):
@@ -483,6 +488,7 @@ def extension_repos_read_index(index, *, include_disabled=False):
                 remote_url=remote_url,
                 module=repo_item.module,
                 use_cache=repo_item.use_cache,
+                access_token=repo_item.access_token if repo_item.use_access_token else "",
             )
         index_test += 1
     return None
@@ -519,6 +525,7 @@ def extension_repos_read(*, include_disabled=False, use_active_only=False):
             remote_url=remote_url,
             module=repo_item.module,
             use_cache=repo_item.use_cache,
+            access_token=repo_item.access_token if repo_item.use_access_token else "",
         ))
     return result
 
@@ -1000,8 +1007,10 @@ class BlPkgRepoSync(Operator, _BlPkgCmdMixIn):
                 partial(
                     bl_extension_utils.repo_sync,
                     directory=directory,
-                    remote_url=repo_item.remote_url,
+                    remote_name=repo_item.name,
+                    remote_url=url_params_append_defaults(repo_item.remote_url),
                     online_user_agent=online_user_agent_from_blender(),
+                    access_token=repo_item.access_token,
                     use_idle=is_modal,
                 )
             )
@@ -1029,8 +1038,9 @@ class BlPkgRepoSync(Operator, _BlPkgCmdMixIn):
 
 
 class BlPkgRepoSyncAll(Operator, _BlPkgCmdMixIn):
+    """Refresh the list of extensions for all the remote repositories"""
     bl_idname = "bl_pkg.repo_sync_all"
-    bl_label = "Ext Repo Sync All"
+    bl_label = "Check for Updates"
     __slots__ = _BlPkgCmdMixIn.cls_slots
 
     use_active_only: BoolProperty(
@@ -1038,13 +1048,27 @@ class BlPkgRepoSyncAll(Operator, _BlPkgCmdMixIn):
         description="Only sync the active repository",
     )
 
+    @classmethod
+    def poll(cls, context):
+        if not bpy.app.online_access:
+            if bpy.app.online_access_override:
+                cls.poll_message_set(
+                    "Online access required to check for updates. Launch Blender without --offline-mode")
+            else:
+                cls.poll_message_set(
+                    "Online access required to check for updates. Enable online access in System preferences")
+            return False
+
+        repos_all = extension_repos_read(use_active_only=False)
+        if not len(repos_all):
+            cls.poll_message_set("No repositories available")
+            return False
+
+        return True
+
     def exec_command_iter(self, is_modal):
         use_active_only = self.use_active_only
         repos_all = extension_repos_read(use_active_only=use_active_only)
-
-        if not repos_all:
-            self.report({'INFO'}, "No repositories to sync")
-            return None
 
         for repo_item in repos_all:
             if not os.path.exists(repo_item.directory):
@@ -1061,8 +1085,10 @@ class BlPkgRepoSyncAll(Operator, _BlPkgCmdMixIn):
                 cmd_batch.append(partial(
                     bl_extension_utils.repo_sync,
                     directory=repo_item.directory,
-                    remote_url=repo_item.remote_url,
+                    remote_name=repo_item.name,
+                    remote_url=url_params_append_defaults(repo_item.remote_url),
                     online_user_agent=online_user_agent_from_blender(),
+                    access_token=repo_item.access_token,
                     use_idle=is_modal,
                 ))
 
@@ -1098,6 +1124,7 @@ class BlPkgRepoSyncAll(Operator, _BlPkgCmdMixIn):
 
 
 class BlPkgPkgUpgradeAll(Operator, _BlPkgCmdMixIn):
+    """Upgrade all the extensions to their latest version for all the remote repositories"""
     bl_idname = "bl_pkg.pkg_upgrade_all"
     bl_label = "Ext Package Upgrade All"
     __slots__ = _BlPkgCmdMixIn.cls_slots + (
@@ -1109,6 +1136,23 @@ class BlPkgPkgUpgradeAll(Operator, _BlPkgCmdMixIn):
         description="Only sync the active repository",
     )
 
+    @classmethod
+    def poll(cls, context):
+        if not bpy.app.online_access:
+            if bpy.app.online_access_override:
+                cls.poll_message_set("Online access required to install updates. Launch Blender without --offline-mode")
+            else:
+                cls.poll_message_set(
+                    "Online access required to install updates. Enable online access in System preferences")
+            return False
+
+        repos_all = extension_repos_read(use_active_only=False)
+        if not len(repos_all):
+            cls.poll_message_set("No repositories available")
+            return False
+
+        return True
+
     def exec_command_iter(self, is_modal):
         from . import repo_cache_store
         self._repo_directories = set()
@@ -1118,10 +1162,6 @@ class BlPkgPkgUpgradeAll(Operator, _BlPkgCmdMixIn):
         use_active_only = self.use_active_only
         repos_all = extension_repos_read(use_active_only=use_active_only)
         repo_directory_supset = [repo_entry.directory for repo_entry in repos_all] if use_active_only else None
-
-        if not repos_all:
-            self.report({'INFO'}, "No repositories to upgrade")
-            return None
 
         # NOTE: Unless we have a "clear-cache" operator - there isn't a great place to apply cache-clearing.
         # So when cache is disabled simply clear all cache before performing an update.
@@ -1174,9 +1214,10 @@ class BlPkgPkgUpgradeAll(Operator, _BlPkgCmdMixIn):
             cmd_batch.append(partial(
                 bl_extension_utils.pkg_install,
                 directory=repo_item.directory,
-                remote_url=repo_item.remote_url,
+                remote_url=url_params_append_defaults(repo_item.remote_url),
                 pkg_id_sequence=pkg_id_sequence,
                 online_user_agent=online_user_agent_from_blender(),
+                access_token=repo_item.access_token,
                 use_cache=repo_item.use_cache,
                 use_idle=is_modal,
             ))
@@ -1273,9 +1314,10 @@ class BlPkgPkgInstallMarked(Operator, _BlPkgCmdMixIn):
             cmd_batch.append(partial(
                 bl_extension_utils.pkg_install,
                 directory=repo_item.directory,
-                remote_url=repo_item.remote_url,
+                remote_url=url_params_append_defaults(repo_item.remote_url),
                 pkg_id_sequence=pkg_id_sequence,
                 online_user_agent=online_user_agent_from_blender(),
+                access_token=repo_item.access_token,
                 use_cache=repo_item.use_cache,
                 use_idle=is_modal,
             ))
@@ -1714,6 +1756,7 @@ class BlPkgPkgInstallFiles(Operator, _BlPkgCmdMixIn):
 
 
 class BlPkgPkgInstall(Operator, _BlPkgCmdMixIn):
+    """Download and install the extension"""
     bl_idname = "bl_pkg.pkg_install"
     bl_label = "Install Extension"
     __slots__ = _BlPkgCmdMixIn.cls_slots
@@ -1729,6 +1772,19 @@ class BlPkgPkgInstall(Operator, _BlPkgCmdMixIn):
 
     # Only used for code-path for dropping an extension.
     url: rna_prop_url
+
+    @classmethod
+    def poll(cls, context):
+        if not bpy.app.online_access:
+            if bpy.app.online_access_override:
+                cls.poll_message_set(
+                    "Online access required to install or update. Launch Blender without --offline-mode")
+            else:
+                cls.poll_message_set(
+                    "Online access required to install or update. Enable online access in System preferences")
+            return False
+
+        return True
 
     def exec_command_iter(self, is_modal):
         self._addon_restore = []
@@ -1776,9 +1832,10 @@ class BlPkgPkgInstall(Operator, _BlPkgCmdMixIn):
                 partial(
                     bl_extension_utils.pkg_install,
                     directory=directory,
-                    remote_url=repo_item.remote_url,
+                    remote_url=url_params_append_defaults(repo_item.remote_url),
                     pkg_id_sequence=(pkg_id,),
                     online_user_agent=online_user_agent_from_blender(),
+                    access_token=repo_item.access_token,
                     use_cache=repo_item.use_cache,
                     use_idle=is_modal,
                 )
@@ -2224,7 +2281,7 @@ class BlPkgRepoUnlock(Operator):
 # NOTE: this is a modified version of `PREFERENCES_OT_addon_show`.
 # It would make most sense to extend this operator to support showing extensions to upgrade (eventually).
 class BlPkgShowUpgrade(Operator):
-    """Show add-on preferences"""
+    """Open extensions preferences"""
     bl_idname = "bl_pkg.extensions_show_for_update"
     bl_label = ""
     bl_options = {'INTERNAL'}
