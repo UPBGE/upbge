@@ -661,39 +661,12 @@ static void sculpt_vertex_neighbor_add(SculptVertexNeighborIter *iter,
                                        PBVHVertRef neighbor,
                                        int neighbor_index)
 {
-  for (int i = 0; i < iter->size; i++) {
-    if (iter->neighbors[i].i == neighbor.i) {
-      return;
-    }
+  if (iter->neighbors.contains(neighbor)) {
+    return;
   }
 
-  if (iter->size >= iter->capacity) {
-    iter->capacity += SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
-
-    if (iter->neighbors == iter->neighbors_fixed) {
-      iter->neighbors = static_cast<PBVHVertRef *>(
-          MEM_mallocN(iter->capacity * sizeof(PBVHVertRef), "neighbor array"));
-      memcpy(iter->neighbors, iter->neighbors_fixed, sizeof(PBVHVertRef) * iter->size);
-    }
-    else {
-      iter->neighbors = static_cast<PBVHVertRef *>(MEM_reallocN_id(
-          iter->neighbors, iter->capacity * sizeof(PBVHVertRef), "neighbor array"));
-    }
-
-    if (iter->neighbor_indices == iter->neighbor_indices_fixed) {
-      iter->neighbor_indices = static_cast<int *>(
-          MEM_mallocN(iter->capacity * sizeof(int), "neighbor array"));
-      memcpy(iter->neighbor_indices, iter->neighbor_indices_fixed, sizeof(int) * iter->size);
-    }
-    else {
-      iter->neighbor_indices = static_cast<int *>(
-          MEM_reallocN_id(iter->neighbor_indices, iter->capacity * sizeof(int), "neighbor array"));
-    }
-  }
-
-  iter->neighbors[iter->size] = neighbor;
-  iter->neighbor_indices[iter->size] = neighbor_index;
-  iter->size++;
+  iter->neighbors.append(neighbor);
+  iter->neighbor_indices.append(neighbor_index);
 }
 
 static void sculpt_vertex_neighbors_get_bmesh(PBVHVertRef vertex, SculptVertexNeighborIter *iter)
@@ -701,11 +674,9 @@ static void sculpt_vertex_neighbors_get_bmesh(PBVHVertRef vertex, SculptVertexNe
   BMVert *v = (BMVert *)vertex.i;
   BMIter liter;
   BMLoop *l;
-  iter->size = 0;
   iter->num_duplicates = 0;
-  iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
-  iter->neighbors = iter->neighbors_fixed;
-  iter->neighbor_indices = iter->neighbor_indices_fixed;
+  iter->neighbors.clear();
+  iter->neighbor_indices.clear();
 
   BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
     const BMVert *adj_v[2] = {l->prev->v, l->next->v};
@@ -719,15 +690,27 @@ static void sculpt_vertex_neighbors_get_bmesh(PBVHVertRef vertex, SculptVertexNe
   }
 }
 
+Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, Vector<BMVert *, 64> &neighbors)
+{
+  BMIter liter;
+  BMLoop *l;
+  BM_ITER_ELEM (l, &liter, &vert, BM_LOOPS_OF_VERT) {
+    for (BMVert *other_vert : {l->prev->v, l->next->v}) {
+      if (other_vert != &vert) {
+        neighbors.append(other_vert);
+      }
+    }
+  }
+  return neighbors;
+}
+
 static void sculpt_vertex_neighbors_get_faces(const SculptSession &ss,
                                               PBVHVertRef vertex,
                                               SculptVertexNeighborIter *iter)
 {
-  iter->size = 0;
   iter->num_duplicates = 0;
-  iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
-  iter->neighbors = iter->neighbors_fixed;
-  iter->neighbor_indices = iter->neighbor_indices_fixed;
+  iter->neighbors.clear();
+  iter->neighbor_indices.clear();
 
   for (const int face_i : ss.vert_to_face_map[vertex.i]) {
     if (ss.hide_poly && ss.hide_poly[face_i]) {
@@ -774,11 +757,9 @@ static void sculpt_vertex_neighbors_get_grids(const SculptSession &ss,
   SubdivCCGNeighbors neighbors;
   BKE_subdiv_ccg_neighbor_coords_get(*ss.subdiv_ccg, coord, include_duplicates, neighbors);
 
-  iter->size = 0;
   iter->num_duplicates = neighbors.num_duplicates;
-  iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
-  iter->neighbors = iter->neighbors_fixed;
-  iter->neighbor_indices = iter->neighbor_indices_fixed;
+  iter->neighbors.clear();
+  iter->neighbor_indices.clear();
 
   for (const int i : neighbors.coords.index_range()) {
     int v = neighbors.coords[i].grid_index * key->grid_area +
@@ -4172,12 +4153,6 @@ void SCULPT_cache_free(blender::ed::sculpt_paint::StrokeCache *cache)
   MEM_SAFE_FREE(cache->surface_smooth_laplacian_disp);
   MEM_SAFE_FREE(cache->layer_displacement_factor);
   MEM_SAFE_FREE(cache->detail_directions);
-
-  for (int i = 0; i < PAINT_SYMM_AREAS; i++) {
-    if (cache->boundaries[i]) {
-      boundary::data_free(cache->boundaries[i]);
-    }
-  }
 
   if (cache->cloth_sim) {
     cloth::simulation_free(cache->cloth_sim);
