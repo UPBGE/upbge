@@ -140,6 +140,16 @@ class CheckSIGINT_Context:
 # Internal Utilities
 #
 
+def _preferences_repo_find_by_remote_url(context, remote_url):
+    remote_url = remote_url.rstrip("/")
+    prefs = context.preferences
+    extension_repos = prefs.extensions.repos
+    for repo in extension_repos:
+        if repo.use_remote_url and repo.remote_url.rstrip("/") == remote_url:
+            return repo
+    return None
+
+
 def extension_url_find_repo_index_and_pkg_id(url):
     from .bl_extension_utils import (
         pkg_manifest_archive_url_abs_from_remote_url,
@@ -262,6 +272,20 @@ def repo_iter_valid_local_only(context):
         yield repo_item
 
 
+# A named-tuple copy of `context.preferences.extensions.repos` (`bpy.types.UserExtensionRepo`).
+# This is done for the following reasons.
+#
+# - Booleans `use_remote_url` & `use_access_token` have been "applied", so every time `remote_url`
+#   is accessed there is no need to check `use_remote_url` first (same for access tokens).
+#
+# - When checking for updates in the background, it's possible the repository is freed between
+#   starting a check for updates and when the check runs. Using a copy means there is no risk
+#   accessing freed memory & crashing, although these cases still need to be handled logically
+#   even if the crashes are avoided.
+#
+# - In practically all cases this data is read-only when used via package management.
+#   A named tuple makes that explicit.
+#
 class RepoItem(NamedTuple):
     name: str
     directory: str
@@ -1908,8 +1932,18 @@ class BlPkgPkgInstall(Operator, _BlPkgCmdMixIn):
         return self.execute(context)
 
     def _invoke_for_drop(self, context, event):
+        from .bl_extension_utils import url_params_extract_repo_url
+
         url = self.url
         print("DROP URL:", url)
+
+        # First check if this is part of a disabled repository.
+        remote_url = url_params_extract_repo_url(url)
+        repo_from_url = None if remote_url is None else _preferences_repo_find_by_remote_url(context, remote_url)
+
+        if repo_from_url and not repo_from_url.enabled:
+            self.report({'ERROR'}, "Extension: repository \"{:s}\" exists but is disabled".format(repo_from_url.name))
+            return {'CANCELLED'}
 
         _preferences_ensure_sync()
 
@@ -2335,12 +2369,56 @@ class BlPkgShowOnlinePreference(Operator):
         return True
 
     def execute(self, context):
-        wm = context.window_manager
-        prefs = context.preferences
-
         bpy.ops.screen.userpref_show('INVOKE_DEFAULT', section='SYSTEM')
-
         return {'FINISHED'}
+
+
+# NOTE: this is a wrapper for `bl_pkg.extensions_show_online_prefs`.
+# It exists *only* show a dialog.
+class BlPkgShowOnlinePreferencePopup(Operator):
+    """Show system preferences "Network" panel to allow online access"""
+    bl_idname = "bl_pkg.extensions_show_online_prefs_popup"
+    bl_label = ""
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        bpy.ops.screen.userpref_show('INVOKE_DEFAULT', section='SYSTEM')
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        if bpy.app.online_access_override:
+            # No Cancel/Confirm buttons.
+            wm.invoke_popup(
+                self,
+                width=400,
+            )
+        else:
+            wm.invoke_props_dialog(
+                self,
+                width=400,
+                confirm_text="Go to Settings",
+                title="Install Extension",
+            )
+        return {'RUNNING_MODAL'}
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        if bpy.app.online_access_override:
+            lines = (
+                "Online access required to install or update.",
+                "",
+                "Launch Blender without --offline-mode"
+            )
+        else:
+            lines = (
+                "Please turn Online Access on the System settings.",
+                "",
+                "Internet access is required to install extensions from the internet."
+            )
+        for line in lines:
+            col.label(text=line)
 
 
 class BlPkgEnableNotInstalled(Operator):
@@ -2393,6 +2471,7 @@ classes = (
 
     BlPkgShowUpgrade,
     BlPkgShowOnlinePreference,
+    BlPkgShowOnlinePreferencePopup,
 
     # Dummy, just shows a message.
     BlPkgEnableNotInstalled,
