@@ -10,7 +10,7 @@ bl_info = {
     "location": "Edit -> Preferences -> Extensions",
     "description": "Extension repository support for remote repositories",
     "warning": "",
-    # "doc_url": "{BLENDER_MANUAL_URL}/addons/bl_pkg/bl_pkg.html",
+    # "doc_url": "",
     "support": 'OFFICIAL',
     "category": "System",
 }
@@ -124,13 +124,72 @@ def repo_active_or_none():
     return active_repo
 
 
+def repo_stats_calc_outdated_for_repo_directory(repo_directory):
+    pkg_manifest_local = repo_cache_store.refresh_local_from_directory(
+        directory=repo_directory,
+        error_fn=print,
+    )
+    if pkg_manifest_local is None:
+        return 0
+
+    if False:
+        # TODO: support this, currently creating this data involves a conversion which isn't free.
+        # This can probably be done once and cached, but for now use another function that provides this.
+        pkg_manifest_remote = repo_cache_store.refresh_remote_from_directory(
+            directory=repo_directory,
+            error_fn=print,
+        )
+    else:
+        pkg_manifest_remote = None
+        for pkg_manifest_remote_test in repo_cache_store.pkg_manifest_from_remote_ensure(
+                error_fn=print,
+                ignore_missing=True,
+                directory_subset=[repo_directory],
+        ):
+            pkg_manifest_remote = pkg_manifest_remote_test
+            break
+
+    if pkg_manifest_remote is None:
+        return 0
+
+    package_count = 0
+    for pkg_id, item_local in pkg_manifest_local.items():
+        item_remote = pkg_manifest_remote.get(pkg_id)
+        # Local-only (unlikely but not impossible).
+        if item_remote is None:
+            continue
+
+        if item_remote["version"] != item_local["version"]:
+            package_count += 1
+    return package_count
+
+
+def repo_stats_calc():
+    # NOTE: if repositories get very large, this could be optimized to only check repositories that have changed.
+    # Although this isn't called all that often - it's unlikely to be a bottleneck.
+
+    if bpy.app.background:
+        return
+
+    package_count = 0
+
+    for repo_item in bpy.context.preferences.extensions.repos:
+        if not repo_item.enabled:
+            continue
+        if not repo_item.use_remote_url:
+            continue
+        if not repo_item.remote_url:
+            continue
+
+        package_count += repo_stats_calc_outdated_for_repo_directory(repo_item.directory)
+
+    bpy.context.window_manager.extensions_updates = package_count
+
+
 def print_debug(*args, **kw):
     if not bpy.app.debug:
         return
     print(*args, **kw)
-
-
-use_repos_to_notify = False
 
 
 def repos_to_notify():
@@ -144,9 +203,6 @@ def repos_to_notify():
     repos_notify = []
     do_online_sync = False
 
-    if bpy.app.background:
-        return repos_notify, do_online_sync
-
     # To use notifications on startup requires:
     # - The splash displayed.
     # - The status bar displayed.
@@ -156,10 +212,10 @@ def repos_to_notify():
 
     prefs = bpy.context.preferences
     extension_repos = prefs.extensions.repos
+
+    repos_remote = []
     for repo_item in extension_repos:
         if not repo_item.enabled:
-            continue
-        if not repo_item.use_sync_on_startup:
             continue
         if not repo_item.use_remote_url:
             continue
@@ -191,8 +247,20 @@ def repos_to_notify():
         if repo_is_empty:
             continue
 
-        # NOTE: offline checks are handled by the notification (not here).
-        repos_notify.append(
+        repos_remote.append(repo_item)
+
+    # Update all repos together or none, to avoid bothering users
+    # multiple times in a day.
+    do_online_sync = False
+    for repo_item in repos_remote:
+        if not repo_item.use_sync_on_startup:
+            continue
+        if repo_index_outdated(repo_item.directory):
+            do_online_sync = True
+            break
+
+    for repo_item in repos_remote:
+        repos_notify.append((
             bl_extension_ops.RepoItem(
                 name=repo_item.name,
                 directory=repo_directory,
@@ -201,14 +269,10 @@ def repos_to_notify():
                 use_cache=repo_item.use_cache,
                 access_token=repo_item.access_token if repo_item.use_access_token else "",
             ),
-        )
+            repo_item.use_sync_on_startup and do_online_sync,
+        ))
 
-        # Update all repos together or none, to avoid bothering users
-        # multiple times in a day.
-        if repo_index_outdated(repo_item.directory):
-            do_online_sync = True
-
-    return repos_notify, do_online_sync
+    return repos_notify
 
 
 # -----------------------------------------------------------------------------
@@ -229,7 +293,7 @@ def extenion_repos_sync(*_):
     stdout = io.StringIO()
 
     with redirect_stdout(stdout):
-        bpy.ops.bl_pkg.repo_sync_all('INVOKE_DEFAULT', use_active_only=True)
+        bpy.ops.extensions.repo_sync_all('INVOKE_DEFAULT', use_active_only=True)
 
     if text := stdout.getvalue():
         repo_status_text.from_message("Sync \"{:s}\"".format(active_repo.name), text)
@@ -249,7 +313,7 @@ def extenion_repos_upgrade(*_):
     stdout = io.StringIO()
 
     with redirect_stdout(stdout):
-        bpy.ops.bl_pkg.pkg_upgrade_all('INVOKE_DEFAULT', use_active_only=True)
+        bpy.ops.extensions.package_upgrade_all('INVOKE_DEFAULT', use_active_only=True)
 
     if text := stdout.getvalue():
         repo_status_text.from_message("Upgrade \"{:s}\"".format(active_repo.name), text)
@@ -335,6 +399,9 @@ def monkeypatch_extenions_repos_update_post_impl():
         repo_cache_store.refresh_local_from_directory(directory=directory, error_fn=print, ignore_missing=True)
 
     _monkeypatch_extenions_repos_update_dirs.clear()
+
+    # Based on changes, the statistics may need to be re-calculated.
+    repo_stats_calc()
 
 
 @bpy.app.handlers.persistent
@@ -460,6 +527,8 @@ cli_commands = []
 
 
 def register():
+    prefs = bpy.context.preferences
+
     # pylint: disable-next=global-statement
     global repo_cache_store
 
@@ -528,16 +597,12 @@ def register():
 
     cli_commands.append(bpy.utils.register_cli_command("extension", cli_extension))
 
-    global use_repos_to_notify
-    repos_notify, do_online_sync = repos_to_notify()
-    if repos_notify:
-        use_repos_to_notify = True
-        from . import bl_extension_notify
-        bl_extension_notify.register()
-        bl_extension_notify.update_non_blocking(repos=repos_notify, do_online_sync=do_online_sync)
-    del repos_notify
-
     monkeypatch_install()
+
+    if not bpy.app.background:
+        if prefs.view.show_extensions_updates:
+            from . import bl_extension_notify
+            bl_extension_notify.update_non_blocking(repos_fn=repos_to_notify)
 
 
 def unregister():
@@ -586,11 +651,5 @@ def unregister():
     for cmd in cli_commands:
         bpy.utils.unregister_cli_command(cmd)
     cli_commands.clear()
-
-    global use_repos_to_notify
-    if use_repos_to_notify:
-        use_repos_to_notify = False
-        from . import bl_extension_notify
-        bl_extension_notify.unregister()
 
     monkeypatch_uninstall()

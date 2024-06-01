@@ -26,8 +26,8 @@ __all__ = (
     # Public Stand-Alone Utilities.
     "pkg_theme_file_list",
     "platform_from_this_system",
-    "url_params_append_for_blender",
-    "url_params_extract_repo_url",
+    "url_append_query_for_blender",
+    "url_parse_for_blender",
     "file_mtime_or_none",
 
     # Public API.
@@ -310,66 +310,77 @@ def platform_from_this_system() -> str:
     )
 
 
-def _url_params_append(url: str, params: Dict[str, str]) -> str:
+def _url_append_query(url: str, query: Dict[str, str]) -> str:
     import urllib
     import urllib.parse
 
     # Remove empty parameters.
-    params = {key: value for key, value in params.items() if value is not None and value != ""}
-    if not params:
+    query = {key: value for key, value in query.items() if value is not None and value != ""}
+    if not query:
         return url
 
-    # Parse the URL to get its scheme, domain, and query parameters.
+    # Decompose the URL into components.
     parsed_url = urllib.parse.urlparse(url)
 
     # Combine existing query parameters with new parameters
-    existing_params = urllib.parse.parse_qsl(parsed_url.query)
-    all_params = dict(existing_params)
-    all_params.update(params)
+    query_existing = urllib.parse.parse_qsl(parsed_url.query)
+    query_all = dict(query_existing)
+    query_all.update(query)
 
-    # Encode all parameters into a new query string
-    new_query = urllib.parse.urlencode(all_params)
+    # Encode all parameters into a new query string.
+    query_all_encoded = urllib.parse.urlencode(query_all)
 
-    # Combine the scheme, netloc, path, and new query string to form the new URL
+    # Construct the URL with additional queries.
     new_url = urllib.parse.urlunparse((
         parsed_url.scheme,
         parsed_url.netloc,
         parsed_url.path,
         parsed_url.params,
-        new_query,
+        query_all_encoded,
         parsed_url.fragment,
     ))
 
     return new_url
 
 
-def url_params_append_for_blender(url: str, blender_version: Tuple[int, int, int]) -> str:
+def url_append_query_for_blender(url: str, blender_version: Tuple[int, int, int]) -> str:
     # `blender_version` is typically `bpy.app.version`.
 
     # While this won't cause errors, it's redundant to add this information to file URL's.
     if url.startswith("file://"):
         return url
 
-    params = {
+    query = {
         "platform": platform_from_this_system(),
         "blender_version": "{:d}.{:d}.{:d}".format(*blender_version),
     }
-    return _url_params_append(url, params)
+    return _url_append_query(url, query)
 
 
-def url_params_extract_repo_url(url: str) -> Optional[str]:
-    # Extract `?repository=...` value from the URL and return it.
-    # Concatenating it where appropriate.
+def url_parse_for_blender(url: str) -> Tuple[str, Dict[str, str]]:
+    # Split the URL into components:
+    # - The stripped: `scheme + netloc + path`
+    # - Known query values used by Blender.
+    #   Extract `?repository=...` value from the URL and return it.
+    #   Concatenating it where appropriate.
+    #
     import urllib
     import urllib.parse
 
-    # Parse the URL to get its scheme, domain, and query parameters.
     parsed_url = urllib.parse.urlparse(url)
+    query = urllib.parse.parse_qsl(parsed_url.query)
 
-    # Combine existing query parameters with new parameters
-    params = urllib.parse.parse_qsl(parsed_url.query)
+    url_strip = urllib.parse.urlunparse((
+        parsed_url.scheme,
+        parsed_url.netloc,
+        parsed_url.path,
+        None,  # `parsed_url.params,`
+        None,  # `parsed_url.query,`
+        None,  # `parsed_url.fragment,`
+    ))
 
-    if repo_path := next((value for key, value in params if key == "repository"), None):
+    query_known = {}
+    if repo_path := next((value for key, value in query if key == "repository"), None):
         if repo_path.startswith("/"):
             repo_url = urllib.parse.urlunparse((
                 parsed_url.scheme,
@@ -381,9 +392,9 @@ def url_params_extract_repo_url(url: str) -> Optional[str]:
             ))
         else:
             repo_url = repo_path
-        return repo_url
+        query_known["repository"] = repo_url
 
-    return None
+    return url_strip, query_known
 
 
 # -----------------------------------------------------------------------------
@@ -535,7 +546,7 @@ def dummy_progress(
 ) -> Generator[InfoItemSeq, bool, None]:
     """
     Implementation:
-    ``bpy.ops.ext.dummy_progress()``.
+    ``bpy.ops.extensions.dummy_progress()``.
     """
     yield from command_output_from_json_0(["dummy-progress", "--time-duration=1.0"], use_idle=use_idle)
     yield [COMPLETE_ITEM]
@@ -620,6 +631,11 @@ def pkg_manifest_archive_url_abs_from_remote_url(remote_url: str, archive_url: s
             # Simply add to the URL.
             archive_url = remote_url.rstrip("/") + archive_url[1:]
     return archive_url
+
+
+def pkg_is_legacy_addon(filepath: str) -> bool:
+    from .cli.blender_ext import pkg_is_legacy_addon
+    return pkg_is_legacy_addon(filepath)
 
 
 def pkg_repo_cache_clear(local_dir: str) -> None:
@@ -867,7 +883,6 @@ class CommandBatch:
     def calc_status_text_icon_from_data(
             status_data: CommandBatch_StatusFlag,
             update_count: int,
-            do_online_sync: bool,
     ) -> Tuple[str, str]:
         # Generate a nice UI string for a status-bar & splash screen (must be short).
         #
@@ -882,12 +897,11 @@ class CommandBatch:
         else:
             fail_text = ", some actions failed"
 
-        if status_data.flag == 1 << CommandBatchItem.STATUS_NOT_YET_STARTED or \
-           status_data.flag & 1 << CommandBatchItem.STATUS_RUNNING:
-            if do_online_sync:
-                return "Checking for Extension Updates Online{:s}".format(fail_text), 'SORTTIME'
-            else:
-                return "Checking for Extension Updates{:s}".format(fail_text), 'SORTTIME'
+        if (
+                status_data.flag == (1 << CommandBatchItem.STATUS_NOT_YET_STARTED) or
+                status_data.flag & (1 << CommandBatchItem.STATUS_RUNNING)
+        ):
+            return "Checking for Extension Updates{:s}".format(fail_text), 'SORTTIME'
 
         if status_data.flag == 1 << CommandBatchItem.STATUS_COMPLETE:
             if update_count > 0:

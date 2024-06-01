@@ -1147,6 +1147,20 @@ static void rna_WindowManager_active_keyconfig_set(PointerRNA *ptr,
   }
 }
 
+static void rna_WindowManager_extensions_update(Main * /*bmain*/,
+                                                Scene * /*scene*/,
+                                                PointerRNA *ptr)
+{
+  if ((U.statusbar_flag & STATUSBAR_SHOW_EXTENSIONS_UPDATES) == 0) {
+    return;
+  }
+
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    WM_window_status_area_tag_redraw(win);
+  }
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Key Config Preferences
  * \{ */
@@ -1733,7 +1747,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   const char *error_prefix = "Registering operator macro class:";
   wmOperatorType dummy_ot = {nullptr};
   wmOperator dummy_operator = {nullptr};
-  bool have_function[4];
+  bool have_function[2];
 
   struct {
     char idname[OP_MAX_TYPENAME];
@@ -1837,7 +1851,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   dummy_ot.rna_ext.free = free;
 
   dummy_ot.pyop_poll = (have_function[0]) ? rna_operator_poll_cb : nullptr;
-  dummy_ot.ui = (have_function[3]) ? rna_operator_draw_cb : nullptr;
+  dummy_ot.ui = (have_function[1]) ? rna_operator_draw_cb : nullptr;
 
   WM_operatortype_append_macro_ptr(BPY_RNA_operator_macro_wrapper, (void *)&dummy_ot);
 
@@ -2642,6 +2656,7 @@ static void rna_def_windowmanager(BlenderRNA *brna)
   prop = RNA_def_property(srna, "extensions_updates", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "Extensions Updates", "Number of extensions with available update");
+  RNA_def_property_update(prop, 0, "rna_WindowManager_extensions_update");
 
   RNA_api_wm(srna);
 }
