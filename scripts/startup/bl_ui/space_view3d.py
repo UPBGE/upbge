@@ -3795,38 +3795,7 @@ class VIEW3D_MT_sculpt(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("transform.translate")
-        layout.operator("transform.rotate")
-        layout.operator("transform.resize", text="Scale")
-
-        props = layout.operator("sculpt.mesh_filter", text="Sphere")
-        props.type = 'SPHERE'
-
-        layout.separator()
-
-        props = layout.operator("paint.hide_show", text="Box Hide")
-        props.action = 'HIDE'
-
-        props = layout.operator("paint.hide_show", text="Box Show")
-        props.action = 'SHOW'
-
-        props = layout.operator("paint.hide_show_lasso_gesture", text="Lasso Hide")
-        props.action = 'HIDE'
-
-        props = layout.operator("paint.hide_show_lasso_gesture", text="Lasso Show")
-        props.action = 'SHOW'
-
-        props = layout.operator("paint.hide_show_line_gesture", text="Line Hide")
-        props.action = 'HIDE'
-
-        props = layout.operator("paint.hide_show_line_gesture", text="Line Show")
-        props.action = 'SHOW'
-
-        props = layout.operator("paint.hide_show_polyline_gesture", text="Polyline Hide")
-        props.action = 'HIDE'
-
-        props = layout.operator("paint.hide_show_polyline_gesture", text="Polyline Show")
-        props.action = 'SHOW'
+        layout.menu("VIEW3D_MT_sculpt_transform", text="Transform")
 
         layout.separator()
 
@@ -3850,30 +3819,7 @@ class VIEW3D_MT_sculpt(Menu):
         props = layout.operator("paint.visibility_filter", text="Shrink Visibility")
         props.action = "SHRINK"
 
-        layout.separator()
-
-        props = layout.operator("sculpt.trim_box_gesture", text="Box Trim")
-        props.trim_mode = 'DIFFERENCE'
-
-        props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Trim")
-        props.trim_mode = 'DIFFERENCE'
-
-        props = layout.operator("sculpt.trim_line_gesture", text="Line Trim")
-        props.trim_mode = 'DIFFERENCE'
-
-        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Trim")
-        props.trim_mode = 'DIFFERENCE'
-
-        props = layout.operator("sculpt.trim_box_gesture", text="Box Add")
-        props.trim_mode = 'JOIN'
-
-        props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Add")
-        props.trim_mode = 'JOIN'
-
-        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Add")
-        props.trim_mode = 'JOIN'
-
-        layout.operator("sculpt.project_line_gesture", text="Line Project")
+        layout.menu("VIEW3D_MT_sculpt_showhide", text="Show/Hide")
 
         layout.separator()
 
@@ -3884,6 +3830,12 @@ class VIEW3D_MT_sculpt(Menu):
         # Fair Tangency
         props = layout.operator("sculpt.face_set_edit", text="Fair Tangency")
         props.mode = 'FAIR_TANGENCY'
+
+        # Project
+        layout.operator("sculpt.project_line_gesture", text="Line Project")
+
+        # Trim/Add
+        layout.menu("VIEW3D_MT_sculpt_trim", text="Trim/Add")
 
         layout.separator()
 
@@ -3917,13 +3869,91 @@ class VIEW3D_MT_sculpt(Menu):
         layout.operator("sculpt.optimize")
 
         layout.operator(
-            "sculpt.dynamic_topology_toggle",
+            "sculpt.dynamic_topology_toggle", text="Dynamic Topology",
             icon='CHECKBOX_HLT' if context.sculpt_object.use_dynamic_topology_sculpting else 'CHECKBOX_DEHLT',
         )
 
         layout.separator()
 
         layout.operator("object.transfer_mode", text="Transfer Sculpt Mode")
+
+
+class VIEW3D_MT_sculpt_transform(Menu):
+    bl_label = "Transform"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("transform.translate")
+        layout.operator("transform.rotate")
+        layout.operator("transform.resize", text="Scale")
+
+        layout.separator()
+        props = layout.operator("sculpt.mesh_filter", text="To Sphere")
+        props.type = 'SPHERE'
+
+
+class VIEW3D_MT_sculpt_showhide(Menu):
+    bl_label = "Show/Hide"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        props = layout.operator("paint.hide_show", text="Box Hide")
+        props.action = 'HIDE'
+
+        props = layout.operator("paint.hide_show_lasso_gesture", text="Lasso Hide")
+        props.action = 'HIDE'
+
+        props = layout.operator("paint.hide_show_line_gesture", text="Line Hide")
+        props.action = 'HIDE'
+
+        props = layout.operator("paint.hide_show_polyline_gesture", text="Polyline Hide")
+        props.action = 'HIDE'
+
+        layout.separator()
+
+        props = layout.operator("paint.hide_show", text="Box Show")
+        props.action = 'SHOW'
+
+        props = layout.operator("paint.hide_show_lasso_gesture", text="Lasso Show")
+        props.action = 'SHOW'
+
+        props = layout.operator("paint.hide_show_line_gesture", text="Line Show")
+        props.action = 'SHOW'
+
+        props = layout.operator("paint.hide_show_polyline_gesture", text="Polyline Show")
+        props.action = 'SHOW'
+
+
+class VIEW3D_MT_sculpt_trim(Menu):
+    bl_label = "Trim/Add"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        props = layout.operator("sculpt.trim_box_gesture", text="Box Trim")
+        props.trim_mode = 'DIFFERENCE'
+
+        props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Trim")
+        props.trim_mode = 'DIFFERENCE'
+
+        props = layout.operator("sculpt.trim_line_gesture", text="Line Trim")
+        props.trim_mode = 'DIFFERENCE'
+
+        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Trim")
+        props.trim_mode = 'DIFFERENCE'
+
+        layout.separator()
+
+        props = layout.operator("sculpt.trim_box_gesture", text="Box Add")
+        props.trim_mode = 'JOIN'
+
+        props = layout.operator("sculpt.trim_lasso_gesture", text="Lasso Add")
+        props.trim_mode = 'JOIN'
+
+        props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Add")
+        props.trim_mode = 'JOIN'
 
 
 class VIEW3D_MT_sculpt_curves(Menu):
@@ -3946,9 +3976,6 @@ class VIEW3D_MT_mask(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        props = layout.operator("paint.mask_flood_fill", text="Invert Mask")
-        props.mode = 'INVERT'
-
         props = layout.operator("paint.mask_flood_fill", text="Fill Mask")
         props.mode = 'VALUE'
         props.value = 1
@@ -3957,11 +3984,17 @@ class VIEW3D_MT_mask(Menu):
         props.mode = 'VALUE'
         props.value = 0
 
+        props = layout.operator("paint.mask_flood_fill", text="Invert Mask")
+        props.mode = 'INVERT'
+
+        layout.separator()
+
         props = layout.operator("paint.mask_box_gesture", text="Box Mask")
         props.mode = 'VALUE'
         props.value = 0
 
         props = layout.operator("paint.mask_lasso_gesture", text="Lasso Mask")
+        props = layout.operator("paint.mask_line_gesture", text="Line Mask")
         props = layout.operator("paint.mask_polyline_gesture", text="Polyline Mask")
 
         layout.separator()
@@ -4016,7 +4049,7 @@ class VIEW3D_MT_mask(Menu):
 
         layout.separator()
 
-        props = layout.operator("sculpt.mask_from_cavity", text="Mask From Cavity")
+        props = layout.operator("sculpt.mask_from_cavity", text="Mask from Cavity")
         props.settings_source = 'OPERATOR'
 
         layout.separator()
@@ -6576,6 +6609,10 @@ class VIEW3D_PT_view3d_properties(Panel):
         sub.enabled = view.use_local_camera
         sub.prop(view, "camera", text="")
 
+        sub = col.row()
+        sub.active = view.region_3d.view_perspective == 'CAMERA'
+        sub.prop(view.overlay, "show_camera_passepartout", text="Passepartout")
+
         layout.separator()
 
         col = layout.column(align=True)
@@ -7252,8 +7289,6 @@ class VIEW3D_PT_overlay_guides(Panel):
         sub = split.column()
         sub.prop(overlay, "show_cursor", text="3D Cursor")
         sub.prop(overlay, "show_annotation", text="Annotations")
-        if view.region_3d.view_perspective == 'CAMERA':
-            sub.prop(overlay, "show_camera_passepartout", text="Passepartout")
 
         if shading.type == 'MATERIAL':
             row = col.row()
@@ -9295,6 +9330,9 @@ classes = (
     VIEW3D_MT_paint_weight_lock,
     VIEW3D_MT_sculpt,
     VIEW3D_MT_sculpt_set_pivot,
+    VIEW3D_MT_sculpt_transform,
+    VIEW3D_MT_sculpt_showhide,
+    VIEW3D_MT_sculpt_trim,
     VIEW3D_MT_mask,
     VIEW3D_MT_face_sets,
     VIEW3D_MT_face_sets_init,

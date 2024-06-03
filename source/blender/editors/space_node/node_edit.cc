@@ -252,8 +252,8 @@ static void compo_initjob(void *cjv)
     compo_tag_output_nodes(cj->localtree, cj->recalc_flags);
   }
 
-  cj->re = RE_NewSceneRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
+    cj->re = RE_NewInteractiveCompositorRender(scene);
     RE_system_gpu_context_ensure(cj->re);
   }
 }
@@ -276,7 +276,7 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
 {
   CompoJob *cj = (CompoJob *)cjv;
   bNodeTree *ntree = cj->localtree;
-  Scene *scene = cj->scene;
+  Scene *scene = DEG_get_evaluated_scene(cj->compositor_depsgraph);
 
   if (scene->use_nodes == false) {
     return;
@@ -295,18 +295,17 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
   ntree->runtime->update_draw = compo_redrawjob;
   ntree->runtime->udh = cj;
 
-  BKE_callback_exec_id(cj->bmain, &scene->id, BKE_CB_EVT_COMPOSITE_PRE);
+  BKE_callback_exec_id(cj->bmain, &cj->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
 
-  if ((cj->scene->r.scemode & R_MULTIVIEW) == 0) {
-    ntreeCompositExecTree(cj->re, cj->scene, ntree, &cj->scene->r, "", nullptr, &cj->profiler);
+  if ((scene->r.scemode & R_MULTIVIEW) == 0) {
+    ntreeCompositExecTree(cj->re, scene, ntree, &scene->r, "", nullptr, &cj->profiler);
   }
   else {
     LISTBASE_FOREACH (SceneRenderView *, srv, &scene->r.views) {
       if (BKE_scene_multiview_is_render_view_active(&scene->r, srv) == false) {
         continue;
       }
-      ntreeCompositExecTree(
-          cj->re, cj->scene, ntree, &cj->scene->r, srv->name, nullptr, &cj->profiler);
+      ntreeCompositExecTree(cj->re, scene, ntree, &scene->r, srv->name, nullptr, &cj->profiler);
     }
   }
 

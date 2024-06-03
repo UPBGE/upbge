@@ -159,8 +159,8 @@ bool OIDNDenoiserGPU::is_device_supported(const DeviceInfo &device)
 #  endif
 }
 
-OIDNDenoiserGPU::OIDNDenoiserGPU(Device *path_trace_device, const DenoiseParams &params)
-    : DenoiserGPU(path_trace_device, params)
+OIDNDenoiserGPU::OIDNDenoiserGPU(Device *denoiser_device, const DenoiseParams &params)
+    : DenoiserGPU(denoiser_device, params)
 {
   DCHECK_EQ(params.type, DENOISER_OPENIMAGEDENOISE);
 }
@@ -206,7 +206,7 @@ OIDNFilter OIDNDenoiserGPU::create_filter()
     OIDNError err = oidnGetDeviceError(oidn_device_, (const char **)&error_message);
     if (OIDN_ERROR_NONE != err) {
       LOG(ERROR) << "OIDN error: " << error_message;
-      denoiser_device_->set_error(error_message);
+      set_error(error_message);
     }
   }
 
@@ -257,7 +257,7 @@ bool OIDNDenoiserGPU::commit_and_execute_filter(OIDNFilter filter, ExecMode mode
       error_message = "Unspecified OIDN error";
     }
     LOG(ERROR) << "OIDN error: " << error_message;
-    denoiser_device_->set_error(error_message);
+    set_error(error_message);
     return false;
   }
   return true;
@@ -312,7 +312,7 @@ bool OIDNDenoiserGPU::denoise_create_if_needed(DenoiseContext &context)
   }
 
   if (!oidn_device_) {
-    denoiser_device_->set_error("Failed to create OIDN device");
+    set_error("Failed to create OIDN device");
     return false;
   }
 

@@ -22,7 +22,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_ccg.h"
+#include "BKE_ccg.hh"
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
@@ -573,8 +573,8 @@ static void partialvis_masked_update_grids(Depsgraph &depsgraph,
           CCGElem *grid = grids[grid_index];
           for (const int y : IndexRange(key.grid_size)) {
             for (const int x : IndexRange(key.grid_size)) {
-              CCGElem *elem = CCG_grid_elem(&key, grid, x, y);
-              if (*CCG_elem_mask(&key, elem) > 0.5f) {
+              CCGElem *elem = CCG_grid_elem(key, grid, x, y);
+              if (CCG_elem_mask(key, elem) > 0.5f) {
                 hide[y * key.grid_size + x].set(value);
               }
             }
@@ -1242,9 +1242,9 @@ static void partialvis_gesture_update_grids(Depsgraph &depsgraph,
         CCGElem *grid = grids[grid_index];
         for (const int y : IndexRange(key.grid_size)) {
           for (const int x : IndexRange(key.grid_size)) {
-            CCGElem *elem = CCG_grid_elem(&key, grid, x, y);
-            if (gesture::is_affected(
-                    gesture_data, CCG_elem_co(&key, elem), CCG_elem_no(&key, elem))) {
+            CCGElem *elem = CCG_grid_elem(key, grid, x, y);
+            if (gesture::is_affected(gesture_data, CCG_elem_co(key, elem), CCG_elem_no(key, elem)))
+            {
               hide[y * key.grid_size + x].set(value);
             }
           }
