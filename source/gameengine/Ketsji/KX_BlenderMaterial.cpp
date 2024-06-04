@@ -27,7 +27,6 @@
 #include "GPU_context.hh"
 #include "GPU_material.hh"
 #include "draw_manager.hh"
-#include "eevee_private.hh"
 
 #include "BL_Shader.h"
 #include "EXP_ListWrapper.h"
@@ -67,7 +66,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
   bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
   if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime && !using_eevee_next && !is_vulkan_backend) {
     if (!KX_GetActiveEngine()->UseViewportRender()) {
-      EEVEE_Data *vedata = EEVEE_engine_data_get();
+      /*EEVEE_Data *vedata = EEVEE_engine_data_get();
       EEVEE_EffectsInfo *effects = vedata->stl->effects;
       const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
                                  ((effects->enabled_effects & EFFECT_REFRACT) != 0);
@@ -81,7 +80,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
       }
       SET_FLAG_FROM_TEST(mat_options, use_ssrefract, VAR_MAT_REFRACT);
       m_gpuMat = EEVEE_material_get(
-          vedata, scene->GetBlenderScene(), m_material, NULL, mat_options);
+          vedata, scene->GetBlenderScene(), m_material, NULL, mat_options);*/
+      m_gpuMat = nullptr;
     }
     else {
       m_gpuMat = nullptr;

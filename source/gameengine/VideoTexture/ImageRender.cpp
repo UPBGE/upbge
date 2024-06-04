@@ -9,7 +9,13 @@
 
 #include "ImageRender.h"
 
-#include "eevee_private.hh"
+#include "BKE_context.hh"
+#include "BKE_scene.hh"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "DEG_depsgraph_query.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_viewport.hh"
 
 #include "CM_Message.h"
 #include "EXP_PythonCallBack.h"

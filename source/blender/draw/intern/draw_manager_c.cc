@@ -3483,7 +3483,6 @@ void DRW_gpu_context_activate(bool drw_state)
 #include "BKE_colortools.hh"
 #include "BLF_api.hh"
 #include "BLI_link_utils.h"
-#include "engines/eevee/eevee_private.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "IMB_colormanagement.hh"
@@ -3655,12 +3654,6 @@ void drw_debug_draw_bge(void)
 
 /*--End of UPBGE Viewport Debug Drawing--*/
 
-EEVEE_Data *EEVEE_engine_data_get(void)
-{
-  EEVEE_Data *data = (EEVEE_Data *)drw_viewport_data_ensure(DRW_game_gpu_viewport_get());
-  return data;
-}
-
 void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Depsgraph *depsgraph,
@@ -3714,13 +3707,7 @@ void DRW_game_render_loop(bContext *C,
   bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
 
   if (!is_vulkan_backend) {
-
-    if (!is_eevee_next(scene)) {
-      use_drw_engine(&draw_engine_eevee_type);
-    }
-    else {
-      use_drw_engine(&draw_engine_eevee_next_type);
-    }
+    use_drw_engine(&draw_engine_eevee_next_type);
 
     if (gpencil_engine_needed) {
       use_drw_engine(&draw_engine_gpencil_type);
@@ -3858,11 +3845,11 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
 
   drw_state_prepare_clean_for_draw(&DST);
 
-  use_drw_engine(&draw_engine_eevee_type);
+  /*use_drw_engine(&draw_engine_eevee_type);
 
   DST.draw_ctx.view_layer = view_layer;
 
-  EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
+  EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());*/
   DRW_engines_free();
 
   memset(&DST, 0xFF, offsetof(DRWManager, system_gpu_context));
