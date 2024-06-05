@@ -121,7 +121,6 @@ def extensions_panel_draw_legacy_addons(
         search_lower,
         extension_tags,
         enabled_only,
-        installed_only,
         used_addon_module_name_map,
         addon_modules,
 ):
@@ -447,7 +446,6 @@ def extensions_panel_draw_impl(
 
     layout = self.layout
 
-    wm = context.window_manager
     prefs = context.preferences
 
     if updates_only:
@@ -772,7 +770,6 @@ def extensions_panel_draw_impl(
             search_lower=search_lower,
             extension_tags=extension_tags,
             enabled_only=enabled_only,
-            installed_only=installed_only,
             used_addon_module_name_map=used_addon_module_name_map,
             addon_modules=addon_modules,
         )
@@ -898,7 +895,7 @@ def extensions_panel_draw(panel, context):
     row_b = row.row(align=True)
     row_b.prop(wm, "extension_type", text="")
     row_b.popover("USERPREF_PT_extensions_filter", text="", icon='FILTER')
-    row_b.popover("USERPREF_PT_extensions_tags", text="", icon='COLOR')
+    row_b.popover("USERPREF_PT_extensions_tags", text="", icon='TAG')
 
     row_b.separator()
     row_b.popover("USERPREF_PT_extensions_repos", text="Repositories")

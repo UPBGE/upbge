@@ -890,6 +890,14 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 52)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE)) {
+        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -4041,12 +4049,40 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 52)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE)) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 53)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_NODE) {
+            SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
+            snode->overlay.flag |= SN_OVERLAY_SHOW_REROUTE_AUTO_LABELS;
+          }
+        }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 55)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type != CMP_NODE_CURVE_RGB) {
+          continue;
+        }
+
+        CurveMapping &curve_mapping = *static_cast<CurveMapping *>(node->storage);
+
+        /* Film-like tone only works with the combined curve, which is the fourth curve, so make
+         * the combined curve current, as we now hide the rest of the curves since they no longer
+         * have an effect. */
+        if (curve_mapping.tone == CURVE_TONE_FILMLIKE) {
+          curve_mapping.cur = 3;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**

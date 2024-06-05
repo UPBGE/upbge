@@ -627,6 +627,7 @@ set(ICON_NAMES
   shortdisplay
   longdisplay
   imgdisplay
+  tag
   bookmarks
   fontpreview
   filter

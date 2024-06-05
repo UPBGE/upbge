@@ -613,35 +613,6 @@ static void node_composit_buts_combsep_color(uiLayout *layout, bContext * /*C*/,
   }
 }
 
-static void node_composit_backdrop_viewer(
-    SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y)
-{
-  //  node_composit_backdrop_canvas(snode, backdrop, node, x, y);
-  if (node->custom1 == 0) {
-    const float backdropWidth = backdrop->x;
-    const float backdropHeight = backdrop->y;
-    const float cx = x + snode->zoom * backdropWidth * node->custom3;
-    const float cy = y + snode->zoom * backdropHeight * node->custom4;
-    const float cross_size = 12 * U.pixelsize;
-
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-    immUniformColor3f(1.0f, 1.0f, 1.0f);
-
-    immBegin(GPU_PRIM_LINES, 4);
-    immVertex2f(pos, cx - cross_size, cy - cross_size);
-    immVertex2f(pos, cx + cross_size, cy + cross_size);
-    immVertex2f(pos, cx + cross_size, cy - cross_size);
-    immVertex2f(pos, cx - cross_size, cy + cross_size);
-    immEnd();
-
-    immUnbindProgram();
-  }
-}
-
 static void node_composit_backdrop_boxmask(
     SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y)
 {
@@ -864,9 +835,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
     case CMP_NODE_CRYPTOMATTE_LEGACY:
       ntype->draw_buttons = node_composit_buts_cryptomatte_legacy;
       ntype->draw_buttons_ex = node_composit_buts_cryptomatte_legacy_ex;
-      break;
-    case CMP_NODE_VIEWER:
-      ntype->draw_backdrop = node_composit_backdrop_viewer;
       break;
   }
 }
@@ -1894,7 +1862,7 @@ static void nodelink_batch_init()
   uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_U8, 2, GPU_FETCH_INT_TO_FLOAT_UNIT);
   uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint expand_id = GPU_vertformat_attr_add(&format, "expand", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(&format, GPU_USAGE_STATIC);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
   int vcount = LINK_RESOL * 2; /* curve */
   vcount += 2;                 /* restart strip */
   vcount += 3 * 2;             /* arrow */
@@ -1902,7 +1870,7 @@ static void nodelink_batch_init()
   vcount += 3 * 2;             /* mute */
   vcount *= 2;                 /* shadow */
   vcount += 2;                 /* restart strip */
-  GPU_vertbuf_data_alloc(vbo, vcount);
+  GPU_vertbuf_data_alloc(*vbo, vcount);
   int v = 0;
 
   for (int k = 0; k < 2; k++) {
@@ -1998,9 +1966,9 @@ static void nodelink_batch_init()
       &format_inst, "thickness", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   g_batch_link.dash_params_id = GPU_vertformat_attr_add(
       &format_inst, "dash_params", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  g_batch_link.inst_vbo = GPU_vertbuf_create_with_format_ex(&format_inst, GPU_USAGE_STREAM);
+  g_batch_link.inst_vbo = GPU_vertbuf_create_with_format_ex(format_inst, GPU_USAGE_STREAM);
   /* Alloc max count but only draw the range we need. */
-  GPU_vertbuf_data_alloc(g_batch_link.inst_vbo, NODELINK_GROUP_SIZE);
+  GPU_vertbuf_data_alloc(*g_batch_link.inst_vbo, NODELINK_GROUP_SIZE);
 
   GPU_batch_instbuf_set(g_batch_link.batch, g_batch_link.inst_vbo, true);
 
@@ -2044,7 +2012,7 @@ static void nodelink_batch_draw(const SpaceNode &snode)
 
   GPUUniformBuf *ubo = GPU_uniformbuf_create_ex(sizeof(node_link_data), &node_link_data, __func__);
 
-  GPU_vertbuf_data_len_set(g_batch_link.inst_vbo, g_batch_link.count);
+  GPU_vertbuf_data_len_set(*g_batch_link.inst_vbo, g_batch_link.count);
   GPU_vertbuf_use(g_batch_link.inst_vbo); /* force update. */
 
   GPU_batch_program_set_builtin(g_batch_link.batch, GPU_SHADER_2D_NODELINK_INST);
