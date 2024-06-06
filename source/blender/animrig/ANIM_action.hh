@@ -367,7 +367,27 @@ class Layer : public ::ActionLayer {
   blender::MutableSpan<Strip *> strips();
   const Strip *strip(int64_t index) const;
   Strip *strip(int64_t index);
+
+  /**
+   * Add a new Strip of the given type.
+   *
+   * \see strip_add<T>() for a templated version that returns the strip as its
+   * concrete C++ type.
+   */
   Strip &strip_add(Strip::Type strip_type);
+
+  /**
+   * Add a new strip of the type of T.
+   *
+   * T must be a concrete subclass of animrig::Strip.
+   *
+   * \see KeyframeStrip
+   */
+  template<typename T> T &strip_add()
+  {
+    Strip &strip = this->strip_add(T::TYPE);
+    return strip.as<T>();
+  }
 
   /**
    * Remove the strip from this layer.
@@ -456,9 +476,21 @@ static_assert(sizeof(Binding) == sizeof(::ActionBinding),
  */
 class KeyframeStrip : public ::KeyframeActionStrip {
  public:
+  /**
+   * Low-level strip type.
+   *
+   * Do not use this in comparisons directly, use Strip::as<KeyframeStrip>() or
+   * Strip::is<KeyframeStrip>() instead. This value is here only to make
+   * functions like those easier to write.
+   */
+  static constexpr Strip::Type TYPE = Strip::Type::Keyframe;
+
   KeyframeStrip() = default;
   KeyframeStrip(const KeyframeStrip &other);
   ~KeyframeStrip();
+
+  /** Implicitly convert a KeyframeStrip& to a Strip&. */
+  operator Strip &();
 
   /* ChannelBag array access. */
   blender::Span<const ChannelBag *> channelbags() const;
@@ -559,7 +591,7 @@ void unassign_animation(ID &animated_id);
  * binding, before un-assigning. This is to ensure that the stored name reflects
  * the actual binding that was used, making re-binding trivial.
  *
- * \param adt the AnimData of the animated ID.
+ * \param adt: the AnimData of the animated ID.
  *
  * \note this does not clear the Animation pointer, just the binding handle.
  */
