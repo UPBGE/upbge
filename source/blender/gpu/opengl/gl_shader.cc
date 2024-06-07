@@ -1655,7 +1655,7 @@ int GLShader::shader_get_uniform_location_old(const char *name)
   int loc = glGetUniformLocation(program_active_->program_id, name);
   return loc;
 }
-/**************End of UPBGE*************/v
+/**************End of UPBGE*************/
 
 /** \} */
 
