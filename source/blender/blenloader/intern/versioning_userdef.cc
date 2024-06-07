@@ -954,7 +954,7 @@ void blo_do_versions_userdef(UserDef *userdef)
           userdef, static_cast<bUserExtensionRepo *>(userdef->extension_repos.first));
     }
 
-    BKE_preferences_extension_repo_add_default(userdef);
+    BKE_preferences_extension_repo_add_default_remote(userdef);
     BKE_preferences_extension_repo_add_default_user(userdef);
   }
 
@@ -971,6 +971,10 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(402, 51)) {
     userdef->sequencer_editor_flag |= USER_SEQ_ED_SIMPLE_TWEAKING;
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 56)) {
+    BKE_preferences_extension_repo_add_default_system(userdef);
   }
 
   /**

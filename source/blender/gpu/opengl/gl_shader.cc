@@ -68,7 +68,7 @@ void GLShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
   async_compilation_ = is_batch_compilation;
 
   /* Extract the constants names from info and store them locally. */
-  for (const ShaderCreateInfo::SpecializationConstant &constant : info.specialization_constants_) {
+  for (const SpecializationConstant &constant : info.specialization_constants_) {
     specialization_constant_names_.append(constant.name.c_str());
   }
 }
@@ -617,8 +617,7 @@ std::string GLShader::constants_declare() const
   for (int constant_index : IndexRange(constants.types.size())) {
     const StringRefNull name = specialization_constant_names_[constant_index];
     gpu::shader::Type constant_type = constants.types[constant_index];
-    const shader::ShaderCreateInfo::SpecializationConstant::Value &value =
-        constants.values[constant_index];
+    const SpecializationConstant::Value &value = constants.values[constant_index];
 
     switch (constant_type) {
       case Type::INT:
@@ -1472,6 +1471,30 @@ Vector<const char *> GLSources::sources_get() const
   return result;
 }
 
+std::string GLSources::to_string() const
+{
+  std::string result;
+  for (const GLSource &source : *this) {
+    if (source.source_ref) {
+      result.append(source.source_ref);
+    }
+    else {
+      result.append(source.source);
+    }
+  }
+  return result;
+}
+
+size_t GLSourcesBaked::size()
+{
+  size_t result = 0;
+  result += comp.empty() ? 0 : comp.size() + sizeof('\0');
+  result += vert.empty() ? 0 : vert.size() + sizeof('\0');
+  result += geom.empty() ? 0 : geom.size() + sizeof('\0');
+  result += frag.empty() ? 0 : frag.size() + sizeof('\0');
+  return result;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1588,6 +1611,16 @@ GLuint GLShader::program_get()
   return program_active_->program_id;
 }
 
+GLSourcesBaked GLShader::get_sources()
+{
+  GLSourcesBaked result;
+  result.comp = compute_sources_.to_string();
+  result.vert = vertex_sources_.to_string();
+  result.geom = geometry_sources_.to_string();
+  result.frag = fragment_sources_.to_string();
+  return result;
+}
+
 /****************UPBGE*************************/
 char *GLShader::shader_validate()
 {
@@ -1622,7 +1655,7 @@ int GLShader::shader_get_uniform_location_old(const char *name)
   int loc = glGetUniformLocation(program_active_->program_id, name);
   return loc;
 }
-/**************End of UPBGE*************/
+/**************End of UPBGE*************/v
 
 /** \} */
 
@@ -1656,12 +1689,37 @@ GLCompilerWorker::~GLCompilerWorker()
   start_semaphore_->increment();
 }
 
-void GLCompilerWorker::compile(StringRefNull vert, StringRefNull frag)
+void GLCompilerWorker::compile(const GLSourcesBaked &sources)
 {
   BLI_assert(state_ == AVAILABLE);
 
-  strcpy((char *)shared_mem_->get_data(), vert.c_str());
-  strcpy((char *)shared_mem_->get_data() + vert.size() + sizeof('\0'), frag.c_str());
+  ShaderSourceHeader *shared_src = reinterpret_cast<ShaderSourceHeader *>(shared_mem_->get_data());
+  char *next_src = shared_src->sources;
+
+  auto add_src = [&](const std::string &src) {
+    if (!src.empty()) {
+      strcpy(next_src, src.c_str());
+      next_src += src.size() + sizeof('\0');
+    }
+  };
+
+  add_src(sources.comp);
+  add_src(sources.vert);
+  add_src(sources.geom);
+  add_src(sources.frag);
+
+  BLI_assert(size_t(next_src) <= size_t(shared_src) + compilation_subprocess_shared_memory_size);
+
+  if (!sources.comp.empty()) {
+    BLI_assert(sources.vert.empty() && sources.geom.empty() && sources.frag.empty());
+    shared_src->type = ShaderSourceHeader::Type::COMPUTE;
+  }
+  else {
+    BLI_assert(sources.comp.empty() && !sources.vert.empty() && !sources.frag.empty());
+    shared_src->type = sources.geom.empty() ?
+                           ShaderSourceHeader::Type::GRAPHICS :
+                           ShaderSourceHeader::Type::GRAPHICS_WITH_GEOMETRY_STAGE;
+  }
 
   start_semaphore_->increment();
 
@@ -1704,7 +1762,7 @@ bool GLCompilerWorker::load_program_binary(GLint program)
   state_ = COMPILATION_FINISHED;
 
   if (binary->size > 0) {
-    glProgramBinary(program, binary->format, &binary->data_start, binary->size);
+    glProgramBinary(program, binary->format, binary->data, binary->size);
     return true;
   }
 
@@ -1731,7 +1789,7 @@ GLShaderCompiler::~GLShaderCompiler()
   }
 }
 
-GLCompilerWorker *GLShaderCompiler::get_compiler_worker(const char *vert, const char *frag)
+GLCompilerWorker *GLShaderCompiler::get_compiler_worker(const GLSourcesBaked &sources)
 {
   GLCompilerWorker *result = nullptr;
   for (GLCompilerWorker *compiler : workers_) {
@@ -1745,7 +1803,7 @@ GLCompilerWorker *GLShaderCompiler::get_compiler_worker(const char *vert, const 
     workers_.append(result);
   }
   if (result) {
-    result->compile(vert, frag);
+    result->compile(sources);
   }
   return result;
 }
@@ -1775,31 +1833,21 @@ BatchHandle GLShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo 
 
   for (const shader::ShaderCreateInfo *info : infos) {
     const_cast<ShaderCreateInfo *>(info)->finalize();
-    CompilationWork item = {};
+    batch.items.append({});
+    CompilationWork &item = batch.items.last();
     item.info = info;
-    item.do_async_compilation = !info->vertex_source_.is_empty() &&
-                                !info->fragment_source_.is_empty() &&
-                                info->compute_source_.is_empty() &&
-                                info->geometry_source_.is_empty();
-    if (item.do_async_compilation) {
-      item.shader = static_cast<GLShader *>(compile(*info, true));
-      for (const char *src : item.shader->vertex_sources_.sources_get()) {
-        item.vertex_src.append(src);
-      }
-      for (const char *src : item.shader->fragment_sources_.sources_get()) {
-        item.fragment_src.append(src);
-      }
+    item.shader = static_cast<GLShader *>(compile(*info, true));
+    item.sources = item.shader->get_sources();
 
-      size_t required_size = item.vertex_src.size() + item.fragment_src.size();
-      if (required_size < compilation_subprocess_shared_memory_size) {
-        item.worker = get_compiler_worker(item.vertex_src.c_str(), item.fragment_src.c_str());
-      }
-      else {
-        delete item.shader;
-        item.do_async_compilation = false;
-      }
+    size_t required_size = item.sources.size();
+    item.do_async_compilation = required_size <= sizeof(ShaderSourceHeader::sources);
+    if (item.do_async_compilation) {
+      item.worker = get_compiler_worker(item.sources);
     }
-    batch.items.append(item);
+    else {
+      delete item.shader;
+      item.sources = {};
+    }
   }
   return handle;
 }
@@ -1827,7 +1875,7 @@ bool GLShaderCompiler::batch_is_ready(BatchHandle handle)
 
     if (!item.worker) {
       /* Try to acquire an available worker. */
-      item.worker = get_compiler_worker(item.vertex_src.c_str(), item.fragment_src.c_str());
+      item.worker = get_compiler_worker(item.sources);
     }
     else if (item.worker->is_ready()) {
       /* Retrieve the binary compiled by the worker. */
@@ -1873,6 +1921,99 @@ Vector<Shader *> GLShaderCompiler::batch_finalize(BatchHandle &handle)
   }
   handle = 0;
   return result;
+}
+
+void GLShaderCompiler::precompile_specializations(Span<ShaderSpecialization> specializations)
+{
+  BLI_assert(GPU_use_parallel_compilation());
+
+  struct SpecializationWork {
+    GLShader *shader = nullptr;
+    GLuint program;
+    GLSourcesBaked sources;
+
+    GLCompilerWorker *worker = nullptr;
+    bool do_async_compilation = false;
+    bool is_ready = false;
+  };
+
+  Vector<SpecializationWork> items;
+  items.reserve(specializations.size());
+
+  for (auto &specialization : specializations) {
+    GLShader *sh = static_cast<GLShader *>(unwrap(specialization.shader));
+    for (const SpecializationConstant &constant : specialization.constants) {
+      const ShaderInput *input = sh->interface->constant_get(constant.name.c_str());
+      BLI_assert_msg(input != nullptr, "The specialization constant doesn't exists");
+      sh->constants.values[input->location].u = constant.value.u;
+    }
+    sh->constants.is_dirty = true;
+    if (sh->program_cache_.contains(sh->constants.values)) {
+      /* Already compiled. */
+      continue;
+    }
+    items.append({});
+    SpecializationWork &item = items.last();
+    item.shader = sh;
+
+    /** WORKAROUND: Set async_compilation to true, so only the sources are generated. */
+    sh->async_compilation_ = true;
+    item.program = sh->program_get();
+    sh->async_compilation_ = false;
+
+    item.sources = sh->get_sources();
+
+    size_t required_size = item.sources.size();
+    item.do_async_compilation = required_size <= sizeof(ShaderSourceHeader::sources);
+  }
+
+  bool is_ready = false;
+  while (!is_ready) {
+    /* Loop until ready, we can't defer the compilation of required specialization constants. */
+    is_ready = true;
+
+    for (SpecializationWork &item : items) {
+      if (item.is_ready) {
+        continue;
+      }
+      std::scoped_lock lock(mutex_);
+
+      if (!item.do_async_compilation) {
+        /* Compilation will happen locally on shader bind. */
+        glDeleteProgram(item.program);
+        item.program = 0;
+        item.shader->program_active_->program_id = 0;
+        item.shader->constants.is_dirty = true;
+        item.is_ready = true;
+        continue;
+      }
+
+      if (item.worker == nullptr) {
+        /* Try to acquire an available worker. */
+        item.worker = get_compiler_worker(item.sources);
+      }
+      else if (item.worker->is_ready()) {
+        /* Retrieve the binary compiled by the worker. */
+        if (item.worker->load_program_binary(item.program)) {
+          item.worker->release();
+          item.worker = nullptr;
+          item.is_ready = true;
+        }
+        else {
+          /* Compilation failed, local compilation will be tried later on shader bind. */
+          item.do_async_compilation = false;
+        }
+      }
+      else if (worker_is_lost(item.worker)) {
+        /* We lost the worker, local compilation will be tried later on shader bind. */
+        item.do_async_compilation = false;
+      }
+
+      if (!item.is_ready) {
+        is_ready = false;
+      }
+    }
+  }
 }
 
 /** \} */

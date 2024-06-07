@@ -44,11 +44,13 @@ void main()
   vec2 center = vec2(strip.right_handle + strip.left_handle, strip.top + strip.bottom) * 0.5;
 
   /* Transform strip rectangle into pixel coordinates, so that
-   * rounded corners have proper aspect ratio and can be expressed in pixels. */
+   * rounded corners have proper aspect ratio and can be expressed in pixels.
+   * Also snap to pixel grid coorinates, so that outline/border is clear
+   * non-fractional pixel sizes. */
   vec2 view_to_pixel = vec2(context_data.inv_pixelx, context_data.inv_pixely);
-  size *= view_to_pixel;
-  center *= view_to_pixel;
-  vec2 pos = co * view_to_pixel;
+  size = round(size * view_to_pixel);
+  center = round(center * view_to_pixel);
+  vec2 pos = round(co * view_to_pixel);
 
   float radius = context_data.round_radius;
   if (radius > size.x) {
@@ -148,9 +150,9 @@ void main()
     vec4 col_outline = unpackUnorm4x8(strip.col_outline);
     if (selected) {
       /* Inset 1px line with background color. */
-      col = add_outline(sdf, 0.0, 1.0, col, unpackUnorm4x8(context_data.col_back));
+      col = add_outline(sdf, 0.0, 2.0, col, unpackUnorm4x8(context_data.col_back));
       /* 2x wide outline. */
-      col = add_outline(sdf, 0.5, -0.5, col, col_outline);
+      col = add_outline(sdf, 0.5, 0.5, col, col_outline);
     }
     else {
       col = add_outline(sdf, 0.0, 0.0, col, col_outline);

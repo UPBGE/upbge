@@ -1620,9 +1620,10 @@ IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
 
 bool BKE_pbvh_get_color_layer(Mesh *mesh, CustomDataLayer **r_layer, AttrDomain *r_domain)
 {
-  *r_layer = BKE_id_attribute_search_for_write(
-      &mesh->id, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_COLOR);
-  *r_domain = *r_layer ? BKE_id_attribute_domain(&mesh->id, *r_layer) : AttrDomain::Point;
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  *r_layer = BKE_attribute_search_for_write(
+      owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_COLOR);
+  *r_domain = *r_layer ? BKE_attribute_domain(owner, *r_layer) : AttrDomain::Point;
   return *r_layer != nullptr;
 }
 
@@ -2574,13 +2575,16 @@ static blender::draw::pbvh::PBVH_GPU_Args pbvh_draw_args_init(const Mesh &mesh,
 
   args.pbvh_type = pbvh.header.type;
 
+  /* Occasionally, the evaluated and original meshes are out of sync. Prefer using the pbvh mesh in
+   * these cases. See #115856 and #121008 */
   args.face_sets_color_default = pbvh.mesh ? pbvh.mesh->face_sets_color_default :
                                              mesh.face_sets_color_default;
   args.face_sets_color_seed = pbvh.mesh ? pbvh.mesh->face_sets_color_seed :
                                           mesh.face_sets_color_seed;
 
-  args.active_color = mesh.active_color_attribute;
-  args.render_color = mesh.default_color_attribute;
+  args.active_color = pbvh.mesh ? pbvh.mesh->active_color_attribute : mesh.active_color_attribute;
+  args.render_color = pbvh.mesh ? pbvh.mesh->default_color_attribute :
+                                  mesh.default_color_attribute;
 
   switch (pbvh.header.type) {
     case PBVH_FACES:

@@ -270,6 +270,15 @@ def repo_iter_valid_local_only(context):
         yield repo_item
 
 
+def wm_wait_cursor(value):
+    for wm in bpy.data.window_managers:
+        for window in wm.windows:
+            if value:
+                window.cursor_modal_set('WAIT')
+            else:
+                window.cursor_modal_restore()
+
+
 # A named-tuple copy of `context.preferences.extensions.repos` (`bpy.types.UserExtensionRepo`).
 # This is done for the following reasons.
 #
@@ -826,8 +835,6 @@ class CommandHandle:
         handle.wm = context.window_manager
 
         handle.wm.modal_handler_add(op)
-        for window in handle.wm.windows:
-            window.cursor_modal_set('WAIT')
 
         op._runtime_handle = handle
         return {'RUNNING_MODAL'}
@@ -873,9 +880,6 @@ class CommandHandle:
             context.workspace.status_text_set(None)
             repo_status_text.running = False
 
-            for window in self.wm.windows:
-                window.cursor_modal_restore()
-
             if self.request_exit:
                 return {'CANCELLED'}
             return {'FINISHED'}
@@ -883,6 +887,7 @@ class CommandHandle:
         return {'RUNNING_MODAL'}
 
     def op_modal_impl(self, op, context, event):
+        pass_through = True
         refresh = False
         if event.type == 'TIMER':
             refresh = True
@@ -891,9 +896,14 @@ class CommandHandle:
                 print("Request exit!")
                 self.request_exit = True
                 refresh = True
+                # This escape event was handled.
+                pass_through = False
 
         if refresh:
             return self.op_modal_step(op, context)
+
+        if pass_through:
+            return {'RUNNING_MODAL', 'PASS_THROUGH'}
         return {'RUNNING_MODAL'}
 
 
@@ -914,6 +924,39 @@ def _repo_dir_and_index_get(repo_index, directory, report_fn):
     if not directory:
         report_fn({'ERROR'}, "Repository not set")
     return directory
+
+
+def _extensions_maybe_online_action_poll_impl(cls, repo, action_text):
+
+    if repo is not None:
+        if not repo.enabled:
+            cls.poll_message_set("Active repository is disabled")
+            return False
+
+    if repo is None:
+        # This may not be correct but it's a reasonable assumption.
+        online_access_required = True
+    else:
+        # Check the specifics to allow refreshing a single repository from the popover.
+        online_access_required = repo.use_remote_url and (not repo.remote_url.startswith("file://"))
+
+    if online_access_required:
+        if not bpy.app.online_access:
+            cls.poll_message_set(
+                "Online access required to {:s}. {:s}".format(
+                    action_text,
+                    "Launch Blender without --offline-mode" if bpy.app.online_access_override else
+                    "Enable online access in System preferences"
+                )
+            )
+            return False
+
+    repos_all = extension_repos_read(use_active_only=False)
+    if not len(repos_all):
+        cls.poll_message_set("No repositories available")
+        return False
+
+    return True
 
 
 # -----------------------------------------------------------------------------
@@ -963,18 +1006,29 @@ class _ExtCmdMixIn:
         repo_status_text.title = cmd_batch.title
 
         result = CommandHandle.op_exec_from_iter(self, context, cmd_batch, is_modal)
+        canceled = None
         if 'FINISHED' in result:
-            self.exec_command_finish(False)
+            canceled = False
         elif 'CANCELLED' in result:
-            self.exec_command_finish(True)
+            canceled = True
+
+        if canceled is not None:
+            self.exec_command_finish(canceled)
         return result
 
     def modal(self, context, event):
         result = self._runtime_handle.op_modal_impl(self, context, event)
+        canceled = None
         if 'FINISHED' in result:
-            self.exec_command_finish(False)
+            canceled = False
         elif 'CANCELLED' in result:
-            self.exec_command_finish(True)
+            canceled = True
+
+        if canceled is not None:
+            wm_wait_cursor(True)
+            self.exec_command_finish(canceled)
+            wm_wait_cursor(False)
+
         return result
 
 
@@ -1079,24 +1133,15 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
     )
 
     @classmethod
-    def poll(cls, _context):
-        if not bpy.app.online_access:
-            if bpy.app.online_access_override:
-                cls.poll_message_set(
-                    "Online access required to check for updates. Launch Blender without --offline-mode"
-                )
-            else:
-                cls.poll_message_set(
-                    "Online access required to check for updates. Enable online access in System preferences"
-                )
-            return False
+    def poll(cls, context):
+        repo = getattr(context, "extension_repo", None)
+        return _extensions_maybe_online_action_poll_impl(cls, repo, "check for updates")
 
-        repos_all = extension_repos_read(use_active_only=False)
-        if not len(repos_all):
-            cls.poll_message_set("No repositories available")
-            return False
-
-        return True
+    @classmethod
+    def description(cls, context, props):
+        if props.use_active_only:
+            return "Refresh the list of extensions for the active repository"
+        return ""  # Default.
 
     def exec_command_iter(self, is_modal):
         use_active_only = self.use_active_only
@@ -1167,7 +1212,7 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
 class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
     """Upgrade all the extensions to their latest version for all the remote repositories"""
     bl_idname = "extensions.package_upgrade_all"
-    bl_label = "Ext Package Upgrade All"
+    bl_label = "Install Available Updates"
     __slots__ = (
         *_ExtCmdMixIn.cls_slots,
         "_repo_directories",
@@ -1179,21 +1224,23 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
     )
 
     @classmethod
-    def poll(cls, _context):
-        if not bpy.app.online_access:
-            if bpy.app.online_access_override:
-                cls.poll_message_set("Online access required to install updates. Launch Blender without --offline-mode")
-            else:
-                cls.poll_message_set(
-                    "Online access required to install updates. Enable online access in System preferences")
-            return False
+    def poll(cls, context):
+        repo = getattr(context, "extension_repo", None)
+        if repo is not None:
+            # NOTE: we could simply not show this operator for local repositories as it's
+            # arguably self evident that a local-only repository has nothing to upgrade from.
+            # For now tell the user why they can't use this action.
+            if not repo.use_remote_url:
+                cls.poll_message_set("Upgrade is not supported for local repositories")
+                return False
 
-        repos_all = extension_repos_read(use_active_only=False)
-        if not len(repos_all):
-            cls.poll_message_set("No repositories available")
-            return False
+        return _extensions_maybe_online_action_poll_impl(cls, repo, "install updates")
 
-        return True
+    @classmethod
+    def description(cls, context, props):
+        if props.use_active_only:
+            return "Upgrade all the extensions to their latest version for the active repository"
+        return ""  # Default.
 
     def exec_command_iter(self, is_modal):
         from . import repo_cache_store
