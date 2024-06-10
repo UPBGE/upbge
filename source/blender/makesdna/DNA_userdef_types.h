@@ -670,7 +670,7 @@ typedef enum eUserExtensionRepo_Flag {
 
 /**
  * The source to use (User or System), only valid when the
- * #USER_EXTENSION_REPO_FLAG_USE_CUSTOM_DIRECTORY flag isn't set.
+ * #USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL flag isn't set.
  */
 typedef enum eUserExtensionRepo_Source {
   USER_EXTENSION_REPO_SOURCE_USER = 0,
@@ -741,6 +741,7 @@ typedef struct UserDef_Experimental {
   char no_asset_indexing;
   char use_viewport_debug;
   char use_all_linked_data_direct;
+  char use_extensions_debug;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -753,7 +754,6 @@ typedef struct UserDef_Experimental {
   char enable_overlay_next;
   char use_new_volume_nodes;
   char use_shader_node_previews;
-  char use_extension_utils;
   char use_grease_pencil_version3_convert_on_load;
   char use_animation_baklava;
   char _pad[3];

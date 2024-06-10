@@ -4,7 +4,9 @@
 
 # ./blender.bin --background --python tests/python/bl_pyapi_idprop.py -- --verbose
 import bpy
+import rna_prop_ui
 import idprop
+
 import unittest
 from array import array
 
@@ -37,100 +39,144 @@ class TestHelper:
 
 
 class TestIdPropertyCreation(TestHelper, unittest.TestCase):
+    # Default testing idprop key identifier.
+    key_id = "a"
 
     def test_name_empty(self):
-        self.id[""] = 4
-        self.assertEqual(self.id[""], 4)
+        key_id = ""
+        value = 4
+        self.id[key_id] = value
+        self.assertEqual(self.id[key_id], value)
 
     def test_name_too_long(self):
         with self.assertRaises(KeyError):
             self.id["name" * 30] = 4
 
     def test_int(self):
-        self.id["a"] = 2
-        self.assertEqual(self.id["a"], 2)
-        self.assertTrue(isinstance(self.id["a"], int))
+        value = 2
+        self.id[self.key_id] = value
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], int))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
         with self.assertRaises(OverflowError):
-            self.id["a"] = 2 ** 31  # integer <= 2 ** 31-1
+            self.id[self.key_id] = 2 ** 31  # integer <= 2 ** 31-1
 
     def test_double(self):
-        self.id["a"] = 2.5
-        self.assertEqual(self.id["a"], 2.5)
-        self.assertTrue(isinstance(self.id["a"], float))
+        value = 2.5
+        self.id[self.key_id] = value
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], float))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_unicode(self):
-        self.id["a"] = "Hello World"
-        self.assertEqual(self.id["a"], "Hello World")
-        self.assertTrue(isinstance(self.id["a"], str))
+        value = "Hello World"
+        self.id[self.key_id] = value
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], str))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_bytes(self):
-        self.id["a"] = b"Hello World"
-        self.assertEqual(self.id["a"], b"Hello World")
-        self.assertTrue(isinstance(self.id["a"], bytes))
+        value = b"Hello World"
+        self.id[self.key_id] = value
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], bytes))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_enum(self):
-        self.id["a"] = 5
-        self.assertEqual(self.id["a"], 5)
-        self.assertTrue(isinstance(self.id["a"], int))
+        # Note: Fake enum, this merely creates a PROP_INT idprop.
+        value = 5
+        self.id[self.key_id] = value
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_double_list(self):
         mylist = [1.2, 3.4, 5.6]
-        self.id["a"] = mylist
-        self.assertEqual(self.id["a"].to_list(), mylist)
-        self.assertEqual(self.id["a"].typecode, "d")
+        self.id[self.key_id] = mylist
+        self.assertEqual(self.id[self.key_id].to_list(), mylist)
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_int_list(self):
         mylist = [1, 2, 3]
-        self.id["a"] = mylist
-        self.assertEqual(self.id["a"].to_list(), mylist)
-        self.assertEqual(self.id["a"].typecode, "i")
+        self.id[self.key_id] = mylist
+        self.assertEqual(self.id[self.key_id].to_list(), mylist)
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_float_array(self):
         mylist = [1.2, 3.4, 5.6]
-        self.id["a"] = array("f", mylist)
-        self.assertAlmostEqualSeq(self.id["a"].to_list(), mylist)
-        self.assertEqual(self.id["a"].typecode, "f")
+        self.id[self.key_id] = array("f", mylist)
+        self.assertAlmostEqualSeq(self.id[self.key_id].to_list(), mylist)
+        self.assertEqual(self.id[self.key_id].typecode, "f")
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_double_array(self):
         mylist = [1.2, 3.4, 5.6]
-        self.id["a"] = array("d", mylist)
-        self.assertAlmostEqualSeq(self.id["a"].to_list(), mylist)
-        self.assertEqual(self.id["a"].typecode, "d")
+        self.id[self.key_id] = array("d", mylist)
+        self.assertAlmostEqualSeq(self.id[self.key_id].to_list(), mylist)
+        self.assertEqual(self.id[self.key_id].typecode, "d")
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_int_array(self):
         mylist = [1, 2, 3]
-        self.id["a"] = array("i", mylist)
-        self.assertAlmostEqualSeq(self.id["a"].to_list(), mylist)
-        self.assertEqual(self.id["a"].typecode, "i")
+        self.id[self.key_id] = array("i", mylist)
+        self.assertAlmostEqualSeq(self.id[self.key_id].to_list(), mylist)
+        self.assertEqual(self.id[self.key_id].typecode, "i")
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_other_array(self):
         mylist = [1, 2, 3]
-        self.id["a"] = array("Q", mylist)
-        self.assertEqual(self.id["a"].to_list(), mylist)
+        self.id[self.key_id] = array("Q", mylist)
+        self.assertEqual(self.id[self.key_id].to_list(), mylist)
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_mixed_numerical_type(self):
-        self.id["a"] = [1, 2, 3.4, 5]
-        self.assertAlmostEqualSeq(self.id["a"].to_list(), [1.0, 2.0, 3.4, 5.0])
-        self.assertEqual(self.id["a"].typecode, "d")
+        self.id[self.key_id] = [1, 2, 3.4, 5]
+        self.assertAlmostEqualSeq(self.id[self.key_id].to_list(), [1.0, 2.0, 3.4, 5.0])
+        self.assertEqual(self.id[self.key_id].typecode, "d")
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_str_list(self):
         # I'm a bit surprised that this works
         mylist = ["abc", "qwe"]
-        self.id["a"] = mylist
-        self.assertEqual(self.id["a"], mylist)
+        self.id[self.key_id] = mylist
+        self.assertEqual(self.id[self.key_id], mylist)
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_sequence_mixed_type(self):
         with self.assertRaises(TypeError):
             mylist = ["abc", 3, "qwe", 3.4]
-            self.id["a"] = mylist
+            self.id[self.key_id] = mylist
 
     def test_mapping_simple(self):
         mydict = {"1": 10, "2": "20", "3": 30.5}
-        self.id["a"] = mydict
-        self.assertEqual(self.id["a"]["1"], mydict["1"])
-        self.assertEqual(self.id["a"]["2"], mydict["2"])
-        self.assertEqual(self.id["a"]["3"], mydict["3"])
+        self.id[self.key_id] = mydict
+        self.assertEqual(self.id[self.key_id]["1"], mydict["1"])
+        self.assertEqual(self.id[self.key_id]["2"], mydict["2"])
+        self.assertEqual(self.id[self.key_id]["3"], mydict["3"])
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
     def test_mapping_complex(self):
         mydict = {
@@ -138,19 +184,74 @@ class TestIdPropertyCreation(TestHelper, unittest.TestCase):
             "2": {"1": "abc", "2": array("i", [4, 5, 6])},
             "3": {"1": {"1": 10}, "2": b"qwe"},
         }
-        self.id["a"] = mydict
-        self.assertEqual(self.id["a"]["1"].to_list(), [1, 2, 3])
-        self.assertEqual(self.id["a"]["2"]["1"], "abc")
-        self.assertEqual(self.id["a"]["2"]["2"].to_list(), [4, 5, 6])
-        self.assertEqual(self.id["a"]["3"]["1"]["1"], 10)
-        self.assertEqual(self.id["a"]["3"]["2"], b"qwe")
+        self.id[self.key_id] = mydict
+        self.assertEqual(self.id[self.key_id]["1"].to_list(), [1, 2, 3])
+        self.assertEqual(self.id[self.key_id]["2"]["1"], "abc")
+        self.assertEqual(self.id[self.key_id]["2"]["2"].to_list(), [4, 5, 6])
+        self.assertEqual(self.id[self.key_id]["3"]["1"]["1"], 10)
+        self.assertEqual(self.id[self.key_id]["3"]["2"], b"qwe")
+        # Complex types currently return different object types.
+        # self.assertEqual(self.id[self.key_id],
+        #                  self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
 
         with self.assertRaises(KeyError):
-            a = self.id["a"]["2"]["a"]
+            a = self.id[self.key_id]["2"]["a"]
 
     def test_invalid_type(self):
         with self.assertRaises(TypeError):
-            self.id["a"] = self
+            self.id[self.key_id] = self
+
+
+class TestIdPropertyUIData(TestHelper, unittest.TestCase):
+    # Default testing idprop key identifier.
+    key_id = "a"
+
+    def test_int(self):
+        value = 2
+        rna_prop_ui.rna_idprop_ui_create(self.id, self.key_id, default=value)
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], int))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
+
+    def test_double(self):
+        value = 2.5
+        rna_prop_ui.rna_idprop_ui_create(self.id, self.key_id, default=value)
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], float))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
+
+    def test_unicode(self):
+        value = "Hello World"
+        rna_prop_ui.rna_idprop_ui_create(self.id, self.key_id, default=value)
+        self.assertEqual(self.id[self.key_id], value)
+        self.assertTrue(isinstance(self.id[self.key_id], str))
+        self.assertEqual(self.id[self.key_id],
+                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
+
+    # NOTE: Bytes strings are not supported currently.
+
+    def test_enum(self):
+        value = 1
+        items = [('A', '', ''), ('B', '', '')]
+        rna_prop_ui.rna_idprop_ui_create(self.id, self.key_id, default=value, items=items)
+        # 'Enum' 'type' of idprop currently returns integer value for direct subscription,
+        # and string key for `path_resolve` usage. See also #122843 .
+        self.assertEqual(self.id[self.key_id], value)
+        if False:  # FIXME
+            self.assertEqual(self.id[self.key_id],
+                             self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
+        else:
+            self.assertEqual(self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)), 'B')
+        self.assertEqual(self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)), 'B')
+        self.id[self.key_id] = 0
+        self.assertEqual(self.id[self.key_id], 0)
+        if False:  # FIXME
+            self.assertEqual(self.id[self.key_id],
+                             self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
+        else:
+            self.assertEqual(self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)), 'A')
 
 
 class TestIdPropertyGroupView(TestHelper, unittest.TestCase):
