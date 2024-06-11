@@ -1033,6 +1033,11 @@ class _ExtCmdMixIn:
         return result
 
     def cancel(self, context):
+        # Happens when canceling before the operator has run any commands.
+        # Canceling from an operator popup dialog for example.
+        if not hasattr(self, "_runtime_handle"):
+            return
+
         canceled = True
         self._runtime_handle.op_modal_cancel(self, context)
         self.exec_command_finish(canceled)
@@ -1088,13 +1093,8 @@ class EXTENSIONS_OT_repo_sync(Operator, _ExtCmdMixIn):
         # Needed to refresh.
         self.repo_directory = directory
 
-        # Lock repositories.
-        self.repo_lock = bl_extension_utils.RepoLock(
-            repo_directories=[directory],
-            cookie=cookie_from_session(),
-        )
-        if lock_result_any_failed_with_report(self, self.repo_lock.acquire()):
-            return None
+        # See comment for `EXTENSIONS_OT_repo_sync_all`.
+        repos_lock = []
 
         cmd_batch = []
         if repo_item.remote_url:
@@ -1109,6 +1109,15 @@ class EXTENSIONS_OT_repo_sync(Operator, _ExtCmdMixIn):
                     use_idle=is_modal,
                 )
             )
+            repos_lock.append(repo_item.directory)
+
+        # Lock repositories.
+        self.repo_lock = bl_extension_utils.RepoLock(
+            repo_directories=repos_lock,
+            cookie=cookie_from_session(),
+        )
+        if lock_result_any_failed_with_report(self, self.repo_lock.acquire()):
+            return None
 
         return bl_extension_utils.CommandBatch(
             title="Sync",
@@ -1176,6 +1185,10 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
                     self.report({'WARNING'}, str(ex))
                     return None
 
+        # It's only required to lock remote repositories, local repositories can refresh without being modified,
+        # this is essential for system repositories which may be read-only.
+        repos_lock = []
+
         cmd_batch = []
         for repo_item in repos_all:
             # Local only repositories should still refresh, but not run the sync.
@@ -1189,8 +1202,7 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
                     access_token=repo_item.access_token,
                     use_idle=is_modal,
                 ))
-
-        repos_lock = [repo_item.directory for repo_item in repos_all]
+                repos_lock.append(repo_item.directory)
 
         # Lock repositories.
         self.repo_lock = bl_extension_utils.RepoLock(
@@ -1259,6 +1271,51 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
         _preferences_ui_refresh_addons()
 
         return {'FINISHED'}
+
+
+# Show a dialog when dropping a URL from an unknown repository,
+# with the option to add the repository.
+class EXTENSIONS_OT_repo_add_from_drop(Operator):
+    bl_idname = "extensions.repo_add_from_drop"
+    bl_label = "Add Repository Drop"
+    bl_options = {'INTERNAL'}
+
+    url: rna_prop_url
+
+    def invoke(self, context, _event):
+        wm = context.window_manager
+
+        wm.invoke_props_dialog(
+            self,
+            width=400,
+            confirm_text="Add Repository",
+            title="Unknown Repository",
+        )
+
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        # Open an "Add Remote Repository" popup with the URL pre-filled.
+        bpy.ops.preferences.extension_repo_add('INVOKE_DEFAULT', type='REMOTE', remote_url=self.url)
+        return {'CANCELLED'}
+
+    def draw(self, context):
+        url = self.url
+        # Skip the URL prefix scheme, e.g. `https://` for less "noisy" outpout.
+        url_split = url.partition("://")
+        url_for_display = url_split[2] if url_split[2] else url
+
+        layout = self.layout
+        col = layout.column()
+        lines = (
+            iface_("The dropped URL comes from an unknown repository from:"),
+            url_for_display,
+            iface_("You may optionally add this repository now."),
+            iface_("Once the repository has been created the URL"),
+            iface_("will need to be dropped again."),
+        )
+        for line in lines:
+            col.label(text=line, translate=False)
 
 
 class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
@@ -2179,7 +2236,11 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         repo_index, repo_name, pkg_id, item_remote, item_local = extension_url_find_repo_index_and_pkg_id(url)
 
         if repo_index == -1:
-            self.report({'ERROR'}, "Extension: URL not found in remote repositories!\n{:s}".format(url))
+            # The `remote_url` may not be defined, in this case there is not much we can do.
+            if not remote_url:
+                self.report({'ERROR'}, "Extension: URL not found in remote repositories!\n{:s}".format(url))
+            else:
+                bpy.ops.extensions.repo_add_from_drop('INVOKE_DEFAULT', url=remote_url)
             return {'CANCELLED'}
 
         if item_local is not None:
@@ -2753,6 +2814,7 @@ classes = (
     EXTENSIONS_OT_repo_sync,
     EXTENSIONS_OT_repo_sync_all,
     EXTENSIONS_OT_repo_refresh_all,
+    EXTENSIONS_OT_repo_add_from_drop,
 
     EXTENSIONS_OT_package_install_files,
     EXTENSIONS_OT_package_install,
