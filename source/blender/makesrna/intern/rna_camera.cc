@@ -760,9 +760,9 @@ void RNA_def_camera(BlenderRNA *brna)
       prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
   RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 
-  prop = RNA_def_property(srna, "overlay_disable_bloom", PROP_BOOLEAN, PROP_NONE);
+  /*prop = RNA_def_property(srna, "overlay_disable_bloom", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_BLOOM);
-  RNA_def_property_ui_text(prop, "Disable Bloom", "Disable Bloom in Overlay Pass");
+  RNA_def_property_ui_text(prop, "Disable Bloom", "Disable Bloom in Overlay Pass");*/// not in eevee-next
 
   prop = RNA_def_property(srna, "overlay_disable_ao", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_AO);

@@ -3851,7 +3851,7 @@ void DRW_game_viewport_render_loop_end()
   drw_debug_draw_bge();
 }
 
-void DRW_game_python_loop_end(ViewLayer *view_layer)
+void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
 {
   /* When we run blenderplayer -p script.py
    * the GPUViewport to render the scene is not
