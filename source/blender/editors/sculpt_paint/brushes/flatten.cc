@@ -9,7 +9,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_key.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_pbvh.hh"
@@ -17,6 +16,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.h"
@@ -27,7 +27,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-inline namespace draw_cc {
+inline namespace flatten_cc {
 
 struct LocalData {
   Vector<float> factors;
@@ -37,7 +37,8 @@ struct LocalData {
 
 static void calc_faces(const Sculpt &sd,
                        const Brush &brush,
-                       const float3 &offset,
+                       const float4 &plane,
+                       const float strength,
                        const Span<float3> positions_eval,
                        const Span<float3> vert_normals,
                        const PBVHNode &node,
@@ -71,11 +72,13 @@ static void calc_faces(const Sculpt &sd,
 
   calc_brush_texture_factors(ss, brush, positions_eval, verts, factors);
 
+  scale_factors(factors, strength);
+
   tls.translations.reinitialize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  for (const int i : verts.index_range()) {
-    translations[i] = offset * factors[i];
-  }
+  scrape_calc_translations(positions_eval, verts, plane, translations);
+  scrape_calc_plane_trim_limit(brush, *ss.cache, translations, factors);
+  scale_translations(translations, factors);
 
   clip_and_lock_translations(sd, ss, positions_eval, verts, translations);
 
@@ -89,7 +92,8 @@ static void calc_faces(const Sculpt &sd,
   apply_translations_to_shape_keys(object, verts, translations, positions_orig);
 }
 
-static void calc_grids(Object &object, const Brush &brush, const float3 &offset, PBVHNode &node)
+static void calc_grids(
+    Object &object, const Brush &brush, const float4 &plane, const float strength, PBVHNode &node)
 {
   SculptSession &ss = *object.sculpt;
 
@@ -121,6 +125,16 @@ static void calc_grids(Object &object, const Brush &brush, const float3 &offset,
         i++;
         continue;
       }
+
+      float3 closest;
+      closest_to_plane_normalized_v3(closest, plane, co);
+      const float3 translation = closest - co;
+
+      if (!SCULPT_plane_trim(*ss.cache, brush, translation)) {
+        i++;
+        continue;
+      }
+
       auto_mask::node_update(automask_data, i);
       const float fade = SCULPT_brush_strength_factor(
           ss,
@@ -133,13 +147,14 @@ static void calc_grids(Object &object, const Brush &brush, const float3 &offset,
           BKE_pbvh_make_vref(grid_verts_start + j),
           thread_id,
           &automask_data);
-      proxy[i] = offset * fade;
+      proxy[i] = translation * fade * strength;
       i++;
     }
   }
 }
 
-static void calc_bmesh(Object &object, const Brush &brush, const float3 &offset, PBVHNode &node)
+static void calc_bmesh(
+    Object &object, const Brush &brush, const float4 &plane, const float strength, PBVHNode &node)
 {
   SculptSession &ss = *object.sculpt;
 
@@ -165,6 +180,16 @@ static void calc_bmesh(Object &object, const Brush &brush, const float3 &offset,
       i++;
       continue;
     }
+
+    float3 closest;
+    closest_to_plane_normalized_v3(closest, plane, vert->co);
+    const float3 translation = closest - float3(vert->co);
+
+    if (!SCULPT_plane_trim(*ss.cache, brush, translation)) {
+      i++;
+      continue;
+    }
+
     auto_mask::node_update(automask_data, *vert);
     const float mask = mask_offset == -1 ? 0.0f : BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
     const float fade = SCULPT_brush_strength_factor(ss,
@@ -177,20 +202,29 @@ static void calc_bmesh(Object &object, const Brush &brush, const float3 &offset,
                                                     BKE_pbvh_make_vref(intptr_t(vert)),
                                                     thread_id,
                                                     &automask_data);
-    proxy[i] = offset * fade;
+    proxy[i] = translation * fade * strength;
     i++;
   }
 }
 
-}  // namespace draw_cc
+}  // namespace flatten_cc
 
-static void offset_positions(const Sculpt &sd,
-                             Object &object,
-                             const float3 &offset,
-                             Span<PBVHNode *> nodes)
+void do_flatten_brush(const Sculpt &sd, Object &object, Span<PBVHNode *> nodes)
 {
   const SculptSession &ss = *object.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+
+  float3 area_no;
+  float3 area_co;
+  calc_brush_plane(brush, object, nodes, area_no, area_co);
+  SCULPT_tilt_apply_to_normal(area_no, ss.cache, brush.tilt_strength_factor);
+
+  const float offset = SCULPT_brush_plane_offset_get(sd, ss);
+  const float displace = ss.cache->radius * offset;
+  area_co += area_no * ss.cache->scale * displace;
+
+  float4 plane;
+  plane_from_point_normal_v3(plane, area_co, area_no);
 
   switch (BKE_pbvh_type(*object.sculpt->pbvh)) {
     case PBVH_FACES: {
@@ -205,7 +239,8 @@ static void offset_positions(const Sculpt &sd,
         for (const int i : range) {
           calc_faces(sd,
                      brush,
-                     offset,
+                     plane,
+                     ss.cache->bstrength,
                      positions_eval,
                      vert_normals,
                      *nodes[i],
@@ -220,43 +255,18 @@ static void offset_positions(const Sculpt &sd,
     case PBVH_GRIDS:
       threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
         for (const int i : range) {
-          calc_grids(object, brush, offset, *nodes[i]);
+          calc_grids(object, brush, plane, ss.cache->bstrength, *nodes[i]);
         }
       });
       break;
     case PBVH_BMESH:
       threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
         for (const int i : range) {
-          calc_bmesh(object, brush, offset, *nodes[i]);
+          calc_bmesh(object, brush, plane, ss.cache->bstrength, *nodes[i]);
         }
       });
       break;
   }
-}
-
-void do_draw_brush(const Sculpt &sd, Object &object, Span<PBVHNode *> nodes)
-{
-  const SculptSession &ss = *object.sculpt;
-  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-
-  float3 effective_normal;
-  SCULPT_tilt_effective_normal_get(ss, brush, effective_normal);
-
-  const float3 offset = effective_normal * ss.cache->radius * ss.cache->scale *
-                        ss.cache->bstrength;
-
-  offset_positions(sd, object, offset, nodes);
-}
-
-void do_nudge_brush(const Sculpt &sd, Object &object, Span<PBVHNode *> nodes)
-{
-  const SculptSession &ss = *object.sculpt;
-
-  const float3 offset = math::cross(
-      math::cross(ss.cache->sculpt_normal_symm, ss.cache->grab_delta_symmetry),
-      ss.cache->sculpt_normal_symm);
-
-  offset_positions(sd, object, offset * ss.cache->bstrength, nodes);
 }
 
 }  // namespace blender::ed::sculpt_paint

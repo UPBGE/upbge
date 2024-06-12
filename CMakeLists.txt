@@ -1279,6 +1279,9 @@ set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_CYCLES_OSL OFF)
 # Hydra requires USD.
 set_and_warn_dependency(WITH_USD WITH_HYDRA OFF)
 
+# The Ocean modifier requires FFTW3.
+set_and_warn_dependency(WITH_FFTW3 WITH_MOD_OCEANSIM OFF)
+
 if(NOT WITH_CYCLES)
   set(WITH_CYCLES_OSL OFF)
 endif()
@@ -1481,10 +1484,6 @@ endif()
 
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
-
-if(NOT WITH_FFTW3 AND WITH_MOD_OCEANSIM)
-  message(FATAL_ERROR "WITH_MOD_OCEANSIM requires WITH_FFTW3 to be ON")
-endif()
 
 if(WITH_INTERNATIONAL)
   if(NOT WITH_BOOST)

@@ -3764,7 +3764,17 @@ static void do_brush_action(const Sculpt &sd,
     }
     case SCULPT_TOOL_SMOOTH:
       if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_LAPLACIAN) {
-        smooth::do_smooth_brush(sd, ob, nodes);
+        /* NOTE: The enhance brush needs to initialize its state on the first brush step. The
+         * stroke strength can become 0 during the stroke, but it can not change sign (the sign is
+         * determined in the beginning of the stroke. So here it is important to not switch to
+         * enhance brush in the middle of the stroke. */
+        if (ss.cache->bstrength < 0.0f) {
+          /* Invert mode, intensify details. */
+          smooth::enhance_details_brush(sd, ob, nodes);
+        }
+        else {
+          do_smooth_brush(sd, ob, nodes, std::clamp(ss.cache->bstrength, 0.0f, 1.0f));
+        }
       }
       else if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_SURFACE) {
         smooth::do_surface_smooth_brush(sd, ob, nodes);
@@ -3780,7 +3790,7 @@ static void do_brush_action(const Sculpt &sd,
       SCULPT_do_pinch_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_INFLATE:
-      SCULPT_do_inflate_brush(sd, ob, nodes);
+      do_inflate_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_GRAB:
       SCULPT_do_grab_brush(sd, ob, nodes);
@@ -3792,7 +3802,7 @@ static void do_brush_action(const Sculpt &sd,
       SCULPT_do_snake_hook_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_NUDGE:
-      SCULPT_do_nudge_brush(sd, ob, nodes);
+      do_nudge_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_THUMB:
       SCULPT_do_thumb_brush(sd, ob, nodes);
@@ -3801,7 +3811,7 @@ static void do_brush_action(const Sculpt &sd,
       SCULPT_do_layer_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_FLATTEN:
-      SCULPT_do_flatten_brush(sd, ob, nodes);
+      do_flatten_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_CLAY:
       SCULPT_do_clay_brush(sd, ob, nodes);
@@ -3856,7 +3866,7 @@ static void do_brush_action(const Sculpt &sd,
       face_set::do_draw_face_sets_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_DISPLACEMENT_ERASER:
-      SCULPT_do_displacement_eraser_brush(sd, ob, nodes);
+      do_displacement_eraser_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_DISPLACEMENT_SMEAR:
       SCULPT_do_displacement_smear_brush(sd, ob, nodes);
@@ -3873,11 +3883,10 @@ static void do_brush_action(const Sculpt &sd,
       brush.autosmooth_factor > 0)
   {
     if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
-      smooth::do_smooth_brush(
-          sd, ob, nodes, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
+      do_smooth_brush(sd, ob, nodes, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
     }
     else {
-      smooth::do_smooth_brush(sd, ob, nodes, brush.autosmooth_factor);
+      do_smooth_brush(sd, ob, nodes, brush.autosmooth_factor);
     }
   }
 
@@ -5997,9 +6006,9 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
   {
     return OPERATOR_CANCELLED;
   }
-  if (brush.sculpt_tool == SCULPT_TOOL_DISPLACEMENT_SMEAR) {
-    if (!ss.pbvh || BKE_pbvh_type(*ss.pbvh) == PBVH_BMESH) {
-      BKE_report(op->reports, RPT_ERROR, "Not supported in dynamic topology mode");
+  if (ELEM(brush.sculpt_tool, SCULPT_TOOL_DISPLACEMENT_SMEAR, SCULPT_TOOL_DISPLACEMENT_ERASER)) {
+    if (!ss.pbvh || BKE_pbvh_type(*ss.pbvh) != PBVH_GRIDS) {
+      BKE_report(op->reports, RPT_ERROR, "Only supported in multiresolution mode");
       return OPERATOR_CANCELLED;
     }
   }
@@ -6744,6 +6753,45 @@ void scale_factors(const MutableSpan<float> factors, const float strength)
   }
   for (float &factor : factors) {
     factor *= strength;
+  }
+}
+
+void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
+                                  const Span<int> corner_verts,
+                                  const GroupedSpan<int> vert_to_face,
+                                  const BitSpan boundary_verts,
+                                  const Span<bool> hide_poly,
+                                  const Span<int> verts,
+                                  const MutableSpan<Vector<int>> result)
+{
+  BLI_assert(result.size() == verts.size());
+  BLI_assert(corner_verts.size() == faces.total_size());
+  for (Vector<int> &vector : result) {
+    vector.clear();
+  }
+
+  for (const int i : verts.index_range()) {
+    const int vert = verts[i];
+    Vector<int> &neighbors = result[i];
+    for (const int face : vert_to_face[vert]) {
+      if (!hide_poly.is_empty() && hide_poly[face]) {
+        continue;
+      }
+      const int2 verts = bke::mesh::face_find_adjacent_verts(faces[face], corner_verts, vert);
+      neighbors.append_non_duplicates(verts[0]);
+      neighbors.append_non_duplicates(verts[1]);
+    }
+
+    if (boundary_verts[vert]) {
+      if (neighbors.size() == 2) {
+        /* Do not include neighbors of corner vertices. */
+        neighbors.clear();
+      }
+      else {
+        /* Only include other boundary vertices as neighbors of boundary vertices. */
+        neighbors.remove_if([&](const int vert) { return !boundary_verts[vert]; });
+      }
+    }
   }
 }
 
