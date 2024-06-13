@@ -53,6 +53,11 @@ void scale_factors(MutableSpan<float> factors, float strength);
  */
 
 /**
+ * Calculate initial influence factors based on vertex visibility.
+ */
+void fill_factor_from_hide(const Mesh &mesh, Span<int> vert_indices, MutableSpan<float> r_factors);
+
+/**
  * Calculate initial influence factors based on vertex visibility and masking.
  */
 void fill_factor_from_hide_and_mask(const Mesh &mesh,
@@ -175,13 +180,28 @@ void calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                   Span<int> verts,
                                   MutableSpan<Vector<int>> result);
 
-void scrape_calc_translations(const Span<float3> vert_positions,
-                              const Span<int> verts,
-                              const float4 &plane,
-                              const MutableSpan<float3> translations);
-void scrape_calc_plane_trim_limit(const Brush &brush,
-                                  const StrokeCache &cache,
-                                  const Span<float3> translations,
-                                  const MutableSpan<float> factors);
+/** Find the translation from each vertex position to the closest point on the plane. */
+void calc_translations_to_plane(Span<float3> vert_positions,
+                                Span<int> verts,
+                                const float4 &plane,
+                                MutableSpan<float3> translations);
+
+/** Ignore points that fall below the "plane trim" threshold for the brush. */
+void filter_plane_trim_limit_factors(const Brush &brush,
+                                     const StrokeCache &cache,
+                                     Span<float3> translations,
+                                     MutableSpan<float> factors);
+
+/** Ignore points below the plane. */
+void filter_below_plane_factors(Span<float3> vert_positions,
+                                Span<int> verts,
+                                const float4 &plane,
+                                MutableSpan<float> factors);
+
+/* Ignore points above the plane. */
+void filter_above_plane_factors(Span<float3> vert_positions,
+                                Span<int> verts,
+                                const float4 &plane,
+                                MutableSpan<float> factors);
 
 }  // namespace blender::ed::sculpt_paint
