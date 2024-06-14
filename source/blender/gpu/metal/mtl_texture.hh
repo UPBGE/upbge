@@ -486,7 +486,7 @@ class MTLPixelBuffer : public PixelBuffer {
   id<MTLBuffer> buffer_ = nil;
 
  public:
-  MTLPixelBuffer(uint size);
+  MTLPixelBuffer(size_t size);
   ~MTLPixelBuffer();
 
   void *map() override;

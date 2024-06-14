@@ -375,13 +375,14 @@ extensions_map_from_legacy_addons_url = None
 # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
 def extensions_map_from_legacy_addons_ensure():
     import os
-    global extensions_map_from_legacy_addons
-    global extensions_map_from_legacy_addons_url
+    # pylint: disable-next=global-statement
+    global extensions_map_from_legacy_addons, extensions_map_from_legacy_addons_url
     if extensions_map_from_legacy_addons is not None:
         return
 
     filepath = os.path.join(os.path.dirname(__file__), "extensions_map_from_legacy_addons.py")
     with open(filepath, "rb") as fh:
+        # pylint: disable-next=eval-used
         data = eval(compile(fh.read(), filepath, "eval"), {})
     extensions_map_from_legacy_addons = data["extensions"]
     extensions_map_from_legacy_addons_url = data["remote_url"]
@@ -610,7 +611,7 @@ def extensions_panel_draw_impl(
                 local_ex = None
             continue
 
-        has_remote = (repos_all[repo_index].remote_url != "")
+        has_remote = repos_all[repo_index].remote_url != ""
         if pkg_manifest_remote is None:
             if has_remote:
                 # NOTE: it would be nice to detect when the repository ran sync and it failed.
@@ -658,12 +659,14 @@ def extensions_panel_draw_impl(
                 if is_installed:
                     # Currently we only need to know the module name once installed.
                     addon_module_name = "bl_ext.{:s}.{:s}".format(repos_all[repo_index].module, pkg_id)
+                    # pylint: disable-next=possibly-used-before-assignment
                     is_enabled = addon_module_name in used_addon_module_name_map
 
                 else:
                     is_enabled = False
                     addon_module_name = None
             elif is_theme:
+                # pylint: disable-next=possibly-used-before-assignment
                 is_enabled = (repo_index, pkg_id) == active_theme_info
                 addon_module_name = None
             else:
@@ -823,7 +826,7 @@ def extensions_panel_draw_impl(
                     # As it happens dictionary keys & list values both iterate over string,
                     # however we will want to show the dictionary values eventually.
                     if (value := item_remote.permissions):
-                        col_b.label(text=", ".join([iface_(x.title()) for x in value]), translate=False)
+                        col_b.label(text=", ".join([iface_(x).title() for x in value]), translate=False)
                     else:
                         col_b.label(text="No permissions specified")
                     del value
@@ -868,6 +871,7 @@ def extensions_panel_draw_impl(
             extension_tags=extension_tags,
             enabled_only=enabled_only,
             used_addon_module_name_map=used_addon_module_name_map,
+            # pylint: disable-next=possibly-used-before-assignment
             addon_modules=addon_modules,
         )
 
@@ -939,7 +943,7 @@ class USERPREF_PT_extensions_filter(Panel):
         col = layout.column(heading="Show")
         col.use_property_split = True
         sub = col.column()
-        sub.active = (not wm.extension_updates_only)
+        sub.active = not wm.extension_updates_only
         sub.prop(wm, "extension_show_legacy_addons", text="Legacy Add-ons")
 
 
@@ -963,8 +967,6 @@ class USERPREF_MT_extensions_settings(Menu):
 
         prefs = context.preferences
 
-        addon_prefs = prefs.addons[__package__].preferences
-
         layout.operator("extensions.repo_sync_all", icon='FILE_REFRESH')
         layout.operator("extensions.repo_refresh_all")
 
@@ -974,9 +976,6 @@ class USERPREF_MT_extensions_settings(Menu):
         layout.operator("extensions.package_install_files", text="Install from Disk...")
 
         if prefs.experimental.use_extensions_debug:
-            layout.separator()
-
-            layout.prop(addon_prefs, "show_development_reports")
 
             layout.separator()
 
@@ -1002,10 +1001,9 @@ def extensions_panel_draw(panel, context):
         blender_filter_by_type_map,
     )
 
-    addon_prefs = prefs.addons[__package__].preferences
-
     show_development = prefs.experimental.use_extensions_debug
-    show_development_reports = show_development and addon_prefs.show_development_reports
+    # This could be a separate option.
+    show_development_reports = show_development
 
     wm = context.window_manager
     layout = panel.layout
@@ -1117,7 +1115,11 @@ def extensions_panel_draw(panel, context):
 
 
 def tags_current(wm):
-    from .bl_extension_ops import blender_filter_by_type_map
+    from .bl_extension_ops import (
+        blender_filter_by_type_map,
+        repo_cache_store_refresh_from_prefs,
+    )
+
     from . import repo_cache_store_ensure
 
     repo_cache_store = repo_cache_store_ensure()
@@ -1181,6 +1183,7 @@ def tags_refresh(wm):
 
 def tags_panel_draw(panel, context):
     from bpy.utils import escape_identifier
+    from bpy.app.translations import contexts as i18n_contexts
     layout = panel.layout
     wm = context.window_manager
     tags_sorted = tags_refresh(wm)
@@ -1192,7 +1195,12 @@ def tags_panel_draw(panel, context):
     for i, t in enumerate(sorted(tags_sorted)):
         if i == tags_len_half:
             col = split.column()
-        col.prop(wm.extension_tags, "[\"{:s}\"]".format(escape_identifier(t)))
+        col.prop(
+            wm.extension_tags,
+            "[\"{:s}\"]".format(escape_identifier(t)),
+            text=t,
+            text_ctxt=i18n_contexts.editor_preferences,
+        )
 
 
 def extensions_repo_active_draw(self, _context):
