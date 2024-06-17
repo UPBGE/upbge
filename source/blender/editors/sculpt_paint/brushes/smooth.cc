@@ -130,10 +130,10 @@ BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
   const MutableSpan<float> distances = tls.distances;
   calc_distance_falloff(
       ss, positions_eval, verts, eBrushFalloffShape(brush.falloff_shape), distances, factors);
-  calc_brush_strength_factors(ss, brush, verts, distances, factors);
+  calc_brush_strength_factors(cache, brush, distances, factors);
 
-  if (ss.cache->automasking) {
-    auto_mask::calc_vert_factors(object, *ss.cache->automasking, node, verts, factors);
+  if (cache.automasking) {
+    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
   }
 
   scale_factors(factors, strength);
@@ -145,16 +145,7 @@ BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
   translations_from_new_positions(new_positions, verts, positions_eval, translations);
   scale_translations(translations, factors);
 
-  clip_and_lock_translations(sd, ss, positions_eval, verts, translations);
-
-  apply_translations_to_pbvh(*ss.pbvh, verts, translations);
-
-  if (!ss.deform_imats.is_empty()) {
-    apply_crazyspace_to_translations(ss.deform_imats, verts, translations);
-  }
-
-  apply_translations(translations, verts, positions_orig);
-  apply_translations_to_shape_keys(object, verts, translations, positions_orig);
+  write_translations(sd, object, positions_eval, verts, translations, positions_orig);
 }
 
 BLI_NOINLINE static void do_smooth_brush_mesh(const Sculpt &sd,

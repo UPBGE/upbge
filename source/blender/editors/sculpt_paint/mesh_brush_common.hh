@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include "BLI_bit_span.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
@@ -86,9 +88,8 @@ void calc_distance_falloff(SculptSession &ss,
 /**
  * Modify the factors based on distances to the brush cursor, using various brush settings.
  */
-void calc_brush_strength_factors(const SculptSession &ss,
+void calc_brush_strength_factors(const StrokeCache &cache,
                                  const Brush &brush,
-                                 Span<int> vert_indices,
                                  Span<float> distances,
                                  MutableSpan<float> factors);
 
@@ -158,6 +159,18 @@ void apply_translations_to_shape_keys(Object &object,
  * \todo This should be removed one the PBVH no longer stores this copy of deformed positions.
  */
 void apply_translations_to_pbvh(PBVH &pbvh, Span<int> verts, Span<float3> positions_orig);
+
+/**
+ * Write the new translated positions to the original mesh, taking into account inverse
+ * deformation from modifiers, axis locking, and clipping. Flush the deformation to shape keys as
+ * well.
+ */
+void write_translations(const Sculpt &sd,
+                        Object &object,
+                        Span<float3> positions_eval,
+                        Span<int> verts,
+                        MutableSpan<float3> translations,
+                        MutableSpan<float3> positions_orig);
 
 /**
  * Find vertices connected to the indexed vertices across faces. For boundary vertices (stored in

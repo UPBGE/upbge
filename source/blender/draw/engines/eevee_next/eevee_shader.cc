@@ -404,12 +404,6 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
   GPUCodegenOutput &codegen = *codegen_;
   ShaderCreateInfo &info = *reinterpret_cast<ShaderCreateInfo *>(codegen.create_info);
 
-  /* WORKAROUND: Replace by new ob info. */
-  int64_t ob_info_index = info.additional_infos_.first_index_of_try("draw_object_infos");
-  if (ob_info_index != -1) {
-    info.additional_infos_[ob_info_index] = "draw_object_infos_new";
-  }
-
   /* WORKAROUND: Add new ob attr buffer. */
   if (GPU_material_uniform_attributes(gpumat) != nullptr) {
     info.additional_info("draw_object_attribute_new");
@@ -586,9 +580,6 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
         info.vertex_inputs_.clear();
         /* Volume materials require these for loading the grid attributes from smoke sims. */
         info.additional_info("draw_volume_infos");
-        if (ob_info_index == -1) {
-          info.additional_info("draw_object_infos_new");
-        }
       }
       break;
     case MAT_GEOM_POINT_CLOUD:
@@ -721,8 +712,14 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
         if (info.additional_infos_.first_index_of_try("draw_object_infos_new") == -1) {
           info.additional_info("draw_object_infos_new");
         }
+        /* TODO(fclem): Should use `to_scale` but the gpu_shader_math_matrix_lib.glsl isn't
+         * included everywhere yet. */
+        frag_gen << "vec3 ob_scale;\n";
+        frag_gen << "ob_scale.x = length(ModelMatrix[0].xyz);\n";
+        frag_gen << "ob_scale.y = length(ModelMatrix[1].xyz);\n";
+        frag_gen << "ob_scale.z = length(ModelMatrix[2].xyz);\n";
         frag_gen << "vec3 ls_dimensions = safe_rcp(abs(OrcoTexCoFactors[1].xyz));\n";
-        frag_gen << "vec3 ws_dimensions = mat3x3(ModelMatrix) * ls_dimensions;\n";
+        frag_gen << "vec3 ws_dimensions = ob_scale * ls_dimensions;\n";
         /* Choose the minimum axis so that cuboids are better represented. */
         frag_gen << "return reduce_min(ws_dimensions);\n";
       }

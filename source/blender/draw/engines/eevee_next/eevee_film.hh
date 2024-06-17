@@ -69,8 +69,6 @@ class Film {
   SwapChain<Texture, 2> combined_tx_;
   /** Weight buffers. Double buffered to allow updating it during accumulation. */
   SwapChain<Texture, 2> weight_tx_;
-  /** User setting to disable reprojection. Useful for debugging or have a more precise render. */
-  bool force_disable_reprojection_ = false;
 
   PassSimple accumulate_ps_ = {"Film.Accumulate"};
   PassSimple cryptomatte_post_ps_ = {"Film.Cryptomatte.Post"};
@@ -155,7 +153,10 @@ class Film {
   static bool pass_is_float3(eViewLayerEEVEEPassType pass_type)
   {
     return pass_storage_type(pass_type) == PASS_STORAGE_COLOR &&
-           !ELEM(pass_type, EEVEE_RENDER_PASS_COMBINED, EEVEE_RENDER_PASS_VECTOR);
+           !ELEM(pass_type,
+                 EEVEE_RENDER_PASS_COMBINED,
+                 EEVEE_RENDER_PASS_VECTOR,
+                 EEVEE_RENDER_PASS_TRANSPARENT);
   }
 
   /* Returns layer offset in the accumulation texture. -1 if the pass is not enabled. */

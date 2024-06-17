@@ -1354,16 +1354,25 @@ static void std_node_socket_draw(
       break;
     }
     case SOCK_STRING: {
-      uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
-      uiItemL(row, text, ICON_NONE);
-
       if (socket_needs_attribute_search(*node, *sock)) {
-        node_geometry_add_attribute_search_button(*C, *node, *ptr, *row);
+        if (text[0] == '\0') {
+          node_geometry_add_attribute_search_button(*C, *node, *ptr, *layout);
+        }
+        else {
+          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiItemL(row, text, ICON_NONE);
+          node_geometry_add_attribute_search_button(*C, *node, *ptr, *row);
+        }
       }
       else {
-        uiItemR(row, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+        if (text[0] == '\0') {
+          uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+        }
+        else {
+          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiItemL(row, text, ICON_NONE);
+        }
       }
-
       break;
     }
     case SOCK_MENU: {
@@ -1544,10 +1553,8 @@ static void std_node_socket_interface_draw(ID *id,
   }
 
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT && node_tree->type == NTREE_GEOMETRY) {
-    if (U.experimental.use_grease_pencil_version3) {
-      if (type == SOCK_BOOLEAN) {
-        uiItemR(col, &ptr, "layer_selection_field", DEFAULT_FLAGS, nullptr, ICON_NONE);
-      }
+    if (type == SOCK_BOOLEAN) {
+      uiItemR(col, &ptr, "layer_selection_field", DEFAULT_FLAGS, nullptr, ICON_NONE);
     }
     uiLayout *sub = uiLayoutColumn(col, false);
     uiLayoutSetActive(sub, !is_layer_selection_field(*interface_socket));

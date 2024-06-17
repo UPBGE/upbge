@@ -89,6 +89,9 @@ void Instance::init(const int2 &output_res,
   if (is_painting()) {
     sampling.reset();
   }
+  if (is_navigating() && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
+    sampling.reset();
+  }
 
   update_eval_members();
 
@@ -264,7 +267,8 @@ void Instance::object_sync(Object *ob)
   if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandle _res_handle = manager->resource_handle(ob->object_to_world());
+          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
+                                                                         ob->object_to_world());
           sync.sync_curves(ob, hair_handle, _res_handle, ob_ref, &md, &particle_sys);
         };
     foreach_hair_particle_handle(ob, ob_handle, sync_hair);
@@ -608,6 +612,7 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   CHECK_PASS_LEGACY(ENVIRONMENT, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(SHADOW, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(AO, SOCK_RGBA, 3, "RGB");
+  CHECK_PASS_EEVEE(TRANSPARENT, SOCK_RGBA, 4, "RGBA");
 
   LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
     if ((aov->flag & AOV_CONFLICT) != 0) {
