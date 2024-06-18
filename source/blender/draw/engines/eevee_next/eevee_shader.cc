@@ -111,12 +111,14 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
   switch (shader_type) {
     case AMBIENT_OCCLUSION_PASS:
       return "eevee_ambient_occlusion_pass";
-    case FILM_FRAG:
-      return "eevee_film_frag";
+    case FILM_COPY:
+      return "eevee_film_copy_frag";
     case FILM_COMP:
       return "eevee_film_comp";
     case FILM_CRYPTOMATTE_POST:
       return "eevee_film_cryptomatte_post";
+    case FILM_FRAG:
+      return "eevee_film_frag";
     case DEFERRED_COMBINE:
       return "eevee_deferred_combine";
     case DEFERRED_LIGHT_SINGLE:
@@ -383,7 +385,7 @@ class SamplerSlots {
   }
 };
 
-void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOutput *codegen_)
+void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOutput *codegen_)
 {
   using namespace blender::gpu::shader;
 
@@ -831,7 +833,7 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
  * thread unsafe manner. */
 static void codegen_callback(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
 {
-  reinterpret_cast<ShaderModule *>(thunk)->material_create_info_ammend(mat, codegen);
+  reinterpret_cast<ShaderModule *>(thunk)->material_create_info_amend(mat, codegen);
 }
 
 static GPUPass *pass_replacement_cb(void *thunk, GPUMaterial *mat)
