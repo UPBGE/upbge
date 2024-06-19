@@ -11,8 +11,10 @@ GPU_SHADER_CREATE_INFO(eevee_ambient_occlusion_pass)
     .local_group_size(AMBIENT_OCCLUSION_PASS_TILE_SIZE, AMBIENT_OCCLUSION_PASS_TILE_SIZE)
     .image(0, GPU_RGBA16F, Qualifier::READ, ImageType::FLOAT_2D_ARRAY, "in_normal_img")
     .push_constant(Type::INT, "in_normal_img_layer_index")
-    .image(1, GPU_RG16F, Qualifier::WRITE, ImageType::FLOAT_2D_ARRAY, "out_ao_img")
+    .image(1, GPU_R16F, Qualifier::WRITE, ImageType::FLOAT_2D_ARRAY, "out_ao_img")
     .push_constant(Type::INT, "out_ao_img_layer_index")
+    .specialization_constant(Type::INT, "ao_slice_count", 2)
+    .specialization_constant(Type::INT, "ao_step_count", 8)
     .additional_info("draw_view",
                      "eevee_shared",
                      "eevee_hiz_data",

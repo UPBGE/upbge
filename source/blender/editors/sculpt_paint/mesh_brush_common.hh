@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_bit_span.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -75,8 +76,8 @@ void calc_front_face(const float3 &view_normal,
                      MutableSpan<float> factors);
 
 /**
- * Modify influence factors based on the distance from the brush cursor and various other settings.
- * Also fill an array of distances from the brush cursor for "in bounds" vertices.
+ * Calculate distances based on the distance from the brush cursor and various other settings.
+ * Also ignore vertices that are too far from the cursor.
  */
 void calc_distance_falloff(SculptSession &ss,
                            Span<float3> vert_positions,
@@ -84,6 +85,18 @@ void calc_distance_falloff(SculptSession &ss,
                            eBrushFalloffShape falloff_shape,
                            MutableSpan<float> r_distances,
                            MutableSpan<float> factors);
+
+/**
+ * Calculate distances based on a "square" brush tip falloff and ignore vertices that are too far
+ * away.
+ */
+void calc_cube_distance_falloff(SculptSession &ss,
+                                const Brush &brush,
+                                const float4x4 &mat,
+                                Span<float3> positions,
+                                Span<int> verts,
+                                MutableSpan<float> r_distances,
+                                MutableSpan<float> factors);
 
 /**
  * Modify the factors based on distances to the brush cursor, using various brush settings.
@@ -202,7 +215,7 @@ void calc_vert_neighbors(OffsetIndices<int> faces,
 /**
  * Find vertices connected to the indexed vertices across faces. For boundary vertices (stored in
  * the \a boundary_verts argument), only include other boundary vertices. Also skip connectivity
- * accross hidden faces and skip neighbors of corner vertices.
+ * across hidden faces and skip neighbors of corner vertices.
  *
  * \note See #calc_vert_neighbors for information on why we use a Vector per element.
  */
