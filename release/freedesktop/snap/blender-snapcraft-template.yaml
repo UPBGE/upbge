@@ -24,6 +24,7 @@ apps:
     blender:
         command: ./blender-wrapper
         desktop: ./upbge.desktop
+        common-id: org.blender.Blender
 
 base: core20
 version: '@VERSION@'
