@@ -4721,14 +4721,10 @@ bool BKE_object_obdata_texspace_get(Object *ob,
   return true;
 }
 
-Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
+Mesh *BKE_object_get_evaluated_mesh_no_subsurf_unchecked(const Object *object)
 {
  if (object->currentlod) { //UPBGE: hack to have LOD working in eevee-next
     return (Mesh *)object->data;
-  }
-
-  if (!DEG_object_geometry_is_evaluated(*object)) {
-    return nullptr;
   }
   /* First attempt to retrieve the evaluated mesh from the evaluated geometry set. Most
    * object types either store it there or add a reference to it if it's owned elsewhere. */
@@ -4755,13 +4751,17 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
   return nullptr;
 }
 
-Mesh *BKE_object_get_evaluated_mesh(const Object *object)
+Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
 {
   if (!DEG_object_geometry_is_evaluated(*object)) {
     return nullptr;
   }
+  return BKE_object_get_evaluated_mesh_no_subsurf_unchecked(object);
+}
 
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(object);
+Mesh *BKE_object_get_evaluated_mesh_unchecked(const Object *object)
+{
+  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(object);
   if (!mesh) {
     return nullptr;
   }
@@ -4771,6 +4771,14 @@ Mesh *BKE_object_get_evaluated_mesh(const Object *object)
   }
 
   return mesh;
+}
+
+Mesh *BKE_object_get_evaluated_mesh(const Object *object)
+{
+  if (!DEG_object_geometry_is_evaluated(*object)) {
+    return nullptr;
+  }
+  return BKE_object_get_evaluated_mesh_unchecked(object);
 }
 
 Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
