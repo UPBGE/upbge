@@ -269,41 +269,39 @@ def repos_to_notify():
 # Handlers
 
 @bpy.app.handlers.persistent
-def extenion_repos_sync(*_):
+def extenion_repos_sync(repo, *_):
     # Ignore in background mode as this is for the UI to stay in sync.
     # Automated tasks must sync explicitly.
     if bpy.app.background:
         return
 
-    # This is called from operators (create or an explicit call to sync)
-    # so calling a modal operator is "safe".
-    if (active_repo := repo_active_or_none()) is None:
-        return
-
-    print_debug("SYNC:", active_repo.name)
+    print_debug("SYNC:", repo.name)
     # There may be nothing to upgrade.
 
-    if not active_repo.use_remote_url:
+    if not repo.use_remote_url:
         return
+    if not bpy.app.online_access:
+        if not repo.remote_url.startswith("file://"):
+            return
 
     # NOTE: both `extensions.repo_sync_all` and `bl_extension_notify.update_non_blocking` can be used here.
-    # Call the modal operator in this case as this handler is called after adding a repository.
-    # The operator has the benefit of showing a progress bar and reporting errors.
-    # Since this function is used after adding a new repository, it's important the user is aware of any
-    # errors synchronizing data as there may be connection/access issues they need to resolve.
-    if not bpy.ops.extensions.repo_sync_all.poll():
-        print("skipping sync, poll failed")
+    # Call the non-blocking update because the updates are queued and can be de-duplicated.
+    # They're less intrusive as they don't use a modal operator.
+    from .bl_extension_notify import update_non_blocking
+    from .bl_extension_ops import extension_repos_read
+
+    repos_all = extension_repos_read()
+    repos_notify = [repo_iter for repo_iter in repos_all if repo_iter.name == repo.name]
+
+    # The repository may be disabled or invalid for some other reason, in this case skip an update.
+    if not repos_notify:
         return
 
-    from contextlib import redirect_stdout
-    import io
-    stdout = io.StringIO()
+    update_non_blocking(repos_fn=lambda: [(repo_iter, True) for repo_iter in repos_notify], immediate=True)
 
-    with redirect_stdout(stdout):
-        bpy.ops.extensions.repo_sync_all('INVOKE_DEFAULT', use_active_only=True)
-
-    if text := stdout.getvalue():
-        repo_status_text.from_message("Sync \"{:s}\"".format(active_repo.name), text)
+    # Without this the preferences wont show update text.
+    from .bl_extension_ui import notify_info
+    notify_info.update_show_in_preferences()
 
 
 @bpy.app.handlers.persistent
@@ -587,17 +585,24 @@ def register():
         description="Show extensions by type",
         default='ADDON',
     )
-    WindowManager.extension_enabled_only = BoolProperty(
-        name="Show Enabled Extensions",
-        description="Only show enabled extensions",
-    )
     WindowManager.extension_updates_only = BoolProperty(
         name="Show Updates Available",
         description="Only show extensions with updates available",
     )
-    WindowManager.extension_installed_only = BoolProperty(
+    WindowManager.extension_show_panel_enabled = BoolProperty(
+        name="Show Enabled Extensions",
+        description="Only show enabled extensions",
+        default=True,
+    )
+    WindowManager.extension_show_panel_installed = BoolProperty(
         name="Show Installed Extensions",
         description="Only show installed extensions",
+        default=True,
+    )
+    WindowManager.extension_show_panel_available = BoolProperty(
+        name="Show Installed Extensions",
+        description="Only show installed extensions",
+        default=True,
     )
 
     from bl_ui.space_userpref import USERPREF_MT_interface_theme_presets
@@ -632,8 +637,9 @@ def unregister():
     del WindowManager.extension_tags
     del WindowManager.extension_search
     del WindowManager.extension_type
-    del WindowManager.extension_enabled_only
-    del WindowManager.extension_installed_only
+    del WindowManager.extension_show_panel_enabled
+    del WindowManager.extension_show_panel_installed
+    del WindowManager.extension_show_panel_available
 
     for cls in classes:
         bpy.utils.unregister_class(cls)

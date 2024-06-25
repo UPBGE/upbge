@@ -184,7 +184,6 @@ class OperatorNonBlockingSyncHelper:
         from .bl_extension_notify import (
             update_ui_region_register,
             update_non_blocking,
-            update_in_progress,
         )
 
         repos_all = extension_repos_read()
@@ -816,7 +815,11 @@ def _extensions_repo_sync_wheels(repo_cache_store):
     repos_all = extension_repos_read()
 
     wheel_list = []
-    for repo_index, pkg_manifest_local in enumerate(repo_cache_store.pkg_manifest_from_local_ensure(error_fn=print)):
+
+    for repo_index, pkg_manifest_local in enumerate(repo_cache_store.pkg_manifest_from_local_ensure(
+            error_fn=print,
+            ignore_missing=True,
+    )):
         repo = repos_all[repo_index]
         repo_module = repo.module
         repo_directory = repo.directory
@@ -2102,6 +2105,25 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         return True
 
     def invoke(self, context, event):
+
+        # Regarding reusing the last repository.
+        # - If it's a "local" repository, use it.
+        # - If it's a "remote" repository, reset.
+        # This is done because installing a file into a remote repository is a corner-case supported so
+        # it's possible to download large extensions before installing or to down-grade to older versions.
+        # Installing into a remote repository should be intentional, not the default.
+        # This could be annoying to users if they want to install many files into a remote repository,
+        # in this case they would be better off using the file selector "Install from disk"
+        # which supports selecting multiple files, although support for dropping multiple files would
+        # also be good to support.
+        if not self.properties.is_property_set("repo"):
+            repos_valid = self._repos_valid_for_install(context)
+            repo_module = self.repo
+            if (repo_test := next((repo for repo in repos_valid if repo.module == repo_module), None)) is not None:
+                if repo_test.use_remote_url:
+                    self.properties.property_unset("repo")
+            del repo_module, repo_test, repos_valid
+
         if self.properties.is_property_set("url"):
             return self._invoke_for_drop(context, event)
 
@@ -2164,8 +2186,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
 
             from .bl_extension_utils import pkg_manifest_dict_from_file_or_error
 
-            repos_valid = list(repo_iter_valid_only(context, exclude_remote=False, exclude_system=True))
-            if not repos_valid:
+            if not self._repos_valid_for_install():
                 self.report({'ERROR'}, "No user repositories")
                 return {'CANCELLED'}
 
@@ -2178,24 +2199,6 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
             del result
 
             self._drop_variables = pkg_id, pkg_type
-
-            # Regarding reusing the last repository.
-            # - If it's a "local" repository, use it.
-            # - If it's a "remote" repository, reset.
-            # This is done because installing a file into a remote repository is a corner-case supported so
-            # it's possible to download large extensions before installing or to down-grade to older versions.
-            # Installing into a remote repository should be intentional, not the default.
-            # This could be annoying to users if they want to install many files into a remote repository,
-            # in this case they would be better off using the file selector "Install from disk"
-            # which supports selecting multiple files, although support for dropping multiple files would
-            # also be good to support.
-            if not self.properties.is_property_set("repo"):
-                repo_module = self.repo
-                if (repo_test := next((repo for repo in repos_valid if repo.module == repo_module), None)) is not None:
-                    if repo_test.use_remote_url:
-                        self.properties.property_unset("repo")
-                del repo_module, repo_test
-
         else:
             self._drop_variables = None
             self._legacy_drop = True
@@ -2230,6 +2233,10 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         layout.prop(self, "target", text="Target")
         layout.prop(self, "overwrite", text="Overwrite")
         layout.prop(self, "enable_on_install")
+
+    @staticmethod
+    def _repos_valid_for_install(context):
+        return list(repo_iter_valid_only(context, exclude_remote=False, exclude_system=True))
 
 
 class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
@@ -2406,7 +2413,6 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
     def _invoke_for_drop(self, context, _event):
         from .bl_extension_utils import (
-            platform_from_this_system,
             url_parse_for_blender,
         )
 
@@ -3094,7 +3100,8 @@ class EXTENSIONS_OT_userpref_show_for_update(Operator):
         prefs.view.show_addons_enabled_only = False
 
         # Show only extensions that will be updated.
-        wm.extension_installed_only = False
+        wm.extension_show_panel_enabled = True
+        wm.extension_show_panel_installed = True
         wm.extension_updates_only = True
 
         bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
