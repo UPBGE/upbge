@@ -255,6 +255,10 @@ class PaintOperation : public GreasePencilStrokeOperation {
   float stroke_random_opacity_factor_;
   float stroke_random_rotation_factor_;
 
+  float stroke_random_hue_factor_;
+  float stroke_random_sat_factor_;
+  float stroke_random_val_factor_;
+
   friend struct PaintOperationExecutor;
 
  public:
@@ -274,8 +278,8 @@ struct PaintOperationExecutor {
   Brush *brush_;
 
   BrushGpencilSettings *settings_;
-  std::optional<ColorGeometry4f> vertex_color_;
-  std::optional<ColorGeometry4f> fill_color_;
+  std::optional<ColorGeometry4f> vertex_color_ = std::nullopt;
+  std::optional<ColorGeometry4f> fill_color_ = std::nullopt;
   float softness_;
 
   bool use_settings_random_;
@@ -306,9 +310,6 @@ struct PaintOperationExecutor {
                         std::make_optional(color_base) :
                         std::nullopt;
     }
-    else {
-      vertex_color_ = std::make_optional(ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
-    }
     softness_ = 1.0f - settings_->hardness;
 
     BLI_assert(grease_pencil->has_active_layer());
@@ -325,16 +326,16 @@ struct PaintOperationExecutor {
     if (!use_settings_random_ || !(settings_->draw_random_press > 0.0f)) {
       return radius;
     }
-    float random_factor = [&]() {
-      if ((settings_->flag2 & GP_BRUSH_USE_PRESS_AT_STROKE) == 0) {
-        /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
-        constexpr float noise_scale = 1 / 20.0f;
-        return noise::perlin(float2(distance * noise_scale, self.stroke_random_radius_factor_));
-      }
-      else {
-        return self.stroke_random_radius_factor_;
-      }
-    }();
+    float random_factor = 0.0f;
+    if ((settings_->flag2 & GP_BRUSH_USE_PRESS_AT_STROKE) == 0) {
+      /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
+      constexpr float noise_scale = 1 / 20.0f;
+      random_factor = noise::perlin(
+          float2(distance * noise_scale, self.stroke_random_radius_factor_));
+    }
+    else {
+      random_factor = self.stroke_random_radius_factor_;
+    }
 
     if ((settings_->flag2 & GP_BRUSH_USE_PRESSURE_RAND_PRESS) != 0) {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_pressure, 0, pressure);
@@ -351,16 +352,16 @@ struct PaintOperationExecutor {
     if (!use_settings_random_ || !(settings_->draw_random_strength > 0.0f)) {
       return opacity;
     }
-    float random_factor = [&]() {
-      if ((settings_->flag2 & GP_BRUSH_USE_STRENGTH_AT_STROKE) == 0) {
-        /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
-        constexpr float noise_scale = 1 / 20.0f;
-        return noise::perlin(float2(distance * noise_scale, self.stroke_random_opacity_factor_));
-      }
-      else {
-        return self.stroke_random_opacity_factor_;
-      }
-    }();
+    float random_factor = 0.0f;
+    if ((settings_->flag2 & GP_BRUSH_USE_STRENGTH_AT_STROKE) == 0) {
+      /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
+      constexpr float noise_scale = 1 / 20.0f;
+      random_factor = noise::perlin(
+          float2(distance * noise_scale, self.stroke_random_opacity_factor_));
+    }
+    else {
+      random_factor = self.stroke_random_opacity_factor_;
+    }
 
     if ((settings_->flag2 & GP_BRUSH_USE_STRENGTH_RAND_PRESS) != 0) {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_strength, 0, pressure);
@@ -374,22 +375,90 @@ struct PaintOperationExecutor {
     if (!use_settings_random_ || !(settings_->uv_random > 0.0f)) {
       return 0.0f;
     }
-    /* Random value in range [-1 .. 1]. */
-    float random_factor = [&]() {
-      if ((settings_->flag2 & GP_BRUSH_USE_UV_AT_STROKE) == 0) {
-        return self.rng_.get_float();
-      }
-      else {
-        return self.stroke_random_rotation_factor_;
-      }
-    }();
+    float random_factor = 0.0f;
+    if ((settings_->flag2 & GP_BRUSH_USE_UV_AT_STROKE) == 0) {
+      random_factor = self.rng_.get_float();
+    }
+    else {
+      random_factor = self.stroke_random_rotation_factor_;
+    }
 
     if ((settings_->flag2 & GP_BRUSH_USE_UV_RAND_PRESS) != 0) {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_uv, 0, pressure);
     }
 
-    const float random_rotation = (random_factor * 2.0f - 1.0f) * float(M_PI);
+    const float random_rotation = (random_factor * 2.0f - 1.0f) * math::numbers::pi;
     return math::interpolate(0.0f, random_rotation, settings_->uv_random);
+  }
+
+  ColorGeometry4f randomize_color(PaintOperation &self,
+                                  const float distance,
+                                  const ColorGeometry4f color,
+                                  const float pressure)
+  {
+    if (!use_settings_random_ ||
+        !(settings_->random_hue > 0.0f || settings_->random_saturation > 0.0f ||
+          settings_->random_value > 0.0f))
+    {
+      return color;
+    }
+    /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
+    constexpr float noise_scale = 1 / 20.0f;
+
+    float random_hue = 0.0f;
+    if ((settings_->flag2 & GP_BRUSH_USE_HUE_AT_STROKE) == 0) {
+      random_hue = noise::perlin(float2(distance * noise_scale, self.stroke_random_hue_factor_));
+    }
+    else {
+      random_hue = self.stroke_random_hue_factor_;
+    }
+
+    float random_saturation = 0.0f;
+    if ((settings_->flag2 & GP_BRUSH_USE_SAT_AT_STROKE) == 0) {
+      random_saturation = noise::perlin(
+          float2(distance * noise_scale, self.stroke_random_sat_factor_));
+    }
+    else {
+      random_saturation = self.stroke_random_sat_factor_;
+    }
+
+    float random_value = 0.0f;
+    if ((settings_->flag2 & GP_BRUSH_USE_VAL_AT_STROKE) == 0) {
+      random_value = noise::perlin(float2(distance * noise_scale, self.stroke_random_val_factor_));
+    }
+    else {
+      random_value = self.stroke_random_val_factor_;
+    }
+
+    if ((settings_->flag2 & GP_BRUSH_USE_HUE_RAND_PRESS) != 0) {
+      random_hue *= BKE_curvemapping_evaluateF(settings_->curve_rand_hue, 0, pressure);
+    }
+    if ((settings_->flag2 & GP_BRUSH_USE_SAT_RAND_PRESS) != 0) {
+      random_saturation *= BKE_curvemapping_evaluateF(
+          settings_->curve_rand_saturation, 0, pressure);
+    }
+    if ((settings_->flag2 & GP_BRUSH_USE_VAL_RAND_PRESS) != 0) {
+      random_value *= BKE_curvemapping_evaluateF(settings_->curve_rand_value, 0, pressure);
+    }
+
+    float3 hsv;
+    rgb_to_hsv_v(color, hsv);
+
+    hsv[0] += math::interpolate(0.5f, random_hue, settings_->random_hue) - 0.5f;
+    /* Wrap hue. */
+    if (hsv[0] > 1.0f) {
+      hsv[0] -= 1.0f;
+    }
+    else if (hsv[0] < 0.0f) {
+      hsv[0] += 1.0f;
+    }
+    hsv[1] *= math::interpolate(1.0f, random_saturation * 2.0f, settings_->random_saturation);
+    hsv[2] *= math::interpolate(1.0f, random_value * 2.0f, settings_->random_value);
+
+    ColorGeometry4f random_color;
+    hsv_to_rgb_v(hsv, random_color);
+    random_color.a = color.a;
+    return random_color;
   }
 
   void process_start_sample(PaintOperation &self,
@@ -418,6 +487,9 @@ struct PaintOperationExecutor {
     start_opacity = randomize_opacity(self, 0.0f, start_opacity, start_sample.pressure);
 
     const float start_rotation = randomize_rotation(self, start_sample.pressure);
+    if (vertex_color_) {
+      vertex_color_.emplace(randomize_color(self, 0.0f, *vertex_color_, start_sample.pressure));
+    }
 
     Scene *scene = CTX_data_scene(&C);
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
@@ -661,36 +733,50 @@ struct PaintOperationExecutor {
     const int last_active_point = curve_points.last();
 
     const float2 prev_coords = self.screen_space_coords_orig_.last();
-    const float prev_radius = drawing_->radii()[last_active_point];
+    float prev_radius = drawing_->radii()[last_active_point];
     const float prev_opacity = drawing_->opacities()[last_active_point];
     const ColorGeometry4f prev_vertex_color = drawing_->vertex_colors()[last_active_point];
 
-    /* Use the vector from the previous to the next point and then interpolate it with the previous
-     * direction to get a smoothed value over time. */
-    self.smoothed_pen_direction_ = math::interpolate(
-        self.smoothed_pen_direction_, coords - self.screen_space_coords_orig_.last(), 0.1f);
+    const bool is_first_sample = (curve_points.size() == 1);
 
-    const float distance_px = math::distance(coords, prev_coords);
+    /* Use the vector from the previous to the next point. Set the direction based on the first two
+     * samples. For subsuquent samples, interpolate with the previous direction to get a smoothed
+     * value over time. */
+    if (is_first_sample) {
+      self.smoothed_pen_direction_ = self.screen_space_coords_orig_.last() - coords;
+    }
+    else {
+      /* The smoothing rate is a factor from 0 to 1 that represents how quickly the
+       * `smoothed_pen_direction_` "reacts" to changes in direction.
+       *  - 1.0f: Immediate reaction.
+       *  - 0.0f: No reaction (value never changes). */
+      constexpr float smoothing_rate_factor = 0.3f;
+      self.smoothed_pen_direction_ = math::interpolate(self.smoothed_pen_direction_,
+                                                       self.screen_space_coords_orig_.last() -
+                                                           coords,
+                                                       smoothing_rate_factor);
+    }
 
     /* Approximate brush with non-circular shape by changing the radius based on the angle. */
+    float radius_factor = 1.0f;
     if (settings_->draw_angle_factor > 0.0f) {
+      /* `angle` is the angle to the horizontal line in screen space. */
       const float angle = settings_->draw_angle;
       const float2 angle_vec = float2(math::cos(angle), math::sin(angle));
 
-      /* `angle_factor` is the angle to the horizontal line in screen space. */
-      const float angle_factor =
-          1.0f - math::abs(math::dot(angle_vec, math::normalize(self.smoothed_pen_direction_)));
+      /* The angle factor is 1.0f when the direction is aligned with the angle vector and 0.0f when
+       * it is orthogonal to the angle vector. This is consistent with the behavior from GPv2. */
+      const float angle_factor = math::abs(
+          math::dot(angle_vec, math::normalize(self.smoothed_pen_direction_)));
 
       /* Influence is controlled by `draw_angle_factor`. */
-      const float radius_factor = math::interpolate(
-          1.0f, angle_factor, settings_->draw_angle_factor);
+      radius_factor = math::interpolate(1.0f, angle_factor, settings_->draw_angle_factor);
       radius *= radius_factor;
     }
 
     /* Overwrite last point if it's very close. */
-    const bool is_first_sample = (curve_points.size() == 1);
+    const float distance_px = math::distance(coords, prev_coords);
     constexpr float point_override_threshold_px = 2.0f;
-
     if (distance_px < point_override_threshold_px) {
       self.accum_distance_ += distance_px;
       /* Don't move the first point of the stroke. */
@@ -707,6 +793,12 @@ struct PaintOperationExecutor {
       drawing_->radii_for_write()[last_active_point] = math::max(radius, prev_radius);
       drawing_->opacities_for_write()[last_active_point] = math::max(opacity, prev_opacity);
       return;
+    }
+
+    /* Adjust the first points radius based on the computed angle. */
+    if (is_first_sample && settings_->draw_angle_factor > 0.0f) {
+      drawing_->radii_for_write()[last_active_point] *= radius_factor;
+      prev_radius = drawing_->radii()[last_active_point];
     }
 
     /* Clamp the number of points within a pixel in screen space. */
@@ -732,13 +824,6 @@ struct PaintOperationExecutor {
     MutableSpan<float> new_opacities = drawing_->opacities_for_write().slice(new_points);
     linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
     point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
-    if (vertex_color_) {
-      MutableSpan<ColorGeometry4f> new_vertex_colors = drawing_->vertex_colors_for_write().slice(
-          new_points);
-      linear_interpolation<ColorGeometry4f>(
-          prev_vertex_color, *vertex_color_, new_vertex_colors, is_first_sample);
-      point_attributes_to_skip.add("vertex_color");
-    }
 
     /* Randomize radii. */
     if (use_settings_random_ && settings_->draw_random_press > 0.0f) {
@@ -772,6 +857,25 @@ struct PaintOperationExecutor {
       }
       point_attributes_to_skip.add("rotation");
       rotations.finish();
+    }
+
+    /* Randomize vertex color. */
+    if (vertex_color_) {
+      MutableSpan<ColorGeometry4f> new_vertex_colors = drawing_->vertex_colors_for_write().slice(
+          new_points);
+      if (use_settings_random_ || attributes.contains("vertex_color")) {
+        for (const int i : IndexRange(new_points_num)) {
+          new_vertex_colors[i] = randomize_color(self,
+                                                 self.accum_distance_ + max_spacing_px * i,
+                                                 *vertex_color_,
+                                                 extension_sample.pressure);
+        }
+      }
+      else {
+        linear_interpolation<ColorGeometry4f>(
+            prev_vertex_color, *vertex_color_, new_vertex_colors, is_first_sample);
+      }
+      point_attributes_to_skip.add("vertex_color");
     }
 
     self.accum_distance_ += distance_px;
@@ -886,6 +990,10 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
     stroke_random_radius_factor_ = rng_.get_float();
     stroke_random_opacity_factor_ = rng_.get_float();
     stroke_random_rotation_factor_ = rng_.get_float();
+
+    stroke_random_hue_factor_ = rng_.get_float();
+    stroke_random_sat_factor_ = rng_.get_float();
+    stroke_random_val_factor_ = rng_.get_float();
   }
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
