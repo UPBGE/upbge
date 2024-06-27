@@ -1199,12 +1199,12 @@ static void orig_vert_data_unode_init(SculptOrigVertData &data,
   data.colors = unode.col.data();
 }
 
-void SCULPT_orig_vert_data_init(SculptOrigVertData &data,
-                                const Object &ob,
-                                const PBVHNode &node,
-                                const blender::ed::sculpt_paint::undo::Type type)
+SculptOrigVertData SCULPT_orig_vert_data_init(const Object &ob,
+                                              const PBVHNode &node,
+                                              const blender::ed::sculpt_paint::undo::Type type)
 {
   using namespace blender::ed::sculpt_paint;
+  SculptOrigVertData data;
   data.undo_type = type;
   const SculptSession &ss = *ob.sculpt;
   if (ss.bm) {
@@ -1217,6 +1217,7 @@ void SCULPT_orig_vert_data_init(SculptOrigVertData &data,
   else {
     data = {};
   }
+  return data;
 }
 
 void SCULPT_orig_vert_data_update(SculptOrigVertData &orig_data, const PBVHVertexIter &iter)
@@ -3838,7 +3839,7 @@ static void do_brush_action(const Scene &scene,
       do_flatten_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_CLAY:
-      SCULPT_do_clay_brush(sd, ob, nodes);
+      do_clay_brush(sd, ob, nodes);
       break;
     case SCULPT_TOOL_CLAY_STRIPS:
       do_clay_strips_brush(sd, ob, nodes);
@@ -5964,12 +5965,13 @@ static void sculpt_stroke_update_step(bContext *C,
    * For some brushes, flushing is done in the brush code itself.
    */
   if (!(ELEM(brush.sculpt_tool,
-             SCULPT_TOOL_DRAW,
-             SCULPT_TOOL_SCRAPE,
              SCULPT_TOOL_BLOB,
-             SCULPT_TOOL_CREASE,
+             SCULPT_TOOL_CLAY,
              SCULPT_TOOL_CLAY_STRIPS,
-             SCULPT_TOOL_FILL) &&
+             SCULPT_TOOL_CREASE,
+             SCULPT_TOOL_DRAW,
+             SCULPT_TOOL_FILL,
+             SCULPT_TOOL_SCRAPE) &&
         BKE_pbvh_type(*ss.pbvh) == PBVH_FACES))
   {
     if (ss.deform_modifiers_active) {
