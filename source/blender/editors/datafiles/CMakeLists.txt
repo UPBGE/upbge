@@ -530,6 +530,7 @@ if(WITH_BLENDER)
       locked
       lockview_off
       lockview_on
+      logic
       longdisplay
       loop_back
       loop_forwards
