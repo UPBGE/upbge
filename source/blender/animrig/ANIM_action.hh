@@ -16,10 +16,13 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_math_vector.hh"
-#include "BLI_set.hh"
+#include "BLI_span.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 #include "RNA_types.hh"
+
+#include <utility>
 
 struct AnimationEvalContext;
 struct FCurve;
@@ -438,9 +441,17 @@ ENUM_OPERATORS(Layer::Flags, Layer::Flags::Enabled);
  */
 class Binding : public ::ActionBinding {
  public:
-  Binding() = default;
-  Binding(const Binding &other) = default;
-  ~Binding() = default;
+  Binding();
+  Binding(const Binding &other);
+  ~Binding();
+
+  /**
+   * Update the Binding after reading it from a blend file.
+   *
+   * This is a low-level function and should not typically be used. It's only here to let
+   * blenkernel allocate the runtime struct when reading a Binding from disk, without having to
+   * share the struct definition itself. */
+  void blend_read_post();
 
   /**
    * Binding handle value indicating that there is no binding assigned.
@@ -472,6 +483,48 @@ class Binding : public ::ActionBinding {
 
   /** Return whether this Binding has an `idtype` set. */
   bool has_idtype() const;
+
+  /** Return the set of IDs that are animated by this Binding. */
+  Span<ID *> users(Main &bmain) const;
+
+  /**
+   * Directly return the runtime users vector.
+   *
+   * This function does not refresh the users cache, so it may be out of date.
+   *
+   * This is a low-level function, and should only be used when calling `users(bmain)` is not
+   * appropriate.
+   *
+   * \see Binding::users(Main &bmain)
+   */
+  Vector<ID *> runtime_users();
+
+  /**
+   * Register this ID as animated by this Binding.
+   *
+   * This is a low-level function and should not typically be used.
+   * Use #Action::assign_id(binding, animated_id) instead.
+   */
+  void users_add(ID &animated_id);
+
+  /**
+   * Register this ID as no longer animated by this Binding.
+   *
+   * This is a low-level function and should not typically be used.
+   * Use #Action::assign_id(nullptr, animated_id) instead.
+   */
+  void users_remove(ID &animated_id);
+
+  /**
+   * Mark the users cache as 'dirty', triggering a full rebuild next time it is accessed.
+   *
+   * This is typically not necessary, and only called from low-level code.
+   *
+   * \note This static method invalidates all user caches of all Action Bindings.
+   *
+   * \see blender::animrig::internal::rebuild_binding_user_cache()
+   */
+  static void users_invalidate(Main &bmain);
 
  protected:
   friend Action;
@@ -535,7 +588,7 @@ class KeyframeStrip : public ::KeyframeActionStrip {
    *
    * If it cannot be found, `nullptr` is returned.
    */
-  FCurve *fcurve_find(const Binding &binding, StringRefNull rna_path, int array_index);
+  FCurve *fcurve_find(const Binding &binding, FCurveDescriptor fcurve_descriptor);
 
   /**
    * Find an FCurve for this binding + RNA path + array index combination.
@@ -545,15 +598,10 @@ class KeyframeStrip : public ::KeyframeActionStrip {
    * \param `prop_subtype` The subtype of the property this fcurve is for, if
    * available.
    */
-  FCurve &fcurve_find_or_create(const Binding &binding,
-                                StringRefNull rna_path,
-                                int array_index,
-                                std::optional<PropertySubType> prop_subtype);
+  FCurve &fcurve_find_or_create(const Binding &binding, FCurveDescriptor fcurve_descriptor);
 
   SingleKeyingResult keyframe_insert(const Binding &binding,
-                                     StringRefNull rna_path,
-                                     int array_index,
-                                     std::optional<PropertySubType> prop_subtype,
+                                     FCurveDescriptor fcurve_descriptor,
                                      float2 time_value,
                                      const KeyframeSettings &settings,
                                      eInsertKeyFlags insert_key_flags = INSERTKEY_NOFLAGS);
@@ -635,6 +683,17 @@ void unassign_binding(ID &animated_id);
 Action *get_animation(ID &animated_id);
 
 /**
+ * Get the Action and the Binding that animate this ID.
+ *
+ * \return One of two options:
+ *  - pair<Action, Binding> when an Action and a Binding are assigned. In other
+ *    words, when this ID is actually animated by this Action+Binding pair.
+ *  - nullopt: when this ID is not animated. This can have several causes: not
+ *    an animatable type, no Action assigned, or no Binding assigned.
+ */
+std::optional<std::pair<Action *, Binding *>> get_action_binding_pair(ID &animated_id);
+
+/**
  * Return the F-Curves for this specific binding handle.
  *
  * This is just a utility function, that's intended to become obsolete when multi-layer animation
@@ -670,13 +729,43 @@ FCurve *action_fcurve_ensure(Main *bmain,
                              bAction *act,
                              const char group[],
                              PointerRNA *ptr,
-                             const char rna_path[],
-                             int array_index);
+                             FCurveDescriptor fcurve_descriptor);
 
 /**
  * Find the F-Curve from the given Action. This assumes that all the destinations are valid.
  */
-FCurve *action_fcurve_find(bAction *act, const char rna_path[], int array_index);
+FCurve *action_fcurve_find(bAction *act, FCurveDescriptor fcurve_descriptor);
+
+/**
+ * Assert the invariants of Project Baklava phase 1.
+ *
+ * For an action the invariants are that it:
+ * - Is a legacy action.
+ * - OR has zero layers.
+ * - OR has a single layer that adheres to the phase 1 invariants for layers.
+ *
+ * For a layer the invariants are that it:
+ * - Has zero strips.
+ * - OR has a single strip that adheres to the phase 1 invariants for strips.
+ *
+ * For a strip the invariants are that it:
+ * - Is a keyframe strip.
+ * - AND is infinite.
+ * - AND has no time offset (i.e. aligns with scene time).
+ *
+ * This simultaneously serves as a todo marker for later phases of Project
+ * Baklava and ensures that the phase-1 invariants hold at runtime.
+ *
+ * TODO: these functions should be changed to assert fewer and fewer assumptions
+ * as we progress through the phases of Project Baklava and more and more of the
+ * new animation system is implemented. Finally, they should be removed entirely
+ * when the full system is completely implemented.
+ */
+void assert_baklava_phase_1_invariants(const Action &action);
+/** \copydoc assert_baklava_phase_1_invariants(const Action &) */
+void assert_baklava_phase_1_invariants(const Layer &layer);
+/** \copydoc assert_baklava_phase_1_invariants(const Action &) */
+void assert_baklava_phase_1_invariants(const Strip &strip);
 
 }  // namespace blender::animrig
 

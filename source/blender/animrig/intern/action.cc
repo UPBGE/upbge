@@ -41,6 +41,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_fcurve.hh"
+#include "action_runtime.hh"
 
 #include "atomic_ops.h"
 
@@ -347,7 +348,7 @@ Binding *Action::binding_find_by_name(const StringRefNull binding_name)
 
 Binding &Action::binding_allocate()
 {
-  Binding &binding = MEM_new<ActionBinding>(__func__)->wrap();
+  Binding &binding = *MEM_new<Binding>(__func__);
   this->last_binding_handle++;
   BLI_assert_msg(this->last_binding_handle > 0, "Animation Binding handle overflow");
   binding.handle = this->last_binding_handle;
@@ -434,14 +435,10 @@ bool Action::is_binding_animated(const binding_handle_t binding_handle) const
 
 Layer *Action::get_layer_for_keyframing()
 {
-  /* TODO: handle multiple layers. */
+  assert_baklava_phase_1_invariants(*this);
+
   if (this->layers().is_empty()) {
     return nullptr;
-  }
-  if (this->layers().size() > 1) {
-    std::fprintf(stderr,
-                 "Action '%s' has multiple layers, which isn't handled by keyframing code yet.",
-                 this->id.name);
   }
 
   return this->layer(0);
@@ -468,6 +465,8 @@ bool Action::assign_id(Binding *binding, ID &animated_id)
   /* Unassign any previously-assigned Binding. */
   Binding *binding_to_unassign = this->binding_for_handle(adt->binding_handle);
   if (binding_to_unassign) {
+    binding_to_unassign->users_remove(animated_id);
+
     /* Before unassigning, make sure that the stored Binding name is up to date. The binding name
      * might have changed in a way that wasn't copied into the ADT yet (for example when the
      * Action is linked from another file), so better copy the name to be sure that it can be
@@ -491,6 +490,7 @@ bool Action::assign_id(Binding *binding, ID &animated_id)
   if (binding) {
     this->binding_setup_for_id(*binding, animated_id);
     adt->binding_handle = binding->handle;
+    binding->users_add(animated_id);
 
     /* Always make sure the ID's binding name matches the assigned binding. */
     STRNCPY_UTF8(adt->binding_name, binding->name);
@@ -616,6 +616,32 @@ int64_t Layer::find_strip_index(const Strip &strip) const
 
 /* ----- ActionBinding implementation ----------- */
 
+Binding::Binding()
+{
+  memset(this, 0, sizeof(*this));
+  this->runtime = MEM_new<BindingRuntime>(__func__);
+}
+
+Binding::Binding(const Binding &other)
+{
+  memset(this, 0, sizeof(*this));
+  STRNCPY(this->name, other.name);
+  this->idtype = other.idtype;
+  this->handle = other.handle;
+  this->runtime = MEM_new<BindingRuntime>(__func__);
+}
+
+Binding::~Binding()
+{
+  MEM_delete(this->runtime);
+}
+
+void Binding::blend_read_post()
+{
+  BLI_assert(!this->runtime);
+  this->runtime = MEM_new<BindingRuntime>(__func__);
+}
+
 bool Binding::is_suitable_for(const ID &animated_id) const
 {
   if (!this->has_idtype()) {
@@ -632,6 +658,47 @@ bool Binding::has_idtype() const
 {
   return this->idtype != 0;
 }
+
+Span<ID *> Binding::users(Main &bmain) const
+{
+  if (bmain.is_action_binding_to_id_map_dirty) {
+    internal::rebuild_binding_user_cache(bmain);
+  }
+  BLI_assert(this->runtime);
+  return this->runtime->users.as_span();
+}
+
+Vector<ID *> Binding::runtime_users()
+{
+  BLI_assert_msg(this->runtime, "Binding::runtime should always be allocated");
+  return this->runtime->users;
+}
+
+void Binding::users_add(ID &animated_id)
+{
+  BLI_assert(this->runtime);
+  this->runtime->users.append_non_duplicates(&animated_id);
+}
+
+void Binding::users_remove(ID &animated_id)
+{
+  BLI_assert(this->runtime);
+  Vector<ID *> &users = this->runtime->users;
+
+  const int64_t vector_index = users.first_index_of_try(&animated_id);
+  if (vector_index < 0) {
+    return;
+  }
+
+  users.remove_and_reorder(vector_index);
+}
+
+void Binding::users_invalidate(Main &bmain)
+{
+  bmain.is_action_binding_to_id_map_dirty = true;
+}
+
+/* ----- Functions  ----------- */
 
 bool assign_animation(Action &anim, ID &animated_id)
 {
@@ -705,6 +772,24 @@ Action *get_animation(ID &animated_id)
     return nullptr;
   }
   return &adt->action->wrap();
+}
+
+std::optional<std::pair<Action *, Binding *>> get_action_binding_pair(ID &animated_id)
+{
+  AnimData *adt = BKE_animdata_from_id(&animated_id);
+  if (!adt || !adt->action) {
+    /* Not animated by any Action. */
+    return std::nullopt;
+  }
+
+  Action &action = adt->action->wrap();
+  Binding *binding = action.binding_for_handle(adt->binding_handle);
+  if (!binding) {
+    /* Will not receive any animation from this Action. */
+    return std::nullopt;
+  }
+
+  return std::make_pair(&action, binding);
 }
 
 std::string Binding::name_prefix_for_idtype() const
@@ -906,8 +991,7 @@ ChannelBag &KeyframeStrip::channelbag_for_binding_add(const Binding &binding)
 }
 
 FCurve *KeyframeStrip::fcurve_find(const Binding &binding,
-                                   const StringRefNull rna_path,
-                                   const int array_index)
+                                   const FCurveDescriptor fcurve_descriptor)
 {
   ChannelBag *channels = this->channelbag_for_binding(binding);
   if (channels == nullptr) {
@@ -920,7 +1004,9 @@ FCurve *KeyframeStrip::fcurve_find(const Binding &binding,
   for (FCurve *fcu : channels->fcurves()) {
     /* Check indices first, much cheaper than a string comparison. */
     /* Simple string-compare (this assumes that they have the same root...) */
-    if (fcu->array_index == array_index && fcu->rna_path && StringRef(fcu->rna_path) == rna_path) {
+    if (fcu->array_index == fcurve_descriptor.array_index && fcu->rna_path &&
+        StringRef(fcu->rna_path) == fcurve_descriptor.rna_path)
+    {
       return fcu;
     }
   }
@@ -928,15 +1014,13 @@ FCurve *KeyframeStrip::fcurve_find(const Binding &binding,
 }
 
 FCurve &KeyframeStrip::fcurve_find_or_create(const Binding &binding,
-                                             const StringRefNull rna_path,
-                                             const int array_index,
-                                             const std::optional<PropertySubType> prop_subtype)
+                                             const FCurveDescriptor fcurve_descriptor)
 {
-  if (FCurve *existing_fcurve = this->fcurve_find(binding, rna_path, array_index)) {
+  if (FCurve *existing_fcurve = this->fcurve_find(binding, fcurve_descriptor)) {
     return *existing_fcurve;
   }
 
-  FCurve *new_fcurve = create_fcurve_for_channel(rna_path.c_str(), array_index, prop_subtype);
+  FCurve *new_fcurve = create_fcurve_for_channel(fcurve_descriptor);
 
   ChannelBag *channels = this->channelbag_for_binding(binding);
   if (channels == nullptr) {
@@ -951,26 +1035,23 @@ FCurve &KeyframeStrip::fcurve_find_or_create(const Binding &binding,
   return *new_fcurve;
 }
 
-SingleKeyingResult KeyframeStrip::keyframe_insert(
-    const Binding &binding,
-    const StringRefNull rna_path,
-    const int array_index,
-    const std::optional<PropertySubType> prop_subtype,
-    const float2 time_value,
-    const KeyframeSettings &settings,
-    const eInsertKeyFlags insert_key_flags)
+SingleKeyingResult KeyframeStrip::keyframe_insert(const Binding &binding,
+                                                  const FCurveDescriptor fcurve_descriptor,
+                                                  const float2 time_value,
+                                                  const KeyframeSettings &settings,
+                                                  const eInsertKeyFlags insert_key_flags)
 {
   /* Get the fcurve, or create one if it doesn't exist and the keying flags
    * allow. */
   FCurve *fcurve = key_insertion_may_create_fcurve(insert_key_flags) ?
-                       &this->fcurve_find_or_create(binding, rna_path, array_index, prop_subtype) :
-                       this->fcurve_find(binding, rna_path, array_index);
+                       &this->fcurve_find_or_create(binding, fcurve_descriptor) :
+                       this->fcurve_find(binding, fcurve_descriptor);
   if (!fcurve) {
     std::fprintf(stderr,
                  "FCurve %s[%d] for binding %s was not created due to either the Only Insert "
                  "Available setting or Replace keyframing mode.\n",
-                 rna_path.c_str(),
-                 array_index,
+                 fcurve_descriptor.rna_path.c_str(),
+                 fcurve_descriptor.array_index,
                  binding.name);
     return SingleKeyingResult::CANNOT_CREATE_FCURVE;
   }
@@ -979,8 +1060,8 @@ SingleKeyingResult KeyframeStrip::keyframe_insert(
     /* TODO: handle this properly, in a way that can be communicated to the user. */
     std::fprintf(stderr,
                  "FCurve %s[%d] for binding %s doesn't allow inserting keys.\n",
-                 rna_path.c_str(),
-                 array_index,
+                 fcurve_descriptor.rna_path.c_str(),
+                 fcurve_descriptor.array_index,
                  binding.name);
     return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
   }
@@ -991,8 +1072,8 @@ SingleKeyingResult KeyframeStrip::keyframe_insert(
   if (insert_vert_result != SingleKeyingResult::SUCCESS) {
     std::fprintf(stderr,
                  "Could not insert key into FCurve %s[%d] for binding %s.\n",
-                 rna_path.c_str(),
-                 array_index,
+                 fcurve_descriptor.rna_path.c_str(),
+                 fcurve_descriptor.array_index,
                  binding.name);
     return insert_vert_result;
   }
@@ -1163,22 +1244,22 @@ Vector<const FCurve *> fcurves_all(const Action &action)
                           const ChannelBag>(action);
 }
 
-FCurve *action_fcurve_find(bAction *act, const char rna_path[], const int array_index)
+FCurve *action_fcurve_find(bAction *act, FCurveDescriptor fcurve_descriptor)
 {
-  if (ELEM(nullptr, act, rna_path)) {
+  if (act == nullptr) {
     return nullptr;
   }
-  return BKE_fcurve_find(&act->curves, rna_path, array_index);
+  return BKE_fcurve_find(
+      &act->curves, fcurve_descriptor.rna_path.c_str(), fcurve_descriptor.array_index);
 }
 
 FCurve *action_fcurve_ensure(Main *bmain,
                              bAction *act,
                              const char group[],
                              PointerRNA *ptr,
-                             const char rna_path[],
-                             const int array_index)
+                             FCurveDescriptor fcurve_descriptor)
 {
-  if (ELEM(nullptr, act, rna_path)) {
+  if (act == nullptr) {
     return nullptr;
   }
 
@@ -1186,7 +1267,8 @@ FCurve *action_fcurve_ensure(Main *bmain,
    * - add if not found and allowed to add one
    *   TODO: add auto-grouping support? how this works will need to be resolved
    */
-  FCurve *fcu = BKE_fcurve_find(&act->curves, rna_path, array_index);
+  FCurve *fcu = BKE_fcurve_find(
+      &act->curves, fcurve_descriptor.rna_path.c_str(), fcurve_descriptor.array_index);
 
   if (fcu != nullptr) {
     return fcu;
@@ -1199,13 +1281,17 @@ FCurve *action_fcurve_ensure(Main *bmain,
     PointerRNA resolved_ptr;
     PointerRNA id_ptr = RNA_id_pointer_create(ptr->owner_id);
     const bool resolved = RNA_path_resolve_property(
-        &id_ptr, rna_path, &resolved_ptr, &resolved_prop);
+        &id_ptr, fcurve_descriptor.rna_path.c_str(), &resolved_ptr, &resolved_prop);
     if (resolved) {
       prop_subtype = RNA_property_subtype(resolved_prop);
     }
   }
 
-  fcu = create_fcurve_for_channel(rna_path, array_index, prop_subtype);
+  BLI_assert_msg(!fcurve_descriptor.prop_subtype.has_value(),
+                 "Did not expect a prop_subtype to be passed in. This is fine, but does need some "
+                 "changes to action_fcurve_ensure() to deal with it");
+  fcu = create_fcurve_for_channel(
+      {fcurve_descriptor.rna_path, fcurve_descriptor.array_index, prop_subtype});
 
   if (BLI_listbase_is_empty(&act->curves)) {
     fcu->flag |= FCURVE_ACTIVE;
@@ -1237,4 +1323,36 @@ FCurve *action_fcurve_ensure(Main *bmain,
 
   return fcu;
 }
+
+void assert_baklava_phase_1_invariants(const Action &action)
+{
+  if (action.is_action_legacy()) {
+    return;
+  }
+  if (action.layers().is_empty()) {
+    return;
+  }
+  BLI_assert(action.layers().size() == 1);
+
+  assert_baklava_phase_1_invariants(*action.layer(0));
+}
+
+void assert_baklava_phase_1_invariants(const Layer &layer)
+{
+  if (layer.strips().is_empty()) {
+    return;
+  }
+  BLI_assert(layer.strips().size() == 1);
+
+  assert_baklava_phase_1_invariants(*layer.strip(0));
+}
+
+void assert_baklava_phase_1_invariants(const Strip &strip)
+{
+  UNUSED_VARS_NDEBUG(strip);
+  BLI_assert(strip.type() == Strip::Type::Keyframe);
+  BLI_assert(strip.is_infinite());
+  BLI_assert(strip.frame_offset == 0.0);
+}
+
 }  // namespace blender::animrig

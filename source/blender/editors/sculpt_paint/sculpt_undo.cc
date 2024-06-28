@@ -581,26 +581,26 @@ static void restore_hidden_face(Object &object, Node &unode, MutableSpan<bool> m
   BKE_sculpt_hide_poly_pointer_update(object);
 }
 
-static void restore_color(Object &object,
-                          const StepData &step_data,
-                          Node &unode,
-                          MutableSpan<bool> modified_vertices)
+static void restore_color(Object &object, StepData &step_data, MutableSpan<bool> modified_vertices)
 {
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-  SculptSession &ss = *object.sculpt;
+  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  bke::GSpanAttributeWriter color_attribute = color::active_color_attribute_for_write(mesh);
 
-  /* NOTE: even with loop colors we still store derived
-   * vertex colors for original data lookup. */
-  if (!unode.col.is_empty() && unode.loop_col.is_empty()) {
-    BKE_pbvh_swap_colors(
-        *ss.pbvh, unode.vert_indices.as_span().take_front(unode.unique_verts_num), unode.col);
+  for (std::unique_ptr<Node> &unode : step_data.nodes) {
+    if (color_attribute.domain == bke::AttrDomain::Point && !unode->col.is_empty()) {
+      color::swap_gathered_colors(
+          unode->vert_indices.as_span().take_front(unode->unique_verts_num),
+          color_attribute.span,
+          unode->col);
+    }
+    else if (color_attribute.domain == bke::AttrDomain::Corner && !unode->loop_col.is_empty()) {
+      color::swap_gathered_colors(unode->corner_indices, color_attribute.span, unode->loop_col);
+    }
+
+    modified_vertices.fill_indices(unode->vert_indices.as_span(), true);
   }
 
-  if (!unode.loop_col.is_empty() && step_data.mesh_corners_num == mesh.corners_num) {
-    BKE_pbvh_swap_colors(*ss.pbvh, unode.corner_indices, unode.loop_col);
-  }
-
-  modified_vertices.fill_indices(unode.vert_indices.as_span(), true);
+  color_attribute.finish();
 }
 
 static void restore_mask_mesh(Object &object, Node &unode, MutableSpan<bool> modified_vertices)
@@ -931,7 +931,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         MutableSpan<CCGElem *> grids = subdiv_ccg.grids;
         const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-        Array<bool> modified_grids(ss.totvert, false);
+        Array<bool> modified_grids(grids.size(), false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_position_grids(grids, key, *unode, modified_grids);
         }
@@ -974,8 +974,8 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
 
       if (use_multires_undo(step_data, ss)) {
-        Array<bool> modified_grids(ss.totvert, false);
         SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+        Array<bool> modified_grids(subdiv_ccg.grids.size(), false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_vert_visibility_grids(subdiv_ccg, *unode, modified_grids);
         }
@@ -1051,7 +1051,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
 
       if (use_multires_undo(step_data, ss)) {
-        Array<bool> modified_grids(ss.totvert, false);
+        Array<bool> modified_grids(ss.subdiv_ccg->grids.size(), false);
         for (std::unique_ptr<Node> &unode : step_data.nodes) {
           restore_mask_grids(object, *unode, modified_grids);
         }
@@ -1118,9 +1118,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
 
       Array<bool> modified_verts(ss.totvert, false);
-      for (std::unique_ptr<Node> &unode : step_data.nodes) {
-        restore_color(object, step_data, *unode, modified_verts);
-      }
+      restore_color(object, step_data, modified_verts);
       bke::pbvh::search_callback(*ss.pbvh, {}, [&](PBVHNode &node) {
         if (indices_contain_true(modified_verts, bke::pbvh::node_verts(node))) {
           BKE_pbvh_node_mark_update_color(&node);
@@ -1306,22 +1304,27 @@ static void store_mask(const Object &object, Node &unode)
   }
 }
 
-static void store_color(const Object &object, Node &unode)
+static void store_color(const Object &object, const PBVHNode &node, Node &unode)
 {
   const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-  SculptSession &ss = *object.sculpt;
 
-  BLI_assert(BKE_pbvh_type(*ss.pbvh) == PBVH_FACES);
+  const OffsetIndices<int> faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+  const bke::GAttributeReader color_attribute = color::active_color_attribute(mesh);
+  const GVArraySpan colors(*color_attribute);
 
   /* NOTE: even with loop colors we still store (derived)
    * vertex colors for original data lookup. */
-  BKE_pbvh_store_colors_vertex(*ss.pbvh,
-                               mesh.vert_to_face_map(),
-                               unode.vert_indices.as_span().take_front(unode.unique_verts_num),
-                               unode.col);
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  unode.col.reinitialize(verts.size());
+  color::gather_colors_vert(
+      faces, corner_verts, vert_to_face_map, colors, color_attribute.domain, verts, unode.col);
 
-  if (!unode.loop_col.is_empty() && !unode.corner_indices.is_empty()) {
-    BKE_pbvh_store_colors(*ss.pbvh, unode.corner_indices, unode.loop_col);
+  if (color_attribute.domain == bke::AttrDomain::Corner) {
+    unode.corner_indices = bke::pbvh::node_corners(node);
+    unode.loop_col.reinitialize(unode.corner_indices.size());
+    color::gather_colors(colors, unode.corner_indices, unode.loop_col);
   }
 }
 
@@ -1431,15 +1434,7 @@ static void fill_node_data(const Object &object,
       break;
     }
     case Type::Color: {
-      /* Allocate vertex colors, even for loop colors we still
-       * need this for original data lookup. */
-      unode.col.reinitialize(verts_num);
-
-      /* Allocate loop colors separately too. */
-      if (ss.vcol_domain == bke::AttrDomain::Corner) {
-        unode.loop_col.reinitialize(unode.corner_indices.size());
-      }
-      store_color(object, unode);
+      store_color(object, *node, unode);
       break;
     }
     case Type::DyntopoBegin:
@@ -1830,10 +1825,6 @@ static void set_active_layer(bContext *C, SculptAttrRef *attr)
 
   if (layer) {
     BKE_id_attributes_active_color_set(&mesh->id, layer->name);
-
-    if (ob->sculpt && ob->sculpt->pbvh) {
-      BKE_pbvh_update_active_vcol(*ob->sculpt->pbvh, mesh);
-    }
   }
 }
 
