@@ -48,6 +48,7 @@
 #  include "BKE_scene.hh"
 #  include "BKE_sound.h"
 
+#  include "GPU_capabilities.hh"
 #  include "GPU_context.hh"
 
 #  ifdef WITH_PYTHON
@@ -788,6 +789,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
+#  ifdef WITH_OPENGL_BACKEND
+  BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
+#  endif
 
   PRINT("\n");
   PRINT("Misc Options:\n");
@@ -1494,6 +1498,42 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
 
   return 1;
 }
+
+#  ifdef WITH_OPENGL_BACKEND
+static const char arg_handle_gpu_compilation_subprocesses_set_doc[] =
+    "\n"
+    "\tOverride the Max Compilation Subprocesses setting (OpenGL only).";
+static int arg_handle_gpu_compilation_subprocesses_set(int argc,
+                                                       const char **argv,
+                                                       void * /*data*/)
+{
+  const char *arg_id = "--gpu-compilation-subprocesses";
+  const int min = 0, max = BLI_system_thread_count();
+  if (argc > 1) {
+    const char *err_msg = nullptr;
+    int subprocesses;
+    if (!parse_int_strict_range(argv[1], nullptr, min, max, &subprocesses, &err_msg)) {
+      fprintf(stderr,
+              "\nError: %s '%s %s', expected number in [%d..%d].\n",
+              err_msg,
+              arg_id,
+              argv[1],
+              min,
+              max);
+      return 0;
+    }
+
+    GPU_compilation_subprocess_override_set(subprocesses);
+    return 1;
+  }
+  fprintf(stderr,
+          "\nError: you must specify a number of subprocesses in [%d..%d] '%s'.\n",
+          min,
+          max,
+          arg_id);
+  return 0;
+}
+#  endif
 
 static const char arg_handle_debug_fpe_set_doc[] =
     "\n\t"
@@ -2471,10 +2511,8 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   if (argc > 1) {
 #  ifdef WITH_PYTHON
     const char script_str[] =
-        "from addon_utils import check, enable\n"
-        "for m in '%s'.split(','):\n"
-        "    if check(m)[1] is False:\n"
-        "        enable(m, persistent=True)";
+        "from _bpy_internal.addons.cli import set_from_cli\n"
+        "set_from_cli('%s')";
     const int slen = strlen(argv[1]) + (sizeof(script_str) - 2);
     char *str = static_cast<char *>(malloc(slen));
     bContext *C = static_cast<bContext *>(data);
@@ -2653,6 +2691,13 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
+#  ifdef WITH_OPENGL_BACKEND
+  BLI_args_add(ba,
+               nullptr,
+               "--gpu-compilation-subprocesses",
+               CB(arg_handle_gpu_compilation_subprocesses_set),
+               nullptr);
+#  endif
 
   /* Pass: Background Mode & Settings
    *
