@@ -57,24 +57,6 @@ BLI_NOINLINE static void translations_from_position(const Span<float3> positions
   }
 }
 
-/**
- * The vertices are pinched towards a line instead of a single point. Without this we get a
- * 'flat' surface surrounding the pinch.
- */
-BLI_NOINLINE static void project_translations(const MutableSpan<float3> translations,
-                                              const float3 &plane)
-{
-  /* Equivalent to #project_plane_v3_v3v3. */
-  const float len_sq = math::length_squared(plane);
-  if (len_sq < std::numeric_limits<float>::epsilon()) {
-    return;
-  }
-  const float dot_factor = -math::rcp(len_sq);
-  for (const int i : translations.index_range()) {
-    translations[i] += plane * math::dot(translations[i], plane) * dot_factor;
-  }
-}
-
 BLI_NOINLINE static void add_offset_to_translations(const MutableSpan<float3> translations,
                                                     const Span<float> factors,
                                                     const float3 &offset)

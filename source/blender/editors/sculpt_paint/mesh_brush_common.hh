@@ -30,6 +30,7 @@
  * new value from scratch.
  */
 
+struct BMesh;
 struct BMVert;
 struct Brush;
 struct Mesh;
@@ -38,6 +39,7 @@ struct PBVH;
 struct PBVHNode;
 struct Sculpt;
 struct SculptSession;
+struct SubdivCCG;
 
 namespace blender::ed::sculpt_paint {
 struct StrokeCache;
@@ -49,6 +51,10 @@ struct Cache;
 void scale_translations(MutableSpan<float3> translations, Span<float> factors);
 void scale_translations(MutableSpan<float3> translations, float factor);
 void scale_factors(MutableSpan<float> factors, float strength);
+void translations_from_offset_and_factors(const float3 &offset,
+                                          Span<float> factors,
+                                          MutableSpan<float3> r_translations);
+void transform_positions(Span<float3> src, const float4x4 &transform, MutableSpan<float3> dst);
 
 /**
  * Note on the various positions arrays:
@@ -62,8 +68,13 @@ void scale_factors(MutableSpan<float> factors, float strength);
 void gather_grids_positions(const SubdivCCG &subdiv_ccg,
                             Span<int> grids,
                             MutableSpan<float3> positions);
-
 void gather_bmesh_positions(const Set<BMVert *, 0> &verts, MutableSpan<float3> positions);
+
+/** Fill the output array with all normals in the grids referenced by the indices. */
+void gather_grids_normals(const SubdivCCG &subdiv_ccg,
+                          Span<int> grids,
+                          MutableSpan<float3> normals);
+void gather_bmesh_normals(const Set<BMVert *, 0> &verts, MutableSpan<float3> normals);
 
 /**
  * Calculate initial influence factors based on vertex visibility.
@@ -90,6 +101,7 @@ void fill_factor_from_hide_and_mask(const BMesh &bm,
 /**
  * Disable brush influence when vertex normals point away from the view.
  */
+void calc_front_face(const float3 &view_normal, Span<float3> normals, MutableSpan<float> factors);
 void calc_front_face(const float3 &view_normal,
                      Span<float3> vert_normals,
                      Span<int> vert_indices,
@@ -208,6 +220,9 @@ void calc_vert_factors(const Object &object,
 void apply_translations(Span<float3> translations, Span<int> verts, MutableSpan<float3> positions);
 void apply_translations(Span<float3> translations, Span<int> grids, SubdivCCG &subdiv_ccg);
 void apply_translations(Span<float3> translations, const Set<BMVert *, 0> &verts);
+
+/** Align the translations with plane normal. */
+void project_translations(MutableSpan<float3> translations, const float3 &plane);
 
 /**
  * Rotate translations to account for rotations from procedural deformation.
