@@ -258,25 +258,16 @@ class OperatorNonBlockingSyncHelper:
             self.completed = True
             return
 
-        layout = _operator_draw_hide_buttons_hack(op.layout)
+        layout = op.layout
         text, icon = update_ui_text()
         layout.label(text=text, icon=icon)
+        # Only show a "Cancel" button while the update is in progress.
+        layout.template_popup_confirm("", text="", cancel_text="Cancel")
 
 
 # -----------------------------------------------------------------------------
 # Internal Utilities
 #
-
-def _operator_draw_hide_buttons_hack(layout):
-    # EVIL! There is no good way to hide button on operator dialogs,
-    # so use a bad way (scale them to oblivion!)
-    # This could be supported by the internals, for now it's not though.
-    col = layout.column()
-    y = 1000.0
-    col.scale_y = y
-    layout.scale_y = 1.0 / y
-    return col
-
 
 def _sequence_split_with_job_limit(items, job_limit):
     # When only one job is allowed at a time, there is no advantage to splitting the sequence.
@@ -1081,8 +1072,14 @@ class CommandHandle:
                         msg = "{:s} (process {:d} of {:d})".format(msg, i, len(msg_list_per_command))
                     if ty == 'STATUS':
                         op.report({'INFO'}, msg)
-                    else:
+                    elif ty == 'WARNING':
                         op.report({'WARNING'}, msg)
+                    elif ty in {'ERROR', 'FATAL_ERROR'}:
+                        op.report({'ERROR'}, msg)
+                    else:
+                        print("Internal error, type", ty, "not accounted for!")
+                        op.report({'INFO'}, "{:s}: {:s}".format(ty, msg))
+
         del msg_list_per_command
 
         # Avoid high CPU usage by only redrawing when there has been a change.
@@ -2356,7 +2353,8 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
 
             from .bl_extension_utils import pkg_manifest_dict_from_archive_or_error
 
-            if not self._repos_valid_for_install(context):
+            repos_valid = self._repos_valid_for_install(context)
+            if not repos_valid:
                 self.report({'ERROR'}, "No user repositories")
                 return {'CANCELLED'}
 
@@ -2366,9 +2364,14 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
 
             pkg_id = result["id"]
             pkg_type = result["type"]
-            del result
+
+            if not self.properties.is_property_set("repo"):
+                if (repo := self._repo_detect_from_manifest_dict(result, repos_valid)) is not None:
+                    self.repo = repo
+                del repo
 
             self._drop_variables = pkg_id, pkg_type
+            del result, pkg_id, pkg_type
         else:
             self._drop_variables = None
             self._legacy_drop = True
@@ -2407,6 +2410,50 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
     @staticmethod
     def _repos_valid_for_install(context):
         return list(repo_iter_valid_only(context, exclude_remote=False, exclude_system=True))
+
+    # Use to set the repository default when dropping a file.
+    # This is only used to set the default value.
+    # If it fails to find a match the user may still select the repository,
+    # this is just intended to handle the common case where a user may download an
+    # extension from a remote repository they use, dropping the file into Blender.
+    @staticmethod
+    def _repo_detect_from_manifest_dict(manifest_dict, repos_valid):
+        repos_valid = [
+            repo_item for repo_item in repos_valid
+            if repo_item.use_remote_url
+        ]
+        if not repos_valid:
+            return None
+
+        repo_cache_store = repo_cache_store_ensure()
+        repo_cache_store_refresh_from_prefs(repo_cache_store)
+
+        for repo_item in repos_valid:
+            pkg_manifest_remote = repo_cache_store.refresh_remote_from_directory(
+                directory=repo_item.directory,
+                error_fn=print,
+                force=False,
+            )
+            if pkg_manifest_remote is None:
+                continue
+
+            # NOTE: The exact method of matching extensions is a little arbitrary.
+            # Use (id, type, (name or tagline)) since this has a good change of finding a correct match.
+            # Since an extension might be renamed, check if the `name` or the `tagline` match.
+            item_remote = pkg_manifest_remote.get(manifest_dict["id"])
+            if item_remote is None:
+                continue
+            if item_remote.type != manifest_dict["type"]:
+                continue
+            if (
+                    (item_remote.name != manifest_dict["name"]) and
+                    (item_remote.tagline != manifest_dict["tagline"])
+            ):
+                continue
+
+            return repo_item.module
+
+        return None
 
 
 class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
@@ -2842,7 +2889,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             *,
             errors,
     ):
-        layout = _operator_draw_hide_buttons_hack(self.layout)
+        layout = self.layout
         icon = 'ERROR'
         for error in errors:
             if isinstance(error, str):
@@ -2850,6 +2897,9 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             else:
                 error(layout)
             icon = 'BLANK1'
+
+        # Only show a "Close" button since this is only showing a message.
+        layout.template_popup_confirm("", text="", cancel_text="Close")
         return True
 
     # Pass 3: add-repository (terminating).
@@ -2862,7 +2912,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         url_split = remote_url.partition("://")
         url_for_display = url_split[2] if url_split[2] else remote_url
 
-        layout = _operator_draw_hide_buttons_hack(self.layout)
+        layout = self.layout
         col = layout.column(align=True)
         col.label(text="The dropped extension comes from an unknown repository.")
         col.label(text="If you trust its source, add the repository and try again.")
@@ -2876,7 +2926,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             col.label(text="Alternatively download the extension to Install from Disk.")
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        props = layout.operator("preferences.extension_repo_add", text="Add Repository...")
+        props = layout.template_popup_confirm("preferences.extension_repo_add", text="Add Repository...")
         props.remote_url = remote_url
         return True
 
