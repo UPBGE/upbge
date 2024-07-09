@@ -1609,6 +1609,8 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     CTX_data_selected_editable_objects(C, &ctx_objects);
   }
 
+  bool modifier_removed = false;
+
   Set<ID *> object_data;
   for (const PointerRNA &ptr : ctx_objects) {
     Object *ob = static_cast<Object *>(ptr.data);
@@ -1621,6 +1623,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
             if (is_smooth_by_angle_modifier(*md)) {
               modifier_remove(op->reports, bmain, scene, ob, md);
               DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+              modifier_removed = true;
               break;
             }
           }
@@ -1656,10 +1659,14 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       changed_multi = true;
-
       DEG_id_tag_update(data, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, data);
     }
+  }
+
+  if (modifier_removed) {
+    /* Outliner needs to know. #124302. */
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
   if (has_linked_data) {

@@ -292,8 +292,9 @@ def command_output_from_json_0(
 # Internal Functions.
 #
 
-
+# pylint: disable-next=useless-return
 def repositories_validate_or_errors(repos: Sequence[str]) -> Optional[InfoItemSeq]:
+    _ = repos
     return None
 
 
@@ -853,6 +854,8 @@ class CommandBatch:
     def _exec_blocking_single(
             self,
             report_fn: Callable[[str, str], None],
+            # TODO: investigate using this or removing it.
+            # pylint: disable-next=unused-argument
             request_exit_fn: Callable[[], bool],
     ) -> bool:
         for cmd in self._batch:
@@ -1298,6 +1301,7 @@ def pkg_manifest_params_compatible_or_error(
         item=item,
         filter_blender_version=this_blender_version,
         filter_platform=this_platform,
+        # pylint: disable-next=unnecessary-lambda
         skip_message_fn=lambda msg: result_report.append(msg),
         error_fn=error_fn,
     )
@@ -1475,21 +1479,21 @@ class _RepoDataSouce_JSON(_RepoDataSouce_ABC):
                 data_dict = json_from_filepath(self._filepath) or {}
             except Exception as ex:
                 error_fn(ex)
+            else:
+                # This is *not* a full validation,
+                # just skip malformed JSON files as they're likely to cause issues later on.
+                if not isinstance(data_dict, dict):
+                    error_fn(Exception("Remote repository data from {:s} must be a dict not a {:s}".format(
+                        self._filepath,
+                        str(type(data_dict)),
+                    )))
+                    data_dict = {}
 
-            # This is *not* a full validation,
-            # just skip malformed JSON files as they're likely to cause issues later on.
-            if not isinstance(data_dict, dict):
-                error_fn(Exception("Remote repository data from {:s} must be a dict not a {:s}".format(
-                    self._filepath,
-                    str(type(data_dict)),
-                )))
-                data_dict = {}
-
-            if not isinstance(data_dict.get("data"), list):
-                error_fn(Exception("Remote repository data from {:s} must contain a \"data\" list".format(
-                    self._filepath,
-                )))
-                data_dict = {}
+                if not isinstance(data_dict.get("data"), list):
+                    error_fn(Exception("Remote repository data from {:s} must contain a \"data\" list".format(
+                        self._filepath,
+                    )))
+                    data_dict = {}
 
         # It's important to assign this value even if it's "empty",
         # otherwise corrupt files will be detected as unset and continuously attempt to load.
@@ -1891,6 +1895,7 @@ class RepoCacheStore:
     ) -> Optional[Dict[str, PkgManifest_Normalized]]:
         for repo_entry in self._repos:
             if directory == repo_entry.directory:
+                # pylint: disable-next=protected-access
                 return repo_entry._json_data_refresh(force=force, error_fn=error_fn)
         raise ValueError("Directory {:s} not a known repo".format(directory))
 
@@ -1927,6 +1932,7 @@ class RepoCacheStore:
             # While we could yield a valid manifest here,
             # leave it to the caller to skip "remote" data for local-only repositories.
             if repo_entry.remote_url:
+                # pylint: disable-next=protected-access
                 yield repo_entry._json_data_ensure(
                     check_files=check_files,
                     ignore_missing=ignore_missing,
@@ -2036,7 +2042,12 @@ class RepoLock:
 
             # This most likely exists, create if it doesn't.
             if not os.path.isdir(local_private_dir):
-                os.makedirs(local_private_dir)
+                try:
+                    os.makedirs(local_private_dir)
+                except Exception as ex:
+                    # Likely no permissions or read-only file-system.
+                    result[directory] = "Lock directory could not be created: {:s}".format(str(ex))
+                    continue
 
             local_lock_file = os.path.join(local_private_dir, REPO_LOCAL_PRIVATE_LOCK)
             # Attempt to get the lock, kick out stale locks.

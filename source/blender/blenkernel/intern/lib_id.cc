@@ -579,7 +579,7 @@ bool BKE_lib_id_make_local(Main *bmain, ID *id, const int flags)
   const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
 
   /* Skip indirectly linked IDs, unless the whole library is made local, or handling them is
-   * explicitely requested. */
+   * explicitly requested. */
   if (!(lib_local || (flags & LIB_ID_MAKELOCAL_INDIRECT) != 0) && (id->tag & LIB_TAG_INDIRECT)) {
     return false;
   }
@@ -1607,6 +1607,12 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     }
     else {
       iat->adt = nullptr;
+    }
+  }
+
+  if (flag & LIB_ID_COPY_ASSET_METADATA) {
+    if (id->asset_data) {
+      new_id->asset_data = BKE_asset_metadata_copy(id->asset_data);
     }
   }
 

@@ -224,14 +224,6 @@ inline InstanceReference::InstanceReference(Collection &collection)
 {
 }
 
-inline InstanceReference::InstanceReference(const InstanceReference &other)
-    : type_(other.type_), data_(other.data_)
-{
-  if (other.geometry_set_) {
-    geometry_set_ = std::make_unique<GeometrySet>(*other.geometry_set_);
-  }
-}
-
 inline InstanceReference::InstanceReference(InstanceReference &&other)
     : type_(other.type_), data_(other.data_), geometry_set_(std::move(other.geometry_set_))
 {

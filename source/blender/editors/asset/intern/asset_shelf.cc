@@ -13,6 +13,7 @@
 #include "AS_asset_catalog_path.hh"
 #include "AS_asset_library.hh"
 
+#include "BLI_function_ref.hh"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -26,6 +27,7 @@
 #include "ED_asset_list.hh"
 #include "ED_screen.hh"
 
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "UI_interface.hh"
@@ -34,6 +36,7 @@
 #include "UI_view2d.hh"
 
 #include "WM_api.hh"
+#include "WM_message.hh"
 
 #include "ED_asset_shelf.hh"
 #include "asset_shelf.hh"
@@ -327,6 +330,20 @@ void region_listen(const wmRegionListenerParams *params)
   else {
     asset_shelf_region_listen(params);
   }
+}
+
+void region_message_subscribe(const wmRegionMessageSubscribeParams *params)
+{
+  wmMsgBus *mbus = params->message_bus;
+  WorkSpace *workspace = params->workspace;
+  ARegion *region = params->region;
+
+  wmMsgSubscribeValue msg_sub_value_region_tag_redraw{};
+  msg_sub_value_region_tag_redraw.owner = region;
+  msg_sub_value_region_tag_redraw.user_data = region;
+  msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
+  WM_msg_subscribe_rna_prop(
+      mbus, &workspace->id, workspace, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
 }
 
 void region_init(wmWindowManager *wm, ARegion *region)
@@ -815,7 +832,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   uiItemR(sub, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
-void header_regiontype_register(ARegionType *region_type, const int space_type)
+static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
   HeaderType *ht = MEM_cnew<HeaderType>(__func__);
   STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
@@ -827,8 +844,13 @@ void header_regiontype_register(ARegionType *region_type, const int space_type)
   };
 
   BLI_addtail(&region_type->headertypes, ht);
+}
 
+void types_register(ARegionType *region_type, const int space_type)
+{
+  header_regiontype_register(region_type, space_type);
   catalog_selector_panel_register(region_type);
+  popover_panel_register(region_type);
 }
 
 /** \} */

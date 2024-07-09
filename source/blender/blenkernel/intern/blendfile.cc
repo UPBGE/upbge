@@ -874,6 +874,18 @@ static void setup_app_data(bContext *C,
     BLI_assert(bfd->curscene != nullptr);
     mode = LOAD_UNDO;
   }
+  else if (bfd->fileflags & G_FILE_ASSET_EDIT_FILE) {
+    BKE_report(reports->reports,
+               RPT_WARNING,
+               "This file is managed by the asset system, you cannot overwrite it (using \"Save "
+               "As\" is possible)");
+    /* From now on the file in memory is a normal file, further saving it will contain a
+     * window-manager, scene, ... and potentially user created data. Use #Main.is_asset_edit_file
+     * to detect if saving this file needs extra protections. */
+    bfd->fileflags &= ~G_FILE_ASSET_EDIT_FILE;
+    BLI_assert(bfd->main->is_asset_edit_file);
+    mode = LOAD_UI_OFF;
+  }
   /* May happen with library files, loading undo-data should never have a null `curscene`
    * (but may have a null `curscreen`). */
   else if (ELEM(nullptr, bfd->curscreen, bfd->curscene)) {
@@ -1471,6 +1483,15 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
   BKE_preferences_extension_repo_add_defaults_all(userdef);
 
+  {
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh/Sculpt/Cloth");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh/Sculpt/General");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh/Sculpt/Painting");
+  }
+
   return userdef;
 }
 
@@ -1682,7 +1703,7 @@ PartialWriteContext::~PartialWriteContext()
   BKE_main_destroy(this->bmain);
 };
 
-void PartialWriteContext::preempt_session_uid(ID *ctx_id, unsigned int session_uid)
+void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
 {
   /* If there is already an existing ID in the 'matching' set with that UID, it should be the same
    * as the given ctx_id. */
@@ -1763,7 +1784,7 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
 void PartialWriteContext::make_local(ID *ctx_id, const int make_local_flags)
 {
   /* Making an ID local typically resets its session UID, here we want to keep the same value. */
-  const unsigned int ctx_id_session_uid = ctx_id->session_uid;
+  const uint ctx_id_session_uid = ctx_id->session_uid;
   BKE_main_idmap_remove_id(this->bmain.id_map, ctx_id);
   BKE_main_idmap_insert_id(matching_uid_map_, ctx_id);
 
@@ -1825,7 +1846,7 @@ ID *PartialWriteContext::id_add(
     id = BKE_id_owner_get(const_cast<ID *>(id), true);
   }
 
-  /* The given ID may have already been added (either explicitely or as a dependency) before. */
+  /* The given ID may have already been added (either explicitly or as a dependency) before. */
   ID *ctx_root_id = BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid);
   if (ctx_root_id) {
     /* If the root orig ID is already in the context, assume all of its dependencies are as well.
@@ -1908,7 +1929,7 @@ ID *PartialWriteContext::id_add(
       return IDWALK_RET_NOP;
     }
     /* else if (add_dependencies) */
-    /* The given ID may have already been added (either explicitely or as a dependency) before. */
+    /* The given ID may have already been added (either explicitly or as a dependency) before. */
     ID *ctx_deps_id = nullptr;
     if (duplicate_dependencies) {
       ctx_deps_id = local_ctx_id_map.lookup(orig_deps_id);
@@ -1923,7 +1944,7 @@ ID *PartialWriteContext::id_add(
          * a case is bad practice. On the other hand, some of these pointers are present in
          * 'normal' IDs, like e.g. the parent collections ones. This implies that currently, all
          * attempt to adding a collection to a partial write context should make usage of a custom
-         * `dependencies_filter_cb` function to explicitely clear these pointers. */
+         * `dependencies_filter_cb` function to explicitly clear these pointers. */
         CLOG_ERROR(&LOG_PARTIALWRITE,
                    "First dependency to ID '%s' found through a 'loopback' usage from ID '%s', "
                    "this should never happen",

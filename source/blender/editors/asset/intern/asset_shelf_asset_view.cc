@@ -11,6 +11,7 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "BKE_asset.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_fnmatch.h"
@@ -41,13 +42,12 @@ class AssetView : public ui::AbstractGridView {
   const AssetShelf &shelf_;
   std::optional<AssetWeakReference> active_asset_;
   std::optional<asset_system::AssetCatalogFilter> catalog_filter_ = std::nullopt;
-  bool is_popup_ = false;
 
   friend class AssetViewItem;
   friend class AssetDragController;
 
  public:
-  AssetView(const AssetLibraryReference &library_ref, const AssetShelf &shelf, bool is_popup);
+  AssetView(const AssetLibraryReference &library_ref, const AssetShelf &shelf);
 
   void build_items() override;
   bool begin_filtering(const bContext &C) const override;
@@ -68,7 +68,6 @@ class AssetViewItem : public ui::PreviewGridItem {
   void disable_asset_drag();
   void build_grid_tile(uiLayout &layout) const override;
   void build_context_menu(bContext &C, uiLayout &column) const override;
-  void on_activate(bContext &C) override;
   std::optional<bool> should_be_active() const override;
   bool should_be_filtered_visible(StringRefNull filter_string) const override;
 
@@ -85,10 +84,8 @@ class AssetDragController : public ui::AbstractViewItemDragController {
   void *create_drag_data() const override;
 };
 
-AssetView::AssetView(const AssetLibraryReference &library_ref,
-                     const AssetShelf &shelf,
-                     const bool is_popup)
-    : library_ref_(library_ref), shelf_(shelf), is_popup_(is_popup)
+AssetView::AssetView(const AssetLibraryReference &library_ref, const AssetShelf &shelf)
+    : library_ref_(library_ref), shelf_(shelf)
 {
   if (shelf.type->get_active_asset) {
     if (const AssetWeakReference *weak_ref = shelf.type->get_active_asset(shelf.type)) {
@@ -233,19 +230,15 @@ void AssetViewItem::build_context_menu(bContext &C, uiLayout &column) const
   }
 }
 
-void AssetViewItem::on_activate(bContext & /*C*/)
-{
-  const AssetView &asset_view = dynamic_cast<const AssetView &>(this->get_view());
-  if (asset_view.is_popup_) {
-    UI_popup_menu_close_from_but(reinterpret_cast<uiBut *>(this->view_item_button()));
-  }
-}
-
 std::optional<bool> AssetViewItem::should_be_active() const
 {
   const AssetView &asset_view = dynamic_cast<const AssetView &>(this->get_view());
-  if (!asset_view.active_asset_) {
+  const AssetShelfType &shelf_type = *asset_view.shelf_.type;
+  if (!shelf_type.get_active_asset) {
     return {};
+  }
+  if (!asset_view.active_asset_) {
+    return false;
   }
   const asset_system::AssetRepresentation *asset = handle_get_representation(&asset_);
   AssetWeakReference weak_ref = asset->make_weak_reference();
@@ -254,10 +247,10 @@ std::optional<bool> AssetViewItem::should_be_active() const
   return matches;
 }
 
-bool AssetViewItem::should_be_filtered_visible(const StringRefNull filter_str) const
+bool AssetViewItem::should_be_filtered_visible(const StringRefNull filter_string) const
 {
   const StringRefNull asset_name = handle_get_representation(&asset_)->get_name();
-  return fnmatch(filter_str.c_str(), asset_name.c_str(), FNM_CASEFOLD) == 0;
+  return fnmatch(filter_string.c_str(), asset_name.c_str(), FNM_CASEFOLD) == 0;
 }
 
 std::unique_ptr<ui::AbstractViewItemDragController> AssetViewItem::create_drag_controller() const
@@ -299,8 +292,7 @@ void build_asset_view(uiLayout &layout,
   BLI_assert(tile_width != 0);
   BLI_assert(tile_height != 0);
 
-  const bool is_popup = region.regiontype == RGN_TYPE_TEMPORARY;
-  std::unique_ptr asset_view = std::make_unique<AssetView>(library_ref, shelf, is_popup);
+  std::unique_ptr asset_view = std::make_unique<AssetView>(library_ref, shelf);
   asset_view->set_catalog_filter(catalog_filter_from_shelf_settings(shelf.settings, *library));
   asset_view->set_tile_size(tile_width, tile_height);
 

@@ -946,7 +946,7 @@ static uiButExtraOpIcon *ui_but_extra_icon_find_old(const uiButExtraOpIcon *new_
 static void ui_but_extra_icons_update_from_old_but(const uiBut *new_but, const uiBut *old_but)
 {
   /* Specifically for keeping some state info for the active button. */
-  BLI_assert(old_but->active);
+  BLI_assert(old_but->active || old_but->semi_modal_state);
 
   LISTBASE_FOREACH (uiButExtraOpIcon *, new_extra_icon, &new_but->extra_op_icons) {
     uiButExtraOpIcon *old_extra_icon = ui_but_extra_icon_find_old(new_extra_icon, old_but);
@@ -969,7 +969,7 @@ static void ui_but_extra_icons_update_from_old_but(const uiBut *new_but, const u
  */
 static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
 {
-  BLI_assert(oldbut->active);
+  BLI_assert(oldbut->active || oldbut->semi_modal_state);
 
   /* flags from the buttons we want to refresh, may want to add more here... */
   const int flag_copy = UI_BUT_REDALERT | UI_HAS_ICON | UI_SELECT_DRAW;
@@ -1103,7 +1103,7 @@ static bool ui_but_update_from_old_block(const bContext *C,
     return false;
   }
 
-  if (oldbut->active) {
+  if (oldbut->active || oldbut->semi_modal_state) {
     /* Move button over from oldblock to new block. */
     BLI_remlink(&oldblock->buttons, oldbut);
     BLI_insertlinkafter(&block->buttons, but, oldbut);
@@ -3633,7 +3633,7 @@ static void ui_but_free(const bContext *C, uiBut *but)
   }
 
   if (but->func_argN) {
-    MEM_freeN(but->func_argN);
+    but->func_argN_free_fn(but->func_argN);
   }
 
   if (but->tip_arg_free) {
@@ -3650,6 +3650,16 @@ static void ui_but_free(const bContext *C, uiBut *but)
 
   ui_but_free_type_specific(but);
 
+  if (but->semi_modal_state && but->semi_modal_state != but->active) {
+    if (C) {
+      /* XXX without this we're stuck in modal state with text edit cursor after closing popup.
+       * Should exit active buttons as part of popup closing. */
+      ui_but_semi_modal_state_free(C, but);
+    }
+    else {
+      MEM_freeN(but->semi_modal_state);
+    }
+  }
   if (but->active) {
     /* XXX solve later, buttons should be free-able without context ideally,
      * however they may have open tooltips or popup windows, which need to
@@ -3712,7 +3722,7 @@ void UI_block_free(const bContext *C, uiBlock *block)
   }
 
   if (block->func_argN) {
-    MEM_freeN(block->func_argN);
+    block->func_argN_free_fn(block->func_argN);
   }
 
   ui_block_free_active_operator(block);
@@ -4354,7 +4364,8 @@ static uiBut *ui_def_but(uiBlock *block,
 
   but->funcN = block->funcN;
   if (block->func_argN) {
-    but->func_argN = MEM_dupallocN(block->func_argN);
+    but->func_argN = block->func_argN_copy_fn(block->func_argN);
+    but->func_argN_free_fn = block->func_argN_free_fn;
   }
 
   but->pos = -1; /* cursor invisible */
@@ -4689,6 +4700,8 @@ void ui_but_rna_menu_convert_to_panel_type(uiBut *but, const char *panel_type)
   //  BLI_assert((void *)but->poin == but);
   but->menu_create_func = ui_def_but_rna__panel_type;
   but->func_argN = BLI_strdup(panel_type);
+  but->func_argN_free_fn = MEM_freeN;
+  but->func_argN_copy_fn = MEM_dupallocN;
 }
 
 bool ui_but_menu_draw_as_popover(const uiBut *but)
@@ -4717,6 +4730,8 @@ void ui_but_rna_menu_convert_to_menu_type(uiBut *but, const char *menu_type)
   BLI_assert(but->menu_create_func == ui_def_but_rna__menu);
   BLI_assert((void *)but->poin == but);
   but->menu_create_func = ui_def_but_rna__menu_type;
+  BLI_assert(but->func_argN_free_fn == MEM_freeN);
+  BLI_assert(but->func_argN_copy_fn == MEM_dupallocN);
   but->func_argN = BLI_strdup(menu_type);
 }
 
@@ -5871,7 +5886,7 @@ void UI_but_operator_set(uiBut *but,
 
   MEM_SAFE_FREE(but->opptr);
   if (op_props) {
-    but->opptr = MEM_new<PointerRNA>(__func__, *op_props);
+    but->opptr = MEM_cnew<PointerRNA>(__func__, *op_props);
   }
 }
 
@@ -6082,14 +6097,21 @@ void UI_block_func_set(uiBlock *block, uiButHandleFunc func, void *arg1, void *a
   block->func_arg2 = arg2;
 }
 
-void UI_block_funcN_set(uiBlock *block, uiButHandleNFunc funcN, void *argN, void *arg2)
+void UI_block_funcN_set(uiBlock *block,
+                        uiButHandleNFunc funcN,
+                        void *argN,
+                        void *arg2,
+                        uiButArgNFree func_argN_free_fn,
+                        uiButArgNCopy func_argN_copy_fn)
 {
   if (block->func_argN) {
-    MEM_freeN(block->func_argN);
+    block->func_argN_free_fn(block->func_argN);
   }
 
   block->funcN = funcN;
   block->func_argN = argN;
+  block->func_argN_free_fn = func_argN_free_fn;
+  block->func_argN_copy_fn = func_argN_copy_fn;
   block->func_arg2 = arg2;
 }
 
@@ -6122,14 +6144,21 @@ void UI_but_func_set(uiBut *but, std::function<void(bContext &)> func)
   but->apply_func = std::move(func);
 }
 
-void UI_but_funcN_set(uiBut *but, uiButHandleNFunc funcN, void *argN, void *arg2)
+void UI_but_funcN_set(uiBut *but,
+                      uiButHandleNFunc funcN,
+                      void *argN,
+                      void *arg2,
+                      uiButArgNFree func_argN_free_fn,
+                      uiButArgNCopy func_argN_copy_fn)
 {
   if (but->func_argN) {
-    MEM_freeN(but->func_argN);
+    but->func_argN_free_fn(but->func_argN);
   }
 
   but->funcN = funcN;
   but->func_argN = argN;
+  but->func_argN_free_fn = func_argN_free_fn;
+  but->func_argN_copy_fn = func_argN_copy_fn;
   but->func_arg2 = arg2;
 }
 
@@ -6203,15 +6232,19 @@ uiBut *uiDefBlockButN(uiBlock *block,
                       int y,
                       short width,
                       short height,
-                      const char *tip)
+                      const char *tip,
+                      uiButArgNFree func_argN_free_fn,
+                      uiButArgNCopy func_argN_copy_fn)
 {
   uiBut *but = ui_def_but(
       block, UI_BTYPE_BLOCK, 0, str, x, y, width, height, nullptr, 0.0, 0.0, tip);
   but->block_create_func = func;
   if (but->func_argN) {
-    MEM_freeN(but->func_argN);
+    but->func_argN_free_fn(but->func_argN);
   }
   but->func_argN = argN;
+  but->func_argN_free_fn = func_argN_free_fn;
+  but->func_argN_copy_fn = func_argN_copy_fn;
   ui_but_update(but);
   return but;
 }

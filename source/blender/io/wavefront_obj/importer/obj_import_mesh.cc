@@ -31,38 +31,28 @@
 
 namespace blender::io::obj {
 
-Object *MeshFromGeometry::create_mesh(Main *bmain,
-                                      Map<std::string, std::unique_ptr<MTLMaterial>> &materials,
-                                      Map<std::string, Material *> &created_materials,
-                                      const OBJImportParams &import_params)
+Mesh *MeshFromGeometry::create_mesh(const OBJImportParams &import_params)
 {
   const int64_t tot_verts_object{mesh_geometry_.get_vertex_count()};
   if (tot_verts_object <= 0) {
     /* Empty mesh */
     return nullptr;
   }
-  std::string ob_name = get_geometry_name(mesh_geometry_.geometry_name_,
-                                          import_params.collection_separator);
-  if (ob_name.empty()) {
-    ob_name = "Untitled";
-  }
-  fixup_invalid_faces();
+
+  this->fixup_invalid_faces();
 
   /* Includes explicitly imported edges, not the ones belonging the faces to be created. */
   Mesh *mesh = BKE_mesh_new_nomain(tot_verts_object,
                                    mesh_geometry_.edges_.size(),
                                    mesh_geometry_.face_elements_.size(),
                                    mesh_geometry_.total_corner_);
-  Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name.c_str());
-  obj->data = BKE_object_obdata_add_from_type(bmain, OB_MESH, ob_name.c_str());
 
-  create_vertices(mesh);
-  create_faces(mesh, import_params.import_vertex_groups && !import_params.use_split_groups);
-  create_edges(mesh);
-  create_uv_verts(mesh);
-  create_normals(mesh);
-  create_colors(mesh);
-  create_materials(bmain, materials, created_materials, obj, import_params.relative_paths);
+  this->create_vertices(mesh);
+  this->create_faces(mesh, import_params.import_vertex_groups && !import_params.use_split_groups);
+  this->create_edges(mesh);
+  this->create_uv_verts(mesh);
+  this->create_normals(mesh);
+  this->create_colors(mesh);
 
   if (import_params.validate_meshes || mesh_geometry_.has_invalid_faces_) {
     bool verbose_validate = false;
@@ -71,12 +61,39 @@ Object *MeshFromGeometry::create_mesh(Main *bmain,
 #endif
     BKE_mesh_validate(mesh, verbose_validate, false);
   }
+
+  return mesh;
+}
+
+Object *MeshFromGeometry::create_mesh_object(
+    Main *bmain,
+    Map<std::string, std::unique_ptr<MTLMaterial>> &materials,
+    Map<std::string, Material *> &created_materials,
+    const OBJImportParams &import_params)
+{
+  Mesh *mesh = this->create_mesh(import_params);
+
+  if (mesh == nullptr) {
+    return nullptr;
+  }
+
+  std::string ob_name = get_geometry_name(mesh_geometry_.geometry_name_,
+                                          import_params.collection_separator);
+  if (ob_name.empty()) {
+    ob_name = "Untitled";
+  }
+
+  Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name.c_str());
+  obj->data = BKE_object_obdata_add_from_type(bmain, OB_MESH, ob_name.c_str());
+
+  this->create_materials(bmain, materials, created_materials, obj, import_params.relative_paths);
+
   transform_object(obj, import_params);
 
   BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
 
   /* NOTE: vertex groups have to be created after final mesh is assigned to the object. */
-  create_vertex_groups(obj);
+  this->create_vertex_groups(obj);
 
   return obj;
 }

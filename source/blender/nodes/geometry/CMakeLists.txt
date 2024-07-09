@@ -22,6 +22,7 @@ set(INC
   ../../windowmanager
   ../../io/common
   ../../io/stl
+  ../../io/wavefront_obj
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -87,6 +88,7 @@ set(SRC
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
+  nodes/node_geo_import_obj.cc
   nodes/node_geo_import_stl.cc
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
@@ -248,6 +250,14 @@ if(WITH_IO_STL)
     PRIVATE bf_io_stl
   )
   add_definitions(-DWITH_IO_STL)
+endif()
+
+if(WITH_IO_WAVEFRONT_OBJ)
+  list(APPEND LIB
+    PRIVATE bf_io_common
+    PRIVATE bf_io_wavefront_obj
+  )
+  add_definitions(-DWITH_IO_WAVEFRONT_OBJ)
 endif()
 
 if(WITH_BULLET)
