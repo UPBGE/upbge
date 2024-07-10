@@ -1032,12 +1032,12 @@ void calc_area_center(const Brush &brush,
                       Span<PBVHNode *> nodes,
                       float r_area_co[3]);
 
-}
+PBVHVertRef nearest_vert_calc(const Object &object,
+                              const float3 &location,
+                              float max_distance,
+                              bool use_original);
 
-PBVHVertRef SCULPT_nearest_vertex_get(const Object &ob,
-                                      const float co[3],
-                                      float max_distance,
-                                      bool use_original);
+}
 
 int SCULPT_plane_point_side(const float co[3], const float plane[4]);
 int SCULPT_plane_trim(const blender::ed::sculpt_paint::StrokeCache &cache,
@@ -1092,8 +1092,6 @@ bool node_in_cylinder(const DistRayAABB_Precalc &dist_ray_precalc,
                       bool original);
 
 }
-
-void SCULPT_combine_transform_proxies(const Sculpt &sd, Object &ob);
 
 /**
  * Initialize a point-in-brush test with a given falloff shape.
@@ -1653,6 +1651,8 @@ void push_end_ex(Object &ob, const bool use_nested_undo);
 void restore_from_bmesh_enter_geometry(const StepData &step_data, Mesh &mesh);
 BMLogEntry *get_bmesh_log_entry();
 
+void restore_position_from_undo_step(Object &object);
+
 }
 
 namespace blender::ed::sculpt_paint {
@@ -2070,7 +2070,6 @@ float clay_thumb_get_stabilized_pressure(const blender::ed::sculpt_paint::Stroke
 
 }
 
-void SCULPT_do_snake_hook_brush(const Sculpt &sd, Object &ob, blender::Span<PBVHNode *> nodes);
 void SCULPT_do_layer_brush(const Sculpt &sd, Object &ob, blender::Span<PBVHNode *> nodes);
 void SCULPT_do_topology_relax_brush(const Sculpt &sd, Object &ob, blender::Span<PBVHNode *> nodes);
 

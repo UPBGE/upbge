@@ -90,6 +90,7 @@
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_register.hh"
@@ -248,7 +249,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
 
   if (ntree_src->geometry_node_asset_traits) {
-    ntree_dst->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(
+    ntree_dst->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(
         __func__, *ntree_src->geometry_node_asset_traits);
   }
 
@@ -309,7 +310,9 @@ static void ntree_free_data(ID *id)
     BKE_libblock_free_data(&ntree->id, true);
   }
 
-  MEM_delete(ntree->geometry_node_asset_traits);
+  if (ntree->geometry_node_asset_traits) {
+    MEM_freeN(ntree->geometry_node_asset_traits);
+  }
 
   if (ntree->nested_node_refs) {
     MEM_freeN(ntree->nested_node_refs);

@@ -40,6 +40,7 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
 #include "action_runtime.hh"
 
@@ -749,6 +750,48 @@ void Slot::users_invalidate(Main &bmain)
   bmain.is_action_slot_to_id_map_dirty = true;
 }
 
+std::string Slot::name_prefix_for_idtype() const
+{
+  if (!this->has_idtype()) {
+    return slot_unbound_prefix;
+  }
+
+  char name[3] = {0};
+  *reinterpret_cast<short *>(name) = this->idtype;
+  return name;
+}
+
+StringRefNull Slot::name_without_prefix() const
+{
+  BLI_assert(StringRef(this->name).size() >= name_length_min);
+
+  /* Avoid accessing an uninitialized part of the string accidentally. */
+  if (this->name[0] == '\0' || this->name[1] == '\0') {
+    return "";
+  }
+  return this->name + 2;
+}
+
+void Slot::name_ensure_prefix()
+{
+  BLI_assert(StringRef(this->name).size() >= name_length_min);
+
+  if (StringRef(this->name).size() < 2) {
+    /* The code below would overwrite the trailing 0-byte. */
+    this->name[2] = '\0';
+  }
+
+  if (!this->has_idtype()) {
+    /* A zero idtype is not going to convert to a two-character string, so we
+     * need to explicitly assign the default prefix. */
+    this->name[0] = slot_unbound_prefix[0];
+    this->name[1] = slot_unbound_prefix[1];
+    return;
+  }
+
+  *reinterpret_cast<short *>(this->name) = this->idtype;
+}
+
 /* ----- Functions  ----------- */
 
 bool assign_action(Action &action, ID &animated_id)
@@ -841,48 +884,6 @@ std::optional<std::pair<Action *, Slot *>> get_action_slot_pair(ID &animated_id)
   }
 
   return std::make_pair(&action, slot);
-}
-
-std::string Slot::name_prefix_for_idtype() const
-{
-  if (!this->has_idtype()) {
-    return slot_unbound_prefix;
-  }
-
-  char name[3] = {0};
-  *reinterpret_cast<short *>(name) = this->idtype;
-  return name;
-}
-
-StringRefNull Slot::name_without_prefix() const
-{
-  BLI_assert(StringRef(this->name).size() >= name_length_min);
-
-  /* Avoid accessing an uninitialized part of the string accidentally. */
-  if (this->name[0] == '\0' || this->name[1] == '\0') {
-    return "";
-  }
-  return this->name + 2;
-}
-
-void Slot::name_ensure_prefix()
-{
-  BLI_assert(StringRef(this->name).size() >= name_length_min);
-
-  if (StringRef(this->name).size() < 2) {
-    /* The code below would overwrite the trailing 0-byte. */
-    this->name[2] = '\0';
-  }
-
-  if (!this->has_idtype()) {
-    /* A zero idtype is not going to convert to a two-character string, so we
-     * need to explicitly assign the default prefix. */
-    this->name[0] = slot_unbound_prefix[0];
-    this->name[1] = slot_unbound_prefix[1];
-    return;
-  }
-
-  *reinterpret_cast<short *>(this->name) = this->idtype;
 }
 
 /* ----- ActionStrip implementation ----------- */
@@ -1370,6 +1371,40 @@ FCurve *action_fcurve_ensure(Main *bmain,
   DEG_relations_tag_update(bmain);
 
   return fcu;
+}
+
+ID *action_slot_get_id_for_keying(Main &bmain,
+                                  Action &action,
+                                  const slot_handle_t slot_handle,
+                                  ID *primary_id)
+{
+  if (action.is_action_legacy()) {
+    if (primary_id && get_action(*primary_id) == &action) {
+      return primary_id;
+    }
+    return nullptr;
+  }
+
+  Slot *slot = action.slot_for_handle(slot_handle);
+  if (slot == nullptr) {
+    return nullptr;
+  }
+
+  blender::Span<ID *> users = slot->users(bmain);
+  if (users.size() == 1) {
+    /* We only do this for `users.size() == 1` and not `users.size() >= 1`
+     * because when there's more than one user it's ambiguous which user we
+     * should return, and that would be unpredictable for end users of Blender.
+     * We also expect that to be a corner case anyway.  So instead we let that
+     * case either get disambiguated by the primary ID in the case below, or
+     * return null. */
+    return users[0];
+  }
+  if (users.contains(primary_id)) {
+    return primary_id;
+  }
+
+  return nullptr;
 }
 
 void assert_baklava_phase_1_invariants(const Action &action)

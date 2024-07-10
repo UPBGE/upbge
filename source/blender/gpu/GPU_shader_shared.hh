@@ -42,9 +42,10 @@ struct NodeLinkData {
   float dim_factor;
   float thickness;
   float4 dash_params;
+  bool32_t has_back_link;
   float aspect;
   float arrowSize;
-  float2 _pad;
+  float _pad;
 };
 BLI_STATIC_ASSERT_ALIGN(NodeLinkData, 16)
 
@@ -108,6 +109,7 @@ enum eGPUSeqFlags : uint32_t {
   GPU_SEQ_FLAG_SELECTED_RH = (1u << 12u),
   GPU_SEQ_FLAG_DRAW_LH = (1u << 13u),
   GPU_SEQ_FLAG_DRAW_RH = (1u << 14u),
+  GPU_SEQ_FLAG_OVERLAP = (1u << 15u),
 
   GPU_SEQ_FLAG_ANY_HANDLE = GPU_SEQ_FLAG_SELECTED_LH | GPU_SEQ_FLAG_SELECTED_RH |
                             GPU_SEQ_FLAG_DRAW_LH | GPU_SEQ_FLAG_DRAW_RH

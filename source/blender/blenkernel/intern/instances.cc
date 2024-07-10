@@ -96,7 +96,7 @@ void InstanceReference::to_geometry_set(GeometrySet &r_geometry_set) const
   }
 }
 
-std::string InstanceReference::name() const
+StringRefNull InstanceReference::name() const
 {
   switch (type_) {
     case Type::Object:
@@ -104,7 +104,7 @@ std::string InstanceReference::name() const
     case Type::Collection:
       return this->collection().id.name + 2;
     case Type::GeometrySet:
-      return IFACE_("Geometry");
+      return this->geometry_set().name;
     case Type::None:
       break;
   }

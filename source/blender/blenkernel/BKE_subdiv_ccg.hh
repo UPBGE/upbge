@@ -16,6 +16,7 @@
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_sys_types.h"
+#include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_ccg.hh"
@@ -85,7 +86,7 @@ struct SubdivCCGAdjacentVertex {
 };
 
 /* Representation of subdivision surface which uses CCG grids. */
-struct SubdivCCG {
+struct SubdivCCG : blender::NonCopyable {
   /* This is a subdivision surface this CCG was created for.
    *
    * TODO(sergey): Make sure the whole descriptor is valid, including all the
@@ -280,6 +281,13 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
     blender::OffsetIndices<int> faces,
     int &r_v1,
     int &r_v2);
+
+/* Determines if a given grid coordinate is on a coarse mesh boundary. */
+bool BKE_subdiv_ccg_coord_is_mesh_boundary(blender::OffsetIndices<int> faces,
+                                           blender::Span<int> corner_verts,
+                                           blender::BitSpan boundary_verts,
+                                           const SubdivCCG &subdiv_ccg,
+                                           SubdivCCGCoord coord);
 
 /* Get array which is indexed by face index and contains index of a first grid of the face.
  *
