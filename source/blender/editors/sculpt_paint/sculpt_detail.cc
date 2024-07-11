@@ -674,6 +674,13 @@ static void dyntopo_detail_size_update_header(bContext *C,
   SNPRINTF(msg, format_string, ui_name, cd->current_value);
   ScrArea *area = CTX_wm_area(C);
   ED_area_status_text(area, msg);
+
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
+  status.item(IFACE_("Change Size"), ICON_MOUSE_MOVE);
+  status.item_bool(IFACE_("Sample Mode"), cd->sample_mode, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Precision Mode"), cd->accurate_mode, ICON_EVENT_SHIFT);
 }
 
 static int dyntopo_detail_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -734,6 +741,7 @@ static int dyntopo_detail_size_edit_modal(bContext *C, wmOperator *op, const wmE
   /* Sample mode sets the detail size sampling the average edge length under the surface. */
   if (cd->sample_mode) {
     dyntopo_detail_size_sample_from_surface(active_object, cd);
+    dyntopo_detail_size_update_header(C, cd);
     return OPERATOR_RUNNING_MODAL;
   }
   /* Regular mode, changes the detail size by moving the cursor. */

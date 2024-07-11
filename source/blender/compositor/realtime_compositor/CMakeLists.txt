@@ -28,6 +28,7 @@ set(SRC
   intern/domain.cc
   intern/evaluator.cc
   intern/input_single_value_operation.cc
+  intern/meta_data.cc
   intern/node_operation.cc
   intern/operation.cc
   intern/profiler.cc
@@ -50,6 +51,7 @@ set(SRC
   COM_evaluator.hh
   COM_input_descriptor.hh
   COM_input_single_value_operation.hh
+  COM_meta_data.hh
   COM_node_operation.hh
   COM_operation.hh
   COM_profiler.hh

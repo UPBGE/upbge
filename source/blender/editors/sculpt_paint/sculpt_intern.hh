@@ -14,6 +14,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
+#include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
@@ -235,7 +236,7 @@ struct Cache {
   int iteration_count;
 
   /* Stores the displacement produced by the laplacian step of HC smooth. */
-  float (*surface_smooth_laplacian_disp)[3];
+  Array<float3> surface_smooth_laplacian_disp;
   float surface_smooth_shape_preservation;
   float surface_smooth_current_vertex;
 
@@ -243,8 +244,8 @@ struct Cache {
   float sharpen_smooth_ratio;
   float sharpen_intensify_detail_strength;
   int sharpen_curvature_smooth_iterations;
-  float *sharpen_factor;
-  float (*detail_directions)[3];
+  Array<float> sharpen_factor;
+  Array<float3> detail_directions;
 
   /* Filter orientation. */
   SculptFilterOrientation orientation;
@@ -260,20 +261,20 @@ struct Cache {
   Vector<PBVHNode *> nodes;
 
   /* Cloth filter. */
-  cloth::SimulationData *cloth_sim;
+  std::unique_ptr<cloth::SimulationData> cloth_sim;
   float3 cloth_sim_pinch_point;
 
   /* mask expand iteration caches */
   int mask_update_current_it;
   int mask_update_last_it;
-  int *mask_update_it;
-  float *normal_factor;
-  float *edge_factor;
-  float *prev_mask;
+  Array<int> mask_update_it;
+  Array<float> normal_factor;
+  Array<float> edge_factor;
+  Array<float> prev_mask;
   float3 mask_expand_initial_co;
 
   int new_face_set;
-  int *prev_face_set;
+  Array<int> prev_face_set;
 
   int active_face_set;
 
@@ -433,7 +434,7 @@ struct StrokeCache {
   std::unique_ptr<SculptPoseIKChain> pose_ik_chain;
 
   /* Enhance Details. */
-  float (*detail_directions)[3];
+  Array<float3> detail_directions;
 
   /* Clay Thumb brush */
   /* Angle of the front tilting plane of the brush to simulate clay accumulation. */
@@ -443,7 +444,7 @@ struct StrokeCache {
   int clay_pressure_stabilizer_index;
 
   /* Cloth brush */
-  cloth::SimulationData *cloth_sim;
+  std::unique_ptr<cloth::SimulationData> cloth_sim;
   float3 initial_location;
   float3 true_initial_location;
   float3 initial_normal;
@@ -454,10 +455,10 @@ struct StrokeCache {
 
   /* Surface Smooth Brush */
   /* Stores the displacement produced by the laplacian step of HC smooth. */
-  float (*surface_smooth_laplacian_disp)[3];
+  Array<float3> surface_smooth_laplacian_disp;
 
   /* Layer brush */
-  float *layer_displacement_factor;
+  Array<float> layer_displacement_factor;
 
   float vertex_rotation; /* amount to rotate the vertices when using rotate brush */
   Dial *dial;
@@ -492,6 +493,8 @@ struct StrokeCache {
   rcti current_r;  /* current redraw rectangle */
 
   int stroke_id;
+
+  ~StrokeCache();
 };
 
 /* -------------------------------------------------------------------- */
@@ -958,6 +961,16 @@ int vert_face_set_get(const SculptSession &ss, PBVHVertRef vertex);
 
 bool vert_has_face_set(const SculptSession &ss, PBVHVertRef vertex, int face_set);
 bool vert_has_unique_face_set(const SculptSession &ss, PBVHVertRef vertex);
+bool vert_has_unique_face_set(const GroupedSpan<int> vert_to_face_map,
+                              const int *face_sets,
+                              int vert);
+bool vert_has_unique_face_set(const GroupedSpan<int> vert_to_face_map,
+                              const Span<int> corner_verts,
+                              const OffsetIndices<int> faces,
+                              const int *face_sets,
+                              const SubdivCCG &subdiv_ccg,
+                              SubdivCCGCoord coord);
+bool vert_has_unique_face_set(const BMVert *vert);
 
 /**
  * Creates the sculpt face set attribute on the mesh if it doesn't exist.
@@ -1370,7 +1383,6 @@ void cache_init(bContext *C,
                 const float mval_fl[2],
                 float area_normal_radius,
                 float start_strength);
-void cache_free(SculptSession &ss);
 void register_operator_props(wmOperatorType *ot);
 
 /* Filter orientation utils. */
@@ -1437,55 +1449,53 @@ struct LengthConstraint {
 };
 
 struct SimulationData {
-  LengthConstraint *length_constraints;
-  int tot_length_constraints;
+  Vector<LengthConstraint> length_constraints;
   Set<OrderedEdge> created_length_constraints;
-  int capacity_length_constraints;
-  float *length_constraint_tweak;
+  Array<float> length_constraint_tweak;
 
   /* Position anchors for deformation brushes. These positions are modified by the brush and the
    * final positions of the simulated vertices are updated with constraints that use these points
    * as targets. */
-  float (*deformation_pos)[3];
-  float *deformation_strength;
+  Array<float3> deformation_pos;
+  Array<float> deformation_strength;
 
   float mass;
   float damping;
   float softbody_strength;
 
-  float (*acceleration)[3];
-  float (*pos)[3];
-  float (*init_pos)[3];
-  float3 *init_no;
-  float (*softbody_pos)[3];
-  float (*prev_pos)[3];
-  float (*last_iteration_pos)[3];
+  Array<float3> acceleration;
+  Array<float3> pos;
+  Array<float3> init_pos;
+  Array<float3> init_no;
+  Array<float3> softbody_pos;
+  Array<float3> prev_pos;
+  Array<float3> last_iteration_pos;
 
   ListBase *collider_list;
 
   int totnode;
   /** #PBVHNode pointer as a key, index in #SimulationData.node_state as value. */
   GHash *node_state_index;
-  NodeSimState *node_state;
+  Array<NodeSimState> node_state;
 
   VArraySpan<float> mask_mesh;
   int mask_cd_offset_bmesh;
   CCGKey grid_key;
+
+  ~SimulationData();
 };
 
 /* Main cloth brush function */
 void do_cloth_brush(const Sculpt &sd, Object &ob, Span<PBVHNode *> nodes);
 
-void simulation_free(SimulationData *cloth_sim);
-
 /* Public functions. */
 
-SimulationData *brush_simulation_create(Object &ob,
-                                        float cloth_mass,
-                                        float cloth_damping,
-                                        float cloth_softbody_strength,
-                                        bool use_collisions,
-                                        bool needs_deform_coords);
+std::unique_ptr<SimulationData> brush_simulation_create(Object &ob,
+                                                        float cloth_mass,
+                                                        float cloth_damping,
+                                                        float cloth_softbody_strength,
+                                                        bool use_collisions,
+                                                        bool needs_deform_coords);
 void brush_simulation_init(const SculptSession &ss, SimulationData &cloth_sim);
 
 void sim_activate_nodes(SimulationData &cloth_sim, Span<PBVHNode *> nodes);
@@ -1577,13 +1587,13 @@ void enhance_details_brush(const Sculpt &sd, Object &ob, Span<PBVHNode *> nodes)
 void surface_smooth_laplacian_step(SculptSession &ss,
                                    float *disp,
                                    const float co[3],
-                                   float (*laplacian_disp)[3],
+                                   MutableSpan<float3> laplacian_disp,
                                    PBVHVertRef vertex,
                                    const float origco[3],
                                    float alpha);
 void surface_smooth_displace_step(SculptSession &ss,
                                   float *co,
-                                  float (*laplacian_disp)[3],
+                                  MutableSpan<float3> laplacian_disp,
                                   PBVHVertRef vertex,
                                   float beta,
                                   float fade);
@@ -1608,7 +1618,6 @@ void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &ca
                                       ePaintSymmetryFlags symm,
                                       char axis,
                                       float angle);
-void SCULPT_cache_free(blender::ed::sculpt_paint::StrokeCache *cache);
 
 /* -------------------------------------------------------------------- */
 /** \name Sculpt Undo
@@ -1993,12 +2002,6 @@ void multiplane_scrape_preview_draw(uint gpuattr,
                                     const SculptSession &ss,
                                     const float outline_col[3],
                                     float outline_alpha);
-
-namespace face_set {
-
-void do_relax_face_sets_brush(const Sculpt &sd, Object &ob, Span<PBVHNode *> nodes);
-
-}
 
 namespace color {
 

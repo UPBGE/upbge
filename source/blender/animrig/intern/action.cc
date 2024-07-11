@@ -1407,6 +1407,18 @@ ID *action_slot_get_id_for_keying(Main &bmain,
   return nullptr;
 }
 
+ID *action_slot_get_id_best_guess(Main &bmain, Slot &slot, ID *primary_id)
+{
+  blender::Span<ID *> users = slot.users(bmain);
+  if (users.is_empty()) {
+    return 0;
+  }
+  if (users.contains(primary_id)) {
+    return primary_id;
+  }
+  return users[0];
+}
+
 void assert_baklava_phase_1_invariants(const Action &action)
 {
   if (action.is_action_legacy()) {
@@ -1436,6 +1448,40 @@ void assert_baklava_phase_1_invariants(const Strip &strip)
   BLI_assert(strip.type() == Strip::Type::Keyframe);
   BLI_assert(strip.is_infinite());
   BLI_assert(strip.frame_offset == 0.0);
+}
+
+Action *convert_to_layered_action(Main &bmain, const Action &legacy_action)
+{
+  if (!legacy_action.is_action_legacy()) {
+    return nullptr;
+  }
+
+  std::string suffix = "_layered";
+  /* In case the legacy action has a long name it is shortened to make space for the suffix. */
+  char legacy_name[MAX_ID_NAME - 10];
+  /* Offsetting the id.name to remove the ID prefix (AC) which gets added back later. */
+  STRNCPY_UTF8(legacy_name, legacy_action.id.name + 2);
+
+  const std::string layered_action_name = std::string(legacy_name) + suffix;
+  bAction *dna_action = BKE_action_add(&bmain, layered_action_name.c_str());
+
+  Action &converted_action = dna_action->wrap();
+  Slot &slot = converted_action.slot_add();
+  Layer &layer = converted_action.layer_add(legacy_action.id.name);
+  KeyframeStrip &strip = layer.strip_add<KeyframeStrip>();
+  BLI_assert(strip.channelbags_array_num == 0);
+  ChannelBag *bag = &strip.channelbag_for_slot_add(slot);
+
+  const int fcu_count = BLI_listbase_count(&legacy_action.curves);
+  bag->fcurve_array = MEM_cnew_array<FCurve *>(fcu_count, "Convert to layered action");
+  bag->fcurve_array_num = fcu_count;
+
+  int i = 0;
+  LISTBASE_FOREACH_INDEX (FCurve *, fcu, &legacy_action.curves, i) {
+    bag->fcurve_array[i] = BKE_fcurve_copy(fcu);
+  }
+
+  return &converted_action;
 }
 
 }  // namespace blender::animrig

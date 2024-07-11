@@ -5160,7 +5160,7 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 static void force_activate_view_item_but(bContext *C, ARegion *region, uiButViewItem *but)
 {
   if (but->active) {
-    button_activate_state(C, but, BUTTON_STATE_EXIT);
+    ui_apply_but(C, but->block, but, but->active, true);
   }
   else {
     UI_but_execute(C, region, but);
@@ -5198,6 +5198,9 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
             force_activate_view_item_but(C, data->region, view_item_but);
           }
 
+          /* Always continue for drag and drop handling. Also for cases where keymap items are
+           * registered to add custom activate or drag operators (the pose library does this for
+           * example). */
           return WM_UI_HANDLER_CONTINUE;
         case KM_DBL_CLICK:
           data->cancel = true;
