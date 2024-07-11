@@ -1925,8 +1925,6 @@ int main(int argc,
     CTX_free(C);
   }
 
-  GHOST_DisposeSystemPaths();
-
   DNA_sdna_current_free();
 
   BLI_threadapi_exit();
