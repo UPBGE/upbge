@@ -217,6 +217,27 @@ class Action : public ::bAction {
    */
   Slot &slot_ensure_for_id(const ID &animated_id);
 
+  /**
+   * Set the active Slot, ensuring only one Slot is flagged as the Active one.
+   *
+   * \param slot_handle if Slot::unassigned, there will not be any active slot.
+   * Passing an unknown/invalid slot handle will result in no slot being active.
+   */
+  void slot_active_set(slot_handle_t slot_handle);
+
+  /**
+   * Get the active Slot.
+   *
+   * This requires a linear scan of the slots, to find the one with the 'Active' flag set. Storing
+   * this on the Slot itself has the advantage that the 'active' status of a Slot can be determined
+   * without requiring access to the owning Action.
+   *
+   * As this already does a linear scan for the active slot, the slot is returned as a pointer;
+   * obtaining the pointer from a handle would require another linear scan to get the pointer,
+   * whereas obtaining the handle from the pointer is a constant operation.
+   */
+  Slot *slot_active_get();
+
   /** Assign this Action to the ID.
    *
    * \param slot: The slot this ID should be animated by, may be nullptr if it is to be
@@ -519,6 +540,8 @@ class Slot : public ::ActionSlot {
     Expanded = (1 << 0),
     /** Selected in animation editors. */
     Selected = (1 << 1),
+    /** The active Slot for this Action. Set via a method on the Action. */
+    Active = (1 << 2),
     /* When adding/removing a flag, also update the ENUM_OPERATORS() invocation,
      * all the way below the Slot class. */
   };
@@ -527,6 +550,7 @@ class Slot : public ::ActionSlot {
   void set_expanded(bool expanded);
   bool is_selected() const;
   void set_selected(bool selected);
+  bool is_active() const;
 
   /** Return the set of IDs that are animated by this Slot. */
   Span<ID *> users(Main &bmain) const;
@@ -580,10 +604,15 @@ class Slot : public ::ActionSlot {
    * the responsibility of the caller.
    */
   void name_ensure_prefix();
+
+  /**
+   * Set the 'Active' flag. Only allowed to be called by Action.
+   */
+  void set_active(bool active);
 };
 static_assert(sizeof(Slot) == sizeof(::ActionSlot),
               "DNA struct and its C++ wrapper must have the same size");
-ENUM_OPERATORS(Slot::Flags, Slot::Flags::Selected);
+ENUM_OPERATORS(Slot::Flags, Slot::Flags::Active);
 
 /**
  * KeyframeStrips effectively contain a bag of F-Curves for each Slot.
@@ -766,9 +795,22 @@ Vector<const FCurve *> fcurves_all(const Action &action);
 Vector<FCurve *> fcurves_all(Action &action);
 
 /**
- * Get (or add relevant data to be able to do so) an F-Curve from the given Action,
- * for the given animated data-block. This assumes that all the destinations are valid.
- * \param ptr: can be a null pointer.
+ * Get (or add relevant data to be able to do so) an F-Curve from the given
+ * Action. This assumes that all the destinations are valid.
+ *
+ * NOTE: this function is primarily intended for use with legacy actions, but
+ * for reasons of expedience it now also works with layered actions under the
+ * following limited circumstances: `ptr` must be non-null and must have an
+ * `owner_id` that already uses `act`. Otherwise this function will return
+ * nullptr for layered actions. See the comments in the implementation for more
+ * details.
+ *
+ * \param ptr: RNA pointer for the struct the fcurve is being looked up/created
+ * for. For legacy actions this is optional and may be null.
+ *
+ * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
+ * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
+ * contain the exact data path of the fcurve to be looked up/created.
  */
 FCurve *action_fcurve_ensure(Main *bmain,
                              bAction *act,

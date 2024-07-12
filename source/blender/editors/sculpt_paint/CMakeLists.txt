@@ -50,6 +50,7 @@ set(SRC
   grease_pencil_draw_ops.cc
   grease_pencil_erase.cc
   grease_pencil_fill.cc
+  grease_pencil_interpolate.cc
   grease_pencil_paint.cc
   grease_pencil_sculpt_clone.cc
   grease_pencil_sculpt_common.cc
@@ -138,7 +139,7 @@ set(SRC
   brushes/multires_displacement_eraser.cc
   brushes/pinch.cc
   brushes/multires_displacement_smear.cc
-  brushes/relax_face_sets.cc
+  brushes/relax.cc
   brushes/rotate.cc
   brushes/scrape.cc
   brushes/smooth.cc

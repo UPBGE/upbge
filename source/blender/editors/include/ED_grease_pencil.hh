@@ -58,10 +58,12 @@ void ED_operatortypes_grease_pencil_edit();
 void ED_operatortypes_grease_pencil_material();
 void ED_operatortypes_grease_pencil_primitives();
 void ED_operatortypes_grease_pencil_weight_paint();
+void ED_operatortypes_grease_pencil_interpolate();
 void ED_operatormacros_grease_pencil();
 void ED_keymap_grease_pencil(wmKeyConfig *keyconf);
 void ED_primitivetool_modal_keymap(wmKeyConfig *keyconf);
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf);
+void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_cutter(wmOperatorType *ot);
 
@@ -355,17 +357,36 @@ IndexMask polyline_detect_corners(Span<float2> points,
                                   float angle_threshold,
                                   IndexMaskMemory &memory);
 
+/**
+ * Merge points that are close together on each selected curve.
+ * Points are not merged across curves.
+ */
 bke::CurvesGeometry curves_merge_by_distance(
     const bke::CurvesGeometry &src_curves,
     const float merge_distance,
     const IndexMask &selection,
     const bke::AnonymousAttributePropagationInfo &propagation_info);
 
+/**
+ * Merge points on the same curve that are close together.
+ */
 int curve_merge_by_distance(const IndexRange points,
                             const Span<float> distances,
                             const IndexMask &selection,
                             const float merge_distance,
                             MutableSpan<int> r_merge_indices);
+
+/**
+ * Connect selected curve endpoints with the closest endpoints of other curves.
+ */
+bke::CurvesGeometry curves_merge_endpoints_by_distance(
+    const ARegion &region,
+    const bke::CurvesGeometry &src_curves,
+    const float4x4 &layer_to_world,
+    const float merge_distance,
+    const IndexMask &selection,
+    const bke::AnonymousAttributePropagationInfo &propagation_info);
+
 /**
  * Structure describing a point in the destination relatively to the source.
  * If a point in the destination \a is_src_point, then it corresponds
@@ -445,6 +466,17 @@ enum FillToolFitMethod {
   FitToView,
 };
 
+struct ExtensionData {
+  struct {
+    Vector<float3> starts;
+    Vector<float3> ends;
+  } lines;
+  struct {
+    Vector<float3> centers;
+    Vector<float> radii;
+  } circles;
+};
+
 /**
  * Fill tool for generating strokes in empty areas.
  *
@@ -471,6 +503,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                  bool invert,
                                  const std::optional<float> alpha_threshold,
                                  const float2 &fill_point,
+                                 const ExtensionData &extensions,
                                  FillToolFitMethod fit_method,
                                  int stroke_material_index,
                                  bool keep_images);
@@ -508,54 +541,56 @@ Image *image_render_end(Main &bmain, GPUOffScreen *buffer);
  * \param zoom: Zoom factor to render a smaller or larger part of the view.
  * \param offset: Offset of the view relative to the overall size.
  */
-void set_viewmat(const ViewContext &view_context,
-                 const Scene &scene,
-                 const int2 &win_size,
-                 const float2 &zoom,
-                 const float2 &offset);
-/**
- * Reset the view matrix for screen space rendering.
- */
-void clear_viewmat();
+void compute_view_matrices(const ViewContext &view_context,
+                           const Scene &scene,
+                           const int2 &win_size,
+                           const float2 &zoom,
+                           const float2 &offset);
+
+void set_view_matrix(const RegionView3D &rv3d);
+void clear_view_matrix();
+void set_projection_matrix(const RegionView3D &rv3d);
+void clear_projection_matrix();
 
 /**
  * Draw a dot with a given size and color.
  */
-void draw_dot(const float3 &position, float point_size, const ColorGeometry4f &color);
+void draw_dot(const float4x4 &transform,
+              const float3 &position,
+              float point_size,
+              const ColorGeometry4f &color);
+
 /**
  * Draw a poly line from points.
  */
-void draw_polyline(IndexRange indices,
+void draw_polyline(const float4x4 &transform,
+                   IndexRange indices,
                    Span<float3> positions,
                    const VArray<ColorGeometry4f> &colors,
-                   const float4x4 &layer_to_world,
                    bool cyclic,
                    float line_width);
+
 /**
- * Draw a curve using the Grease Pencil stroke shader.
+ * Draw points as circles.
  */
-void draw_grease_pencil_stroke(const RegionView3D &rv3d,
-                               const int2 &win_size,
-                               const Object &object,
-                               IndexRange indices,
-                               Span<float3> positions,
-                               const VArray<float> &radii,
-                               const VArray<ColorGeometry4f> &colors,
-                               const float4x4 &layer_to_world,
-                               bool cyclic,
-                               eGPDstroke_Caps cap_start,
-                               eGPDstroke_Caps cap_end,
-                               bool fill_stroke,
-                               float radius_scale = 1.0f);
+void draw_circles(const float4x4 &transform,
+                  const IndexRange indices,
+                  Span<float3> centers,
+                  const VArray<float> &radii,
+                  const VArray<ColorGeometry4f> &colors,
+                  const float2 &viewport_size,
+                  const float line_width,
+                  const bool fill);
+
 /**
- * Draw points as quads or circles.
+ * Draw lines with start and end points.
  */
-void draw_dots(IndexRange indices,
-               Span<float3> positions,
-               const VArray<float> &radii,
-               const VArray<ColorGeometry4f> &colors,
-               const float4x4 &layer_to_world,
-               const float radius_scale);
+void draw_lines(const float4x4 &transform,
+                IndexRange indices,
+                Span<float3> start_positions,
+                Span<float3> end_positions,
+                const VArray<ColorGeometry4f> &colors,
+                float line_width);
 
 /**
  * Draw curves geometry.
@@ -565,13 +600,29 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
                                 const int2 &win_size,
                                 const Object &object,
                                 const bke::greasepencil::Drawing &drawing,
+                                const float4x4 &transform,
                                 const IndexMask &strokes_mask,
                                 const VArray<ColorGeometry4f> &colors,
-                                const float4x4 &layer_to_world,
                                 bool use_xray,
                                 float radius_scale = 1.0f);
 
 }  // namespace image_render
+
+enum class InterpolateFlipMode : int8_t {
+  /* No flip. */
+  None = 0,
+  /* Flip always. */
+  Flip,
+  /* Flip if needed. */
+  FlipAuto,
+};
+
+enum class InterpolateLayerMode : int8_t {
+  /* Only interpolate on the active layer. */
+  Active = 0,
+  /* Interpolate strokes on every layer. */
+  All,
+};
 
 /**
  * Create new strokes tracing the rendered outline of existing strokes.

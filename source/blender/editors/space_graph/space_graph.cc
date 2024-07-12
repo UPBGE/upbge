@@ -868,12 +868,20 @@ static void graph_space_subtype_item_extend(bContext * /*C*/,
   RNA_enum_items_add(item, totitem, rna_enum_space_graph_mode_items);
 }
 
-static blender::StringRefNull graph_space_name_get(ScrArea *area)
+static blender::StringRefNull graph_space_name_get(const ScrArea *area)
 {
   SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
   const int index = RNA_enum_from_value(rna_enum_space_graph_mode_items, sgraph->mode);
   const EnumPropertyItem item = rna_enum_space_graph_mode_items[index];
   return item.name;
+}
+
+static int graph_space_icon_get(const ScrArea *area)
+{
+  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_graph_mode_items, sgraph->mode);
+  const EnumPropertyItem item = rna_enum_space_graph_mode_items[index];
+  return item.icon;
 }
 
 static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
@@ -923,6 +931,7 @@ void ED_spacetype_ipo()
   st->space_subtype_get = graph_space_subtype_get;
   st->space_subtype_set = graph_space_subtype_set;
   st->space_name_get = graph_space_name_get;
+  st->space_icon_get = graph_space_icon_get;
   st->blend_read_data = graph_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = graph_space_blend_write;

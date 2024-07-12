@@ -192,21 +192,22 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Sequenc
   strip_ctx.seq = seq;
   strip_ctx.bottom = seq->machine + SEQ_STRIP_OFSBOTTOM;
   strip_ctx.top = seq->machine + SEQ_STRIP_OFSTOP;
-  strip_ctx.content_start = SEQ_time_left_handle_frame_get(scene, seq);
-  strip_ctx.content_end = SEQ_time_right_handle_frame_get(scene, seq);
-  if (SEQ_time_has_left_still_frames(scene, seq)) {
-    strip_ctx.content_start = SEQ_time_start_frame_get(seq);
-  }
-  if (SEQ_time_has_right_still_frames(scene, seq)) {
-    strip_ctx.content_end = SEQ_time_content_end_frame_get(scene, seq);
-  }
-  /* Limit body to strip bounds. Meta strip can end up with content outside of strip range. */
-  strip_ctx.content_start = min_ff(strip_ctx.content_start,
-                                   SEQ_time_right_handle_frame_get(scene, seq));
-  strip_ctx.content_end = max_ff(strip_ctx.content_end,
-                                 SEQ_time_left_handle_frame_get(scene, seq));
   strip_ctx.left_handle = SEQ_time_left_handle_frame_get(scene, seq);
   strip_ctx.right_handle = SEQ_time_right_handle_frame_get(scene, seq);
+  strip_ctx.content_start = SEQ_time_start_frame_get(seq);
+  strip_ctx.content_end = SEQ_time_content_end_frame_get(scene, seq);
+
+  if (seq->type == SEQ_TYPE_SOUND_RAM && seq->sound != nullptr) {
+    /* Visualize subframe sound offsets */
+    const double sound_offset = (seq->sound->offset_time + seq->sound_offset) * FPS;
+    strip_ctx.content_start += sound_offset;
+    strip_ctx.content_end += sound_offset;
+  }
+
+  /* Limit body to strip bounds. */
+  strip_ctx.content_start = min_ff(strip_ctx.content_start, strip_ctx.right_handle);
+  strip_ctx.content_end = max_ff(strip_ctx.content_end, strip_ctx.left_handle);
+
   strip_ctx.strip_length = strip_ctx.right_handle - strip_ctx.left_handle;
 
   strip_draw_context_set_text_overlay_visibility(ctx, &strip_ctx);
@@ -456,7 +457,8 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
   const float draw_end_frame = min_ff(v2d->cur.xmax,
                                       strip_ctx->right_handle - timeline_ctx->pixelx * 3.0f);
   /* Offset must be also aligned, otherwise waveform flickers when moving left handle. */
-  float sample_start_frame = draw_start_frame + seq->sound->offset_time / FPS;
+  float sample_start_frame = draw_start_frame -
+                             (seq->sound->offset_time + seq->sound_offset) * FPS;
 
   const int pixels_to_draw = round_fl_to_int((draw_end_frame - draw_start_frame) /
                                              frames_per_pixel);
@@ -713,7 +715,7 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
   const float text_y = strip_ctx->bottom + 0.09f;
   float text_x = strip_ctx->left_handle;
 
-  if (handle == SEQ_HANDLE_RIGHT) {
+  if (handle == SEQ_HANDLE_LEFT) {
     numstr_len = SNPRINTF_RLEN(numstr, "%d", int(strip_ctx->left_handle));
     text_x += text_margin;
   }

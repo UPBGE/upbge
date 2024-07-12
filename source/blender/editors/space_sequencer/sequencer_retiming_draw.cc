@@ -110,14 +110,16 @@ rctf seq_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Sequ
 int left_fake_key_frame_get(const bContext *C, const Sequence *seq)
 {
   const Scene *scene = CTX_data_scene(C);
-  const int content_start = SEQ_time_start_frame_get(seq);
+  int sound_offset = SEQ_time_get_rounded_sound_offset(scene, seq);
+  const int content_start = SEQ_time_start_frame_get(seq) + sound_offset;
   return max_ii(content_start, SEQ_time_left_handle_frame_get(scene, seq));
 }
 
 int right_fake_key_frame_get(const bContext *C, const Sequence *seq)
 {
   const Scene *scene = CTX_data_scene(C);
-  const int content_end = SEQ_time_content_end_frame_get(scene, seq) - 1;
+  int sound_offset = SEQ_time_get_rounded_sound_offset(scene, seq);
+  const int content_end = SEQ_time_content_end_frame_get(scene, seq) - 1 + sound_offset;
   return min_ii(content_end, SEQ_time_right_handle_frame_get(scene, seq));
 }
 
@@ -161,7 +163,8 @@ SeqRetimingKey *try_to_realize_virtual_keys(const bContext *C, Sequence *seq, co
     key = SEQ_retiming_add_key(scene, seq, frame);
   }
 
-  /* Ensure both keys are realized, but return only one that was clicked on. */
+  /* Ensure both keys are realized so we only change the speed of what is visible in the strip,
+   * but return only the one that was clicked on. */
   if (key != nullptr) {
     SEQ_retiming_add_key(scene, seq, SEQ_time_right_handle_frame_get(scene, seq));
     SEQ_retiming_add_key(scene, seq, SEQ_time_left_handle_frame_get(scene, seq));
@@ -317,6 +320,10 @@ void sequencer_retiming_draw_continuity(const TimelineDrawContext *timeline_ctx,
 
     float key_position = UI_view2d_view_to_region_x(v2d, key_x_get(scene, seq, &key));
     float prev_key_position = UI_view2d_view_to_region_x(v2d, key_x_get(scene, seq, &key - 1));
+    if (prev_key_position > right_handle_position || key_position < left_handle_position) {
+      /* Don't draw highlights for out of bounds retiming keys. */
+      continue;
+    }
     prev_key_position = max_ff(prev_key_position, left_handle_position);
     key_position = min_ff(key_position, right_handle_position);
 
@@ -351,8 +358,9 @@ static SeqRetimingKey retiming_key_init(const Scene *scene,
                                         const Sequence *seq,
                                         int timeline_frame)
 {
+  int sound_offset = SEQ_time_get_rounded_sound_offset(scene, seq);
   SeqRetimingKey fake_key;
-  fake_key.strip_frame_index = (timeline_frame - SEQ_time_start_frame_get(seq)) *
+  fake_key.strip_frame_index = (timeline_frame - SEQ_time_start_frame_get(seq) - sound_offset) *
                                SEQ_time_media_playback_rate_factor_get(scene, seq);
   fake_key.flag = 0;
   return fake_key;

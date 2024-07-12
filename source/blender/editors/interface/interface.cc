@@ -5891,6 +5891,11 @@ void UI_but_operator_set(uiBut *but,
   }
 }
 
+void UI_but_operator_set_never_call(uiBut *but)
+{
+  but->operator_never_call = true;
+}
+
 /* END Button containing both string label and icon */
 
 void UI_but_link_set(uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to)
