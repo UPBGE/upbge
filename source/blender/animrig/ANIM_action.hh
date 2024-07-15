@@ -709,7 +709,7 @@ static_assert(sizeof(ChannelBag) == sizeof(::ActionChannelBag),
 /**
  * Assign the Action to the ID.
  *
- * This will will make a best-effort guess as to which slot to use, in this
+ * This will make a best-effort guess as to which slot to use, in this
  * order;
  *
  * - By slot handle.
@@ -860,7 +860,7 @@ ID *action_slot_get_id_for_keying(Main &bmain,
 /**
  * Make a best-effort guess as to which ID* is animated by the given slot.
  *
- * This is only used in rare cases; ususally the ID* for which operations are
+ * This is only used in rare cases; usually the ID* for which operations are
  * performed is known.
  *
  * \note This function was specifically written because the 'display name' of an

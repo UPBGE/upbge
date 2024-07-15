@@ -6,6 +6,7 @@
 #pragma BLENDER_REQUIRE(draw_model_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
+#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_renderpass_lib.glsl)
 
@@ -103,10 +104,13 @@ void closure_select(inout ClosureUndetermined destination,
                     inout float random,
                     ClosureUndetermined candidate)
 {
-  if (closure_select_check(candidate.weight, destination.weight, random)) {
-    float tmp = destination.weight;
+  float candidate_color_weight = reduce_add(candidate.color) / 3.0;
+  if (closure_select_check(candidate.weight * candidate_color_weight, destination.weight, random))
+  {
+    float total_weight = destination.weight;
     destination = candidate;
-    destination.weight = tmp;
+    destination.color /= candidate_color_weight;
+    destination.weight = total_weight;
   }
 }
 

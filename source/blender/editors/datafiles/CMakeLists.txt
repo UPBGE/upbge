@@ -24,30 +24,8 @@ set(LIB
 # See: `make icons_geom` and the script `./release/datafiles/blender_icons_geom_update.py`.
 set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   # BEGIN ICON_GEOM_NAMES
-  brush.gpencil_draw.draw
   brush.gpencil_draw.erase
   brush.gpencil_draw.fill
-  brush.gpencil_draw.tint
-  brush.paint_texture.airbrush
-  brush.paint_texture.clone
-  brush.paint_texture.draw
-  brush.paint_texture.fill
-  brush.paint_texture.mask
-  brush.paint_texture.masklort
-  brush.paint_texture.multiply
-  brush.paint_texture.smear
-  brush.paint_texture.soften
-  brush.paint_vertex.alpha
-  brush.paint_vertex.average
-  brush.paint_vertex.blur
-  brush.paint_vertex.draw
-  brush.paint_vertex.replace
-  brush.paint_vertex.smear
-  brush.paint_weight.average
-  brush.paint_weight.blur
-  brush.paint_weight.draw
-  brush.paint_weight.mix
-  brush.paint_weight.smear
   brush.particle.add
   brush.particle.comb
   brush.particle.cut
@@ -55,38 +33,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   brush.particle.puff
   brush.particle.smooth
   brush.particle.weight
-  brush.sculpt.blob
-  brush.sculpt.boundary
-  brush.sculpt.clay
-  brush.sculpt.clay_strips
-  brush.sculpt.clay_thumb
-  brush.sculpt.cloth
-  brush.sculpt.crease
-  brush.sculpt.displacement_eraser
-  brush.sculpt.displacement_smear
-  brush.sculpt.draw
-  brush.sculpt.draw_face_sets
-  brush.sculpt.draw_sharp
-  brush.sculpt.elastic_deform
-  brush.sculpt.fill
-  brush.sculpt.flatten
-  brush.sculpt.grab
-  brush.sculpt.inflate
-  brush.sculpt.layer
-  brush.sculpt.mask
-  brush.sculpt.multiplane_scrape
-  brush.sculpt.nudge
   brush.sculpt.paint
-  brush.sculpt.pinch
-  brush.sculpt.pose
-  brush.sculpt.rotate
-  brush.sculpt.scrape
-  brush.sculpt.simplify
-  brush.sculpt.smear
-  brush.sculpt.smooth
-  brush.sculpt.snake_hook
-  brush.sculpt.thumb
-  brush.sculpt.topology
   brush.uv_sculpt.grab
   brush.uv_sculpt.pinch
   brush.uv_sculpt.relax
@@ -100,17 +47,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.curve.pen
   ops.curve.radius
   ops.curve.vertex_random
-  ops.curves.sculpt_add
-  ops.curves.sculpt_comb
-  ops.curves.sculpt_cut
-  ops.curves.sculpt_delete
-  ops.curves.sculpt_density
-  ops.curves.sculpt_grow_shrink
-  ops.curves.sculpt_pinch
-  ops.curves.sculpt_puff
-  ops.curves.sculpt_slide
-  ops.curves.sculpt_smooth
-  ops.curves.sculpt_snake_hook
   ops.generic.cursor
   ops.generic.select
   ops.generic.select_box
@@ -133,19 +69,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.gpencil.primitive_line
   ops.gpencil.primitive_polyline
   ops.gpencil.radius
-  ops.gpencil.sculpt_average
-  ops.gpencil.sculpt_blur
-  ops.gpencil.sculpt_clone
-  ops.gpencil.sculpt_grab
-  ops.gpencil.sculpt_pinch
-  ops.gpencil.sculpt_push
-  ops.gpencil.sculpt_randomize
-  ops.gpencil.sculpt_smear
-  ops.gpencil.sculpt_smooth
-  ops.gpencil.sculpt_strength
-  ops.gpencil.sculpt_thickness
-  ops.gpencil.sculpt_twist
-  ops.gpencil.sculpt_weight
   ops.gpencil.stroke_cutter
   ops.gpencil.transform_fill
   ops.mesh.bevel
@@ -969,73 +892,6 @@ if(WITH_BLENDER)
 
     # Images.
     data_to_c_simple(../../../../release/datafiles/splash.png SRC)
-
-    # Brushes.
-    data_to_c_simple(../../../../release/datafiles/brushicons/blob.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/blur.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/clay.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/claystrips.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/clone.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/crease.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/draw.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/fill.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/flatten.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/grab.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/inflate.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/layer.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/mask.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/mix.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/nudge.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/paint_select.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/pinch.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/scrape.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/smear.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/smooth.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/snake_hook.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/soften.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/texdraw.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/texfill.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/texmask.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/thumb.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/twist.png SRC)
-
-    # Grease pencil sculpt.
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_smooth.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_thickness.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_strength.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_grab.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_push.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_twist.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_pinch.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_randomize.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_clone.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_weight.png SRC)
-
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_pencil.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_pen.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_ink.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_inknoise.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_block.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_marker.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_fill.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_airbrush.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_chisel.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_erase_soft.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_erase_hard.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/gp_brush_erase_stroke.png SRC)
-
-    # Curve sculpt.
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_add.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_comb.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_cut.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_delete.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_density.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_grow_shrink.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_pinch.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_puff.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_slide.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_smooth.png SRC)
-    data_to_c_simple(../../../../release/datafiles/brushicons/curves_sculpt_snake_hook.png SRC)
 
   endif()
 

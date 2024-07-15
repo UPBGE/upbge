@@ -63,7 +63,7 @@
 #include "DNA_object_types.h"
 #include "WM_types.hh"
 
-#include "rna_access_internal.h"
+#include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
 static CLG_LogRef LOG = {"rna.access"};
@@ -434,31 +434,31 @@ static bool rna_idproperty_verify_valid(PointerRNA *ptr, PropertyRNA *prop, IDPr
 }
 
 static PropertyRNA *typemap[IDP_NUMTYPES] = {
-    &rna_PropertyGroupItem_string,
-    &rna_PropertyGroupItem_int,
-    &rna_PropertyGroupItem_float,
+    rna_PropertyGroupItem_string,
+    rna_PropertyGroupItem_int,
+    rna_PropertyGroupItem_float,
     nullptr,
     nullptr,
     nullptr,
-    &rna_PropertyGroupItem_group,
-    &rna_PropertyGroupItem_id,
-    &rna_PropertyGroupItem_double,
-    &rna_PropertyGroupItem_idp_array,
-    &rna_PropertyGroupItem_bool,
+    rna_PropertyGroupItem_group,
+    rna_PropertyGroupItem_id,
+    rna_PropertyGroupItem_double,
+    rna_PropertyGroupItem_idp_array,
+    rna_PropertyGroupItem_bool,
 };
 
 static PropertyRNA *arraytypemap[IDP_NUMTYPES] = {
     nullptr,
-    &rna_PropertyGroupItem_int_array,
-    &rna_PropertyGroupItem_float_array,
+    rna_PropertyGroupItem_int_array,
+    rna_PropertyGroupItem_float_array,
     nullptr,
     nullptr,
     nullptr,
-    &rna_PropertyGroupItem_collection,
+    rna_PropertyGroupItem_collection,
     nullptr,
-    &rna_PropertyGroupItem_double_array,
+    rna_PropertyGroupItem_double_array,
     nullptr,
-    (PropertyRNA *)&rna_PropertyGroupItem_bool_array,
+    rna_PropertyGroupItem_bool_array,
 };
 
 void rna_property_rna_or_id_get(PropertyRNA *prop,
@@ -533,7 +533,7 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
         const IDPropertyUIDataInt *ui_data_int = reinterpret_cast<IDPropertyUIDataInt *>(
             idprop->ui_data);
         if (ui_data_int && ui_data_int->enum_items_num > 0) {
-          r_prop_rna_or_id->rnaprop = &rna_PropertyGroupItem_enum;
+          r_prop_rna_or_id->rnaprop = rna_PropertyGroupItem_enum;
           return;
         }
       }
@@ -571,7 +571,7 @@ PropertyRNA *rna_ensure_property(PropertyRNA *prop)
       const IDPropertyUIDataInt *ui_data_int = reinterpret_cast<IDPropertyUIDataInt *>(
           idprop->ui_data);
       if (ui_data_int && ui_data_int->enum_items_num > 0) {
-        return &rna_PropertyGroupItem_enum;
+        return rna_PropertyGroupItem_enum;
       }
     }
     return typemap[int(idprop->type)];
@@ -3507,6 +3507,36 @@ float RNA_property_float_get_default_index(PointerRNA *ptr, PropertyRNA *prop, i
   MEM_freeN(tmparray);
 
   return value;
+}
+
+std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
+{
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop);
+  IDProperty *idprop;
+
+  BLI_assert(RNA_property_type(prop) == PROP_STRING);
+
+  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+    /* NOTE: `std::string` does support NULL char in its data. */
+    return std::string{IDP_String(idprop), size_t(idprop->len)};
+  }
+
+  if (!sprop->get && !sprop->get_ex) {
+    return std::string{sprop->defaultvalue};
+  }
+
+  size_t length = size_t(RNA_property_string_length(ptr, prop));
+  std::string string_ret{};
+  string_ret.reserve(length + 1);
+
+  if (sprop->get) {
+    sprop->get(ptr, string_ret.data());
+  }
+  else { /* if (sprop->get_ex) */
+    sprop->get_ex(ptr, prop, string_ret.data());
+  }
+
+  return string_ret;
 }
 
 void RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop, char *value)

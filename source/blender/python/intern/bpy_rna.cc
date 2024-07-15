@@ -44,7 +44,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh" /* RNA_def_property_free_identifier */
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "CLG_log.h"
 
@@ -2897,7 +2897,7 @@ static int pyrna_prop_collection_ass_subscript(BPy_PropertyRNA *self,
 
   PyErr_Format(PyExc_TypeError,
                "bpy_prop_collection[key]: invalid key, "
-               "must be a string or an int, not %.200s",
+               "must be an int, not %.200s",
                Py_TYPE(key)->tp_name);
   return -1;
 }

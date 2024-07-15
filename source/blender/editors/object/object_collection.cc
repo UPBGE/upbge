@@ -41,7 +41,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
@@ -620,7 +620,9 @@ static int collection_exporter_export(bContext *C,
 
   /* Free the "last used" properties that were just set from the collection export and restore the
    * original "last used" properties. */
-  IDP_FreeProperty(ot->last_properties);
+  if (ot->last_properties) {
+    IDP_FreeProperty(ot->last_properties);
+  }
   ot->last_properties = last_properties;
 
   IDP_FreeProperty(op_props);
