@@ -141,7 +141,7 @@ void Camera::sync()
     CameraParams params;
     BKE_camera_params_init(&params);
 
-    if (inst_.rv3d->persp == RV3D_CAMOB && DRW_state_is_viewport_image_render()) {
+    if ((inst_.rv3d->persp == RV3D_CAMOB && DRW_state_is_viewport_image_render()) || inst_.scene->flag & SCE_INTERACTIVE) {
       /* We are rendering camera view, no need for pan/zoom params from viewport.*/
       BKE_camera_params_from_object(&params, camera_eval);
     }
