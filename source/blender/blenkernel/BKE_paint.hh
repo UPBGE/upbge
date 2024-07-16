@@ -329,10 +329,11 @@ struct SculptBoundaryEditInfo {
   float strength_factor;
 };
 
-/* Edge for drawing the boundary preview in the cursor. */
-struct SculptBoundaryPreviewEdge {
-  PBVHVertRef v1;
-  PBVHVertRef v2;
+/* Data used for displaying extra visuals while using the Boundary brush. */
+struct SculptBoundaryPreview {
+  blender::Vector<std::pair<blender::float3, blender::float3>> edges;
+  blender::float3 pivot_position;
+  blender::float3 initial_vert_position;
 };
 
 struct SculptBoundary {
@@ -345,7 +346,7 @@ struct SculptBoundary {
   blender::Array<float> distance;
 
   /* Data for drawing the preview. */
-  blender::Vector<SculptBoundaryPreviewEdge> edges;
+  blender::Vector<std::pair<blender::float3, blender::float3>> edges;
 
   /* True if the boundary loops into itself. */
   bool forms_loop;
@@ -357,13 +358,12 @@ struct SculptBoundary {
   /* Vertex that at max_propagation_steps from the boundary and closest to the original active
    * vertex that was used to initialize the boundary. This is used as a reference to check how much
    * the deformation will go into the mesh and to calculate the strength of the brushes. */
-  PBVHVertRef pivot_vertex;
+  blender::float3 pivot_position;
 
   /* Stores the initial positions of the pivot and boundary initial vertex as they may be deformed
    * during the brush action. This allows to use them as a reference positions and vectors for some
    * brush effects. */
   blender::float3 initial_vert_position;
-  blender::float3 initial_pivot_position;
 
   /* Maximum number of topology steps that were calculated from the boundary. */
   int max_propagation_steps;
@@ -590,7 +590,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   std::unique_ptr<SculptPoseIKChain> pose_ik_chain_preview;
 
   /* Boundary Brush Preview */
-  std::unique_ptr<SculptBoundary> boundary_preview;
+  std::unique_ptr<SculptBoundaryPreview> boundary_preview;
 
   SculptVertexInfo vertex_info = {};
   SculptFakeNeighbors fake_neighbors = {};

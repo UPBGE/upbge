@@ -99,6 +99,7 @@ set(SRC
   sculpt_filter_color.cc
   sculpt_filter_mask.cc
   sculpt_filter_mesh.cc
+  sculpt_flood_fill.cc
   sculpt_geodesic.cc
   sculpt_gesture.cc
   sculpt_mask_init.cc
@@ -135,6 +136,7 @@ set(SRC
   brushes/flatten.cc
   brushes/grab.cc
   brushes/inflate.cc
+  brushes/layer.cc
   brushes/mask.cc
   brushes/multiplane_scrape.cc
   brushes/multires_displacement_eraser.cc

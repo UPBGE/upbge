@@ -20,9 +20,11 @@
 
 #include "BKE_sound.h"
 
+#include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
+#include "SEQ_transform.hh"
 
 #include "sequencer.hh"
 #include "strip_time.hh"
@@ -105,9 +107,39 @@ void SEQ_retiming_data_ensure(Sequence *seq)
 
 void SEQ_retiming_data_clear(Sequence *seq)
 {
-  seq->retiming_keys = nullptr;
-  seq->retiming_keys_num = 0;
+  if (seq->retiming_keys != nullptr) {
+    MEM_freeN(seq->retiming_keys);
+    seq->retiming_keys = nullptr;
+    seq->retiming_keys_num = 0;
+  }
   seq->flag &= ~SEQ_SHOW_RETIMING;
+}
+
+static void retiming_key_overlap(Scene *scene, Sequence *seq)
+{
+  ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
+  blender::VectorSet<Sequence *> strips;
+  blender::VectorSet<Sequence *> dependant;
+  dependant.add(seq);
+  SEQ_iterator_set_expand(scene, seqbase, dependant, SEQ_query_strip_effect_chain);
+  strips.add_multiple(dependant);
+  dependant.remove(seq);
+  SEQ_transform_handle_overlap(scene, seqbase, strips, dependant, true);
+}
+
+void SEQ_retiming_reset(Scene *scene, Sequence *seq)
+{
+  if (!SEQ_retiming_is_allowed(seq)) {
+    return;
+  }
+
+  SEQ_retiming_data_clear(seq);
+
+  blender::Span effects = seq_sequence_lookup_effects_by_seq(scene, seq);
+  seq_time_update_effects_strip_range(scene, effects);
+  SEQ_time_update_meta_strip_range(scene, seq_sequence_lookup_meta_by_seq(scene, seq));
+
+  retiming_key_overlap(scene, seq);
 }
 
 bool SEQ_retiming_is_active(const Sequence *seq)

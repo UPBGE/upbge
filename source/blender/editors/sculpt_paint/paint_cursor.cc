@@ -1701,28 +1701,22 @@ static void paint_cursor_preview_boundary_data_pivot_draw(PaintCursorContext *pc
     return;
   }
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.8f);
-  cursor_draw_point_screen_space(
-      pcontext->pos,
-      pcontext->region,
-      SCULPT_vertex_co_get(*pcontext->ss, pcontext->ss->boundary_preview->pivot_vertex),
-      pcontext->vc.obact->object_to_world().ptr(),
-      3);
+  cursor_draw_point_screen_space(pcontext->pos,
+                                 pcontext->region,
+                                 pcontext->ss->boundary_preview->pivot_position,
+                                 pcontext->vc.obact->object_to_world().ptr(),
+                                 3);
 }
 
-static void paint_cursor_preview_boundary_data_update(PaintCursorContext *pcontext,
-                                                      const bool update_previews)
+static void paint_cursor_preview_boundary_data_update(PaintCursorContext *pcontext)
 {
   using namespace blender::ed::sculpt_paint;
   SculptSession &ss = *pcontext->ss;
-  if (!(update_previews || !ss.boundary_preview)) {
-    return;
-  }
-
   /* Needed for updating the necessary SculptSession data in order to initialize the
    * boundary data for the preview. */
   BKE_sculpt_update_object_for_edit(pcontext->depsgraph, pcontext->vc.obact, false);
 
-  ss.boundary_preview = boundary::data_init(
+  ss.boundary_preview = boundary::preview_data_init(
       *pcontext->vc.obact, pcontext->brush, ss.active_vertex, pcontext->radius);
 }
 
@@ -1815,7 +1809,7 @@ static void paint_cursor_draw_3d_view_brush_cursor_inactive(PaintCursorContext *
   }
 
   if (is_brush_tool && brush.sculpt_tool == SCULPT_TOOL_BOUNDARY) {
-    paint_cursor_preview_boundary_data_update(pcontext, update_previews);
+    paint_cursor_preview_boundary_data_update(pcontext);
     paint_cursor_preview_boundary_data_pivot_draw(pcontext);
   }
 
