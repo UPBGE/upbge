@@ -3721,21 +3721,15 @@ void DRW_game_render_loop(bContext *C,
   drw_manager_init(&DST, viewport, NULL);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
-  bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
 
-  if (!is_vulkan_backend) {
-    use_drw_engine(&draw_engine_eevee_next_type);
+  use_drw_engine(&draw_engine_eevee_next_type);
 
-    if (gpencil_engine_needed) {
-      use_drw_engine(&draw_engine_gpencil_type);
-    }
-    /* Add realtime compositor for test in custom bge loop (not tested) */
-    if (is_compositor_enabled()) {
-      use_drw_engine(&draw_engine_compositor_type);
-    }
+  if (gpencil_engine_needed) {
+    use_drw_engine(&draw_engine_gpencil_type);
   }
-  else {
-    use_drw_engine(DRW_engine_viewport_workbench_type.draw_engine);
+  /* Add realtime compositor for test in custom bge loop (not tested) */
+  if (is_compositor_enabled()) {
+    use_drw_engine(&draw_engine_compositor_type);
   }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
