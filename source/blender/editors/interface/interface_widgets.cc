@@ -1366,7 +1366,7 @@ static void widget_draw_icon(
       UI_icon_draw_ex(xs, ys, icon, aspect, alpha, 0.0f, color, outline, &but->icon_overlay_text);
     }
     else if (!((but->icon != ICON_NONE) && UI_but_is_tool(but))) {
-      if (outline) {
+      if (has_theme) {
         alpha *= 0.8f;
       }
       UI_icon_draw_ex(xs,
@@ -4887,7 +4887,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   if (but->emboss == UI_EMBOSS_PULLDOWN) {
     switch (but->type) {
       case UI_BTYPE_LABEL:
-        widget_draw_text_icon(&style->widgetlabel, &tui->wcol_menu_back, but, rect);
+        widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
         break;
       case UI_BTYPE_SEPR:
         break;
@@ -4932,7 +4932,6 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
     switch (but->type) {
       case UI_BTYPE_LABEL:
         wt = widget_type(UI_WTYPE_LABEL);
-        fstyle = &style->widgetlabel;
         if (but->drawflag & UI_BUT_BOX_ITEM) {
           wt->wcol_theme = &tui->wcol_box;
           wt->state = widget_state;
@@ -5137,12 +5136,10 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 
       case UI_BTYPE_PROGRESS:
         wt = widget_type(UI_WTYPE_PROGRESS);
-        fstyle = &style->widgetlabel;
         break;
 
       case UI_BTYPE_VIEW_ITEM:
         wt = widget_type(UI_WTYPE_VIEW_ITEM);
-        fstyle = &style->widgetlabel;
         break;
 
       case UI_BTYPE_SCROLL:

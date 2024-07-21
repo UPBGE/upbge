@@ -924,10 +924,40 @@ void SCULPT_fake_neighbors_enable(Object &ob);
 void SCULPT_fake_neighbors_disable(Object &ob);
 void SCULPT_fake_neighbors_free(Object &ob);
 
-/* Vertex Info. */
-void SCULPT_boundary_info_ensure(Object &object);
-/* Boundary Info needs to be initialized in order to use this function. */
-bool SCULPT_vertex_is_boundary(const SculptSession &ss, PBVHVertRef vertex);
+namespace blender::ed::sculpt_paint {
+
+namespace boundary {
+
+/**
+ * Populates boundary information for a mesh.
+ *
+ * \see SculptVertexInfo
+ */
+void ensure_boundary_info(Object &object);
+
+/**
+ * Determine if a vertex is a boundary vertex.
+ *
+ * Requires #ensure_boundary_info to have been called.
+ */
+bool vert_is_boundary(const SculptSession &ss, PBVHVertRef vertex);
+bool vert_is_boundary(const Span<bool> hide_poly,
+                      const SubdivCCG &subdiv_ccg,
+                      const Span<int> corner_verts,
+                      const OffsetIndices<int> faces,
+                      const BitSpan boundary,
+                      const SubdivCCGCoord vert);
+bool vert_is_boundary(Span<bool> hide_poly,
+                      GroupedSpan<int> vert_to_face_map,
+                      BitSpan boundary,
+                      int vert);
+bool vert_is_boundary(Span<bool> hide_poly,
+                      const SubdivCCG &subdiv_ccg,
+                      BitSpan boundary,
+                      SubdivCCGCoord vert);
+bool vert_is_boundary(BMVert *vert);
+
+}
 
 /** \} */
 
@@ -935,14 +965,20 @@ bool SCULPT_vertex_is_boundary(const SculptSession &ss, PBVHVertRef vertex);
 /** \name Sculpt Visibility API
  * \{ */
 
-namespace blender::ed::sculpt_paint {
-
 namespace hide {
 
 Span<int> node_visible_verts(const PBVHNode &node, Span<bool> hide_vert, Vector<int> &indices);
 
 bool vert_visible_get(const SculptSession &ss, PBVHVertRef vertex);
+
+/* Determines if all faces attached to a given vertex are visible. */
 bool vert_all_faces_visible_get(const SculptSession &ss, PBVHVertRef vertex);
+bool vert_all_faces_visible_get(Span<bool> hide_poly, GroupedSpan<int> vert_to_face_map, int vert);
+bool vert_all_faces_visible_get(Span<bool> hide_poly,
+                                const SubdivCCG &subdiv_ccg,
+                                SubdivCCGCoord vert);
+bool vert_all_faces_visible_get(BMVert *vert);
+
 bool vert_any_face_visible_get(const SculptSession &ss, PBVHVertRef vertex);
 
 }

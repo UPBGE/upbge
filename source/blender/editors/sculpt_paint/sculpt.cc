@@ -466,6 +466,49 @@ bool vert_all_faces_visible_get(const SculptSession &ss, PBVHVertRef vertex)
   }
   return true;
 }
+bool vert_all_faces_visible_get(const Span<bool> hide_poly,
+                                const GroupedSpan<int> vert_to_face_map,
+                                const int vert)
+{
+  for (const int face : vert_to_face_map[vert]) {
+    if (hide_poly[face]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool vert_all_faces_visible_get(const Span<bool> hide_poly,
+                                const SubdivCCG &subdiv_ccg,
+                                const SubdivCCGCoord vert)
+{
+  const int face_index = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, vert.grid_index);
+  return hide_poly[face_index];
+}
+bool vert_all_faces_visible_get(BMVert *vert)
+{
+  BMEdge *edge = vert->e;
+
+  if (!edge) {
+    return true;
+  }
+
+  do {
+    BMLoop *loop = edge->l;
+
+    if (!loop) {
+      continue;
+    }
+
+    do {
+      if (BM_elem_flag_test(loop->f, BM_ELEM_HIDDEN)) {
+        return false;
+      }
+    } while ((loop = loop->radial_next) != edge->l);
+  } while ((edge = BM_DISK_EDGE_NEXT(edge, vert)) != vert->e);
+
+  return true;
+}
 
 }  // namespace hide
 
@@ -829,9 +872,12 @@ static bool sculpt_check_boundary_vertex_in_base_mesh(const SculptSession &ss, c
   return ss.vertex_info.boundary[index];
 }
 
-bool SCULPT_vertex_is_boundary(const SculptSession &ss, const PBVHVertRef vertex)
+namespace blender::ed::sculpt_paint {
+
+namespace boundary {
+
+bool vert_is_boundary(const SculptSession &ss, const PBVHVertRef vertex)
 {
-  using namespace blender::ed::sculpt_paint;
   switch (BKE_pbvh_type(*ss.pbvh)) {
     case PBVH_FACES: {
       if (!hide::vert_all_faces_visible_get(ss, vertex)) {
@@ -868,6 +914,52 @@ bool SCULPT_vertex_is_boundary(const SculptSession &ss, const PBVHVertRef vertex
 
   return false;
 }
+
+bool vert_is_boundary(const Span<bool> hide_poly,
+                      const GroupedSpan<int> vert_to_face_map,
+                      const BitSpan boundary,
+                      const int vert)
+{
+  if (!hide::vert_all_faces_visible_get(hide_poly, vert_to_face_map, vert)) {
+    return true;
+  }
+  return boundary[vert].test();
+}
+
+bool vert_is_boundary(const Span<bool> /*hide_poly*/,
+                      const SubdivCCG &subdiv_ccg,
+                      const Span<int> corner_verts,
+                      const OffsetIndices<int> faces,
+                      const BitSpan boundary,
+                      const SubdivCCGCoord vert)
+{
+  /* TODO: Unlike the base mesh implementation this method does NOT take into account face
+   * visibility. Either this should be noted as a intentional limitation or fixed.*/
+  int v1, v2;
+  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
+      subdiv_ccg, vert, corner_verts, faces, v1, v2);
+  switch (adjacency) {
+    case SUBDIV_CCG_ADJACENT_VERTEX:
+      return boundary[v1].test();
+    case SUBDIV_CCG_ADJACENT_EDGE:
+      return boundary[v1].test() && boundary[v2].test();
+    case SUBDIV_CCG_ADJACENT_NONE:
+      return false;
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+
+bool vert_is_boundary(BMVert *vert)
+{
+  /* TODO: Unlike the base mesh implementation this method does NOT take into account face
+   * visibility. Either this should be noted as a intentional limitation or fixed.*/
+  return BM_vert_is_boundary(vert);
+}
+
+}  // namespace boundary
+
+}  // namespace blender::ed::sculpt_paint
 
 /* Utilities */
 
@@ -6250,9 +6342,10 @@ struct SculptTopologyIDFloodFillData {
 
 }  // namespace blender::ed::sculpt_paint
 
-void SCULPT_boundary_info_ensure(Object &object)
+namespace blender::ed::sculpt_paint::boundary {
+
+void ensure_boundary_info(Object &object)
 {
-  using namespace blender;
   SculptSession &ss = *object.sculpt;
   if (!ss.vertex_info.boundary.is_empty()) {
     return;
@@ -6264,7 +6357,7 @@ void SCULPT_boundary_info_ensure(Object &object)
   Array<int> adjacent_faces_edge_count(base_mesh->edges_num, 0);
   array_utils::count_indices(base_mesh->corner_edges(), adjacent_faces_edge_count);
 
-  const blender::Span<int2> edges = base_mesh->edges();
+  const Span<int2> edges = base_mesh->edges();
   for (const int e : edges.index_range()) {
     if (adjacent_faces_edge_count[e] < 2) {
       const int2 &edge = edges[e];
@@ -6273,6 +6366,8 @@ void SCULPT_boundary_info_ensure(Object &object)
     }
   }
 }
+
+}  // namespace blender::ed::sculpt_paint::boundary
 
 void SCULPT_fake_neighbors_ensure(Object &ob, const float max_dist)
 {

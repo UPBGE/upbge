@@ -1728,6 +1728,10 @@ if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
   endif()
 endif()
 
+# -----------------------------------------------------------------------------
+# Common dependency targets
+
+include(dependency_targets)
 
 # -----------------------------------------------------------------------------
 # Ninja Job Limiting

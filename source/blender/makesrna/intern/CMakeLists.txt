@@ -465,6 +465,7 @@ target_link_libraries(makesrna PRIVATE bf_dna)
 target_link_libraries(makesrna PRIVATE bf::intern::atomic)
 target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
+target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
 
 if(WIN32 AND NOT UNIX)
   if(DEFINED PTHREADS_LIBRARIES)
@@ -477,7 +478,8 @@ endif()
 # `valgrind --leak-check=full --track-origins=yes`
 add_custom_command(
   OUTPUT ${GENSRC}
-  COMMAND "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_BINARY_DIR}/../
+  COMMAND ${CMAKE_COMMAND} -E env ${PLATFORM_ENV_BUILD}
+  "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_BINARY_DIR}/../
   DEPENDS makesrna
 )
 
@@ -498,6 +500,7 @@ set(SRC
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::dna
+  PRIVATE bf::dependencies::optional::tbb
   PRIVATE extern_fmtlib
   bf_editor_space_api
 
