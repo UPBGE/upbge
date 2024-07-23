@@ -3741,7 +3741,7 @@ void DRW_game_render_loop(bContext *C,
     use_drw_engine(&draw_engine_gpencil_type);
   }
   /* Add realtime compositor for test in custom bge loop (not tested) */
-  if (is_compositor_enabled()) {
+  if (DRW_is_viewport_compositor_enabled()) {
     use_drw_engine(&draw_engine_compositor_type);
   }
 
