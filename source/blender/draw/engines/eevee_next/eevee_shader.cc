@@ -154,6 +154,16 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_film_cryptomatte_post";
     case FILM_FRAG:
       return "eevee_film_frag";
+    case FILM_PASS_CONVERT_COMBINED:
+      return "eevee_film_pass_convert_combined";
+    case FILM_PASS_CONVERT_DEPTH:
+      return "eevee_film_pass_convert_depth";
+    case FILM_PASS_CONVERT_VALUE:
+      return "eevee_film_pass_convert_value";
+    case FILM_PASS_CONVERT_COLOR:
+      return "eevee_film_pass_convert_color";
+    case FILM_PASS_CONVERT_CRYPTOMATTE:
+      return "eevee_film_pass_convert_cryptomatte";
     case DEFERRED_COMBINE:
       return "eevee_deferred_combine";
     case DEFERRED_LIGHT_SINGLE:
@@ -405,7 +415,10 @@ class SamplerSlots {
 
     first_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_FIRST;
     last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_NO_EVAL;
-    if (pipeline_type == MAT_PIPE_DEFERRED && has_shader_to_rgba) {
+    if (geometry_type == MAT_GEOM_WORLD) {
+      last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_WORLD;
+    }
+    else if (pipeline_type == MAT_PIPE_DEFERRED && has_shader_to_rgba) {
       last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_HYBRID;
     }
     else if (pipeline_type == MAT_PIPE_FORWARD) {

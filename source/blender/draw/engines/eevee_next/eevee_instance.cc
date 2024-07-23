@@ -419,6 +419,10 @@ void Instance::render_sample()
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
+    if (!info.empty()) {
+      printf("%s", info.c_str());
+      info = "";
+    }
   }
 
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
@@ -510,14 +514,24 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 /** \name Interface
  * \{ */
 
-void Instance::render_frame(RenderLayer *render_layer, const char *view_name)
+void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
-
+  /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
     this->render_sample();
 
-    /* TODO(fclem) print progression. */
+    if ((sampling.sample_index() == 1) || ((sampling.sample_index() % 25) == 0) ||
+        sampling.finished())
+    {
+      /* TODO: Use fmt. */
+      std::string re_info = "Rendering " + std::to_string(sampling.sample_index()) + " / " +
+                            std::to_string(sampling.sample_count()) + " samples";
+      RE_engine_update_stats(engine, nullptr, re_info.c_str());
+    }
+
 #if 0
+    /* TODO(fclem) print progression. */
+    RE_engine_update_progress(engine, float(sampling.sample_index()) / float(sampling.sample_count()));
     /* TODO(fclem): Does not currently work. But would be better to just display to 2D view like
      * cycles does. */
     if (G.background == false && first_read) {
@@ -549,6 +563,10 @@ void Instance::draw_viewport()
 
   render_sample();
   velocity.step_swap();
+
+  if (this->film.is_viewport_compositor_enabled()) {
+    this->film.write_viewport_compositor_passes();
+  }
 
   /* Do not request redraw during viewport animation to lock the frame-rate to the animation
    * playback rate. This is in order to preserve motion blur aspect and also to avoid TAA reset
@@ -583,6 +601,10 @@ void Instance::draw_viewport_image_render()
     this->render_sample();
   }
   velocity.step_swap();
+
+  if (this->film.is_viewport_compositor_enabled()) {
+    this->film.write_viewport_compositor_passes();
+  }
 }
 
 void Instance::store_metadata(RenderResult *render_result)

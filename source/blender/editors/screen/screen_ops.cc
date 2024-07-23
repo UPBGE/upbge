@@ -3808,6 +3808,10 @@ static AreaDockTarget area_docking_target(sAreaJoinData *jd, const wmEvent *even
     return AreaDockTarget::None;
   }
 
+  if (jd->sa1 == jd->sa2) {
+    return AreaDockTarget::None;
+  }
+
   /* Convert to local coordinates in sa2. */
   const int x = event->xy[0] + jd->win1->posx - jd->win2->posx - jd->sa2->totrct.xmin;
   const int y = event->xy[1] + jd->win1->posy - jd->win2->posy - jd->sa2->totrct.ymin;
@@ -3853,7 +3857,7 @@ static AreaDockTarget area_docking_target(sAreaJoinData *jd, const wmEvent *even
   }
 
   /* Are we in the center? But not in same area! */
-  if (jd->sa1 != jd->sa2 && fac_x > 0.4f && fac_x < 0.6f && fac_y > 0.4f && fac_y < 0.6f) {
+  if (fac_x > 0.4f && fac_x < 0.6f && fac_y > 0.4f && fac_y < 0.6f) {
     return AreaDockTarget::Center;
   }
 
@@ -3930,15 +3934,17 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
     return;
   }
 
-  if (!(abs(jd->x - event->xy[0]) > (10 * U.pixelsize) ||
-        abs(jd->y - event->xy[1]) > (10 * U.pixelsize)))
-  {
-    jd->sa2 = area;
-    return;
-  }
-
   if (jd->sa1 == area) {
     jd->sa2 = area;
+    if (!(abs(jd->x - event->xy[0]) > (10 * U.pixelsize) ||
+          abs(jd->y - event->xy[1]) > (10 * U.pixelsize)))
+    {
+      /* We haven't moved enough to start a split. */
+      jd->dir = SCREEN_DIR_NONE;
+      jd->dock_target = AreaDockTarget::None;
+      return;
+    }
+
     jd->split_dir = (abs(event->xy[0] - jd->x) > abs(event->xy[1] - jd->y)) ? SCREEN_AXIS_V :
                                                                               SCREEN_AXIS_H;
     jd->split_fac = area_split_factor(C, jd, event);
@@ -4002,7 +4008,15 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
             /* We have to clear handlers or we get an error in wm_gizmomap_modal_get. */
             WM_event_modal_handler_region_replace(jd->win1, CTX_wm_region(C), nullptr);
             area_dupli_open(C, jd->sa1, blender::int2(event->xy[0], event->xy[1] - jd->sa1->winy));
-            screen_area_close(C, WM_window_get_active_screen(jd->win1), jd->sa1);
+            if (!screen_area_close(C, WM_window_get_active_screen(jd->win1), jd->sa1)) {
+              if (BLI_listbase_is_single(&WM_window_get_active_screen(jd->win1)->areabase) &&
+                  BLI_listbase_is_empty(&jd->win1->global_areas.areabase))
+              {
+                /* We've pulled a single editor out of the window into empty space.
+                 * Close the source window so we don't end up with a duplicate. */
+                jd->close_win = true;
+              }
+            }
           }
         }
         else if (jd->sa1 && jd->sa1 == jd->sa2) {
@@ -4032,10 +4046,11 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
           return OPERATOR_CANCELLED;
         }
 
-        const bool close_win = jd->close_win;
+        const bool do_close_win = jd->close_win;
+        wmWindow *close_win = jd->win1;
         area_join_exit(C, op);
-        if (close_win) {
-          wm_window_close(C, CTX_wm_manager(C), CTX_wm_window(C));
+        if (do_close_win) {
+          wm_window_close(C, CTX_wm_manager(C), close_win);
         }
 
         WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);

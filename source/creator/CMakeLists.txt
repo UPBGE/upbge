@@ -659,8 +659,9 @@ if(NOT ("${_install_cmd}" STREQUAL ""))
   get_filename_component(_install_dst ${TARGETDIR_VER} ABSOLUTE BASE_DIR ${CMAKE_INSTALL_PREFIX})
   add_custom_command(
     TARGET blender POST_BUILD MAIN_DEPENDENCY blender
-    COMMAND ${CMAKE_COMMAND} -E echo
-    "Run: \\\"${_install_cmd}\\\" to copy runtime files and scripts to: ${_install_dst}"
+    COMMAND
+      ${CMAKE_COMMAND} -E echo
+      "Run: \\\"${_install_cmd}\\\" to copy runtime files and scripts to: ${_install_dst}"
   )
   unset(_install_dst)
 endif()
@@ -1952,6 +1953,9 @@ if(UNIX AND NOT APPLE)
       install(
         CODE "\
 set(BLENDER_BIN \"${CMAKE_INSTALL_PREFIX}/${BLENDER_BIN}\")\n\
+if(DEFINED ENV\{DESTDIR\})\n\
+  set(BLENDER_BIN \"$ENV\{DESTDIR\}/$\{BLENDER_BIN\}\")\n\
+endif()\n\
 set(PYTHON_EXECUTABLE \"${PYTHON_EXECUTABLE}\")\n\
 set(MANPAGE_GEN \"${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py\")\n\
 set(MANPAGE_OUT \"${CMAKE_CURRENT_BINARY_DIR}/blender.1\")\n\
