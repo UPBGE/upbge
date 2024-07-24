@@ -100,7 +100,8 @@ class Context : public realtime_compositor::Context {
     const int2 viewport_size = int2(float2(DRW_viewport_size_get()));
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
-    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render())
+    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB ||
+        DRW_state_is_viewport_image_render() || DRW_context_state_get()->scene->flag & SCE_INTERACTIVE)
     {
       return render_region;
     }
