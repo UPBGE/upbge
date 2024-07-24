@@ -103,13 +103,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
     placement_loc_ = float3(0.0f);
   }
 
-  if (ELEM(plane_,
-           DrawingPlacementPlane::Front,
-           DrawingPlacementPlane::Side,
-           DrawingPlacementPlane::Top,
-           DrawingPlacementPlane::Cursor) &&
-      ELEM(depth_, DrawingPlacementDepth::ObjectOrigin, DrawingPlacementDepth::Cursor))
-  {
+  if (plane_ != DrawingPlacementPlane::View) {
     plane_from_point_normal_v3(placement_plane_, placement_loc_, placement_normal_);
   }
 }
@@ -894,7 +888,7 @@ IndexMask retrieve_visible_strokes(Object &object,
 
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, -1);
+      "material_index", bke::AttrDomain::Curve, 0);
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
         const int material_index = materials[curve_i];

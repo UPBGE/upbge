@@ -157,7 +157,7 @@ class MeshDomainViewItem : public DataSetViewItem {
     return GeometryDataIdentifier{bke::GeometryComponent::Type::Mesh, std::nullopt, domain_};
   }
 
-  void build_row(uiLayout &row)
+  void build_row(uiLayout &row) override
   {
     const BIFIconID icon = mesh_domain_to_icon(domain_);
     uiItemL(&row, label_.c_str(), icon);
@@ -197,7 +197,7 @@ class CurvesDomainViewItem : public DataSetViewItem {
     return GeometryDataIdentifier{bke::GeometryComponent::Type::Curve, std::nullopt, domain_};
   }
 
-  void build_row(uiLayout &row)
+  void build_row(uiLayout &row) override
   {
     const BIFIconID icon = curves_domain_to_icon(domain_);
     uiItemL(&row, label_.c_str(), icon);
@@ -247,11 +247,9 @@ class GreasePencilLayersViewItem : public DataSetViewItem {
 class GreasePencilLayerViewItem : public DataSetViewItem {
  private:
   const bke::greasepencil::Layer &layer_;
-  int layer_index_;
 
  public:
-  GreasePencilLayerViewItem(const bke::greasepencil::Layer &layer, const int layer_index)
-      : layer_(layer), layer_index_(layer_index)
+  GreasePencilLayerViewItem(const bke::greasepencil::Layer &layer) : layer_(layer)
   {
     label_ = layer_.name();
   }
@@ -283,7 +281,7 @@ class GreasePencilLayerCurvesDomainViewItem : public DataSetViewItem {
         bke::GeometryComponent::Type::GreasePencil, layer_index_, domain_};
   }
 
-  void build_row(uiLayout &row)
+  void build_row(uiLayout &row) override
   {
     const BIFIconID icon = curves_domain_to_icon(domain_);
     uiItemL(&row, label_.c_str(), icon);
@@ -453,7 +451,7 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
     const Span<const bke::greasepencil::Layer *> layers = grease_pencil->layers();
     for (const int layer_i : layers.index_range()) {
       const bke::greasepencil::Layer &layer = *layers[layer_i];
-      auto &layer_item = layers_item.add_tree_item<GreasePencilLayerViewItem>(layer, layer_i);
+      auto &layer_item = layers_item.add_tree_item<GreasePencilLayerViewItem>(layer);
       layer_item.add_tree_item<GreasePencilLayerCurvesDomainViewItem>(
           *grease_pencil, layer_i, bke::AttrDomain::Point);
       layer_item.add_tree_item<GreasePencilLayerCurvesDomainViewItem>(
