@@ -99,6 +99,7 @@ set(SRC_DNA_INC
 )
 
 set(SRC_DNA_DEFAULTS_INC
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_action_defaults.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_armature_defaults.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_asset_defaults.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_brush_defaults.h
@@ -133,6 +134,11 @@ set(SRC_DNA_DEFAULTS_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_defaults.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_volume_defaults.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_defaults.h
+)
+
+# Utility & other headers.
+set(SRC_DNA_OTHER_INC
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_array_utils.hh
 )
 
 add_subdirectory(datatoc)

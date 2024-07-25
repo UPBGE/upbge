@@ -28,9 +28,6 @@
 #include <cmath>
 #include <cstdlib>
 
-#define BOUNDARY_VERTEX_NONE -1
-#define BOUNDARY_STEPS_NONE -1
-
 namespace blender::ed::sculpt_paint::boundary {
 
 /**
@@ -240,8 +237,6 @@ static void add_index(SculptBoundary &boundary,
 struct BoundaryFloodFillData {
   SculptBoundary *boundary;
   Set<int, BOUNDARY_INDICES_BLOCK_SIZE> included_verts;
-
-  PBVHVertRef last_visited_vertex;
 };
 
 static bool floodfill_fn(SculptSession &ss,
@@ -284,7 +279,6 @@ static void indices_init(SculptSession &ss,
 
   BoundaryFloodFillData fdata{};
   fdata.boundary = &boundary;
-  fdata.last_visited_vertex = {BOUNDARY_VERTEX_NONE};
 
   add_index(boundary, initial_boundary_index, 0.0f, fdata.included_verts);
   flood_fill::add_initial(flood, initial_boundary_vert);
@@ -292,24 +286,6 @@ static void indices_init(SculptSession &ss,
   flood_fill::execute(ss, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
     return floodfill_fn(ss, from_v, to_v, is_duplicate, &fdata);
   });
-
-  /* Check if the boundary loops into itself and add the extra preview edge to close the loop. */
-  if (fdata.last_visited_vertex.i != BOUNDARY_VERTEX_NONE &&
-      is_vert_in_editable_boundary(ss, fdata.last_visited_vertex))
-  {
-    SculptVertexNeighborIter ni;
-    SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, fdata.last_visited_vertex, ni) {
-      if (fdata.included_verts.contains(ni.index) && is_vert_in_editable_boundary(ss, ni.vertex)) {
-
-        const float3 from_v_co = SCULPT_vertex_co_get(ss, fdata.last_visited_vertex);
-        const float3 to_v_co = SCULPT_vertex_co_get(ss, ni.vertex);
-
-        boundary.edges.append({from_v_co, to_v_co});
-        boundary.forms_loop = true;
-      }
-    }
-    SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
-  }
 }
 
 /** \} */
@@ -328,11 +304,6 @@ static void edit_data_init(SculptSession &ss,
   const bool has_duplicates = ss.pbvh->type() == bke::pbvh::Type::Grids;
 
   boundary.edit_info = Array<SculptBoundaryEditInfo>(totvert);
-
-  for (int i = 0; i < totvert; i++) {
-    boundary.edit_info[i].original_vertex_i = BOUNDARY_VERTEX_NONE;
-    boundary.edit_info[i].propagation_steps_num = BOUNDARY_STEPS_NONE;
-  }
 
   std::queue<int> current_iteration;
   std::queue<int> next_iteration;
@@ -526,16 +497,9 @@ static void twist_data_init(SculptSession &ss, SculptBoundary &boundary)
     copy_v3_v3(face_verts[i], boundary_position);
   }
   mul_v3_fl(boundary.twist.pivot_position, 1.0f / boundary.verts.size());
-  if (boundary.forms_loop) {
-    normal_poly_v3(boundary.twist.rotation_axis,
-                   reinterpret_cast<const float(*)[3]>(face_verts.data()),
-                   boundary.verts.size());
-  }
-  else {
-    sub_v3_v3v3(
-        boundary.twist.rotation_axis, boundary.pivot_position, boundary.initial_vert_position);
-    normalize_v3(boundary.twist.rotation_axis);
-  }
+  sub_v3_v3v3(
+      boundary.twist.rotation_axis, boundary.pivot_position, boundary.initial_vert_position);
+  normalize_v3(boundary.twist.rotation_axis);
 }
 
 /** \} */

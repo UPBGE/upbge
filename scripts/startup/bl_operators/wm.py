@@ -1074,6 +1074,7 @@ class WM_OT_url_open_preset(Operator):
     bl_idname = "wm.url_open_preset"
     bl_label = "Open Preset Website"
     bl_options = {'INTERNAL'}
+    bl_property = "type"
 
     @staticmethod
     def _wm_url_open_preset_type_items(_self, _context):
@@ -1084,18 +1085,9 @@ class WM_OT_url_open_preset(Operator):
         items=WM_OT_url_open_preset._wm_url_open_preset_type_items,
     )
 
-    id: StringProperty(
-        name="Identifier",
-        description="Optional identifier",
-    )
-
     def _url_from_bug(self, _context):
         from bl_ui_utils.bug_report_url import url_prefill_from_blender
         return url_prefill_from_blender()
-
-    def _url_from_bug_addon(self, _context):
-        from bl_ui_utils.bug_report_url import url_prefill_from_blender
-        return url_prefill_from_blender(addon_info=self.id)
 
     def _url_from_release_notes(self, _context):
         return "https://www.blender.org/download/releases/{:d}-{:d}/".format(*bpy.app.version[:2])
@@ -1115,9 +1107,6 @@ class WM_OT_url_open_preset(Operator):
         (('BUG', iface_("Bug"),
           tip_("Report a bug with pre-filled version information")),
          _url_from_bug),
-        (('BUG_ADDON', iface_("Add-on Bug"),
-          tip_("Report a bug in an add-on")),
-         _url_from_bug_addon),
         (('RELEASE_NOTES', iface_("Release Notes"),
           tip_("Read about what's new in this version of Blender")),
          _url_from_release_notes),

@@ -48,6 +48,10 @@ namespace blender {
 namespace bke::pbvh {
 class Node;
 class Tree;
+namespace pixels {
+struct PBVHData;
+struct NodeData;
+}  // namespace pixels
 }  // namespace bke::pbvh
 namespace draw::pbvh {
 struct PBVHBatches;
@@ -55,30 +59,8 @@ struct PBVH_GPU_Args;
 }  // namespace draw::pbvh
 }  // namespace blender
 
-struct PBVHProxyNode {
-  blender::Vector<blender::float3> co;
-};
-
 struct PBVHColorBufferNode {
   float (*color)[4] = nullptr;
-};
-
-struct PBVHPixels {
-  /**
-   * Storage for texture painting on blender::bke::pbvh::Tree level.
-   *
-   * Contains #blender::bke::pbvh::pixels::PBVHData
-   */
-  void *data = nullptr;
-};
-
-struct PBVHPixelsNode {
-  /**
-   * Contains triangle/pixel data used during texture painting.
-   *
-   * Contains #blender::bke::pbvh::pixels::NodeData.
-   */
-  void *node_data = nullptr;
 };
 
 namespace blender::bke::pbvh {
@@ -138,7 +120,7 @@ class Node {
    */
   Array<int, 0> vert_indices_;
   /** The number of vertices in #vert_indices not shared with (owned by) another node. */
-  int uniq_verts_ = 0;
+  int unique_verts_num_ = 0;
 
   /* Array of indices into the Mesh's corner array.
    * Type::Mesh only.
@@ -180,7 +162,7 @@ class Node {
 
   /* Used to store the brush color during a stroke and composite it over the original color */
   PBVHColorBufferNode color_buffer_;
-  PBVHPixelsNode pixels_;
+  pixels::NodeData *pixels_ = nullptr;
 
   /* Used to flash colors of updated node bounding boxes in
    * debug draw mode (when G.debug_value / bpy.app.debug_value is 889).
@@ -235,7 +217,7 @@ class Tree {
 
   BMLog *bm_log_ = nullptr;
 
-  PBVHPixels pixels_;
+  pixels::PBVHData *pixels_ = nullptr;
 
  public:
   Tree(const Type type) : type_(type) {}
@@ -334,7 +316,7 @@ void raycast(Tree &pbvh,
              bool original);
 
 bool raycast_node(Tree &pbvh,
-                  Node *node,
+                  Node &node,
                   const float (*origco)[3],
                   bool use_origco,
                   Span<int> corner_verts,
@@ -349,7 +331,7 @@ bool raycast_node(Tree &pbvh,
                   int *active_face_grid_index,
                   float *face_normal);
 
-bool bmesh_node_raycast_detail(Node *node,
+bool bmesh_node_raycast_detail(Node &node,
                                const float ray_start[3],
                                IsectRayPrecalc *isect_precalc,
                                float *depth,
@@ -375,7 +357,7 @@ void find_nearest_to_ray(Tree &pbvh,
                          bool original);
 
 bool find_nearest_to_ray_node(Tree &pbvh,
-                              Node *node,
+                              Node &node,
                               const float (*origco)[3],
                               bool use_origco,
                               Span<int> corner_verts,

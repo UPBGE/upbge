@@ -1327,15 +1327,16 @@ static size_t animfilter_fcurves(bAnimContext *ac,
 /**
  * Add `bAnimListElem`s to `anim_data` for each F-Curve in `fcurves`.
  *
- * \param slot_handle The slot handle that these F-Curves animate. This is
+ * \param slot_handle: The slot handle that these F-Curves animate. This is
  *    used later to look up the ID* of the user of the slot, which in turn is
  *    used to construct a suitable F-Curve label for in the channels list.
  *
- * \param owner_id The ID whose 'animdata->action' pointer was followed to get to
+ * \param owner_id: The ID whose 'animdata->action' pointer was followed to get to
  *    these F-Curves. This ID may be animated by a different slot than referenced by
  *    `slot_handle`, so do _not_ treat this as "the ID animated by these F-Curves".
  *
- * \param fcurve_owner_id The ID that holds these F-Curves. Typically an Action, but can be any ID,
+ * \param fcurve_owner_id: The ID that holds these F-Curves.
+ *    Typically an Action, but can be any ID,
  *    for example in the case of drivers.
  */
 static size_t animfilter_fcurves_span(bAnimContext *ac,
@@ -1573,9 +1574,9 @@ static size_t animfilter_action_slots(bAnimContext *ac,
     BLI_assert(slot);
 
     /* In some cases (see `ob_to_keylist()` and friends) fake bDopeSheet and fake bAnimContext are
-     * created. These are mostly null-initialised, and so do not have a bmain. This means that
+     * created. These are mostly null-initialized, and so do not have a bmain. This means that
      * lookup of the animated ID is not possible, which can result in failure to look up the proper
-     * F-Curve display name. For the `..._to_keylist` functions that doens't matter, as those are
+     * F-Curve display name. For the `..._to_keylist` functions that doesn't matter, as those are
      * only interested in the key data anyway. So rather than trying to get a reliable `bmain`
      * through the maze, this code just treats it as optional (even though ideally it should always
      * be known). */

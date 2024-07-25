@@ -121,10 +121,12 @@ class Action : public ::bAction {
   bool layer_remove(Layer &layer_to_remove);
 
   /**
-   * If the Action is empty, create a default layer with a single infinite
-   * keyframe strip.
+   * Ensure that there is at least one layer with the infinite keyframe strip.
+   *
+   * \note Within the limits of Project Baklava Phase 1, this means that there
+   * will be exactly one layer with one keyframe strip on it.
    */
-  void layer_ensure_at_least_one();
+  void layer_keystrip_ensure();
 
   /* Action Slot access. */
   blender::Span<const Slot *> slots() const;
@@ -715,7 +717,7 @@ class ChannelBag : public ::ActionChannelBag {
    * Find an FCurve matching the fcurve descriptor, or create one if it doesn't
    * exist.
    *
-   * \param bmain Used to tag the dependency graph(s) for relationship
+   * \param bmain: Used to tag the dependency graph(s) for relationship
    * rebuilding. This is necessary when adding a new F-Curve, as a
    * previously-unanimated depsgraph component may become animated now. Can be
    * nullptr, in which case the tagging is skipped and is left as the
@@ -728,7 +730,7 @@ class ChannelBag : public ::ActionChannelBag {
    *
    * \return the F-Curve it it was created, or nullptr if it already existed.
    *
-   * \param bmain Used to tag the dependency graph(s) for relationship
+   * \param bmain: Used to tag the dependency graph(s) for relationship
    * rebuilding. This is necessary when adding a new F-Curve, as a
    * previously-unanimated depsgraph component may become animated now. Can be
    * nullptr, in which case the tagging is skipped and is left as the
@@ -758,7 +760,7 @@ class ChannelBag : public ::ActionChannelBag {
    * Assumes that there is no such F-Curve yet on this ChannelBag. If it is
    * uncertain whether this is the case, use `fcurve_create_unique()` instead.
    *
-   * \param bmain Used to tag the dependency graph(s) for relationship
+   * \param bmain: Used to tag the dependency graph(s) for relationship
    * rebuilding. This is necessary when adding a new F-Curve, as a
    * previously-unanimated depsgraph component may become animated now. Can be
    * nullptr, in which case the tagging is skipped and is left as the
@@ -850,7 +852,7 @@ Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t
  *
  * This is a utility function whose purpose is unclear after multi-layer Actions are introduced.
  * It might still be useful, it might not be.
-
+ *
  * The use of this function is an indicator for code that might have to be altered when
  * multi-layered Actions are getting implemented.
  */
