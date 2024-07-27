@@ -17,7 +17,6 @@
 #include "DNA_asset_types.h"
 #include "DNA_space_types.h"
 
-#include "AS_asset_identifier.hh"
 #include "AS_asset_library.hh"
 
 #include "BKE_asset.hh"
@@ -309,7 +308,7 @@ std::optional<std::string> asset_edit_id_save_as(Main &global_main,
                                                  const ID &id,
                                                  const StringRefNull name,
                                                  const bUserAssetLibrary &user_library,
-                                                 AssetWeakReference &new_weak_ref,
+                                                 AssetWeakReference &r_weak_ref,
                                                  ReportList &reports)
 {
   const std::string filepath = asset_blendfile_path_for_save(
@@ -323,7 +322,7 @@ std::optional<std::string> asset_edit_id_save_as(Main &global_main,
     return std::nullopt;
   }
 
-  new_weak_ref = asset_weak_reference_for_user_library(
+  r_weak_ref = asset_weak_reference_for_user_library(
       user_library, GS(id.name), name.c_str(), filepath.c_str());
 
   BKE_reportf(&reports, RPT_INFO, "Saved \"%s\"", filepath.c_str());

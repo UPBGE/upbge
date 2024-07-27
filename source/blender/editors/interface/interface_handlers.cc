@@ -188,7 +188,7 @@ static bool ui_mouse_motion_keynav_test(uiKeyNavLock *keynav, const wmEvent *eve
 
 static void with_but_active_as_semi_modal(bContext *C,
                                           ARegion *region,
-                                          uiBut *semi_modal_but,
+                                          uiBut *but,
                                           blender::FunctionRef<void()> fn);
 static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, ARegion *region);
 
@@ -5158,7 +5158,17 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static void force_activate_view_item_but(bContext *C, ARegion *region, uiButViewItem *but)
+/**
+ * \param close_popup: In most cases activating the view item should close the popup it is in
+ *                     (unless #AbstractView::keep_open() was called when building the view), if
+ *                     any. But this should only be done when activating the view item directly,
+ *                     things like clicking nested buttons or calling the context menu should keep
+ *                     the popup open for further interaction.
+ */
+static void force_activate_view_item_but(bContext *C,
+                                         ARegion *region,
+                                         uiButViewItem *but,
+                                         const bool close_popup = true)
 {
   if (but->active) {
     ui_apply_but(C, but->block, but, but->active, true);
@@ -5167,8 +5177,7 @@ static void force_activate_view_item_but(bContext *C, ARegion *region, uiButView
     UI_but_execute(C, region, but);
   }
 
-  /* By default, activating a view item closes the popup (only when clicking the item itself). */
-  if (but->active && !UI_view_item_popup_keep_open(*but->view_item)) {
+  if (close_popup && !UI_view_item_popup_keep_open(*but->view_item)) {
     UI_popup_menu_close_from_but(but);
   }
 }
@@ -10339,7 +10348,9 @@ static int ui_handle_view_item_event(bContext *C,
                 ui_view_item_find_mouse_over(region, event->xy));
         /* Will free active button if there already is one. */
         if (view_but) {
-          force_activate_view_item_but(C, region, view_but);
+          /* Close the popup when clicking on the view item directly, not any overlapped button. */
+          const bool close_popup = view_but == active_but;
+          force_activate_view_item_but(C, region, view_but, close_popup);
         }
       }
       break;

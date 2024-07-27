@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_vector.hh"
@@ -30,6 +31,8 @@
 #include "WM_types.hh"
 
 #include "ED_paint.hh"
+
+#include "mesh_brush_common.hh"
 #include "sculpt_intern.hh"
 
 #include "RNA_access.hh"
@@ -43,144 +46,176 @@
 
 namespace blender::ed::sculpt_paint::color {
 
-enum eSculptColorFilterTypes {
-  COLOR_FILTER_FILL,
-  COLOR_FILTER_HUE,
-  COLOR_FILTER_SATURATION,
-  COLOR_FILTER_VALUE,
-  COLOR_FILTER_BRIGHTNESS,
-  COLOR_FILTER_CONTRAST,
-  COLOR_FILTER_RED,
-  COLOR_FILTER_GREEN,
-  COLOR_FILTER_BLUE,
-  COLOR_FILTER_SMOOTH,
+enum class FilterType {
+  Fill = 0,
+  Hue,
+  Saturation,
+  Value,
+  Brightness,
+  Contrast,
+  Red,
+  Green,
+  Blue,
+  Smooth,
 };
 
 static const float fill_filter_default_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 static EnumPropertyItem prop_color_filter_types[] = {
-    {COLOR_FILTER_FILL, "FILL", 0, "Fill", "Fill with a specific color"},
-    {COLOR_FILTER_HUE, "HUE", 0, "Hue", "Change hue"},
-    {COLOR_FILTER_SATURATION, "SATURATION", 0, "Saturation", "Change saturation"},
-    {COLOR_FILTER_VALUE, "VALUE", 0, "Value", "Change value"},
-
-    {COLOR_FILTER_BRIGHTNESS, "BRIGHTNESS", 0, "Brightness", "Change brightness"},
-    {COLOR_FILTER_CONTRAST, "CONTRAST", 0, "Contrast", "Change contrast"},
-
-    {COLOR_FILTER_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth colors"},
-
-    {COLOR_FILTER_RED, "RED", 0, "Red", "Change red channel"},
-    {COLOR_FILTER_GREEN, "GREEN", 0, "Green", "Change green channel"},
-    {COLOR_FILTER_BLUE, "BLUE", 0, "Blue", "Change blue channel"},
+    {int(FilterType::Fill), "FILL", 0, "Fill", "Fill with a specific color"},
+    {int(FilterType::Hue), "HUE", 0, "Hue", "Change hue"},
+    {int(FilterType::Saturation), "SATURATION", 0, "Saturation", "Change saturation"},
+    {int(FilterType::Value), "VALUE", 0, "Value", "Change value"},
+    {int(FilterType::Brightness), "BRIGHTNESS", 0, "Brightness", "Change brightness"},
+    {int(FilterType::Contrast), "CONTRAST", 0, "Contrast", "Change contrast"},
+    {int(FilterType::Smooth), "SMOOTH", 0, "Smooth", "Smooth colors"},
+    {int(FilterType::Red), "RED", 0, "Red", "Change red channel"},
+    {int(FilterType::Green), "GREEN", 0, "Green", "Change green channel"},
+    {int(FilterType::Blue), "BLUE", 0, "Blue", "Change blue channel"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+struct LocalData {
+  Vector<float> factors;
+  Vector<float4> colors;
+  Vector<Vector<int>> vert_neighbors;
+  Vector<float4> average_colors;
+  Vector<float4> new_colors;
+};
+
+BLI_NOINLINE static void clamp_factors(const MutableSpan<float> factors,
+                                       const float min,
+                                       const float max)
+{
+  for (float &factor : factors) {
+    factor = std::clamp(factor, min, max);
+  }
+}
 
 static void color_filter_task(Object &ob,
                               const OffsetIndices<int> faces,
                               const Span<int> corner_verts,
                               const GroupedSpan<int> vert_to_face_map,
-                              const Span<bool> hide_vert,
-                              const Span<float> mask,
-                              const int mode,
+                              const FilterType mode,
                               const float filter_strength,
                               const float *filter_fill_color,
-                              bke::pbvh::Node *node,
+                              const bke::pbvh::Node &node,
+                              LocalData &tls,
                               bke::GSpanAttributeWriter &color_attribute)
 {
+  const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
   SculptSession &ss = *ob.sculpt;
 
-  const Span<float4> orig_colors = orig_color_data_get_mesh(ob, *node);
+  const Span<float4> orig_colors = orig_color_data_get_mesh(ob, node);
 
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.filter_cache->automasking.get(), *node);
+  const Span<int> verts = bke::pbvh::node_unique_verts(node);
 
-  const Span<int> verts = bke::pbvh::node_unique_verts(*node);
+  tls.factors.resize(verts.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(mesh, verts, factors);
+  auto_mask::calc_vert_factors(ob, *ss.filter_cache->automasking, node, verts, factors);
+  scale_factors(factors, filter_strength);
 
+  tls.new_colors.resize(verts.size());
+  const MutableSpan<float4> new_colors = tls.new_colors;
+
+  /* Copy alpha. */
   for (const int i : verts.index_range()) {
-    const int vert = verts[i];
-    if (!hide_vert.is_empty() && hide_vert[vert]) {
-      continue;
-    }
-    auto_mask::node_update(automask_data, i);
+    new_colors[i][3] = orig_colors[i][3];
+  }
 
-    float3 orig_color;
-    float4 final_color;
-    float3 hsv_color;
-    int hue;
-    float brightness, contrast, gain, delta, offset;
-    float fade = mask.is_empty() ? 1.0f : 1.0f - mask[vert];
-    fade *= filter_strength;
-    fade *= auto_mask::factor_get(
-        ss.filter_cache->automasking.get(), ss, PBVHVertRef{vert}, &automask_data);
-    if (fade == 0.0f) {
-      continue;
-    }
-
-    copy_v3_v3(orig_color, orig_colors[i]);
-    final_color[3] = orig_colors[i][3]; /* Copy alpha */
-
-    switch (mode) {
-      case COLOR_FILTER_FILL: {
+  switch (mode) {
+    case FilterType::Fill: {
+      clamp_factors(factors, 0.0f, 1.0f);
+      for (const int i : verts.index_range()) {
         float fill_color_rgba[4];
         copy_v3_v3(fill_color_rgba, filter_fill_color);
         fill_color_rgba[3] = 1.0f;
-        fade = clamp_f(fade, 0.0f, 1.0f);
-        mul_v4_fl(fill_color_rgba, fade);
-        blend_color_mix_float(final_color, orig_colors[i], fill_color_rgba);
-        break;
+        mul_v4_fl(fill_color_rgba, factors[i]);
+        blend_color_mix_float(new_colors[i], orig_colors[i], fill_color_rgba);
       }
-      case COLOR_FILTER_HUE:
-        rgb_to_hsv_v(orig_color, hsv_color);
-        hue = hsv_color[0];
-        hsv_color[0] = fmod((hsv_color[0] + fabs(fade)) - hue, 1);
-        hsv_to_rgb_v(hsv_color, final_color);
-        break;
-      case COLOR_FILTER_SATURATION:
-        rgb_to_hsv_v(orig_color, hsv_color);
+      break;
+    }
+    case FilterType::Hue: {
+      for (const int i : verts.index_range()) {
+        float3 hsv_color;
+        rgb_to_hsv_v(orig_colors[i], hsv_color);
+        const float hue = hsv_color[0];
+        hsv_color[0] = fmod((hsv_color[0] + fabs(factors[i])) - hue, 1);
+        hsv_to_rgb_v(hsv_color, new_colors[i]);
+      }
+      break;
+    }
+    case FilterType::Saturation: {
+      for (const int i : verts.index_range()) {
+        float3 hsv_color;
+        rgb_to_hsv_v(orig_colors[i], hsv_color);
 
         if (hsv_color[1] > 0.001f) {
-          hsv_color[1] = clamp_f(hsv_color[1] + fade * hsv_color[1], 0.0f, 1.0f);
-          hsv_to_rgb_v(hsv_color, final_color);
+          hsv_color[1] = std::clamp(hsv_color[1] + factors[i] * hsv_color[1], 0.0f, 1.0f);
+          hsv_to_rgb_v(hsv_color, new_colors[i]);
         }
         else {
-          copy_v3_v3(final_color, orig_color);
+          copy_v3_v3(new_colors[i], orig_colors[i]);
         }
-        break;
-      case COLOR_FILTER_VALUE:
-        rgb_to_hsv_v(orig_color, hsv_color);
-        hsv_color[2] = clamp_f(hsv_color[2] + fade, 0.0f, 1.0f);
-        hsv_to_rgb_v(hsv_color, final_color);
-        break;
-      case COLOR_FILTER_RED:
-        orig_color[0] = clamp_f(orig_color[0] + fade, 0.0f, 1.0f);
-        copy_v3_v3(final_color, orig_color);
-        break;
-      case COLOR_FILTER_GREEN:
-        orig_color[1] = clamp_f(orig_color[1] + fade, 0.0f, 1.0f);
-        copy_v3_v3(final_color, orig_color);
-        break;
-      case COLOR_FILTER_BLUE:
-        orig_color[2] = clamp_f(orig_color[2] + fade, 0.0f, 1.0f);
-        copy_v3_v3(final_color, orig_color);
-        break;
-      case COLOR_FILTER_BRIGHTNESS:
-        fade = clamp_f(fade, -1.0f, 1.0f);
-        brightness = fade;
-        contrast = 0;
-        delta = contrast / 2.0f;
-        gain = 1.0f - delta * 2.0f;
+      }
+      break;
+    }
+    case FilterType::Value: {
+      for (const int i : verts.index_range()) {
+        float3 hsv_color;
+        rgb_to_hsv_v(orig_colors[i], hsv_color);
+        hsv_color[2] = std::clamp(hsv_color[2] + factors[i], 0.0f, 1.0f);
+        hsv_to_rgb_v(hsv_color, new_colors[i]);
+      }
+      break;
+    }
+    case FilterType::Red: {
+      for (const int i : verts.index_range()) {
+        copy_v3_v3(new_colors[i], orig_colors[i]);
+        new_colors[i][0] = std::clamp(orig_colors[i][0] + factors[i], 0.0f, 1.0f);
+      }
+      break;
+    }
+    case FilterType::Green: {
+      for (const int i : verts.index_range()) {
+        copy_v3_v3(new_colors[i], orig_colors[i]);
+        new_colors[i][1] = std::clamp(orig_colors[i][1] + factors[i], 0.0f, 1.0f);
+      }
+      break;
+    }
+    case FilterType::Blue: {
+      for (const int i : verts.index_range()) {
+        copy_v3_v3(new_colors[i], orig_colors[i]);
+        new_colors[i][2] = std::clamp(orig_colors[i][2] + factors[i], 0.0f, 1.0f);
+      }
+      break;
+    }
+    case FilterType::Brightness: {
+      clamp_factors(factors, -1.0f, 1.0f);
+      for (const int i : verts.index_range()) {
+        const float brightness = factors[i];
+        const float contrast = 0;
+        float delta = contrast / 2.0f;
+        const float gain = 1.0f - delta * 2.0f;
         delta *= -1;
-        offset = gain * (brightness + delta);
-        for (int i = 0; i < 3; i++) {
-          final_color[i] = clamp_f(gain * orig_color[i] + offset, 0.0f, 1.0f);
+        const float offset = gain * (brightness + delta);
+        for (int component = 0; component < 3; component++) {
+          new_colors[i][component] = std::clamp(
+              gain * orig_colors[i][component] + offset, 0.0f, 1.0f);
         }
-        break;
-      case COLOR_FILTER_CONTRAST:
-        fade = clamp_f(fade, -1.0f, 1.0f);
-        brightness = 0;
-        contrast = fade;
-        delta = contrast / 2.0f;
-        gain = 1.0f - delta * 2.0f;
+      }
+      break;
+    }
+    case FilterType::Contrast: {
+      clamp_factors(factors, -1.0f, 1.0f);
+      for (const int i : verts.index_range()) {
+        const float brightness = 0;
+        const float contrast = factors[i];
+        float delta = contrast / 2.0f;
+        float gain = 1.0f - delta * 2.0f;
+
+        float offset;
         if (contrast > 0) {
           gain = 1.0f / ((gain != 0.0f) ? gain : FLT_EPSILON);
           offset = gain * (brightness - delta);
@@ -189,111 +224,136 @@ static void color_filter_task(Object &ob,
           delta *= -1;
           offset = gain * (brightness + delta);
         }
-        for (int i = 0; i < 3; i++) {
-          final_color[i] = clamp_f(gain * orig_color[i] + offset, 0.0f, 1.0f);
+        for (int component = 0; component < 3; component++) {
+          new_colors[i][component] = std::clamp(
+              gain * orig_colors[i][component] + offset, 0.0f, 1.0f);
         }
-        break;
-      case COLOR_FILTER_SMOOTH: {
-        fade = clamp_f(fade, -1.0f, 1.0f);
-        float4 smooth_color = smooth::neighbor_color_average(ss,
-                                                             faces,
-                                                             corner_verts,
-                                                             vert_to_face_map,
-                                                             color_attribute.span,
-                                                             color_attribute.domain,
-                                                             vert);
+      }
+      break;
+    }
+    case FilterType::Smooth: {
+      clamp_factors(factors, -1.0f, 1.0f);
 
-        float4 col = color_vert_get(faces,
-                                    corner_verts,
-                                    vert_to_face_map,
-                                    color_attribute.span,
-                                    color_attribute.domain,
-                                    vert);
+      tls.colors.resize(verts.size());
+      const MutableSpan<float4> colors = tls.colors;
+      for (const int i : verts.index_range()) {
+        colors[i] = color_vert_get(faces,
+                                   corner_verts,
+                                   vert_to_face_map,
+                                   color_attribute.span,
+                                   color_attribute.domain,
+                                   verts[i]);
+      }
 
-        if (fade < 0.0f) {
-          interp_v4_v4v4(smooth_color, smooth_color, col, 0.5f);
+      tls.vert_neighbors.resize(verts.size());
+      calc_vert_neighbors(faces, corner_verts, vert_to_face_map, {}, verts, tls.vert_neighbors);
+      const Span<Vector<int>> neighbors = tls.vert_neighbors;
+
+      tls.average_colors.resize(verts.size());
+      const MutableSpan<float4> average_colors = tls.average_colors;
+      smooth::neighbor_color_average(faces,
+                                     corner_verts,
+                                     vert_to_face_map,
+                                     color_attribute.span,
+                                     color_attribute.domain,
+                                     neighbors,
+                                     average_colors);
+
+      for (const int i : verts.index_range()) {
+        const int vert = verts[i];
+
+        if (factors[i] < 0.0f) {
+          interp_v4_v4v4(average_colors[i], average_colors[i], colors[i], 0.5f);
         }
 
-        bool copy_alpha = col[3] == smooth_color[3];
+        bool copy_alpha = colors[i][3] == average_colors[i][3];
 
-        if (fade < 0.0f) {
+        if (factors[i] < 0.0f) {
           float delta_color[4];
 
           /* Unsharp mask. */
           copy_v4_v4(delta_color, ss.filter_cache->pre_smoothed_color[vert]);
-          sub_v4_v4(delta_color, smooth_color);
+          sub_v4_v4(delta_color, average_colors[i]);
 
-          copy_v4_v4(final_color, col);
-          madd_v4_v4fl(final_color, delta_color, fade);
+          copy_v4_v4(new_colors[i], colors[i]);
+          madd_v4_v4fl(new_colors[i], delta_color, factors[i]);
         }
         else {
-          blend_color_interpolate_float(final_color, col, smooth_color, fade);
+          blend_color_interpolate_float(new_colors[i], colors[i], average_colors[i], factors[i]);
         }
 
-        final_color = math::clamp(final_color, 0.0f, 1.0f);
+        new_colors[i] = math::clamp(new_colors[i], 0.0f, 1.0f);
 
         /* Prevent accumulated numeric error from corrupting alpha. */
         if (copy_alpha) {
-          final_color[3] = smooth_color[3];
+          new_colors[i][3] = average_colors[i][3];
         }
-        break;
       }
+      break;
     }
+  }
 
+  for (const int i : verts.index_range()) {
     color_vert_set(faces,
                    corner_verts,
                    vert_to_face_map,
                    color_attribute.domain,
-                   vert,
-                   final_color,
+                   verts[i],
+                   new_colors[i],
                    color_attribute.span);
   }
-  BKE_pbvh_node_mark_update_color(node);
 }
 
 static void sculpt_color_presmooth_init(const Mesh &mesh, SculptSession &ss)
 {
-  int totvert = SCULPT_vertex_count_get(ss);
-
-  if (ss.filter_cache->pre_smoothed_color.is_empty()) {
-    ss.filter_cache->pre_smoothed_color = Array<float4>(totvert);
-  }
-
+  const Span<bke::pbvh::Node *> nodes = ss.filter_cache->nodes;
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
   const bke::GAttributeReader color_attribute = active_color_attribute(mesh);
   const GVArraySpan colors = *color_attribute;
 
-  for (int i = 0; i < totvert; i++) {
-    ss.filter_cache->pre_smoothed_color[i] = color_vert_get(
-        faces, corner_verts, vert_to_face_map, colors, color_attribute.domain, i);
+  if (ss.filter_cache->pre_smoothed_color.is_empty()) {
+    ss.filter_cache->pre_smoothed_color = Array<float4>(SCULPT_vertex_count_get(ss));
   }
+  const MutableSpan<float4> pre_smoothed_color = ss.filter_cache->pre_smoothed_color;
 
-  for (int iteration = 0; iteration < 2; iteration++) {
-    for (int i = 0; i < totvert; i++) {
-      float avg[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-      int total = 0;
-
-      SculptVertexNeighborIter ni;
-      SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, PBVHVertRef{i}, ni) {
-        float col[4] = {0};
-
-        copy_v4_v4(col, ss.filter_cache->pre_smoothed_color[ni.index]);
-
-        add_v4_v4(avg, col);
-        total++;
-      }
-      SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
-
-      if (total > 0) {
-        mul_v4_fl(avg, 1.0f / float(total));
-        interp_v4_v4v4(ss.filter_cache->pre_smoothed_color[i],
-                       ss.filter_cache->pre_smoothed_color[i],
-                       avg,
-                       0.5f);
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+      for (const int vert : verts) {
+        pre_smoothed_color[vert] = color_vert_get(
+            faces, corner_verts, vert_to_face_map, colors, color_attribute.domain, vert);
       }
     }
+  });
+
+  struct LocalData {
+    Vector<Vector<int>> vert_neighbors;
+    Vector<float4> averaged_colors;
+  };
+  threading::EnumerableThreadSpecific<LocalData> all_tls;
+  for ([[maybe_unused]] const int iteration : IndexRange(2)) {
+    threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+      LocalData &tls = all_tls.local();
+      for (const int i : range) {
+        const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+
+        tls.vert_neighbors.resize(verts.size());
+        calc_vert_neighbors(faces, corner_verts, vert_to_face_map, {}, verts, tls.vert_neighbors);
+        const Span<Vector<int>> vert_neighbors = tls.vert_neighbors;
+
+        tls.averaged_colors.resize(verts.size());
+        const MutableSpan<float4> averaged_colors = tls.averaged_colors;
+        smooth::neighbor_data_average_mesh(
+            pre_smoothed_color.as_span(), vert_neighbors, averaged_colors);
+
+        for (const int i : verts.index_range()) {
+          pre_smoothed_color[verts[i]] = math::interpolate(
+              pre_smoothed_color[verts[i]], averaged_colors[i], 0.5f);
+        }
+      }
+    });
   }
 }
 
@@ -301,7 +361,7 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
 
-  const int mode = RNA_enum_get(op->ptr, "type");
+  const FilterType mode = FilterType(RNA_enum_get(op->ptr, "type"));
   float filter_strength = RNA_float_get(op->ptr, "strength");
   float fill_color[3];
 
@@ -319,21 +379,20 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
   bke::GSpanAttributeWriter color_attribute = active_color_attribute_for_write(mesh);
-  const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+
+  threading::EnumerableThreadSpecific<LocalData> all_tls;
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    LocalData &tls = all_tls.local();
     for (const int i : range) {
       color_filter_task(ob,
                         faces,
                         corner_verts,
                         vert_to_face_map,
-                        hide_vert,
-                        mask,
                         mode,
                         filter_strength,
                         fill_color,
-                        nodes[i],
+                        *nodes[i],
+                        tls,
                         color_attribute);
       BKE_pbvh_node_mark_update_color(nodes[i]);
     }
@@ -481,7 +540,7 @@ static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 
   uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, nullptr, ICON_NONE);
 
-  if (RNA_enum_get(op->ptr, "type") == COLOR_FILTER_FILL) {
+  if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
     uiItemR(layout, op->ptr, "fill_color", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
@@ -506,7 +565,8 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
   /* rna */
   filter::register_operator_props(ot);
 
-  RNA_def_enum(ot->srna, "type", prop_color_filter_types, COLOR_FILTER_FILL, "Filter Type", "");
+  RNA_def_enum(
+      ot->srna, "type", prop_color_filter_types, int(FilterType::Fill), "Filter Type", "");
 
   PropertyRNA *prop = RNA_def_float_color(ot->srna,
                                           "fill_color",

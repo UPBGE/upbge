@@ -3117,7 +3117,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             if obj.empty_display_type == 'IMAGE':
                 layout.operator("image.convert_to_mesh_plane", text="Convert to Mesh Plane")
-                layout.operator("gpencil.trace_image")
+                layout.operator("grease_pencil.trace_image")
 
                 layout.separator()
 
@@ -3517,7 +3517,7 @@ class VIEW3D_MT_object_convert(Menu):
             # Potrace lib dependency.
             if bpy.app.build_options.potrace:
                 layout.operator("image.convert_to_mesh_plane", text="Convert to Mesh Plane", icon='MESH_PLANE')
-                layout.operator("gpencil.trace_image", icon='OUTLINER_OB_GREASEPENCIL')
+                layout.operator("grease_pencil.trace_image", icon='OUTLINER_OB_GREASEPENCIL')
 
         if ob and ob.type == 'CURVES':
             layout.operator("curves.convert_to_particle_system", text="Particle System")
@@ -6046,6 +6046,10 @@ class VIEW3D_MT_edit_greasepencil_animation(Menu):
         layout = self.layout
         layout.operator("grease_pencil.insert_blank_frame", text="Insert Blank Keyframe (Active Layer)")
         layout.operator("grease_pencil.insert_blank_frame", text="Insert Blank Keyframe (All Layers)").all_layers = True
+
+        layout.separator()
+        layout.operator("grease_pencil.frame_duplicate", text="Duplicate Active Keyframe (Active Layer)").all = False
+        layout.operator("grease_pencil.frame_duplicate", text="Duplicate Active Keyframe (All Layer)").all = True
 
 
 class VIEW3D_MT_edit_gpencil_transform(Menu):

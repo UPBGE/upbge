@@ -209,13 +209,9 @@ class Tree {
   /* Dynamic topology */
   float bm_max_edge_len_;
   float bm_min_edge_len_;
-  int cd_vert_node_offset_ = -1;
-  int cd_face_node_offset_ = -1;
 
   float planes_[6][4];
   int num_planes_;
-
-  BMLog *bm_log_ = nullptr;
 
   pixels::PBVHData *pixels_ = nullptr;
 
@@ -285,12 +281,7 @@ std::unique_ptr<Tree> build_grids(Mesh *mesh, SubdivCCG *subdiv_ccg);
 /**
  * Build a Tree from a BMesh.
  */
-std::unique_ptr<Tree> build_bmesh(BMesh *bm,
-                                  BMLog *log,
-                                  int cd_vert_node_offset,
-                                  int cd_face_node_offset);
-
-void update_bmesh_offsets(Tree &pbvh, int cd_vert_node_offset, int cd_face_node_offset);
+std::unique_ptr<Tree> build_bmesh(BMesh *bm);
 
 void build_pixels(Tree &pbvh, Mesh *mesh, Image *image, ImageUser *image_user);
 void free(std::unique_ptr<Tree> &pbvh);
@@ -421,6 +412,7 @@ namespace blender::bke::pbvh {
  * Collapse short edges, subdivide long edges.
  */
 bool bmesh_update_topology(Tree &pbvh,
+                           BMLog &bm_log,
                            PBVHTopologyUpdateMode mode,
                            const float center[3],
                            const float view_normal[3],

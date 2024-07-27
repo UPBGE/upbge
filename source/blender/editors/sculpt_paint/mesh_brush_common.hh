@@ -79,6 +79,7 @@ void translations_from_new_positions(Span<float3> new_positions,
                                      MutableSpan<float3> translations);
 
 void transform_positions(Span<float3> src, const float4x4 &transform, MutableSpan<float3> dst);
+void transform_positions(const float4x4 &transform, MutableSpan<float3> positions);
 
 /**
  * Note on the various positions arrays:
@@ -353,9 +354,7 @@ void apply_translations_to_shape_keys(Object &object,
  * \todo This should be removed one the pbvh::Tree no longer stores this copy of deformed
  * positions.
  */
-void apply_translations_to_pbvh(bke::pbvh::Tree &pbvh,
-                                Span<int> verts,
-                                Span<float3> positions_orig);
+void apply_translations_to_pbvh(bke::pbvh::Tree &pbvh, Span<int> verts, Span<float3> translations);
 
 /**
  * Write the new translated positions to the original mesh, taking into account inverse

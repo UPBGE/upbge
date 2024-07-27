@@ -255,7 +255,7 @@ static void flush_face_changes_node(Mesh &mesh,
       const Span<int> node_faces = bke::pbvh::node_face_indices_calc_mesh(
           tri_faces, *node, tls.face_indices);
 
-      tls.new_hide.reinitialize(node_faces.size());
+      tls.new_hide.resize(node_faces.size());
       array_utils::gather(hide_poly.span.as_span(), node_faces, tls.new_hide.as_mutable_span());
 
       calc_face_hide(node_faces, faces, corner_verts, hide_vert, tls.new_hide.as_mutable_span());
@@ -311,7 +311,7 @@ static void vert_hide_update(Object &object,
     for (bke::pbvh::Node *node : nodes.slice(range)) {
       const Span<int> verts = bke::pbvh::node_unique_verts(*node);
 
-      new_hide.reinitialize(verts.size());
+      new_hide.resize(verts.size());
       array_utils::gather(hide_vert.span.as_span(), verts, new_hide.as_mutable_span());
       calc_hide(verts, new_hide);
       if (array_utils::indexed_data_equal<bool>(hide_vert.span, verts, new_hide)) {
@@ -712,11 +712,12 @@ static void invert_visibility_mesh(Object &object, const Span<bke::pbvh::Node *>
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
       ".hide_poly", bke::AttrDomain::Face);
 
+  undo::push_nodes(object, nodes, undo::Type::HideFace);
+
   threading::EnumerableThreadSpecific<Vector<int>> all_index_data;
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     Vector<int> &faces = all_index_data.local();
     for (bke::pbvh::Node *node : nodes.slice(range)) {
-      undo::push_node(object, node, undo::Type::HideFace);
       bke::pbvh::node_face_indices_calc_mesh(tri_faces, *node, faces);
       for (const int face : faces) {
         hide_poly.span[face] = !hide_poly.span[face];
@@ -737,11 +738,12 @@ static void invert_visibility_grids(Depsgraph &depsgraph,
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   bke::pbvh::Tree &pbvh = *object.sculpt->pbvh;
   SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
-  BitGroupVector<> &grid_hidden = BKE_subdiv_ccg_grid_hidden_ensure(subdiv_ccg);
 
+  undo::push_nodes(object, nodes, undo::Type::HideVert);
+
+  BitGroupVector<> &grid_hidden = BKE_subdiv_ccg_grid_hidden_ensure(subdiv_ccg);
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     for (bke::pbvh::Node *node : nodes.slice(range)) {
-      undo::push_node(object, node, undo::Type::HideVert);
       for (const int i : bke::pbvh::node_grid_indices(*node)) {
         bits::invert(grid_hidden[i]);
       }
@@ -756,9 +758,10 @@ static void invert_visibility_grids(Depsgraph &depsgraph,
 
 static void invert_visibility_bmesh(Object &object, const Span<bke::pbvh::Node *> nodes)
 {
+  undo::push_nodes(object, nodes, undo::Type::HideVert);
+
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     for (bke::pbvh::Node *node : nodes.slice(range)) {
-      undo::push_node(object, node, undo::Type::HideVert);
       bool fully_hidden = true;
       for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(node)) {
         BM_elem_flag_toggle(vert, BM_ELEM_HIDDEN);

@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "AS_asset_catalog_tree.hh"
-#include "AS_asset_identifier.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
@@ -27,7 +26,6 @@
 #include "asset_catalog_collection.hh"
 #include "asset_catalog_definition_file.hh"
 #include "asset_library_service.hh"
-#include "asset_storage.hh"
 #include "utils.hh"
 
 using namespace blender;
@@ -168,7 +166,6 @@ AssetLibrary::AssetLibrary(eAssetLibraryType library_type, StringRef name, Strin
     : library_type_(library_type),
       name_(name),
       root_path_(std::make_shared<std::string>(utils::normalize_directory_path(root_path))),
-      asset_storage_(std::make_unique<AssetStorage>()),
       catalog_service_(std::make_unique<AssetCatalogService>())
 {
 }
@@ -208,36 +205,55 @@ std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_asset(
     const int id_type,
     std::unique_ptr<AssetMetaData> metadata)
 {
-  AssetIdentifier identifier = this->asset_identifier_from_library(relative_asset_path);
-  return asset_storage_->add_external_asset(
-      std::move(identifier), name, id_type, std::move(metadata), *this);
+  return asset_storage_.external_assets.lookup_key_or_add(std::make_shared<AssetRepresentation>(
+      relative_asset_path, name, id_type, std::move(metadata), *this));
 }
 
 std::weak_ptr<AssetRepresentation> AssetLibrary::add_local_id_asset(StringRef relative_asset_path,
                                                                     ID &id)
 {
-  AssetIdentifier identifier = this->asset_identifier_from_library(relative_asset_path);
-  return asset_storage_->add_local_id_asset(std::move(identifier), id, *this);
+  return asset_storage_.local_id_assets.lookup_key_or_add(
+      std::make_shared<AssetRepresentation>(relative_asset_path, id, *this));
 }
 
 bool AssetLibrary::remove_asset(AssetRepresentation &asset)
 {
-  return asset_storage_->remove_asset(asset);
+  if (asset_storage_.local_id_assets.remove_as(&asset)) {
+    return true;
+  }
+  return asset_storage_.external_assets.remove_as(&asset);
 }
 
 void AssetLibrary::remap_ids_and_remove_invalid(const bke::id::IDRemapper &mappings)
 {
-  asset_storage_->remap_ids_and_remove_invalid(mappings);
+  Set<AssetRepresentation *> removed_assets;
+
+  for (auto &asset_ptr : asset_storage_.local_id_assets) {
+    AssetRepresentation &asset = *asset_ptr;
+    BLI_assert(asset.is_local_id());
+
+    const IDRemapperApplyResult result = mappings.apply(&std::get<ID *>(asset.asset_),
+                                                        ID_REMAP_APPLY_DEFAULT);
+
+    /* Entirely remove assets whose ID is unset. We don't want assets with a null ID pointer. */
+    if (result == ID_REMAP_RESULT_SOURCE_UNASSIGNED) {
+      removed_assets.add(&asset);
+    }
+  }
+
+  for (AssetRepresentation *asset : removed_assets) {
+    this->remove_asset(*asset);
+  }
 }
 
 namespace {
-void asset_library_on_save_post(Main *main,
+void asset_library_on_save_post(Main *bmain,
                                 PointerRNA **pointers,
                                 const int num_pointers,
                                 void *arg)
 {
   AssetLibrary *asset_lib = static_cast<AssetLibrary *>(arg);
-  asset_lib->on_blend_save_post(main, pointers, num_pointers);
+  asset_lib->on_blend_save_post(bmain, pointers, num_pointers);
 }
 
 }  // namespace
@@ -260,18 +276,13 @@ void AssetLibrary::on_blend_save_handler_unregister()
   on_save_callback_store_.arg = nullptr;
 }
 
-void AssetLibrary::on_blend_save_post(Main *main,
+void AssetLibrary::on_blend_save_post(Main *bmain,
                                       PointerRNA ** /*pointers*/,
                                       const int /*num_pointers*/)
 {
   if (save_catalogs_when_file_is_saved) {
-    this->catalog_service().write_to_disk(main->filepath);
+    this->catalog_service().write_to_disk(bmain->filepath);
   }
-}
-
-AssetIdentifier AssetLibrary::asset_identifier_from_library(StringRef relative_asset_path)
-{
-  return AssetIdentifier(root_path_, relative_asset_path);
 }
 
 std::string AssetLibrary::resolve_asset_weak_reference_to_full_path(

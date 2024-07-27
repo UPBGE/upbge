@@ -121,7 +121,7 @@ void AssetView::build_items()
 
     const bool show_names = (shelf_.settings.display_flag & ASSETSHELF_SHOW_NAMES);
 
-    const StringRef identifier = asset->get_identifier().library_relative_identifier();
+    const StringRef identifier = asset->library_relative_identifier();
     const int preview_id = [&]() -> int {
       if (list::asset_image_is_loading(&library_ref_, &asset_handle)) {
         return ICON_TEMP;
@@ -341,6 +341,7 @@ void build_asset_view(uiLayout &layout,
   uiBlock *block = uiLayoutGetBlock(&layout);
   ui::AbstractGridView *grid_view = UI_block_add_view(
       *block, "asset shelf asset view", std::move(asset_view));
+  grid_view->set_context_menu_title("Asset Shelf");
 
   ui::GridViewBuilder builder(*block);
   builder.build_grid_view(*grid_view, region.v2d, layout, filter_string_get(shelf));

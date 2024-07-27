@@ -15,6 +15,7 @@
 #include "BLI_bit_span_ops.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_span.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -68,6 +69,29 @@ struct SubdivCCGCoord {
 
   /* Coordinate within the grid. */
   short x, y;
+
+  /* Returns the coordinate for the index in an array sized to contain all grid vertices (including
+   * duplicates). */
+  inline static SubdivCCGCoord from_index(const CCGKey &key, int index)
+  {
+    const int grid_index = index / key.grid_area;
+    const int index_in_grid = index - grid_index * key.grid_area;
+
+    SubdivCCGCoord coord{};
+    coord.grid_index = grid_index;
+    coord.x = index_in_grid % key.grid_size;
+    coord.y = index_in_grid / key.grid_size;
+
+    return coord;
+  }
+
+  /* Returns the index for the coordinate in an array sized to contain all grid vertices (including
+   * duplicates). */
+  int to_index(const CCGKey &key) const
+  {
+    return key.grid_area * this->grid_index +
+           CCG_grid_xy_to_index(key.grid_size, this->x, this->y);
+  }
 };
 
 /* Definition of an edge which is adjacent to at least one of the faces. */
@@ -225,6 +249,16 @@ void BKE_subdiv_ccg_topology_counters(const SubdivCCG &subdiv_ccg,
 struct SubdivCCGNeighbors {
   blender::Vector<SubdivCCGCoord, 256> coords;
   int num_duplicates;
+
+  blender::Span<SubdivCCGCoord> unique() const
+  {
+    return this->coords.as_span().drop_back(num_duplicates);
+  }
+
+  blender::Span<SubdivCCGCoord> duplicates() const
+  {
+    return this->coords.as_span().take_back(num_duplicates);
+  }
 };
 
 void BKE_subdiv_ccg_print_coord(const char *message, const SubdivCCGCoord &coord);
