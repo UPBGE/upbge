@@ -695,6 +695,12 @@ static void rna_AttributeGroup_update_active_color(Main * /*bmain*/,
   }
 }
 
+static int rna_AttributeGroupID_domain_size(ID *id, const int domain)
+{
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  return BKE_attribute_domain_size(owner, domain);
+}
+
 static PointerRNA rna_AttributeGroupMesh_active_color_get(PointerRNA *ptr)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
@@ -938,6 +944,13 @@ static void rna_AttributeGroupGreasePencilDrawing_active_index_range(
   *softmax = *max;
 }
 
+static int rna_AttributeGroupGreasePencilDrawing_domain_size(GreasePencilDrawing *drawing,
+                                                             const int domain)
+{
+  AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
+  return BKE_attribute_domain_size(owner, domain);
+}
+
 #else
 
 static void rna_def_attribute_float(BlenderRNA *brna)
@@ -962,6 +975,7 @@ static void rna_def_attribute_float(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "FloatAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "MFloatProperty");
@@ -995,6 +1009,7 @@ static void rna_def_attribute_float_vector(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   /* Float Vector Attribute Value */
   srna = RNA_def_struct(brna, "FloatVectorAttributeValue", nullptr);
@@ -1034,6 +1049,7 @@ static void rna_def_attribute_float_color(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   /* Float Color Attribute Value */
   srna = RNA_def_struct(brna, "FloatColorAttributeValue", nullptr);
@@ -1082,6 +1098,7 @@ static void rna_def_attribute_byte_color(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   /* Byte Color Attribute Value */
   srna = RNA_def_struct(brna, "ByteColorAttributeValue", nullptr);
@@ -1131,6 +1148,7 @@ static void rna_def_attribute_int(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "IntAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "MIntProperty");
@@ -1161,6 +1179,7 @@ static void rna_def_attribute_string(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "StringAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "MStringProperty");
@@ -1195,6 +1214,7 @@ static void rna_def_attribute_bool(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "BoolAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "MBoolProperty");
@@ -1225,6 +1245,7 @@ static void rna_def_attribute_int8(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "ByteIntAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "MInt8Property");
@@ -1256,6 +1277,7 @@ static void rna_def_attribute_int2(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "Int2AttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "vec2i");
@@ -1290,6 +1312,7 @@ static void rna_def_attribute_quaternion(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "QuaternionAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "vec4f");
@@ -1325,6 +1348,7 @@ static void rna_def_attribute_float4x4(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   srna = RNA_def_struct(brna, "Float4x4AttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "mat4x4f");
@@ -1360,6 +1384,7 @@ static void rna_def_attribute_float2(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 
   /* Float2 Attribute Value */
   srna = RNA_def_struct(brna, "Float2AttributeValue", nullptr);
@@ -1486,6 +1511,19 @@ static void rna_def_attribute_group_id_common(StructRNA *srna)
                              "rna_AttributeGroupID_active_index_set",
                              "rna_AttributeGroupID_active_index_range");
   RNA_def_property_update(prop, 0, "rna_AttributeGroup_update_active");
+
+  /* Domain Size */
+  func = RNA_def_function(srna, "domain_size", "rna_AttributeGroupID_domain_size");
+  RNA_def_function_ui_description(func, "Get the size of a given domain");
+  parm = RNA_def_enum(func,
+                      "domain",
+                      rna_enum_attribute_domain_items,
+                      int(AttrDomain::Point),
+                      "Domain",
+                      "Type of element that attribute is stored on");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(func, "size", 0, 0, INT_MAX, "Size", "Size of the domain", 0, INT_MAX);
+  RNA_def_function_return(func, parm);
 }
 
 static void rna_def_attribute_group_mesh(BlenderRNA *brna)
@@ -1648,6 +1686,20 @@ static void rna_def_attribute_group_grease_pencil_drawing(BlenderRNA *brna)
                              "rna_AttributeGroupGreasePencilDrawing_active_index_set",
                              "rna_AttributeGroupGreasePencilDrawing_active_index_range");
   RNA_def_property_update(prop, 0, "rna_AttributeGroup_update_active");
+
+  /* Domain Size */
+  func = RNA_def_function(
+      srna, "domain_size", "rna_AttributeGroupGreasePencilDrawing_domain_size");
+  RNA_def_function_ui_description(func, "Get the size of a given domain");
+  parm = RNA_def_enum(func,
+                      "domain",
+                      rna_enum_attribute_domain_items,
+                      int(AttrDomain::Point),
+                      "Domain",
+                      "Type of element that attribute is stored on");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(func, "size", 0, 0, INT_MAX, "Size", "Size of the domain", 0, INT_MAX);
+  RNA_def_function_return(func, parm);
 }
 
 void rna_def_attributes_common(StructRNA *srna, const AttributeOwnerType type)
