@@ -2350,6 +2350,9 @@ bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
 float uiLayoutGetSearchWeight(uiLayout *layout);
 
+int uiLayoutListItemPaddingWidth();
+void uiLayoutListItemAddPadding(uiLayout *layout);
+
 /* Layout create functions. */
 
 uiLayout *uiLayoutRow(uiLayout *layout, bool align);

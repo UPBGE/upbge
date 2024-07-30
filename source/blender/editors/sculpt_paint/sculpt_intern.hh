@@ -1645,6 +1645,14 @@ bool is_cloth_deform_brush(const Brush &brush);
 /** \name Smoothing API
  * \{ */
 
+namespace blender::ed::sculpt_paint {
+
+void calc_smooth_translations(const Object &object,
+                              Span<bke::pbvh::Node *> nodes,
+                              MutableSpan<float3> translations);
+
+}
+
 namespace blender::ed::sculpt_paint::smooth {
 
 /**
@@ -2100,8 +2108,20 @@ namespace blender::ed::sculpt_paint::boundary {
  */
 std::unique_ptr<SculptBoundary> data_init(Object &object,
                                           const Brush *brush,
-                                          PBVHVertRef initial_vertex,
+                                          PBVHVertRef initial_vert,
                                           float radius);
+std::unique_ptr<SculptBoundary> data_init_mesh(Object &object,
+                                               const Brush *brush,
+                                               int initial_vert,
+                                               float radius);
+std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
+                                                const Brush *brush,
+                                                SubdivCCGCoord initial_vert,
+                                                float radius);
+std::unique_ptr<SculptBoundary> data_init_bmesh(Object &object,
+                                                const Brush *brush,
+                                                BMVert *initial_vert,
+                                                float radius);
 std::unique_ptr<SculptBoundaryPreview> preview_data_init(Object &object,
                                                          const Brush *brush,
                                                          PBVHVertRef initial_vertex,

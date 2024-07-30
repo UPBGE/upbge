@@ -119,6 +119,8 @@
 #include "BKE_report.hh"
 #include "BKE_workspace.hh"
 
+#include "DRW_engine.hh"
+
 #include "BLO_blend_defs.hh"
 #include "BLO_blend_validate.hh"
 #include "BLO_read_write.hh"
@@ -428,7 +430,7 @@ struct WriteData {
      */
     bool critical_error;
     /**
-     * A set of all 'old' adresses used as uid of written blocks for the current ID. Allows
+     * A set of all 'old' addresses used as UID of written blocks for the current ID. Allows
      * detecting invalid re-uses of the same address multiple times.
      */
     blender::Set<const void *> per_id_addresses_set;
@@ -1240,6 +1242,11 @@ static void id_buffer_init_from_id(BLO_Write_IDBuffer *id_buffer, ID *id, const 
    * when we need to re-read the ID into its original address, this is currently cleared in
    * #direct_link_id_common in `readfile.cc` anyway. */
   temp_id->py_instance = nullptr;
+
+  DrawDataList *drawdata = DRW_drawdatalist_from_id(temp_id);
+  if (drawdata) {
+    BLI_listbase_clear(reinterpret_cast<ListBase *>(drawdata));
+  }
 }
 
 /* Helper callback for checking linked IDs used by given ID (assumed local), to ensure directly
