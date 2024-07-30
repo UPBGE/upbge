@@ -133,7 +133,7 @@ static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *
 
   WM_check(C);
   ED_screen_change(C, screen);
-  ED_screen_refresh(wm, win);
+  ED_screen_refresh(C, wm, win);
 
   ED_screen_areas_iter (win, screen, area_iter) {
     ED_area_tag_redraw(area_iter);
@@ -410,7 +410,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
 
   /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
-  ED_screens_init(maggie1, wm_backup);
+  ED_screens_init(C,maggie1, wm_backup);
 
   /* Restore shading type we had before game start */
   CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
