@@ -529,42 +529,6 @@ class LazyFunctionForBakeNode final : public LazyFunction {
   }
 };
 
-static void draw_bake_button(uiLayout *layout, const BakeDrawContext &ctx)
-{
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayout *row = uiLayoutRow(col, true);
-  {
-    PointerRNA ptr;
-    uiItemFullO(row,
-                "OBJECT_OT_geometry_node_bake_single",
-                IFACE_("Bake"),
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
-    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
-  }
-  {
-    uiLayout *subrow = uiLayoutRow(row, true);
-    uiLayoutSetActive(subrow, ctx.is_baked);
-    PointerRNA ptr;
-    uiItemFullO(subrow,
-                "OBJECT_OT_geometry_node_bake_delete_single",
-                "",
-                ICON_TRASH,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
-    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
-    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
-    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
-  }
-}
-
 static void node_extra_info(NodeExtraInfoParams &params)
 {
   BakeDrawContext ctx;
@@ -593,7 +557,7 @@ static void node_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
     uiLayoutSetEnabled(row, !ctx.is_baked);
     uiItemR(row, &ctx.bake_rna, "bake_mode", UI_ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
   }
-  draw_bake_button(col, ctx);
+  draw_bake_button(ctx, col);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -616,42 +580,13 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
       uiItemR(row, &ctx.bake_rna, "bake_mode", UI_ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
     }
 
-    draw_bake_button(col, ctx);
-    if (ctx.is_baked) {
-      const std::string label = get_baked_string(ctx);
-      uiItemL(col, label.c_str(), ICON_NONE);
+    draw_bake_button(ctx, col);
+    if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
+      uiItemL(col, bake_state_str->c_str(), ICON_NONE);
     }
   }
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  {
-    uiLayout *settings_col = uiLayoutColumn(layout, false);
-    uiLayoutSetEnabled(settings_col, !ctx.is_baked);
-    {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiItemR(
-          col, &ctx.bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol, ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH);
-      uiItemR(subcol, &ctx.bake_rna, "directory", UI_ITEM_NONE, IFACE_("Path"), ICON_NONE);
-    }
-    if (!ctx.bake_still) {
-      uiLayout *col = uiLayoutColumn(settings_col, true);
-      uiItemR(col,
-              &ctx.bake_rna,
-              "use_custom_simulation_frame_range",
-              UI_ITEM_NONE,
-              IFACE_("Custom Range"),
-              ICON_NONE);
-      uiLayout *subcol = uiLayoutColumn(col, true);
-      uiLayoutSetActive(subcol,
-                        ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
-      uiItemR(subcol, &ctx.bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-      uiItemR(subcol, &ctx.bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
-    }
-  }
-
+  draw_common_bake_settings(ctx, layout);
   draw_data_blocks(C, layout, ctx.bake_rna);
 }
 
@@ -759,8 +694,11 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
       }
     }
   }
-
-  r_ctx.bake_still = r_ctx.bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL;
+  const Scene *scene = CTX_data_scene(C);
+  r_ctx.frame_range = bke::bake::get_node_bake_frame_range(
+      *scene, *r_ctx.object, *r_ctx.nmd, r_ctx.bake->id);
+  r_ctx.bake_still = node.type == GEO_NODE_BAKE &&
+                     r_ctx.bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL;
   r_ctx.is_baked = r_ctx.baked_range.has_value();
 
   return true;
@@ -772,6 +710,88 @@ std::string get_baked_string(const BakeDrawContext &ctx)
     return fmt::format(RPT_("Baked Frame {}"), ctx.baked_range->first());
   }
   return fmt::format(RPT_("Baked {} - {}"), ctx.baked_range->first(), ctx.baked_range->last());
+}
+
+std::optional<std::string> get_bake_state_string(const BakeDrawContext &ctx)
+{
+  if (ctx.is_baked) {
+    if (ctx.bake_still) {
+      return fmt::format(RPT_("Baked Frame {}"), ctx.baked_range->first());
+    }
+    return fmt::format(RPT_("Baked {} - {}"), ctx.baked_range->first(), ctx.baked_range->last());
+  }
+  if (ctx.frame_range.has_value()) {
+    if (!ctx.bake_still) {
+      return fmt::format(
+          RPT_("Frames {} - {}"), ctx.frame_range->first(), ctx.frame_range->last());
+    }
+  }
+  return std::nullopt;
+}
+
+void draw_bake_button(const BakeDrawContext &ctx, uiLayout *layout)
+{
+  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *row = uiLayoutRow(col, true);
+  {
+    PointerRNA ptr;
+    uiItemFullO(row,
+                "OBJECT_OT_geometry_node_bake_single",
+                IFACE_("Bake"),
+                ICON_NONE,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &ptr);
+    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
+    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
+    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+  }
+  {
+    uiLayout *subrow = uiLayoutRow(row, true);
+    uiLayoutSetActive(subrow, ctx.is_baked);
+    PointerRNA ptr;
+    uiItemFullO(subrow,
+                "OBJECT_OT_geometry_node_bake_delete_single",
+                "",
+                ICON_TRASH,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &ptr);
+    WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
+    RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
+    RNA_int_set(&ptr, "bake_id", ctx.bake->id);
+  }
+}
+
+void draw_common_bake_settings(BakeDrawContext &ctx, uiLayout *layout)
+{
+  uiLayout *settings_col = uiLayoutColumn(layout, false);
+  uiLayoutSetPropSep(settings_col, true);
+  uiLayoutSetPropDecorate(settings_col, false);
+  uiLayoutSetActive(settings_col, !ctx.is_baked);
+  {
+    uiLayout *col = uiLayoutColumn(settings_col, true);
+    uiLayoutSetActive(col, !ctx.is_baked);
+    uiItemR(col, &ctx.bake_rna, "use_custom_path", UI_ITEM_NONE, IFACE_("Custom Path"), ICON_NONE);
+    uiLayout *subcol = uiLayoutColumn(col, true);
+    uiLayoutSetActive(subcol, ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH);
+    uiItemR(subcol, &ctx.bake_rna, "directory", UI_ITEM_NONE, IFACE_("Path"), ICON_NONE);
+  }
+  {
+    uiLayout *col = uiLayoutColumn(settings_col, true);
+    uiItemR(col,
+            &ctx.bake_rna,
+            "use_custom_simulation_frame_range",
+            UI_ITEM_NONE,
+            IFACE_("Custom Range"),
+            ICON_NONE);
+    uiLayout *subcol = uiLayoutColumn(col, true);
+    uiLayoutSetActive(subcol, ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_SIMULATION_FRAME_RANGE);
+    uiItemR(subcol, &ctx.bake_rna, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+    uiItemR(subcol, &ctx.bake_rna, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  }
 }
 
 static void draw_bake_data_block_list_item(uiList * /*ui_list*/,

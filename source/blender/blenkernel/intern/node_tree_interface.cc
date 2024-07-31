@@ -347,10 +347,14 @@ static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &soc
 
 template<typename T> void socket_data_read_data_impl(BlendDataReader *reader, T **data)
 {
+  /* FIXME Avoid using low-level untyped read function here. Cannot use the BLO_read_struct
+   * currently (macro expension would process `T` instead of the actual type). */
   BLO_read_data_address(reader, data);
 }
 template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketValueMenu **data)
 {
+  /* FIXME Avoid using low-level untyped read function here. No type info available here currently.
+   */
   BLO_read_data_address(reader, data);
   /* Clear runtime data. */
   (*data)->enum_items = nullptr;
@@ -590,7 +594,8 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
       BLO_read_string(reader, &panel.name);
       BLO_read_string(reader, &panel.description);
-      BLO_read_pointer_array(reader, reinterpret_cast<void **>(&panel.items_array));
+      BLO_read_pointer_array(
+          reader, panel.items_num, reinterpret_cast<void **>(&panel.items_array));
       for (const int i : blender::IndexRange(panel.items_num)) {
         BLO_read_struct(reader, NodeEnumItem, &panel.items_array[i]);
         item_read_data(reader, *panel.items_array[i]);

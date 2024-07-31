@@ -87,6 +87,7 @@ struct BakeDrawContext {
   const NodesModifierBake *bake;
   PointerRNA bake_rna;
   std::optional<IndexRange> baked_range;
+  std::optional<IndexRange> frame_range;
   bool bake_still;
   bool is_baked;
 };
@@ -96,5 +97,8 @@ struct BakeDrawContext {
                                          BakeDrawContext &r_ctx);
 
 std::string get_baked_string(const BakeDrawContext &ctx);
+std::optional<std::string> get_bake_state_string(const BakeDrawContext &ctx);
+void draw_common_bake_settings(BakeDrawContext &ctx, uiLayout *layout);
+void draw_bake_button(const BakeDrawContext &ctx, uiLayout *layout);
 
 }  // namespace blender::nodes

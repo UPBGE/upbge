@@ -175,7 +175,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_pointer_array(writer, cu->totcol, cu->mat);
 
   if (cu->vfont) {
-    BLO_write_raw(writer, cu->len + 1, cu->str);
+    BLO_write_string(writer, cu->str);
     BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
     BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
   }
@@ -212,7 +212,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   /* Protect against integer overflow vulnerability. */
   CLAMP(cu->len_char32, 0, INT_MAX - 4);
 
-  BLO_read_pointer_array(reader, (void **)&cu->mat);
+  BLO_read_pointer_array(reader, cu->totcol, (void **)&cu->mat);
 
   BLO_read_string(reader, &cu->str);
   BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);

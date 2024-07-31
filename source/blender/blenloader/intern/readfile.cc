@@ -4854,6 +4854,18 @@ void *BLO_read_struct_array_with_size(BlendDataReader *reader,
   return blo_verify_data_address(new_address, old_address, expected_size);
 }
 
+void *BLO_read_struct_by_name_array(BlendDataReader *reader,
+                                    const char *struct_name,
+                                    const uint32_t items_num,
+                                    const void *old_address)
+{
+  const int struct_index = DNA_struct_find_with_alias(reader->fd->memsdna, struct_name);
+  BLI_assert(STREQ(DNA_struct_identifier(const_cast<SDNA *>(reader->fd->memsdna), struct_index),
+                   struct_name));
+  const size_t struct_size = size_t(DNA_struct_size(reader->fd->memsdna, struct_index));
+  return BLO_read_struct_array_with_size(reader, old_address, struct_size * items_num);
+}
+
 ID *BLO_read_get_new_id_address(BlendLibReader *reader,
                                 ID *self_id,
                                 const bool is_linked_only,
@@ -5021,7 +5033,7 @@ static void convert_pointer_array_32_to_64(BlendDataReader * /*reader*/,
   }
 }
 
-void BLO_read_pointer_array(BlendDataReader *reader, void **ptr_p)
+void BLO_read_pointer_array(BlendDataReader *reader, const int array_size, void **ptr_p)
 {
   FileData *fd = reader->fd;
 
@@ -5033,9 +5045,6 @@ void BLO_read_pointer_array(BlendDataReader *reader, void **ptr_p)
 
   int file_pointer_size = fd->filesdna->pointer_size;
   int current_pointer_size = fd->memsdna->pointer_size;
-
-  /* Over-allocation is fine, but might be better to pass the length as parameter. */
-  int array_size = MEM_allocN_len(orig_array) / file_pointer_size;
 
   void *final_array = nullptr;
 
@@ -5058,7 +5067,7 @@ void BLO_read_pointer_array(BlendDataReader *reader, void **ptr_p)
     MEM_freeN(orig_array);
   }
   else {
-    BLI_assert(false);
+    BLI_assert_unreachable();
   }
 
   *ptr_p = final_array;
