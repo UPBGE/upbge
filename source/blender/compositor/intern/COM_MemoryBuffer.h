@@ -252,50 +252,7 @@ class MemoryBuffer {
 
   void read_elem_bilinear(float x, float y, float *out) const
   {
-    /* Only clear past +/-1 borders to be able to smooth edges. */
-    if (x <= rect_.xmin - 1.0f || x >= rect_.xmax || y <= rect_.ymin - 1.0f || y >= rect_.ymax) {
-      clear_elem(out);
-      return;
-    }
-
-    if (is_a_single_elem_) {
-      if (x >= rect_.xmin && x < rect_.xmax - 1.0f && y >= rect_.ymin && y < rect_.ymax - 1.0f) {
-        memcpy(out, buffer_, get_elem_bytes_len());
-        return;
-      }
-
-      /* Do sampling at borders to smooth edges. */
-      const float last_x = get_width() - 1.0f;
-      const float rel_x = get_relative_x(x);
-      float single_x = 0.0f;
-      if (rel_x < 0.0f) {
-        single_x = rel_x;
-      }
-      else if (rel_x > last_x) {
-        single_x = rel_x - last_x;
-      }
-
-      const float last_y = get_height() - 1.0f;
-      const float rel_y = get_relative_y(y);
-      float single_y = 0.0f;
-      if (rel_y < 0.0f) {
-        single_y = rel_y;
-      }
-      else if (rel_y > last_y) {
-        single_y = rel_y - last_y;
-      }
-
-      math::interpolate_bilinear_border_fl(buffer_, out, 1, 1, num_channels_, single_x, single_y);
-      return;
-    }
-
-    math::interpolate_bilinear_border_fl(buffer_,
-                                         out,
-                                         get_width(),
-                                         get_height(),
-                                         num_channels_,
-                                         get_relative_x(x),
-                                         get_relative_y(y));
+    read(out, x, y, PixelSampler::Bilinear);
   }
 
   void read_elem_bicubic_bspline(float x, float y, float *out) const
@@ -316,18 +273,7 @@ class MemoryBuffer {
 
   void read_elem_sampled(float x, float y, PixelSampler sampler, float *out) const
   {
-    switch (sampler) {
-      case PixelSampler::Nearest:
-        read_elem_checked(x, y, out);
-        break;
-      case PixelSampler::Bilinear:
-        read_elem_bilinear(x, y, out);
-        break;
-      case PixelSampler::Bicubic:
-        /* Using same method as GPU compositor. Final results may still vary. */
-        read_elem_bicubic_bspline(x, y, out);
-        break;
-    }
+    read(out, x, y, sampler);
   }
 
   void read_elem_filtered(
@@ -429,58 +375,6 @@ class MemoryBuffer {
    */
   MemoryBuffer *inflate() const;
 
-  inline void wrap_pixel(int &x,
-                         int &y,
-                         MemoryBufferExtend extend_x,
-                         MemoryBufferExtend extend_y) const
-  {
-    const int w = get_width();
-    const int h = get_height();
-    x = x - rect_.xmin;
-    y = y - rect_.ymin;
-
-    switch (extend_x) {
-      case MemoryBufferExtend::Clip:
-        break;
-      case MemoryBufferExtend::Extend:
-        if (x < 0) {
-          x = 0;
-        }
-        if (x >= w) {
-          x = w - 1;
-        }
-        break;
-      case MemoryBufferExtend::Repeat:
-        x %= w;
-        if (x < 0) {
-          x += w;
-        }
-        break;
-    }
-
-    switch (extend_y) {
-      case MemoryBufferExtend::Clip:
-        break;
-      case MemoryBufferExtend::Extend:
-        if (y < 0) {
-          y = 0;
-        }
-        if (y >= h) {
-          y = h - 1;
-        }
-        break;
-      case MemoryBufferExtend::Repeat:
-        y %= h;
-        if (y < 0) {
-          y += h;
-        }
-        break;
-    }
-
-    x = x + rect_.xmin;
-    y = y + rect_.ymin;
-  }
-
   inline void wrap_pixel(float &x,
                          float &y,
                          MemoryBufferExtend extend_x,
@@ -534,17 +428,59 @@ class MemoryBuffer {
                    MemoryBufferExtend extend_x = MemoryBufferExtend::Clip,
                    MemoryBufferExtend extend_y = MemoryBufferExtend::Clip) const
   {
-    bool clip_x = (extend_x == MemoryBufferExtend::Clip && (x < rect_.xmin || x >= rect_.xmax));
-    bool clip_y = (extend_y == MemoryBufferExtend::Clip && (y < rect_.ymin || y >= rect_.ymax));
-    if (clip_x || clip_y) {
-      /* clip result outside rect is zero */
-      memset(result, 0, num_channels_ * sizeof(float));
+    // Extend is completely ignored for constants. This may need to be fixed in the future.
+    if (is_a_single_elem_) {
+      memcpy(result, buffer_, get_elem_bytes_len());
+      return;
     }
-    else {
-      float u = x;
-      float v = y;
-      this->wrap_pixel(u, v, extend_x, extend_y);
-      this->read_elem_sampled(u, v, sampler, result);
+
+    this->wrap_pixel(x, y, extend_x, extend_y);
+
+    if (sampler == PixelSampler::Nearest) {
+      read_elem_checked(int(floorf(x + 0.5f)), int(floorf(y + 0.5f)), result);
+      return;
+    }
+
+    x = get_relative_x(x);
+    y = get_relative_y(y);
+    const float w = get_width();
+    const float h = get_height();
+
+    // compute (linear interpolation) intersection with Clip
+    float mult = 1.0f;
+    if (extend_x == MemoryBufferExtend::Clip) {
+      mult = std::min(x + 1.0f, w - x);
+    }
+    if (extend_y == MemoryBufferExtend::Clip) {
+      mult = std::min(mult, std::min(y + 1.0f, h - y));
+    }
+    if (mult <= 0.0f) {
+      clear_elem(result);
+      return;
+    }
+
+    if (sampler == PixelSampler::Bilinear) {
+      // Sample using Extend or Repeat
+      math::interpolate_bilinear_wrap_fl(buffer_,
+                                         result,
+                                         w,
+                                         h,
+                                         num_channels_,
+                                         x,
+                                         y,
+                                         extend_x == MemoryBufferExtend::Repeat,
+                                         extend_y == MemoryBufferExtend::Repeat);
+    }
+    else {  // PixelSampler::Bicubic
+      // Sample using Extend (Repeat is not implemented by interpolate_cubic_bspline)
+      math::interpolate_cubic_bspline_fl(buffer_, result, w, h, num_channels_, x, y);
+    }
+
+    // Multiply by Clip intersection
+    if (mult < 1.0f) {
+      for (int i = 0; i < num_channels_; ++i) {
+        result[i] *= mult;
+      }
     }
   }
   void write_pixel(int x, int y, const float color[4]);

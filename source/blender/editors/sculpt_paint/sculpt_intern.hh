@@ -12,6 +12,7 @@
 #include <queue>
 
 #include "BKE_attribute.hh"
+#include "BKE_collision.h"
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -345,6 +346,12 @@ struct StrokeCache {
   float2 mouse;
   /* Position of the mouse event in screen space, not modified by the stroke type. */
   float2 mouse_event;
+
+  /**
+   * Used by the color attribute paint brush tool to store the brush color during a stroke and
+   * composite it over the original color.
+   */
+  Array<float4> mix_colors;
 
   Array<float4> prev_colors;
   GArray<> prev_colors_vpaint;
@@ -803,29 +810,6 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
 /** \name Sculpt mesh accessor API
  * \{ */
 
-struct SculptMaskWriteInfo {
-  float *layer = nullptr;
-  int bm_offset = -1;
-};
-SculptMaskWriteInfo SCULPT_mask_get_for_write(SculptSession &ss);
-inline void SCULPT_mask_vert_set(const blender::bke::pbvh::Type type,
-                                 const SculptMaskWriteInfo mask_write,
-                                 const float value,
-                                 PBVHVertexIter &vd)
-{
-  switch (type) {
-    case blender::bke::pbvh::Type::Mesh:
-      mask_write.layer[vd.index] = value;
-      break;
-    case blender::bke::pbvh::Type::BMesh:
-      BM_ELEM_CD_SET_FLOAT(vd.bm_vert, mask_write.bm_offset, value);
-      break;
-    case blender::bke::pbvh::Type::Grids:
-      CCG_elem_mask(vd.key, vd.grid) = value;
-      break;
-  }
-}
-
 /** Ensure random access; required for blender::bke::pbvh::Type::BMesh */
 void SCULPT_vertex_random_access_ensure(SculptSession &ss);
 
@@ -835,13 +819,7 @@ const float *SCULPT_vertex_co_get(const SculptSession &ss, PBVHVertRef vertex);
 /** Get the normal for a given sculpt vertex; do not modify the result */
 const blender::float3 SCULPT_vertex_normal_get(const SculptSession &ss, PBVHVertRef vertex);
 
-float SCULPT_mask_get_at_grids_vert_index(const SubdivCCG &subdiv_ccg,
-                                          const CCGKey &key,
-                                          int vert_index);
-
 bool SCULPT_vertex_is_occluded(SculptSession &ss, PBVHVertRef vertex, bool original);
-
-const float *SCULPT_vertex_persistent_co_get(const SculptSession &ss, PBVHVertRef vertex);
 
 /**
  * Coordinates used for manipulating the base mesh when Grab Active Vertex is enabled.
@@ -993,6 +971,15 @@ int active_face_set_get(const SculptSession &ss);
 int vert_face_set_get(const SculptSession &ss, PBVHVertRef vertex);
 
 bool vert_has_face_set(const SculptSession &ss, PBVHVertRef vertex, int face_set);
+bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
+                       const int *face_sets,
+                       const int vert,
+                       const int face_set);
+bool vert_has_face_set(const SubdivCCG &subdiv_ccg,
+                       const int *face_sets,
+                       const int grid,
+                       const int face_set);
+bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int face_set);
 bool vert_has_unique_face_set(const SculptSession &ss, PBVHVertRef vertex);
 bool vert_has_unique_face_set(const GroupedSpan<int> vert_to_face_map,
                               const int *face_sets,
@@ -1427,7 +1414,7 @@ float factor_get(const Cache *automasking,
 
 /* Returns the automasking cache depending on the active tool. Used for code that can run both for
  * brushes and filter. */
-Cache *active_cache_get(SculptSession &ss);
+const Cache *active_cache_get(const SculptSession &ss);
 
 /**
  * Creates and initializes an automasking cache.
@@ -1552,7 +1539,6 @@ struct LengthConstraint {
 
 struct SimulationData {
   Vector<LengthConstraint> length_constraints;
-  Set<OrderedEdge> created_length_constraints;
   Array<float> length_constraint_tweak;
 
   /* Position anchors for deformation brushes. These positions are modified by the brush and the
@@ -1573,16 +1559,11 @@ struct SimulationData {
   Array<float3> prev_pos;
   Array<float3> last_iteration_pos;
 
-  ListBase *collider_list;
+  Vector<ColliderCache> collider_list;
 
   int totnode;
-  /** #blender::bke::pbvh::Node pointer as a key, index in #SimulationData.node_state as value. */
-  GHash *node_state_index;
+  Map<const bke::pbvh::Node *, int> node_state_index;
   Array<NodeSimState> node_state;
-
-  VArraySpan<float> mask_mesh;
-  int mask_cd_offset_bmesh;
-  CCGKey grid_key;
 
   ~SimulationData();
 };
@@ -1598,7 +1579,6 @@ std::unique_ptr<SimulationData> brush_simulation_create(Object &ob,
                                                         float cloth_softbody_strength,
                                                         bool use_collisions,
                                                         bool needs_deform_coords);
-void brush_simulation_init(const SculptSession &ss, SimulationData &cloth_sim);
 
 void sim_activate_nodes(SimulationData &cloth_sim, Span<blender::bke::pbvh::Node *> nodes);
 
@@ -1610,10 +1590,10 @@ void do_simulation_step(const Sculpt &sd,
                         Span<blender::bke::pbvh::Node *> nodes);
 
 void ensure_nodes_constraints(const Sculpt &sd,
-                              Object &ob,
-                              Span<blender::bke::pbvh::Node *> nodes,
+                              const Object &ob,
+                              Span<bke::pbvh::Node *> nodes,
                               SimulationData &cloth_sim,
-                              float initial_location[3],
+                              const float3 &initial_location,
                               float radius);
 
 /**
@@ -1662,7 +1642,6 @@ namespace blender::ed::sculpt_paint::smooth {
 void bmesh_four_neighbor_average(float avg[3], const float3 &direction, const BMVert *v);
 
 float3 neighbor_coords_average(SculptSession &ss, PBVHVertRef vertex);
-float neighbor_mask_average(SculptSession &ss, SculptMaskWriteInfo write_info, PBVHVertRef vertex);
 
 void neighbor_color_average(OffsetIndices<int> faces,
                             Span<int> corner_verts,
