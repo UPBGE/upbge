@@ -141,8 +141,7 @@ void Camera::sync()
     CameraParams params;
     BKE_camera_params_init(&params);
 
-    if (inst_.rv3d->persp == RV3D_CAMOB &&
-        (DRW_state_is_viewport_image_render() || inst_.scene->flag & SCE_INTERACTIVE))
+    if (inst_.rv3d->persp == RV3D_CAMOB && DRW_state_is_viewport_image_render())
     {
       /* We are rendering camera view, no need for pan/zoom params from viewport.*/
       BKE_camera_params_from_object(&params, camera_eval);
@@ -161,6 +160,10 @@ void Camera::sync()
                                    params.viewplane,
                                    overscan_,
                                    data.winmat.ptr());
+
+    if (inst_.scene->flag & SCE_INTERACTIVE) { // tmp fix for game render loop view UPBGE (no support for overscan)
+      DRW_view_winmat_get(inst_.drw_view, data.winmat.ptr(), false);
+    }
   }
   else if (inst_.render) {
     const Render *re = inst_.render->re;
