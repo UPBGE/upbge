@@ -2960,11 +2960,9 @@ static void draw_exporter_item(uiList * /*ui_list*/,
                                int /*index*/,
                                int /*flt_flag*/)
 {
-  char name[MAX_IDPROP_NAME];
-  RNA_string_get(itemptr, "name", name);
-
   uiLayout *row = uiLayoutRow(layout, false);
-  uiItemL(row, name, ICON_NONE);
+  uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
+  uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
@@ -6407,6 +6405,7 @@ static bool uiTemplateInputStatusAzone(uiLayout *layout, AZone *az, ARegion *reg
     uiItemL(layout, IFACE_("Duplicate into Window"), ICON_NONE);
     uiItemS_ex(layout, 0.7f);
     uiItemL(layout, "", ICON_EVENT_CTRL);
+    uiItemS_ex(layout, 1.5f);
     uiItemL(layout, nullptr, ICON_MOUSE_LMB_DRAG);
     uiItemL(layout, IFACE_("Swap Areas"), ICON_NONE);
     return true;
@@ -6440,6 +6439,10 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
         uiBut *but = uiItemL_ex(row, item.text.c_str(), item.icon, false, false);
         if (item.inverted) {
           but->drawflag |= UI_BUT_ICON_INVERT;
+        }
+        const float offset = ui_event_icon_offset(item.icon);
+        if (offset != 0.0f) {
+          uiItemS_ex(row, offset);
         }
       }
     }
@@ -6952,6 +6955,11 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
     if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_MMB_SCROLL) {
       /* Negative space after narrow mice icons. */
       uiItemS_ex(layout, -0.9f);
+    }
+
+    const float offset = ui_event_icon_offset(icon);
+    if (offset != 0.0f) {
+      uiItemS_ex(layout, offset);
     }
 
     uiItemS_ex(layout, 0.3f);

@@ -121,7 +121,7 @@ void cache_init(bContext *C,
 
   if (undo_type == undo::Type::Color) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
-    BKE_pbvh_ensure_node_loops(pbvh, mesh.corner_tris());
+    BKE_pbvh_ensure_node_face_corners(pbvh, mesh.corner_tris());
   }
 
   ss.filter_cache->nodes = bke::pbvh::search_gather(
@@ -304,117 +304,840 @@ static bool sculpt_mesh_filter_is_continuous(MeshFilterType type)
               MeshFilterType::RelaxFaceSets);
 }
 
-static void mesh_filter_task(Object &ob,
-                             const MeshFilterType filter_type,
-                             const float filter_strength,
-                             bke::pbvh::Node *node)
+BLI_NOINLINE static void lock_translation_axes(const filter::Cache &cache,
+                                               const MutableSpan<float3> translations)
 {
-  SculptSession &ss = *ob.sculpt;
+  for (const int i : translations.index_range()) {
+    translations[i] = to_orientation_space(cache, translations[i]);
+    for (int it = 0; it < 3; it++) {
+      if (!cache.enabled_axis[it]) {
+        translations[i][it] = 0.0f;
+      }
+    }
+    translations[i] = to_object_space(cache, translations[i]);
+  }
+}
 
-  SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(ob, *node, undo::Type::Position);
+BLI_NOINLINE static void clamp_factors(const MutableSpan<float> factors,
+                                       const float min,
+                                       const float max)
+{
+  for (float &factor : factors) {
+    factor = std::clamp(factor, min, max);
+  }
+}
+
+BLI_NOINLINE static void reset_translations_to_original(const MutableSpan<float3> translations,
+                                                        const Span<float3> positions,
+                                                        const Span<float3> orig_positions)
+{
+  BLI_assert(translations.size() == orig_positions.size());
+  BLI_assert(translations.size() == positions.size());
+  for (const int i : translations.index_range()) {
+    const float3 prev_translation = positions[i] - orig_positions[i];
+    translations[i] -= prev_translation;
+  }
+}
+
+static void calc_smooth_filter(const Sculpt &sd,
+                               const float strength,
+                               Object &object,
+                               const Span<bke::pbvh::Node *> nodes)
+{
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<Vector<int>> vert_neighbors;
+    Vector<float3> new_positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      const OffsetIndices faces = mesh.faces();
+      const Span<int> corner_verts = mesh.corner_verts();
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+          const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_mesh(object, *nodes[i]);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(mesh, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+          clamp_factors(factors, -1.0f, 1.0f);
+
+          tls.vert_neighbors.resize(verts.size());
+          MutableSpan<Vector<int>> neighbors = tls.vert_neighbors;
+          calc_vert_neighbors_interior(faces,
+                                       corner_verts,
+                                       ss.vert_to_face_map,
+                                       ss.vertex_info.boundary,
+                                       {},
+                                       verts,
+                                       neighbors);
+          tls.new_positions.resize(verts.size());
+          const MutableSpan<float3> new_positions = tls.new_positions;
+          smooth::neighbor_data_average_mesh_check_loose(
+              positions_eval, verts, neighbors, new_positions);
+
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations_from_new_positions(new_positions, orig_data.positions, translations);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const OffsetIndices faces = base_mesh.faces();
+      const Span<int> corner_verts = base_mesh.corner_verts();
+
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+          const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+          tls.factors.resize(positions.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_grids_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+          }
+          scale_factors(factors, strength);
+          clamp_factors(factors, -1.0f, 1.0f);
+
+          tls.new_positions.resize(positions.size());
+          const MutableSpan<float3> new_positions = tls.new_positions;
+          smooth::neighbor_position_average_interior_grids(
+              faces, corner_verts, ss.vertex_info.boundary, subdiv_ccg, grids, new_positions);
+
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations_from_new_positions(new_positions, orig_data.positions, translations);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+          apply_translations(translations, grids, subdiv_ccg);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(nodes[i]);
+          const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+          Array<float3> orig_positions(verts.size());
+          orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, {});
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(bm, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+          clamp_factors(factors, -1.0f, 1.0f);
+
+          tls.new_positions.resize(verts.size());
+          const MutableSpan<float3> new_positions = tls.new_positions;
+          smooth::neighbor_position_average_interior_bmesh(verts, new_positions);
+
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations_from_new_positions(new_positions, orig_positions, translations);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_positions, translations);
+          apply_translations(translations, verts);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+  }
+}
+
+static void calc_inflate_filter(const Sculpt &sd,
+                                const float strength,
+                                Object &object,
+                                const Span<bke::pbvh::Node *> nodes)
+{
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+          const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_mesh(object, *nodes[i]);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(mesh, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_data.normals);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+          const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+          tls.factors.resize(positions.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_grids_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_data.normals);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+          apply_translations(translations, grids, subdiv_ccg);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(nodes[i]);
+          const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+          Array<float3> orig_positions(verts.size());
+          Array<float3> orig_normals(verts.size());
+          orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(bm, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_normals);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_positions, translations);
+          apply_translations(translations, verts);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+  }
+}
+
+static void calc_scale_filter(const Sculpt &sd,
+                              const float strength,
+                              Object &object,
+                              const Span<bke::pbvh::Node *> nodes)
+{
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+          const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_mesh(object, *nodes[i]);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(mesh, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_data.positions);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+          const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+          tls.factors.resize(positions.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_grids_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_data.positions);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+          apply_translations(translations, grids, subdiv_ccg);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(nodes[i]);
+          const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+          Array<float3> orig_positions(verts.size());
+          orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, {});
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(bm, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_positions);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_positions, translations);
+          apply_translations(translations, verts);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+  }
+}
+
+BLI_NOINLINE static void calc_sphere_translations(const Span<float3> positions,
+                                                  const Span<float> factors,
+                                                  const MutableSpan<float3> translations)
+{
+  for (const int i : positions.index_range()) {
+    float3x3 transform = float3x3::identity();
+    if (factors[i] > 0.0f) {
+      scale_m3_fl(transform.ptr(), 1.0f - factors[i]);
+    }
+    else {
+      scale_m3_fl(transform.ptr(), 1.0f + factors[i]);
+    }
+    translations[i] = math::midpoint(math::normalize(positions[i]) * math::abs(factors[i]),
+                                     transform * positions[i] - positions[i]);
+  }
+}
+
+static void calc_sphere_filter(const Sculpt &sd,
+                               const float strength,
+                               Object &object,
+                               const Span<bke::pbvh::Node *> nodes)
+{
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+          const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_mesh(object, *nodes[i]);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(mesh, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          calc_sphere_translations(orig_data.positions, factors, translations);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+          const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+          tls.factors.resize(positions.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_grids_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          calc_sphere_translations(orig_data.positions, factors, translations);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+          apply_translations(translations, grids, subdiv_ccg);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(nodes[i]);
+          const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+          Array<float3> orig_positions(verts.size());
+          orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, {});
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(bm, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          calc_sphere_translations(orig_positions, factors, translations);
+          reset_translations_to_original(translations, positions, orig_positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_positions, translations);
+          apply_translations(translations, verts);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+  }
+}
+
+BLI_NOINLINE static void randomize_factors(const Span<float3> positions,
+                                           const int seed,
+                                           const MutableSpan<float> factors)
+{
+  BLI_assert(positions.size() == factors.size());
+  for (const int i : positions.index_range()) {
+    const uint *hash_co = (const uint *)&positions[i];
+    const uint hash = BLI_hash_int_2d(hash_co[0], hash_co[1]) ^ BLI_hash_int_2d(hash_co[2], seed);
+    factors[i] *= (hash * (1.0f / float(0xFFFFFFFF)) - 0.5f);
+  }
+}
+
+static void calc_random_filter(const Sculpt &sd,
+                               const float strength,
+                               Object &object,
+                               const Span<bke::pbvh::Node *> nodes)
+{
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+          const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_mesh(object, *nodes[i]);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(mesh, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          randomize_factors(orig_data.positions, ss.filter_cache->random_seed, factors);
+          tls.translations.resize(verts.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_data.normals);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+          const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+          tls.factors.resize(positions.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_grids_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+          }
+          scale_factors(factors, strength);
+
+          randomize_factors(orig_data.positions, ss.filter_cache->random_seed, factors);
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_data.normals);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+          apply_translations(translations, grids, subdiv_ccg);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(nodes[i]);
+          const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+          Array<float3> orig_positions(verts.size());
+          Array<float3> orig_normals(verts.size());
+          orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(bm, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, strength);
+
+          randomize_factors(orig_positions, ss.filter_cache->random_seed, factors);
+          tls.translations.resize(positions.size());
+          const MutableSpan<float3> translations = tls.translations;
+          translations.copy_from(orig_normals);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_positions, translations);
+          apply_translations(translations, verts);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
+  }
+}
+
+static void calc_relax_filter(const Sculpt & /*sd*/,
+                              const float strength,
+                              Object &object,
+                              const Span<bke::pbvh::Node *> nodes)
+{
+  SculptSession &ss = *object.sculpt;
+  bke::pbvh::update_normals(*ss.pbvh, ss.subdiv_ccg);
+
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(
+          object, *nodes[i], undo::Type::Position);
+      auto_mask::NodeData automask_data = auto_mask::node_begin(
+          object, ss.filter_cache->automasking.get(), *nodes[i]);
+
+      PBVHVertexIter vd;
+      BKE_pbvh_vertex_iter_begin (*ss.pbvh, nodes[i], vd, PBVH_ITER_UNIQUE) {
+        SCULPT_orig_vert_data_update(orig_data, vd);
+        auto_mask::node_update(automask_data, vd);
+
+        float3 orig_co, val, disp, final_pos;
+        float fade = vd.mask;
+        fade = 1.0f - fade;
+        fade *= strength;
+        fade *= auto_mask::factor_get(
+            ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
+        if (fade == 0.0f) {
+          continue;
+        }
+        orig_co = vd.co;
+
+        smooth::relax_vertex(ss, &vd, clamp_f(fade, 0.0f, 1.0f), false, val);
+        disp = val - float3(vd.co);
+
+        disp = to_orientation_space(*ss.filter_cache, disp);
+        for (int it = 0; it < 3; it++) {
+          if (!ss.filter_cache->enabled_axis[it]) {
+            disp[it] = 0.0f;
+          }
+        }
+        disp = to_object_space(*ss.filter_cache, disp);
+
+        final_pos = orig_co + disp;
+        copy_v3_v3(vd.co, final_pos);
+      }
+      BKE_pbvh_vertex_iter_end;
+      BKE_pbvh_node_mark_positions_update(nodes[i]);
+    }
+  });
+}
+
+static void calc_relax_face_sets_filter(const Sculpt & /*sd*/,
+                                        const float strength,
+                                        Object &object,
+                                        const Span<bke::pbvh::Node *> nodes)
+{
+  SculptSession &ss = *object.sculpt;
+  bke::pbvh::update_normals(*ss.pbvh, ss.subdiv_ccg);
 
   /* When using the relax face sets meshes filter,
    * each 3 iterations, do a whole mesh relax to smooth the contents of the Face Set. */
   /* This produces better results as the relax operation is no completely focused on the
    * boundaries. */
   const bool relax_face_sets = !(ss.filter_cache->iteration_count % 3 == 0);
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.filter_cache->automasking.get(), *node);
 
-  PBVHVertexIter vd;
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    SCULPT_orig_vert_data_update(orig_data, vd);
-    auto_mask::node_update(automask_data, vd);
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(
+          object, *nodes[i], undo::Type::Position);
 
-    float3 orig_co, val, disp, disp2, final_pos;
-    float3x3 transform;
-    float fade = vd.mask;
-    fade = 1.0f - fade;
-    fade *= filter_strength;
-    fade *= auto_mask::factor_get(
-        ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
+      auto_mask::NodeData automask_data = auto_mask::node_begin(
+          object, ss.filter_cache->automasking.get(), *nodes[i]);
 
-    if (fade == 0.0f && filter_type != MeshFilterType::SurfaceSmooth) {
-      /* Surface Smooth can't skip the loop for this vertex as it needs to calculate its
-       * laplacian_disp. This value is accessed from the vertex neighbors when deforming the
-       * vertices, so it is needed for all vertices even if they are not going to be displaced.
-       */
-      continue;
-    }
+      PBVHVertexIter vd;
+      BKE_pbvh_vertex_iter_begin (*ss.pbvh, nodes[i], vd, PBVH_ITER_UNIQUE) {
+        SCULPT_orig_vert_data_update(orig_data, vd);
+        auto_mask::node_update(automask_data, vd);
 
-    if (ELEM(filter_type, MeshFilterType::Relax, MeshFilterType::RelaxFaceSets) ||
-        ss.filter_cache->no_orig_co)
-    {
-      orig_co = vd.co;
-    }
-    else {
-      orig_co = orig_data.co;
-    }
-
-    if (filter_type == MeshFilterType::RelaxFaceSets) {
-      if (relax_face_sets == face_set::vert_has_unique_face_set(ss, vd.vertex)) {
-        continue;
-      }
-    }
-
-    switch (filter_type) {
-      case MeshFilterType::Smooth: {
-        fade = clamp_f(fade, -1.0f, 1.0f);
-        const float3 avg = smooth::neighbor_coords_average_interior(ss, vd.vertex);
-        val = avg - orig_co;
-        val = orig_co + val * fade;
-        disp = val - orig_co;
-        break;
-      }
-      case MeshFilterType::Inflate:
-        disp = float3(orig_data.no) * fade;
-        break;
-      case MeshFilterType::Scale:
-        unit_m3(transform.ptr());
-        scale_m3_fl(transform.ptr(), 1.0f + fade);
-        val = orig_co;
-        val = transform * val;
-        disp = val - orig_co;
-        break;
-      case MeshFilterType::Sphere:
-        disp = math::normalize(orig_co);
-        disp *= math::abs(fade);
-
-        unit_m3(transform.ptr());
-        if (fade > 0.0f) {
-          scale_m3_fl(transform.ptr(), 1.0f - fade);
+        float3 orig_co, val, disp, final_pos;
+        float fade = vd.mask;
+        fade = 1.0f - fade;
+        fade *= strength;
+        fade *= auto_mask::factor_get(
+            ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
+        if (fade == 0.0f) {
+          continue;
         }
-        else {
-          scale_m3_fl(transform.ptr(), 1.0f + fade);
-        }
-        val = orig_co;
-        val = transform * val;
-        disp2 = val - orig_co;
+        orig_co = vd.co;
 
-        disp = math::midpoint(disp, disp2);
-        break;
-      case MeshFilterType::Random: {
-        float3 normal;
-        copy_v3_v3(normal, orig_data.no);
-        /* Index is not unique for multi-resolution, so hash by vertex coordinates. */
-        const uint *hash_co = (const uint *)&orig_co;
-        const uint hash = BLI_hash_int_2d(hash_co[0], hash_co[1]) ^
-                          BLI_hash_int_2d(hash_co[2], ss.filter_cache->random_seed);
-        normal *= (hash * (1.0f / float(0xFFFFFFFF)) - 0.5f);
-        disp = normal * fade;
-        break;
-      }
-      case MeshFilterType::Relax: {
-        smooth::relax_vertex(ss, &vd, clamp_f(fade, 0.0f, 1.0f), false, val);
-        disp = val - float3(vd.co);
-        break;
-      }
-      case MeshFilterType::RelaxFaceSets: {
+        if (relax_face_sets == face_set::vert_has_unique_face_set(ss, vd.vertex)) {
+          continue;
+        }
+
         smooth::relax_vertex(ss, &vd, clamp_f(fade, 0.0f, 1.0f), relax_face_sets, val);
         disp = val - float3(vd.co);
-        break;
+
+        disp = to_orientation_space(*ss.filter_cache, disp);
+        for (int it = 0; it < 3; it++) {
+          if (!ss.filter_cache->enabled_axis[it]) {
+            disp[it] = 0.0f;
+          }
+        }
+        disp = to_object_space(*ss.filter_cache, disp);
+
+        final_pos = orig_co + disp;
+        copy_v3_v3(vd.co, final_pos);
       }
-      case MeshFilterType::SurfaceSmooth: {
+      BKE_pbvh_vertex_iter_end;
+      BKE_pbvh_node_mark_positions_update(nodes[i]);
+    }
+  });
+}
+
+static void calc_surface_smooth_filter(const Sculpt & /*sd*/,
+                                       const float strength,
+                                       Object &object,
+                                       const Span<bke::pbvh::Node *> nodes)
+{
+  SculptSession &ss = *object.sculpt;
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(
+          object, *nodes[i], undo::Type::Position);
+      auto_mask::NodeData automask_data = auto_mask::node_begin(
+          object, ss.filter_cache->automasking.get(), *nodes[i]);
+
+      PBVHVertexIter vd;
+      BKE_pbvh_vertex_iter_begin (*ss.pbvh, nodes[i], vd, PBVH_ITER_UNIQUE) {
+        SCULPT_orig_vert_data_update(orig_data, vd);
+        auto_mask::node_update(automask_data, vd);
+
+        float3 orig_co, disp, final_pos;
+        float fade = vd.mask;
+        fade = 1.0f - fade;
+        fade *= strength;
+        fade *= auto_mask::factor_get(
+            ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
+        orig_co = orig_data.co;
+
         smooth::surface_smooth_laplacian_step(ss,
                                               disp,
                                               vd.co,
@@ -422,9 +1145,83 @@ static void mesh_filter_task(Object &ob,
                                               vd.vertex,
                                               orig_data.co,
                                               ss.filter_cache->surface_smooth_shape_preservation);
-        break;
+
+        disp = to_orientation_space(*ss.filter_cache, disp);
+        for (int it = 0; it < 3; it++) {
+          if (!ss.filter_cache->enabled_axis[it]) {
+            disp[it] = 0.0f;
+          }
+        }
+        disp = to_object_space(*ss.filter_cache, disp);
+
+        final_pos = float3(vd.co) + disp * clamp_f(fade, 0.0f, 1.0f);
+        copy_v3_v3(vd.co, final_pos);
       }
-      case MeshFilterType::Sharpen: {
+      BKE_pbvh_vertex_iter_end;
+      BKE_pbvh_node_mark_positions_update(nodes[i]);
+    }
+  });
+
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      auto_mask::NodeData automask_data = auto_mask::node_begin(
+          object, ss.filter_cache->automasking.get(), *nodes[i]);
+
+      PBVHVertexIter vd;
+      BKE_pbvh_vertex_iter_begin (*ss.pbvh, nodes[i], vd, PBVH_ITER_UNIQUE) {
+        auto_mask::node_update(automask_data, vd);
+
+        float fade = vd.mask;
+        fade = 1.0f - fade;
+        fade *= strength;
+        fade *= auto_mask::factor_get(
+            ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
+        if (fade == 0.0f) {
+          continue;
+        }
+
+        smooth::surface_smooth_displace_step(ss,
+                                             vd.co,
+                                             ss.filter_cache->surface_smooth_laplacian_disp,
+                                             vd.vertex,
+                                             ss.filter_cache->surface_smooth_current_vertex,
+                                             clamp_f(fade, 0.0f, 1.0f));
+      }
+      BKE_pbvh_vertex_iter_end;
+      BKE_pbvh_node_mark_positions_update(nodes[i]);
+    }
+  });
+}
+
+static void calc_sharpen_filter(const Sculpt & /*sd*/,
+                                const float strength,
+                                Object &object,
+                                const Span<bke::pbvh::Node *> nodes)
+{
+  SculptSession &ss = *object.sculpt;
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      SculptOrigVertData orig_data = SCULPT_orig_vert_data_init(
+          object, *nodes[i], undo::Type::Position);
+      auto_mask::NodeData automask_data = auto_mask::node_begin(
+          object, ss.filter_cache->automasking.get(), *nodes[i]);
+
+      PBVHVertexIter vd;
+      BKE_pbvh_vertex_iter_begin (*ss.pbvh, nodes[i], vd, PBVH_ITER_UNIQUE) {
+        SCULPT_orig_vert_data_update(orig_data, vd);
+        auto_mask::node_update(automask_data, vd);
+
+        float3 orig_co, disp, final_pos;
+        float fade = vd.mask;
+        fade = 1.0f - fade;
+        fade *= strength;
+        fade *= auto_mask::factor_get(
+            ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
+        if (fade == 0.0f) {
+          continue;
+        }
+        orig_co = orig_data.co;
+
         const float smooth_ratio = ss.filter_cache->sharpen_smooth_ratio;
 
         /* This filter can't work at full strength as it needs multiple iterations to reach a
@@ -453,40 +1250,187 @@ static void mesh_filter_task(Object &ob,
           disp += detail_strength * -ss.filter_cache->sharpen_intensify_detail_strength *
                   ss.filter_cache->sharpen_factor[vd.index];
         }
-        break;
-      }
 
-      case MeshFilterType::EnhanceDetails: {
-        disp = ss.filter_cache->detail_directions[vd.index] * -fabsf(fade);
-        break;
-      }
-      case MeshFilterType::EraseDispacement: {
-        fade = clamp_f(fade, -1.0f, 1.0f);
-        disp = ss.filter_cache->limit_surface_co[vd.index] - orig_co;
-        disp *= fade;
-        break;
-      }
-    }
+        disp = to_orientation_space(*ss.filter_cache, disp);
+        for (int it = 0; it < 3; it++) {
+          if (!ss.filter_cache->enabled_axis[it]) {
+            disp[it] = 0.0f;
+          }
+        }
+        disp = to_object_space(*ss.filter_cache, disp);
 
-    disp = to_orientation_space(*ss.filter_cache, disp);
-    for (int it = 0; it < 3; it++) {
-      if (!ss.filter_cache->enabled_axis[it]) {
-        disp[it] = 0.0f;
+        final_pos = float3(vd.co) + disp * clamp_f(fade, 0.0f, 1.0f);
+        copy_v3_v3(vd.co, final_pos);
       }
+      BKE_pbvh_vertex_iter_end;
+      BKE_pbvh_node_mark_positions_update(nodes[i]);
     }
-    disp = to_object_space(*ss.filter_cache, disp);
+  });
+}
 
-    if (ELEM(filter_type, MeshFilterType::SurfaceSmooth, MeshFilterType::Sharpen)) {
-      final_pos = float3(vd.co) + disp * clamp_f(fade, 0.0f, 1.0f);
+static void calc_enhance_details_filter(const Sculpt &sd,
+                                        const float strength,
+                                        Object &object,
+                                        const Span<bke::pbvh::Node *> nodes)
+{
+  const float final_strength = -std::abs(strength);
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(*ss.pbvh);
+      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> verts = bke::pbvh::node_unique_verts(*nodes[i]);
+          const Span<float3> positions = gather_data_mesh(positions_eval, verts, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_mesh(object, *nodes[i]);
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(mesh, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, final_strength);
+
+          const MutableSpan translations = gather_data_mesh(
+              ss.filter_cache->detail_directions.as_span(), verts, tls.translations);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          write_translations(sd, object, positions_eval, verts, translations, positions_orig);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
     }
-    else {
-      final_pos = orig_co + disp;
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+          const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+          const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+          tls.factors.resize(positions.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_grids_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+          }
+          scale_factors(factors, final_strength);
+
+          const MutableSpan translations = gather_data_grids(
+              subdiv_ccg, ss.filter_cache->detail_directions.as_span(), grids, tls.translations);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_data.positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+          apply_translations(translations, grids, subdiv_ccg);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
     }
-    copy_v3_v3(vd.co, final_pos);
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        for (const int i : range) {
+          const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(nodes[i]);
+          const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+          Array<float3> orig_positions(verts.size());
+          orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, {});
+
+          tls.factors.resize(verts.size());
+          const MutableSpan<float> factors = tls.factors;
+          fill_factor_from_hide_and_mask(bm, verts, factors);
+          if (ss.filter_cache->automasking) {
+            auto_mask::calc_vert_factors(
+                object, *ss.filter_cache->automasking, *nodes[i], verts, factors);
+          }
+          scale_factors(factors, final_strength);
+
+          const MutableSpan translations = gather_data_vert_bmesh(
+              ss.filter_cache->detail_directions.as_span(), verts, tls.translations);
+          scale_translations(translations, factors);
+          reset_translations_to_original(translations, positions, orig_positions);
+
+          lock_translation_axes(*ss.filter_cache, translations);
+          clip_and_lock_translations(sd, ss, orig_positions, translations);
+          apply_translations(translations, verts);
+
+          BKE_pbvh_node_mark_positions_update(nodes[i]);
+        }
+      });
+      break;
+    }
   }
-  BKE_pbvh_vertex_iter_end;
+}
 
-  BKE_pbvh_node_mark_positions_update(node);
+static void calc_erase_displacement_filter(const Sculpt &sd,
+                                           const float strength,
+                                           Object &object,
+                                           const Span<bke::pbvh::Node *> nodes)
+{
+  struct LocalData {
+    Vector<float> factors;
+    Vector<float3> positions;
+    Vector<float3> new_positions;
+    Vector<float3> translations;
+  };
+  SculptSession &ss = *object.sculpt;
+  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  threading::EnumerableThreadSpecific<LocalData> all_tls;
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+    LocalData &tls = all_tls.local();
+    for (const int i : range) {
+      const Span<int> grids = bke::pbvh::node_grid_indices(*nodes[i]);
+      const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+      const OrigPositionData orig_data = orig_position_data_get_grids(object, *nodes[i]);
+
+      tls.factors.resize(positions.size());
+      const MutableSpan<float> factors = tls.factors;
+      fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+      if (ss.filter_cache->automasking) {
+        auto_mask::calc_grids_factors(
+            object, *ss.filter_cache->automasking, *nodes[i], grids, factors);
+      }
+      scale_factors(factors, strength);
+      clamp_factors(factors, -1.0f, 1.0f);
+
+      const MutableSpan<float3> new_positions = gather_data_grids(
+          subdiv_ccg, ss.filter_cache->limit_surface_co.as_span(), grids, tls.new_positions);
+      tls.translations.resize(positions.size());
+      const MutableSpan<float3> translations = tls.translations;
+      translations_from_new_positions(new_positions, orig_data.positions, translations);
+      scale_translations(translations, factors);
+      reset_translations_to_original(translations, positions, orig_data.positions);
+
+      lock_translation_axes(*ss.filter_cache, translations);
+      clip_and_lock_translations(sd, ss, orig_data.positions, translations);
+      apply_translations(translations, grids, subdiv_ccg);
+
+      BKE_pbvh_node_mark_positions_update(nodes[i]);
+    }
+  });
 }
 
 static void mesh_filter_surface_smooth_init(SculptSession &ss,
@@ -501,17 +1445,20 @@ static void mesh_filter_surface_smooth_init(SculptSession &ss,
   filter_cache->surface_smooth_current_vertex = current_vertex_displacement;
 }
 
-static void mesh_filter_init_limit_surface_co(SculptSession &ss)
+static void calc_limit_surface_positions(const Object &object, MutableSpan<float3> limit_positions)
 {
-  const int totvert = SCULPT_vertex_count_get(ss);
-  filter::Cache *filter_cache = ss.filter_cache;
+  const SculptSession &ss = *object.sculpt;
+  const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  const Span<CCGElem *> elems = subdiv_ccg.grids;
 
-  filter_cache->limit_surface_co = Array<float3>(totvert);
-  for (int i = 0; i < totvert; i++) {
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
-
-    filter_cache->limit_surface_co[i] = SCULPT_vertex_limit_surface_get(ss, vertex);
-  }
+  threading::parallel_for(elems.index_range(), 512, [&](const IndexRange range) {
+    for (const int grid : range) {
+      const int start = grid * key.grid_area;
+      BKE_subdiv_ccg_eval_limit_positions(
+          subdiv_ccg, key, grid, limit_positions.slice(start, key.grid_area));
+    }
+  });
 }
 
 static void mesh_filter_sharpen_init(const Object &object,
@@ -637,38 +1584,6 @@ static void mesh_filter_sharpen_init(const Object &object,
   }
 }
 
-static void mesh_filter_surface_smooth_displace_task(Object &ob,
-                                                     const float filter_strength,
-                                                     bke::pbvh::Node *node)
-{
-  SculptSession &ss = *ob.sculpt;
-  PBVHVertexIter vd;
-
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      ob, ss.filter_cache->automasking.get(), *node);
-
-  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    auto_mask::node_update(automask_data, vd);
-
-    float fade = vd.mask;
-    fade = 1.0f - fade;
-    fade *= filter_strength;
-    fade *= auto_mask::factor_get(
-        ss.filter_cache->automasking.get(), ss, vd.vertex, &automask_data);
-    if (fade == 0.0f) {
-      continue;
-    }
-
-    smooth::surface_smooth_displace_step(ss,
-                                         vd.co,
-                                         ss.filter_cache->surface_smooth_laplacian_disp,
-                                         vd.vertex,
-                                         ss.filter_cache->surface_smooth_current_vertex,
-                                         clamp_f(fade, 0.0f, 1.0f));
-  }
-  BKE_pbvh_vertex_iter_end;
-}
-
 enum {
   FILTER_MESH_MODAL_CANCEL = 1,
   FILTER_MESH_MODAL_CONFIRM,
@@ -708,32 +1623,46 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op)
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
-  float filter_strength = RNA_float_get(op->ptr, "strength");
+  const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
+  const float strength = RNA_float_get(op->ptr, "strength");
 
   SCULPT_vertex_random_access_ensure(ss);
 
   const Span<bke::pbvh::Node *> nodes = ss.filter_cache->nodes;
-
-  /* The relax mesh filter needs updated normals. */
-  if (ELEM(filter_type, MeshFilterType::Relax, MeshFilterType::RelaxFaceSets)) {
-    bke::pbvh::update_normals(*ss.pbvh, ss.subdiv_ccg);
-  }
-
-  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-    for (const int i : range) {
-      mesh_filter_task(ob, MeshFilterType(filter_type), filter_strength, nodes[i]);
-      BKE_pbvh_node_mark_positions_update(nodes[i]);
-    }
-  });
-
-  if (filter_type == MeshFilterType::SurfaceSmooth) {
-    threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
-      for (const int i : range) {
-        mesh_filter_surface_smooth_displace_task(ob, filter_strength, nodes[i]);
-        BKE_pbvh_node_mark_positions_update(nodes[i]);
-      }
-    });
+  switch (filter_type) {
+    case MeshFilterType::Smooth:
+      calc_smooth_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::Scale:
+      calc_scale_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::Inflate:
+      calc_inflate_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::Sphere:
+      calc_sphere_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::Random:
+      calc_random_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::Relax:
+      calc_relax_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::RelaxFaceSets:
+      calc_relax_face_sets_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::SurfaceSmooth:
+      calc_surface_smooth_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::Sharpen:
+      calc_sharpen_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::EnhanceDetails:
+      calc_enhance_details_filter(sd, strength, ob, nodes);
+      break;
+    case MeshFilterType::EraseDispacement:
+      calc_erase_displacement_filter(sd, strength, ob, nodes);
+      break;
   }
 
   ss.filter_cache->iteration_count++;
@@ -902,22 +1831,16 @@ static void sculpt_filter_specific_init(const MeshFilterType filter_type,
   SculptSession &ss = *object.sculpt;
   switch (filter_type) {
     case MeshFilterType::SurfaceSmooth: {
-      const float shape_preservation = RNA_float_get(op->ptr, "surface_smooth_shape_preservation");
-      const float current_vertex_displacement = RNA_float_get(op->ptr,
-                                                              "surface_smooth_current_vertex");
-      mesh_filter_surface_smooth_init(ss, shape_preservation, current_vertex_displacement);
+      mesh_filter_surface_smooth_init(ss,
+                                      RNA_float_get(op->ptr, "surface_smooth_shape_preservation"),
+                                      RNA_float_get(op->ptr, "surface_smooth_current_vertex"));
       break;
     }
     case MeshFilterType::Sharpen: {
-      const float smooth_ratio = RNA_float_get(op->ptr, "sharpen_smooth_ratio");
-      const float intensify_detail_strength = RNA_float_get(op->ptr,
-                                                            "sharpen_intensify_detail_strength");
-      const int curvature_smooth_iterations = RNA_int_get(op->ptr,
-                                                          "sharpen_curvature_smooth_iterations");
       mesh_filter_sharpen_init(object,
-                               smooth_ratio,
-                               intensify_detail_strength,
-                               curvature_smooth_iterations,
+                               RNA_float_get(op->ptr, "sharpen_smooth_ratio"),
+                               RNA_float_get(op->ptr, "sharpen_intensify_detail_strength"),
+                               RNA_int_get(op->ptr, "sharpen_curvature_smooth_iterations"),
                                *ss.filter_cache);
       break;
     }
@@ -927,7 +1850,8 @@ static void sculpt_filter_specific_init(const MeshFilterType filter_type,
       break;
     }
     case MeshFilterType::EraseDispacement: {
-      mesh_filter_init_limit_surface_co(ss);
+      ss.filter_cache->limit_surface_co.reinitialize(SCULPT_vertex_count_get(ss));
+      calc_limit_surface_positions(object, ss.filter_cache->limit_surface_co);
       break;
     }
     default:
@@ -1031,20 +1955,10 @@ static int sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
   int ret = sculpt_mesh_filter_start(C, op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
-    Object &ob = *CTX_data_active_object(C);
-    SculptSession &ss = *ob.sculpt;
-
     int iterations = RNA_int_get(op->ptr, "iteration_count");
-    bool has_history = RNA_collection_length(op->ptr, "event_history") > 0;
-
-    if (!has_history) {
-      ss.filter_cache->no_orig_co = true;
-    }
 
     for (int i = 0; i < iterations; i++) {
       sculpt_mesh_filter_apply_with_history(C, op);
-
-      ss.filter_cache->no_orig_co = true;
     }
 
     sculpt_mesh_filter_end(C);

@@ -284,7 +284,6 @@ struct Cache {
 
   ViewContext vc;
   float start_filter_strength;
-  bool no_orig_co;
 };
 
 }
@@ -827,12 +826,6 @@ bool SCULPT_vertex_is_occluded(SculptSession &ss, PBVHVertRef vertex, bool origi
 const float *SCULPT_vertex_co_for_grab_active_get(const SculptSession &ss, PBVHVertRef vertex);
 
 /**
- * Returns the info of the limit surface when multi-res is available,
- * otherwise it returns the current coordinate of the vertex.
- */
-blender::float3 SCULPT_vertex_limit_surface_get(const SculptSession &ss, PBVHVertRef vertex);
-
-/**
  * Returns the pointer to the coordinates that should be edited from a brush tool iterator
  * depending on the given deformation target.
  */
@@ -1046,8 +1039,8 @@ namespace blender::ed::sculpt_paint {
 void calc_brush_plane(const Brush &brush,
                       Object &ob,
                       Span<bke::pbvh::Node *> nodes,
-                      float r_area_no[3],
-                      float r_area_co[3]);
+                      float3 &r_area_no,
+                      float3 &r_area_co);
 
 std::optional<float3> calc_area_normal(const Brush &brush,
                                        Object &ob,
@@ -1100,10 +1093,10 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                float radius,
                                                char symm);
 bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
-void SCULPT_flip_v3_by_symm_area(float v[3],
-                                 ePaintSymmetryFlags symm,
-                                 ePaintSymmetryAreas symmarea,
-                                 const float pivot[3]);
+blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
+                                            ePaintSymmetryFlags symm,
+                                            ePaintSymmetryAreas symmarea,
+                                            const blender::float3 &pivot);
 void SCULPT_flip_quat_by_symm_area(float quat[4],
                                    ePaintSymmetryFlags symm,
                                    ePaintSymmetryAreas symmarea,
@@ -1650,11 +1643,6 @@ void neighbor_color_average(OffsetIndices<int> faces,
                             bke::AttrDomain color_domain,
                             Span<Vector<int>> vert_neighbors,
                             MutableSpan<float4> smooth_colors);
-
-/**
- * Mask the mesh boundaries smoothing only the mesh surface without using auto-masking.
- */
-float3 neighbor_coords_average_interior(const SculptSession &ss, PBVHVertRef vertex);
 
 void neighbor_position_average_grids(const SubdivCCG &subdiv_ccg,
                                      Span<int> grids,
@@ -2225,20 +2213,20 @@ void ensure_valid_pivot(const Object &ob, Scene &scene);
  * \{
  * Each mesh island shell gets its own integer
  * key; these are temporary and internally limited to 8 bits.
- * Uses the `ss->topology_island_key` attribute.
  */
 
-/* Ensures vertex island keys exist and are valid. */
-void SCULPT_topology_islands_ensure(Object &ob);
+namespace blender::ed::sculpt_paint::islands {
 
-/**
- * Mark vertex island keys as invalid.
- * Call when adding or hiding geometry.
- */
-void SCULPT_topology_islands_invalidate(SculptSession &ss);
+/* Ensure vertex island keys exist and are valid. */
+void ensure_cache(Object &object);
+
+/** Mark vertex island keys as invalid. Call when adding or hiding geometry. */
+void invalidate(SculptSession &ss);
 
 /** Get vertex island key. */
-int SCULPT_vertex_island_get(const SculptSession &ss, PBVHVertRef vertex);
+int vert_id_get(const SculptSession &ss, int vert);
+
+}
 
 /** \} */
 

@@ -44,9 +44,8 @@
 
 #include "bmesh.hh"
 
+#include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-
-/* For undo push. */
 #include "sculpt_intern.hh"
 
 namespace blender::ed::sculpt_paint::hide {
@@ -79,7 +78,7 @@ void sync_all_from_faces(Object &object)
   SculptSession &ss = *object.sculpt;
   Mesh &mesh = *static_cast<Mesh *>(object.data);
 
-  SCULPT_topology_islands_invalidate(ss);
+  islands::invalidate(ss);
 
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh: {
@@ -256,7 +255,7 @@ static void flush_face_changes_node(Mesh &mesh,
           tri_faces, *node, tls.face_indices);
 
       tls.new_hide.resize(node_faces.size());
-      array_utils::gather(hide_poly.span.as_span(), node_faces, tls.new_hide.as_mutable_span());
+      gather_data_mesh(hide_poly.span.as_span(), node_faces, tls.new_hide.as_mutable_span());
 
       calc_face_hide(node_faces, faces, corner_verts, hide_vert, tls.new_hide.as_mutable_span());
 
@@ -264,7 +263,7 @@ static void flush_face_changes_node(Mesh &mesh,
         continue;
       }
 
-      array_utils::scatter(tls.new_hide.as_span(), node_faces, hide_poly.span);
+      scatter_data_mesh(tls.new_hide.as_span(), node_faces, hide_poly.span);
       BKE_pbvh_node_mark_update_visibility(node);
       bke::pbvh::node_update_visibility_mesh(hide_vert, *node);
     }
@@ -312,7 +311,7 @@ static void vert_hide_update(Object &object,
       const Span<int> verts = bke::pbvh::node_unique_verts(*node);
 
       new_hide.resize(verts.size());
-      array_utils::gather(hide_vert.span.as_span(), verts, new_hide.as_mutable_span());
+      gather_data_mesh(hide_vert.span.as_span(), verts, new_hide.as_mutable_span());
       calc_hide(verts, new_hide);
       if (array_utils::indexed_data_equal<bool>(hide_vert.span, verts, new_hide)) {
         continue;
@@ -320,7 +319,7 @@ static void vert_hide_update(Object &object,
 
       any_changed = true;
       undo::push_node(object, node, undo::Type::HideVert);
-      array_utils::scatter(new_hide.as_span(), verts, hide_vert.span);
+      scatter_data_mesh(new_hide.as_span(), verts, hide_vert.span);
     }
   });
 
@@ -536,7 +535,7 @@ static int hide_show_all_exec(bContext *C, wmOperator *op)
   /* End undo. */
   undo::push_end(ob);
 
-  SCULPT_topology_islands_invalidate(*ob.sculpt);
+  islands::invalidate(*ob.sculpt);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -652,7 +651,7 @@ static int hide_show_masked_exec(bContext *C, wmOperator *op)
   /* End undo. */
   undo::push_end(ob);
 
-  SCULPT_topology_islands_invalidate(*ob.sculpt);
+  islands::invalidate(*ob.sculpt);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -802,7 +801,7 @@ static int visibility_invert_exec(bContext *C, wmOperator *op)
 
   undo::push_end(object);
 
-  SCULPT_topology_islands_invalidate(*object.sculpt);
+  islands::invalidate(*object.sculpt);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -1148,7 +1147,7 @@ static int visibility_filter_exec(bContext *C, wmOperator *op)
   }
   undo::push_end(object);
 
-  SCULPT_topology_islands_invalidate(*object.sculpt);
+  islands::invalidate(*object.sculpt);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -1305,7 +1304,7 @@ static void hide_show_apply_for_symmetry_pass(bContext &C, gesture::GestureData 
 }
 static void hide_show_end(bContext &C, gesture::GestureData &gesture_data)
 {
-  SCULPT_topology_islands_invalidate(*gesture_data.vc.obact->sculpt);
+  islands::invalidate(*gesture_data.vc.obact->sculpt);
   tag_update_visibility(C);
   undo::push_end(*gesture_data.vc.obact);
 }

@@ -17,6 +17,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_defaults.h"
@@ -51,11 +52,13 @@
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
+#include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_customdata.hh"
 #include "BKE_effect.h"
+#include "BKE_file_handler.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image_format.h"
@@ -4495,7 +4498,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
           const NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
               input->storage);
-          if (input_storage->save_as_render != first_save_as_render) {
+          if (bool(input_storage->save_as_render) != first_save_as_render) {
             all_inputs_have_same_save_as_render = false;
             break;
           }
@@ -4525,6 +4528,27 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 15)) {
+    using namespace blender;
+
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+      const ListBase *exporters = &collection->exporters;
+      LISTBASE_FOREACH (CollectionExport *, data, exporters) {
+        /* The name field should be empty at this point. */
+        BLI_assert(data->name[0] == '\0');
+
+        bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
+        BKE_collection_exporter_name_set(exporters, data, fh ? fh->label : DATA_("Undefined"));
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 16)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.flag |= SCE_EEVEE_FAST_GI_ENABLED;
+    }
   }
 
   /**

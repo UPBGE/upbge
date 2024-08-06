@@ -135,7 +135,28 @@ void gather_data_grids(const SubdivCCG &subdiv_ccg,
                        Span<int> grids,
                        MutableSpan<T> node_data);
 template<typename T>
+MutableSpan<T> gather_data_grids(const SubdivCCG &subdiv_ccg,
+                                 const Span<T> src,
+                                 const Span<int> grids,
+                                 Vector<T> &dst)
+{
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  dst.resize(grids.size() * key.grid_area);
+  gather_data_grids(subdiv_ccg, src, grids, dst.as_mutable_span());
+  return dst;
+}
+
+template<typename T>
 void gather_data_vert_bmesh(Span<T> src, const Set<BMVert *, 0> &verts, MutableSpan<T> node_data);
+template<typename T>
+MutableSpan<T> gather_data_vert_bmesh(const Span<T> src,
+                                      const Set<BMVert *, 0> &verts,
+                                      Vector<T> &dst)
+{
+  dst.resize(verts.size());
+  gather_data_vert_bmesh(src, verts, dst.as_mutable_span());
+  return dst;
+}
 
 /** Scatter data from an array of the node's data to the referenced geometry vertices. */
 template<typename T> void scatter_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
@@ -400,6 +421,10 @@ void calc_vert_neighbors(OffsetIndices<int> faces,
                          Span<bool> hide_poly,
                          Span<int> verts,
                          MutableSpan<Vector<int>> result);
+void calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
+                         Span<int> grids,
+                         MutableSpan<Vector<SubdivCCGCoord>> result);
+void calc_vert_neighbors(Set<BMVert *, 0> verts, MutableSpan<Vector<BMVert *>> result);
 
 /**
  * Find vertices connected to the indexed vertices across faces. For boundary vertices (stored in
@@ -432,6 +457,12 @@ void calc_translations_to_plane(Span<float3> vert_positions,
 void calc_translations_to_plane(Span<float3> positions,
                                 const float4 &plane,
                                 MutableSpan<float3> translations);
+
+/** Ignores verts outside of a symmetric area defined by a pivot point. */
+void filter_verts_outside_symmetry_area(Span<float3> positions,
+                                        const float3 &pivot,
+                                        ePaintSymmetryFlags symm,
+                                        MutableSpan<float> factors);
 
 /** Ignore points that fall below the "plane trim" threshold for the brush. */
 void filter_plane_trim_limit_factors(const Brush &brush,

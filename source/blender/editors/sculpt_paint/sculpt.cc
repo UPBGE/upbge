@@ -17,6 +17,7 @@
 #include "CLG_log.h"
 
 #include "BLI_array_utils.hh"
+#include "BLI_atomic_disjoint_set.hh"
 #include "BLI_bit_span_ops.hh"
 #include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
@@ -222,24 +223,6 @@ const float *SCULPT_vertex_co_for_grab_active_get(const SculptSession &ss, PBVHV
 
   /* Everything else, such as sculpting on multires. */
   return SCULPT_vertex_co_get(ss, vertex);
-}
-
-float3 SCULPT_vertex_limit_surface_get(const SculptSession &ss, PBVHVertRef vertex)
-{
-  switch (ss.pbvh->type()) {
-    case blender::bke::pbvh::Type::Mesh:
-    case blender::bke::pbvh::Type::BMesh:
-      return SCULPT_vertex_co_get(ss, vertex);
-    case blender::bke::pbvh::Type::Grids: {
-      const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-      SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vertex.i);
-      float3 tmp;
-      BKE_subdiv_ccg_eval_limit_point(*ss.subdiv_ccg, coord, tmp);
-      return tmp;
-    }
-  }
-  BLI_assert_unreachable();
-  return {};
 }
 
 PBVHVertRef SCULPT_active_vertex_get(const SculptSession &ss)
@@ -1007,11 +990,6 @@ bool SCULPT_check_vertex_pivot_symmetry(const float vco[3], const float pco[3], 
   return is_in_symmetry_area;
 }
 
-struct NearestVertexData {
-  PBVHVertRef nearest_vertex;
-  float nearest_vertex_distance_sq;
-};
-
 namespace blender::ed::sculpt_paint {
 
 std::optional<int> nearest_vert_calc_mesh(const bke::pbvh::Tree &pbvh,
@@ -1206,8 +1184,7 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
     if (!SCULPT_is_symmetry_iteration_valid(i, symm)) {
       continue;
     }
-    float location[3];
-    flip_v3_v3(location, br_co, ePaintSymmetryFlags(i));
+    float3 location = blender::ed::sculpt_paint::symmetry_flip(br_co, ePaintSymmetryFlags(i));
     if (len_squared_v3v3(location, vertex) < radius * radius) {
       return true;
     }
@@ -1797,8 +1774,7 @@ BLI_INLINE bool sculpt_brush_test_clipping(const SculptBrushTest &test, const fl
   if (!rv3d) {
     return false;
   }
-  float symm_co[3];
-  flip_v3_v3(symm_co, co, test.mirror_symmetry_pass);
+  float3 symm_co = blender::ed::sculpt_paint::symmetry_flip(co, test.mirror_symmetry_pass);
   if (test.radial_symmetry_pass) {
     mul_m4_v3(test.symm_rot_mat_inv.ptr(), symm_co);
   }
@@ -1962,10 +1938,7 @@ static float calc_overlap(const blender::ed::sculpt_paint::StrokeCache &cache,
                           const char axis,
                           const float angle)
 {
-  float mirror[3];
-  float distsq;
-
-  flip_v3_v3(mirror, cache.true_location, symm);
+  float3 mirror = blender::ed::sculpt_paint::symmetry_flip(cache.true_location, symm);
 
   if (axis != 0) {
     float mat[3][3];
@@ -1973,7 +1946,7 @@ static float calc_overlap(const blender::ed::sculpt_paint::StrokeCache &cache,
     mul_m3_v3(mat, mirror);
   }
 
-  distsq = len_squared_v3v3(mirror, cache.true_location);
+  const float distsq = len_squared_v3v3(mirror, cache.true_location);
 
   if (distsq <= 4.0f * (cache.radius_squared)) {
     return (2.0f * (cache.radius) - sqrtf(distsq)) / (2.0f * (cache.radius));
@@ -2885,8 +2858,6 @@ void sculpt_apply_texture(const SculptSession &ss,
     *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool);
   }
   else {
-    float symm_point[3];
-
     /* If the active area is being applied for symmetry, flip it
      * across the symmetry axis and rotate it back to the original
      * position in order to project it. This insures that the
@@ -2894,7 +2865,8 @@ void sculpt_apply_texture(const SculptSession &ss,
     if (cache.radial_symmetry_pass) {
       mul_m4_v3(cache.symm_rot_mat_inv.ptr(), point);
     }
-    flip_v3_v3(symm_point, point, cache.mirror_symmetry_pass);
+    float3 symm_point = blender::ed::sculpt_paint::symmetry_flip(point,
+                                                                 cache.mirror_symmetry_pass);
 
     /* Still no symmetry supported for other paint modes.
      * Sculpt does it DIY. */
@@ -2986,7 +2958,8 @@ void SCULPT_calc_vertex_displacement(const SculptSession &ss,
   if (ss.cache->radial_symmetry_pass) {
     mul_m4_v3(ss.cache->symm_rot_mat.ptr(), rgba);
   }
-  flip_v3_v3(r_offset, rgba, ss.cache->mirror_symmetry_pass);
+  copy_v3_v3(r_offset,
+             blender::ed::sculpt_paint::symmetry_flip(rgba, ss.cache->mirror_symmetry_pass));
 }
 
 namespace blender::ed::sculpt_paint {
@@ -3142,8 +3115,7 @@ static void update_sculpt_normal(const Sculpt &sd, Object &ob, Span<bke::pbvh::N
     copy_v3_v3(cache.sculpt_normal_symm, cache.sculpt_normal);
   }
   else {
-    copy_v3_v3(cache.sculpt_normal_symm, cache.sculpt_normal);
-    flip_v3(cache.sculpt_normal_symm, cache.mirror_symmetry_pass);
+    cache.sculpt_normal_symm = symmetry_flip(cache.sculpt_normal, cache.mirror_symmetry_pass);
     mul_m4_v3(cache.symm_rot_mat.ptr(), cache.sculpt_normal_symm);
   }
 }
@@ -3389,23 +3361,25 @@ static void flip_qt(float quat[4], const ePaintSymmetryFlags symm)
   flip_qt_qt(quat, quat, symm);
 }
 
-void SCULPT_flip_v3_by_symm_area(float v[3],
-                                 const ePaintSymmetryFlags symm,
-                                 const ePaintSymmetryAreas symmarea,
-                                 const float pivot[3])
+float3 SCULPT_flip_v3_by_symm_area(const float3 &vector,
+                                   const ePaintSymmetryFlags symm,
+                                   const ePaintSymmetryAreas symmarea,
+                                   const float3 &pivot)
 {
+  float3 result = vector;
   for (int i = 0; i < 3; i++) {
     ePaintSymmetryFlags symm_it = ePaintSymmetryFlags(1 << i);
     if (!(symm & symm_it)) {
       continue;
     }
     if (symmarea & symm_it) {
-      flip_v3(v, symm_it);
+      result = blender::ed::sculpt_paint::symmetry_flip(result, symm_it);
     }
     if (pivot[i] < 0.0f) {
-      flip_v3(v, symm_it);
+      result = blender::ed::sculpt_paint::symmetry_flip(result, symm_it);
     }
   }
+  return result;
 }
 
 void SCULPT_flip_quat_by_symm_area(float quat[4],
@@ -3465,8 +3439,8 @@ namespace blender::ed::sculpt_paint {
 void calc_brush_plane(const Brush &brush,
                       Object &ob,
                       Span<bke::pbvh::Node *> nodes,
-                      float r_area_no[3],
-                      float r_area_co[3])
+                      float3 &r_area_no,
+                      float3 &r_area_co)
 {
   const SculptSession &ss = *ob.sculpt;
 
@@ -3540,10 +3514,10 @@ void calc_brush_plane(const Brush &brush,
     copy_v3_v3(r_area_co, ss.cache->last_center);
 
     /* For area normal. */
-    flip_v3(r_area_no, ss.cache->mirror_symmetry_pass);
+    r_area_no = symmetry_flip(r_area_no, ss.cache->mirror_symmetry_pass);
 
     /* For flatten center. */
-    flip_v3(r_area_co, ss.cache->mirror_symmetry_pass);
+    r_area_co = symmetry_flip(r_area_co, ss.cache->mirror_symmetry_pass);
 
     /* For area normal. */
     mul_m4_v3(ss.cache->symm_rot_mat.ptr(), r_area_no);
@@ -3706,7 +3680,7 @@ static void push_undo_nodes(Object &ob, const Brush &brush, const Span<bke::pbvh
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     if (const bke::GAttributeReader attr = color::active_color_attribute(mesh)) {
       if (attr.domain == bke::AttrDomain::Corner) {
-        BKE_pbvh_ensure_node_loops(*ss.pbvh, mesh.corner_tris());
+        BKE_pbvh_ensure_node_face_corners(*ss.pbvh, mesh.corner_tris());
       }
     }
     undo::push_nodes(ob, nodes, undo::Type::Color);
@@ -4137,13 +4111,13 @@ void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &ca
                                       const float angle)
 {
   using namespace blender;
-  flip_v3_v3(cache.location, cache.true_location, symm);
-  flip_v3_v3(cache.last_location, cache.true_last_location, symm);
-  flip_v3_v3(cache.grab_delta_symmetry, cache.grab_delta, symm);
-  flip_v3_v3(cache.view_normal, cache.true_view_normal, symm);
+  cache.location = ed::sculpt_paint::symmetry_flip(cache.true_location, symm);
+  cache.last_location = ed::sculpt_paint::symmetry_flip(cache.true_last_location, symm);
+  cache.grab_delta_symmetry = ed::sculpt_paint::symmetry_flip(cache.grab_delta, symm);
+  cache.view_normal = ed::sculpt_paint::symmetry_flip(cache.true_view_normal, symm);
 
-  flip_v3_v3(cache.initial_location, cache.true_initial_location, symm);
-  flip_v3_v3(cache.initial_normal, cache.true_initial_normal, symm);
+  cache.initial_location = ed::sculpt_paint::symmetry_flip(cache.true_initial_location, symm);
+  cache.initial_normal = ed::sculpt_paint::symmetry_flip(cache.true_initial_normal, symm);
 
   /* XXX This reduces the length of the grab delta if it approaches the line of symmetry
    * XXX However, a different approach appears to be needed. */
@@ -4174,7 +4148,7 @@ void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &ca
   mul_m4_v3(cache.symm_rot_mat.ptr(), cache.grab_delta_symmetry);
 
   if (cache.supports_gravity) {
-    flip_v3_v3(cache.gravity_direction, cache.true_gravity_direction, symm);
+    cache.gravity_direction = ed::sculpt_paint::symmetry_flip(cache.true_gravity_direction, symm);
     mul_m4_v3(cache.symm_rot_mat.ptr(), cache.gravity_direction);
   }
 
@@ -5955,28 +5929,6 @@ static void sculpt_stroke_update_step(bContext *C,
   /* Hack to fix noise texture tearing mesh. */
   sculpt_fix_noise_tear(sd, ob);
 
-  /* TODO(sergey): This is not really needed for the solid shading,
-   * which does use pBVH drawing anyway, but texture and wireframe
-   * requires this.
-   *
-   * Could be optimized later, but currently don't think it's so
-   * much common scenario.
-   *
-   * Same applies to the DEG_id_tag_update() invoked from
-   * sculpt_flush_update_step().
-   *
-   * For some brushes, flushing is done in the brush code itself.
-   */
-  if ((ELEM(brush.sculpt_tool, SCULPT_TOOL_BOUNDARY) || ss.pbvh->type() != bke::pbvh::Type::Mesh))
-  {
-    if (ss.deform_modifiers_active) {
-      SCULPT_flush_stroke_deform(sd, ob, sculpt_tool_is_proxy_used(brush.sculpt_tool));
-    }
-    else if (ss.shapekey_active) {
-      sculpt_update_keyblock(ob);
-    }
-  }
-
   ss.cache->first_time = false;
   copy_v3_v3(ss.cache->true_last_location, ss.cache->true_location);
 
@@ -6281,7 +6233,7 @@ static void do_fake_neighbor_search_task(SculptSession &ss,
 {
   PBVHVertexIter vd;
   BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
-    int vd_topology_id = SCULPT_vertex_island_get(ss, vd.vertex);
+    int vd_topology_id = islands::vert_id_get(ss, vd.index);
     if (vd_topology_id != nvtd->current_topology_id &&
         ss.fake_neighbors.fake_neighbor_index[vd.index] == FAKE_NEIGHBOR_NONE)
     {
@@ -6316,7 +6268,7 @@ static PBVHVertRef fake_neighbor_search(Object &ob, const PBVHVertRef vertex, fl
   NearestVertexFakeNeighborData nvtd;
   nvtd.nearest_vertex.i = -1;
   nvtd.nearest_vertex_distance_sq = FLT_MAX;
-  nvtd.current_topology_id = SCULPT_vertex_island_get(ss, vertex);
+  nvtd.current_topology_id = islands::vert_id_get(ss, BKE_pbvh_vertex_to_index(*ss.pbvh, vertex));
 
   nvtd = threading::parallel_reduce(
       nodes.index_range(),
@@ -6392,7 +6344,7 @@ void SCULPT_fake_neighbors_ensure(Object &ob, const float max_dist)
     return;
   }
 
-  SCULPT_topology_islands_ensure(ob);
+  islands::ensure_cache(ob);
   fake_neighbor_init(ss, max_dist);
 
   for (int i = 0; i < totvert; i++) {
@@ -6499,79 +6451,151 @@ void SCULPT_stroke_id_ensure(Object &ob)
   }
 }
 
-int SCULPT_vertex_island_get(const SculptSession &ss, PBVHVertRef vertex)
-{
-  if (ss.attrs.topology_island_key) {
-    return *static_cast<uint8_t *>(SCULPT_vertex_attr_get(vertex, ss.attrs.topology_island_key));
-  }
+namespace blender::ed::sculpt_paint::islands {
 
-  return -1;
+int vert_id_get(const SculptSession &ss, const int vert)
+{
+  BLI_assert(ss.topology_island_cache);
+  if (!ss.topology_island_cache) {
+    /* The cache should be calculated whenever it's necessary.
+     * Still avoid crashing in release builds though. */
+    return 0;
+  }
+  const SculptTopologyIslandCache &cache = *ss.topology_island_cache;
+  if (!cache.vert_island_ids.is_empty()) {
+    return cache.vert_island_ids[vert];
+  }
+  return 0;
 }
 
-void SCULPT_topology_islands_invalidate(SculptSession &ss)
+void invalidate(SculptSession &ss)
 {
-  ss.islands_valid = false;
+  ss.topology_island_cache.reset();
 }
 
-void SCULPT_topology_islands_ensure(Object &ob)
+static SculptTopologyIslandCache vert_disjoint_set_to_islands(const AtomicDisjointSet &vert_sets,
+                                                              const int verts_num)
 {
-  using namespace blender;
-  using namespace blender::ed::sculpt_paint;
-  SculptSession &ss = *ob.sculpt;
-
-  if (ss.attrs.topology_island_key && ss.islands_valid &&
-      ss.pbvh->type() != bke::pbvh::Type::BMesh)
-  {
-    return;
+  Array<int> island_indices(verts_num);
+  const int islands_num = vert_sets.calc_reduced_ids(island_indices);
+  if (islands_num == 1) {
+    return {};
   }
 
-  SculptAttributeParams params;
-  params.permanent = params.stroke_only = params.simple_array = false;
-
-  ss.attrs.topology_island_key = BKE_sculpt_attribute_ensure(
-      &ob,
-      bke::AttrDomain::Point,
-      CD_PROP_INT8,
-      SCULPT_ATTRIBUTE_NAME(topology_island_key),
-      &params);
-  SCULPT_vertex_random_access_ensure(ss);
-
-  int totvert = SCULPT_vertex_count_get(ss);
-  Set<PBVHVertRef> visit;
-  Vector<PBVHVertRef> stack;
-  uint8_t island_nr = 0;
-
-  for (int i = 0; i < totvert; i++) {
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
-
-    if (visit.contains(vertex)) {
-      continue;
+  Array<uint8_t> island_ids(island_indices.size());
+  threading::parallel_for(island_ids.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      island_ids[i] = uint8_t(island_indices[i]);
     }
+  });
 
-    stack.clear();
-    stack.append(vertex);
-    visit.add(vertex);
+  SculptTopologyIslandCache cache;
+  cache.vert_island_ids = std::move(island_ids);
+  return cache;
+}
 
-    while (stack.size()) {
-      PBVHVertRef vertex2 = stack.pop_last();
-      SculptVertexNeighborIter ni;
+static SculptTopologyIslandCache calc_topology_islands_mesh(const Mesh &mesh)
+{
+  const OffsetIndices<int> faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  IndexMaskMemory memory;
+  const IndexMask visible_faces = hide_poly.is_empty() ?
+                                      IndexMask(faces.size()) :
+                                      IndexMask::from_bools_inverse(
+                                          faces.index_range(), hide_poly, memory);
 
-      *static_cast<uint8_t *>(
-          SCULPT_vertex_attr_get(vertex2, ss.attrs.topology_island_key)) = island_nr;
+  AtomicDisjointSet disjoint_set(mesh.verts_num);
+  visible_faces.foreach_index(GrainSize(1024), [&](const int face) {
+    const Span<int> face_verts = corner_verts.slice(faces[face]);
+    for (const int i : face_verts.index_range().drop_front(1)) {
+      disjoint_set.join(face_verts.first(), face_verts[i]);
+    }
+  });
+  return vert_disjoint_set_to_islands(disjoint_set, mesh.verts_num);
+}
 
-      SCULPT_VERTEX_DUPLICATES_AND_NEIGHBORS_ITER_BEGIN (ss, vertex2, ni) {
-        if (visit.add(ni.vertex) && hide::vert_any_face_visible_get(ss, ni.vertex)) {
-          stack.append(ni.vertex);
+/**
+ * \todo Take grid face visibility into account.
+ */
+static SculptTopologyIslandCache calc_topology_islands_grids(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  const int verts_num = subdiv_ccg.grids.size() * key.grid_area;
+  AtomicDisjointSet disjoint_set(verts_num);
+  threading::parallel_for(subdiv_ccg.grids.index_range(), 512, [&](const IndexRange range) {
+    for (const int grid : range) {
+      SubdivCCGNeighbors neighbors;
+      for (const short y : IndexRange(key.grid_size)) {
+        for (const short x : IndexRange(key.grid_size)) {
+          const SubdivCCGCoord coord{grid, x, y};
+          SubdivCCGNeighbors neighbors;
+          BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, true, neighbors);
+          for (const SubdivCCGCoord neighbor : neighbors.coords) {
+            disjoint_set.join(coord.to_index(key), neighbor.to_index(key));
+          }
         }
       }
-      SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
     }
+  });
 
-    island_nr++;
-  }
-
-  ss.islands_valid = true;
+  return vert_disjoint_set_to_islands(disjoint_set, verts_num);
 }
+
+static SculptTopologyIslandCache calc_topology_islands_bmesh(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BMesh &bm = *ss.bm;
+  BM_mesh_elem_index_ensure(&bm, BM_VERT);
+
+  bke::pbvh::Tree &pbvh = *object.sculpt->pbvh;
+  const Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(pbvh, {});
+  AtomicDisjointSet disjoint_set(bm.totvert);
+  threading::parallel_for(nodes.index_range(), 1024, [&](const IndexRange range) {
+    for (bke::pbvh::Node *node : nodes.as_span().slice(range)) {
+      for (const BMFace *face : BKE_pbvh_bmesh_node_faces(node)) {
+        if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
+          continue;
+        }
+        disjoint_set.join(BM_elem_index_get(face->l_first->v),
+                          BM_elem_index_get(face->l_first->next->v));
+        disjoint_set.join(BM_elem_index_get(face->l_first->v),
+                          BM_elem_index_get(face->l_first->next->next->v));
+      }
+    }
+  });
+
+  return vert_disjoint_set_to_islands(disjoint_set, bm.totvert);
+}
+
+static SculptTopologyIslandCache calculate_cache(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh:
+      return calc_topology_islands_mesh(*static_cast<const Mesh *>(object.data));
+    case bke::pbvh::Type::Grids:
+      return calc_topology_islands_grids(object);
+    case bke::pbvh::Type::BMesh:
+      return calc_topology_islands_bmesh(object);
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+void ensure_cache(Object &object)
+{
+  SculptSession &ss = *object.sculpt;
+  if (ss.topology_island_cache) {
+    return;
+  }
+  ss.topology_island_cache = std::make_unique<SculptTopologyIslandCache>(calculate_cache(object));
+}
+
+}  // namespace blender::ed::sculpt_paint::islands
 
 void SCULPT_cube_tip_init(const Sculpt & /*sd*/,
                           const Object &ob,
@@ -6736,9 +6760,12 @@ void scatter_data_vert_bmesh(const Span<T> node_data,
   }
 }
 
+template void gather_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
+template void gather_data_mesh<int>(Span<int>, Span<int>, MutableSpan<int>);
 template void gather_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
 template void gather_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
 template void gather_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
+template void gather_data_grids<int>(const SubdivCCG &, Span<int>, Span<int>, MutableSpan<int>);
 template void gather_data_grids<float>(const SubdivCCG &,
                                        Span<float>,
                                        Span<int>,
@@ -6747,6 +6774,7 @@ template void gather_data_grids<float3>(const SubdivCCG &,
                                         Span<float3>,
                                         Span<int>,
                                         MutableSpan<float3>);
+template void gather_data_vert_bmesh<int>(Span<int>, const Set<BMVert *, 0> &, MutableSpan<int>);
 template void gather_data_vert_bmesh<float>(Span<float>,
                                             const Set<BMVert *, 0> &,
                                             MutableSpan<float>);
@@ -6754,6 +6782,7 @@ template void gather_data_vert_bmesh<float3>(Span<float3>,
                                              const Set<BMVert *, 0> &,
                                              MutableSpan<float3>);
 
+template void scatter_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
 template void scatter_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
 template void scatter_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
 template void scatter_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
@@ -6993,8 +7022,7 @@ void filter_region_clip_factors(const SculptSession &ss,
   const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : verts.index_range()) {
-    float3 symm_co;
-    flip_v3_v3(symm_co, positions[verts[i]], mirror_symmetry_pass);
+    float3 symm_co = symmetry_flip(positions[verts[i]], mirror_symmetry_pass);
     if (radial_symmetry_pass) {
       symm_co = math::transform_point(symm_rot_mat_inv, symm_co);
     }
@@ -7021,8 +7049,7 @@ void filter_region_clip_factors(const SculptSession &ss,
   const int radial_symmetry_pass = ss.cache ? ss.cache->radial_symmetry_pass : 0;
   const float4x4 symm_rot_mat_inv = ss.cache ? ss.cache->symm_rot_mat_inv : float4x4::identity();
   for (const int i : positions.index_range()) {
-    float3 symm_co;
-    flip_v3_v3(symm_co, positions[i], mirror_symmetry_pass);
+    float3 symm_co = symmetry_flip(positions[i], mirror_symmetry_pass);
     if (radial_symmetry_pass) {
       symm_co = math::transform_point(symm_rot_mat_inv, symm_co);
     }
@@ -7580,6 +7607,47 @@ void calc_vert_neighbors(const OffsetIndices<int> faces,
   }
 }
 
+void calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
+                         const Span<int> grids,
+                         const MutableSpan<Vector<SubdivCCGCoord>> result)
+{
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  SubdivCCGNeighbors neighbors;
+  BLI_assert(result.size() == grids.size() * key.grid_area);
+  for (const int i : grids.index_range()) {
+    const int grid = grids[i];
+    const int node_verts_start = i * key.grid_area;
+
+    for (const int y : IndexRange(key.grid_size)) {
+      for (const int x : IndexRange(key.grid_size)) {
+        const int offset = CCG_grid_xy_to_index(key.grid_size, x, y);
+        const int node_vert_index = node_verts_start + offset;
+
+        SubdivCCGCoord coord{};
+        coord.grid_index = grid;
+        coord.x = x;
+        coord.y = y;
+
+        BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
+
+        result[node_vert_index] = Vector<SubdivCCGCoord>(neighbors.coords.as_span());
+      }
+    }
+  }
+}
+void calc_vert_neighbors(Set<BMVert *, 0> verts, const MutableSpan<Vector<BMVert *>> result)
+{
+  BLI_assert(verts.size() == result.size());
+
+  int i = 0;
+  Vector<BMVert *, 64> neighbor_data;
+  for (BMVert *vert : verts) {
+    Span<BMVert *> verts = vert_neighbors_get_bmesh(*vert, neighbor_data);
+    result[i] = Vector<BMVert *>(verts);
+    i++;
+  }
+}
+
 void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
                                   const Span<int> corner_verts,
                                   const GroupedSpan<int> vert_to_face,
@@ -7697,6 +7765,20 @@ void calc_translations_to_plane(const Span<float3> positions,
     float3 closest;
     closest_to_plane_normalized_v3(closest, plane, position);
     translations[i] = closest - position;
+  }
+}
+
+void filter_verts_outside_symmetry_area(const Span<float3> positions,
+                                        const float3 &pivot,
+                                        const ePaintSymmetryFlags symm,
+                                        const MutableSpan<float> factors)
+{
+  BLI_assert(positions.size() == factors.size());
+
+  for (const int i : positions.index_range()) {
+    if (!SCULPT_check_vertex_pivot_symmetry(positions[i], pivot, symm)) {
+      factors[i] = 0.0f;
+    }
   }
 }
 

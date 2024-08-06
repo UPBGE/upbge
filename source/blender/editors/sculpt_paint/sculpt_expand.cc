@@ -132,7 +132,9 @@ static bool is_vert_in_active_component(const SculptSession &ss,
                                         const PBVHVertRef v)
 {
   for (int i = 0; i < EXPAND_SYMM_AREAS; i++) {
-    if (SCULPT_vertex_island_get(ss, v) == expand_cache->active_connected_islands[i]) {
+    if (islands::vert_id_get(ss, BKE_pbvh_vertex_to_index(*ss.pbvh, v)) ==
+        expand_cache->active_connected_islands[i])
+    {
       return true;
     }
   }
@@ -422,7 +424,7 @@ static void check_topology_islands(Object &ob, FalloffType falloff_type)
                                         FalloffType::Normals);
 
   if (ss.expand_cache->check_islands) {
-    SCULPT_topology_islands_ensure(ob);
+    islands::ensure_cache(ob);
   }
 }
 
@@ -443,8 +445,8 @@ static PBVHVertRef get_vert_index_for_symmetry_pass(Object &ob,
     symm_vertex = original_vertex;
   }
   else {
-    float location[3];
-    flip_v3_v3(location, SCULPT_vertex_co_get(ss, original_vertex), ePaintSymmetryFlags(symm_it));
+    const float3 location = symmetry_flip(SCULPT_vertex_co_get(ss, original_vertex),
+                                          ePaintSymmetryFlags(symm_it));
     symm_vertex = nearest_vert_calc(ob, location, FLT_MAX, false);
   }
   return symm_vertex;
@@ -594,6 +596,7 @@ static Array<float> spherical_falloff_create(Object &ob, const PBVHVertRef v)
   const int totvert = SCULPT_vertex_count_get(ss);
 
   Array<float> dists(totvert, FLT_MAX);
+
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   for (char symm_it = 0; symm_it <= symm; symm_it++) {
@@ -1764,8 +1767,8 @@ static void find_active_connected_components_from_vert(Object &ob,
 
     const PBVHVertRef symm_vertex = get_vert_index_for_symmetry_pass(ob, symm_it, initial_vertex);
 
-    expand_cache->active_connected_islands[int(symm_it)] = SCULPT_vertex_island_get(ss,
-                                                                                    symm_vertex);
+    expand_cache->active_connected_islands[int(symm_it)] = islands::vert_id_get(
+        ss, BKE_pbvh_vertex_to_index(*ss.pbvh, symm_vertex));
   }
 }
 
@@ -1841,7 +1844,7 @@ static void move_propagation_origin(bContext *C,
 static void ensure_sculptsession_data(Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
-  SCULPT_topology_islands_ensure(ob);
+  islands::ensure_cache(ob);
   SCULPT_vertex_random_access_ensure(ss);
   boundary::ensure_boundary_info(ob);
   if (!ss.tex_pool) {
@@ -2184,7 +2187,7 @@ static void undo_push(Object &ob, Cache *expand_cache)
     case TargetType::Colors: {
       const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
       /* The sculpt undo system needs corner indices for corner domain color attributes. */
-      BKE_pbvh_ensure_node_loops(*ss.pbvh, mesh.corner_tris());
+      BKE_pbvh_ensure_node_face_corners(*ss.pbvh, mesh.corner_tris());
       undo::push_nodes(ob, nodes, undo::Type::Color);
       break;
     }

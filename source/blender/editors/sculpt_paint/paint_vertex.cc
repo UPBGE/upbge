@@ -1760,11 +1760,11 @@ static void vpaint_do_draw(const bContext *C,
              * position in order to project it. This insures that the
              * brush texture will be oriented correctly.
              * This is the method also used in #sculpt_apply_texture(). */
-            float symm_point[3];
             if (cache.radial_symmetry_pass) {
               mul_m4_v3(cache.symm_rot_mat_inv.ptr(), vpd.vertexcosnos[vert].co);
             }
-            flip_v3_v3(symm_point, vpd.vertexcosnos[vert].co, cache.mirror_symmetry_pass);
+            const float3 symm_point = blender::ed::sculpt_paint::symmetry_flip(
+                vpd.vertexcosnos[vert].co, cache.mirror_symmetry_pass);
 
             tex_alpha = paint_and_tex_color_alpha<Color>(vp, vpd, symm_point, &color_final);
           }
@@ -1892,7 +1892,7 @@ static void vpaint_do_paint(bContext *C,
   if (attribute.domain == bke::AttrDomain::Corner) {
     /* The sculpt undo system needs bke::pbvh::Tree node corner indices for corner domain
      * color attributes. */
-    BKE_pbvh_ensure_node_loops(*ss.pbvh, mesh.corner_tris());
+    BKE_pbvh_ensure_node_face_corners(*ss.pbvh, mesh.corner_tris());
   }
 
   /* Paint those leaves. */
@@ -2288,7 +2288,7 @@ static int vertex_color_set_exec(bContext *C, wmOperator *op)
   const Mesh &mesh = *static_cast<const Mesh *>(obact.data);
   /* The sculpt undo system needs bke::pbvh::Tree node corner indices for corner domain
    * color attributes. */
-  BKE_pbvh_ensure_node_loops(*obact.sculpt->pbvh, mesh.corner_tris());
+  BKE_pbvh_ensure_node_face_corners(*obact.sculpt->pbvh, mesh.corner_tris());
 
   undo::push_nodes(obact, nodes, undo::Type::Color);
 
