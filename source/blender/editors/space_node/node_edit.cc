@@ -256,8 +256,8 @@ static void compo_initjob(void *cjv)
     compo_tag_output_nodes(cj->localtree, cj->recalc_flags);
   }
 
+  cj->re = RE_NewInteractiveCompositorRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    cj->re = RE_NewInteractiveCompositorRender(scene);
     RE_system_gpu_context_ensure(cj->re);
   }
 }
@@ -1523,7 +1523,7 @@ static int node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
 
   /* first tag scenes unread */
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    scene->id.tag |= LIB_TAG_DOIT;
+    scene->id.tag |= ID_TAG_DOIT;
   }
 
   for (bNode *node : edit_tree.all_nodes()) {
@@ -1534,10 +1534,10 @@ static int node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
       if (id == nullptr) {
         continue;
       }
-      if (id->tag & LIB_TAG_DOIT) {
+      if (id->tag & ID_TAG_DOIT) {
         RE_ReadRenderResult(curscene, (Scene *)id);
         ntreeCompositTagRender((Scene *)id);
-        id->tag &= ~LIB_TAG_DOIT;
+        id->tag &= ~ID_TAG_DOIT;
       }
     }
   }

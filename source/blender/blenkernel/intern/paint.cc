@@ -1662,8 +1662,7 @@ static void sculptsession_free_pbvh(Object *object)
   ss->vert_to_edge_indices = {};
   ss->vert_to_edge_map = {};
 
-  MEM_SAFE_FREE(ss->preview_vert_list);
-  ss->preview_vert_count = 0;
+  ss->preview_verts = {};
 
   ss->vertex_info.boundary.clear_and_shrink();
 
@@ -1734,6 +1733,44 @@ SculptSession::~SculptSession()
   BKE_sculptsession_free_vwpaint_data(this);
 
   MEM_SAFE_FREE(this->last_paint_canvas_key);
+}
+
+PBVHVertRef SculptSession::active_vert_ref() const
+{
+  if (ELEM(this->pbvh->type(),
+           blender::bke::pbvh::Type::Mesh,
+           blender::bke::pbvh::Type::Grids,
+           blender::bke::pbvh::Type::BMesh))
+  {
+    return active_vert_;
+  }
+
+  return {PBVH_REF_NONE};
+}
+
+ActiveVert SculptSession::active_vert() const
+{
+  /* TODO: While this code currently translates the stored PBVHVertRef into the given type, once
+   * we stored the actual field as ActiveVertex, this call can replace #active_vertex. */
+  switch (this->pbvh->type()) {
+    case blender::bke::pbvh::Type::Mesh:
+      return (int)active_vert_.i;
+    case blender::bke::pbvh::Type::Grids: {
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg);
+      return SubdivCCGCoord::from_index(key, active_vert_.i);
+    }
+    case blender::bke::pbvh::Type::BMesh:
+      return reinterpret_cast<BMVert *>(active_vert_.i);
+    default:
+      BLI_assert_unreachable();
+  }
+
+  return {};
+}
+
+void SculptSession::set_active_vert(const PBVHVertRef vert)
+{
+  active_vert_ = vert;
 }
 
 static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
@@ -1900,7 +1937,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
     /* These are assigned to the base mesh in Multires. This is needed because Face Sets operators
      * and tools use the Face Sets data from the base mesh when Multires is active. */
-    ss.vert_positions = mesh_orig->vert_positions_for_write();
     ss.faces = mesh_orig->faces();
     ss.corner_verts = mesh_orig->corner_verts();
   }
@@ -1908,7 +1944,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     ss.totvert = mesh_orig->verts_num;
     ss.faces_num = mesh_orig->faces_num;
     ss.totfaces = mesh_orig->faces_num;
-    ss.vert_positions = mesh_orig->vert_positions_for_write();
     ss.faces = mesh_orig->faces();
     ss.corner_verts = mesh_orig->corner_verts();
     ss.multires.active = false;

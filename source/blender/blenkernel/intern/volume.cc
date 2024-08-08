@@ -44,7 +44,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_volume.hh"
@@ -787,7 +787,7 @@ void BKE_volume_grids_backup_restore(Volume *volume, VolumeGridVector *grids, co
 #ifdef WITH_OPENVDB
   /* Restore grids after datablock was re-copied from original by depsgraph,
    * we don't want to load them again if possible. */
-  BLI_assert(volume->id.tag & LIB_TAG_COPIED_ON_EVAL);
+  BLI_assert(volume->id.tag & ID_TAG_COPIED_ON_EVAL);
   BLI_assert(volume->runtime->grids != nullptr && grids != nullptr);
 
   if (!grids->is_loaded()) {

@@ -511,11 +511,11 @@ template<MicrofacetType m_type> ccl_device_inline float bsdf_D(float alpha2, flo
   const float cos_NH2 = min(sqr(cos_NH), 1.0f);
 
   if (m_type == MicrofacetType::BECKMANN) {
-    return expf((1.0f - 1.0f / cos_NH2) / alpha2) / (M_PI_F * alpha2 * sqr(cos_NH2));
+    return expf((cos_NH2 - 1.0f) / (cos_NH2 * alpha2)) / (M_PI_F * alpha2 * sqr(cos_NH2));
   }
   else {
     kernel_assert(m_type == MicrofacetType::GGX);
-    return alpha2 / (M_PI_F * sqr(1.0f + (alpha2 - 1.0f) * cos_NH2));
+    return alpha2 / (M_PI_F * sqr((1.0f - cos_NH2) + alpha2 * cos_NH2));
   }
 }
 
@@ -732,7 +732,7 @@ ccl_device int bsdf_microfacet_sample(KernelGlobals kg,
     /* TODO: add support for anisotropic transmission. */
     if (alpha_x == alpha_y || do_refract) { /* Isotropic. */
       float alpha2 = alpha_x * alpha_y;
-      const float cos_NH = dot(N, H);
+      const float cos_NH = local_H.z;
       const float cos_NO = dot(N, *wo);
 
       D = bsdf_D<m_type>(alpha2, cos_NH);

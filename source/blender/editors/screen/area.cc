@@ -876,13 +876,11 @@ WorkspaceStatus::WorkspaceStatus(bContext *C)
  * \{ */
 
 static constexpr float STATUS_AFTER_TEXT = 0.7f;
-static constexpr float STATUS_BEFORE_TEXT = 0.3f;
-static constexpr float STATUS_MOUSE_ICON_PAD = -0.9f;
+static constexpr float STATUS_MOUSE_ICON_PAD = -0.5f;
 
 static void ed_workspace_status_text_item(WorkSpace *workspace, std::string text)
 {
   if (!text.empty()) {
-    ed_workspace_status_space(workspace, STATUS_BEFORE_TEXT);
     ed_workspace_status_item(workspace, std::move(text), ICON_NONE);
     ed_workspace_status_space(workspace, STATUS_AFTER_TEXT);
   }
@@ -1024,7 +1022,7 @@ static void area_azone_init(wmWindow *win, const bScreen *screen, ScrArea *area)
 #ifdef __APPLE__
     if (!WM_window_is_fullscreen(win) &&
         ((coords[i][0] == 0 && coords[i][1] == 0) ||
-         (coords[i][0] == WM_window_pixels_x(win) && coords[i][1] == 0)))
+         (coords[i][0] == WM_window_native_pixel_x(win) && coords[i][1] == 0)))
     {
       continue;
     }

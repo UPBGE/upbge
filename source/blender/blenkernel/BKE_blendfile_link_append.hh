@@ -169,6 +169,12 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
 void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *reports);
 
 /**
+ * Instantiate loose data in the scene (e.g. add object to the active collection).
+ */
+void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
+                                                 ReportList *reports);
+
+/**
  * Options controlling the behavior of liboverrides creation.
  */
 enum eBKELibLinkOverride {
@@ -183,7 +189,7 @@ enum eBKELibLinkOverride {
   BKE_LIBLINK_OVERRIDE_USE_EXISTING_LIBOVERRIDES = 1 << 0,
   /**
    * Create (or return an existing) runtime liboverride, instead of a regular saved-in-blend-files
-   * one. See also the #LIB_TAG_RUNTIME tag of IDs in DNA_ID.h.
+   * one. See also the #ID_TAG_RUNTIME tag of IDs in DNA_ID.h.
    *
    * \note Typically, usage of this flag implies that no linked IDs are instantiated, such that
    * their usages remain indirect.

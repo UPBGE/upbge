@@ -923,11 +923,11 @@ static void clean_viewport_memory_base(Base *base)
 
   Object *object = base->object;
 
-  if (object->id.tag & LIB_TAG_DOIT) {
+  if (object->id.tag & ID_TAG_DOIT) {
     return;
   }
 
-  object->id.tag &= ~LIB_TAG_DOIT;
+  object->id.tag &= ~ID_TAG_DOIT;
   if (RE_allow_render_generic_object(object)) {
     BKE_object_free_derived_caches(object);
   }
@@ -939,7 +939,7 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
   Base *base;
 
   /* Tag all the available objects. */
-  BKE_main_id_tag_listbase(&bmain->objects, LIB_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
 
   /* Go over all the visible objects. */
 
@@ -1023,12 +1023,6 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* flush sculpt and editmode changes */
   ED_editors_flush_edits_ex(bmain, true, false);
-
-  /* cleanup sequencer caches before starting user triggered render.
-   * otherwise, invalidated cache entries can make their way into
-   * the output rendering. We can't put that into RE_RenderFrame,
-   * since sequence rendering can call that recursively... (peter) */
-  SEQ_cache_cleanup(scene);
 
   /* store spare
    * get view3d layer, local layer, make this nice api call to render

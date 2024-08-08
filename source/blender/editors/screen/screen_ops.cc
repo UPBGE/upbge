@@ -3850,8 +3850,8 @@ static AreaDockTarget area_docking_target(sAreaJoinData *jd, const wmEvent *even
   int win1_posy = jd->win1->posy;
   int win2_posx = jd->win2->posx;
   int win2_posy = jd->win2->posy;
-  WM_window_pixels_coords(jd->win1, &win1_posx, &win1_posy);
-  WM_window_pixels_coords(jd->win2, &win2_posx, &win2_posy);
+  WM_window_native_pixel_coords(jd->win1, &win1_posx, &win1_posy);
+  WM_window_native_pixel_coords(jd->win2, &win2_posx, &win2_posy);
 
   const int x = event->xy[0] + win1_posx - win2_posx - jd->sa2->totrct.xmin;
   const int y = event->xy[1] + win1_posy - win2_posy - jd->sa2->totrct.ymin;
@@ -4036,14 +4036,18 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
       WorkspaceStatus status(C);
       if (jd->sa1 && jd->sa1 == jd->sa2) {
         status.item(IFACE_("Select Split"), ICON_MOUSE_LMB);
-      }
-      else if (jd->dock_target == AreaDockTarget::None) {
-        status.item(IFACE_("Select Area"), ICON_MOUSE_LMB);
+        status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+        status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
       }
       else {
-        status.item(IFACE_("Select Location"), ICON_MOUSE_LMB);
+        if (jd->dock_target == AreaDockTarget::None) {
+          status.item(IFACE_("Select Area"), ICON_MOUSE_LMB);
+        }
+        else {
+          status.item(IFACE_("Select Location"), ICON_MOUSE_LMB);
+        }
+        status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
       }
-      status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
       break;
     }
     case LEFTMOUSE:

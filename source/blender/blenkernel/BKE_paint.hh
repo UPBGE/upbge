@@ -8,7 +8,7 @@
  * \ingroup bke
  */
 
-#include <optional>
+#include <variant>
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
@@ -76,6 +76,7 @@ struct Scene;
 struct Sculpt;
 struct SculptSession;
 struct SubdivCCG;
+struct SubdivCCGCoord;
 struct Tex;
 struct ToolSettings;
 struct UnifiedPaintSettings;
@@ -292,28 +293,10 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
 
 #define SCULPT_FACE_SET_NONE 0
 
-/** Pose Brush IK Chain. */
-struct SculptPoseIKChainSegment {
-  blender::float3 orig;
-  blender::float3 head;
-
-  blender::float3 initial_orig;
-  blender::float3 initial_head;
-  float len;
-  blender::float3 scale;
-  float rot[4];
-  blender::Array<float> weights;
-
-  /* Store a 4x4 transform matrix for each of the possible combinations of enabled XYZ symmetry
-   * axis. */
-  std::array<blender::float4x4, PAINT_SYMM_AREAS> trans_mat;
-  std::array<blender::float4x4, PAINT_SYMM_AREAS> pivot_mat;
-  std::array<blender::float4x4, PAINT_SYMM_AREAS> pivot_mat_inv;
-};
-
-struct SculptPoseIKChain {
-  blender::Array<SculptPoseIKChainSegment> segments;
-  blender::float3 grab_delta_offset;
+/* Data used for displaying extra visuals while using the Pose brush */
+struct SculptPoseIKChainPreview {
+  blender::Array<blender::float3> initial_orig_coords;
+  blender::Array<blender::float3> initial_head_coords;
 };
 
 struct SculptVertexInfo {
@@ -326,65 +309,6 @@ struct SculptBoundaryPreview {
   blender::Vector<std::pair<blender::float3, blender::float3>> edges;
   blender::float3 pivot_position;
   blender::float3 initial_vert_position;
-};
-
-struct SculptBoundary {
-  /* Vertex indices of the active boundary. */
-  blender::Vector<int> verts;
-
-  /* Distance from a vertex in the boundary to initial vertex indexed by vertex index, taking into
-   * account the length of all edges between them. Any vertex that is not in the boundary will have
-   * a distance of 0. */
-  blender::Map<int, float> distance;
-
-  /* Data for drawing the preview. */
-  blender::Vector<std::pair<blender::float3, blender::float3>> edges;
-
-  /* Initial vertex index in the boundary which is closest to the current sculpt active vertex. */
-  int initial_vert_i;
-
-  /* Vertex that at max_propagation_steps from the boundary and closest to the original active
-   * vertex that was used to initialize the boundary. This is used as a reference to check how much
-   * the deformation will go into the mesh and to calculate the strength of the brushes. */
-  blender::float3 pivot_position;
-
-  /* Stores the initial positions of the pivot and boundary initial vertex as they may be deformed
-   * during the brush action. This allows to use them as a reference positions and vectors for some
-   * brush effects. */
-  blender::float3 initial_vert_position;
-
-  /* Maximum number of topology steps that were calculated from the boundary. */
-  int max_propagation_steps;
-
-  /* Indexed by vertex index, contains the topology information needed for boundary deformations.
-   */
-  struct {
-    /* Vertex index from where the topology propagation reached this vertex. */
-    blender::Array<int> original_vertex_i;
-
-    /* How many steps were needed to reach this vertex from the boundary. */
-    blender::Array<int> propagation_steps_num;
-
-    /* Strength that is used to deform this vertex. */
-    blender::Array<float> strength_factor;
-  } edit_info;
-
-  /* Bend Deform type. */
-  struct {
-    blender::Array<blender::float3> pivot_rotation_axis;
-    blender::Array<blender::float3> pivot_positions;
-  } bend;
-
-  /* Slide Deform type. */
-  struct {
-    blender::Array<blender::float3> directions;
-  } slide;
-
-  /* Twist Deform type. */
-  struct {
-    blender::float3 rotation_axis;
-    blender::float3 pivot_position;
-  } twist;
 };
 
 struct SculptFakeNeighbors {
@@ -485,6 +409,8 @@ struct SculptTopologyIslandCache {
   blender::Array<uint8_t> vert_island_ids;
 };
 
+using ActiveVert = std::variant<std::monostate, int, SubdivCCGCoord, BMVert *>;
+
 struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
   struct { /* Special handling for multires meshes */
@@ -496,9 +422,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Depsgraph for the Cloth Brush solver to get the colliders. */
   Depsgraph *depsgraph = nullptr;
 
-  /* These are always assigned to base mesh data when using Type::Mesh and Type::Grids.
-   */
-  blender::MutableSpan<blender::float3> vert_positions;
+  /* These are always assigned to base mesh data when using Type::Mesh. */
   blender::OffsetIndices<int> faces;
   blender::Span<int> corner_verts;
 
@@ -565,8 +489,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::ed::sculpt_paint::expand::Cache *expand_cache = nullptr;
 
   /* Cursor data and active vertex for tools */
-  PBVHVertRef active_vertex = PBVHVertRef{PBVH_REF_NONE};
-
   int active_face_index = -1;
   int active_grid_index = -1;
 
@@ -586,12 +508,11 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   Scene *scene = nullptr;
 
   /* Dynamic mesh preview */
-  PBVHVertRef *preview_vert_list = nullptr;
-  int preview_vert_count = 0;
+  blender::Array<int> preview_verts;
 
   /* Pose Brush Preview */
   blender::float3 pose_origin;
-  std::unique_ptr<SculptPoseIKChain> pose_ik_chain_preview;
+  std::unique_ptr<SculptPoseIKChainPreview> pose_ik_chain_preview;
 
   /* Boundary Brush Preview */
   std::unique_ptr<SculptBoundaryPreview> boundary_preview;
@@ -667,6 +588,14 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   SculptSession();
   ~SculptSession();
+
+  PBVHVertRef active_vert_ref() const;
+  ActiveVert active_vert() const;
+
+  void set_active_vert(PBVHVertRef vert);
+
+ private:
+  PBVHVertRef active_vert_ = PBVHVertRef{PBVH_REF_NONE};
 };
 
 void BKE_sculptsession_free(Object *ob);

@@ -887,8 +887,9 @@ static int change_visibility_exec(bContext *C, wmOperator *op)
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
     UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
+
     float location[3];
-    copy_v3_v3(location, SCULPT_active_vertex_co_get(ss));
+    copy_v3_v3(location, SCULPT_vertex_co_get(ss, ss.active_vert_ref()));
     mul_m4_v3(object.object_to_world().ptr(), location);
     copy_v3_v3(ups->average_stroke_accum, location);
     ups->average_stroke_counter = 1;
@@ -1472,7 +1473,7 @@ static void gesture_apply_mesh(gesture::GestureData &gesture_data,
   SculptSession &ss = *gesture_data.ss;
   const bke::pbvh::Tree &pbvh = *ss.pbvh;
 
-  const Span<float3> positions = ss.vert_positions;
+  const Span<float3> positions = BKE_pbvh_get_vert_positions(pbvh);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<int> tri_faces = mesh.corner_tri_faces();

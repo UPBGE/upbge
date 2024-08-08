@@ -2086,11 +2086,11 @@ static void object_simplify_update(Scene *scene,
   ModifierData *md;
   ParticleSystem *psys;
 
-  if ((ob->id.tag & LIB_TAG_DOIT) == 0) {
+  if ((ob->id.tag & ID_TAG_DOIT) == 0) {
     return;
   }
 
-  ob->id.tag &= ~LIB_TAG_DOIT;
+  ob->id.tag &= ~ID_TAG_DOIT;
 
   for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
     if (md->type == eModifierType_Nodes && depsgraph != nullptr) {
@@ -2142,7 +2142,7 @@ static void rna_Scene_simplify_update_impl(Main *bmain,
   Scene *sce_iter;
   Base *base;
 
-  BKE_main_id_tag_listbase(&bmain->objects, LIB_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
   FOREACH_SCENE_OBJECT_BEGIN (sce, ob) {
     object_simplify_update(sce, ob, update_normals, depsgraph);
   }
@@ -8239,6 +8239,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, compositor_precision_items);
   RNA_def_property_ui_text(
       prop, "Compositor Precision", "The precision of compositor intermediate result");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
+
+  prop = RNA_def_property(srna, "use_new_cpu_compositor", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "use_old_cpu_compositor", 1);
+  RNA_def_property_ui_text(
+      prop, "Use New CPU Compositor", "Use the new CPU compositor implementation");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   /* Nestled Data. */

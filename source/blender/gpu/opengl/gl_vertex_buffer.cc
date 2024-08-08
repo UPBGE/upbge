@@ -95,10 +95,11 @@ void GLVertBuf::bind()
 
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
     vbo_size_ = this->size_used_get();
+
+    BLI_assert(vbo_size_ != 0);
     /* Orphan the vbo to avoid sync then upload data. */
-    //glBufferData(GL_ARRAY_BUFFER, vbo_size_, nullptr, to_gl(usage_));
     // using dynamic copy sounds to work on windows to avoid sync and not only on linux (youle) /*UPBGE*/
-    glBufferData(GL_ARRAY_BUFFER, vbo_size_, nullptr, GL_DYNAMIC_COPY);
+    glBufferData(GL_ARRAY_BUFFER, ceil_to_multiple_ul(vbo_size_, 16), nullptr, GL_DYNAMIC_COPY);
     /* Do not transfer data from host to device when buffer is device only. */
     if (usage_ != GPU_USAGE_DEVICE_ONLY) {
       glBufferSubData(GL_ARRAY_BUFFER, 0, vbo_size_, data_);

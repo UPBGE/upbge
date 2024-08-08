@@ -33,8 +33,13 @@ void GLIndexBuf::bind()
 
   if (data_ != nullptr || allocate_on_device) {
     size_t size = this->size_get();
-    /* Sends data to GPU. */
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data_, GL_STATIC_DRAW);
+    /* Pad the buffer to avoid out of bound reads when using vertex pulling mode. */
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, ceil_to_multiple_ul(size, 16), nullptr, GL_STATIC_DRAW);
+
+    if (data_ != nullptr) {
+      /* Sends data to GPU. */
+      glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size, data_);
+    }
     /* No need to keep copy of data in system memory. */
     MEM_SAFE_FREE(data_);
   }

@@ -11,9 +11,9 @@
 
 #include "ED_paint.hh"
 
+#include "BLI_bit_vector.hh"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_geom.h"
-#include "BLI_task.h"
 #ifdef DEBUG_PIXEL_NODES
 #  include "BLI_hash.h"
 #endif
@@ -28,6 +28,7 @@
 
 #include "bmesh.hh"
 
+#include "mesh_brush_common.hh"
 #include "sculpt_intern.hh"
 
 namespace blender::ed::sculpt_paint::paint::image {
@@ -48,13 +49,6 @@ struct ImageData {
     return BKE_paint_canvas_image_get(
         &paint_mode_settings, &ob, &r_image_data->image, &r_image_data->image_user);
   }
-};
-
-struct TexturePaintingUserData {
-  Object *ob;
-  const Brush *brush;
-  Span<bke::pbvh::Node *> nodes;
-  ImageData image_data;
 };
 
 /** Reading and writing to image buffer with 4 float channels. */
@@ -127,69 +121,66 @@ class ImageBufferByte4 {
   }
 };
 
+static float3 calc_pixel_position(const Span<float3> vert_positions,
+                                  const Span<int3> vert_tris,
+                                  const int tri_index,
+                                  const float2 &barycentric_weight)
+{
+  const int3 &verts = vert_tris[tri_index];
+  const float3 weights(barycentric_weight.x,
+                       barycentric_weight.y,
+                       1.0f - barycentric_weight.x - barycentric_weight.y);
+  float3 result;
+  interp_v3_v3v3v3(result,
+                   vert_positions[verts[0]],
+                   vert_positions[verts[1]],
+                   vert_positions[verts[2]],
+                   weights);
+  return result;
+}
+
+static void calc_pixel_row_positions(const Span<float3> vert_positions,
+                                     const Span<int3> vert_tris,
+                                     const Span<UVPrimitivePaintInput> uv_primitives,
+                                     const PackedPixelRow &pixel_row,
+                                     const MutableSpan<float3> positions)
+{
+  const float3 start = calc_pixel_position(vert_positions,
+                                           vert_tris,
+                                           uv_primitives[pixel_row.uv_primitive_index].tri_index,
+                                           pixel_row.start_barycentric_coord);
+  const float3 next = calc_pixel_position(
+      vert_positions,
+      vert_tris,
+      uv_primitives[pixel_row.uv_primitive_index].tri_index,
+      pixel_row.start_barycentric_coord +
+          uv_primitives[pixel_row.uv_primitive_index].delta_barycentric_coord_u);
+  const float3 delta = next - start;
+  for (const int i : IndexRange(pixel_row.num_pixels)) {
+    positions[i] = start + delta * i;
+  }
+}
+
 template<typename ImageBuffer> class PaintingKernel {
   ImageBuffer image_accessor_;
 
-  SculptSession *ss_;
-  const Brush *brush_;
-  const int thread_id_;
-  const float3 *vert_positions_;
-
   float4 brush_color_;
-  float brush_strength_;
 
-  SculptBrushTestFn brush_test_fn_;
-  SculptBrushTest test_;
   const char *last_used_color_space_ = nullptr;
 
  public:
-  explicit PaintingKernel(SculptSession &ss,
-                          const Brush *brush,
-                          const int thread_id,
-                          const Span<float3> positions)
-      : ss_(&ss), brush_(brush), thread_id_(thread_id), vert_positions_(positions.data())
-  {
-    init_brush_strength();
-    init_brush_test();
-  }
+  explicit PaintingKernel() {}
 
-  bool paint(const PaintGeometryPrimitives &geom_primitives,
-             const PaintUVPrimitives &uv_primitives,
+  bool paint(const Brush &brush,
              const PackedPixelRow &pixel_row,
-             ImBuf *image_buffer,
-             auto_mask::NodeData *automask_data)
+             const Span<float> factors,
+             ImBuf *image_buffer)
   {
     image_accessor_.set_image_position(image_buffer, pixel_row.start_image_coordinate);
-    const UVPrimitivePaintInput paint_input = uv_primitives.get_paint_input(
-        pixel_row.uv_primitive_index);
-    float3 pixel_pos = get_start_pixel_pos(geom_primitives, paint_input, pixel_row);
-    const float3 delta_pixel_pos = get_delta_pixel_pos(
-        geom_primitives, paint_input, pixel_row, pixel_pos);
     bool pixels_painted = false;
     for (int x = 0; x < pixel_row.num_pixels; x++) {
-      if (!brush_test_fn_(test_, pixel_pos)) {
-        pixel_pos += delta_pixel_pos;
-        image_accessor_.next_pixel();
-        continue;
-      }
-
       float4 color = image_accessor_.read_pixel(image_buffer);
-      const float3 normal(0.0f, 0.0f, 0.0f);
-      const float3 face_normal(0.0f, 0.0f, 0.0f);
-      const float mask = 0.0f;
-
-      const float falloff_strength = SCULPT_brush_strength_factor(
-          *ss_,
-          *brush_,
-          pixel_pos,
-          sqrtf(test_.dist),
-          normal,
-          face_normal,
-          mask,
-          BKE_pbvh_make_vref(PBVH_REF_NONE),
-          thread_id_,
-          automask_data);
-      float4 paint_color = brush_color_ * falloff_strength * brush_strength_;
+      float4 paint_color = brush_color_ * factors[x];
       float4 buffer_color;
 
 #ifdef DEBUG_PIXEL_NODES
@@ -201,13 +192,12 @@ template<typename ImageBuffer> class PaintingKernel {
 #endif
 
       blend_color_mix_float(buffer_color, color, paint_color);
-      buffer_color *= brush_->alpha;
-      IMB_blend_color_float(color, color, buffer_color, static_cast<IMB_BlendMode>(brush_->blend));
+      buffer_color *= brush.alpha;
+      IMB_blend_color_float(color, color, buffer_color, static_cast<IMB_BlendMode>(brush.blend));
       image_accessor_.write_pixel(image_buffer, color);
       pixels_painted = true;
 
       image_accessor_.next_pixel();
-      pixel_pos += delta_pixel_pos;
     }
     return pixels_painted;
   }
@@ -234,144 +224,79 @@ template<typename ImageBuffer> class PaintingKernel {
     IMB_colormanagement_processor_free(cm_processor);
     last_used_color_space_ = to_colorspace;
   }
-
- private:
-  void init_brush_strength()
-  {
-    brush_strength_ = ss_->cache->bstrength;
-  }
-  void init_brush_test()
-  {
-    brush_test_fn_ = SCULPT_brush_test_init_with_falloff_shape(*ss_, test_, brush_->falloff_shape);
-  }
-
-  /**
-   * Extract the starting pixel position from the given encoded_pixels belonging to the triangle.
-   */
-  float3 get_start_pixel_pos(const PaintGeometryPrimitives &geom_primitives,
-                             const UVPrimitivePaintInput &paint_input,
-                             const PackedPixelRow &encoded_pixels) const
-  {
-    return init_pixel_pos(geom_primitives, paint_input, encoded_pixels.start_barycentric_coord);
-  }
-
-  /**
-   * Extract the delta pixel position that will be used to advance a Pixel instance to the next
-   * pixel.
-   */
-  float3 get_delta_pixel_pos(const PaintGeometryPrimitives &geom_primitives,
-                             const UVPrimitivePaintInput &paint_input,
-                             const PackedPixelRow &encoded_pixels,
-                             const float3 &start_pixel) const
-  {
-    float3 result = init_pixel_pos(geom_primitives,
-                                   paint_input,
-                                   encoded_pixels.start_barycentric_coord +
-                                       paint_input.delta_barycentric_coord_u);
-    return result - start_pixel;
-  }
-
-  float3 init_pixel_pos(const PaintGeometryPrimitives &geom_primitives,
-                        const UVPrimitivePaintInput &paint_input,
-                        const float2 &barycentric_weights) const
-  {
-    const int3 &vert_indices = geom_primitives.get_vert_indices(
-        paint_input.geometry_primitive_index);
-    float3 result;
-    const float3 barycentric(barycentric_weights.x,
-                             barycentric_weights.y,
-                             1.0f - barycentric_weights.x - barycentric_weights.y);
-    interp_v3_v3v3v3(result,
-                     vert_positions_[vert_indices[0]],
-                     vert_positions_[vert_indices[1]],
-                     vert_positions_[vert_indices[2]],
-                     barycentric);
-    return result;
-  }
 };
 
-static std::vector<bool> init_uv_primitives_brush_test(SculptSession &ss,
-                                                       PaintGeometryPrimitives &geom_primitives,
-                                                       PaintUVPrimitives &uv_primitives,
-                                                       const Span<float3> positions)
+static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
+                                                 const Span<int3> vert_tris,
+                                                 const Span<UVPrimitivePaintInput> uv_primitives,
+                                                 const Span<float3> positions)
 {
-  std::vector<bool> brush_test(uv_primitives.size());
-  SculptBrushTest test;
-  SCULPT_brush_test_init(ss, test);
-  float3 brush_min_bounds(test.location[0] - test.radius,
-                          test.location[1] - test.radius,
-                          test.location[2] - test.radius);
-  float3 brush_max_bounds(test.location[0] + test.radius,
-                          test.location[1] + test.radius,
-                          test.location[2] + test.radius);
-  for (int uv_prim_index = 0; uv_prim_index < uv_primitives.size(); uv_prim_index++) {
-    const UVPrimitivePaintInput &paint_input = uv_primitives.get_paint_input(uv_prim_index);
-    const int3 &vert_indices = geom_primitives.get_vert_indices(
-        paint_input.geometry_primitive_index);
+  const float3 location = ss.cache ? ss.cache->location : ss.cursor_location;
+  const float radius = ss.cache ? ss.cache->radius : ss.cursor_radius;
+  const Bounds<float3> brush_bounds(location - radius, location + radius);
 
-    float3 triangle_min_bounds(positions[vert_indices[0]]);
-    float3 triangle_max_bounds(triangle_min_bounds);
-    for (int i = 1; i < 3; i++) {
-      const float3 &pos = positions[vert_indices[i]];
-      triangle_min_bounds.x = min_ff(triangle_min_bounds.x, pos.x);
-      triangle_min_bounds.y = min_ff(triangle_min_bounds.y, pos.y);
-      triangle_min_bounds.z = min_ff(triangle_min_bounds.z, pos.z);
-      triangle_max_bounds.x = max_ff(triangle_max_bounds.x, pos.x);
-      triangle_max_bounds.y = max_ff(triangle_max_bounds.y, pos.y);
-      triangle_max_bounds.z = max_ff(triangle_max_bounds.z, pos.z);
-    }
-    brush_test[uv_prim_index] = isect_aabb_aabb_v3(
-        brush_min_bounds, brush_max_bounds, triangle_min_bounds, triangle_max_bounds);
+  BitVector<> brush_test(uv_primitives.size());
+  for (const int i : uv_primitives.index_range()) {
+    const UVPrimitivePaintInput &paint_input = uv_primitives[i];
+    const int3 verts = vert_tris[paint_input.tri_index];
+
+    Bounds<float3> tri_bounds(positions[verts[0]]);
+    math::min_max(positions[verts[1]], tri_bounds.min, tri_bounds.max);
+    math::min_max(positions[verts[2]], tri_bounds.min, tri_bounds.max);
+
+    brush_test[i].set(
+        isect_aabb_aabb_v3(brush_bounds.min, brush_bounds.max, tri_bounds.min, tri_bounds.max));
   }
   return brush_test;
 }
 
-static void do_paint_pixels(TexturePaintingUserData *data, const int n)
+static void do_paint_pixels(const Object &object,
+                            const Brush &brush,
+                            ImageData image_data,
+                            bke::pbvh::Node &node)
 {
-  Object *ob = data->ob;
-  SculptSession &ss = *ob->sculpt;
-  const Brush *brush = data->brush;
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *ss.pbvh;
-  bke::pbvh::Node *node = data->nodes[n];
   PBVHData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
-  NodeData &node_data = bke::pbvh::pixels::node_data_get(*node);
-  const int thread_id = BLI_task_parallel_thread_id(nullptr);
-  const Span<float3> positions = SCULPT_mesh_deformed_positions_get(ss);
+  NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
+  const Span<float3> positions = BKE_pbvh_get_vert_positions(pbvh);
 
-  std::vector<bool> brush_test = init_uv_primitives_brush_test(
-      ss, pbvh_data.geom_primitives, node_data.uv_primitives, positions);
+  BitVector<> brush_test = init_uv_primitives_brush_test(
+      ss, pbvh_data.vert_tris, node_data.uv_primitives, positions);
 
-  PaintingKernel<ImageBufferFloat4> kernel_float4(ss, brush, thread_id, positions);
-  PaintingKernel<ImageBufferByte4> kernel_byte4(ss, brush, thread_id, positions);
+  PaintingKernel<ImageBufferFloat4> kernel_float4;
+  PaintingKernel<ImageBufferByte4> kernel_byte4;
 
-  float brush_color[4];
+  float4 brush_color;
 
 #ifdef DEBUG_PIXEL_NODES
-  uint hash = BLI_hash_int(POINTER_AS_UINT(node));
+  uint hash = BLI_hash_int(POINTER_AS_UINT(&node));
 
   brush_color[0] = float(hash & 255) / 255.0f;
   brush_color[1] = float((hash >> 8) & 255) / 255.0f;
   brush_color[2] = float((hash >> 16) & 255) / 255.0f;
 #else
   copy_v3_v3(brush_color,
-             ss.cache->invert ? BKE_brush_secondary_color_get(ss.scene, brush) :
-                                BKE_brush_color_get(ss.scene, brush));
+             ss.cache->invert ? BKE_brush_secondary_color_get(ss.scene, &brush) :
+                                BKE_brush_color_get(ss.scene, &brush));
 #endif
 
   brush_color[3] = 1.0f;
 
-  auto_mask::NodeData automask_data = auto_mask::node_begin(
-      *ob, ss.cache->automasking.get(), *node);
+  Vector<float3> pixel_positions;
+  Vector<float> factors;
+  Vector<float> distances;
 
-  ImageUser image_user = *data->image_data.image_user;
+  ImageUser image_user = *image_data.image_user;
   bool pixels_updated = false;
   for (UDIMTilePixels &tile_data : node_data.tiles) {
-    LISTBASE_FOREACH (ImageTile *, tile, &data->image_data.image->tiles) {
+    LISTBASE_FOREACH (ImageTile *, tile, &image_data.image->tiles) {
       ImageTileWrapper image_tile(tile);
       if (image_tile.get_tile_number() == tile_data.tile_number) {
         image_user.tile = image_tile.get_tile_number();
 
-        ImBuf *image_buffer = BKE_image_acquire_ibuf(data->image_data.image, &image_user, nullptr);
+        ImBuf *image_buffer = BKE_image_acquire_ibuf(image_data.image, &image_user, nullptr);
         if (image_buffer == nullptr) {
           continue;
         }
@@ -387,20 +312,29 @@ static void do_paint_pixels(TexturePaintingUserData *data, const int n)
           if (!brush_test[pixel_row.uv_primitive_index]) {
             continue;
           }
+
+          pixel_positions.resize(pixel_row.num_pixels);
+          calc_pixel_row_positions(
+              positions, pbvh_data.vert_tris, node_data.uv_primitives, pixel_row, pixel_positions);
+
+          factors.resize(pixel_positions.size());
+          factors.fill(1.0f);
+
+          distances.resize(pixel_positions.size());
+          calc_brush_distances(
+              ss, pixel_positions, eBrushFalloffShape(brush.falloff_shape), distances);
+          filter_distances_with_radius(cache.radius, distances, factors);
+          apply_hardness_to_distances(cache, distances);
+          calc_brush_strength_factors(cache, brush, distances, factors);
+          calc_brush_texture_factors(ss, brush, pixel_positions, factors);
+          scale_factors(factors, cache.bstrength);
+
           bool pixels_painted = false;
           if (image_buffer->float_buffer.data != nullptr) {
-            pixels_painted = kernel_float4.paint(pbvh_data.geom_primitives,
-                                                 node_data.uv_primitives,
-                                                 pixel_row,
-                                                 image_buffer,
-                                                 &automask_data);
+            pixels_painted = kernel_float4.paint(brush, pixel_row, factors, image_buffer);
           }
           else {
-            pixels_painted = kernel_byte4.paint(pbvh_data.geom_primitives,
-                                                node_data.uv_primitives,
-                                                pixel_row,
-                                                image_buffer,
-                                                &automask_data);
+            pixels_painted = kernel_byte4.paint(brush, pixel_row, factors, image_buffer);
           }
 
           if (pixels_painted) {
@@ -408,7 +342,7 @@ static void do_paint_pixels(TexturePaintingUserData *data, const int n)
           }
         }
 
-        BKE_image_release_ibuf(data->image_data.image, image_buffer, nullptr);
+        BKE_image_release_ibuf(image_data.image, image_buffer, nullptr);
         pixels_updated |= tile_data.flags.dirty;
         break;
       }
@@ -469,26 +403,22 @@ static void push_undo(const NodeData &node_data,
   }
 }
 
-static void do_push_undo_tile(TexturePaintingUserData *data, const int n)
+static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::Node &node)
 {
-  bke::pbvh::Node *node = data->nodes[n];
-
-  NodeData &node_data = bke::pbvh::pixels::node_data_get(*node);
-  Image *image = data->image_data.image;
-  ImageUser *image_user = data->image_data.image_user;
+  NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
 
   ImBuf *tmpibuf = nullptr;
-  ImageUser local_image_user = *image_user;
-  LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
+  ImageUser local_image_user = image_user;
+  LISTBASE_FOREACH (ImageTile *, tile, &image.tiles) {
     image::ImageTileWrapper image_tile(tile);
     local_image_user.tile = image_tile.get_tile_number();
-    ImBuf *image_buffer = BKE_image_acquire_ibuf(image, &local_image_user, nullptr);
+    ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &local_image_user, nullptr);
     if (image_buffer == nullptr) {
       continue;
     }
 
-    push_undo(node_data, *image, *image_user, image_tile, *image_buffer, &tmpibuf);
-    BKE_image_release_ibuf(image, image_buffer, nullptr);
+    push_undo(node_data, image, image_user, image_tile, *image_buffer, &tmpibuf);
+    BKE_image_release_ibuf(&image, image_buffer, nullptr);
   }
   if (tmpibuf) {
     IMB_freeImBuf(tmpibuf);
@@ -509,19 +439,22 @@ static Vector<image::TileNumber> collect_dirty_tiles(Span<bke::pbvh::Node *> nod
   return dirty_tiles;
 }
 static void fix_non_manifold_seam_bleeding(bke::pbvh::Tree &pbvh,
-                                           TexturePaintingUserData &user_data,
+                                           Image &image,
+                                           ImageUser &image_user,
                                            Span<TileNumber> tile_numbers_to_fix)
 {
   for (image::TileNumber tile_number : tile_numbers_to_fix) {
-    bke::pbvh::pixels::copy_pixels(
-        pbvh, *user_data.image_data.image, *user_data.image_data.image_user, tile_number);
+    bke::pbvh::pixels::copy_pixels(pbvh, image, image_user, tile_number);
   }
 }
 
-static void fix_non_manifold_seam_bleeding(Object &ob, TexturePaintingUserData &user_data)
+static void fix_non_manifold_seam_bleeding(Object &ob,
+                                           Image &image,
+                                           ImageUser &image_user,
+                                           const Span<bke::pbvh::Node *> nodes)
 {
-  Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(user_data.nodes);
-  fix_non_manifold_seam_bleeding(*ob.sculpt->pbvh, user_data, dirty_tiles);
+  Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(nodes);
+  fix_non_manifold_seam_bleeding(*ob.sculpt->pbvh, image, image_user, dirty_tiles);
 }
 
 /** \} */
@@ -564,34 +497,29 @@ bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob)
 void SCULPT_do_paint_brush_image(PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
-                                 const blender::Span<blender::bke::pbvh::Node *> texnodes)
+                                 const blender::Span<blender::bke::pbvh::Node *> nodes)
 {
   using namespace blender;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  TexturePaintingUserData data = {nullptr};
-  data.ob = &ob;
-  data.brush = brush;
-  data.nodes = texnodes;
-
-  if (!ImageData::init_active_image(ob, &data.image_data, paint_mode_settings)) {
+  ImageData image_data;
+  if (!ImageData::init_active_image(ob, &image_data, paint_mode_settings)) {
     return;
   }
 
-  threading::parallel_for(texnodes.index_range(), 1, [&](const IndexRange range) {
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      do_push_undo_tile(&data, i);
+      do_push_undo_tile(*image_data.image, *image_data.image_user, *nodes[i]);
     }
   });
-  threading::parallel_for(texnodes.index_range(), 1, [&](const IndexRange range) {
+  threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      do_paint_pixels(&data, i);
+      do_paint_pixels(ob, *brush, image_data, *nodes[i]);
     }
   });
-  fix_non_manifold_seam_bleeding(ob, data);
+  fix_non_manifold_seam_bleeding(ob, *image_data.image, *image_data.image_user, nodes);
 
-  for (bke::pbvh::Node *node : texnodes) {
-    bke::pbvh::pixels::mark_image_dirty(
-        *node, *data.image_data.image, *data.image_data.image_user);
+  for (bke::pbvh::Node *node : nodes) {
+    bke::pbvh::pixels::mark_image_dirty(*node, *image_data.image, *image_data.image_user);
   }
 }
