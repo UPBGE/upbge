@@ -26,10 +26,11 @@
 
 #include "BL_ActionManager.h"
 
-#include "BL_Action.h"
+#include "BKE_lib_id.hh"
 #include "DNA_ID.h"
 
-#define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
+#include "BL_Action.h"
+
 
 BL_ActionManager::BL_ActionManager(class KX_GameObject *obj) : m_obj(obj), m_suspended(false)
 {

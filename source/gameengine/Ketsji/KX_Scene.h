@@ -96,9 +96,6 @@ typedef struct BackupObj {
   void *obtfm;
 } BackupObj;
 
-/* for ID freeing */
-#define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
-
 /**
  * The KX_Scene holds all data for an independent scene. It relates
  * KX_Objects to the specific objects in the modules.

@@ -103,7 +103,7 @@ void BL_Converter::SceneSlot::Merge(const BL_SceneConverter *converter)
 BL_Converter::BL_Converter(Main *maggie, KX_KetsjiEngine *engine)
     : m_maggie(maggie), m_ketsjiEngine(engine), m_alwaysUseExpandFraming(false)
 {
-  BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  // avoid re-tagging later on
+  BKE_main_id_tag_all(maggie, ID_TAG_DOIT, false);  // avoid re-tagging later on
   m_threadinfo.m_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 }
 
@@ -588,11 +588,11 @@ bool BL_Converter::FreeBlendFile(Main *maggie)
   for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); it != m_DynamicMaggie.end();) {
     Main *main = *it;
     if (main == maggie) {
-      BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, true);
+      BKE_main_id_tag_all(maggie, ID_TAG_DOIT, true);
       it = m_DynamicMaggie.erase(it);
     }
     if (main != maggie) {
-      BKE_main_id_tag_all(main, LIB_TAG_DOIT, false);
+      BKE_main_id_tag_all(main, ID_TAG_DOIT, false);
       ++it;
     }
   }
@@ -824,7 +824,7 @@ RAS_MeshObject *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene,
     // ensure all materials are tagged
     for (int i = 0; i < mesh->totcol; i++) {
       if (mesh->mat[i]) {
-        mesh->mat[i]->id.tag &= ~LIB_TAG_DOIT;
+        mesh->mat[i]->id.tag &= ~ID_TAG_DOIT;
       }
     }
 
@@ -832,10 +832,10 @@ RAS_MeshObject *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene,
       Material *mat_old = mesh->mat[i];
 
       // if its tagged its a replaced material
-      if (mat_old && (mat_old->id.tag & LIB_TAG_DOIT) == 0) {
+      if (mat_old && (mat_old->id.tag & ID_TAG_DOIT) == 0) {
         Material *mat_new = (Material *)BKE_id_copy(from_maggie, &mat_old->id);
 
-        mat_new->id.tag |= LIB_TAG_DOIT;
+        mat_new->id.tag |= ID_TAG_DOIT;
         id_us_min(&mat_old->id);
 
         BLI_remlink(
