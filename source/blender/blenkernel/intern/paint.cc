@@ -1665,8 +1665,7 @@ static void sculptsession_free_pbvh(Object *object)
   ss->preview_verts = {};
 
   ss->vertex_info.boundary.clear_and_shrink();
-
-  MEM_SAFE_FREE(ss->fake_neighbors.fake_neighbor_index);
+  ss->fake_neighbors.fake_neighbor_index = {};
 }
 
 void BKE_sculptsession_bm_to_me_for_render(Object *object)
@@ -1754,7 +1753,7 @@ ActiveVert SculptSession::active_vert() const
    * we stored the actual field as ActiveVertex, this call can replace #active_vertex. */
   switch (this->pbvh->type()) {
     case blender::bke::pbvh::Type::Mesh:
-      return (int)active_vert_.i;
+      return int(active_vert_.i);
     case blender::bke::pbvh::Type::Grids: {
       const CCGKey key = BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg);
       return SubdivCCGCoord::from_index(key, active_vert_.i);

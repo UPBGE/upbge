@@ -1137,8 +1137,36 @@ static void rna_Action_show_errors_update(bContext *C, PointerRNA * /*ptr*/)
   blender::animrig::reevaluate_fcurve_errors(&ac);
 }
 
-static std::optional<std::string> rna_DopeSheet_path(const PointerRNA * /*ptr*/)
+static std::optional<std::string> rna_DopeSheet_path(const PointerRNA *ptr)
 {
+  if (GS(ptr->owner_id->name) == ID_SCR) {
+    const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+    const bDopeSheet *ads = static_cast<bDopeSheet *>(ptr->data);
+    int area_index;
+    int space_index;
+    LISTBASE_FOREACH_INDEX (ScrArea *, area, &screen->areabase, area_index) {
+      LISTBASE_FOREACH_INDEX (SpaceLink *, sl, &area->spacedata, space_index) {
+        if (sl->spacetype == SPACE_GRAPH) {
+          SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
+          if (sipo->ads == ads) {
+            return fmt::format("areas[{}].spaces[{}].dopesheet", area_index, space_index);
+          }
+        }
+        else if (sl->spacetype == SPACE_NLA) {
+          SpaceNla *snla = reinterpret_cast<SpaceNla *>(sl);
+          if (snla->ads == ads) {
+            return fmt::format("areas[{}].spaces[{}].dopesheet", area_index, space_index);
+          }
+        }
+        else if (sl->spacetype == SPACE_ACTION) {
+          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
+          if (&saction->ads == ads) {
+            return fmt::format("areas[{}].spaces[{}].dopesheet", area_index, space_index);
+          }
+        }
+      }
+    }
+  }
   return "dopesheet";
 }
 
@@ -1880,12 +1908,12 @@ static void rna_def_channelbag_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
       srna, "F-Curves", "Collection of F-Curves for a specific action slot, on a specific strip");
 
   /* ChannelBag.fcurves.new(...) */
-  extern struct FCurve *ActionChannelBagFCurves_new_func(struct ID * _selfid,
-                                                         struct ActionChannelBag * _self,
-                                                         Main * bmain,
-                                                         ReportList * reports,
-                                                         const char *data_path,
-                                                         int index);
+  extern FCurve *ActionChannelBagFCurves_new_func(ID * _selfid,
+                                                  ActionChannelBag * _self,
+                                                  Main * bmain,
+                                                  ReportList * reports,
+                                                  const char *data_path,
+                                                  int index);
 
   func = RNA_def_function(srna, "new", "rna_ChannelBag_fcurve_new");
   RNA_def_function_ui_description(func, "Add an F-Curve to the channelbag");

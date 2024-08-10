@@ -67,6 +67,14 @@ void Instance::init()
   resources.globals_buf = G_draw.block_ubo;
   resources.theme_settings = G_draw.block;
   resources.weight_ramp_tx.wrap(G_draw.weight_ramp);
+  {
+    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
+    if (resources.dummy_depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, int2(1, 1), usage)) {
+      uint32_t data = 0;
+      GPU_texture_update_sub(
+          resources.dummy_depth_tx, GPU_DATA_UINT_24_8, &data, 0, 0, 0, 1, 1, 1);
+    }
+  }
 }
 
 void Instance::begin_sync()
@@ -82,11 +90,14 @@ void Instance::begin_sync()
     layer.bounds.begin_sync();
     layer.cameras.begin_sync();
     layer.empties.begin_sync();
+    layer.force_fields.begin_sync();
     layer.lattices.begin_sync(resources, state);
     layer.lights.begin_sync();
     layer.light_probes.begin_sync(resources, state);
     layer.metaballs.begin_sync();
+    layer.meshes.begin_sync(resources, state, view);
     layer.prepass.begin_sync(resources, state);
+    layer.relations.begin_sync();
     layer.speakers.begin_sync();
   };
   begin_sync_layer(regular);
@@ -119,6 +130,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   if (in_edit_mode && !state.hide_overlays) {
     switch (ob_ref.object->type) {
       case OB_MESH:
+        layer.meshes.edit_object_sync(manager, ob_ref, resources);
         break;
       case OB_ARMATURE:
         break;
@@ -171,7 +183,11 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         layer.speakers.object_sync(ob_ref, resources, state);
         break;
     }
+    if (ob_ref.object->pd && ob_ref.object->pd->forcefield) {
+      layer.force_fields.object_sync(ob_ref, resources, state);
+    }
     layer.bounds.object_sync(ob_ref, resources, state);
+    layer.relations.object_sync(ob_ref, resources, state);
   }
 }
 
@@ -183,9 +199,11 @@ void Instance::end_sync()
     layer.bounds.end_sync(resources, shapes, state);
     layer.cameras.end_sync(resources, shapes, state);
     layer.empties.end_sync(resources, shapes, state);
+    layer.force_fields.end_sync(resources, shapes, state);
     layer.lights.end_sync(resources, shapes, state);
     layer.light_probes.end_sync(resources, shapes, state);
     layer.metaballs.end_sync(resources, shapes, state);
+    layer.relations.end_sync(resources, state);
     layer.speakers.end_sync(resources, shapes, state);
   };
   end_sync_layer(regular);
@@ -276,14 +294,24 @@ void Instance::draw(Manager &manager)
     layer.bounds.draw(framebuffer, manager, view);
     layer.cameras.draw(framebuffer, manager, view);
     layer.empties.draw(framebuffer, manager, view);
+    layer.force_fields.draw(framebuffer, manager, view);
     layer.lights.draw(framebuffer, manager, view);
     layer.light_probes.draw(framebuffer, manager, view);
     layer.speakers.draw(framebuffer, manager, view);
     layer.lattices.draw(framebuffer, manager, view);
     layer.metaballs.draw(framebuffer, manager, view);
+    layer.relations.draw(framebuffer, manager, view);
+    layer.meshes.draw(framebuffer, manager, view);
   };
 
   draw_layer(regular, resources.overlay_line_fb);
+
+  auto draw_layer_color_only = [&](OverlayLayer &layer, Framebuffer &framebuffer) {
+    layer.light_probes.draw_color_only(framebuffer, manager, view);
+    layer.meshes.draw_color_only(framebuffer, manager, view);
+  };
+
+  draw_layer_color_only(regular, resources.overlay_color_only_fb);
 
   grid.draw(resources, manager, view);
 
