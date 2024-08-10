@@ -77,7 +77,7 @@ class Label(Widget):
 
   @text.setter
   def text(self, value):
-    blf.size(self.fontid, self.pt_size, 72)
+    blf.size(self.fontid, self.pt_size)
     size = [blf.dimensions(self.fontid, value)[0], blf.dimensions(self.fontid, 'Mj')[0]]
 
     if not (self.options & BGUI_NO_NORMALIZE):
@@ -109,7 +109,7 @@ class Label(Widget):
   def _draw(self):
     """Display the text"""
 
-    blf.size(self.fontid, self.pt_size, 72)
+    blf.size(self.fontid, self.pt_size)
 
     blf.color(self.fontid, *self.color)
     self._draw_text(*self.position)
