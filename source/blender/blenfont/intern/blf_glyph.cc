@@ -25,6 +25,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
@@ -351,13 +352,18 @@ static GlyphBLF *blf_glyph_cache_add_blank(GlyphCacheBLF *gc, uint charcode)
   return result;
 }
 
-static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc, uint charcode, bool color)
+static GlyphBLF *blf_glyph_cache_add_svg(
+    GlyphCacheBLF *gc,
+    uint charcode,
+    bool color,
+    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr)
 {
-  const char *svg_source = blf_get_icon_svg(int(charcode) - BLF_ICON_OFFSET);
-  /* NanoSVG alters the source file while parsing. */
-  char *writeable = BLI_strdup(svg_source);
-  NSVGimage *image = nsvgParse(writeable, "px", 96.0f);
-  MEM_freeN(writeable);
+  std::string svg_source = blf_get_icon_svg(int(charcode) - BLF_ICON_OFFSET);
+  if (edit_source_cb) {
+    edit_source_cb(svg_source);
+  }
+
+  NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
 
   if (image == nullptr) {
     return blf_glyph_cache_add_blank(gc, charcode);
@@ -425,8 +431,8 @@ static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc, uint charcode, bool 
       for (int64_t x = 0; x < int64_t(g->dims[0]); x++) {
         int64_t offs_in = (y * int64_t(dest_w) * 4) + (x * 4);
         int64_t offs_out = (y * int64_t(g->dims[0]) + x);
-        /* Just using the alpha since this is monochrome. */
-        g->bitmap[offs_out] = render_bmp[int64_t(offs_in + 3)];
+        g->bitmap[offs_out] = uchar(float(rgb_to_grayscale_byte(&render_bmp[int64_t(offs_in)])) *
+                                    (float(render_bmp[int64_t(offs_in + 3)]) / 255.0f));
       }
     }
   }
@@ -1392,13 +1398,16 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
 }
 
 #ifndef WITH_HEADLESS
-GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc, const uint icon_id, bool color)
+GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
+                                const uint icon_id,
+                                bool color,
+                                blender::FunctionRef<void(std::string &)> edit_source_cb)
 {
   GlyphBLF *g = blf_glyph_cache_find_glyph(gc, icon_id + BLF_ICON_OFFSET, 0);
   if (g) {
     return g;
   }
-  return blf_glyph_cache_add_svg(gc, icon_id + BLF_ICON_OFFSET, color);
+  return blf_glyph_cache_add_svg(gc, icon_id + BLF_ICON_OFFSET, color, edit_source_cb);
 }
 #endif /* WITH_HEADLESS */
 

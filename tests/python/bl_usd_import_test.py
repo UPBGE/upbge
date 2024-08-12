@@ -609,14 +609,27 @@ class USDImportTest(AbstractUSDTest):
     def test_import_light_types(self):
         """Test importing light types and attributes."""
 
+        def rename_active(new_name):
+            active_ob = bpy.context.view_layer.objects.active
+            active_ob.name = new_name
+            active_ob.data.name = new_name
+
         # Use the current scene to first create and export the lights
         bpy.ops.object.light_add(type='POINT', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
         bpy.context.active_object.data.energy = 2
         bpy.context.active_object.data.shadow_soft_size = 2.2
 
         bpy.ops.object.light_add(type='SPOT', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        rename_active("Spot")
         bpy.context.active_object.data.energy = 3
         bpy.context.active_object.data.shadow_soft_size = 3.3
+        bpy.context.active_object.data.spot_blend = 0.25
+        bpy.context.active_object.data.spot_size = math.radians(60)
+
+        bpy.ops.object.light_add(type='SPOT', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        rename_active("Spot_point")
+        bpy.context.active_object.data.energy = 3.5
+        bpy.context.active_object.data.shadow_soft_size = 0
         bpy.context.active_object.data.spot_blend = 0.25
         bpy.context.active_object.data.spot_size = math.radians(60)
 
@@ -625,15 +638,30 @@ class USDImportTest(AbstractUSDTest):
         bpy.context.active_object.data.angle = math.radians(1)
 
         bpy.ops.object.light_add(type='AREA', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        rename_active("Area_rect")
         bpy.context.active_object.data.energy = 5
         bpy.context.active_object.data.shape = 'RECTANGLE'
         bpy.context.active_object.data.size = 0.5
         bpy.context.active_object.data.size_y = 1.5
 
         bpy.ops.object.light_add(type='AREA', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        rename_active("Area_square")
+        bpy.context.active_object.data.energy = 5.5
+        bpy.context.active_object.data.shape = 'SQUARE'
+        bpy.context.active_object.data.size = 0.7
+
+        bpy.ops.object.light_add(type='AREA', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        rename_active("Area_disk")
         bpy.context.active_object.data.energy = 6
         bpy.context.active_object.data.shape = 'DISK'
         bpy.context.active_object.data.size = 2
+
+        bpy.ops.object.light_add(type='AREA', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        rename_active("Area_ellipse")
+        bpy.context.active_object.data.energy = 6.5
+        bpy.context.active_object.data.shape = 'ELLIPSE'
+        bpy.context.active_object.data.size = 3
+        bpy.context.active_object.data.size_y = 5
 
         test_path = self.tempdir / "temp_lights.usda"
         res = bpy.ops.wm.usd_export(filepath=str(test_path), evaluation_mode="RENDER")
@@ -646,7 +674,7 @@ class USDImportTest(AbstractUSDTest):
         self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
 
         lights = [o for o in bpy.data.objects if o.type == 'LIGHT']
-        self.assertEqual(5, len(lights), f"Test scene {infile} should have 5 lights; found {len(lights)}")
+        self.assertEqual(8, len(lights), f"Test scene {infile} should have 8 lights; found {len(lights)}")
 
         blender_light = bpy.data.lights["Point"]
         self.assertAlmostEqual(blender_light.energy, 2, 3)
@@ -658,20 +686,36 @@ class USDImportTest(AbstractUSDTest):
         self.assertAlmostEqual(blender_light.spot_blend, 0.25, 3)
         self.assertAlmostEqual(blender_light.spot_size, math.radians(60), 3)
 
+        blender_light = bpy.data.lights["Spot_point"]
+        self.assertAlmostEqual(blender_light.energy, 3.5, 3)
+        self.assertAlmostEqual(blender_light.shadow_soft_size, 0, 3)
+        self.assertAlmostEqual(blender_light.spot_blend, 0.25, 3)
+        self.assertAlmostEqual(blender_light.spot_size, math.radians(60), 3)
+
         blender_light = bpy.data.lights["Sun"]
         self.assertAlmostEqual(blender_light.energy, 4, 3)
         self.assertAlmostEqual(blender_light.angle, math.radians(1), 3)
 
-        blender_light = bpy.data.lights["Area"]
+        blender_light = bpy.data.lights["Area_rect"]
         self.assertAlmostEqual(blender_light.energy, 5, 3)
         self.assertEqual(blender_light.shape, 'RECTANGLE')
         self.assertAlmostEqual(blender_light.size, 0.5, 3)
         self.assertAlmostEqual(blender_light.size_y, 1.5, 3)
 
-        blender_light = bpy.data.lights["Area_001"]
+        blender_light = bpy.data.lights["Area_square"]
+        self.assertAlmostEqual(blender_light.energy, 5.5, 3)
+        self.assertEqual(blender_light.shape, 'RECTANGLE')  # We read as rectangle to mirror what USD supports
+        self.assertAlmostEqual(blender_light.size, 0.7, 3)
+
+        blender_light = bpy.data.lights["Area_disk"]
         self.assertAlmostEqual(blender_light.energy, 6, 3)
         self.assertEqual(blender_light.shape, 'DISK')
         self.assertAlmostEqual(blender_light.size, 2, 3)
+
+        blender_light = bpy.data.lights["Area_ellipse"]
+        self.assertAlmostEqual(blender_light.energy, 6.5, 3)
+        self.assertEqual(blender_light.shape, 'DISK')  # We read as disk to mirror what USD supports
+        self.assertAlmostEqual(blender_light.size, 4, 3)
 
     def check_attribute(self, blender_data, attribute_name, domain, data_type, elements_len):
         attr = blender_data.attributes[attribute_name]
@@ -683,11 +727,11 @@ class USDImportTest(AbstractUSDTest):
         self.assertFalse(attribute_name in blender_data.attributes)
 
     def test_import_attributes(self):
-        testfile = str(self.tempdir / "usd_attribute_test.usda")
-
         # Use the existing attributes file to create the USD test file
         # for import. It is validated as part of the bl_usd_export test.
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_attribute_test.blend"))
+
+        testfile = str(self.tempdir / "usd_attribute_test.usda")
         res = bpy.ops.wm.usd_export(filepath=testfile, evaluation_mode="RENDER")
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
 
@@ -787,6 +831,71 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(curves, "sp_vec3", 'CURVE', 'FLOAT_VECTOR', 3)
         self.check_attribute(curves, "sp_quat", 'CURVE', 'QUATERNION', 3)
         self.check_attribute_missing(curves, "sp_mat4x4")
+
+    def test_import_attributes_varying(self):
+        # Use the existing attributes file to create the USD test file
+        # for import. It is validated as part of the bl_usd_export test.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_attribute_varying_test.blend"))
+        for frame in range(1, 16):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        testfile = str(self.tempdir / "usd_attribute_varying_test.usda")
+        res = bpy.ops.wm.usd_export(filepath=testfile, export_animation=True, evaluation_mode="RENDER")
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
+
+        # Reload the empty file and import back in
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        stage = Usd.Stage.Open(testfile)
+
+        #
+        # Validate Mesh data
+        #
+        blender_mesh = [bpy.data.objects["mesh1"], bpy.data.objects["mesh2"], bpy.data.objects["mesh3"]]
+        usd_mesh = [UsdGeom.Mesh(stage.GetPrimAtPath("/root/mesh1/mesh1")),
+                    UsdGeom.Mesh(stage.GetPrimAtPath("/root/mesh2/mesh2")),
+                    UsdGeom.Mesh(stage.GetPrimAtPath("/root/mesh3/mesh3"))]
+        mesh_num = len(blender_mesh)
+
+        # A MeshSequenceCache modifier should be present on every imported object
+        for i in range(0, mesh_num):
+            self.assertTrue(len(blender_mesh[i].modifiers) == 1 and blender_mesh[i].modifiers[0].type ==
+                            'MESH_SEQUENCE_CACHE', f"{blender_mesh[i].name} has incorrect modifiers")
+
+        def round_vector(vector):
+            return (round(vector[0], 5), round(vector[1], 5), round(vector[2], 5))
+
+        # Compare Blender and USD data against each other for every frame
+        for frame in range(1, 16):
+            bpy.context.scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            for i in range(0, mesh_num):
+                blender_mesh[i] = bpy.data.objects["mesh" + str(i + 1)].evaluated_get(depsgraph)
+
+            # Check positions, velocity, and test data
+            for i in range(0, mesh_num):
+                blender_pos_data = [round_vector(d.vector) for d in blender_mesh[i].data.attributes["position"].data]
+                blender_vel_data = [round_vector(d.vector) for d in blender_mesh[i].data.attributes["velocity"].data]
+                blender_test_data = [round(d.value, 5) for d in blender_mesh[i].data.attributes["test"].data]
+                usd_pos_data = [round_vector(d) for d in usd_mesh[i].GetPointsAttr().Get(frame)]
+                usd_vel_data = [round_vector(d) for d in usd_mesh[i].GetVelocitiesAttr().Get(frame)]
+                usd_test_data = [round(d, 5) for d in UsdGeom.PrimvarsAPI(usd_mesh[i]).GetPrimvar("test").Get(frame)]
+
+                self.assertEqual(
+                    blender_pos_data,
+                    usd_pos_data,
+                    f"Frame {frame}: {blender_mesh[i].name} positions do not match")
+                self.assertEqual(
+                    blender_vel_data,
+                    usd_vel_data,
+                    f"Frame {frame}: {blender_mesh[i].name} velocities do not match")
+                self.assertEqual(
+                    blender_test_data,
+                    usd_test_data,
+                    f"Frame {frame}: {blender_mesh[i].name} test attributes do not match")
 
 
 def main():

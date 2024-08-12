@@ -132,16 +132,6 @@ bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
 
 }  // namespace blender::ed::sculpt_paint
 
-/* -------------------------------------------------------------------- */
-/** \name Sculpt bke::pbvh::Tree Abstraction API
- *
- * This is read-only, for writing use #bke::pbvh::Tree vertex iterators.
- * There `vd.index` matches the indices used here.
- *
- * For multi-resolution, the same vertex in multiple grids is counted multiple times, with
- * different index for each grid.
- * \{ */
-
 void SCULPT_vertex_random_access_ensure(SculptSession &ss)
 {
   if (ss.pbvh->type() == blender::bke::pbvh::Type::BMesh) {
@@ -1503,9 +1493,9 @@ void restore_position_from_undo_step(Object &object)
               }
             }
 
-            if (BKE_keyblock_from_object(&object)) {
-              /* Update dependent shape keys back to their original */
-              apply_translations_to_shape_keys(object, verts, tls.translations, positions_orig);
+            if (const KeyBlock *active_key = BKE_keyblock_from_object(&object)) {
+              update_shape_keys(
+                  object, mesh, *active_key, verts, tls.translations, positions_orig);
             }
 
             BKE_pbvh_node_mark_positions_update(node);
@@ -4485,10 +4475,10 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings &ups,
     if (tool == SCULPT_TOOL_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX) {
       if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
         const Span<float3> positions = vert_positions_for_grab_active_get(ob);
-        cache->orig_grab_location = positions[ss.active_vert_ref().i];
+        cache->orig_grab_location = positions[std::get<int>(ss.active_vert())];
       }
       else {
-        cache->orig_grab_location = SCULPT_vertex_co_get(ss, ss.active_vert_ref());
+        cache->orig_grab_location = ss.active_vert_position(ob);
       }
     }
     else {
@@ -7256,19 +7246,15 @@ void clip_and_lock_translations(const Sculpt &sd,
   }
 }
 
-void apply_translations_to_shape_keys(Object &object,
-                                      const Span<int> verts,
-                                      const Span<float3> translations,
-                                      const MutableSpan<float3> positions_orig)
+void update_shape_keys(Object &object,
+                       const Mesh &mesh,
+                       const KeyBlock &active_key,
+                       const Span<int> verts,
+                       const Span<float3> translations,
+                       const Span<float3> positions_orig)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
-  KeyBlock *active_key = BKE_keyblock_from_object(&object);
-  if (!active_key) {
-    return;
-  }
-
-  MutableSpan active_key_data(static_cast<float3 *>(active_key->data), active_key->totelem);
-  if (active_key == mesh.key->refkey) {
+  const MutableSpan active_key_data(static_cast<float3 *>(active_key.data), active_key.totelem);
+  if (&active_key == mesh.key->refkey) {
     for (const int vert : verts) {
       active_key_data[vert] = positions_orig[vert];
     }
@@ -7277,11 +7263,10 @@ void apply_translations_to_shape_keys(Object &object,
     apply_translations(translations, verts, active_key_data);
   }
 
-  /* For relative keys editing of base should update other keys. */
   if (bool *dependent = BKE_keyblock_get_dependent_keys(mesh.key, object.shapenr - 1)) {
     int i;
     LISTBASE_FOREACH_INDEX (KeyBlock *, other_key, &mesh.key->block, i) {
-      if ((other_key != active_key) && dependent[i]) {
+      if ((other_key != &active_key) && dependent[i]) {
         MutableSpan<float3> data(static_cast<float3 *>(other_key->data), other_key->totelem);
         apply_translations(translations, verts, data);
       }
@@ -7323,12 +7308,17 @@ void write_translations(const Sculpt &sd,
 
   const Mesh &mesh = *static_cast<Mesh *>(object.data);
   const KeyBlock *active_key = BKE_keyblock_from_object(&object);
-  const bool relative_shapekey_active = active_key != nullptr && active_key != mesh.key->refkey;
-  if (!relative_shapekey_active) {
+  if (!active_key) {
+    apply_translations(translations, verts, positions_orig);
+    return;
+  }
+
+  const bool basis_shapekey_active = active_key == mesh.key->refkey;
+  if (basis_shapekey_active) {
     apply_translations(translations, verts, positions_orig);
   }
 
-  apply_translations_to_shape_keys(object, verts, translations, positions_orig);
+  update_shape_keys(object, mesh, *active_key, verts, translations, positions_orig);
 }
 
 void scale_translations(const MutableSpan<float3> translations, const Span<float> factors)

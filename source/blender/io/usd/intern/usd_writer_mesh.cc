@@ -166,7 +166,7 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
          * Skip edge domain because USD doesn't have a good conversion for them. */
         if (attribute_id.name()[0] == '.' || attribute_id.is_anonymous() ||
             meta_data.domain == bke::AttrDomain::Edge ||
-            ELEM(attribute_id.name(), "position", "material_index", "velocity"))
+            ELEM(attribute_id.name(), "position", "material_index", "velocity", "crease_vert"))
         {
           return true;
         }
@@ -459,7 +459,7 @@ void USDGenericMeshWriter::write_mesh(HierarchyContext &context,
     usd_value_writer_.SetAttribute(
         attr_corner_indices, pxr::VtValue(usd_mesh_data.corner_indices), timecode);
     usd_value_writer_.SetAttribute(
-        attr_corner_sharpnesses, pxr::VtValue(usd_mesh_data.crease_sharpnesses), timecode);
+        attr_corner_sharpnesses, pxr::VtValue(usd_mesh_data.corner_sharpnesses), timecode);
   }
 
   write_custom_data(context.object, mesh, usd_mesh);
@@ -638,9 +638,10 @@ static void get_vert_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
   }
   const VArraySpan creases(*attribute);
   for (const int i : creases.index_range()) {
-    const float sharpness = creases[i];
+    const float crease = creases[i];
 
-    if (sharpness != 0.0f) {
+    if (crease > 0.0f) {
+      const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : crease;
       usd_mesh_data.corner_indices.push_back(i);
       usd_mesh_data.corner_sharpnesses.push_back(sharpness);
     }
@@ -769,26 +770,24 @@ void USDGenericMeshWriter::write_surface_velocity(const Mesh *mesh,
 {
   /* Export velocity attribute output by fluid sim, sequence cache modifier
    * and geometry nodes. */
-  AttributeOwner owner = AttributeOwner::from_id(const_cast<ID *>(&mesh->id));
-  CustomDataLayer *velocity_layer = BKE_attribute_find(
-      owner, "velocity", CD_PROP_FLOAT3, bke::AttrDomain::Point);
-
-  if (velocity_layer == nullptr) {
+  const VArraySpan velocity = *mesh->attributes().lookup<float3>("velocity",
+                                                                 blender::bke::AttrDomain::Point);
+  if (velocity.is_empty()) {
     return;
   }
 
-  const float(*velocities)[3] = reinterpret_cast<float(*)[3]>(velocity_layer->data);
-
   /* Export per-vertex velocity vectors. */
+  Span<pxr::GfVec3f> data = velocity.cast<pxr::GfVec3f>();
   pxr::VtVec3fArray usd_velocities;
-  usd_velocities.reserve(mesh->verts_num);
-
-  for (int vertex_idx = 0, totvert = mesh->verts_num; vertex_idx < totvert; ++vertex_idx) {
-    usd_velocities.push_back(pxr::GfVec3f(velocities[vertex_idx]));
-  }
+  usd_velocities.assign(data.begin(), data.end());
 
   pxr::UsdTimeCode timecode = get_export_time_code();
-  usd_mesh.CreateVelocitiesAttr().Set(usd_velocities, timecode);
+  pxr::UsdAttribute attr_vel = usd_mesh.CreateVelocitiesAttr(pxr::VtValue(), true);
+  if (!attr_vel.HasValue()) {
+    attr_vel.Set(usd_velocities, pxr::UsdTimeCode::Default());
+  }
+
+  usd_value_writer_.SetAttribute(attr_vel, usd_velocities, timecode);
 }
 
 USDMeshWriter::USDMeshWriter(const USDExporterContext &ctx)

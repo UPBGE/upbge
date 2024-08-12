@@ -532,7 +532,8 @@ void blf_draw_svg_icon(FontBLF *font,
                        float size,
                        float color[4],
                        float outline_alpha,
-                       bool multicolor)
+                       bool multicolor,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb)
 {
   blf_font_size(font, size);
   font->pos[0] = int(x);
@@ -557,7 +558,7 @@ void blf_draw_svg_icon(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   blf_batch_draw_begin(font);
 
-  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor);
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor, edit_source_cb);
   if (g) {
     blf_glyph_draw(font, gc, g, 0, 0);
   }
@@ -571,11 +572,11 @@ void blf_draw_svg_icon(FontBLF *font,
 }
 
 blender::Array<uchar> blf_svg_icon_bitmap(
-    FontBLF *font, uint icon_id, float size, int *r_width, int *r_height)
+    FontBLF *font, uint icon_id, float size, int *r_width, int *r_height, bool multicolor)
 {
   blf_font_size(font, size);
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, false);
+  GlyphBLF *g = blf_glyph_ensure_icon(gc, icon_id, multicolor);
 
   if (!g) {
     blf_glyph_cache_release(font);
@@ -586,7 +587,7 @@ blender::Array<uchar> blf_svg_icon_bitmap(
 
   *r_width = g->dims[0];
   *r_height = g->dims[1];
-  blender::Array<uchar> bitmap(g->dims[0] * g->dims[1] * 4, 255);
+  blender::Array<uchar> bitmap(g->dims[0] * g->dims[1] * 4);
 
   if (g->num_channels == 4) {
     memcpy(bitmap.data(), g->bitmap, size_t(bitmap.size()));
@@ -595,6 +596,9 @@ blender::Array<uchar> blf_svg_icon_bitmap(
     for (int64_t y = 0; y < int64_t(g->dims[1]); y++) {
       for (int64_t x = 0; x < int64_t(g->dims[0]); x++) {
         int64_t offs_in = (y * int64_t(g->pitch)) + x;
+        bitmap[int64_t(offs_in * 4)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 1)] = g->bitmap[offs_in];
+        bitmap[int64_t(offs_in * 4 + 2)] = g->bitmap[offs_in];
         bitmap[int64_t(offs_in * 4 + 3)] = g->bitmap[offs_in];
       }
     }
