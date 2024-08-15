@@ -1112,7 +1112,7 @@ base class --- :class:`~bge.types.SCA_IObject`
       :arg dupli: optional argument, duplicate the physics shape.
       :type dupli: boolean
       :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied).
-      :type dupli: boolean
+      :type evaluated: boolean
 
       :return: True if reinstance succeeded, False if it failed.
       :rtype: boolean
