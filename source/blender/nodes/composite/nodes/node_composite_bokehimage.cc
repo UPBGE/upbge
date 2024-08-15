@@ -66,7 +66,7 @@ class BokehImageOperation : public NodeOperation {
   {
     const Domain domain = compute_domain();
 
-    const BokehKernel &bokeh_kernel = context().cache_manager().bokeh_kernels.get(
+    const Result &bokeh_kernel = context().cache_manager().bokeh_kernels.get(
         context(),
         domain.size,
         node_storage(bnode()).flaps,
@@ -76,7 +76,7 @@ class BokehImageOperation : public NodeOperation {
         node_storage(bnode()).lensshift);
 
     Result &output = get_result("Image");
-    output.wrap_external(bokeh_kernel.texture());
+    output.wrap_external(bokeh_kernel);
   }
 
   Domain compute_domain() override

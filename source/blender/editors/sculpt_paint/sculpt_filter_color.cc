@@ -113,7 +113,7 @@ static void color_filter_task(Object &ob,
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
   fill_factor_from_hide_and_mask(mesh, verts, factors);
-  auto_mask::calc_vert_factors(ob, *ss.filter_cache->automasking, node, verts, factors);
+  auto_mask::calc_vert_factors(ob, ss.filter_cache->automasking.get(), node, verts, factors);
   scale_factors(factors, filter_strength);
 
   tls.new_colors.resize(verts.size());

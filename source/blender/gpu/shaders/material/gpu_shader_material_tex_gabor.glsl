@@ -60,13 +60,7 @@
  * normalization", to ensure a zero mean, which should help with normalization. */
 vec2 compute_2d_gabor_kernel(vec2 position, float frequency, float orientation)
 {
-  /* The kernel is windowed beyond the unit distance, so early exist with a zero for points that
-   * are further than a unit radius. */
   float distance_squared = length_squared(position);
-  if (distance_squared >= 1.0) {
-    return vec2(0.0);
-  }
-
   float hann_window = 0.5 + 0.5 * cos(M_PI * distance_squared);
   float gaussian_envelop = exp(-M_PI * distance_squared);
   float windowed_gaussian_envelope = gaussian_envelop * hann_window;
@@ -95,10 +89,18 @@ vec2 compute_2d_gabor_kernel(vec2 position, float frequency, float orientation)
  *
  * Secondly, we note that the second moment of the weights distribution is 0.5 since it is a
  * fair Bernoulli distribution. So the final standard deviation expression is square root the
- * integral multiplied by the impulse density multiplied by the second moment. */
-float compute_2d_gabor_standard_deviation(float frequency)
+ * integral multiplied by the impulse density multiplied by the second moment.
+ *
+ * Note however that the integral is almost constant for all frequencies larger than one, and
+ * converges to an upper limit as the frequency approaches infinity, so we replace the expression
+ * with the following limit:
+ *
+ *  \lim_{x \to \infty} \frac{1 - e^{-2 \pi f_0^2}}{4}
+ *
+ * To get an approximation of 0.25. */
+float compute_2d_gabor_standard_deviation()
 {
-  float integral_of_gabor_squared = (1.0 - exp(-2.0 * M_PI * square(frequency))) / 4.0;
+  float integral_of_gabor_squared = 0.25;
   float second_moment = 0.5;
   return sqrt(IMPULSES_COUNT * second_moment * integral_of_gabor_squared);
 }
@@ -122,13 +124,19 @@ vec2 compute_2d_gabor_noise_cell(
 
     /* For isotropic noise, add a random orientation amount, while for anisotropic noise, use the
      * base orientation. Linearly interpolate between the two cases using the isotropy factor. Note
-     * that the random orientation range is to pi as opposed to two pi, that's because the Gabor
+     * that the random orientation range spans pi as opposed to two pi, that's because the Gabor
      * kernel is symmetric around pi. */
-    float random_orientation = hash_vec3_to_float(seed_for_orientation) * M_PI;
+    float random_orientation = (hash_vec3_to_float(seed_for_orientation) - 0.5) * M_PI;
     float orientation = base_orientation + random_orientation * isotropy;
 
     vec2 kernel_center = hash_vec3_to_vec2(seed_for_kernel_center);
     vec2 position_in_kernel_space = position - kernel_center;
+
+    /* The kernel is windowed beyond the unit distance, so early exit with a zero for points that
+     * are further than a unit radius. */
+    if (length_squared(position_in_kernel_space) >= 1.0) {
+      continue;
+    }
 
     /* We either add or subtract the Gabor kernel based on a Bernoulli distribution of equal
      * probability. */
@@ -153,8 +161,10 @@ vec2 compute_2d_gabor_noise(vec2 coordinates,
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
       vec2 cell_offset = vec2(i, j);
+
       vec2 current_cell_position = cell_position + cell_offset;
       vec2 position_in_cell_space = local_position - cell_offset;
+
       sum += compute_2d_gabor_noise_cell(
           current_cell_position, position_in_cell_space, frequency, isotropy, base_orientation);
     }
@@ -169,13 +179,7 @@ vec2 compute_2d_gabor_noise(vec2 coordinates,
  * vector, so we just need to scale it by the frequency value. */
 vec2 compute_3d_gabor_kernel(vec3 position, float frequency, vec3 orientation)
 {
-  /* The kernel is windowed beyond the unit distance, so early exist with a zero for points that
-   * are further than a unit radius. */
   float distance_squared = length_squared(position);
-  if (distance_squared >= 1.0) {
-    return vec2(0.0);
-  }
-
   float hann_window = 0.5 + 0.5 * cos(M_PI * distance_squared);
   float gaussian_envelop = exp(-M_PI * distance_squared);
   float windowed_gaussian_envelope = gaussian_envelop * hann_window;
@@ -189,11 +193,10 @@ vec2 compute_3d_gabor_kernel(vec3 position, float frequency, vec3 orientation)
 
 /* Identical to compute_2d_gabor_standard_deviation except we do triple integration in 3D. The only
  * difference is the denominator in the integral expression, which is 2^{5 / 2} for the 3D case
- * instead of 4 for the 2D case.  */
-float compute_3d_gabor_standard_deviation(float frequency)
+ * instead of 4 for the 2D case. Similarly, the limit evaluates to 1 / (4 * sqrt(2)). */
+float compute_3d_gabor_standard_deviation()
 {
-  float integral_of_gabor_squared = (1.0 - exp(-2.0 * M_PI * square(frequency))) /
-                                    pow(2.0, 5.0 / 2.0);
+  float integral_of_gabor_squared = 1.0 / (4.0 * M_SQRT2);
   float second_moment = 0.5;
   return sqrt(IMPULSES_COUNT * second_moment * integral_of_gabor_squared);
 }
@@ -239,6 +242,12 @@ vec2 compute_3d_gabor_noise_cell(
 
     vec3 kernel_center = hash_vec4_to_vec3(seed_for_kernel_center);
     vec3 position_in_kernel_space = position - kernel_center;
+
+    /* The kernel is windowed beyond the unit distance, so early exit with a zero for points that
+     * are further than a unit radius. */
+    if (length_squared(position_in_kernel_space) >= 1.0) {
+      continue;
+    }
 
     /* We either add or subtract the Gabor kernel based on a Bernoulli distribution of equal
      * probability. */
@@ -293,12 +302,12 @@ void node_tex_gabor(vec3 coordinates,
   float standard_deviation = 1.0;
   if (type == SHD_GABOR_TYPE_2D) {
     phasor = compute_2d_gabor_noise(scaled_coordinates.xy, frequency, isotropy, orientation_2d);
-    standard_deviation = compute_2d_gabor_standard_deviation(frequency);
+    standard_deviation = compute_2d_gabor_standard_deviation();
   }
   else if (type == SHD_GABOR_TYPE_3D) {
     vec3 orientation = normalize(orientation_3d);
     phasor = compute_3d_gabor_noise(scaled_coordinates, frequency, isotropy, orientation);
-    standard_deviation = compute_3d_gabor_standard_deviation(frequency);
+    standard_deviation = compute_3d_gabor_standard_deviation();
   }
 
   /* Normalize the noise by dividing by six times the standard deviation, which was determined

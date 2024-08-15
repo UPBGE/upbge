@@ -57,13 +57,7 @@ CCL_NAMESPACE_BEGIN
  * normalization", to ensure a zero mean, which should help with normalization. */
 ccl_device float2 compute_2d_gabor_kernel(float2 position, float frequency, float orientation)
 {
-  /* The kernel is windowed beyond the unit distance, so early exist with a zero for points that
-   * are further than a unit radius. */
   float distance_squared = dot(position, position);
-  if (distance_squared >= 1.0f) {
-    return make_float2(0.0f, 0.0f);
-  }
-
   float hann_window = 0.5f + 0.5f * cosf(M_PI_F * distance_squared);
   float gaussian_envelop = expf(-M_PI_F * distance_squared);
   float windowed_gaussian_envelope = gaussian_envelop * hann_window;
@@ -92,10 +86,18 @@ ccl_device float2 compute_2d_gabor_kernel(float2 position, float frequency, floa
  *
  * Secondly, we note that the second moment of the weights distribution is 0.5 since it is a
  * fair Bernoulli distribution. So the final standard deviation expression is square root the
- * integral multiplied by the impulse density multiplied by the second moment. */
-ccl_device float compute_2d_gabor_standard_deviation(float frequency)
+ * integral multiplied by the impulse density multiplied by the second moment.
+ *
+ * Note however that the integral is almost constant for all frequencies larger than one, and
+ * converges to an upper limit as the frequency approaches infinity, so we replace the expression
+ * with the following limit:
+ *
+ *  \lim_{x \to \infty} \frac{1 - e^{-2 \pi f_0^2}}{4}
+ *
+ * To get an approximation of 0.25. */
+ccl_device float compute_2d_gabor_standard_deviation()
 {
-  float integral_of_gabor_squared = (1.0f - expf(-2.0f * M_PI_F * frequency * frequency)) / 4.0f;
+  float integral_of_gabor_squared = 0.25f;
   float second_moment = 0.5f;
   return sqrtf(IMPULSES_COUNT * second_moment * integral_of_gabor_squared);
 }
@@ -119,13 +121,19 @@ ccl_device float2 compute_2d_gabor_noise_cell(
 
     /* For isotropic noise, add a random orientation amount, while for anisotropic noise, use the
      * base orientation. Linearly interpolate between the two cases using the isotropy factor. Note
-     * that the random orientation range is to pi as opposed to two pi, that's because the Gabor
+     * that the random orientation range spans pi as opposed to two pi, that's because the Gabor
      * kernel is symmetric around pi. */
-    float random_orientation = hash_float3_to_float(seed_for_orientation) * M_PI_F;
+    float random_orientation = (hash_float3_to_float(seed_for_orientation) - 0.5f) * M_PI_F;
     float orientation = base_orientation + random_orientation * isotropy;
 
     float2 kernel_center = hash_float3_to_float2(seed_for_kernel_center);
     float2 position_in_kernel_space = position - kernel_center;
+
+    /* The kernel is windowed beyond the unit distance, so early exit with a zero for points that
+     * are further than a unit radius. */
+    if (dot(position_in_kernel_space, position_in_kernel_space) >= 1.0f) {
+      continue;
+    }
 
     /* We either add or subtract the Gabor kernel based on a Bernoulli distribution of equal
      * probability. */
@@ -166,13 +174,7 @@ ccl_device float2 compute_2d_gabor_noise(float2 coordinates,
  * vector, so we just need to scale it by the frequency value. */
 ccl_device float2 compute_3d_gabor_kernel(float3 position, float frequency, float3 orientation)
 {
-  /* The kernel is windowed beyond the unit distance, so early exist with a zero for points that
-   * are further than a unit radius. */
   float distance_squared = dot(position, position);
-  if (distance_squared >= 1.0f) {
-    return make_float2(0.0f, 0.0f);
-  }
-
   float hann_window = 0.5f + 0.5f * cosf(M_PI_F * distance_squared);
   float gaussian_envelop = expf(-M_PI_F * distance_squared);
   float windowed_gaussian_envelope = gaussian_envelop * hann_window;
@@ -186,11 +188,10 @@ ccl_device float2 compute_3d_gabor_kernel(float3 position, float frequency, floa
 
 /* Identical to compute_2d_gabor_standard_deviation except we do triple integration in 3D. The only
  * difference is the denominator in the integral expression, which is 2^{5 / 2} for the 3D case
- * instead of 4 for the 2D case.  */
-ccl_device float compute_3d_gabor_standard_deviation(float frequency)
+ * instead of 4 for the 2D case. Similarly, the limit evaluates to 1 / (4 * sqrt(2)). */
+ccl_device float compute_3d_gabor_standard_deviation()
 {
-  float integral_of_gabor_squared = (1.0f - expf(-2.0f * M_PI_F * frequency * frequency)) /
-                                    powf(2.0f, 5.0f / 2.0f);
+  float integral_of_gabor_squared = 1.0f / (4.0f * M_SQRT2_F);
   float second_moment = 0.5f;
   return sqrtf(IMPULSES_COUNT * second_moment * integral_of_gabor_squared);
 }
@@ -238,6 +239,12 @@ ccl_device float2 compute_3d_gabor_noise_cell(
 
     float3 kernel_center = hash_float4_to_float3(seed_for_kernel_center);
     float3 position_in_kernel_space = position - kernel_center;
+
+    /* The kernel is windowed beyond the unit distance, so early exit with a zero for points that
+     * are further than a unit radius. */
+    if (dot(position_in_kernel_space, position_in_kernel_space) >= 1.0f) {
+      continue;
+    }
 
     /* We either add or subtract the Gabor kernel based on a Bernoulli distribution of equal
      * probability. */
@@ -325,13 +332,13 @@ ccl_device_noinline int svm_node_tex_gabor(KernelGlobals kg,
                                       frequency,
                                       isotropy,
                                       orientation_2d);
-      standard_deviation = compute_2d_gabor_standard_deviation(frequency);
+      standard_deviation = compute_2d_gabor_standard_deviation();
       break;
     }
     case NODE_GABOR_TYPE_3D: {
       float3 orientation = normalize(orientation_3d);
       phasor = compute_3d_gabor_noise(scaled_coordinates, frequency, isotropy, orientation);
-      standard_deviation = compute_3d_gabor_standard_deviation(frequency);
+      standard_deviation = compute_3d_gabor_standard_deviation();
       break;
     }
   }

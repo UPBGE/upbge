@@ -766,14 +766,13 @@ static float mask_gesture_get_new_value(const float elem, FloodFillMode mode, fl
 
 static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureData &gesture_data)
 {
-  const bke::pbvh::Tree &pbvh = *gesture_data.ss->pbvh;
   const Span<bke::pbvh::Node *> nodes = gesture_data.nodes;
   const MaskOperation &op = *reinterpret_cast<const MaskOperation *>(gesture_data.operation);
   Object &object = *gesture_data.vc.obact;
   switch (gesture_data.ss->pbvh->type()) {
     case bke::pbvh::Type::Mesh: {
-      const Span<float3> positions = BKE_pbvh_get_vert_positions(pbvh);
-      const Span<float3> normals = BKE_pbvh_get_vert_normals(pbvh);
+      const Span<float3> positions = bke::pbvh::vert_positions_eval(object);
+      const Span<float3> normals = bke::pbvh::vert_normals_eval(object);
       update_mask_mesh(object, nodes, [&](MutableSpan<float> node_mask, const Span<int> verts) {
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
@@ -841,11 +840,12 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
 static void gesture_end(bContext &C, gesture::GestureData &gesture_data)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+  Object &object = *gesture_data.vc.obact;
   if (gesture_data.ss->pbvh->type() == bke::pbvh::Type::Grids) {
-    multires_mark_as_modified(depsgraph, gesture_data.vc.obact, MULTIRES_COORDS_MODIFIED);
+    multires_mark_as_modified(depsgraph, &object, MULTIRES_COORDS_MODIFIED);
   }
-  bke::pbvh::update_mask(*gesture_data.ss->pbvh);
-  undo::push_end(*gesture_data.vc.obact);
+  bke::pbvh::update_mask(object, *gesture_data.ss->pbvh);
+  undo::push_end(object);
 }
 
 static void init_operation(bContext &C, gesture::GestureData &gesture_data, wmOperator &op)

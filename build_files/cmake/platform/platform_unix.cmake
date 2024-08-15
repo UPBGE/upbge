@@ -812,6 +812,10 @@ if(WITH_GHOST_WAYLAND)
       endif()
     else()
       pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
+      # Check the variable is set, otherwise an empty command will attempt to be executed.
+      if(NOT WAYLAND_SCANNER)
+        message(FATAL_ERROR "\"wayland-scanner\" could not be found!")
+      endif()
     endif()
     mark_as_advanced(WAYLAND_SCANNER)
 
@@ -1146,10 +1150,10 @@ if(PLATFORM_BUNDLED_LIBRARIES)
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
   set(PLATFORM_ENV_BUILD
-    "LD_LIBRARY_PATH=\"${_library_paths}:$LD_LIBRARY_PATH\""
+    "LD_LIBRARY_PATH=\"${_library_paths}:\$LD_LIBRARY_PATH\""
   )
   set(PLATFORM_ENV_INSTALL
-    "LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/lib/;$LD_LIBRARY_PATH"
+    "LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/lib/;\$LD_LIBRARY_PATH"
   )
   unset(_library_paths)
 else()

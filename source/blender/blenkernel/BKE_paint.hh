@@ -384,21 +384,12 @@ struct SculptAttribute {
 /* Convenience pointers for standard sculpt attributes. */
 
 struct SculptAttributePointers {
-  /* Persistent base. */
-  SculptAttribute *persistent_co = nullptr;
-  SculptAttribute *persistent_no = nullptr;
-  SculptAttribute *persistent_disp = nullptr;
-
   /* Precomputed auto-mask factor indexed by vertex, owned by the auto-masking system and
    * initialized in #auto_mask::cache_init when needed. */
   SculptAttribute *automasking_factor = nullptr;
   SculptAttribute *automasking_occlusion = nullptr; /* CD_PROP_INT8. */
   SculptAttribute *automasking_stroke_id = nullptr;
   SculptAttribute *automasking_cavity = nullptr;
-
-  /* BMesh */
-  SculptAttribute *dyntopo_node_id_vertex = nullptr;
-  SculptAttribute *dyntopo_node_id_face = nullptr;
 };
 
 struct SculptTopologyIslandCache {
@@ -474,8 +465,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   /* Object is deformed with some modifiers. */
   bool deform_modifiers_active = false;
-  /* Coords of un-deformed mesh. */
-  blender::Array<blender::float3> orig_cos;
   /* Coords of deformed mesh but without stroke displacement. */
   blender::Array<blender::float3, 0> deform_cos;
   /* Crazy-space deformation matrices. */
@@ -586,6 +575,10 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   uchar last_automask_stroke_id = 0;
   std::unique_ptr<SculptTopologyIslandCache> topology_island_cache;
 
+ private:
+  PBVHVertRef active_vert_ = PBVHVertRef{PBVH_REF_NONE};
+
+ public:
   SculptSession();
   ~SculptSession();
 
@@ -615,9 +608,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::float3 active_vert_position(const Object &object) const;
 
   void set_active_vert(PBVHVertRef vert);
-
- private:
-  PBVHVertRef active_vert_ = PBVHVertRef{PBVH_REF_NONE};
 };
 
 void BKE_sculptsession_free(Object *ob);

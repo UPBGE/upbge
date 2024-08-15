@@ -88,7 +88,7 @@ Array<float> distances_create(Object &ob, const Set<int> &initial_verts, const f
 
   const float limit_radius_sq = limit_radius * limit_radius;
 
-  const Span<float3> vert_positions = BKE_pbvh_get_vert_positions(*ss.pbvh);
+  const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(ob);
   const Span<int2> edges = mesh->edges();
   const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
@@ -238,7 +238,7 @@ Array<float> distances_create_from_vert_and_symm(Object &ob,
         v = vertex;
       }
       else {
-        float3 location = symmetry_flip(SCULPT_vertex_co_get(ss, vertex), ePaintSymmetryFlags(i));
+        float3 location = symmetry_flip(SCULPT_vertex_co_get(ob, vertex), ePaintSymmetryFlags(i));
         v = nearest_vert_calc(ob, location, FLT_MAX, false);
       }
       if (v.i != PBVH_REF_NONE) {

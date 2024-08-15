@@ -96,9 +96,7 @@ static void apply_masks_faces(const Brush &brush,
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
-  if (ss.cache->automasking) {
-    auto_mask::calc_vert_factors(object, *ss.cache->automasking, node, verts, factors);
-  }
+  auto_mask::calc_vert_factors(object, ss.cache->automasking.get(), node, verts, factors);
 
   scale_factors(factors, strength);
 
@@ -126,10 +124,8 @@ static void do_smooth_brush_mesh(const Brush &brush,
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
 
-  const bke::pbvh::Tree &pbvh = *ss.pbvh;
-
-  const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
-  const Span<float3> vert_normals = BKE_pbvh_get_vert_normals(pbvh);
+  const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(object);
+  const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(object);
 
   Array<int> node_vert_offset_data;
   OffsetIndices node_vert_offsets = create_node_vert_offsets(nodes, node_vert_offset_data);
@@ -205,7 +201,7 @@ static void calc_grids(Object &object,
   calc_brush_strength_factors(cache, brush, distances, factors);
 
   if (ss.cache->automasking) {
-    auto_mask::calc_grids_factors(object, *cache.automasking, node, grids, factors);
+    auto_mask::calc_grids_factors(object, cache.automasking.get(), node, grids, factors);
   }
 
   scale_factors(factors, strength);
@@ -256,7 +252,7 @@ static void calc_bmesh(Object &object,
   calc_brush_strength_factors(cache, brush, distances, factors);
 
   if (ss.cache->automasking) {
-    auto_mask::calc_vert_factors(object, *cache.automasking, node, verts, factors);
+    auto_mask::calc_vert_factors(object, cache.automasking.get(), node, verts, factors);
   }
 
   scale_factors(factors, strength);

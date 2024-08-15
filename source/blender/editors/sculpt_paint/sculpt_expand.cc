@@ -11,8 +11,10 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_linklist_stack.h"
+#include "BLI_math_vector.hh"
 #include "BLI_task.h"
 
 #include "DNA_brush_types.h"
@@ -128,13 +130,11 @@ enum {
  * values.
  */
 static bool is_vert_in_active_component(const SculptSession &ss,
-                                        const Cache *expand_cache,
-                                        const PBVHVertRef v)
+                                        const Cache &expand_cache,
+                                        const int vert)
 {
   for (int i = 0; i < EXPAND_SYMM_AREAS; i++) {
-    if (islands::vert_id_get(ss, BKE_pbvh_vertex_to_index(*ss.pbvh, v)) ==
-        expand_cache->active_connected_islands[i])
-    {
+    if (islands::vert_id_get(ss, vert) == expand_cache.active_connected_islands[i]) {
       return true;
     }
   }
@@ -147,25 +147,23 @@ static bool is_vert_in_active_component(const SculptSession &ss,
 static bool is_face_in_active_component(const SculptSession &ss,
                                         const OffsetIndices<int> faces,
                                         const Span<int> corner_verts,
-                                        const Cache *expand_cache,
+                                        const Cache &expand_cache,
                                         const int f)
 {
-  PBVHVertRef vertex;
-
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh:
-      vertex.i = corner_verts[faces[f].start()];
-      break;
-    case bke::pbvh::Type::Grids: {
-      vertex.i = faces[f].start() * BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg).grid_area;
-      break;
-    }
-    case bke::pbvh::Type::BMesh: {
-      vertex.i = reinterpret_cast<intptr_t>(ss.bm->ftable[f]->l_first->v);
-      break;
-    }
+      return is_vert_in_active_component(ss, expand_cache, corner_verts[faces[f].start()]);
+    case bke::pbvh::Type::Grids:
+      return is_vert_in_active_component(
+          ss,
+          expand_cache,
+          faces[f].start() * BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg).grid_area);
+    case bke::pbvh::Type::BMesh:
+      return is_vert_in_active_component(
+          ss, expand_cache, BM_elem_index_get(ss.bm->ftable[f]->l_first->v));
   }
-  return is_vert_in_active_component(ss, expand_cache, vertex);
+  BLI_assert_unreachable();
+  return false;
 }
 
 /**
@@ -173,95 +171,61 @@ static bool is_face_in_active_component(const SculptSession &ss,
  * precomputed into the initial falloff values.
  */
 static float falloff_value_vertex_get(const SculptSession &ss,
-                                      const Cache *expand_cache,
-                                      const PBVHVertRef v)
+                                      const Cache &expand_cache,
+                                      const float3 &position,
+                                      const int vert)
 {
-  int v_i = BKE_pbvh_vertex_to_index(*ss.pbvh, v);
-
-  if (expand_cache->texture_distortion_strength == 0.0f) {
-    return expand_cache->vert_falloff[v_i];
+  if (expand_cache.texture_distortion_strength == 0.0f) {
+    return expand_cache.vert_falloff[vert];
   }
-  const Brush *brush = expand_cache->brush;
+  const Brush *brush = expand_cache.brush;
   const MTex *mtex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
   if (!mtex->tex) {
-    return expand_cache->vert_falloff[v_i];
+    return expand_cache.vert_falloff[vert];
   }
 
   float rgba[4];
-  const float *vertex_co = SCULPT_vertex_co_get(ss, v);
   const float avg = BKE_brush_sample_tex_3d(
-      expand_cache->scene, brush, mtex, vertex_co, rgba, 0, ss.tex_pool);
+      expand_cache.scene, brush, mtex, position, rgba, 0, ss.tex_pool);
 
-  const float distortion = (avg - 0.5f) * expand_cache->texture_distortion_strength *
-                           expand_cache->max_vert_falloff;
-  return expand_cache->vert_falloff[v_i] + distortion;
+  const float distortion = (avg - 0.5f) * expand_cache.texture_distortion_strength *
+                           expand_cache.max_vert_falloff;
+  return expand_cache.vert_falloff[vert] + distortion;
 }
 
 /**
  * Returns the maximum valid falloff value stored in the falloff array, taking the maximum possible
  * texture distortion into account.
  */
-static float max_vert_falloff_get(const Cache *expand_cache)
+static float max_vert_falloff_get(const Cache &expand_cache)
 {
-  if (expand_cache->texture_distortion_strength == 0.0f) {
-    return expand_cache->max_vert_falloff;
+  if (expand_cache.texture_distortion_strength == 0.0f) {
+    return expand_cache.max_vert_falloff;
   }
 
-  const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache->brush, OB_MODE_SCULPT);
+  const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache.brush, OB_MODE_SCULPT);
   if (!mask_tex->tex) {
-    return expand_cache->max_vert_falloff;
+    return expand_cache.max_vert_falloff;
   }
 
-  return expand_cache->max_vert_falloff +
-         (0.5f * expand_cache->texture_distortion_strength * expand_cache->max_vert_falloff);
+  return expand_cache.max_vert_falloff +
+         (0.5f * expand_cache.texture_distortion_strength * expand_cache.max_vert_falloff);
 }
 
-/**
- * Main function to get the state of a vertex for the current state and settings of a
- * #Cache. Returns true when the target data should be modified by expand.
- */
-static bool vert_state_get(const SculptSession &ss, const Cache *expand_cache, const PBVHVertRef v)
+static bool vert_falloff_is_enabled(const SculptSession &ss,
+                                    const Cache &expand_cache,
+                                    const float3 &position,
+                                    const int vert)
 {
-  if (!hide::vert_visible_get(ss, v)) {
-    return false;
-  }
+  const float max_falloff_factor = max_vert_falloff_get(expand_cache);
+  const float loop_len = (max_falloff_factor / expand_cache.loop_count) +
+                         SCULPT_EXPAND_LOOP_THRESHOLD;
 
-  if (!is_vert_in_active_component(ss, expand_cache, v)) {
-    return false;
-  }
+  const float vertex_falloff_factor = falloff_value_vertex_get(ss, expand_cache, position, vert);
+  const float active_factor = fmod(expand_cache.active_falloff, loop_len);
+  const float falloff_factor = fmod(vertex_falloff_factor, loop_len);
 
-  if (expand_cache->all_enabled) {
-    if (expand_cache->invert) {
-      return false;
-    }
-    return true;
-  }
-
-  bool enabled = false;
-
-  if (expand_cache->snap) {
-    /* Face Sets are not being modified when using this function, so it is ok to get this directly
-     * from the Sculpt API instead of implementing a custom function to get them from
-     * expand_cache->original_face_sets. */
-    const int face_set = face_set::vert_face_set_get(ss, v);
-    enabled = expand_cache->snap_enabled_face_sets->contains(face_set);
-  }
-  else {
-    const float max_falloff_factor = max_vert_falloff_get(expand_cache);
-    const float loop_len = (max_falloff_factor / expand_cache->loop_count) +
-                           SCULPT_EXPAND_LOOP_THRESHOLD;
-
-    const float vertex_falloff_factor = falloff_value_vertex_get(ss, expand_cache, v);
-    const float active_factor = fmod(expand_cache->active_falloff, loop_len);
-    const float falloff_factor = fmod(vertex_falloff_factor, loop_len);
-
-    enabled = falloff_factor < active_factor;
-  }
-
-  if (expand_cache->invert) {
-    enabled = !enabled;
-  }
-  return enabled;
+  return falloff_factor < active_factor;
 }
 
 /**
@@ -273,19 +237,19 @@ static bool face_state_get(SculptSession &ss,
                            const Span<int> corner_verts,
                            const Span<bool> hide_poly,
                            const Span<int> face_sets,
-                           Cache *expand_cache,
-                           const int f)
+                           const Cache &expand_cache,
+                           const int face)
 {
-  if (!hide_poly.is_empty() && hide_poly[f]) {
+  if (!hide_poly.is_empty() && hide_poly[face]) {
     return false;
   }
 
-  if (!is_face_in_active_component(ss, faces, corner_verts, expand_cache, f)) {
+  if (!is_face_in_active_component(ss, faces, corner_verts, expand_cache, face)) {
     return false;
   }
 
-  if (expand_cache->all_enabled) {
-    if (expand_cache->invert) {
+  if (expand_cache.all_enabled) {
+    if (expand_cache.invert) {
       return false;
     }
     return true;
@@ -293,26 +257,26 @@ static bool face_state_get(SculptSession &ss,
 
   bool enabled = false;
 
-  if (expand_cache->snap_enabled_face_sets) {
-    const int face_set = expand_cache->original_face_sets[f];
-    enabled = expand_cache->snap_enabled_face_sets->contains(face_set);
+  if (expand_cache.snap_enabled_face_sets) {
+    const int face_set = expand_cache.original_face_sets[face];
+    enabled = expand_cache.snap_enabled_face_sets->contains(face_set);
   }
   else {
-    const float loop_len = (expand_cache->max_face_falloff / expand_cache->loop_count) +
+    const float loop_len = (expand_cache.max_face_falloff / expand_cache.loop_count) +
                            SCULPT_EXPAND_LOOP_THRESHOLD;
 
-    const float active_factor = fmod(expand_cache->active_falloff, loop_len);
-    const float falloff_factor = fmod(expand_cache->face_falloff[f], loop_len);
+    const float active_factor = fmod(expand_cache.active_falloff, loop_len);
+    const float falloff_factor = fmod(expand_cache.face_falloff[face], loop_len);
     enabled = falloff_factor < active_factor;
   }
 
-  if (expand_cache->falloff_type == FalloffType::ActiveFaceSet) {
-    if (face_sets[f] == expand_cache->initial_active_face_set) {
+  if (expand_cache.falloff_type == FalloffType::ActiveFaceSet) {
+    if (face_sets[face] == expand_cache.initial_active_face_set) {
       enabled = false;
     }
   }
 
-  if (expand_cache->invert) {
+  if (expand_cache.invert) {
     enabled = !enabled;
   }
 
@@ -324,24 +288,25 @@ static bool face_state_get(SculptSession &ss,
  * the corresponding gradient value for an enabled vertex.
  */
 static float gradient_value_get(const SculptSession &ss,
-                                const Cache *expand_cache,
-                                const PBVHVertRef v)
+                                const Cache &expand_cache,
+                                const float3 &position,
+                                const int vert)
 {
-  if (!expand_cache->falloff_gradient) {
+  if (!expand_cache.falloff_gradient) {
     return 1.0f;
   }
 
   const float max_falloff_factor = max_vert_falloff_get(expand_cache);
-  const float loop_len = (max_falloff_factor / expand_cache->loop_count) +
+  const float loop_len = (max_falloff_factor / expand_cache.loop_count) +
                          SCULPT_EXPAND_LOOP_THRESHOLD;
 
-  const float vertex_falloff_factor = falloff_value_vertex_get(ss, expand_cache, v);
-  const float active_factor = fmod(expand_cache->active_falloff, loop_len);
+  const float vertex_falloff_factor = falloff_value_vertex_get(ss, expand_cache, position, vert);
+  const float active_factor = fmod(expand_cache.active_falloff, loop_len);
   const float falloff_factor = fmod(vertex_falloff_factor, loop_len);
 
   float linear_falloff;
 
-  if (expand_cache->invert) {
+  if (expand_cache.invert) {
     /* Active factor is the result of a modulus operation using loop_len, so they will never be
      * equal and loop_len - active_factor should never be 0. */
     BLI_assert((loop_len - active_factor) != 0.0f);
@@ -351,11 +316,11 @@ static float gradient_value_get(const SculptSession &ss,
     linear_falloff = 1.0f - (falloff_factor / active_factor);
   }
 
-  if (!expand_cache->brush_gradient) {
+  if (!expand_cache.brush_gradient) {
     return linear_falloff;
   }
 
-  return BKE_brush_curve_strength(expand_cache->brush, linear_falloff, 1.0f);
+  return BKE_brush_curve_strength(expand_cache.brush, linear_falloff, 1.0f);
 }
 
 /* Utility functions for getting all vertices state during expand. */
@@ -364,12 +329,97 @@ static float gradient_value_get(const SculptSession &ss,
  * Returns a bitmap indexed by vertex index which contains if the vertex was enabled or not for a
  * give expand_cache state.
  */
-static BitVector<> enabled_state_to_bitmap(SculptSession &ss, Cache *expand_cache)
+static BitVector<> enabled_state_to_bitmap(const Object &object, const Cache &expand_cache)
 {
+  const SculptSession &ss = *object.sculpt;
   const int totvert = SCULPT_vertex_count_get(ss);
   BitVector<> enabled_verts(totvert);
-  for (int i = 0; i < totvert; i++) {
-    enabled_verts[i].set(vert_state_get(ss, expand_cache, BKE_pbvh_index_to_vertex(*ss.pbvh, i)));
+  if (expand_cache.all_enabled) {
+    if (!expand_cache.invert) {
+      enabled_verts.fill(true);
+    }
+    return enabled_verts;
+  }
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const Span<float3> positions = bke::pbvh::vert_positions_eval(object);
+      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+      const VArraySpan face_sets = *attributes.lookup_or_default<int>(
+          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+      threading::parallel_for_aligned(
+          IndexRange(totvert), 1024, bits::BitsPerInt, [&](const IndexRange range) {
+            for (const int vert : range) {
+              if (!hide_vert.is_empty() && hide_vert[vert]) {
+                continue;
+              }
+              if (!is_vert_in_active_component(ss, expand_cache, vert)) {
+                continue;
+              }
+              if (expand_cache.snap) {
+                const int face_set = face_set::vert_face_set_get(
+                    vert_to_face_map, face_sets, vert);
+                enabled_verts[vert].set(expand_cache.snap_enabled_face_sets->contains(face_set));
+              }
+              enabled_verts[vert].set(
+                  vert_falloff_is_enabled(ss, expand_cache, positions[vert], vert));
+            }
+          });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const bke::AttributeAccessor attributes = base_mesh.attributes();
+      const VArraySpan face_sets = *attributes.lookup_or_default<int>(
+          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+      const Span<CCGElem *> elems = subdiv_ccg.grids;
+      BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
+      for (const int grid : subdiv_ccg.grids.index_range()) {
+        const int start = grid * key.grid_area;
+        CCGElem *elem = elems[grid];
+        const int face_set = face_sets[grid_to_face_map[grid]];
+        BKE_subdiv_ccg_foreach_visible_grid_vert(key, grid_hidden, grid, [&](const int offset) {
+          const int vert = start + offset;
+          if (!is_vert_in_active_component(ss, expand_cache, vert)) {
+            return;
+          }
+          if (expand_cache.snap) {
+            enabled_verts[vert].set(expand_cache.snap_enabled_face_sets->contains(face_set));
+          }
+          enabled_verts[vert].set(vert_falloff_is_enabled(
+              ss, expand_cache, CCG_elem_offset_co(key, elem, offset), vert));
+        });
+      }
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      for (const int vert : IndexRange(totvert)) {
+        const BMVert *bm_vert = BM_vert_at_index(&bm, vert);
+        if (BM_elem_flag_test(bm_vert, BM_ELEM_HIDDEN)) {
+          continue;
+        }
+        if (!is_vert_in_active_component(ss, expand_cache, vert)) {
+          continue;
+        }
+        if (expand_cache.snap) {
+          /* TODO: Support face sets for BMesh. */
+          const int face_set = 0;
+          enabled_verts[vert].set(expand_cache.snap_enabled_face_sets->contains(face_set));
+        }
+        enabled_verts[vert].set(vert_falloff_is_enabled(ss, expand_cache, bm_vert->co, vert));
+      }
+      break;
+    }
+  }
+  if (expand_cache.invert) {
+    bits::invert(MutableBoundedBitSpan(enabled_verts));
   }
   return enabled_verts;
 }
@@ -379,51 +429,106 @@ static BitVector<> enabled_state_to_bitmap(SculptSession &ss, Cache *expand_cach
  * enabled vertices. This is defined as vertices that are enabled and at least have one connected
  * vertex that is not enabled.
  */
-static BitVector<> boundary_from_enabled(SculptSession &ss,
-                                         const BitSpan enabled_verts,
-                                         const bool use_mesh_boundary)
+static IndexMask boundary_from_enabled(Object &object,
+                                       const BitSpan enabled_verts,
+                                       const bool use_mesh_boundary,
+                                       IndexMaskMemory &memory)
 {
+  SculptSession &ss = *object.sculpt;
   const int totvert = SCULPT_vertex_count_get(ss);
 
+  const IndexMask enabled_mask = IndexMask::from_bits(enabled_verts, memory);
+
   BitVector<> boundary_verts(totvert);
-  for (int i = 0; i < totvert; i++) {
-    if (!enabled_verts[i]) {
-      continue;
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const OffsetIndices faces = mesh.faces();
+      const Span<int> corner_verts = mesh.corner_verts();
+      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
+        Vector<int> neighbors;
+        for (const int neighbor : vert_neighbors_get_mesh(
+                 vert, faces, corner_verts, vert_to_face_map, hide_poly, neighbors))
+        {
+          if (!enabled_verts[neighbor]) {
+            return true;
+          }
+        }
+
+        if (use_mesh_boundary &&
+            boundary::vert_is_boundary(hide_poly, vert_to_face_map, ss.vertex_info.boundary, vert))
+        {
+          return true;
+        }
+
+        return false;
+      });
     }
+    case bke::pbvh::Type::Grids: {
+      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const OffsetIndices faces = base_mesh.faces();
+      const Span<int> corner_verts = base_mesh.corner_verts();
 
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
+      const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+      return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
+        const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
+        SubdivCCGNeighbors neighbors;
+        BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
+        for (const SubdivCCGCoord neighbor : neighbors.coords) {
+          if (!enabled_verts[neighbor.to_index(key)]) {
+            return true;
+          }
+        }
 
-    bool is_expand_boundary = false;
-    SculptVertexNeighborIter ni;
-    SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vertex, ni) {
-      if (!enabled_verts[ni.index]) {
-        is_expand_boundary = true;
-      }
+        if (use_mesh_boundary &&
+            boundary::vert_is_boundary(
+                subdiv_ccg, corner_verts, faces, ss.vertex_info.boundary, coord))
+        {
+          return true;
+        }
+
+        return false;
+      });
     }
-    SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
+    case bke::pbvh::Type::BMesh: {
+      return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
+        BMVert *bm_vert = BM_vert_at_index(ss.bm, vert);
+        Vector<BMVert *, 64> neighbors;
+        for (const BMVert *neighbor : vert_neighbors_get_bmesh(*bm_vert, neighbors)) {
+          if (!enabled_verts[BM_elem_index_get(neighbor)]) {
+            return true;
+          }
+        }
 
-    if (use_mesh_boundary && boundary::vert_is_boundary(ss, vertex)) {
-      is_expand_boundary = true;
+        if (use_mesh_boundary && BM_vert_is_boundary(bm_vert)) {
+          return true;
+        }
+
+        return false;
+      });
     }
-
-    boundary_verts[i].set(is_expand_boundary);
   }
-
-  return boundary_verts;
+  BLI_assert_unreachable();
+  return {};
 }
 
 static void check_topology_islands(Object &ob, FalloffType falloff_type)
 {
   SculptSession &ss = *ob.sculpt;
+  Cache &expand_cache = *ss.expand_cache;
 
-  ss.expand_cache->check_islands = ELEM(falloff_type,
-                                        FalloffType::Geodesic,
-                                        FalloffType::Topology,
-                                        FalloffType::TopologyNormals,
-                                        FalloffType::BoundaryTopology,
-                                        FalloffType::Normals);
+  expand_cache.check_islands = ELEM(falloff_type,
+                                    FalloffType::Geodesic,
+                                    FalloffType::Topology,
+                                    FalloffType::TopologyNormals,
+                                    FalloffType::BoundaryTopology,
+                                    FalloffType::Normals);
 
-  if (ss.expand_cache->check_islands) {
+  if (expand_cache.check_islands) {
     islands::ensure_cache(ob);
   }
 }
@@ -431,25 +536,81 @@ static void check_topology_islands(Object &ob, FalloffType falloff_type)
 /* Functions implementing different algorithms for initializing falloff values. */
 
 /**
- * Utility function to get the closet vertex after flipping an original vertex position based on
- * an symmetry pass iteration index.
+ * Utility function to get the closest vertices after flipping an original vertex position for
+ * all symmetry passes.
  */
-static PBVHVertRef get_vert_index_for_symmetry_pass(Object &ob,
-                                                    const char symm_it,
-                                                    const PBVHVertRef original_vertex)
+static Vector<int> calc_symmetry_vert_indices(const Object &object,
+                                              const ePaintSymmetryFlags symm,
+                                              const int original_vert)
 {
-  SculptSession &ss = *ob.sculpt;
-  PBVHVertRef symm_vertex = {SCULPT_EXPAND_VERTEX_NONE};
+  const SculptSession &ss = *object.sculpt;
+  const float max_distance = FLT_MAX;
+  const bool use_original = false;
+  Vector<int> symm_verts;
+  symm_verts.append(original_vert);
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const Span<float3> positions = bke::pbvh::vert_positions_eval(object);
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
 
-  if (symm_it == 0) {
-    symm_vertex = original_vertex;
+      const float3 location = positions[original_vert];
+      for (char symm_it = 1; symm_it <= symm; symm_it++) {
+        if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
+          continue;
+        }
+        const float3 symm_location = symmetry_flip(location, ePaintSymmetryFlags(symm_it));
+        const std::optional<int> nearest = nearest_vert_calc_mesh(
+            *ss.pbvh, positions, hide_vert, symm_location, max_distance, use_original);
+        if (!nearest) {
+          continue;
+        }
+        symm_verts.append(*nearest);
+      }
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+      const Span<CCGElem *> elems = subdiv_ccg.grids;
+      const SubdivCCGCoord original_coord = SubdivCCGCoord::from_index(key, original_vert);
+      const float3 location = CCG_grid_elem_co(
+          key, elems[original_coord.grid_index], original_coord.x, original_coord.y);
+      for (char symm_it = 1; symm_it <= symm; symm_it++) {
+        if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
+          continue;
+        }
+        const float3 symm_location = symmetry_flip(location, ePaintSymmetryFlags(symm_it));
+        const std::optional<SubdivCCGCoord> nearest = nearest_vert_calc_grids(
+            *ss.pbvh, subdiv_ccg, symm_location, max_distance, use_original);
+        if (!nearest) {
+          continue;
+        }
+        symm_verts.append(nearest->to_index(key));
+      }
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+      const BMVert *original_bm_vert = BM_vert_at_index(&bm, original_vert);
+      const float3 location = original_bm_vert->co;
+      for (char symm_it = 1; symm_it <= symm; symm_it++) {
+        if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
+          continue;
+        }
+        const float3 symm_location = symmetry_flip(location, ePaintSymmetryFlags(symm_it));
+        const std::optional<BMVert *> nearest = nearest_vert_calc_bmesh(
+            *ss.pbvh, symm_location, max_distance, use_original);
+        if (!nearest) {
+          continue;
+        }
+        symm_verts.append(BM_elem_index_get(*nearest));
+      }
+      break;
+    }
   }
-  else {
-    const float3 location = symmetry_flip(SCULPT_vertex_co_get(ss, original_vertex),
-                                          ePaintSymmetryFlags(symm_it));
-    symm_vertex = nearest_vert_calc(ob, location, FLT_MAX, false);
-  }
-  return symm_vertex;
+  return symm_verts;
 }
 
 /**
@@ -498,9 +659,9 @@ static Array<float> topology_falloff_create(Object &ob, const PBVHVertRef v)
   Array<float> dists(totvert, 0.0f);
 
   flood_fill::FillData flood = flood_fill::init_fill(ss);
-  flood_fill::add_initial_with_symmetry(ob, ss, flood, v, FLT_MAX);
+  flood_fill::add_initial_with_symmetry(ob, flood, v, FLT_MAX);
 
-  flood_fill::execute(ss, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
+  flood_fill::execute(ob, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
     return topology_floodfill_fn(ss, from_v, to_v, is_duplicate, dists);
   });
 
@@ -512,18 +673,16 @@ static Array<float> topology_falloff_create(Object &ob, const PBVHVertRef v)
  * each vertex and the previous one.
  * This creates falloff patterns that follow and snap to the hard edges of the object.
  */
-static bool normal_floodfill_fn(SculptSession &ss,
-                                PBVHVertRef from_v,
-                                PBVHVertRef to_v,
-                                bool is_duplicate,
-                                FloodFillData *data)
+static bool normal_floodfill_fn(
+    Object &object, PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate, FloodFillData *data)
 {
+  const SculptSession &ss = *object.sculpt;
   int from_v_i = BKE_pbvh_vertex_to_index(*ss.pbvh, from_v);
   int to_v_i = BKE_pbvh_vertex_to_index(*ss.pbvh, to_v);
 
   if (!is_duplicate) {
-    float3 current_normal = SCULPT_vertex_normal_get(ss, to_v);
-    float3 prev_normal = SCULPT_vertex_normal_get(ss, from_v);
+    float3 current_normal = SCULPT_vertex_normal_get(object, to_v);
+    float3 prev_normal = SCULPT_vertex_normal_get(object, from_v);
     const float from_edge_factor = data->edge_factor[from_v_i];
     data->edge_factor[to_v_i] = dot_v3v3(current_normal, prev_normal) * from_edge_factor;
     data->dists[to_v_i] = dot_v3v3(data->original_normal, current_normal) *
@@ -550,34 +709,19 @@ static Array<float> normals_falloff_create(Object &ob,
   Array<float> edge_factor(totvert, 1.0f);
 
   flood_fill::FillData flood = flood_fill::init_fill(ss);
-  flood_fill::add_initial_with_symmetry(ob, ss, flood, v, FLT_MAX);
+  flood_fill::add_initial_with_symmetry(ob, flood, v, FLT_MAX);
 
   FloodFillData fdata;
   fdata.dists = dists;
   fdata.edge_factor = edge_factor;
   fdata.edge_sensitivity = edge_sensitivity;
-  fdata.original_normal = SCULPT_vertex_normal_get(ss, v);
+  fdata.original_normal = SCULPT_vertex_normal_get(ob, v);
 
-  flood_fill::execute(ss, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
-    return normal_floodfill_fn(ss, from_v, to_v, is_duplicate, &fdata);
+  flood_fill::execute(ob, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
+    return normal_floodfill_fn(ob, from_v, to_v, is_duplicate, &fdata);
   });
 
-  for (int repeat = 0; repeat < blur_steps; repeat++) {
-    for (int i = 0; i < totvert; i++) {
-      PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
-
-      float avg = 0.0f;
-      SculptVertexNeighborIter ni;
-      SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vertex, ni) {
-        avg += dists[ni.index];
-      }
-      SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
-
-      if (ni.neighbors.size() > 0.0f) {
-        dists[i] = avg / ni.neighbors.size();
-      }
-    }
-  }
+  smooth::blur_geometry_data_array(ob, blur_steps, dists);
 
   for (int i = 0; i < totvert; i++) {
     dists[i] = 1.0 - dists[i];
@@ -590,27 +734,79 @@ static Array<float> normals_falloff_create(Object &ob,
  * Spherical: Initializes the falloff based on the distance from a vertex, taking symmetry into
  * account.
  */
-static Array<float> spherical_falloff_create(Object &ob, const PBVHVertRef v)
+static Array<float> spherical_falloff_create(const Object &object, const PBVHVertRef v)
 {
-  SculptSession &ss = *ob.sculpt;
-  const int totvert = SCULPT_vertex_count_get(ss);
+  SculptSession &ss = *object.sculpt;
+  Array<float> dists(SCULPT_vertex_count_get(ss));
 
-  Array<float> dists(totvert, FLT_MAX);
+  const Vector<int> symm_verts = calc_symmetry_vert_indices(
+      object, SCULPT_mesh_symmetry_xyz_get(object), BKE_pbvh_vertex_to_index(*ss.pbvh, v));
 
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  switch (ss.pbvh->type()) {
+    case bke::pbvh::Type::Mesh: {
+      const Span<float3> positions = bke::pbvh::vert_positions_eval(object);
 
-  for (char symm_it = 0; symm_it <= symm; symm_it++) {
-    if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
-      continue;
+      Array<float3> locations(symm_verts.size());
+      array_utils::gather(positions, symm_verts.as_span(), locations.as_mutable_span());
+
+      threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
+        for (const int vert : range) {
+          float dist = std::numeric_limits<float>::max();
+          for (const float3 &location : locations) {
+            dist = std::min(dist, math::distance(positions[vert], location));
+          }
+          dists[vert] = dist;
+        }
+      });
+      break;
     }
-    const PBVHVertRef symm_vertex = get_vert_index_for_symmetry_pass(ob, symm_it, v);
-    if (symm_vertex.i != SCULPT_EXPAND_VERTEX_NONE) {
-      const float *co = SCULPT_vertex_co_get(ss, symm_vertex);
-      for (int i = 0; i < totvert; i++) {
-        PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
+    case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+      const Span<CCGElem *> elems = subdiv_ccg.grids;
 
-        dists[i] = min_ff(dists[i], len_v3v3(co, SCULPT_vertex_co_get(ss, vertex)));
+      Array<float3> locations(symm_verts.size());
+      for (const int i : symm_verts.index_range()) {
+        const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, symm_verts[i]);
+        locations[i] = CCG_grid_elem_co(key, elems[coord.grid_index], coord.x, coord.y);
       }
+
+      threading::parallel_for(elems.index_range(), 1024, [&](const IndexRange range) {
+        for (const int grid : range) {
+          const int start = grid * key.grid_area;
+          CCGElem *elem = elems[grid];
+          for (const int offset : IndexRange(key.grid_area)) {
+            const int vert = start + offset;
+            float dist = std::numeric_limits<float>::max();
+            for (const float3 &location : locations) {
+              dist = std::min(dist,
+                              math::distance(CCG_elem_offset_co(key, elem, offset), location));
+            }
+            dists[vert] = dist;
+          }
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *ss.bm;
+
+      Array<float3> locations(symm_verts.size());
+      for (const int i : symm_verts.index_range()) {
+        locations[i] = BM_vert_at_index(&bm, symm_verts[i])->co;
+      }
+
+      threading::parallel_for(IndexRange(bm.totvert), 1024, [&](const IndexRange range) {
+        for (const int vert : range) {
+          float dist = std::numeric_limits<float>::max();
+          for (const float3 &location : locations) {
+            dist = std::min(dist,
+                            math::distance(float3(BM_vert_at_index(&bm, vert)->co), location));
+          }
+          dists[vert] = dist;
+        }
+      });
+      break;
     }
   }
 
@@ -630,14 +826,13 @@ static Array<float> boundary_topology_falloff_create(Object &ob, const PBVHVertR
   BitVector<> visited_verts(totvert);
   std::queue<int> queue;
 
-  /* Search and initialize a boundary per symmetry pass, then mark those vertices as visited. */
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
-  for (char symm_it = 0; symm_it <= symm; symm_it++) {
-    if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
-      continue;
-    }
+  const Vector<int> symm_verts = calc_symmetry_vert_indices(
+      ob, SCULPT_mesh_symmetry_xyz_get(ob), BKE_pbvh_vertex_to_index(*ss.pbvh, v));
 
-    const PBVHVertRef symm_vertex = get_vert_index_for_symmetry_pass(ob, symm_it, v);
+  /* Search and initialize a boundary per symmetry pass, then mark those vertices as visited. */
+  for (const int vert : symm_verts) {
+
+    const PBVHVertRef symm_vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, vert);
 
     std::unique_ptr<SculptBoundary> boundary = boundary::data_init(
         ob, nullptr, symm_vertex, FLT_MAX);
@@ -699,20 +894,15 @@ static Array<float> diagonals_falloff_create(Object &ob, const PBVHVertRef v)
     return dists;
   }
 
+  const Vector<int> symm_verts = calc_symmetry_vert_indices(
+      ob, SCULPT_mesh_symmetry_xyz_get(ob), BKE_pbvh_vertex_to_index(*ss.pbvh, v));
+
   /* Search and mask as visited the initial vertices using the enabled symmetry passes. */
   BitVector<> visited_verts(totvert);
-  std::queue<PBVHVertRef> queue;
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
-  for (char symm_it = 0; symm_it <= symm; symm_it++) {
-    if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
-      continue;
-    }
-
-    const PBVHVertRef symm_vertex = get_vert_index_for_symmetry_pass(ob, symm_it, v);
-    int symm_vertex_i = BKE_pbvh_vertex_to_index(*ss.pbvh, symm_vertex);
-
-    queue.push(symm_vertex);
-    visited_verts[symm_vertex_i].set();
+  std::queue<int> queue;
+  for (const int vert : symm_verts) {
+    queue.push(vert);
+    visited_verts[vert].set();
   }
 
   if (queue.empty()) {
@@ -721,20 +911,17 @@ static Array<float> diagonals_falloff_create(Object &ob, const PBVHVertRef v)
 
   /* Propagate the falloff increasing the value by 1 each time a new vertex is visited. */
   while (!queue.empty()) {
-    PBVHVertRef v_next = queue.front();
+    const int next_vert = queue.front();
     queue.pop();
 
-    int v_next_i = BKE_pbvh_vertex_to_index(*ss.pbvh, v_next);
-
-    for (const int face : ss.vert_to_face_map[v_next_i]) {
+    for (const int face : ss.vert_to_face_map[next_vert]) {
       for (const int vert : corner_verts.slice(faces[face])) {
-        const PBVHVertRef neighbor_v = BKE_pbvh_make_vref(vert);
-        if (visited_verts[neighbor_v.i]) {
+        if (visited_verts[vert]) {
           continue;
         }
-        dists[neighbor_v.i] = dists[v_next_i] + 1.0f;
-        visited_verts[neighbor_v.i].set();
-        queue.push(neighbor_v);
+        dists[vert] = dists[next_vert] + 1.0f;
+        visited_verts[vert].set();
+        queue.push(vert);
       }
     }
   }
@@ -742,55 +929,56 @@ static Array<float> diagonals_falloff_create(Object &ob, const PBVHVertRef v)
   return dists;
 }
 
-/* Functions to update the max_falloff value in the #Cache. These functions are called
- * after initializing a new falloff to make sure that this value is always updated. */
-
 /**
  * Updates the max_falloff value for vertices in a #Cache based on the current values of
  * the falloff, skipping any invalid values initialized to FLT_MAX and not initialized components.
  */
-static void update_max_vert_falloff_value(SculptSession &ss, Cache *expand_cache)
+static void update_max_vert_falloff_value(SculptSession &ss, Cache &expand_cache)
 {
-  const int totvert = SCULPT_vertex_count_get(ss);
-  expand_cache->max_vert_falloff = -FLT_MAX;
-  for (int i = 0; i < totvert; i++) {
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
-
-    if (expand_cache->vert_falloff[i] == FLT_MAX) {
-      continue;
-    }
-
-    if (!is_vert_in_active_component(ss, expand_cache, vertex)) {
-      continue;
-    }
-
-    expand_cache->max_vert_falloff = max_ff(expand_cache->max_vert_falloff,
-                                            expand_cache->vert_falloff[i]);
-  }
+  expand_cache.max_vert_falloff = threading::parallel_reduce(
+      IndexRange(SCULPT_vertex_count_get(ss)),
+      4096,
+      std::numeric_limits<float>::lowest(),
+      [&](const IndexRange range, float max) {
+        for (const int vert : range) {
+          if (expand_cache.vert_falloff[vert] == FLT_MAX) {
+            continue;
+          }
+          if (!is_vert_in_active_component(ss, expand_cache, vert)) {
+            continue;
+          }
+          max = std::max(max, expand_cache.vert_falloff[vert]);
+        }
+        return max;
+      },
+      [](const float a, const float b) { return std::max(a, b); });
 }
 
 /**
  * Updates the max_falloff value for faces in a Cache based on the current values of the
  * falloff, skipping any invalid values initialized to FLT_MAX and not initialized components.
  */
-static void update_max_face_falloff_factor(SculptSession &ss, Mesh &mesh, Cache *expand_cache)
+static void update_max_face_falloff_factor(SculptSession &ss, Mesh &mesh, Cache &expand_cache)
 {
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
-  const int totface = ss.totfaces;
-  expand_cache->max_face_falloff = -FLT_MAX;
-  for (int i = 0; i < totface; i++) {
-    if (expand_cache->face_falloff[i] == FLT_MAX) {
-      continue;
-    }
-
-    if (!is_face_in_active_component(ss, faces, corner_verts, expand_cache, i)) {
-      continue;
-    }
-
-    expand_cache->max_face_falloff = max_ff(expand_cache->max_face_falloff,
-                                            expand_cache->face_falloff[i]);
-  }
+  expand_cache.max_face_falloff = threading::parallel_reduce(
+      faces.index_range(),
+      4096,
+      std::numeric_limits<float>::lowest(),
+      [&](const IndexRange range, float max) {
+        for (const int face : range) {
+          if (expand_cache.face_falloff[face] == FLT_MAX) {
+            continue;
+          }
+          if (!is_face_in_active_component(ss, faces, corner_verts, expand_cache, face)) {
+            continue;
+          }
+          max = std::max(max, expand_cache.face_falloff[face]);
+        }
+        return max;
+      },
+      [](const float a, const float b) { return std::max(a, b); });
 }
 
 /**
@@ -799,48 +987,50 @@ static void update_max_face_falloff_factor(SculptSession &ss, Mesh &mesh, Cache 
  * face falloff value from the connected vertices of each face or from the grids stored per loops
  * for each face.
  */
-static void vert_to_face_falloff_grids(SculptSession &ss, Mesh *mesh, Cache *expand_cache)
+static void vert_to_face_falloff_grids(SculptSession &ss, Mesh *mesh, Cache &expand_cache)
 {
   const OffsetIndices faces = mesh->faces();
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
 
-  for (const int i : faces.index_range()) {
-    float accum = 0.0f;
-    for (const int corner : faces[i]) {
-      const int grid_loop_index = corner * key.grid_area;
-      for (int g = 0; g < key.grid_area; g++) {
-        accum += expand_cache->vert_falloff[grid_loop_index + g];
+  threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+    for (const int face : range) {
+      float accum = 0.0f;
+      for (const int corner : faces[face]) {
+        const int grid_loop_index = corner * key.grid_area;
+        for (int g = 0; g < key.grid_area; g++) {
+          accum += expand_cache.vert_falloff[grid_loop_index + g];
+        }
       }
+      expand_cache.face_falloff[face] = accum / (faces[face].size() * key.grid_area);
     }
-    expand_cache->face_falloff[i] = accum / (faces[i].size() * key.grid_area);
-  }
+  });
 }
 
-static void vert_to_face_falloff_mesh(Mesh *mesh, Cache *expand_cache)
+static void vert_to_face_falloff_mesh(Mesh *mesh, Cache &expand_cache)
 {
   const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
 
-  for (const int i : faces.index_range()) {
-    float accum = 0.0f;
-    for (const int vert : corner_verts.slice(faces[i])) {
-      accum += expand_cache->vert_falloff[vert];
+  threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+    for (const int face : range) {
+      const Span<int> face_verts = corner_verts.slice(faces[face]);
+      float accum = 0.0f;
+      for (const int vert : face_verts) {
+        accum += expand_cache.vert_falloff[vert];
+      }
+      expand_cache.face_falloff[face] = accum / face_verts.size();
     }
-    expand_cache->face_falloff[i] = accum / faces[i].size();
-  }
+  });
 }
 
 /**
  * Main function to update the faces falloff from a already calculated vertex falloff.
  */
-static void vert_to_face_falloff(SculptSession &ss, Mesh *mesh, Cache *expand_cache)
+static void vert_to_face_falloff(SculptSession &ss, Mesh *mesh, Cache &expand_cache)
 {
-  BLI_assert(!expand_cache->vert_falloff.is_empty());
+  BLI_assert(!expand_cache.vert_falloff.is_empty());
 
-  if (!expand_cache->face_falloff) {
-    expand_cache->face_falloff = static_cast<float *>(
-        MEM_malloc_arrayN(mesh->faces_num, sizeof(float), __func__));
-  }
+  expand_cache.face_falloff.reinitialize(mesh->faces_num);
 
   if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
     vert_to_face_falloff_mesh(mesh, expand_cache);
@@ -861,25 +1051,19 @@ static void vert_to_face_falloff(SculptSession &ss, Mesh *mesh, Cache *expand_ca
  * current vertices state.
  */
 static void geodesics_from_state_boundary(Object &ob,
-                                          Cache *expand_cache,
+                                          Cache &expand_cache,
                                           const BitSpan enabled_verts)
 {
-  SculptSession &ss = *ob.sculpt;
-  BLI_assert(ss.pbvh->type() == bke::pbvh::Type::Mesh);
+  BLI_assert(ob.sculpt->pbvh->type() == bke::pbvh::Type::Mesh);
 
+  IndexMaskMemory memory;
+  const IndexMask boundary_verts = boundary_from_enabled(ob, enabled_verts, false, memory);
   Set<int> initial_verts;
-  const BitVector<> boundary_verts = boundary_from_enabled(ss, enabled_verts, false);
-  const int totvert = SCULPT_vertex_count_get(ss);
-  for (int i = 0; i < totvert; i++) {
-    if (!boundary_verts[i]) {
-      continue;
-    }
-    initial_verts.add(i);
-  }
+  boundary_verts.foreach_index([&](const int vert) { initial_verts.add(vert); });
 
-  MEM_SAFE_FREE(expand_cache->face_falloff);
+  expand_cache.face_falloff = {};
 
-  expand_cache->vert_falloff = geodesic::distances_create(ob, initial_verts, FLT_MAX);
+  expand_cache.vert_falloff = geodesic::distances_create(ob, initial_verts, FLT_MAX);
 }
 
 /**
@@ -887,30 +1071,28 @@ static void geodesics_from_state_boundary(Object &ob,
  * current vertices state, increasing the value by 1 each time a new vertex is visited.
  */
 static void topology_from_state_boundary(Object &ob,
-                                         Cache *expand_cache,
+                                         Cache &expand_cache,
                                          const BitSpan enabled_verts)
 {
-  MEM_SAFE_FREE(expand_cache->face_falloff);
+  expand_cache.face_falloff = {};
 
   SculptSession &ss = *ob.sculpt;
   const int totvert = SCULPT_vertex_count_get(ss);
 
-  expand_cache->vert_falloff.reinitialize(totvert);
-  expand_cache->vert_falloff.fill(0);
-  const BitVector<> boundary_verts = boundary_from_enabled(ss, enabled_verts, false);
+  expand_cache.vert_falloff.reinitialize(totvert);
+  expand_cache.vert_falloff.fill(0);
+
+  IndexMaskMemory memory;
+  const IndexMask boundary_verts = boundary_from_enabled(ob, enabled_verts, false, memory);
 
   flood_fill::FillData flood = flood_fill::init_fill(ss);
-  for (int i = 0; i < totvert; i++) {
-    if (!boundary_verts[i]) {
-      continue;
-    }
-
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
+  boundary_verts.foreach_index([&](const int vert) {
+    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, vert);
     flood_fill::add_and_skip_initial(flood, vertex);
-  }
+  });
 
-  MutableSpan<float> dists = expand_cache->vert_falloff;
-  flood_fill::execute(ss, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
+  MutableSpan<float> dists = expand_cache.vert_falloff;
+  flood_fill::execute(ob, flood, [&](PBVHVertRef from_v, PBVHVertRef to_v, bool is_duplicate) {
     return topology_floodfill_fn(ss, from_v, to_v, is_duplicate, dists);
   });
 }
@@ -918,19 +1100,19 @@ static void topology_from_state_boundary(Object &ob,
 /**
  * Main function to create a recursion step from the current #Cache state.
  */
-static void resursion_step_add(Object &ob, Cache *expand_cache, const RecursionType recursion_type)
+static void resursion_step_add(Object &ob, Cache &expand_cache, const RecursionType recursion_type)
 {
   SculptSession &ss = *ob.sculpt;
   if (ss.pbvh->type() != bke::pbvh::Type::Mesh) {
     return;
   }
 
-  const BitVector<> enabled_verts = enabled_state_to_bitmap(ss, expand_cache);
+  const BitVector<> enabled_verts = enabled_state_to_bitmap(ob, expand_cache);
 
   /* Each time a new recursion step is created, reset the distortion strength. This is the expected
    * result from the recursion, as otherwise the new falloff will render with undesired distortion
    * from the beginning. */
-  expand_cache->texture_distortion_strength = 0.0f;
+  expand_cache.texture_distortion_strength = 0.0f;
 
   switch (recursion_type) {
     case RecursionType::Geodesic:
@@ -942,7 +1124,7 @@ static void resursion_step_add(Object &ob, Cache *expand_cache, const RecursionT
   }
 
   update_max_vert_falloff_value(ss, expand_cache);
-  if (expand_cache->target == TargetType::FaceSets) {
+  if (expand_cache.target == TargetType::FaceSets) {
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
     vert_to_face_falloff(ss, &mesh, expand_cache);
     update_max_face_falloff_factor(ss, mesh, expand_cache);
@@ -956,7 +1138,7 @@ static void resursion_step_add(Object &ob, Cache *expand_cache, const RecursionT
  * otherwise the active Face Set will be filled with a constant falloff of 0.0f.
  */
 static void init_from_face_set_boundary(Object &ob,
-                                        Cache *expand_cache,
+                                        Cache &expand_cache,
                                         const int active_face_set,
                                         const bool internal_falloff)
 {
@@ -992,17 +1174,17 @@ static void init_from_face_set_boundary(Object &ob,
       {
         continue;
       }
-      expand_cache->vert_falloff[i] *= -1.0f;
+      expand_cache.vert_falloff[i] *= -1.0f;
     }
 
     float min_factor = FLT_MAX;
     for (int i = 0; i < totvert; i++) {
-      min_factor = min_ff(expand_cache->vert_falloff[i], min_factor);
+      min_factor = min_ff(expand_cache.vert_falloff[i], min_factor);
     }
 
     const float additional_falloff = fabsf(min_factor);
     for (int i = 0; i < totvert; i++) {
-      expand_cache->vert_falloff[i] += additional_falloff;
+      expand_cache.vert_falloff[i] += additional_falloff;
     }
   }
   else {
@@ -1012,7 +1194,7 @@ static void init_from_face_set_boundary(Object &ob,
       if (!face_set::vert_has_face_set(ss, vertex, active_face_set)) {
         continue;
       }
-      expand_cache->vert_falloff[i] = 0.0f;
+      expand_cache.vert_falloff[i] = 0.0f;
     }
   }
 }
@@ -1021,52 +1203,52 @@ static void init_from_face_set_boundary(Object &ob,
  * Main function to initialize new falloff values in a #Cache given an initial vertex and a
  * falloff type.
  */
-static void calc_falloff_from_vert_and_symmetry(Cache *expand_cache,
+static void calc_falloff_from_vert_and_symmetry(Cache &expand_cache,
                                                 Object &ob,
                                                 const PBVHVertRef v,
                                                 FalloffType falloff_type)
 {
-  expand_cache->falloff_type = falloff_type;
+  expand_cache.falloff_type = falloff_type;
 
   SculptSession &ss = *ob.sculpt;
   const bool has_topology_info = ss.pbvh->type() == bke::pbvh::Type::Mesh;
 
   switch (falloff_type) {
     case FalloffType::Geodesic:
-      expand_cache->vert_falloff = has_topology_info ? geodesic_falloff_create(ob, v) :
-                                                       spherical_falloff_create(ob, v);
+      expand_cache.vert_falloff = has_topology_info ? geodesic_falloff_create(ob, v) :
+                                                      spherical_falloff_create(ob, v);
       break;
     case FalloffType::Topology:
-      expand_cache->vert_falloff = topology_falloff_create(ob, v);
+      expand_cache.vert_falloff = topology_falloff_create(ob, v);
       break;
     case FalloffType::TopologyNormals:
-      expand_cache->vert_falloff = has_topology_info ? diagonals_falloff_create(ob, v) :
-                                                       topology_falloff_create(ob, v);
+      expand_cache.vert_falloff = has_topology_info ? diagonals_falloff_create(ob, v) :
+                                                      topology_falloff_create(ob, v);
       break;
     case FalloffType::Normals:
-      expand_cache->vert_falloff = normals_falloff_create(
+      expand_cache.vert_falloff = normals_falloff_create(
           ob,
           v,
           SCULPT_EXPAND_NORMALS_FALLOFF_EDGE_SENSITIVITY,
-          expand_cache->normal_falloff_blur_steps);
+          expand_cache.normal_falloff_blur_steps);
       break;
     case FalloffType::Sphere:
-      expand_cache->vert_falloff = spherical_falloff_create(ob, v);
+      expand_cache.vert_falloff = spherical_falloff_create(ob, v);
       break;
     case FalloffType::BoundaryTopology:
-      expand_cache->vert_falloff = boundary_topology_falloff_create(ob, v);
+      expand_cache.vert_falloff = boundary_topology_falloff_create(ob, v);
       break;
     case FalloffType::BoundaryFaceSet:
-      init_from_face_set_boundary(ob, expand_cache, expand_cache->initial_active_face_set, true);
+      init_from_face_set_boundary(ob, expand_cache, expand_cache.initial_active_face_set, true);
       break;
     case FalloffType::ActiveFaceSet:
-      init_from_face_set_boundary(ob, expand_cache, expand_cache->initial_active_face_set, false);
+      init_from_face_set_boundary(ob, expand_cache, expand_cache.initial_active_face_set, false);
       break;
   }
 
   /* Update max falloff values and propagate to base mesh faces if needed. */
   update_max_vert_falloff_value(ss, expand_cache);
-  if (expand_cache->target == TargetType::FaceSets) {
+  if (expand_cache.target == TargetType::FaceSets) {
     Mesh &mesh = *static_cast<Mesh *>(ob.data);
     vert_to_face_falloff(ss, &mesh, expand_cache);
     update_max_face_falloff_factor(ss, mesh, expand_cache);
@@ -1078,7 +1260,7 @@ static void calc_falloff_from_vert_and_symmetry(Cache *expand_cache,
  * current #Cache state. This improves the usability of snapping, as already enabled
  * elements won't switch their state when toggling snapping with the modal key-map.
  */
-static void snap_init_from_enabled(const Object &object, SculptSession &ss, Cache *expand_cache)
+static void snap_init_from_enabled(const Object &object, SculptSession &ss, Cache &expand_cache)
 {
   if (ss.pbvh->type() != bke::pbvh::Type::Mesh) {
     return;
@@ -1088,17 +1270,17 @@ static void snap_init_from_enabled(const Object &object, SculptSession &ss, Cach
   const Span<int> corner_verts = mesh.corner_verts();
   /* Make sure this code runs with snapping and invert disabled. This simplifies the code and
    * prevents using this function with snapping already enabled. */
-  const bool prev_snap_state = expand_cache->snap;
-  const bool prev_invert_state = expand_cache->invert;
-  expand_cache->snap = false;
-  expand_cache->invert = false;
+  const bool prev_snap_state = expand_cache.snap;
+  const bool prev_invert_state = expand_cache.invert;
+  expand_cache.snap = false;
+  expand_cache.invert = false;
 
-  const BitVector<> enabled_verts = enabled_state_to_bitmap(ss, expand_cache);
+  const BitVector<> enabled_verts = enabled_state_to_bitmap(object, expand_cache);
 
   const int totface = ss.totfaces;
   for (int i = 0; i < totface; i++) {
-    const int face_set = expand_cache->original_face_sets[i];
-    expand_cache->snap_enabled_face_sets->add(face_set);
+    const int face_set = expand_cache.original_face_sets[i];
+    expand_cache.snap_enabled_face_sets->add(face_set);
   }
 
   for (const int i : faces.index_range()) {
@@ -1107,27 +1289,18 @@ static void snap_init_from_enabled(const Object &object, SculptSession &ss, Cach
                                           face_verts.end(),
                                           [&](const int vert) { return !enabled_verts[vert]; });
     if (any_disabled) {
-      const int face_set = expand_cache->original_face_sets[i];
-      expand_cache->snap_enabled_face_sets->remove(face_set);
+      const int face_set = expand_cache.original_face_sets[i];
+      expand_cache.snap_enabled_face_sets->remove(face_set);
     }
   }
 
-  expand_cache->snap = prev_snap_state;
-  expand_cache->invert = prev_invert_state;
-}
-
-/**
- * Functions to free a #Cache.
- */
-static void cache_data_free(Cache *expand_cache)
-{
-  MEM_SAFE_FREE(expand_cache->face_falloff);
-  MEM_delete<Cache>(expand_cache);
+  expand_cache.snap = prev_snap_state;
+  expand_cache.invert = prev_invert_state;
 }
 
 static void expand_cache_free(SculptSession &ss)
 {
-  cache_data_free(ss.expand_cache);
+  MEM_delete<Cache>(ss.expand_cache);
   /* Needs to be set to nullptr as the paint cursor relies on checking this pointer detecting if an
    * expand operation is running. */
   ss.expand_cache = nullptr;
@@ -1136,10 +1309,10 @@ static void expand_cache_free(SculptSession &ss)
 /**
  * Functions to restore the original state from the #Cache when canceling the operator.
  */
-static void restore_face_set_data(Object &object, Cache *expand_cache)
+static void restore_face_set_data(Object &object, Cache &expand_cache)
 {
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(object);
-  face_sets.span.copy_from(expand_cache->original_face_sets);
+  face_sets.span.copy_from(expand_cache.original_face_sets);
   face_sets.finish();
 
   Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(*object.sculpt->pbvh, {});
@@ -1148,7 +1321,7 @@ static void restore_face_set_data(Object &object, Cache *expand_cache)
   }
 }
 
-static void restore_color_data(Object &ob, Cache *expand_cache)
+static void restore_color_data(Object &ob, Cache &expand_cache)
 {
   SculptSession &ss = *ob.sculpt;
   Mesh &mesh = *static_cast<Mesh *>(ob.data);
@@ -1165,7 +1338,7 @@ static void restore_color_data(Object &ob, Cache *expand_cache)
                             vert_to_face_map,
                             color_attribute.domain,
                             vert,
-                            expand_cache->original_colors[vert],
+                            expand_cache.original_colors[vert],
                             color_attribute.span);
     }
     BKE_pbvh_node_mark_redraw(node);
@@ -1173,12 +1346,13 @@ static void restore_color_data(Object &ob, Cache *expand_cache)
   color_attribute.finish();
 }
 
-static void write_mask_data(SculptSession &ss, const Span<float> mask)
+static void write_mask_data(Object &object, const Span<float> mask)
 {
+  SculptSession &ss = *object.sculpt;
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh *mesh = BKE_pbvh_get_mesh(*ss.pbvh);
-      bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
       attributes.remove(".sculpt_mask");
       attributes.add<float>(".sculpt_mask",
                             bke::AttrDomain::Point,
@@ -1219,12 +1393,11 @@ static void write_mask_data(SculptSession &ss, const Span<float> mask)
 
 /* Main function to restore the original state of the data to how it was before starting the expand
  * operation. */
-static void restore_original_state(bContext *C, Object &ob, Cache *expand_cache)
+static void restore_original_state(bContext *C, Object &ob, Cache &expand_cache)
 {
-  SculptSession &ss = *ob.sculpt;
-  switch (expand_cache->target) {
+  switch (expand_cache.target) {
     case TargetType::Mask:
-      write_mask_data(ss, expand_cache->original_mask);
+      write_mask_data(ob, expand_cache.original_mask);
       flush_update_step(C, UpdateType::Mask);
       flush_update_done(C, ob, UpdateType::Mask);
       SCULPT_tag_update_overlays(C);
@@ -1251,7 +1424,7 @@ static void sculpt_expand_cancel(bContext *C, wmOperator * /*op*/)
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
-  restore_original_state(C, ob, ss.expand_cache);
+  restore_original_state(C, ob, *ss.expand_cache);
 
   undo::push_end(ob);
   expand_cache_free(ss);
@@ -1260,34 +1433,34 @@ static void sculpt_expand_cancel(bContext *C, wmOperator * /*op*/)
 /* Functions to update the sculpt mesh data. */
 
 static void calc_new_mask_mesh(const SculptSession &ss,
-                               const MutableSpan<float> mask,
-                               const Span<int> verts)
+                               const Span<float3> positions,
+                               const BitSpan enabled_verts,
+                               const Span<int> verts,
+                               const MutableSpan<float> mask)
 {
-  const Cache *expand_cache = ss.expand_cache;
+  const Cache &expand_cache = *ss.expand_cache;
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
-    const bool enabled = vert_state_get(ss, expand_cache, PBVHVertRef{vert});
+    const bool enabled = enabled_verts[vert];
 
-    if (expand_cache->check_islands &&
-        !is_vert_in_active_component(ss, expand_cache, PBVHVertRef{vert}))
-    {
+    if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert)) {
       continue;
     }
 
     if (enabled) {
-      mask[i] = gradient_value_get(ss, expand_cache, PBVHVertRef{vert});
+      mask[i] = gradient_value_get(ss, expand_cache, positions[vert], vert);
     }
     else {
       mask[i] = 0.0f;
     }
 
-    if (expand_cache->preserve) {
-      if (expand_cache->invert) {
-        mask[i] = min_ff(mask[i], expand_cache->original_mask[vert]);
+    if (expand_cache.preserve) {
+      if (expand_cache.invert) {
+        mask[i] = min_ff(mask[i], expand_cache.original_mask[vert]);
       }
       else {
-        mask[i] = max_ff(mask[i], expand_cache->original_mask[vert]);
+        mask[i] = max_ff(mask[i], expand_cache.original_mask[vert]);
       }
     }
   }
@@ -1295,45 +1468,45 @@ static void calc_new_mask_mesh(const SculptSession &ss,
   mask::clamp_mask(mask);
 }
 
-static void update_mask_grids(const SculptSession &ss, bke::pbvh::Node *node)
+static void update_mask_grids(const SculptSession &ss,
+                              const BitSpan enabled_verts,
+                              bke::pbvh::Node &node,
+                              SubdivCCG &subdiv_ccg)
 {
-  const Cache *expand_cache = ss.expand_cache;
-  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const Cache &expand_cache = *ss.expand_cache;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const Span<CCGElem *> elems = subdiv_ccg.grids;
 
   bool any_changed = false;
-
-  const Span<int> grids = bke::pbvh::node_grid_indices(*node);
+  const Span<int> grids = bke::pbvh::node_grid_indices(node);
   for (const int i : grids.index_range()) {
-    const int grid_start = grids[i] * key.grid_area;
-    CCGElem *elem = elems[grids[i]];
+    const int grid = grids[i];
+    const int start = grid * key.grid_area;
+    CCGElem *elem = elems[grid];
     for (const int offset : IndexRange(key.grid_area)) {
-      const int grids_vert_index = grid_start + offset;
+      const int vert = start + offset;
       const float initial_mask = CCG_elem_offset_mask(key, elem, offset);
-      const bool enabled = vert_state_get(ss, expand_cache, PBVHVertRef{grids_vert_index});
 
-      if (expand_cache->check_islands &&
-          !is_vert_in_active_component(ss, expand_cache, PBVHVertRef{grids_vert_index}))
-      {
+      if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert)) {
         continue;
       }
 
       float new_mask;
 
-      if (enabled) {
-        new_mask = gradient_value_get(ss, expand_cache, PBVHVertRef{grids_vert_index});
+      if (enabled_verts[vert]) {
+        new_mask = gradient_value_get(
+            ss, expand_cache, CCG_elem_offset_co(key, elem, offset), vert);
       }
       else {
         new_mask = 0.0f;
       }
 
-      if (expand_cache->preserve) {
-        if (expand_cache->invert) {
-          new_mask = min_ff(new_mask, expand_cache->original_mask[grids_vert_index]);
+      if (expand_cache.preserve) {
+        if (expand_cache.invert) {
+          new_mask = min_ff(new_mask, expand_cache.original_mask[vert]);
         }
         else {
-          new_mask = max_ff(new_mask, expand_cache->original_mask[grids_vert_index]);
+          new_mask = max_ff(new_mask, expand_cache.original_mask[vert]);
         }
       }
 
@@ -1346,41 +1519,41 @@ static void update_mask_grids(const SculptSession &ss, bke::pbvh::Node *node)
     }
   }
   if (any_changed) {
-    BKE_pbvh_node_mark_update_mask(node);
+    BKE_pbvh_node_mark_update_mask(&node);
   }
 }
 
-static void update_mask_bmesh(SculptSession &ss, const int mask_offset, bke::pbvh::Node *node)
+static void update_mask_bmesh(SculptSession &ss,
+                              const BitSpan enabled_verts,
+                              const int mask_offset,
+                              bke::pbvh::Node *node)
 {
-  const Cache *expand_cache = ss.expand_cache;
+  const Cache &expand_cache = *ss.expand_cache;
 
   bool any_changed = false;
-
   for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(node)) {
+    const int vert_index = BM_elem_index_get(vert);
     const float initial_mask = BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
-    const bool enabled = vert_state_get(ss, expand_cache, PBVHVertRef{intptr_t(vert)});
 
-    if (expand_cache->check_islands &&
-        !is_vert_in_active_component(ss, expand_cache, PBVHVertRef{intptr_t(vert)}))
-    {
+    if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert_index)) {
       continue;
     }
 
     float new_mask;
 
-    if (enabled) {
-      new_mask = gradient_value_get(ss, expand_cache, PBVHVertRef{intptr_t(vert)});
+    if (enabled_verts[vert_index]) {
+      new_mask = gradient_value_get(ss, expand_cache, vert->co, vert_index);
     }
     else {
       new_mask = 0.0f;
     }
 
-    if (expand_cache->preserve) {
-      if (expand_cache->invert) {
-        new_mask = min_ff(new_mask, expand_cache->original_mask[BM_elem_index_get(vert)]);
+    if (expand_cache.preserve) {
+      if (expand_cache.invert) {
+        new_mask = min_ff(new_mask, expand_cache.original_mask[BM_elem_index_get(vert)]);
       }
       else {
-        new_mask = max_ff(new_mask, expand_cache->original_mask[BM_elem_index_get(vert)]);
+        new_mask = max_ff(new_mask, expand_cache.original_mask[BM_elem_index_get(vert)]);
       }
     }
 
@@ -1399,7 +1572,7 @@ static void update_mask_bmesh(SculptSession &ss, const int mask_offset, bke::pbv
 /**
  * Update Face Set data. Not multi-threaded per node as nodes don't contain face arrays.
  */
-static void face_sets_update(Object &object, Cache *expand_cache)
+static void face_sets_update(Object &object, Cache &expand_cache)
 {
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(object);
   Mesh &mesh = *static_cast<Mesh *>(object.data);
@@ -1413,17 +1586,17 @@ static void face_sets_update(Object &object, Cache *expand_cache)
     if (!enabled) {
       continue;
     }
-    if (expand_cache->preserve) {
-      face_sets.span[f] += expand_cache->next_face_set;
+    if (expand_cache.preserve) {
+      face_sets.span[f] += expand_cache.next_face_set;
     }
     else {
-      face_sets.span[f] = expand_cache->next_face_set;
+      face_sets.span[f] = expand_cache.next_face_set;
     }
   }
 
   face_sets.finish();
 
-  for (bke::pbvh::Node *node : expand_cache->nodes) {
+  for (bke::pbvh::Node *node : expand_cache.nodes) {
     BKE_pbvh_node_mark_update_face_sets(node);
   }
 }
@@ -1431,7 +1604,8 @@ static void face_sets_update(Object &object, Cache *expand_cache)
 /**
  * Callback to update vertex colors per bke::pbvh::Tree node.
  */
-static void colors_update_task(SculptSession &ss,
+static void colors_update_task(Object &object,
+                               const Span<float3> vert_positions,
                                const OffsetIndices<int> faces,
                                const Span<int> corner_verts,
                                const GroupedSpan<int> vert_to_face_map,
@@ -1440,10 +1614,12 @@ static void colors_update_task(SculptSession &ss,
                                bke::pbvh::Node *node,
                                bke::GSpanAttributeWriter &color_attribute)
 {
-  Cache *expand_cache = ss.expand_cache;
+  const SculptSession &ss = *object.sculpt;
+  const Cache &expand_cache = *ss.expand_cache;
+
+  const BitVector<> enabled_verts = enabled_state_to_bitmap(object, expand_cache);
 
   bool any_changed = false;
-
   const Span<int> verts = bke::pbvh::node_unique_verts(*node);
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
@@ -1454,11 +1630,10 @@ static void colors_update_task(SculptSession &ss,
     float4 initial_color = color::color_vert_get(
         faces, corner_verts, vert_to_face_map, color_attribute.span, color_attribute.domain, vert);
 
-    const bool enabled = vert_state_get(ss, expand_cache, PBVHVertRef{vert});
     float fade;
 
-    if (enabled) {
-      fade = gradient_value_get(ss, expand_cache, PBVHVertRef{vert});
+    if (enabled_verts[vert]) {
+      fade = gradient_value_get(ss, expand_cache, vert_positions[vert], vert);
     }
     else {
       fade = 0.0f;
@@ -1471,11 +1646,11 @@ static void colors_update_task(SculptSession &ss,
 
     float4 final_color;
     float4 final_fill_color;
-    mul_v4_v4fl(final_fill_color, expand_cache->fill_color, fade);
+    mul_v4_v4fl(final_fill_color, expand_cache.fill_color, fade);
     IMB_blend_color_float(final_color,
-                          expand_cache->original_colors[vert],
+                          expand_cache.original_colors[vert],
                           final_fill_color,
-                          IMB_BlendMode(expand_cache->blend_mode));
+                          IMB_BlendMode(expand_cache.blend_mode));
 
     if (initial_color == final_color) {
       continue;
@@ -1497,7 +1672,7 @@ static void colors_update_task(SculptSession &ss,
 }
 
 /* Store the original mesh data state in the expand cache. */
-static void original_state_store(Object &ob, Cache *expand_cache)
+static void original_state_store(Object &ob, Cache &expand_cache)
 {
   SculptSession &ss = *ob.sculpt;
   Mesh &mesh = *static_cast<Mesh *>(ob.data);
@@ -1506,14 +1681,14 @@ static void original_state_store(Object &ob, Cache *expand_cache)
   face_set::create_face_sets_mesh(ob);
 
   /* Face Sets are always stored as they are needed for snapping. */
-  expand_cache->initial_face_sets = face_set::duplicate_face_sets(mesh);
-  expand_cache->original_face_sets = face_set::duplicate_face_sets(mesh);
+  expand_cache.initial_face_sets = face_set::duplicate_face_sets(mesh);
+  expand_cache.original_face_sets = face_set::duplicate_face_sets(mesh);
 
-  if (expand_cache->target == TargetType::Mask) {
-    expand_cache->original_mask = mask::duplicate_mask(ob);
+  if (expand_cache.target == TargetType::Mask) {
+    expand_cache.original_mask = mask::duplicate_mask(ob);
   }
 
-  if (expand_cache->target == TargetType::Colors) {
+  if (expand_cache.target == TargetType::Colors) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     const OffsetIndices<int> faces = mesh.faces();
     const Span<int> corner_verts = mesh.corner_verts();
@@ -1521,9 +1696,9 @@ static void original_state_store(Object &ob, Cache *expand_cache)
     const bke::GAttributeReader color_attribute = color::active_color_attribute(mesh);
     const GVArraySpan colors = *color_attribute;
 
-    expand_cache->original_colors = Array<float4>(totvert);
+    expand_cache.original_colors = Array<float4>(totvert);
     for (int i = 0; i < totvert; i++) {
-      expand_cache->original_colors[i] = color::color_vert_get(
+      expand_cache.original_colors[i] = color::color_vert_get(
           faces, corner_verts, vert_to_face_map, colors, color_attribute.domain, i);
     }
   }
@@ -1532,7 +1707,7 @@ static void original_state_store(Object &ob, Cache *expand_cache)
 /**
  * Restore the state of the Face Sets before a new update.
  */
-static void face_sets_restore(Object &object, Cache *expand_cache)
+static void face_sets_restore(Object &object, Cache &expand_cache)
 {
   SculptSession &ss = *object.sculpt;
   const Mesh &mesh = *static_cast<const Mesh *>(object.data);
@@ -1541,14 +1716,14 @@ static void face_sets_restore(Object &object, Cache *expand_cache)
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(object);
   const int totfaces = ss.totfaces;
   for (int i = 0; i < totfaces; i++) {
-    if (expand_cache->original_face_sets[i] <= 0) {
+    if (expand_cache.original_face_sets[i] <= 0) {
       /* Do not modify hidden Face Sets, even when restoring the IDs state. */
       continue;
     }
     if (!is_face_in_active_component(ss, faces, corner_verts, expand_cache, i)) {
       continue;
     }
-    face_sets.span[i] = expand_cache->initial_face_sets[i];
+    face_sets.span[i] = expand_cache.initial_face_sets[i];
   }
   face_sets.finish();
 }
@@ -1556,7 +1731,7 @@ static void face_sets_restore(Object &object, Cache *expand_cache)
 static void update_for_vert(bContext *C, Object &ob, const PBVHVertRef vertex)
 {
   SculptSession &ss = *ob.sculpt;
-  Cache *expand_cache = ss.expand_cache;
+  Cache &expand_cache = *ss.expand_cache;
 
   int vertex_i = BKE_pbvh_vertex_to_index(*ss.pbvh, vertex);
 
@@ -1565,36 +1740,39 @@ static void update_for_vert(bContext *C, Object &ob, const PBVHVertRef vertex)
     /* This means that the cursor is not over the mesh, so a valid active falloff can't be
      * determined. In this situations, don't evaluate enabled states and default all vertices in
      * connected components to enabled. */
-    expand_cache->active_falloff = expand_cache->max_vert_falloff;
-    expand_cache->all_enabled = true;
+    expand_cache.active_falloff = expand_cache.max_vert_falloff;
+    expand_cache.all_enabled = true;
   }
   else {
-    expand_cache->active_falloff = expand_cache->vert_falloff[vertex_i];
-    expand_cache->all_enabled = false;
+    expand_cache.active_falloff = expand_cache.vert_falloff[vertex_i];
+    expand_cache.all_enabled = false;
   }
 
-  if (expand_cache->target == TargetType::FaceSets) {
+  if (expand_cache.target == TargetType::FaceSets) {
     /* Face sets needs to be restored their initial state on each iteration as the overwrite
      * existing data. */
     face_sets_restore(ob, expand_cache);
   }
 
-  const Span<bke::pbvh::Node *> nodes = expand_cache->nodes;
+  const Span<bke::pbvh::Node *> nodes = expand_cache.nodes;
 
-  switch (expand_cache->target) {
+  const BitVector<> enabled_verts = enabled_state_to_bitmap(ob, expand_cache);
+
+  switch (expand_cache.target) {
     case TargetType::Mask: {
       switch (ss.pbvh->type()) {
         case bke::pbvh::Type::Mesh: {
+          const Span<float3> positions = bke::pbvh::vert_positions_eval(ob);
           mask::update_mask_mesh(
               ob, nodes, [&](const MutableSpan<float> mask, const Span<int> verts) {
-                calc_new_mask_mesh(ss, mask, verts);
+                calc_new_mask_mesh(ss, positions, enabled_verts, verts, mask);
               });
           break;
         }
         case bke::pbvh::Type::Grids: {
           threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
             for (const int i : range) {
-              update_mask_grids(ss, nodes[i]);
+              update_mask_grids(ss, enabled_verts, *nodes[i], *ss.subdiv_ccg);
             }
           });
           break;
@@ -1604,7 +1782,7 @@ static void update_for_vert(bContext *C, Object &ob, const PBVHVertRef vertex)
               &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
           threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
             for (const int i : range) {
-              update_mask_bmesh(ss, mask_offset, nodes[i]);
+              update_mask_bmesh(ss, enabled_verts, mask_offset, nodes[i]);
             }
           });
           break;
@@ -1619,6 +1797,7 @@ static void update_for_vert(bContext *C, Object &ob, const PBVHVertRef vertex)
       break;
     case TargetType::Colors: {
       Mesh &mesh = *static_cast<Mesh *>(ob.data);
+      const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(ob);
       const OffsetIndices<int> faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
@@ -1629,7 +1808,8 @@ static void update_for_vert(bContext *C, Object &ob, const PBVHVertRef vertex)
 
       threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
         for (const int i : range) {
-          colors_update_task(ss,
+          colors_update_task(ob,
+                             vert_positions,
                              faces,
                              corner_verts,
                              vert_to_face_map,
@@ -1664,52 +1844,48 @@ static PBVHVertRef target_vert_update_and_get(bContext *C, Object &ob, const flo
  * Moves the sculpt pivot to the average point of the boundary enabled vertices of the current
  * expand state. Take symmetry and active components into account.
  */
-static void reposition_pivot(bContext *C, Object &ob, Cache *expand_cache)
+static void reposition_pivot(bContext *C, Object &ob, Cache &expand_cache)
 {
   SculptSession &ss = *ob.sculpt;
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
-  const int totvert = SCULPT_vertex_count_get(ss);
 
-  const bool initial_invert_state = expand_cache->invert;
-  expand_cache->invert = false;
-  const BitVector<> enabled_verts = enabled_state_to_bitmap(ss, expand_cache);
+  const bool initial_invert_state = expand_cache.invert;
+  expand_cache.invert = false;
+  const BitVector<> enabled_verts = enabled_state_to_bitmap(ob, expand_cache);
 
   /* For boundary topology, position the pivot using only the boundary of the enabled vertices,
    * without taking mesh boundary into account. This allows to create deformations like bending the
    * mesh from the boundary of the mask that was just created. */
-  const float use_mesh_boundary = expand_cache->falloff_type != FalloffType::BoundaryTopology;
+  const float use_mesh_boundary = expand_cache.falloff_type != FalloffType::BoundaryTopology;
 
-  BitVector<> boundary_verts = boundary_from_enabled(ss, enabled_verts, use_mesh_boundary);
+  IndexMaskMemory memory;
+  const IndexMask boundary_verts = boundary_from_enabled(
+      ob, enabled_verts, use_mesh_boundary, memory);
 
   /* Ignore invert state, as this is the expected behavior in most cases and mask are created in
    * inverted state by default. */
-  expand_cache->invert = initial_invert_state;
+  expand_cache.invert = initial_invert_state;
 
   int total = 0;
   float avg[3] = {0.0f};
 
-  const float *expand_init_co = SCULPT_vertex_co_get(ss, expand_cache->initial_active_vertex);
+  const float *expand_init_co = SCULPT_vertex_co_get(ob, expand_cache.initial_active_vertex);
 
-  for (int i = 0; i < totvert; i++) {
-    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, i);
-
-    if (!boundary_verts[i]) {
-      continue;
+  boundary_verts.foreach_index([&](const int vert) {
+    if (!is_vert_in_active_component(ss, expand_cache, vert)) {
+      return;
     }
 
-    if (!is_vert_in_active_component(ss, expand_cache, vertex)) {
-      continue;
-    }
-
-    const float *vertex_co = SCULPT_vertex_co_get(ss, vertex);
+    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(*ss.pbvh, vert);
+    const float *vertex_co = SCULPT_vertex_co_get(ob, vertex);
 
     if (!SCULPT_check_vertex_pivot_symmetry(vertex_co, expand_init_co, symm)) {
-      continue;
+      return;
     }
 
     add_v3_v3(avg, vertex_co);
     total++;
-  }
+  });
 
   if (total > 0) {
     mul_v3_v3fl(ss.pivot_pos, avg, 1.0f / total);
@@ -1751,24 +1927,27 @@ static void finish(bContext *C)
  * pass needed for expand.
  */
 static void find_active_connected_components_from_vert(Object &ob,
-                                                       Cache *expand_cache,
+                                                       Cache &expand_cache,
                                                        const PBVHVertRef initial_vertex)
 {
   SculptSession &ss = *ob.sculpt;
   for (int i = 0; i < EXPAND_SYMM_AREAS; i++) {
-    expand_cache->active_connected_islands[i] = EXPAND_ACTIVE_COMPONENT_NONE;
+    expand_cache.active_connected_islands[i] = EXPAND_ACTIVE_COMPONENT_NONE;
   }
 
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+
+  const Vector<int> symm_verts = calc_symmetry_vert_indices(
+      ob, symm, BKE_pbvh_vertex_to_index(*ss.pbvh, initial_vertex));
+
+  int valid_index = 0;
   for (char symm_it = 0; symm_it <= symm; symm_it++) {
     if (!SCULPT_is_symmetry_iteration_valid(symm_it, symm)) {
       continue;
     }
-
-    const PBVHVertRef symm_vertex = get_vert_index_for_symmetry_pass(ob, symm_it, initial_vertex);
-
-    expand_cache->active_connected_islands[int(symm_it)] = islands::vert_id_get(
-        ss, BKE_pbvh_vertex_to_index(*ss.pbvh, symm_vertex));
+    expand_cache.active_connected_islands[symm_it] = islands::vert_id_get(ss,
+                                                                          symm_verts[valid_index]);
+    valid_index++;
   }
 }
 
@@ -1778,7 +1957,7 @@ static void find_active_connected_components_from_vert(Object &ob,
  */
 static void set_initial_components_for_mouse(bContext *C,
                                              Object &ob,
-                                             Cache *expand_cache,
+                                             Cache &expand_cache,
                                              const float mval[2])
 {
   SculptSession &ss = *ob.sculpt;
@@ -1794,19 +1973,19 @@ static void set_initial_components_for_mouse(bContext *C,
   int initial_vertex_i = BKE_pbvh_vertex_to_index(*ss.pbvh, initial_vertex);
 
   copy_v2_v2(ss.expand_cache->initial_mouse, mval);
-  expand_cache->initial_active_vertex = initial_vertex;
-  expand_cache->initial_active_vertex_i = initial_vertex_i;
-  expand_cache->initial_active_face_set = face_set::active_face_set_get(ss);
+  expand_cache.initial_active_vertex = initial_vertex;
+  expand_cache.initial_active_vertex_i = initial_vertex_i;
+  expand_cache.initial_active_face_set = face_set::active_face_set_get(ss);
 
-  if (expand_cache->next_face_set == SCULPT_FACE_SET_NONE) {
+  if (expand_cache.next_face_set == SCULPT_FACE_SET_NONE) {
     /* Only set the next face set once, otherwise this ID will constantly update to a new one each
      * time this function is called for using a new initial vertex from a different cursor
      * position. */
-    if (expand_cache->modify_active_face_set) {
-      expand_cache->next_face_set = face_set::active_face_set_get(ss);
+    if (expand_cache.modify_active_face_set) {
+      expand_cache.next_face_set = face_set::active_face_set_get(ss);
     }
     else {
-      expand_cache->next_face_set = face_set::find_next_available_id(ob);
+      expand_cache.next_face_set = face_set::find_next_available_id(ob);
     }
   }
 
@@ -1822,20 +2001,20 @@ static void set_initial_components_for_mouse(bContext *C,
 static void move_propagation_origin(bContext *C,
                                     Object &ob,
                                     const wmEvent *event,
-                                    Cache *expand_cache)
+                                    Cache &expand_cache)
 {
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   float move_disp[2];
-  sub_v2_v2v2(move_disp, mval_fl, expand_cache->initial_mouse_move);
+  sub_v2_v2v2(move_disp, mval_fl, expand_cache.initial_mouse_move);
 
   float new_mval[2];
-  add_v2_v2v2(new_mval, move_disp, expand_cache->original_mouse_move);
+  add_v2_v2v2(new_mval, move_disp, expand_cache.original_mouse_move);
 
   set_initial_components_for_mouse(C, ob, expand_cache, new_mval);
   calc_falloff_from_vert_and_symmetry(expand_cache,
                                       ob,
-                                      expand_cache->initial_active_vertex,
-                                      expand_cache->move_preview_falloff_type);
+                                      expand_cache.initial_active_vertex,
+                                      expand_cache.move_preview_falloff_type);
 }
 
 /**
@@ -1855,15 +2034,15 @@ static void ensure_sculptsession_data(Object &ob)
 /**
  * Returns the active Face Sets ID from the enabled face or grid in the #SculptSession.
  */
-static int active_face_set_id_get(SculptSession &ss, Cache *expand_cache)
+static int active_face_set_id_get(SculptSession &ss, Cache &expand_cache)
 {
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh:
-      return expand_cache->original_face_sets[ss.active_face_index];
+      return expand_cache.original_face_sets[ss.active_face_index];
     case bke::pbvh::Type::Grids: {
       const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
                                                                ss.active_grid_index);
-      return expand_cache->original_face_sets[face_index];
+      return expand_cache.original_face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh: {
       /* Dyntopo does not support Face Set functionality. */
@@ -1893,7 +2072,7 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
   const PBVHVertRef target_expand_vertex = target_vert_update_and_get(C, ob, mval_fl);
 
   /* Handle the modal keymap state changes. */
-  Cache *expand_cache = ss.expand_cache;
+  Cache &expand_cache = *ss.expand_cache;
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case SCULPT_EXPAND_MODAL_CANCEL: {
@@ -1901,60 +2080,60 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
         return OPERATOR_FINISHED;
       }
       case SCULPT_EXPAND_MODAL_INVERT: {
-        expand_cache->invert = !expand_cache->invert;
+        expand_cache.invert = !expand_cache.invert;
         break;
       }
       case SCULPT_EXPAND_MODAL_PRESERVE_TOGGLE: {
-        expand_cache->preserve = !expand_cache->preserve;
+        expand_cache.preserve = !expand_cache.preserve;
         break;
       }
       case SCULPT_EXPAND_MODAL_GRADIENT_TOGGLE: {
-        expand_cache->falloff_gradient = !expand_cache->falloff_gradient;
+        expand_cache.falloff_gradient = !expand_cache.falloff_gradient;
         break;
       }
       case SCULPT_EXPAND_MODAL_BRUSH_GRADIENT_TOGGLE: {
-        expand_cache->brush_gradient = !expand_cache->brush_gradient;
-        if (expand_cache->brush_gradient) {
-          expand_cache->falloff_gradient = true;
+        expand_cache.brush_gradient = !expand_cache.brush_gradient;
+        if (expand_cache.brush_gradient) {
+          expand_cache.falloff_gradient = true;
         }
         break;
       }
       case SCULPT_EXPAND_MODAL_SNAP_TOGGLE: {
-        if (expand_cache->snap) {
-          expand_cache->snap = false;
-          if (expand_cache->snap_enabled_face_sets) {
-            expand_cache->snap_enabled_face_sets.reset();
+        if (expand_cache.snap) {
+          expand_cache.snap = false;
+          if (expand_cache.snap_enabled_face_sets) {
+            expand_cache.snap_enabled_face_sets.reset();
           }
         }
         else {
-          expand_cache->snap = true;
-          expand_cache->snap_enabled_face_sets = std::make_unique<Set<int>>();
+          expand_cache.snap = true;
+          expand_cache.snap_enabled_face_sets = std::make_unique<Set<int>>();
           snap_init_from_enabled(ob, ss, expand_cache);
         }
         break;
       }
       case SCULPT_EXPAND_MODAL_MOVE_TOGGLE: {
-        if (expand_cache->move) {
-          expand_cache->move = false;
+        if (expand_cache.move) {
+          expand_cache.move = false;
           calc_falloff_from_vert_and_symmetry(expand_cache,
                                               ob,
-                                              expand_cache->initial_active_vertex,
-                                              expand_cache->move_original_falloff_type);
+                                              expand_cache.initial_active_vertex,
+                                              expand_cache.move_original_falloff_type);
           break;
         }
-        expand_cache->move = true;
-        expand_cache->move_original_falloff_type = expand_cache->falloff_type;
-        copy_v2_v2(expand_cache->initial_mouse_move, mval_fl);
-        copy_v2_v2(expand_cache->original_mouse_move, expand_cache->initial_mouse);
-        if (expand_cache->falloff_type == FalloffType::Geodesic &&
-            SCULPT_vertex_count_get(ss) > expand_cache->max_geodesic_move_preview)
+        expand_cache.move = true;
+        expand_cache.move_original_falloff_type = expand_cache.falloff_type;
+        copy_v2_v2(expand_cache.initial_mouse_move, mval_fl);
+        copy_v2_v2(expand_cache.original_mouse_move, expand_cache.initial_mouse);
+        if (expand_cache.falloff_type == FalloffType::Geodesic &&
+            SCULPT_vertex_count_get(ss) > expand_cache.max_geodesic_move_preview)
         {
           /* Set to spherical falloff for preview in high poly meshes as it is the fastest one.
            * In most cases it should match closely the preview from geodesic. */
-          expand_cache->move_preview_falloff_type = FalloffType::Sphere;
+          expand_cache.move_preview_falloff_type = FalloffType::Sphere;
         }
         else {
-          expand_cache->move_preview_falloff_type = expand_cache->falloff_type;
+          expand_cache.move_preview_falloff_type = expand_cache.falloff_type;
         }
         break;
       }
@@ -1969,7 +2148,7 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
       case SCULPT_EXPAND_MODAL_CONFIRM: {
         update_for_vert(C, ob, target_expand_vertex);
 
-        if (expand_cache->reposition_pivot) {
+        if (expand_cache.reposition_pivot) {
           reposition_pivot(C, ob, expand_cache);
         }
 
@@ -1980,41 +2159,41 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
         check_topology_islands(ob, FalloffType::Geodesic);
 
         calc_falloff_from_vert_and_symmetry(
-            expand_cache, ob, expand_cache->initial_active_vertex, FalloffType::Geodesic);
+            expand_cache, ob, expand_cache.initial_active_vertex, FalloffType::Geodesic);
         break;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY: {
         check_topology_islands(ob, FalloffType::Topology);
 
         calc_falloff_from_vert_and_symmetry(
-            expand_cache, ob, expand_cache->initial_active_vertex, FalloffType::Topology);
+            expand_cache, ob, expand_cache.initial_active_vertex, FalloffType::Topology);
         break;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS: {
         check_topology_islands(ob, FalloffType::TopologyNormals);
 
         calc_falloff_from_vert_and_symmetry(
-            expand_cache, ob, expand_cache->initial_active_vertex, FalloffType::TopologyNormals);
+            expand_cache, ob, expand_cache.initial_active_vertex, FalloffType::TopologyNormals);
         break;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_SPHERICAL: {
-        expand_cache->check_islands = false;
+        expand_cache.check_islands = false;
         calc_falloff_from_vert_and_symmetry(
-            expand_cache, ob, expand_cache->initial_active_vertex, FalloffType::Sphere);
+            expand_cache, ob, expand_cache.initial_active_vertex, FalloffType::Sphere);
         break;
       }
       case SCULPT_EXPAND_MODAL_LOOP_COUNT_INCREASE: {
-        expand_cache->loop_count += 1;
+        expand_cache.loop_count += 1;
         break;
       }
       case SCULPT_EXPAND_MODAL_LOOP_COUNT_DECREASE: {
-        expand_cache->loop_count -= 1;
-        expand_cache->loop_count = max_ii(expand_cache->loop_count, 1);
+        expand_cache.loop_count -= 1;
+        expand_cache.loop_count = max_ii(expand_cache.loop_count, 1);
         break;
       }
       case SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_INCREASE: {
-        if (expand_cache->texture_distortion_strength == 0.0f) {
-          const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache->brush, OB_MODE_SCULPT);
+        if (expand_cache.texture_distortion_strength == 0.0f) {
+          const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache.brush, OB_MODE_SCULPT);
           if (mask_tex->tex == nullptr) {
             BKE_report(op->reports,
                        RPT_WARNING,
@@ -2027,28 +2206,28 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
                        "Texture mapping not set to 3D, results may be unpredictable");
           }
         }
-        expand_cache->texture_distortion_strength += SCULPT_EXPAND_TEXTURE_DISTORTION_STEP;
+        expand_cache.texture_distortion_strength += SCULPT_EXPAND_TEXTURE_DISTORTION_STEP;
         break;
       }
       case SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_DECREASE: {
-        expand_cache->texture_distortion_strength -= SCULPT_EXPAND_TEXTURE_DISTORTION_STEP;
-        expand_cache->texture_distortion_strength = max_ff(
-            expand_cache->texture_distortion_strength, 0.0f);
+        expand_cache.texture_distortion_strength -= SCULPT_EXPAND_TEXTURE_DISTORTION_STEP;
+        expand_cache.texture_distortion_strength = max_ff(expand_cache.texture_distortion_strength,
+                                                          0.0f);
         break;
       }
     }
   }
 
   /* Handle expand origin movement if enabled. */
-  if (expand_cache->move) {
+  if (expand_cache.move) {
     move_propagation_origin(C, ob, event, expand_cache);
   }
 
   /* Add new Face Sets IDs to the snapping set if enabled. */
-  if (expand_cache->snap) {
+  if (expand_cache.snap) {
     const int active_face_set_id = active_face_set_id_get(ss, expand_cache);
     /* The key may exist, in that case this does nothing. */
-    expand_cache->snap_enabled_face_sets->add(active_face_set_id);
+    expand_cache.snap_enabled_face_sets->add(active_face_set_id);
   }
 
   /* Update the sculpt data with the current state of the #Cache. */
@@ -2064,7 +2243,7 @@ static int sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event
  * using the content from their neighbors.
  */
 static void delete_face_set_id(
-    int *r_face_sets, SculptSession &ss, Cache *expand_cache, Mesh *mesh, const int delete_id)
+    int *r_face_sets, SculptSession &ss, Cache &expand_cache, Mesh *mesh, const int delete_id)
 {
   const int totface = ss.totfaces;
   const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
@@ -2106,7 +2285,7 @@ static void delete_face_set_id(
       int other_id = delete_id;
       for (const int vert : corner_verts.slice(faces[f_index])) {
         for (const int neighbor_face_index : vert_to_face_map[vert]) {
-          if (expand_cache->original_face_sets[neighbor_face_index] <= 0) {
+          if (expand_cache.original_face_sets[neighbor_face_index] <= 0) {
             /* Skip picking IDs from hidden Face Sets. */
             continue;
           }
@@ -2138,46 +2317,46 @@ static void delete_face_set_id(
   BLI_LINKSTACK_FREE(queue_next);
 }
 
-static void cache_initial_config_set(bContext *C, wmOperator *op, Cache *expand_cache)
+static void cache_initial_config_set(bContext *C, wmOperator *op, Cache &expand_cache)
 {
-  expand_cache->normal_falloff_blur_steps = RNA_int_get(op->ptr, "normal_falloff_smooth");
-  expand_cache->invert = RNA_boolean_get(op->ptr, "invert");
-  expand_cache->preserve = RNA_boolean_get(op->ptr, "use_mask_preserve");
-  expand_cache->auto_mask = RNA_boolean_get(op->ptr, "use_auto_mask");
-  expand_cache->falloff_gradient = RNA_boolean_get(op->ptr, "use_falloff_gradient");
-  expand_cache->target = TargetType(RNA_enum_get(op->ptr, "target"));
-  expand_cache->modify_active_face_set = RNA_boolean_get(op->ptr, "use_modify_active");
-  expand_cache->reposition_pivot = RNA_boolean_get(op->ptr, "use_reposition_pivot");
-  expand_cache->max_geodesic_move_preview = RNA_int_get(op->ptr, "max_geodesic_move_preview");
+  expand_cache.normal_falloff_blur_steps = RNA_int_get(op->ptr, "normal_falloff_smooth");
+  expand_cache.invert = RNA_boolean_get(op->ptr, "invert");
+  expand_cache.preserve = RNA_boolean_get(op->ptr, "use_mask_preserve");
+  expand_cache.auto_mask = RNA_boolean_get(op->ptr, "use_auto_mask");
+  expand_cache.falloff_gradient = RNA_boolean_get(op->ptr, "use_falloff_gradient");
+  expand_cache.target = TargetType(RNA_enum_get(op->ptr, "target"));
+  expand_cache.modify_active_face_set = RNA_boolean_get(op->ptr, "use_modify_active");
+  expand_cache.reposition_pivot = RNA_boolean_get(op->ptr, "use_reposition_pivot");
+  expand_cache.max_geodesic_move_preview = RNA_int_get(op->ptr, "max_geodesic_move_preview");
 
   /* These can be exposed in RNA if needed. */
-  expand_cache->loop_count = 1;
-  expand_cache->brush_gradient = false;
+  expand_cache.loop_count = 1;
+  expand_cache.brush_gradient = false;
 
   /* Texture and color data from the active Brush. */
   Object &ob = *CTX_data_active_object(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
-  expand_cache->brush = BKE_paint_brush_for_read(&sd.paint);
-  BKE_curvemapping_init(expand_cache->brush->curve);
-  copy_v4_fl(expand_cache->fill_color, 1.0f);
-  copy_v3_v3(expand_cache->fill_color, BKE_brush_color_get(ss.scene, expand_cache->brush));
-  IMB_colormanagement_srgb_to_scene_linear_v3(expand_cache->fill_color, expand_cache->fill_color);
+  expand_cache.brush = BKE_paint_brush_for_read(&sd.paint);
+  BKE_curvemapping_init(expand_cache.brush->curve);
+  copy_v4_fl(expand_cache.fill_color, 1.0f);
+  copy_v3_v3(expand_cache.fill_color, BKE_brush_color_get(ss.scene, expand_cache.brush));
+  IMB_colormanagement_srgb_to_scene_linear_v3(expand_cache.fill_color, expand_cache.fill_color);
 
-  expand_cache->scene = CTX_data_scene(C);
-  expand_cache->texture_distortion_strength = 0.0f;
-  expand_cache->blend_mode = expand_cache->brush->blend;
+  expand_cache.scene = CTX_data_scene(C);
+  expand_cache.texture_distortion_strength = 0.0f;
+  expand_cache.blend_mode = expand_cache.brush->blend;
 }
 
 /**
  * Does the undo sculpt push for the affected target data of the #Cache.
  */
-static void undo_push(Object &ob, Cache *expand_cache)
+static void undo_push(Object &ob, Cache &expand_cache)
 {
   SculptSession &ss = *ob.sculpt;
   Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(*ss.pbvh, {});
 
-  switch (expand_cache->target) {
+  switch (expand_cache.target) {
     case TargetType::Mask:
       undo::push_nodes(ob, nodes, undo::Type::Mask);
       break;
@@ -2259,7 +2438,7 @@ static int sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Create and configure the Expand Cache. */
   ss.expand_cache = MEM_new<Cache>(__func__);
-  cache_initial_config_set(C, op, ss.expand_cache);
+  cache_initial_config_set(C, op, *ss.expand_cache);
 
   /* Update object. */
   const bool needs_colors = ss.expand_cache->target == TargetType::Colors;
@@ -2277,7 +2456,7 @@ static int sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
     if (RNA_boolean_get(op->ptr, "use_auto_mask")) {
       if (any_nonzero_mask(ob)) {
-        write_mask_data(ss, Array<float>(SCULPT_vertex_count_get(ss), 1.0f));
+        write_mask_data(ob, Array<float>(SCULPT_vertex_count_get(ss), 1.0f));
       }
     }
   }
@@ -2302,22 +2481,22 @@ static int sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Initialize undo. */
   undo::push_begin(ob, op);
-  undo_push(ob, ss.expand_cache);
+  undo_push(ob, *ss.expand_cache);
 
   /* Set the initial element for expand from the event position. */
   const float mouse[2] = {float(event->mval[0]), float(event->mval[1])};
-  set_initial_components_for_mouse(C, ob, ss.expand_cache, mouse);
+  set_initial_components_for_mouse(C, ob, *ss.expand_cache, mouse);
 
   /* Cache bke::pbvh::Tree nodes. */
   ss.expand_cache->nodes = bke::pbvh::search_gather(*ss.pbvh, {});
 
   /* Store initial state. */
-  original_state_store(ob, ss.expand_cache);
+  original_state_store(ob, *ss.expand_cache);
 
   if (ss.expand_cache->modify_active_face_set) {
     delete_face_set_id(ss.expand_cache->initial_face_sets.data(),
                        ss,
-                       ss.expand_cache,
+                       *ss.expand_cache,
                        mesh,
                        ss.expand_cache->next_face_set);
   }
@@ -2331,7 +2510,7 @@ static int sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *even
   }
 
   calc_falloff_from_vert_and_symmetry(
-      ss.expand_cache, ob, ss.expand_cache->initial_active_vertex, falloff_type);
+      *ss.expand_cache, ob, ss.expand_cache->initial_active_vertex, falloff_type);
 
   check_topology_islands(ob, falloff_type);
 

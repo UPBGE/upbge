@@ -94,7 +94,6 @@ static SculptAttribute *sculpt_attribute_ensure_ex(Object *ob,
                                                    const SculptAttributeParams *params,
                                                    blender::bke::pbvh::Type pbvhtype,
                                                    bool flat_array_for_bmesh);
-static void sculptsession_bmesh_add_layers(Object *ob);
 
 static void palette_init_data(ID *id)
 {
@@ -1598,7 +1597,6 @@ bool paint_calculate_rake_rotation(UnifiedPaintSettings &ups,
 
 void BKE_sculptsession_free_deformMats(SculptSession *ss)
 {
-  ss->orig_cos = {};
   ss->deform_cos = {};
   ss->deform_imats = {};
 }
@@ -1785,13 +1783,11 @@ int SculptSession::active_vert_index() const
   return -1;
 }
 
-blender::float3 SculptSession::active_vert_position(const Object & /*object*/) const
+blender::float3 SculptSession::active_vert_position(const Object &object) const
 {
   const ActiveVert vert = this->active_vert();
   if (std::holds_alternative<int>(vert)) {
-    /* TODO: When we remove mesh positions from PBVH, this should be replaced with the positions
-     * array accessed via the object param */
-    const Span<float3> positions = BKE_pbvh_get_vert_positions(*this->pbvh);
+    const Span<float3> positions = blender::bke::pbvh::vert_positions_eval(object);
     return positions[std::get<int>(vert)];
   }
   else if (std::holds_alternative<SubdivCCGCoord>(vert)) {
@@ -1917,21 +1913,6 @@ static bool sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
   return false;
 }
 
-/* Helper function to keep persistent base attribute references up to
- * date.  This is a bit more tricky since they persist across strokes.
- */
-static void sculpt_update_persistent_base(Object *ob)
-{
-  SculptSession &ss = *ob->sculpt;
-
-  ss.attrs.persistent_co = BKE_sculpt_attribute_get(
-      ob, AttrDomain::Point, CD_PROP_FLOAT3, SCULPT_ATTRIBUTE_NAME(persistent_co));
-  ss.attrs.persistent_no = BKE_sculpt_attribute_get(
-      ob, AttrDomain::Point, CD_PROP_FLOAT3, SCULPT_ATTRIBUTE_NAME(persistent_no));
-  ss.attrs.persistent_disp = BKE_sculpt_attribute_get(
-      ob, AttrDomain::Point, CD_PROP_FLOAT, SCULPT_ATTRIBUTE_NAME(persistent_disp));
-}
-
 static void sculpt_update_object(Depsgraph *depsgraph,
                                  Object *ob,
                                  Object *ob_eval,
@@ -2013,7 +1994,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   BKE_pbvh_subdiv_cgg_set(*ss.pbvh, ss.subdiv_ccg);
 
   sculpt_attribute_update_refs(ob, ss.pbvh->type());
-  sculpt_update_persistent_base(ob);
 
   if (ob->type == OB_MESH) {
     ss.vert_to_face_map = mesh_orig->vert_to_face_map();
@@ -2044,13 +2024,8 @@ static void sculpt_update_object(Depsgraph *depsgraph,
       }
     }
 
-    if (ss.orig_cos.is_empty() && !used_me_eval) {
+    if (!used_me_eval) {
       BKE_sculptsession_free_deformMats(&ss);
-
-      ss.orig_cos = (ss.shapekey_active) ?
-                        Span(static_cast<const float3 *>(ss.shapekey_active->data),
-                             mesh_orig->verts_num) :
-                        mesh_orig->vert_positions();
 
       BKE_crazyspace_build_sculpt(depsgraph, scene, ob, ss.deform_imats, ss.deform_cos);
       BKE_pbvh_vert_coords_apply(*ss.pbvh, ss.deform_cos);
@@ -2129,7 +2104,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
         /* pbvh::Tree nodes may contain dirty normal tags. To avoid losing that information when
          * the pbvh::Tree is deleted, make sure all tagged geometry normals are up to date.
          * See #122947 for more information. */
-        blender::bke::pbvh::update_normals(*ss->pbvh, ss->subdiv_ccg);
+        blender::bke::pbvh::update_normals_from_eval(*ob_eval, *ss->pbvh);
       }
       /* We free pbvh on changes, except in the middle of drawing a stroke
        * since it can't deal with changing PVBH node organization, we hope
@@ -2370,9 +2345,11 @@ namespace blender::bke {
 
 static std::unique_ptr<pbvh::Tree> build_pbvh_for_dynamic_topology(Object *ob)
 {
-  sculptsession_bmesh_add_layers(ob);
+  BMesh &bm = *ob->sculpt->bm;
+  BM_data_layer_ensure_named(&bm, &bm.vdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_vertex");
+  BM_data_layer_ensure_named(&bm, &bm.pdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_face");
 
-  return pbvh::build_bmesh(ob->sculpt->bm);
+  return pbvh::build_bmesh(&bm);
 }
 
 static std::unique_ptr<pbvh::Tree> build_pbvh_from_regular_mesh(Object *ob,
@@ -2886,30 +2863,6 @@ SculptAttribute *BKE_sculpt_attribute_ensure(Object *ob,
       ob, domain, proptype, name, &temp_params, ob->sculpt->pbvh->type(), true);
 }
 
-static void sculptsession_bmesh_add_layers(Object *ob)
-{
-  SculptSession *ss = ob->sculpt;
-  SculptAttributeParams params = {0};
-
-  ss->attrs.dyntopo_node_id_vertex = sculpt_attribute_ensure_ex(
-      ob,
-      AttrDomain::Point,
-      CD_PROP_INT32,
-      SCULPT_ATTRIBUTE_NAME(dyntopo_node_id_vertex),
-      &params,
-      blender::bke::pbvh::Type::BMesh,
-      false);
-
-  ss->attrs.dyntopo_node_id_face = sculpt_attribute_ensure_ex(
-      ob,
-      AttrDomain::Face,
-      CD_PROP_INT32,
-      SCULPT_ATTRIBUTE_NAME(dyntopo_node_id_face),
-      &params,
-      blender::bke::pbvh::Type::BMesh,
-      false);
-}
-
 void BKE_sculpt_attributes_destroy_temporary_stroke(Object *ob)
 {
   SculptSession *ss = ob->sculpt;
@@ -2935,10 +2888,6 @@ static void sculpt_attribute_update_refs(Object *ob, blender::bke::pbvh::Type pb
       if (attr->used) {
         sculpt_attr_update(ob, attr, pbvhtype);
       }
-    }
-
-    if (ss->bm) {
-      sculptsession_bmesh_add_layers(ob);
     }
   }
 }

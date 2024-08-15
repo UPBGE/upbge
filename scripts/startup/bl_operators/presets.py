@@ -30,17 +30,25 @@ WindowManager.preset_name = StringProperty(
 )
 
 
-def _call_preset_cb(fn, context, filepath):
+# -----------------------------------------------------------------------------
+# Private Implementation
+
+def _call_preset_cb(fn, context, filepath, *, deprecated="4.2"):
     # Allow "None" so the caller doesn't have to assign a variable and check it.
     if fn is None:
         return
 
+    if hasattr(fn, "__self__"):
+        args_offset = 1
+    else:
+        args_offset = 0
+
     # Support a `filepath` argument, optional for backwards compatibility.
     fn_arg_count = getattr(getattr(fn, "__code__", None), "co_argcount", None)
-    if fn_arg_count == 2:
+    if fn_arg_count == 2 + args_offset:
         args = (context, filepath)
     else:
-        print("Deprecated since Blender 4.2, a filepath argument should be included in:", fn)
+        print("Deprecated since Blender {:s}, a filepath argument should be included in: {!r}".format(deprecated, fn))
         args = (context, )
 
     try:
@@ -48,6 +56,19 @@ def _call_preset_cb(fn, context, filepath):
     except BaseException as ex:
         print("Internal error running", fn, str(ex))
 
+
+def _is_path_readonly(path):
+    from bpy.utils import (
+        is_path_builtin,
+        is_path_extension,
+    )
+    # Consider extension repository paths read-only because they should not be manipulated
+    # since the only way to restore the preset is to re-install the extension.
+    return is_path_builtin(path) or is_path_extension(path)
+
+
+# -----------------------------------------------------------------------------
+# Main Preset Implementation
 
 class AddPresetBase:
     """Base preset class, only for subclassing
@@ -97,7 +118,6 @@ class AddPresetBase:
 
     def execute(self, context):
         import os
-        from bpy.utils import is_path_builtin
 
         if hasattr(self, "pre_cb"):
             self.pre_cb(context)
@@ -201,7 +221,7 @@ class AddPresetBase:
                 return {'CANCELLED'}
 
             # Do not remove bundled presets
-            if is_path_builtin(filepath):
+            if _is_path_readonly(filepath):
                 self.report({'WARNING'}, "Unable to remove default presets")
                 return {'CANCELLED'}
 
@@ -219,8 +239,7 @@ class AddPresetBase:
             # XXX, stupid!
             preset_menu_class.bl_label = "Presets"
 
-        if hasattr(self, "post_cb"):
-            self.post_cb(context)
+        _call_preset_cb(getattr(self, "post_cb", None), context, filepath, deprecated="4.3")
 
         return {'FINISHED'}
 
@@ -612,6 +631,11 @@ class AddPresetInterfaceTheme(AddPresetBase, Operator):
     preset_menu = "USERPREF_MT_interface_theme_presets"
     preset_subdir = "interface_theme"
 
+    def post_cb(self, context, filepath):
+        # Ensure the saved preset is considered "active" after saving.
+        # Typically handled by the classes `bl_label` however themes use the `filepath` instead.
+        context.preferences.themes[0].filepath = filepath
+
 
 class RemovePresetInterfaceTheme(AddPresetBase, Operator):
     """Remove a custom theme from the preset list"""
@@ -625,22 +649,18 @@ class RemovePresetInterfaceTheme(AddPresetBase, Operator):
         options={'HIDDEN', 'SKIP_SAVE'},
     )
 
-    @classmethod
-    def poll(cls, context):
-        from bpy.utils import is_path_builtin
-        preset_menu_class = getattr(bpy.types, cls.preset_menu)
-        name = preset_menu_class.bl_label
-        name = bpy.path.clean_name(name)
-        filepath = bpy.utils.preset_find(name, cls.preset_subdir, ext=".xml")
-        if not bool(filepath) or is_path_builtin(filepath):
-            cls.poll_message_set("Built-in themes cannot be removed")
-            return False
-        return True
+    # NOTE: leave poll unset as file-system scanning should be avoided
+    # while redrawing as it may involve remote file-system access.
 
     def invoke(self, context, event):
+        filepath = context.preferences.themes[0].filepath
+        if (not filepath) or _is_path_readonly(filepath):
+            self.report({'ERROR'}, "Built-in themes cannot be removed")
+            return {'CANCELLED'}
+
         return context.window_manager.invoke_confirm(self, event, title="Remove Custom Theme", confirm_text="Delete")
 
-    def post_cb(self, context):
+    def post_cb(self, context, _filepath):
         # Without this, the name & colors are kept after removing the theme.
         # Even though the theme is removed from the list, it's seems like a bug to keep it displayed after removal.
         bpy.ops.preferences.reset_default_theme()
@@ -658,30 +678,17 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
         options={'HIDDEN', 'SKIP_SAVE'},
     )
 
-    @classmethod
-    def poll(cls, context):
-        from bpy.utils import is_path_builtin
-
-        preset_menu_class = getattr(bpy.types, cls.preset_menu)
-        name = preset_menu_class.bl_label
-        name = bpy.path.clean_name(name)
-        filepath = bpy.utils.preset_find(name, cls.preset_subdir, ext=".xml")
-        if (not filepath) or is_path_builtin(filepath):
-            cls.poll_message_set("Built-in themes cannot be overwritten")
-            return False
-        return True
+    # NOTE: leave poll unset as file-system scanning should be avoided
+    # while redrawing as it may involve remote file-system access.
 
     def execute(self, context):
-        from bpy.utils import is_path_builtin
         import rna_xml
-        preset_menu_class = getattr(bpy.types, self.preset_menu)
-        name = preset_menu_class.bl_label
-        name = bpy.path.clean_name(name)
-        filepath = bpy.utils.preset_find(name, self.preset_subdir, ext=".xml")
-        if not bool(filepath) or is_path_builtin(filepath):
+        filepath = context.preferences.themes[0].filepath
+        if (not filepath) or _is_path_readonly(filepath):
             self.report({'ERROR'}, "Built-in themes cannot be overwritten")
             return {'CANCELLED'}
 
+        preset_menu_class = getattr(bpy.types, self.preset_menu)
         try:
             rna_xml.xml_file_write(context, filepath, preset_menu_class.preset_xml_map)
         except BaseException as ex:
@@ -695,6 +702,11 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        filepath = context.preferences.themes[0].filepath
+        if (not filepath) or _is_path_readonly(filepath):
+            self.report({'ERROR'}, "Built-in themes cannot be overwritten")
+            return {'CANCELLED'}
+
         return context.window_manager.invoke_confirm(self, event, title="Overwrite Custom Theme?", confirm_text="Save")
 
 
@@ -722,28 +734,26 @@ class RemovePresetKeyconfig(AddPresetBase, Operator):
         options={'HIDDEN', 'SKIP_SAVE'},
     )
 
-    @classmethod
-    def poll(cls, context):
-        from bpy.utils import is_path_builtin
-        keyconfigs = bpy.context.window_manager.keyconfigs
-        preset_menu_class = getattr(bpy.types, cls.preset_menu)
-        name = keyconfigs.active.name
-        filepath = bpy.utils.preset_find(name, cls.preset_subdir, ext=".py")
-        if not bool(filepath) or is_path_builtin(filepath):
-            cls.poll_message_set("Built-in keymap configurations cannot be removed")
-            return False
-        return True
+    # NOTE: leave poll unset as file-system scanning should be avoided
+    # while redrawing as it may involve remote file-system access.
 
     def pre_cb(self, context):
         keyconfigs = bpy.context.window_manager.keyconfigs
         preset_menu_class = getattr(bpy.types, self.preset_menu)
         preset_menu_class.bl_label = keyconfigs.active.name
 
-    def post_cb(self, context):
+    def post_cb(self, context, _filepath):
         keyconfigs = bpy.context.window_manager.keyconfigs
         keyconfigs.remove(keyconfigs.active)
 
     def invoke(self, context, event):
+        keyconfigs = bpy.context.window_manager.keyconfigs
+        name = keyconfigs.active.name
+        filepath = bpy.utils.preset_find(name, self.preset_subdir, ext=".py")
+        if (not filepath) or _is_path_readonly(filepath):
+            self.report({'ERROR'}, "Built-in keymap configurations cannot be removed")
+            return {'CANCELLED'}
+
         return context.window_manager.invoke_confirm(
             self, event, title="Remove Keymap Configuration", confirm_text="Delete")
 

@@ -761,9 +761,8 @@ static void calc_forces_mesh(Object &ob,
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
-  if (const auto_mask::Cache *automask = auto_mask::active_cache_get(ss)) {
-    auto_mask::calc_vert_factors(ob, *automask, node, verts, factors);
-  }
+  const auto_mask::Cache *automask = auto_mask::active_cache_get(ss);
+  auto_mask::calc_vert_factors(ob, automask, node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, current_positions, factors);
 
@@ -871,9 +870,8 @@ static void calc_forces_grids(Object &ob,
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
-  if (const auto_mask::Cache *automask = auto_mask::active_cache_get(ss)) {
-    auto_mask::calc_vert_factors(ob, *automask, node, verts, factors);
-  }
+  const auto_mask::Cache *automask = auto_mask::active_cache_get(ss);
+  auto_mask::calc_vert_factors(ob, automask, node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, current_positions, factors);
 
@@ -979,9 +977,8 @@ static void calc_forces_bmesh(Object &ob,
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
-  if (const auto_mask::Cache *automask = auto_mask::active_cache_get(ss)) {
-    auto_mask::calc_vert_factors(ob, *automask, node, verts, factors);
-  }
+  const auto_mask::Cache *automask = auto_mask::active_cache_get(ss);
+  auto_mask::calc_vert_factors(ob, automask, node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, current_positions, factors);
 
@@ -1228,9 +1225,7 @@ static void calc_constraint_factors(const Object &object,
           tls.factors.resize(verts.size());
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide_and_mask(mesh, verts, factors);
-          if (automasking) {
-            auto_mask::calc_vert_factors(object, *automasking, *nodes[i], verts, factors);
-          }
+          auto_mask::calc_vert_factors(object, automasking, *nodes[i], verts, factors);
           if (ss.cache) {
             const MutableSpan positions = gather_data_mesh(init_positions, verts, tls.positions);
             calc_brush_simulation_falloff(
@@ -1252,9 +1247,7 @@ static void calc_constraint_factors(const Object &object,
           tls.factors.resize(grid_verts_num);
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
-          if (automasking) {
-            auto_mask::calc_grids_factors(object, *automasking, *nodes[i], grids, factors);
-          }
+          auto_mask::calc_grids_factors(object, automasking, *nodes[i], grids, factors);
           if (ss.cache) {
             const Span<float3> positions = gather_data_grids(
                 subdiv_ccg, init_positions, grids, tls.positions);
@@ -1275,9 +1268,7 @@ static void calc_constraint_factors(const Object &object,
           tls.factors.resize(verts.size());
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide_and_mask(bm, verts, factors);
-          if (automasking) {
-            auto_mask::calc_vert_factors(object, *automasking, *nodes[i], verts, factors);
-          }
+          auto_mask::calc_vert_factors(object, automasking, *nodes[i], verts, factors);
           if (ss.cache) {
             const MutableSpan<float3> positions = gather_data_vert_bmesh(
                 init_positions, verts, tls.positions);
@@ -1390,7 +1381,7 @@ void do_simulation_step(const Sculpt &sd,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
+      const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(object);
       MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
       threading::parallel_for(active_nodes.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
@@ -1400,9 +1391,8 @@ void do_simulation_step(const Sculpt &sd,
           tls.factors.resize(verts.size());
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide_and_mask(mesh, verts, factors);
-          if (const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss)) {
-            auto_mask::calc_vert_factors(object, *automasking, *nodes[i], verts, factors);
-          }
+          const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
+          auto_mask::calc_vert_factors(object, automasking, *nodes[i], verts, factors);
 
           solve_verts_simulation(object, brush, sim_location, verts, factors, tls, cloth_sim);
 
@@ -1429,9 +1419,8 @@ void do_simulation_step(const Sculpt &sd,
           tls.factors.resize(grid_verts_num);
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
-          if (const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss)) {
-            auto_mask::calc_grids_factors(object, *automasking, *nodes[i], grids, factors);
-          }
+          const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
+          auto_mask::calc_grids_factors(object, automasking, *nodes[i], grids, factors);
 
           const Span<int> verts = calc_vert_indices_grids(key, grids, tls.vert_indices);
           solve_verts_simulation(object, brush, sim_location, verts, factors, tls, cloth_sim);
@@ -1459,9 +1448,8 @@ void do_simulation_step(const Sculpt &sd,
           tls.factors.resize(verts.size());
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide_and_mask(bm, verts, factors);
-          if (const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss)) {
-            auto_mask::calc_vert_factors(object, *automasking, *nodes[i], verts, factors);
-          }
+          const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
+          auto_mask::calc_vert_factors(object, automasking, *nodes[i], verts, factors);
 
           const Span<int> vert_indices = calc_vert_indices_bmesh(verts, tls.vert_indices);
           solve_verts_simulation(
@@ -1543,9 +1531,8 @@ static void cloth_brush_apply_brush_foces(const Sculpt &sd,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh: {
-      const bke::pbvh::Tree &pbvh = *ss.pbvh;
-      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
-      const Span<float3> vert_normals = BKE_pbvh_get_vert_normals(pbvh);
+      const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(ob);
+      const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(ob);
       threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         for (const int i : range) {
@@ -1600,12 +1587,13 @@ static void cloth_sim_initialize_default_node_state(SculptSession &ss, Simulatio
   }
 }
 
-static void copy_positions_to_array(const SculptSession &ss, MutableSpan<float3> positions)
+static void copy_positions_to_array(const Object &object, MutableSpan<float3> positions)
 {
+  const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *ss.pbvh;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
-      positions.copy_from(BKE_pbvh_get_vert_positions(pbvh));
+      positions.copy_from(bke::pbvh::vert_positions_eval(object));
       break;
     case bke::pbvh::Type::Grids: {
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
@@ -1626,12 +1614,13 @@ static void copy_positions_to_array(const SculptSession &ss, MutableSpan<float3>
   }
 }
 
-static void copy_normals_to_array(const SculptSession &ss, MutableSpan<float3> normals)
+static void copy_normals_to_array(const Object &object, MutableSpan<float3> normals)
 {
+  const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *ss.pbvh;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
-      normals.copy_from(BKE_pbvh_get_vert_normals(pbvh));
+      normals.copy_from(bke::pbvh::vert_normals_eval(object));
       break;
     case bke::pbvh::Type::Grids: {
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
@@ -1674,13 +1663,13 @@ std::unique_ptr<SimulationData> brush_simulation_create(Object &ob,
   cloth_sim->length_constraint_tweak = Array<float>(totverts, 0.0f);
 
   cloth_sim->init_pos.reinitialize(totverts);
-  copy_positions_to_array(ss, cloth_sim->init_pos);
+  copy_positions_to_array(ob, cloth_sim->init_pos);
 
   cloth_sim->last_iteration_pos = cloth_sim->init_pos;
   cloth_sim->prev_pos = cloth_sim->init_pos;
 
   cloth_sim->init_no.reinitialize(totverts);
-  copy_normals_to_array(ss, cloth_sim->init_no);
+  copy_normals_to_array(ob, cloth_sim->init_no);
 
   if (needs_deform_coords) {
     cloth_sim->deformation_pos = cloth_sim->init_pos;
@@ -1704,9 +1693,9 @@ std::unique_ptr<SimulationData> brush_simulation_create(Object &ob,
   return cloth_sim;
 }
 
-void brush_store_simulation_state(const SculptSession &ss, SimulationData &cloth_sim)
+void brush_store_simulation_state(const Object &object, SimulationData &cloth_sim)
 {
-  copy_positions_to_array(ss, cloth_sim.pos);
+  copy_positions_to_array(object, cloth_sim.pos);
 }
 
 void sim_activate_nodes(SimulationData &cloth_sim, Span<bke::pbvh::Node *> nodes)
@@ -1771,7 +1760,7 @@ void do_cloth_brush(const Sculpt &sd, Object &ob, Span<bke::pbvh::Node *> nodes)
   sculpt_cloth_ensure_constraints_in_simulation_area(sd, ob, nodes);
 
   /* Store the initial state in the simulation. */
-  brush_store_simulation_state(ss, *ss.cache->cloth_sim);
+  brush_store_simulation_state(ob, *ss.cache->cloth_sim);
 
   /* Enable the nodes that should be simulated. */
   sim_activate_nodes(*ss.cache->cloth_sim, nodes);
@@ -1974,9 +1963,8 @@ static void apply_filter_forces_mesh(const ClothFilterType filter_type,
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
   fill_factor_from_hide_and_mask(mesh, verts, factors);
-  if (const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss)) {
-    auto_mask::calc_vert_factors(object, *automasking, node, verts, factors);
-  }
+  const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
+  auto_mask::calc_vert_factors(object, automasking, node, verts, factors);
 
   if (ss.filter_cache->active_face_set != SCULPT_FACE_SET_NONE) {
     for (const int i : verts.index_range()) {
@@ -2044,9 +2032,8 @@ static void apply_filter_forces_grids(const ClothFilterType filter_type,
   tls.factors.resize(grid_verts_num);
   const MutableSpan<float> factors = tls.factors;
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
-  if (const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss)) {
-    auto_mask::calc_grids_factors(object, *automasking, node, grids, factors);
-  }
+  const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
+  auto_mask::calc_grids_factors(object, automasking, node, grids, factors);
 
   if (ss.filter_cache->active_face_set != SCULPT_FACE_SET_NONE) {
     for (const int i : grids.index_range()) {
@@ -2113,9 +2100,8 @@ static void apply_filter_forces_bmesh(const ClothFilterType filter_type,
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
   fill_factor_from_hide_and_mask(bm, verts, factors);
-  if (const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss)) {
-    auto_mask::calc_vert_factors(object, *automasking, node, verts, factors);
-  }
+  const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
+  auto_mask::calc_vert_factors(object, automasking, node, verts, factors);
 
   if (ss.filter_cache->active_face_set != SCULPT_FACE_SET_NONE) {
     const int face_set_offset = CustomData_get_offset_named(
@@ -2196,7 +2182,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
 
   BKE_sculpt_update_object_for_edit(depsgraph, &object, false);
 
-  brush_store_simulation_state(ss, *ss.filter_cache->cloth_sim);
+  brush_store_simulation_state(object, *ss.filter_cache->cloth_sim);
 
   const Span<bke::pbvh::Node *> nodes = ss.filter_cache->nodes;
 
@@ -2212,9 +2198,8 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
   threading::EnumerableThreadSpecific<FilterLocalData> all_tls;
   switch (ss.pbvh->type()) {
     case bke::pbvh::Type::Mesh: {
-      const bke::pbvh::Tree &pbvh = *ss.pbvh;
-      const Span<float3> positions_eval = BKE_pbvh_get_vert_positions(pbvh);
-      const Span<float3> vert_normals = BKE_pbvh_get_vert_normals(pbvh);
+      const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(object);
+      const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(object);
       threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
         FilterLocalData &tls = all_tls.local();
         for (const int i : range) {

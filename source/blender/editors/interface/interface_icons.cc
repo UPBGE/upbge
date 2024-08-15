@@ -1580,10 +1580,11 @@ static void icon_draw_size(float x,
       else {
         UI_GetThemeColor4ubv(TH_TEXT, text_color);
       }
+      const bool is_light = rgb_to_grayscale_byte(text_color) > 96;
       const float zoom_factor = w / UI_ICON_SIZE;
       uiFontStyle fstyle_small = *UI_FSTYLE_WIDGET;
       fstyle_small.points *= zoom_factor * 0.8f;
-      fstyle_small.shadow = short(FontShadowType::Outline);
+      fstyle_small.shadow = short(is_light ? FontShadowType::Outline : FontShadowType::None);
       fstyle_small.shadx = 0;
       fstyle_small.shady = 0;
       rcti text_rect = {int(x), int(x + UI_UNIT_X * zoom_factor), int(y), int(y)};
@@ -2004,6 +2005,38 @@ void UI_icon_draw_ex(float x,
                  inverted);
 }
 
+ImBuf *UI_svg_icon_bitmap(uint icon_id, float size, bool multicolor)
+{
+  if (icon_id >= ICON_BLANK_LAST_SVG_ITEM) {
+    return nullptr;
+  }
+
+  ImBuf *ibuf = nullptr;
+  int width;
+  int height;
+  blender::Array<uchar> bitmap;
+
+  if (multicolor) {
+    bitmap = BLF_svg_icon_bitmap(icon_id, size, &width, &height, true, icon_source_edit_cb);
+  }
+  else {
+    bitmap = BLF_svg_icon_bitmap(icon_id, size, &width, &height, false, nullptr);
+  }
+
+  if (!bitmap.is_empty()) {
+    ibuf = IMB_allocFromBuffer(bitmap.data(), nullptr, width, height, 4);
+  }
+
+  if (ibuf) {
+    IMB_flipy(ibuf);
+    if (multicolor) {
+      IMB_premultiply_alpha(ibuf);
+    }
+  }
+
+  return ibuf;
+}
+
 void UI_icon_text_overlay_init_from_count(IconTextOverlay *text_overlay,
                                           const int icon_indicator_number)
 {
@@ -2023,8 +2056,6 @@ ImBuf *UI_icon_alert_imbuf_get(eAlertIcon icon, float size)
   UNUSED_VARS(icon, size);
   return nullptr;
 #else
-
-  constexpr bool show_color = false;
 
   int icon_id = ICON_NONE;
   switch (icon) {
@@ -2048,17 +2079,6 @@ ImBuf *UI_icon_alert_imbuf_get(eAlertIcon icon, float size)
     return nullptr;
   }
 
-  int width;
-  int height;
-  blender::Array<uchar> bitmap = BLF_svg_icon_bitmap(icon_id, size, &width, &height, show_color);
-  if (bitmap.is_empty()) {
-    return nullptr;
-  }
-  ImBuf *ibuf = IMB_allocFromBuffer(bitmap.data(), nullptr, width, height, 4);
-  IMB_flipy(ibuf);
-  if (show_color) {
-    IMB_premultiply_alpha(ibuf);
-  }
-  return ibuf;
+  return UI_svg_icon_bitmap(icon_id, size, false);
 #endif
 }
