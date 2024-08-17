@@ -21,7 +21,7 @@ class AttributeGetterSetter:
             elif type in {'FLOAT_COLOR', 'BYTE_COLOR'}:
                 return attribute.data[self._index].color
             else:
-                raise Exception(f"Unkown type {type}")
+                raise Exception("Unknown type {!r}".format(type))
         return default
 
     def _set_attribute(self, name, type, value):
@@ -33,9 +33,9 @@ class AttributeGetterSetter:
             elif type in {'FLOAT_COLOR', 'BYTE_COLOR'}:
                 attribute.data[self._index].color = value
             else:
-                raise Exception(f"Unkown type {type}")
+                raise Exception("Unknown type {!r}".format(type))
         else:
-            raise Exception(f"Could not create attribute {name} of type {type}")
+            raise Exception("Could not create attribute {:s} of type {!r}".format(name, type))
 
 
 def def_prop_for_attribute(attr_name, type, default, doc):
@@ -44,11 +44,11 @@ def def_prop_for_attribute(attr_name, type, default, doc):
     """
 
     def fget(self):
-        # Define getter callback for property.
+        # Define `getter` callback for property.
         return self._get_attribute(attr_name, type, default)
 
     def fset(self, value):
-        # Define setter callback for property.
+        # Define `setter` callback for property.
         self._set_attribute(attr_name, type, value)
     prop = property(fget=fget, fset=fset, doc=doc)
     return prop
@@ -56,7 +56,8 @@ def def_prop_for_attribute(attr_name, type, default, doc):
 
 def DefAttributeGetterSetters(attributes_list):
     """
-    A class decorator that reads a list of attribute infos and creates properties on the class with getters and setters.
+    A class decorator that reads a list of attribute information &
+    creates properties on the class with `getters` & `setters`.
     """
     def wrapper(cls):
         for prop_name, attr_name, type, default, doc in attributes_list:
@@ -68,7 +69,7 @@ def DefAttributeGetterSetters(attributes_list):
 
 # Define the list of attributes that should be exposed as read/write properties on the class.
 @DefAttributeGetterSetters([
-    # Property Name, Attribute Name, Type, Default Value, Docstring
+    # Property Name, Attribute Name, Type, Default Value, Doc-string.
     ('position', 'position', 'FLOAT_VECTOR', (0.0, 0.0, 0.0), "The position of the point (in local space)."),
     ('radius', 'radius', 'FLOAT', 0.01, "The radius of the point."),
     ('opacity', 'opacity', 'FLOAT', 0.0, "The opacity of the point."),
@@ -112,7 +113,7 @@ class GreasePencilStrokePointSlice:
     def __getitem__(self, key):
         if isinstance(key, int):
             if not self._is_valid_index(key):
-                raise IndexError(f"Key {key} is out of range")
+                raise IndexError("Key {:d} is out of range".format(key))
             # Turn the key into an index.
             point_i = self._start + (key % self._size)
             return GreasePencilStrokePoint(self._drawing, point_i)
@@ -130,12 +131,12 @@ class GreasePencilStrokePointSlice:
             stop = max(0, min(stop, self._size))
             return GreasePencilStrokePointSlice(self._drawing, self._start + start, self._start + stop)
         else:
-            raise TypeError(f"Unexpected index of type {type(key)}")
+            raise TypeError("Unexpected index of type {!r}".format(type(key)))
 
 
 # Define the list of attributes that should be exposed as read/write properties on the class.
 @DefAttributeGetterSetters([
-    # Property Name, Attribute Name, Type, Default Value, Docstring
+    # Property Name, Attribute Name, Type, Default Value, Doc-string.
     ('cyclic', 'cyclic', 'BOOLEAN', False, "The closed state for this stroke."),
     ('material_index', 'material_index', 'INT', 0, "The index of the material for this stroke."),
     ('select', '.selection', 'BOOLEAN', True, "The selection state for this stroke."),
@@ -215,7 +216,7 @@ class GreasePencilStrokeSlice:
     def __getitem__(self, key):
         if isinstance(key, int):
             if not self._is_valid_index(key):
-                raise IndexError(f"Key {key} is out of range")
+                raise IndexError("Key {:d} is out of range".format(key))
             # Turn the key into an index.
             curve_i = self._start + (key % self._size)
             offsets = self._curve_offsets
@@ -234,4 +235,4 @@ class GreasePencilStrokeSlice:
             stop = max(0, min(stop, self._size))
             return GreasePencilStrokeSlice(self._drawing, self._start + start, self._start + stop)
         else:
-            raise TypeError(f"Unexpected index of type {type(key)}")
+            raise TypeError("Unexpected index of type {!r}".format(type(key)))

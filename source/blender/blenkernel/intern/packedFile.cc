@@ -42,6 +42,12 @@
 
 #include "BLO_read_write.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"bke.packedfile"};
+
+using namespace blender;
+
 int BKE_packedfile_seek(PackedFile *pf, int offset, int whence)
 {
   int oldseek = -1, seek = 0;
@@ -898,7 +904,7 @@ void BKE_packedfile_blend_write(BlendWriter *writer, const PackedFile *pf)
   });
 }
 
-void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p)
+void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, StringRefNull filepath)
 {
   BLO_read_struct(reader, PackedFile, pf_p);
   PackedFile *pf = *pf_p;
@@ -908,12 +914,18 @@ void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p)
   /* NOTE: there is no way to handle endianness switch here. */
   pf->sharing_info = BLO_read_shared(reader, &pf->data, [&]() {
     BLO_read_data_address(reader, &pf->data);
-    return blender::implicit_sharing::info_for_mem_free(const_cast<void *>(pf->data));
+    /* Do not create an inplicit sharing if read data pointer is `nullptr`. */
+    return pf->data ? blender::implicit_sharing::info_for_mem_free(const_cast<void *>(pf->data)) :
+                      nullptr;
   });
   if (pf->data == nullptr) {
     /* We cannot allow a PackedFile with a nullptr data field,
      * the whole code assumes this is not possible. See #70315. */
-    printf("%s: nullptr packedfile data, cleaning up...\n", __func__);
-    MEM_SAFE_FREE(pf);
+    CLOG_WARN(&LOG,
+              "%s: nullptr packedfile data (source: '%s'), cleaning up...",
+              __func__,
+              filepath.c_str());
+    BLI_assert(pf->sharing_info == nullptr);
+    MEM_SAFE_FREE(*pf_p);
   }
 }

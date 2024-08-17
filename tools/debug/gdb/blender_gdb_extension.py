@@ -330,6 +330,9 @@ class IndexRangePrinter:
             return "Size: 0"
         return f"Size: {size}, [{start} - {start + size - 1}]"
 
+    def display_hint(self):
+        return None
+
 
 class IndexMaskPrinter:
     def __init__(self, value: gdb.Value):
@@ -549,6 +552,8 @@ class ThreadingFilter:
             return "TBB Worker Thread"
         if function_name.startswith("blender::threading::parallel_for"):
             return "Parallel For"
+        if function_name.startswith("blender::threading::isolate_task"):
+            return "Isolate Task"
 
 
 class StdFilter:
