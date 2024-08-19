@@ -426,7 +426,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
             IMB_freeImBuf(m_scaledImBuf);
             m_scaledImBuf = IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
-            IMB_scaleImBuf(m_scaledImBuf, size[0], size[1]);
+            IMB_scale(m_scaledImBuf, size[0], size[1], IMBScaleFilter::Box, false);
             // use scaled image instead original
             texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
           }
