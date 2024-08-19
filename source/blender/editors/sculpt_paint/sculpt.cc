@@ -51,10 +51,7 @@
 #include "BKE_image.h"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_node_runtime.hh"
@@ -63,7 +60,6 @@
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
 #include "BKE_report.hh"
-#include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
 #include "BLI_math_vector.hh"
@@ -83,7 +79,16 @@
 #include "ED_view3d.hh"
 
 #include "paint_intern.hh"
+#include "sculpt_automask.hh"
+#include "sculpt_boundary.hh"
+#include "sculpt_cloth.hh"
+#include "sculpt_color.hh"
+#include "sculpt_dyntopo.hh"
+#include "sculpt_face_set.hh"
+#include "sculpt_filter.hh"
 #include "sculpt_intern.hh"
+#include "sculpt_islands.hh"
+#include "sculpt_pose.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -5148,6 +5153,24 @@ static void sculpt_restore_mesh(const Depsgraph &depsgraph, const Sculpt &sd, Ob
   using namespace blender::ed::sculpt_paint;
   SculptSession &ss = *ob.sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
+
+  /* Brushes that use original coordinates and need a "restore" step. This has to happen separately
+   * rather than in the brush deformation calculation because that is called once for each symmetry
+   * pass, potentially within the same BVH node.
+   *
+   * Note: Despite the Cloth and Boundary brush using original coordinates, the brushes do not
+   * expect this restoration to happen on every stroke step. Performing this restoration causes
+   * issues with the cloth simulation mode for those brushes.
+   */
+  if (ELEM(brush->sculpt_tool,
+           SCULPT_TOOL_ELASTIC_DEFORM,
+           SCULPT_TOOL_GRAB,
+           SCULPT_TOOL_THUMB,
+           SCULPT_TOOL_ROTATE))
+  {
+    undo::restore_from_undo_step(depsgraph, sd, ob);
+    return;
+  }
 
   /* For the cloth brush it makes more sense to not restore the mesh state to keep running the
    * simulation from the previous state. */

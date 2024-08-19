@@ -160,6 +160,9 @@ class Result {
   MetaData meta_data;
 
  public:
+  /* Construct a result within the given context. */
+  Result(Context &context);
+
   /* Construct a result of the given type and precision within the given context. */
   Result(Context &context, ResultType type, ResultPrecision precision);
 
@@ -175,6 +178,9 @@ class Result {
 
   /* Returns the type of the given GPU texture format. */
   static ResultType type(eGPUTextureFormat format);
+
+  /* Returns the float type of the result given the channels count. */
+  static ResultType float_type(const int channels_count);
 
   /* Implicit conversion to the internal GPU texture. */
   operator GPUTexture *() const;
@@ -336,6 +342,9 @@ class Result {
 
   /* Returns the precision of the result. */
   ResultPrecision precision() const;
+
+  /* Sets the type of the result. */
+  void set_type(ResultType type);
 
   /* Sets the precision of the result. */
   void set_precision(ResultPrecision precision);

@@ -19,6 +19,8 @@
 
 namespace blender::realtime_compositor {
 
+Result::Result(Context &context) : context_(&context) {}
+
 Result::Result(Context &context, ResultType type, ResultPrecision precision)
     : context_(&context), type_(type), precision_(precision)
 {
@@ -161,6 +163,25 @@ ResultType Result::type(eGPUTextureFormat format)
     case GPU_RG16I:
     case GPU_RG32I:
       return ResultType::Int2;
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return ResultType::Color;
+}
+
+ResultType Result::float_type(const int channels_count)
+{
+  switch (channels_count) {
+    case 1:
+      return ResultType::Float;
+    case 2:
+      return ResultType::Float2;
+    case 3:
+      return ResultType::Float3;
+    case 4:
+      return ResultType::Color;
     default:
       break;
   }
@@ -644,6 +665,13 @@ ResultType Result::type() const
 ResultPrecision Result::precision() const
 {
   return precision_;
+}
+
+void Result::set_type(ResultType type)
+{
+  /* Changing the type can only be done if it wasn't allocated yet. */
+  BLI_assert(!this->is_allocated());
+  type_ = type;
 }
 
 void Result::set_precision(ResultPrecision precision)

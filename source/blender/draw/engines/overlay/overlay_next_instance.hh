@@ -25,9 +25,11 @@
 #include "overlay_next_mesh.hh"
 #include "overlay_next_metaball.hh"
 #include "overlay_next_outline.hh"
+#include "overlay_next_particle.hh"
 #include "overlay_next_prepass.hh"
 #include "overlay_next_relation.hh"
 #include "overlay_next_speaker.hh"
+#include "overlay_next_wireframe.hh"
 
 namespace blender::draw::overlay {
 
@@ -66,9 +68,11 @@ class Instance {
     LightProbes light_probes = {selection_type_};
     Metaballs metaballs = {selection_type_};
     Meshes meshes;
+    Particles particles;
     Prepass prepass = {selection_type_};
     Relations relations;
     Speakers speakers = {selection_type_};
+    Wireframe wireframe;
   } regular{selection_type_}, infront{selection_type_};
 
   Grid grid;
@@ -96,6 +100,11 @@ class Instance {
   bool object_is_sculpt_mode(const ObjectRef &ob_ref);
   /* Checks only for sculpt mode. */
   bool object_is_sculpt_mode(const Object *object);
+  /* Any mode that requires to view the object without distraction. */
+  bool object_is_edit_paint_mode(const ObjectRef &ob_ref,
+                                 bool in_edit_mode,
+                                 bool in_paint_mode,
+                                 bool in_sculpt_mode);
 };
 
 }  // namespace blender::draw::overlay
