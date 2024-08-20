@@ -401,6 +401,20 @@ ID *BKE_blendfile_link_append_context_item_newid_get(BlendfileLinkAppendContext 
   return item->new_id;
 }
 
+void BKE_blendfile_link_append_context_item_newid_set(BlendfileLinkAppendContext *lapp_context,
+                                                      BlendfileLinkAppendContextItem *item,
+                                                      ID *new_id)
+{
+  BLI_assert(item->new_id);
+  BLI_assert(!item->liboverride_id);
+  BLI_assert(new_id->lib == item->new_id->lib);
+  BLI_assert(!lapp_context->new_id_to_item.contains(new_id));
+
+  lapp_context->new_id_to_item.remove(item->new_id);
+  item->new_id = new_id;
+  lapp_context->new_id_to_item.add(new_id, item);
+}
+
 ID *BKE_blendfile_link_append_context_item_liboverrideid_get(
     BlendfileLinkAppendContext * /*lapp_context*/, BlendfileLinkAppendContextItem *item)
 {
@@ -415,9 +429,9 @@ short BKE_blendfile_link_append_context_item_idcode_get(
 
 void BKE_blendfile_link_append_context_item_foreach(
     BlendfileLinkAppendContext *lapp_context,
-    BKE_BlendfileLinkAppendContexteItemFunction callback_function,
-    const eBlendfileLinkAppendForeachItemFlag flag,
-    void *userdata)
+    blender::FunctionRef<bool(BlendfileLinkAppendContext *lapp_context,
+                              BlendfileLinkAppendContextItem *item)> callback_function,
+    const eBlendfileLinkAppendForeachItemFlag flag)
 {
   for (BlendfileLinkAppendContextItem *item : lapp_context->items) {
     if ((flag & BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT) == 0 &&
@@ -431,7 +445,7 @@ void BKE_blendfile_link_append_context_item_foreach(
       continue;
     }
 
-    if (!callback_function(lapp_context, item, userdata)) {
+    if (!callback_function(lapp_context, item)) {
       break;
     }
   }
@@ -964,6 +978,13 @@ static bool foreach_libblock_link_append_common_processing(
   if (id == nullptr) {
     return false;
   }
+  if (!ID_IS_LINKED(id)) {
+    CLOG_ERROR(
+        &LOG,
+        "Local ID '%s' found as part of the linked data hierarchy, this should never happen",
+        id->name);
+    return false;
+  }
 
   if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
     /* While we do not want to add non-linkable ID (shape keys...) to the list of linked items,
@@ -1480,7 +1501,7 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
 
   BlendFileReadReport bf_reports{};
   bf_reports.reports = reports;
-  BLO_read_do_version_after_setup(bmain, &bf_reports);
+  BLO_read_do_version_after_setup(bmain, lapp_context, &bf_reports);
 }
 
 /** \} */
@@ -1640,7 +1661,7 @@ void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *re
   if (lapp_context->params->flag & FILE_LINK) {
     BlendFileReadReport bf_reports{};
     bf_reports.reports = reports;
-    BLO_read_do_version_after_setup(lapp_context->params->bmain, &bf_reports);
+    BLO_read_do_version_after_setup(lapp_context->params->bmain, lapp_context, &bf_reports);
   }
 }
 

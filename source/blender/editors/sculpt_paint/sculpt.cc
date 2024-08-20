@@ -86,9 +86,11 @@
 #include "sculpt_dyntopo.hh"
 #include "sculpt_face_set.hh"
 #include "sculpt_filter.hh"
+#include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_islands.hh"
 #include "sculpt_pose.hh"
+#include "sculpt_undo.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -4905,6 +4907,7 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
     zero_v3(out->location);
     zero_v3(out->normal);
     zero_v3(out->active_vertex_co);
+    ss.clear_active_vert();
     return false;
   }
 

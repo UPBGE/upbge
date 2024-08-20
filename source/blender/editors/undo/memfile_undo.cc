@@ -253,7 +253,7 @@ static void memfile_undosys_step_decode(
         DEG_id_tag_update_ex(bmain, id, recalc_flags);
       }
 
-      bNodeTree *nodetree = blender::bke::ntreeFromID(id);
+      bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
       if (nodetree != nullptr) {
         recalc_flags = nodetree->id.recalc;
         if (id->tag & ID_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
@@ -290,7 +290,7 @@ static void memfile_undosys_step_decode(
        * are already part of the current undo state. This is done in a second
        * loop because DEG_id_tag_update may set tags on other datablocks. */
       id->recalc_after_undo_push = 0;
-      bNodeTree *nodetree = blender::bke::ntreeFromID(id);
+      bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
       if (nodetree != nullptr) {
         nodetree->id.recalc_after_undo_push = 0;
       }

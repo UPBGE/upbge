@@ -24,7 +24,7 @@ using nodes::NodeDeclaration;
 
 static bool socket_is_field(const bNodeSocket &socket)
 {
-  return socket.display_shape == SOCK_DISPLAY_SHAPE_DIAMOND;
+  return socket.runtime->field_state == FieldSocketState::IsField;
 }
 
 static const aal::RelationsInNode &get_relations_in_node(const bNode &node, ResourceScope &scope)
@@ -32,7 +32,7 @@ static const aal::RelationsInNode &get_relations_in_node(const bNode &node, Reso
   if (node.is_group()) {
     if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node.id)) {
       /* Undefined tree types have no relations. */
-      if (!bke::ntreeIsRegistered(group)) {
+      if (!bke::node_tree_is_registered(group)) {
         return scope.construct<aal::RelationsInNode>();
       }
       /* It's possible that the inferencing failed on the group. */
@@ -273,7 +273,7 @@ static AnonymousAttributeInferencingResult analyze_anonymous_attribute_usages(
   /* Find input field and geometry sources. */
   for (const int i : tree.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &interface_socket = *tree.interface_inputs()[i];
-    const bNodeSocketType *typeinfo = bke::nodeSocketTypeFind(interface_socket.socket_type);
+    const bNodeSocketType *typeinfo = bke::node_socket_type_find(interface_socket.socket_type);
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
     if (type == SOCK_GEOMETRY) {
       all_geometry_sources.append_and_get_index({InputGeometrySource{i}});

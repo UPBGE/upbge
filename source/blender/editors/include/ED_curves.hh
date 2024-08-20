@@ -193,7 +193,9 @@ void fill_selection_true(GMutableSpan selection, const IndexMask &mask);
  */
 bool has_anything_selected(const bke::CurvesGeometry &curves);
 bool has_anything_selected(const bke::CurvesGeometry &curves, bke::AttrDomain selection_domain);
-bool has_anything_selected(const bke::CurvesGeometry &curves, const IndexMask &mask);
+bool has_anything_selected(const bke::CurvesGeometry &curves,
+                           bke::AttrDomain selection_domain,
+                           const IndexMask &mask);
 
 /**
  * Return true if any element in the span is selected, on either domain with either type.
@@ -305,7 +307,8 @@ bool select_box(const ViewContext &vc,
                 bke::CurvesGeometry &curves,
                 const bke::crazyspace::GeometryDeformation &deformation,
                 const float4x4 &projection,
-                const IndexMask &mask,
+                const IndexMask &selection_mask,
+                const IndexMask &bezier_mask,
                 bke::AttrDomain selection_domain,
                 const rcti &rect,
                 eSelectOp sel_op);
@@ -317,7 +320,8 @@ bool select_lasso(const ViewContext &vc,
                   bke::CurvesGeometry &curves,
                   const bke::crazyspace::GeometryDeformation &deformation,
                   const float4x4 &projection_matrix,
-                  const IndexMask &mask,
+                  const IndexMask &selection_mask,
+                  const IndexMask &bezier_mask,
                   bke::AttrDomain selection_domain,
                   Span<int2> lasso_coords,
                   eSelectOp sel_op);
@@ -329,7 +333,8 @@ bool select_circle(const ViewContext &vc,
                    bke::CurvesGeometry &curves,
                    const bke::crazyspace::GeometryDeformation &deformation,
                    const float4x4 &projection,
-                   const IndexMask &mask,
+                   const IndexMask &selection_mask,
+                   const IndexMask &bezier_mask,
                    bke::AttrDomain selection_domain,
                    int2 coord,
                    float radius,

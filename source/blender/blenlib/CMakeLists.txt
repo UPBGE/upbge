@@ -116,6 +116,7 @@ set(SRC
   intern/math_vec.cc
   intern/math_vector.c
   intern/math_vector_inline.c
+  intern/memory_cache.cc
   intern/memory_counter.cc
   intern/memory_utils.c
   intern/mesh_boolean.cc
@@ -240,6 +241,7 @@ set(SRC
   BLI_fnmatch.h
   BLI_function_ref.hh
   BLI_generic_array.hh
+  BLI_generic_key.hh
   BLI_generic_pointer.hh
   BLI_generic_span.hh
   BLI_generic_value_map.hh
@@ -320,6 +322,7 @@ set(SRC
   BLI_memarena.h
   BLI_memblock.h
   BLI_memiter.h
+  BLI_memory_cache.hh
   BLI_memory_counter.hh
   BLI_memory_utils.h
   BLI_memory_utils.hh
@@ -563,6 +566,7 @@ if(WITH_GTESTS)
     tests/BLI_math_vector_test.cc
     tests/BLI_math_vector_types_test.cc
     tests/BLI_memiter_test.cc
+    tests/BLI_memory_cache_test.cc
     tests/BLI_memory_counter_test.cc
     tests/BLI_memory_utils_test.cc
     tests/BLI_mesh_boolean_test.cc
