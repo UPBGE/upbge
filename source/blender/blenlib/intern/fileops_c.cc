@@ -1227,7 +1227,12 @@ static int delete_soft(const char *filepath, const char **error_message)
     process_failed = "gio reported failure";
   }
 
+  errno = 0;
   int pid = fork();
+  if (UNLIKELY(pid == -1)) {
+    *error_message = errno ? strerror(errno) : "unable to fork process";
+    return -1;
+  }
 
   if (pid != 0) {
     /* Parent process. */
@@ -1248,10 +1253,15 @@ static int delete_soft(const char *filepath, const char **error_message)
     return 0;
   }
 
-  execvp(args[0], (char **)args);
+  const int status = execvp(args[0], (char **)args);
 
-  *error_message = "Forking process failed.";
-  return -1; /* This should only be reached if `execvp` fails and stack isn't replaced. */
+  /* This should only be reached if `execvp` fails and stack isn't replaced. */
+  /* Use `_exit` instead of `exit` so Blender's `atexit` cleanup functions don't run. */
+  _exit(status);
+
+  BLI_assert_unreachable();
+
+  return -1;
 }
 #  endif
 
