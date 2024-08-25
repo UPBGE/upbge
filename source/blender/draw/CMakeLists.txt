@@ -292,8 +292,8 @@ set(SRC
   engines/overlay/overlay_next_antialiasing.hh
   engines/overlay/overlay_next_background.hh
   engines/overlay/overlay_next_bounds.hh
-  engines/overlay/overlay_next_empty.hh
   engines/overlay/overlay_next_camera.hh
+  engines/overlay/overlay_next_empty.hh
   engines/overlay/overlay_next_facing.hh
   engines/overlay/overlay_next_force_field.hh
   engines/overlay/overlay_next_grease_pencil.hh
@@ -305,6 +305,7 @@ set(SRC
   engines/overlay/overlay_next_mesh.hh
   engines/overlay/overlay_next_metaball.hh
   engines/overlay/overlay_next_outline.hh
+  engines/overlay/overlay_next_particle.hh
   engines/overlay/overlay_next_prepass.hh
   engines/overlay/overlay_next_private.hh
   engines/overlay/overlay_next_relation.hh

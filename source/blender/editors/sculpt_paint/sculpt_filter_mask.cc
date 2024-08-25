@@ -23,6 +23,7 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
+#include "paint_mask.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_smooth.hh"
@@ -659,7 +660,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *ob.sculpt->pbvh;
 
-  Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(pbvh, {});
+  Vector<bke::pbvh::Node *> nodes = bke::pbvh::all_leaf_nodes(pbvh);
   undo::push_begin(ob, op);
 
   int iterations = RNA_int_get(op->ptr, "iterations");
@@ -669,7 +670,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
    * One iteration per 50000 vertices in the mesh should be fine in most cases.
    * Maybe we want this to be configurable. */
   if (RNA_boolean_get(op->ptr, "auto_iteration_count")) {
-    iterations = int(SCULPT_vertex_count_get(ss) / 50000.0f) + 1;
+    iterations = int(SCULPT_vertex_count_get(ob) / 50000.0f) + 1;
   }
 
   threading::EnumerableThreadSpecific<FilterLocalData> all_tls;

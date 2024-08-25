@@ -31,6 +31,7 @@
 #include "RNA_define.hh"
 
 #include "paint_intern.hh"
+#include "paint_mask.hh"
 #include "sculpt_face_set.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
@@ -118,7 +119,7 @@ static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
   BKE_sculpt_update_object_for_edit(&depsgraph, &ob, false);
 
   bke::pbvh::Tree &pbvh = *ob.sculpt->pbvh;
-  Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(pbvh, {});
+  Vector<bke::pbvh::Node *> nodes = bke::pbvh::all_leaf_nodes(pbvh);
   if (nodes.is_empty()) {
     return OPERATOR_CANCELLED;
   }

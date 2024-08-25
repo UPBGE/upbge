@@ -239,9 +239,9 @@ static std::optional<PreprocessedSampleData> preprocess_sample(StringRefNull iob
   data.knot_mode = get_knot_mode(smp.getType());
   data.do_cyclic = periodicity == Alembic::AbcGeom::kPeriodic;
 
-  /* If kVariableOrder is set then we must have order data. If not, this sample is suspsect.
+  /* If #kVariableOrder is set then we must have order data. If not, this sample is suspect.
    * Interpret the data as linear as a fallback. See #126324 for one such example.
-   * See also: Alembic source code in ICurves.h, ICurvesSchema::Sample::valid() */
+   * See also: Alembic source code in `ICurves.h`, #ICurvesSchema::Sample::valid() */
   if (smp.getType() == Alembic::AbcGeom::kVariableOrder && !orders) {
     data.curve_type = CURVE_TYPE_POLY;
     data.knot_mode = NURBS_KNOT_MODE_NORMAL;
@@ -320,17 +320,17 @@ bool AbcCurveReader::valid() const
 bool AbcCurveReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::ICurves::matches(alembic_header)) {
-    *err_str = RPT_(
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to Curves when importing, but not "
         "anymore.");
     return false;
   }
 
   if (ob->type != OB_CURVES) {
-    *err_str = RPT_("Object type mismatch, Alembic object path points to Curves.");
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to Curves.");
     return false;
   }
 
@@ -484,7 +484,7 @@ void AbcCurveReader::read_geometry(bke::GeometrySet &geometry_set,
                                    int /*read_flag*/,
                                    const char * /*velocity_name*/,
                                    const float /*velocity_scale*/,
-                                   const char ** /*err_str*/)
+                                   const char ** /*r_err_str*/)
 {
   Curves *curves = geometry_set.get_curves_for_write();
 

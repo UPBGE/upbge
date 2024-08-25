@@ -35,6 +35,7 @@
 #include "BKE_ccg.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -341,23 +342,9 @@ static void build_nodes_recursive_mesh(const Span<int> corner_verts,
                              nodes);
 }
 
-void update_mesh_pointers(Tree &pbvh, Mesh *mesh)
-{
-  BLI_assert(pbvh.type() == Type::Mesh);
-  if (!pbvh.deformed_) {
-    /* Deformed data not matching the original mesh are owned directly by the
-     * Tree, and are set separately by #BKE_pbvh_vert_coords_apply. */
-    pbvh.vert_positions_ = mesh->vert_positions_for_write();
-    pbvh.vert_normals_ = mesh->vert_normals();
-    pbvh.face_normals_ = mesh->face_normals();
-  }
-}
-
 std::unique_ptr<Tree> build_mesh(Mesh *mesh)
 {
   std::unique_ptr<Tree> pbvh = std::make_unique<Tree>(Type::Mesh);
-  update_mesh_pointers(*pbvh, mesh);
-
   MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
   const Span<int> corner_verts = mesh->corner_verts();
   const Span<int3> corner_tris = mesh->corner_tris();
@@ -535,8 +522,6 @@ static void build_nodes_recursive_grids(const Span<int> grid_to_face_map,
 std::unique_ptr<Tree> build_grids(Mesh *mesh, SubdivCCG *subdiv_ccg)
 {
   std::unique_ptr<Tree> pbvh = std::make_unique<Tree>(Type::Grids);
-
-  pbvh->subdiv_ccg_ = subdiv_ccg;
 
   /* Find maximum number of grids per face. */
   int max_grids = 1;
@@ -846,6 +831,79 @@ static bool update_search(Node *node, const int flag)
   return true;
 }
 
+/**
+ * Logic used to test whether to use the evaluated mesh for positions.
+ * \todo A deeper test of equality of topology array pointers would be better. This is kept for now
+ * to avoid changing logic during a refactor.
+ */
+static bool mesh_topology_count_matches(const Mesh &a, const Mesh &b)
+{
+  return a.faces_num == b.faces_num && a.corners_num == b.corners_num &&
+         a.verts_num == b.verts_num;
+}
+
+static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &object_orig,
+                                                                  const Object &object_eval)
+{
+  const SculptSession &ss = *object_orig.sculpt;
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
+  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+    if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
+      if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
+        return mesh_eval->runtime->vert_normals_cache;
+      }
+    }
+    if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
+      return mesh_eval->runtime->vert_normals_cache;
+    }
+  }
+
+  if (!ss.deform_cos.is_empty()) {
+    BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+    return ss.vert_normals_deform;
+  }
+
+  return mesh_orig.runtime->vert_normals_cache;
+}
+static SharedCache<Vector<float3>> &vert_normals_cache_eval_for_write(Object &object_orig,
+                                                                      Object &object_eval)
+{
+  return const_cast<SharedCache<Vector<float3>> &>(
+      vert_normals_cache_eval(object_orig, object_eval));
+}
+
+static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &object_orig,
+                                                                  const Object &object_eval)
+{
+  const SculptSession &ss = *object_orig.sculpt;
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
+  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+    if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
+      if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
+        return mesh_eval->runtime->face_normals_cache;
+      }
+    }
+    if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
+      return mesh_eval->runtime->face_normals_cache;
+    }
+  }
+
+  if (!ss.deform_cos.is_empty()) {
+    BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+    return ss.face_normals_deform;
+  }
+
+  return mesh_orig.runtime->face_normals_cache;
+}
+static SharedCache<Vector<float3>> &face_normals_cache_eval_for_write(Object &object_orig,
+                                                                      Object &object_eval)
+{
+  return const_cast<SharedCache<Vector<float3>> &>(
+      face_normals_cache_eval(object_orig, object_eval));
+}
+
 static void normals_calc_faces(const Span<float3> positions,
                                const OffsetIndices<int> faces,
                                const Span<int> corner_verts,
@@ -940,12 +998,16 @@ static void update_normals_mesh(Object &object_orig, Object &object_eval, Span<N
    * duplicate work recalculation for the same vertex, and to make parallel storage for vertices
    * during recalculation thread-safe. */
   Mesh &mesh = *static_cast<Mesh *>(object_orig.data);
-  Tree &pbvh = *object_orig.sculpt->pbvh;
   const Span<float3> positions = bke::pbvh::vert_positions_eval_from_eval(object_eval);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<int> tri_faces = mesh.corner_tri_faces();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+
+  SharedCache<Vector<float3>> &vert_normals_cache = vert_normals_cache_eval_for_write(object_orig,
+                                                                                      object_eval);
+  SharedCache<Vector<float3>> &face_normals_cache = face_normals_cache_eval_for_write(object_orig,
+                                                                                      object_eval);
 
   VectorSet<int> boundary_faces;
   for (const Node *node : nodes) {
@@ -954,35 +1016,21 @@ static void update_normals_mesh(Object &object_orig, Object &object_eval, Span<N
     }
   }
 
-  /* In certain cases when undoing strokes on a duplicate object, the cached data may be marked
-   * dirty before this code is run, leaving the relevant vectors empty. We force reinitialize the
-   * vectors to prevent crashes here.
-   * See #125375 for more detail. */
-  if (!pbvh.deformed_) {
-    if (mesh.runtime->face_normals_cache.is_dirty()) {
-      mesh.face_normals();
-    }
-    if (mesh.runtime->vert_normals_cache.is_dirty()) {
-      mesh.vert_normals();
-    }
-  }
-
   VectorSet<int> boundary_verts;
+
   threading::parallel_invoke(
       [&]() {
-        if (pbvh.deformed_) {
-          calc_node_face_normals(
-              positions, faces, corner_verts, tri_faces, nodes, pbvh.face_normals_deformed_);
-          calc_boundary_face_normals(
-              positions, faces, corner_verts, boundary_faces, pbvh.face_normals_deformed_);
+        if (face_normals_cache.is_dirty()) {
+          face_normals_cache.ensure([&](Vector<float3> &r_data) {
+            r_data.resize(faces.size());
+            bke::mesh::normals_calc_faces(positions, faces, corner_verts, r_data);
+          });
         }
         else {
-          mesh.runtime->face_normals_cache.update([&](Vector<float3> &r_data) {
+          face_normals_cache.update([&](Vector<float3> &r_data) {
             calc_node_face_normals(positions, faces, corner_verts, tri_faces, nodes, r_data);
             calc_boundary_face_normals(positions, faces, corner_verts, boundary_faces, r_data);
           });
-          /* #SharedCache::update() reallocates cached vectors if they were shared initially. */
-          pbvh.face_normals_ = mesh.runtime->face_normals_cache.data();
         }
       },
       [&]() {
@@ -992,19 +1040,20 @@ static void update_normals_mesh(Object &object_orig, Object &object_eval, Span<N
           boundary_verts.add_multiple(corner_verts.slice(faces[face]));
         }
       });
+  const Span<float3> face_normals = face_normals_cache.data();
 
-  if (pbvh.deformed_) {
-    calc_node_vert_normals(
-        vert_to_face_map, pbvh.face_normals_, nodes, pbvh.vert_normals_deformed_);
-    calc_boundary_vert_normals(
-        vert_to_face_map, pbvh.face_normals_, boundary_verts, pbvh.vert_normals_deformed_);
+  if (vert_normals_cache.is_dirty()) {
+    vert_normals_cache.ensure([&](Vector<float3> &r_data) {
+      r_data.resize(positions.size());
+      mesh::normals_calc_verts(
+          positions, faces, corner_verts, vert_to_face_map, face_normals, r_data);
+    });
   }
   else {
-    mesh.runtime->vert_normals_cache.update([&](Vector<float3> &r_data) {
-      calc_node_vert_normals(vert_to_face_map, pbvh.face_normals_, nodes, r_data);
-      calc_boundary_vert_normals(vert_to_face_map, pbvh.face_normals_, boundary_verts, r_data);
+    vert_normals_cache.update([&](Vector<float3> &r_data) {
+      calc_node_vert_normals(vert_to_face_map, face_normals, nodes, r_data);
+      calc_boundary_vert_normals(vert_to_face_map, face_normals, boundary_verts, r_data);
     });
-    pbvh.vert_normals_ = mesh.runtime->vert_normals_cache.data();
   }
 
   for (Node *node : nodes) {
@@ -1016,9 +1065,6 @@ static void update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
 {
   Vector<Node *> nodes = search_gather(
       pbvh, [&](Node &node) { return update_search(&node, PBVH_UpdateNormals); });
-  if (nodes.is_empty()) {
-    return;
-  }
 
   switch (pbvh.type()) {
     case Type::Mesh: {
@@ -1026,6 +1072,9 @@ static void update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
       break;
     }
     case Type::Grids: {
+      if (nodes.is_empty()) {
+        return;
+      }
       SculptSession &ss = *object_orig.sculpt;
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       IndexMaskMemory memory;
@@ -1037,6 +1086,9 @@ static void update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
       break;
     }
     case Type::BMesh: {
+      if (nodes.is_empty()) {
+        return;
+      }
       bmesh_normals_update(nodes);
       break;
     }
@@ -1521,18 +1573,20 @@ Bounds<float3> bounds_get(const Tree &pbvh)
 
 }  // namespace blender::bke::pbvh
 
-int BKE_pbvh_get_grid_num_verts(const blender::bke::pbvh::Tree &pbvh)
+int BKE_pbvh_get_grid_num_verts(const Object &object)
 {
-  BLI_assert(pbvh.type() == blender::bke::pbvh::Type::Grids);
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(*pbvh.subdiv_ccg_);
-  return pbvh.subdiv_ccg_->grids.size() * key.grid_area;
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(ss.pbvh->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids.size() * key.grid_area;
 }
 
-int BKE_pbvh_get_grid_num_faces(const blender::bke::pbvh::Tree &pbvh)
+int BKE_pbvh_get_grid_num_faces(const Object &object)
 {
-  BLI_assert(pbvh.type() == blender::bke::pbvh::Type::Grids);
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(*pbvh.subdiv_ccg_);
-  return pbvh.subdiv_ccg_->grids.size() * square_i(key.grid_size - 1);
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(ss.pbvh->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids.size() * square_i(key.grid_size - 1);
 }
 
 /***************************** Node Access ***********************************/
@@ -1672,10 +1726,12 @@ Span<int> node_face_indices_calc_mesh(const Span<int> corner_tri_faces,
   return faces.as_span();
 }
 
-Span<int> node_face_indices_calc_grids(const Tree &pbvh, const Node &node, Vector<int> &faces)
+Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
+                                       const Node &node,
+                                       Vector<int> &faces)
 {
   faces.clear();
-  const Span<int> grid_to_face_map = pbvh.subdiv_ccg_->grid_to_face_map;
+  const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
   int prev_face = -1;
   for (const int prim : node.prim_indices_) {
     const int face = grid_to_face_map[prim];
@@ -1943,7 +1999,7 @@ static bool pbvh_faces_node_raycast(const Node &node,
   return hit;
 }
 
-static bool pbvh_grids_node_raycast(Tree &pbvh,
+static bool pbvh_grids_node_raycast(const SubdivCCG &subdiv_ccg,
                                     Node &node,
                                     const float (*origco)[3],
                                     const float ray_start[3],
@@ -1954,13 +2010,13 @@ static bool pbvh_grids_node_raycast(Tree &pbvh,
                                     int *r_active_grid_index,
                                     float *r_face_normal)
 {
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(*pbvh.subdiv_ccg_);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const int totgrid = node.prim_indices_.size();
   const int gridsize = key.grid_size;
   bool hit = false;
   float nearest_vertex_co[3] = {0.0};
-  const BitGroupVector<> &grid_hidden = pbvh.subdiv_ccg_->grid_hidden;
-  const Span<CCGElem *> grids = pbvh.subdiv_ccg_->grids;
+  const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
+  const Span<CCGElem *> grids = subdiv_ccg.grids;
 
   for (int i = 0; i < totgrid; i++) {
     const int grid_index = node.prim_indices_[i];
@@ -2046,6 +2102,7 @@ bool raycast_node(Tree &pbvh,
                   const Span<int3> corner_tris,
                   const Span<int> corner_tri_faces,
                   const Span<bool> hide_poly,
+                  const SubdivCCG *subdiv_ccg,
                   const float ray_start[3],
                   const float ray_normal[3],
                   IsectRayPrecalc *isect_precalc,
@@ -2078,7 +2135,7 @@ bool raycast_node(Tree &pbvh,
                                      face_normal);
       break;
     case Type::Grids:
-      hit |= pbvh_grids_node_raycast(pbvh,
+      hit |= pbvh_grids_node_raycast(*subdiv_ccg,
                                      node,
                                      origco,
                                      ray_start,
@@ -2090,7 +2147,6 @@ bool raycast_node(Tree &pbvh,
                                      face_normal);
       break;
     case Type::BMesh:
-      BM_mesh_elem_index_ensure(pbvh.bm_, BM_VERT);
       hit = bmesh_node_raycast(node,
                                ray_start,
                                ray_normal,
@@ -2280,7 +2336,7 @@ static bool pbvh_faces_node_nearest_to_ray(const Node &node,
   return hit;
 }
 
-static bool pbvh_grids_node_nearest_to_ray(Tree &pbvh,
+static bool pbvh_grids_node_nearest_to_ray(const SubdivCCG &subdiv_ccg,
                                            Node &node,
                                            const float (*origco)[3],
                                            const float ray_start[3],
@@ -2288,12 +2344,12 @@ static bool pbvh_grids_node_nearest_to_ray(Tree &pbvh,
                                            float *depth,
                                            float *dist_sq)
 {
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(*pbvh.subdiv_ccg_);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const int totgrid = node.prim_indices_.size();
   const int gridsize = key.grid_size;
   bool hit = false;
-  const BitGroupVector<> &grid_hidden = pbvh.subdiv_ccg_->grid_hidden;
-  const Span<CCGElem *> grids = pbvh.subdiv_ccg_->grids;
+  const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
+  const Span<CCGElem *> grids = subdiv_ccg.grids;
 
   for (int i = 0; i < totgrid; i++) {
     CCGElem *grid = grids[node.prim_indices_[i]];
@@ -2350,6 +2406,7 @@ bool find_nearest_to_ray_node(Tree &pbvh,
                               const Span<int3> corner_tris,
                               const Span<int> corner_tri_faces,
                               const Span<bool> hide_poly,
+                              const SubdivCCG *subdiv_ccg,
                               const float ray_start[3],
                               const float ray_normal[3],
                               float *depth,
@@ -2377,7 +2434,7 @@ bool find_nearest_to_ray_node(Tree &pbvh,
       break;
     case Type::Grids:
       hit |= pbvh_grids_node_nearest_to_ray(
-          pbvh, node, origco, ray_start, ray_normal, depth, dist_sq);
+          *subdiv_ccg, node, origco, ray_start, ray_normal, depth, dist_sq);
       break;
     case Type::BMesh:
       hit = bmesh_node_nearest_to_ray(node, ray_start, ray_normal, depth, dist_sq, use_origco);
@@ -2473,23 +2530,26 @@ static blender::draw::pbvh::PBVH_GPU_Args pbvh_draw_args_init(const Object &obje
       args.corner_edges = mesh_eval.corner_edges();
       args.corner_tris = mesh_eval.corner_tris();
       args.vert_normals = blender::bke::pbvh::vert_normals_eval_from_eval(object_eval);
-      args.face_normals = pbvh.face_normals_;
+      args.face_normals =
+          blender::bke::pbvh::face_normals_cache_eval(object_orig, object_eval).data();
       args.hide_poly = *mesh_orig.attributes().lookup<bool>(".hide_poly",
                                                             blender::bke::AttrDomain::Face);
 
       args.prim_indices = node.prim_indices_;
       args.tri_faces = mesh_eval.corner_tri_faces();
       break;
-    case blender::bke::pbvh::Type::Grids:
+    case blender::bke::pbvh::Type::Grids: {
+      const SubdivCCG &subdiv_ccg = *mesh_eval.runtime->subdiv_ccg;
       args.vert_data = &mesh_orig.vert_data;
       args.corner_data = &mesh_orig.corner_data;
       args.face_data = &mesh_orig.face_data;
-      args.ccg_key = BKE_subdiv_ccg_key_top_level(*pbvh.subdiv_ccg_);
+      args.ccg_key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       args.mesh = &mesh_orig;
       args.grid_indices = node.prim_indices_;
-      args.subdiv_ccg = pbvh.subdiv_ccg_;
-      args.grids = pbvh.subdiv_ccg_->grids;
+      args.subdiv_ccg = &const_cast<SubdivCCG &>(subdiv_ccg);
+      args.grids = subdiv_ccg.grids;
       break;
+    }
     case blender::bke::pbvh::Type::BMesh:
       args.bm = pbvh.bm_;
       args.vert_data = &args.bm->vdata;
@@ -2668,46 +2728,11 @@ void BKE_pbvh_vert_coords_apply(blender::bke::pbvh::Tree &pbvh,
                                 const blender::Span<blender::float3> vert_positions)
 {
   using namespace blender::bke::pbvh;
-
-  if (!pbvh.deformed_) {
-    if (!pbvh.vert_positions_.is_empty()) {
-      /* When the Tree is deformed, it creates a separate vertex position array
-       * that it owns directly. Conceptually these copies often aren't and often adds extra
-       * indirection, but:
-       *  - Sculpting shape keys, the deformations are flushed back to the keys as a separate step.
-       *  - Sculpting on a deformed mesh, deformations are also flushed to original positions
-       *    separately.
-       *  - The Tree currently always assumes we want to change positions, and
-       * has no way to avoid calculating normals if it's only used for painting, for example. */
-      pbvh.vert_positions_deformed_ = pbvh.vert_positions_.as_span();
-      pbvh.vert_positions_ = pbvh.vert_positions_deformed_;
-
-      pbvh.vert_normals_deformed_ = pbvh.vert_normals_;
-      pbvh.vert_normals_ = pbvh.vert_normals_deformed_;
-
-      pbvh.face_normals_deformed_ = pbvh.face_normals_;
-      pbvh.face_normals_ = pbvh.face_normals_deformed_;
-
-      pbvh.deformed_ = true;
-    }
+  for (Node &node : pbvh.nodes_) {
+    BKE_pbvh_node_mark_positions_update(node);
   }
-
-  if (!pbvh.vert_positions_.is_empty()) {
-    blender::MutableSpan<blender::float3> positions = pbvh.vert_positions_;
-    positions.copy_from(vert_positions);
-
-    for (Node &node : pbvh.nodes_) {
-      BKE_pbvh_node_mark_positions_update(node);
-    }
-
-    update_bounds_mesh(vert_positions, pbvh);
-    store_bounds_orig(pbvh);
-  }
-}
-
-bool BKE_pbvh_is_deformed(const blender::bke::pbvh::Tree &pbvh)
-{
-  return pbvh.deformed_;
+  update_bounds_mesh(vert_positions, pbvh);
+  store_bounds_orig(pbvh);
 }
 
 namespace blender::bke::pbvh {
@@ -2728,46 +2753,90 @@ void get_frustum_planes(const Tree &pbvh, PBVHFrustumPlanes *planes)
   }
 }
 
-Span<float3> vert_positions_eval(const Depsgraph & /*depsgraph*/, const Object &object)
+static Span<float3> vert_positions_eval(const Object &object_orig, const Object &object_eval)
 {
-  BLI_assert(object.sculpt->pbvh->type() == Type::Mesh);
-  return object.sculpt->pbvh->vert_positions_;
+  const SculptSession &ss = *object_orig.sculpt;
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
+  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+    if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
+      if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
+        return mesh_eval->vert_positions();
+      }
+    }
+    if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
+      return mesh_eval->vert_positions();
+    }
+  }
+
+  if (!ss.deform_cos.is_empty()) {
+    BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+    return ss.deform_cos;
+  }
+
+  return mesh_orig.vert_positions();
+}
+static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Object &object_eval)
+{
+  SculptSession &ss = *object_orig.sculpt;
+  Mesh &mesh_orig = *static_cast<Mesh *>(object_orig.data);
+  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+    if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
+      if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
+        Mesh *mesh_eval_mut = const_cast<Mesh *>(mesh_eval);
+        return mesh_eval_mut->vert_positions_for_write();
+      }
+    }
+    if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
+      Mesh *mesh_eval_mut = const_cast<Mesh *>(mesh_eval);
+      return mesh_eval_mut->vert_positions_for_write();
+    }
+  }
+
+  if (!ss.deform_cos.is_empty()) {
+    BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+    return ss.deform_cos;
+  }
+
+  return mesh_orig.vert_positions_for_write();
+}
+
+Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &object_orig)
+{
+  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph,
+                                                        &const_cast<Object &>(object_orig));
+  return vert_positions_eval(object_orig, object_eval);
 }
 
 Span<float3> vert_positions_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
-  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
-  return object_orig.sculpt->pbvh->vert_positions_;
+  const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  return vert_positions_eval(object_orig, object_eval);
 }
 
-MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph & /*depsgraph*/, Object &object)
+MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Object &object_orig)
 {
-  BLI_assert(object.sculpt->pbvh->type() == Type::Mesh);
-  return object.sculpt->pbvh->vert_positions_;
+  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  return vert_positions_eval_for_write(object_orig, object_eval);
 }
 
-Span<float3> vert_normals_eval(const Depsgraph & /*depsgraph*/, const Object &object)
+Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  BLI_assert(object.sculpt->pbvh->type() == Type::Mesh);
-  return object.sculpt->pbvh->vert_normals_;
+  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph,
+                                                        &const_cast<Object &>(object_orig));
+  return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> vert_normals_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
   Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
-  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
-  return object_orig.sculpt->pbvh->vert_normals_;
+  return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 }  // namespace blender::bke::pbvh
-
-void BKE_pbvh_subdiv_cgg_set(blender::bke::pbvh::Tree &pbvh, SubdivCCG *subdiv_ccg)
-{
-  pbvh.subdiv_ccg_ = subdiv_ccg;
-}
 
 void BKE_pbvh_ensure_node_face_corners(blender::bke::pbvh::Tree &pbvh,
                                        const blender::Span<blender::int3> corner_tris)
@@ -2904,6 +2973,19 @@ void BKE_pbvh_sync_visibility_from_verts(Object &object)
 }
 
 namespace blender::bke::pbvh {
+
+Vector<Node *> all_leaf_nodes(Tree &pbvh)
+{
+  Vector<Node *> leaf_nodes;
+  leaf_nodes.reserve(pbvh.nodes_.size());
+  for (Node &node : pbvh.nodes_) {
+    if (node.flag_ & PBVH_Leaf) {
+      leaf_nodes.append(&node);
+    }
+  }
+  return leaf_nodes;
+}
+
 Vector<Node *> search_gather(Tree &pbvh,
                              const FunctionRef<bool(Node &)> scb,
                              PBVHNodeFlags leaf_flag)

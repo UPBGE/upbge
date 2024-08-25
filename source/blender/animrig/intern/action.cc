@@ -95,8 +95,7 @@ template<typename T> static void grow_array(T **array, int *num, const int add_n
 {
   BLI_assert(add_num > 0);
   const int new_array_num = *num + add_num;
-  T *new_array = reinterpret_cast<T *>(
-      MEM_cnew_array<T *>(new_array_num, "animrig::action/grow_array"));
+  T *new_array = MEM_cnew_array<T>(new_array_num, "animrig::action/grow_array");
 
   blender::uninitialized_relocate_n(*array, *num, new_array);
   MEM_SAFE_FREE(*array);
@@ -132,7 +131,7 @@ template<typename T> static void shrink_array(T **array, int *num, const int shr
 {
   BLI_assert(shrink_num > 0);
   const int new_array_num = *num - shrink_num;
-  T *new_array = reinterpret_cast<T *>(MEM_cnew_array<T *>(new_array_num, __func__));
+  T *new_array = MEM_cnew_array<T>(new_array_num, __func__);
 
   blender::uninitialized_move_n(*array, new_array_num, new_array);
   MEM_freeN(*array);
@@ -171,6 +170,7 @@ static void array_shift_range(
   BLI_assert(range_start <= range_end);
   BLI_assert(range_end <= num);
   BLI_assert(to <= num + range_start - range_end);
+  UNUSED_VARS_NDEBUG(num);
 
   if (range_start == range_end || range_start == to) {
     return;

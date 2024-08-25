@@ -602,7 +602,7 @@ int BLI_access(const char *filepath, int mode)
   return uaccess(filepath, mode);
 }
 
-static bool delete_soft(const wchar_t *path_16, const char **error_message)
+static bool delete_soft(const wchar_t *path_16, const char **r_error_message)
 {
   /* Deletes file or directory to recycling bin. The latter moves all contained files and
    * directories recursively to the recycling bin as well. */
@@ -635,30 +635,30 @@ static bool delete_soft(const wchar_t *path_16, const char **error_message)
             hr = pfo->PerformOperations();
 
             if (FAILED(hr)) {
-              *error_message = "Failed to prepare delete operation";
+              *r_error_message = "Failed to prepare delete operation";
             }
           }
           else {
-            *error_message = "Failed to prepare delete operation";
+            *r_error_message = "Failed to prepare delete operation";
           }
           psi->Release();
         }
         else {
-          *error_message = "Failed to parse path";
+          *r_error_message = "Failed to parse path";
         }
       }
       else {
-        *error_message = "Failed to set operation flags";
+        *r_error_message = "Failed to set operation flags";
       }
       pfo->Release();
     }
     else {
-      *error_message = "Failed to create FileOperation instance";
+      *r_error_message = "Failed to create FileOperation instance";
     }
     CoUninitialize();
   }
   else {
-    *error_message = "Failed to initialize COM";
+    *r_error_message = "Failed to initialize COM";
   }
 
   return FAILED(hr);
@@ -750,7 +750,7 @@ int BLI_delete(const char *path, bool dir, bool recursive)
 /**
  * Moves the files or directories to the recycling bin.
  */
-int BLI_delete_soft(const char *file, const char **error_message)
+int BLI_delete_soft(const char *file, const char **r_error_message)
 {
   int err;
 
@@ -758,7 +758,7 @@ int BLI_delete_soft(const char *file, const char **error_message)
 
   UTF16_ENCODE(file);
 
-  err = delete_soft(file_16, error_message);
+  err = delete_soft(file_16, r_error_message);
 
   UTF16_UN_ENCODE(file);
 
@@ -1159,7 +1159,7 @@ static int delete_single_file(const char *from, const char * /*to*/)
 }
 
 #  ifdef __APPLE__
-static int delete_soft(const char *filepath, const char **error_message)
+static int delete_soft(const char *filepath, const char **r_error_message)
 {
   int ret = -1;
 
@@ -1190,7 +1190,7 @@ static int delete_soft(const char *filepath, const char **error_message)
     ret = 0;
   }
   else {
-    *error_message = "The Cocoa API call to delete file or directory failed";
+    *r_error_message = "The Cocoa API call to delete file or directory failed";
   }
 
   SEL drainSel = sel_registerName("drain");
@@ -1199,7 +1199,7 @@ static int delete_soft(const char *filepath, const char **error_message)
   return ret;
 }
 #  else
-static int delete_soft(const char *filepath, const char **error_message)
+static int delete_soft(const char *filepath, const char **r_error_message)
 {
   const char *args[5];
   const char *process_failed;
@@ -1227,41 +1227,54 @@ static int delete_soft(const char *filepath, const char **error_message)
     process_failed = "gio reported failure";
   }
 
+  /* Restore when there are no errors. */
+  const int errno_prev = errno;
   errno = 0;
+
   int pid = fork();
   if (UNLIKELY(pid == -1)) {
-    *error_message = errno ? strerror(errno) : "unable to fork process";
+    *r_error_message = errno ? strerror(errno) : "unable to fork process";
     return -1;
   }
 
-  if (pid != 0) {
-    /* Parent process. */
-    int wstatus = 0;
+  if (pid == 0) {
+    /* Child process. */
+    execvp(args[0], (char **)args);
+    /* This should only be reached if `execvp` fails and stack isn't replaced. */
 
-    waitpid(pid, &wstatus, 0);
-
-    if (!WIFEXITED(wstatus)) {
-      *error_message =
-          "Blender may not support moving files or directories to trash on your system.";
-      return -1;
-    }
-    if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus)) {
-      *error_message = process_failed;
-      return -1;
-    }
-
-    return 0;
+    /* Use `_exit` instead of `exit` so Blender's `atexit` cleanup functions don't run. */
+    _exit(errno);
+    BLI_assert_unreachable();
+    return -1;
   }
 
-  const int status = execvp(args[0], (char **)args);
+  /* Parent process. */
+  int wstatus = 0;
+  waitpid(pid, &wstatus, 0);
 
-  /* This should only be reached if `execvp` fails and stack isn't replaced. */
-  /* Use `_exit` instead of `exit` so Blender's `atexit` cleanup functions don't run. */
-  _exit(status);
+  int result = 0; /* Success. */
+  if (WIFEXITED(wstatus)) {
+    const int errno_child = WEXITSTATUS(wstatus);
+    if (errno_child) {
+      *r_error_message = process_failed;
+      result = -1;
 
-  BLI_assert_unreachable();
+      /* Forward to the error so the caller may set the message. */
+      errno = errno_child;
+    }
+  }
+  else {
+    *r_error_message =
+        "Blender may not support moving files or directories to trash on your system.";
+    result = -1;
+  }
 
-  return -1;
+  if (result == 0) {
+    /* Only overwrite the value if there was an error. */
+    errno = errno_prev;
+  }
+
+  return result;
 }
 #  endif
 
@@ -1308,11 +1321,11 @@ int BLI_delete(const char *path, bool dir, bool recursive)
   return remove(path);
 }
 
-int BLI_delete_soft(const char *filepath, const char **error_message)
+int BLI_delete_soft(const char *filepath, const char **r_error_message)
 {
   BLI_assert(!BLI_path_is_rel(filepath));
 
-  return delete_soft(filepath, error_message);
+  return delete_soft(filepath, r_error_message);
 }
 
 /**

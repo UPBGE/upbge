@@ -178,8 +178,7 @@ struct StrokeCache {
    */
   float bstrength;
   float normal_weight; /* from brush (with optional override) */
-  float x_tilt;
-  float y_tilt;
+  float2 tilt;
 
   /* Position of the mouse corresponding to the stroke location, modified by the paint_stroke
    * operator according to the stroke type. */
@@ -260,8 +259,6 @@ struct StrokeCache {
    */
   bool accum;
 
-  float3 anchored_location;
-
   /* Paint Brush. */
   struct {
     float hardness;
@@ -332,8 +329,6 @@ struct StrokeCache {
 
   rcti previous_r; /* previous redraw rectangle */
   rcti current_r;  /* current redraw rectangle */
-
-  int stroke_id;
 
   ~StrokeCache();
 };
@@ -482,7 +477,7 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
 /** Ensure random access; required for blender::bke::pbvh::Type::BMesh */
 void SCULPT_vertex_random_access_ensure(SculptSession &ss);
 
-int SCULPT_vertex_count_get(const SculptSession &ss);
+int SCULPT_vertex_count_get(const Object &object);
 const float *SCULPT_vertex_co_get(const Depsgraph &depsgraph,
                                   const Object &object,
                                   PBVHVertRef vertex);

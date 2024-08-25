@@ -201,8 +201,8 @@ set(SRC
   BLI_bounds.hh
   BLI_bounds_types.hh
   BLI_boxpack_2d.h
-  BLI_build_config.h
   BLI_buffer.h
+  BLI_build_config.h
   BLI_cache_mutex.hh
   BLI_color.hh
   BLI_color_mix.hh
@@ -210,6 +210,7 @@ set(SRC
   BLI_compiler_compat.h
   BLI_compiler_typecheck.h
   BLI_compute_context.hh
+  BLI_concurrent_map.hh
   BLI_console.h
   BLI_convexhull_2d.h
   BLI_cpp_type.hh
@@ -324,6 +325,7 @@ set(SRC
   BLI_memiter.h
   BLI_memory_cache.hh
   BLI_memory_counter.hh
+  BLI_memory_counter_fwd.hh
   BLI_memory_utils.h
   BLI_memory_utils.hh
   BLI_mempool.h
@@ -519,9 +521,9 @@ if(WITH_GTESTS)
     tests/BLI_bit_ref_test.cc
     tests/BLI_bit_span_test.cc
     tests/BLI_bit_vector_test.cc
-    tests/BLI_build_config_test.cc
     tests/BLI_bitmap_test.cc
     tests/BLI_bounds_test.cc
+    tests/BLI_build_config_test.cc
     tests/BLI_color_test.cc
     tests/BLI_convexhull_2d_test.cc
     tests/BLI_cpp_type_test.cc

@@ -1997,8 +1997,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   BLI_assert(pbvh == ss.pbvh.get());
   UNUSED_VARS_NDEBUG(pbvh);
 
-  BKE_pbvh_subdiv_cgg_set(*ss.pbvh, ss.subdiv_ccg);
-
   sculpt_attribute_update_refs(ob, ss.pbvh->type());
 
   if (ob->type == OB_MESH) {
@@ -2052,16 +2050,12 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   /* if pbvh is deformed, key block is already applied to it */
   if (ss.shapekey_active) {
-    bool pbvh_deformed = BKE_pbvh_is_deformed(*ss.pbvh);
-    if (!pbvh_deformed || ss.deform_cos.is_empty()) {
+    if (ss.deform_cos.is_empty()) {
       const Span key_data(static_cast<const float3 *>(ss.shapekey_active->data),
                           mesh_orig->verts_num);
 
       if (key_data.data() != nullptr) {
-        if (!pbvh_deformed) {
-          /* apply shape keys coordinates to pbvh::Tree */
-          BKE_pbvh_vert_coords_apply(*ss.pbvh, key_data);
-        }
+        BKE_pbvh_vert_coords_apply(*ss.pbvh, key_data);
         if (ss.deform_cos.is_empty()) {
           ss.deform_cos = key_data;
         }
@@ -2123,9 +2117,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
       BKE_sculptsession_free_vwpaint_data(ob_eval->sculpt);
     }
     else if (ss->pbvh) {
-      Vector<blender::bke::pbvh::Node *> nodes = blender::bke::pbvh::search_gather(*ss->pbvh, {});
-
-      for (blender::bke::pbvh::Node *node : nodes) {
+      for (blender::bke::pbvh::Node *node : blender::bke::pbvh::all_leaf_nodes(*ss->pbvh)) {
         BKE_pbvh_node_mark_update(*node);
       }
     }
@@ -2390,18 +2382,6 @@ blender::bke::pbvh::Tree *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Ob
   }
 
   if (ob->sculpt->pbvh) {
-    /* NOTE: It is possible that pointers to grids or other geometry data changed. Need to update
-     * those pointers. */
-    const pbvh::Type pbvh_type = ob->sculpt->pbvh->type();
-    switch (pbvh_type) {
-      case pbvh::Type::Mesh:
-        pbvh::update_mesh_pointers(*ob->sculpt->pbvh, BKE_object_get_original_mesh(ob));
-        break;
-      case pbvh::Type::Grids:
-      case pbvh::Type::BMesh:
-        break;
-    }
-
     return ob->sculpt->pbvh.get();
   }
 

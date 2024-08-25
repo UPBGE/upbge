@@ -188,7 +188,7 @@ Vector<bke::pbvh::Node *> brush_affected_nodes_gather(SculptSession &ss, const B
       });
     }
     case BRUSH_CLOTH_SIMULATION_AREA_GLOBAL:
-      return bke::pbvh::search_gather(*ss.pbvh, {});
+      return bke::pbvh::all_leaf_nodes(*ss.pbvh);
     case BRUSH_CLOTH_SIMULATION_AREA_DYNAMIC: {
       const float radius_squared = math::square(ss.cache->radius * (1.0 + brush.cloth_sim_limit));
       return bke::pbvh::search_gather(*ss.pbvh, [&](bke::pbvh::Node &node) {
@@ -1213,8 +1213,8 @@ static void calc_constraint_factors(const Depsgraph &depsgraph,
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *ss.pbvh;
-  const Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(
-      const_cast<bke::pbvh::Tree &>(pbvh), {});
+  const Vector<bke::pbvh::Node *> nodes = bke::pbvh::all_leaf_nodes(
+      const_cast<bke::pbvh::Tree &>(pbvh));
 
   const auto_mask::Cache *automasking = auto_mask::active_cache_get(ss);
 
@@ -1301,7 +1301,7 @@ static void cloth_brush_satisfy_constraints(const Depsgraph &depsgraph,
   const float3 sim_location = cloth_brush_simulation_location_get(ss, brush);
 
   /* Precalculate factors into an array since we need random access to specific vertex values. */
-  Array<float> factors(SCULPT_vertex_count_get(ss));
+  Array<float> factors(SCULPT_vertex_count_get(object));
   calc_constraint_factors(depsgraph, object, brush, sim_location, cloth_sim.init_pos, factors);
 
   for (int constraint_it = 0; constraint_it < CLOTH_SIMULATION_ITERATIONS; constraint_it++) {
@@ -1607,7 +1607,7 @@ static void cloth_brush_apply_brush_foces(const Depsgraph &depsgraph,
  * them. */
 static void cloth_sim_initialize_default_node_state(SculptSession &ss, SimulationData &cloth_sim)
 {
-  Vector<bke::pbvh::Node *> nodes = bke::pbvh::search_gather(*ss.pbvh, {});
+  Vector<bke::pbvh::Node *> nodes = bke::pbvh::all_leaf_nodes(*ss.pbvh);
 
   cloth_sim.node_state = Array<NodeSimState>(nodes.size());
   for (const int i : nodes.index_range()) {
@@ -1628,7 +1628,7 @@ static void copy_positions_to_array(const Depsgraph &depsgraph,
       break;
     case bke::pbvh::Type::Grids: {
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-      Vector<bke::pbvh::Node *> all_nodes = bke::pbvh::search_gather(pbvh, {});
+      Vector<bke::pbvh::Node *> all_nodes = bke::pbvh::all_leaf_nodes(pbvh);
       threading::parallel_for(all_nodes.index_range(), 8, [&](const IndexRange range) {
         Vector<float3> node_positions;
         for (const int i : range) {
@@ -1658,7 +1658,7 @@ static void copy_normals_to_array(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Grids: {
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-      Vector<bke::pbvh::Node *> all_nodes = bke::pbvh::search_gather(pbvh, {});
+      Vector<bke::pbvh::Node *> all_nodes = bke::pbvh::all_leaf_nodes(pbvh);
       threading::parallel_for(all_nodes.index_range(), 8, [&](const IndexRange range) {
         Vector<float3> node_normals;
         for (const int i : range) {
@@ -1687,7 +1687,7 @@ std::unique_ptr<SimulationData> brush_simulation_create(const Depsgraph &depsgra
                                                         const bool needs_deform_coords)
 {
   SculptSession &ss = *ob.sculpt;
-  const int totverts = SCULPT_vertex_count_get(ss);
+  const int totverts = SCULPT_vertex_count_get(ob);
   std::unique_ptr<SimulationData> cloth_sim = std::make_unique<SimulationData>();
 
   cloth_sim->length_constraints.reserve(CLOTH_LENGTH_CONSTRAINTS_BLOCK);

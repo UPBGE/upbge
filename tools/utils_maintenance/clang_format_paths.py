@@ -222,20 +222,24 @@ def argparse_create() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main() -> int:
     version = clang_format_ensure_version()
     if version is None:
         print("Unable to detect 'clang-format -version'")
-        sys.exit(1)
+        return 1
     if version < VERSION_MIN:
         print("Version of clang-format is too old:", version, "<", VERSION_MIN)
-        sys.exit(1)
+        return 1
 
     args = argparse_create().parse_args()
 
     use_default_paths = not (bool(args.paths) or bool(args.changed_only))
-
     paths = compute_paths(args.paths, use_default_paths)
+    # Check if user-defined paths exclude all clang-format sources.
+    if args.paths and not paths:
+        print("Skip clang-format: no target to format")
+        return 0
+
     print("Operating on:" + (" ({:d} changed paths)".format(len(paths)) if args.changed_only else ""))
     for p in paths:
         print(" ", p)
@@ -271,6 +275,8 @@ def main() -> None:
         )
         print()
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -184,9 +184,9 @@ void ED_view3d_lastview_store(RegionView3D *rv3d);
 enum eV3DDepthOverrideMode {
   /** Redraw viewport without overlays. */
   V3D_DEPTH_NO_OVERLAYS = 0,
-  /** Redraw viewport without Grease Pencil and Annotations. */
+  /** Redraw viewport without Grease Pencil. */
   V3D_DEPTH_NO_GPENCIL,
-  /** Redraw viewport with Grease Pencil and Annotations only. */
+  /** Redraw viewport with Grease Pencil only. */
   V3D_DEPTH_GPENCIL_ONLY,
   /** Redraw viewport with active object only. */
   V3D_DEPTH_OBJECT_ONLY,
@@ -614,9 +614,9 @@ void ED_view3d_win_to_ray(const ARegion *region,
  * In orthographic view the resulting vector will match the view vector.
  * \param rv3d: The region (used for the window width and height).
  * \param coord: The world-space location.
- * \param vec: The resulting normalized vector.
+ * \param r_out: The resulting normalized vector.
  */
-void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float vec[3]);
+void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float r_out[3]);
 /**
  * Calculate a 3d location from 2d window coordinates.
  * \param region: The region (used for the window width and height).
