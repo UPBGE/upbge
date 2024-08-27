@@ -2688,7 +2688,10 @@ void CustomData_realloc(CustomData *data,
   }
 }
 
-void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask mask, int totelem)
+void CustomData_init_from(const CustomData *source,
+                          CustomData *dest,
+                          eCustomDataMask mask,
+                          int totelem)
 {
   CustomData_reset(dest);
 
@@ -2699,11 +2702,11 @@ void CustomData_copy(const CustomData *source, CustomData *dest, eCustomDataMask
   CustomData_merge(source, dest, mask, totelem);
 }
 
-void CustomData_copy_layout(const CustomData *source,
-                            CustomData *dest,
-                            eCustomDataMask mask,
-                            eCDAllocType alloctype,
-                            int totelem)
+void CustomData_init_layout_from(const CustomData *source,
+                                 CustomData *dest,
+                                 eCustomDataMask mask,
+                                 eCDAllocType alloctype,
+                                 int totelem)
 {
   CustomData_reset(dest);
 

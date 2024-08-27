@@ -125,8 +125,6 @@ enum class TransformDisplacementMode {
 }
 /* Defines how transform tools are going to apply its displacement. */
 
-#define SCULPT_CLAY_STABILIZER_LEN 10
-
 namespace blender::ed::sculpt_paint {
 
 /**
@@ -137,9 +135,12 @@ struct StrokeCache {
   /* Invariants */
   float initial_radius;
   float3 scale;
-  int flag;
-  float3 clip_tolerance;
-  float4x4 clip_mirror_mtx;
+  struct {
+    int flag = 0;
+    float3 tolerance;
+    float4x4 mat;
+    float4x4 mat_inv;
+  } mirror_modifier_clip;
   float2 initial_mouse;
 
   /* Variants */
@@ -170,6 +171,7 @@ struct StrokeCache {
    */
   bool invert;
   float pressure;
+  float hardness;
   /**
    * Depending on the mode, can either be the raw brush strength, or a scaled (possibly negative)
    * value.
@@ -186,18 +188,12 @@ struct StrokeCache {
   /* Position of the mouse event in screen space, not modified by the stroke type. */
   float2 mouse_event;
 
-  /**
-   * Used by the color attribute paint brush tool to store the brush color during a stroke and
-   * composite it over the original color.
-   */
-  Array<float4> mix_colors;
-
-  Array<float4> prev_colors;
   GArray<> prev_colors_vpaint;
 
-  /* Multires Displacement Smear. */
-  Array<float3> prev_displacement;
-  Array<float3> limit_surface_co;
+  struct {
+    Array<float3> prev_displacement;
+    Array<float3> limit_surface_co;
+  } displacement_smear;
 
   /* The rest is temporary storage that isn't saved as a property */
 
@@ -261,11 +257,21 @@ struct StrokeCache {
 
   /* Paint Brush. */
   struct {
-    float hardness;
     float flow;
+
+    float4 wet_mix_prev_color;
     float wet_mix;
     float wet_persistence;
+
+    float density_seed;
     float density;
+
+    /**
+     * Used by the color attribute paint brush tool to store the brush color during a stroke and
+     * composite it over the original color.
+     */
+    Array<float4> mix_colors;
+    Array<float4> prev_colors;
   } paint_brush;
 
   /* Pose brush */
@@ -275,11 +281,14 @@ struct StrokeCache {
   Array<float3> detail_directions;
 
   /* Clay Thumb brush */
-  /* Angle of the front tilting plane of the brush to simulate clay accumulation. */
-  float clay_thumb_front_angle;
-  /* Stores pressure samples to get an stabilized strength and radius variation. */
-  float clay_pressure_stabilizer[SCULPT_CLAY_STABILIZER_LEN];
-  int clay_pressure_stabilizer_index;
+  struct {
+    /* Angle of the front tilting plane of the brush to simulate clay accumulation. */
+    float front_angle;
+    /* Stores the last 10 pressure samples to get an stabilized strength and radius variation. */
+    std::array<float, 10> pressure_stabilizer;
+    int stabilizer_index;
+
+  } clay_thumb_brush;
 
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;
@@ -323,9 +332,6 @@ struct StrokeCache {
 
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;
-
-  float4 wet_mix_prev_color;
-  float density_seed;
 
   rcti previous_r; /* previous redraw rectangle */
   rcti current_r;  /* current redraw rectangle */
