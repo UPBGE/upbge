@@ -200,26 +200,6 @@ class Action : public ::bAction {
   Slot &slot_add_for_id(const ID &animated_id);
 
   /**
-   * Ensure that an appropriate Slot exists for the given ID.
-   *
-   * If a suitable Slot can be found, that Slot is returned.  Otherwise,
-   * one is created.
-   *
-   * This is essentially a wrapper for `find_suitable_slot_for()` and
-   * `slot_add_for_id()`, and follows their semantics. Notably, like both of
-   * those methods, this Action does not need to already be assigned to the ID.
-   * And like `find_suitable_slot_for()`, if this Action *is* already
-   * assigned to the ID with a valid Slot, that Slot is returned.
-   *
-   * Note that this assigns neither this Action nor the Slot to the ID. This
-   * merely ensures that an appropriate Slot exists.
-   *
-   * \see `Action::find_suitable_slot_for()`
-   * \see `Action::slot_add_for_id()`
-   */
-  Slot &slot_ensure_for_id(const ID &animated_id);
-
-  /**
    * Set the active Slot, ensuring only one Slot is flagged as the Active one.
    *
    * \param slot_handle if Slot::unassigned, there will not be any active slot.
@@ -852,68 +832,88 @@ class ChannelBag : public ::ActionChannelBag {
    * It specifically does *not* maintain any of the semantic invariants of the
    * group array or its relationship to the fcurves.
    *
-   * Both `collapse_channel_group_gaps()` and
-   * `update_fcurve_channel_group_pointers()` should be called at some point
-   * after this to restore the semantic invariants.
+   * `restore_channel_group_invariants()` should be called at some point after
+   * this to restore the semantic invariants.
    *
-   * \see `collapse_channel_group_gaps()`
-   *
-   * \see `update_fcurve_channel_group_pointers()`
+   * \see `restore_channel_group_invariants()`
    */
   void channel_group_remove_raw(int channel_group_index);
 
   /**
-   * Move channel groups' fcurve spans so that there are no gaps between them,
-   * and to start at the first fcurve.
+   * Restore invariants related to channel groups.
    *
-   * This does *not* alter the order of the channel groups nor the number of
-   * fcurves in each group. It simply changes the start indices of each group so
-   * that the groups are packed together at the start of the fcurves.
+   * This restores critical invariants and should be called (at some point) any
+   * time that groups are explicitly modified or that group membership of
+   * fcurves might change implicitly (e.g. due to moving/adding/removing
+   * fcurves).
+   *
+   * The specific invariants restored by this method are:
+   * 1. All grouped fcurves should come before all non-grouped fcurves.
+   * 2. All fcurves should point back to the group they belong to (if any) via
+   *    their `grp` pointer.
+   *
+   * This function assumes that the fcurves are already in the correct group
+   * order (so the first N belong to the first group, which is also of length N,
+   * etc.). The groups are then updated so their starting index matches this.
+   * Then the fcurves' `grp` pointer is updated, so that any changes in group
+   * membership is correctly reflected.
    *
    * For example, if the mapping of groups to fcurves looks like this (g* are
    * the groups, dots indicate ungrouped areas, and f* are the fcurves, so e.g.
-   * f1 and f2 are part of group g0):
+   * group g0 currently contains f1 and f2, but ought to contain f0 and f1):
    *
    * ```
-   *  ..| g0  |..|g1|.....| g2  |..
+   * |..| g0  |..|g1|.....| g2  |..|
    * |f0|f1|f2|f3|f4|f5|f6|f7|f8|f9|
    * ```
    *
    * Then after calling this function they will look like this:
    *
    * ```
-   * | g0  |g1| g2  |..............
+   * | g0  |g1| g2  |..............|
    * |f0|f1|f2|f3|f4|f5|f6|f7|f8|f9|
    * ```
    *
-   * Note that this specifically does *not* move the fcurves, and therefore this
-   * alters fcurve membership in a way that depends on how the groups are
-   * shifted. It also does not update the group pointers inside the fcurves, so
-   * `update_fcurve_channel_group_pointers()` must be called at some point after
-   * this to fix those up.
+   * Note that this specifically does *not* move the fcurves, but rather moves
+   * the groups *over* the fcurves, changing membership.
    *
-   * This upholds critical invariants and should be called any time gaps might
-   * be introduced (changing the fcurve span of or removing a group).
-   *
-   * \see `update_fcurve_channel_group_pointers()`
+   * The `grp` pointers in the fcurves are then updated to reflect their new
+   * group membership, using the groups as the source of truth.
    */
-  void collapse_channel_group_gaps();
+  void restore_channel_group_invariants();
+};
+
+static_assert(sizeof(ChannelBag) == sizeof(::ActionChannelBag),
+              "DNA struct and its C++ wrapper must have the same size");
+
+/**
+ * A group of channels within a ChannelBag.
+ *
+ * This does *not* own the fcurves--the ChannelBag does. This just groups
+ * fcurves for organizational purposes, e.g. for use in the channel list in the
+ * animation editors.
+ *
+ * Usage of this wrapper typically indicates that the group is part of a layered
+ * action. However, the underlying `bActionGroup` struct is also used by legacy
+ * actions.
+ */
+class ChannelGroup : public ::bActionGroup {
+ public:
+  /**
+   * Determine whether this channel group is from a legacy action or a layered action.
+   *
+   * \return True if it's from a legacy action, false if it's from a layered action.
+   */
+  bool is_legacy() const;
 
   /**
-   * Updates all fcurves to point at the channel group that they belong to.
-   *
-   * The indices in the channel groups are considered the source of truth, and
-   * the pointers in the fcurves are simply updated to match those.  Fcurves
-   * that don't belong to a group will have their group pointer set to null.
-   *
-   * This upholds critical invariants and should always be called after
-   * modifications to either the array of fcurves (changing the array position
-   * of, adding, or removing fcurves) or to the array of groups (changing the
-   * fcurve span of, removing, or adding groups).
+   * Get the fcurves in this channel group.
    */
-  void update_fcurve_channel_group_pointers();
+  Span<FCurve *> fcurves();
+  Span<const FCurve *> fcurves() const;
 };
-static_assert(sizeof(ChannelBag) == sizeof(::ActionChannelBag),
+
+static_assert(sizeof(ChannelGroup) == sizeof(::bActionGroup),
               "DNA struct and its C++ wrapper must have the same size");
 
 /**
@@ -934,6 +934,24 @@ static_assert(sizeof(ChannelBag) == sizeof(::ActionChannelBag),
  * will still return `true` as the Action was successfully assigned.
  */
 bool assign_action(Action &action, ID &animated_id);
+
+/**
+ * Assign the Action, ensuring that a Slot is also assigned.
+ *
+ * If this Action happens to already be assigned, and a Slot is assigned too, that Slot is
+ * returned. Otherwise a new Slot is created + assigned.
+ *
+ * \returns the assigned slot if the assignment was succesful, or `nullptr` otherwise. The only
+ * reason the assignment can fail is when the given ID is of an animatable type.
+ *
+ * \note Contrary to `assign_action()` this skips the search by slot name when the Action is
+ * already assigned. It should be possible for an animator to un-assign a slot, then create a new
+ * slot by inserting a new key. This shouldn't auto-assign the old slot (by name) and _then_ insert
+ * the key.
+ *
+ * \see assign_action()
+ */
+Slot *assign_action_ensure_slot_for_keying(Action &action, ID &animated_id);
 
 /**
  * Return whether the given Action can be assigned to the ID.
@@ -980,20 +998,6 @@ std::optional<std::pair<Action *, Slot *>> get_action_slot_pair(ID &animated_id)
 const animrig::ChannelBag *channelbag_for_action_slot(const Action &action,
                                                       slot_handle_t slot_handle);
 animrig::ChannelBag *channelbag_for_action_slot(Action &action, slot_handle_t slot_handle);
-
-/**
- * Return the channel groups for this specific slot handle.
- *
- * This is just a utility function, that's intended to become obsolete when multi-layer Actions
- * are introduced. However, since Blender currently only supports a single layer with a single
- * strip, of a single type, this function can be used.
- *
- * The use of this function is also an indicator for code that will have to be altered when
- * multi-layered Actions are getting implemented.
- */
-Span<bActionGroup *> channel_groups_for_action_slot(Action &action, slot_handle_t slot_handle);
-Span<const bActionGroup *> channel_groups_for_action_slot(const Action &action,
-                                                          slot_handle_t slot_handle);
 
 /**
  * Return the F-Curves for this specific slot handle.
@@ -1163,6 +1167,15 @@ void action_deselect_keys(Action &action);
 }  // namespace blender::animrig
 
 /* Wrap functions for the DNA structs. */
+
+inline blender::animrig::ChannelGroup &bActionGroup::wrap()
+{
+  return *reinterpret_cast<blender::animrig::ChannelGroup *>(this);
+}
+inline const blender::animrig::ChannelGroup &bActionGroup::wrap() const
+{
+  return *reinterpret_cast<const blender::animrig::ChannelGroup *>(this);
+}
 
 inline blender::animrig::Action &bAction::wrap()
 {

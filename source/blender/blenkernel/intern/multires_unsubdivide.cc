@@ -67,12 +67,13 @@ static bool is_vertex_in_id(BMVert *v, const int *elem_id, int elem)
 
 static bool is_vertex_pole_three(BMVert *v)
 {
-  return !BM_vert_is_boundary(v) && (BM_vert_edge_count(v) == 3);
+  return !BM_vert_is_boundary(v) && (BM_vert_edge_count_is_equal(v, 3));
 }
 
 static bool is_vertex_pole(BMVert *v)
 {
-  return !BM_vert_is_boundary(v) && (BM_vert_edge_count(v) == 3 || BM_vert_edge_count(v) >= 5);
+  return !BM_vert_is_boundary(v) &&
+         (BM_vert_edge_count_is_equal(v, 3) || BM_vert_edge_count_is_over(v, 4));
 }
 
 /**
@@ -106,30 +107,20 @@ static BMVert *unsubdivide_find_any_pole(BMesh *bm, int *elem_id, int elem)
 static bool unsubdivide_is_all_quads(BMesh *bm)
 {
   BMIter iter;
-  BMIter iter_a;
   BMFace *f;
   BMVert *v;
-  int count = 0;
   if (bm->totface < 3) {
     return false;
   }
 
   BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-    count = 0;
-    BM_ITER_ELEM (v, &iter_a, f, BM_VERTS_OF_FACE) {
-      count++;
-    }
-
-    if (count != 4) {
+    if (f->len != 4) {
       return false;
     }
   }
 
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-    if (BM_vert_is_wire(v)) {
-      return false;
-    }
-    if (BM_vert_edge_count(v) == 0) {
+    if (BM_vert_is_wire(v) || (v->e == nullptr)) {
       return false;
     }
   }
@@ -460,9 +451,10 @@ static bool multires_unsubdivide_single_level(BMesh *bm)
 
   bool valid_tag_found = true;
 
-  /* Reset the #BMesh flags as they are used to store data during the un-subdivide process. */
-  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
-  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+  /* Reset the #BMesh flags as they are used to store data during the un-subdivide process.
+   * Un-hiding all faces is important so the entire mesh is handled, see: #126633. */
+  BM_mesh_elem_hflag_disable_all(
+      bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT | BM_ELEM_HIDDEN | BM_ELEM_TAG, false);
 
   /* For each disconnected mesh element ID, search if an un-subdivide solution is possible. The
    * whole un-subdivide process fails if a single disconnected mesh element fails. */
@@ -710,6 +702,7 @@ static void multires_unsubdivide_extract_single_grid_from_face_edge(
 
   const int grid_size = BKE_ccg_gridsize(context->num_new_levels);
   const int unsubdiv_grid_size = grid->grid_size = BKE_ccg_gridsize(context->num_total_levels);
+  BLI_assert(grid->grid_co == nullptr);
   grid->grid_size = unsubdiv_grid_size;
   grid->grid_co = static_cast<float(*)[3]>(MEM_calloc_arrayN(
       unsubdiv_grid_size * unsubdiv_grid_size, sizeof(float[3]), "grids coordinates"));
@@ -841,14 +834,14 @@ static void multires_unsubdivide_get_grid_corners_on_base_mesh(BMFace *f1,
   /* Do an edge step until it finds a tagged vertex, which is part of the base mesh. */
   /* x axis */
   edge_x = edge_step(current_vertex_x, edge_x, &current_vertex_x);
-  while (edge_x && !BM_elem_flag_test(current_vertex_x, BM_ELEM_TAG)) {
+  while (!BM_elem_flag_test(current_vertex_x, BM_ELEM_TAG)) {
     edge_x = edge_step(current_vertex_x, edge_x, &current_vertex_x);
   }
   *r_corner_x = current_vertex_x;
 
   /* Same for y axis */
   edge_y = edge_step(current_vertex_y, edge_y, &current_vertex_y);
-  while (edge_y && !BM_elem_flag_test(current_vertex_y, BM_ELEM_TAG)) {
+  while (!BM_elem_flag_test(current_vertex_y, BM_ELEM_TAG)) {
     edge_y = edge_step(current_vertex_y, edge_y, &current_vertex_y);
   }
   *r_corner_y = current_vertex_y;
@@ -922,15 +915,13 @@ static void multires_unsubdivide_prepare_original_bmesh_for_extract(
   BMesh *bm_original_mesh = context->bm_original_mesh = get_bmesh_from_mesh(original_mesh);
 
   /* Initialize the elem tables. */
-  BM_mesh_elem_table_ensure(bm_original_mesh, BM_EDGE);
-  BM_mesh_elem_table_ensure(bm_original_mesh, BM_FACE);
-  BM_mesh_elem_table_ensure(bm_original_mesh, BM_VERT);
+  BM_mesh_elem_table_ensure(bm_original_mesh, BM_VERT | BM_EDGE | BM_FACE);
 
   /* Disable all flags. */
-  BM_mesh_elem_hflag_disable_all(
-      bm_original_mesh, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
-  BM_mesh_elem_hflag_disable_all(
-      bm_original_mesh, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+  BM_mesh_elem_hflag_disable_all(bm_original_mesh,
+                                 BM_VERT | BM_EDGE | BM_FACE,
+                                 BM_ELEM_SELECT | BM_ELEM_HIDDEN | BM_ELEM_TAG,
+                                 false);
 
   /* Get the mapping data-layer. */
   context->base_to_orig_vmap = static_cast<const int *>(
@@ -1019,8 +1010,7 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
   BMVert *v;
   BMLoop *l, *lb;
 
-  BM_mesh_elem_table_ensure(bm_base_mesh, BM_VERT);
-  BM_mesh_elem_table_ensure(bm_base_mesh, BM_FACE);
+  BM_mesh_elem_table_ensure(bm_base_mesh, BM_VERT | BM_FACE);
 
   /* Get the data-layer that contains the loops indices. */
   const int base_l_offset = CustomData_get_offset_named(
@@ -1043,9 +1033,6 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
        * base mesh of the face of grid that is going to be extracted. */
       BMVert *corner_x, *corner_y;
       multires_unsubdivide_get_grid_corners_on_base_mesh(l->f, l->e, &corner_x, &corner_y);
-      if (!corner_x || !corner_y) {
-        continue;
-      }
 
       /* Map the two obtained vertices to the base mesh. */
       const int corner_x_index = orig_to_base_vmap[BM_elem_index_get(corner_x)];
@@ -1075,9 +1062,22 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
               faces, corner_verts, base_mesh_face_index, base_mesh_loop_index, corner_x_index);
 
           /* Extract the grid for that loop. */
-          context->base_mesh_grids[base_mesh_loop_index].grid_index = base_mesh_loop_index;
+          MultiresUnsubdivideGrid *grid = &context->base_mesh_grids[base_mesh_loop_index];
+          if (UNLIKELY(grid->grid_co != nullptr)) {
+            /* It's possible this grid has already been initialized which occurs when quads
+             * share two edge, while not so common it happens with "Suzanne's" nose,
+             * see: #126633 & run un-subdivide.
+             *
+             * Continue here instead of breaking as logically: quads sharing 2 edges
+             * will share 3 vertices and those 3 vertices may be attached to any number of quads.
+             * So in this case, continue scanning instead of breaking out of the loop
+             * because the `lb` to extract a grid from has not yet been encountered. */
+            continue;
+          }
+
+          grid->grid_index = base_mesh_loop_index;
           multires_unsubdivide_extract_single_grid_from_face_edge(
-              context, l->f, l->e, !flip_grid, &context->base_mesh_grids[base_mesh_loop_index]);
+              context, l->f, l->e, !flip_grid, grid);
 
           break;
         }
@@ -1137,6 +1137,10 @@ bool multires_unsubdivide_to_basemesh(MultiresUnsubdivideContext *context)
 
   /* Store the new base-mesh as a mesh in context, free bmesh. */
   context->base_mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+
+  /* De-select all.
+   * The user-selection has been overwritten and this selection has not been flushed. */
+  BM_mesh_elem_hflag_disable_all(bm_base_mesh, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
 
   BMeshToMeshParams bm_to_me_params{};
   bm_to_me_params.calc_object_remap = true;

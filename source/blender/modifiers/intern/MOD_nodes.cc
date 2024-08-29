@@ -277,7 +277,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(user_data, ob, md, "texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -2342,7 +2344,9 @@ static void panel_draw(const bContext *C, Panel *panel)
     tree_log->ensure_node_warnings();
     for (const geo_log::NodeWarning &warning : tree_log->all_warnings) {
       if (warning.type != geo_log::NodeWarningType::Info) {
-        uiItemL(layout, warning.message.c_str(), ICON_ERROR);
+        uiItemL(layout,
+                warning.message.c_str(),
+                warning.type == geo_log::NodeWarningType::Warning ? ICON_ERROR : ICON_CANCEL);
       }
     }
   }

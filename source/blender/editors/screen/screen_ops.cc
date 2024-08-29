@@ -3605,7 +3605,7 @@ static void area_join_dock_cb(const wmWindow * /*win*/, void *userdata)
 
 static void area_join_dock_cb_window(sAreaJoinData *jd, wmOperator *op)
 {
-  if (jd->sa2 && jd->win2 != jd->draw_dock_win) {
+  if (jd->sa2 && jd->win2 && jd->win2 != jd->draw_dock_win) {
     /* Change of highlight window. */
     if (jd->draw_dock_callback) {
       WM_draw_cb_exit(jd->draw_dock_win, jd->draw_dock_callback);
@@ -3990,12 +3990,30 @@ static AreaDockTarget area_docking_target(sAreaJoinData *jd, const wmEvent *even
 
   /* if the area is narrow then there are only two docking targets. */
   if (jd->sa2->winx < min_x) {
-    jd->factor = area_docking_snap(float(y) / float(jd->sa2->winy), event);
-    return (y < jd->sa2->winy / 2) ? AreaDockTarget::Bottom : AreaDockTarget::Top;
+    if (fac_y > 0.4f && fac_y < 0.6f) {
+      return AreaDockTarget::Center;
+    }
+    if ((float(y) > float(jd->sa2->winy) / 2.0f)) {
+      jd->factor = area_docking_snap(1.0f - float(y) / float(jd->sa2->winy), event);
+      return AreaDockTarget::Top;
+    }
+    else {
+      jd->factor = area_docking_snap(float(y) / float(jd->sa2->winy), event);
+      return AreaDockTarget::Bottom;
+    }
   }
   if (jd->sa2->winy < min_y) {
-    jd->factor = area_docking_snap(float(x) / float(jd->sa2->winx), event);
-    return (x < jd->sa2->winx / 2) ? AreaDockTarget::Left : AreaDockTarget::Right;
+    if (fac_x > 0.4f && fac_x < 0.6f) {
+      return AreaDockTarget::Center;
+    }
+    if ((float(x) > float(jd->sa2->winx) / 2.0f)) {
+      jd->factor = area_docking_snap(1.0f - float(x) / float(jd->sa2->winx), event);
+      return AreaDockTarget::Right;
+    }
+    else {
+      jd->factor = area_docking_snap(float(x) / float(jd->sa2->winx), event);
+      return AreaDockTarget::Left;
+    }
   }
 
   /* Are we in the center? But not in same area! */
@@ -4276,7 +4294,7 @@ static void SCREEN_OT_area_join(wmOperatorType *ot)
   ot->cancel = area_join_cancel;
 
   /* flags */
-  ot->flag = OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+  ot->flag = OPTYPE_BLOCKING;
 
   /* rna */
   RNA_def_int_vector(ot->srna,

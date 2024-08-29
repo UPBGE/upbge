@@ -248,7 +248,9 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   ED_time_scrub_draw_current_frame(region, scene, saction->flag & SACTION_DRAWTIME);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  if (region->winy > HEADERY * UI_SCALE_FAC) {
+    UI_view2d_scrollers_draw(v2d, nullptr);
+  }
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -964,7 +966,7 @@ void ED_spacetype_action()
   art = MEM_cnew<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
-  art->keymapflag = ED_KEYMAP_UI;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->listener = action_region_listener;
   art->init = action_buttons_area_init;
   art->draw = action_buttons_area_draw;

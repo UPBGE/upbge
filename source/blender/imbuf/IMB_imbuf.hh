@@ -73,9 +73,18 @@ ImBuf *IMB_testiffname(const char *filepath, int flags);
 
 ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_SPACE]);
 
+enum class IMBThumbLoadFlags {
+  Zero = 0,
+  /** Normally files larger than 100MB are not loaded for thumbnails, except when this flag is set.
+   */
+  LoadLargeFiles = (1 << 0),
+};
+ENUM_OPERATORS(IMBThumbLoadFlags, IMBThumbLoadFlags::LoadLargeFiles);
+
 ImBuf *IMB_thumb_load_image(const char *filepath,
                             const size_t max_thumb_size,
-                            char colorspace[IM_MAX_SPACE]);
+                            char colorspace[IM_MAX_SPACE],
+                            IMBThumbLoadFlags load_flags = IMBThumbLoadFlags::Zero);
 
 void IMB_freeImBuf(ImBuf *ibuf);
 
@@ -395,11 +404,14 @@ ImBuf *IMB_onehalf(ImBuf *ibuf1);
 enum class IMBScaleFilter {
   /** No filtering (point sampling). This is fastest but lowest quality. */
   Nearest,
-  /** Bilinear filter: each pixel in result image interpolates between 2x2 pixels of source image.
+  /**
+   * Bilinear filter: each pixel in result image interpolates between 2x2 pixels of source image.
    */
   Bilinear,
-  /** Box filter. Behaves exactly like Bilinear when scaling up, better results when scaling down
-     by more than 2x. */
+  /**
+   * Box filter. Behaves exactly like Bilinear when scaling up,
+   * better results when scaling down by more than 2x.
+   */
   Box,
 };
 

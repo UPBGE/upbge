@@ -47,6 +47,7 @@
 #include "SEQ_retiming.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
@@ -1576,6 +1577,16 @@ static void draw_seq_strips(TimelineDrawContext *timeline_ctx, StripsDrawBatch &
     return;
   }
 
+  /* Discard thumbnail requests that are far enough from viewing area:
+   * by +- 30 frames and +-2 channels outside of current view. */
+  rctf rect = timeline_ctx->v2d->cur;
+  rect.xmin -= 30;
+  rect.xmax += 30;
+  rect.ymin -= 2;
+  rect.ymax += 2;
+  seq::thumbnail_cache_discard_requests_outside(timeline_ctx->scene, rect);
+  seq::thumbnail_cache_maintain_capacity(timeline_ctx->scene);
+
   Vector<StripDrawContext> bottom_layer, top_layer;
   visible_strips_ordered_get(timeline_ctx, bottom_layer, top_layer);
   draw_seq_strips(timeline_ctx, strips_batch, bottom_layer);
@@ -1964,8 +1975,10 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region)
 
   ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES));
 
-  const ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
-  SEQ_timeline_boundbox(scene, seqbase, &v2d->tot);
-  const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
-  UI_view2d_scrollers_draw(v2d, &scroller_mask);
+  if (region->winy > HEADERY * UI_SCALE_FAC) {
+    const ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
+    SEQ_timeline_boundbox(scene, seqbase, &v2d->tot);
+    const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
+    UI_view2d_scrollers_draw(v2d, &scroller_mask);
+  }
 }

@@ -20,6 +20,7 @@
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -69,7 +70,7 @@ static void buttons_texture_user_socket_property_add(ListBase *users,
                                                      int icon,
                                                      const char *name)
 {
-  ButsTextureUser *user = MEM_cnew<ButsTextureUser>("ButsTextureUser");
+  ButsTextureUser *user = MEM_new<ButsTextureUser>("ButsTextureUser");
 
   user->id = id;
   user->ptr = ptr;
@@ -93,7 +94,7 @@ static void buttons_texture_user_property_add(ListBase *users,
                                               int icon,
                                               const char *name)
 {
-  ButsTextureUser *user = MEM_cnew<ButsTextureUser>("ButsTextureUser");
+  ButsTextureUser *user = MEM_new<ButsTextureUser>("ButsTextureUser");
 
   user->id = id;
   user->ptr = ptr;
@@ -116,7 +117,7 @@ static void buttons_texture_user_node_add(ListBase *users,
                                           int icon,
                                           const char *name)
 {
-  ButsTextureUser *user = MEM_cnew<ButsTextureUser>("ButsTextureUser");
+  ButsTextureUser *user = MEM_new<ButsTextureUser>("ButsTextureUser");
 
   user->id = id;
   user->ntree = ntree;
@@ -211,7 +212,8 @@ static void buttons_texture_modifier_geonodes_users_add(
 static void buttons_texture_modifier_foreach(void *user_data,
                                              Object *ob,
                                              ModifierData *md,
-                                             const char *propname)
+                                             const PointerRNA *ptr,
+                                             PropertyRNA *texture_prop)
 {
   ListBase *users = static_cast<ListBase *>(user_data);
 
@@ -223,13 +225,10 @@ static void buttons_texture_modifier_foreach(void *user_data,
     }
   }
   else {
-    PropertyRNA *prop;
-
-    PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
-    prop = RNA_struct_find_property(&ptr, propname);
+    const ModifierTypeInfo *modifier_type = BKE_modifier_get_info((ModifierType)md->type);
 
     buttons_texture_user_property_add(
-        users, &ob->id, ptr, prop, N_("Modifiers"), RNA_struct_ui_icon(ptr.type), md->name);
+        users, &ob->id, *ptr, texture_prop, N_("Modifiers"), modifier_type->icon, md->name);
   }
 }
 
@@ -363,7 +362,10 @@ void buttons_texture_context_compute(const bContext *C, SpaceProperties *sbuts)
     sbuts->texuser = ct;
   }
   else {
-    BLI_freelistN(&ct->users);
+    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
+      MEM_delete(user);
+    }
+    BLI_listbase_clear(&ct->users);
   }
 
   buttons_texture_users_from_context(&ct->users, C, sbuts);

@@ -2639,7 +2639,7 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
   int index = menu->index;
   LISTBASE_FOREACH (CollectionChild *, child, &menu->collection->children) {
     Collection *collection = child->collection;
-    MoveToCollectionData *submenu = MEM_cnew<MoveToCollectionData>(__func__);
+    MoveToCollectionData *submenu = MEM_new<MoveToCollectionData>(__func__);
     BLI_addtail(&menu->submenus, submenu);
     submenu->collection = collection;
     submenu->index = ++index;
@@ -2651,10 +2651,11 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
 
 static void move_to_collection_menus_free_recursive(MoveToCollectionData *menu)
 {
-  LISTBASE_FOREACH (MoveToCollectionData *, submenu, &menu->submenus) {
+  LISTBASE_FOREACH_MUTABLE (MoveToCollectionData *, submenu, &menu->submenus) {
     move_to_collection_menus_free_recursive(submenu);
+    MEM_delete(submenu);
   }
-  BLI_freelistN(&menu->submenus);
+  BLI_listbase_clear(&menu->submenus);
 }
 
 static void move_to_collection_menus_free(MoveToCollectionData **menu)
@@ -2664,7 +2665,7 @@ static void move_to_collection_menus_free(MoveToCollectionData **menu)
   }
 
   move_to_collection_menus_free_recursive(*menu);
-  MEM_freeN(*menu);
+  MEM_delete(*menu);
   *menu = nullptr;
 }
 
@@ -2763,7 +2764,7 @@ static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent 
    *
    * So we are left with a memory that will necessarily leak. It's a small leak though. */
   if (master_collection_menu == nullptr) {
-    master_collection_menu = MEM_cnew<MoveToCollectionData>(
+    master_collection_menu = MEM_new<MoveToCollectionData>(
         "MoveToCollectionData menu - expected eventual memleak");
   }
 
