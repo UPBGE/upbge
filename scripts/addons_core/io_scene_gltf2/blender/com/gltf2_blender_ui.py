@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import bpy
-from ..com.gltf2_blender_material_helpers import get_gltf_node_name, create_settings_group
+from ..com.material_helpers import get_gltf_node_name, create_settings_group
 
 ################ glTF Material Output node ###########################################
 
@@ -611,8 +611,8 @@ class SCENE_UL_gltf2_filter_action(bpy.types.UIList):
         layout.context_pointer_set("id", action)
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(item.action, "name", text="", emboss=False)
-            layout.prop(item, "keep", text="", emboss=True)
+            layout.split().prop(item.action, "name", text="", emboss=False)
+            layout.split().prop(item, "keep", text="", emboss=True)
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'

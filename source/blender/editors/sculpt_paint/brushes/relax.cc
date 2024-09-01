@@ -119,7 +119,7 @@ BLI_NOINLINE static void calc_factors_faces(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(mesh, verts, factors);
   filter_region_clip_factors(ss, positions_eval, verts, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, vert_normals, verts, factors);
+    calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
   }
 
   tls.distances.resize(verts.size());
@@ -168,49 +168,45 @@ static void do_relax_face_sets_brush_mesh(const Depsgraph &depsgraph,
   Array<float> factors(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<MeshLocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     MeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      calc_factors_faces(depsgraph,
-                         brush,
-                         positions_eval,
-                         vert_normals,
-                         strength,
-                         relax_face_sets,
-                         object,
-                         nodes[i],
-                         tls,
-                         factors.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    calc_factors_faces(depsgraph,
+                       brush,
+                       positions_eval,
+                       vert_normals,
+                       strength,
+                       relax_face_sets,
+                       object,
+                       nodes[i],
+                       tls,
+                       factors.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     MeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      smooth::calc_relaxed_translations_faces(
-          positions_eval,
-          vert_normals,
-          faces,
-          corner_verts,
-          ss.vert_to_face_map,
-          ss.vertex_info.boundary,
-          ss.face_sets,
-          hide_poly,
-          relax_face_sets,
-          bke::pbvh::node_unique_verts(nodes[i]),
-          factors.as_span().slice(node_vert_offsets[i]),
-          tls.vert_neighbors,
-          translations.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    smooth::calc_relaxed_translations_faces(
+        positions_eval,
+        vert_normals,
+        faces,
+        corner_verts,
+        ss.vert_to_face_map,
+        ss.vertex_info.boundary,
+        ss.face_sets,
+        hide_poly,
+        relax_face_sets,
+        bke::pbvh::node_unique_verts(nodes[i]),
+        factors.as_span().slice(node_vert_offsets[pos]),
+        tls.vert_neighbors,
+        translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     apply_positions_faces(depsgraph,
                           sd,
                           positions_eval,
                           bke::pbvh::node_unique_verts(nodes[i]),
                           object,
-                          translations.as_mutable_span().slice(node_vert_offsets[i]),
+                          translations.as_mutable_span().slice(node_vert_offsets[pos]),
                           positions_orig);
   });
 }
@@ -240,7 +236,7 @@ BLI_NOINLINE static void calc_factors_grids(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, subdiv_ccg, grids, factors);
+    calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
   }
 
   tls.distances.resize(grid_verts_num);
@@ -294,48 +290,44 @@ static void do_relax_face_sets_brush_grids(const Depsgraph &depsgraph,
   Array<float> factors(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<GridLocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     GridLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      calc_factors_grids(depsgraph,
-                         brush,
-                         corner_verts,
-                         faces,
-                         nodes[i],
-                         strength,
-                         relax_face_sets,
-                         object,
-                         tls,
-                         current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-                         factors.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    calc_factors_grids(depsgraph,
+                       brush,
+                       corner_verts,
+                       faces,
+                       nodes[i],
+                       strength,
+                       relax_face_sets,
+                       object,
+                       tls,
+                       current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+                       factors.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     GridLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      smooth::calc_relaxed_translations_grids(
-          subdiv_ccg,
-          faces,
-          corner_verts,
-          ss.face_sets,
-          ss.vert_to_face_map,
-          ss.vertex_info.boundary,
-          bke::pbvh::node_grid_indices(nodes[i]),
-          relax_face_sets,
-          factors.as_span().slice(node_vert_offsets[i]),
-          current_positions.as_span().slice(node_vert_offsets[i]),
-          tls.vert_neighbors,
-          translations.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    smooth::calc_relaxed_translations_grids(
+        subdiv_ccg,
+        faces,
+        corner_verts,
+        ss.face_sets,
+        ss.vert_to_face_map,
+        ss.vertex_info.boundary,
+        bke::pbvh::node_grid_indices(nodes[i]),
+        relax_face_sets,
+        factors.as_span().slice(node_vert_offsets[pos]),
+        current_positions.as_span().slice(node_vert_offsets[pos]),
+        tls.vert_neighbors,
+        translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     apply_positions_grids(sd,
                           bke::pbvh::node_grid_indices(nodes[i]),
                           object,
-                          current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-                          translations.as_mutable_span().slice(node_vert_offsets[i]));
+                          current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+                          translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 }
 
@@ -359,7 +351,7 @@ static void calc_factors_bmesh(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, verts, factors);
+    calc_front_face(cache.view_normal_symm, verts, factors);
   }
 
   tls.distances.resize(verts.size());
@@ -396,40 +388,36 @@ static void do_relax_face_sets_brush_bmesh(const Depsgraph &depsgraph,
   Array<float> factors(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<BMeshLocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     BMeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      calc_factors_bmesh(depsgraph,
-                         object,
-                         brush,
-                         nodes[i],
-                         strength,
-                         relax_face_sets,
-                         tls,
-                         current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-                         factors.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    calc_factors_bmesh(depsgraph,
+                       object,
+                       brush,
+                       nodes[i],
+                       strength,
+                       relax_face_sets,
+                       tls,
+                       current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+                       factors.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     BMeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      smooth::calc_relaxed_translations_bmesh(
-          BKE_pbvh_bmesh_node_unique_verts(&nodes[i]),
-          current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-          relax_face_sets,
-          factors.as_span().slice(node_vert_offsets[i]),
-          tls.vert_neighbors,
-          translations.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    smooth::calc_relaxed_translations_bmesh(
+        BKE_pbvh_bmesh_node_unique_verts(&nodes[i]),
+        current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+        relax_face_sets,
+        factors.as_span().slice(node_vert_offsets[pos]),
+        tls.vert_neighbors,
+        translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     apply_positions_bmesh(sd,
                           BKE_pbvh_bmesh_node_unique_verts(&nodes[i]),
                           object,
-                          translations.as_mutable_span().slice(node_vert_offsets[i]),
-                          current_positions.as_span().slice(node_vert_offsets[i]));
+                          translations.as_mutable_span().slice(node_vert_offsets[pos]),
+                          current_positions.as_span().slice(node_vert_offsets[pos]));
   });
 }
 
@@ -456,7 +444,7 @@ BLI_NOINLINE static void calc_topology_relax_factors_faces(const Depsgraph &deps
   fill_factor_from_hide_and_mask(mesh, verts, factors);
   filter_region_clip_factors(ss, orig_data.positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, orig_data.normals, factors);
+    calc_front_face(cache.view_normal_symm, orig_data.normals, factors);
   }
 
   tls.distances.resize(verts.size());
@@ -501,46 +489,42 @@ static void do_topology_relax_brush_mesh(const Depsgraph &depsgraph,
   Array<float> factors(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<MeshLocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     MeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      calc_topology_relax_factors_faces(depsgraph,
-                                        brush,
-                                        strength,
-                                        object,
-                                        nodes[i],
-                                        tls,
-                                        factors.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    calc_topology_relax_factors_faces(depsgraph,
+                                      brush,
+                                      strength,
+                                      object,
+                                      nodes[i],
+                                      tls,
+                                      factors.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     MeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      smooth::calc_relaxed_translations_faces(
-          positions_eval,
-          vert_normals,
-          faces,
-          corner_verts,
-          ss.vert_to_face_map,
-          ss.vertex_info.boundary,
-          ss.face_sets,
-          hide_poly,
-          false,
-          bke::pbvh::node_unique_verts(nodes[i]),
-          factors.as_span().slice(node_vert_offsets[i]),
-          tls.vert_neighbors,
-          translations.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    smooth::calc_relaxed_translations_faces(
+        positions_eval,
+        vert_normals,
+        faces,
+        corner_verts,
+        ss.vert_to_face_map,
+        ss.vertex_info.boundary,
+        ss.face_sets,
+        hide_poly,
+        false,
+        bke::pbvh::node_unique_verts(nodes[i]),
+        factors.as_span().slice(node_vert_offsets[pos]),
+        tls.vert_neighbors,
+        translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     apply_positions_faces(depsgraph,
                           sd,
                           positions_eval,
                           bke::pbvh::node_unique_verts(nodes[i]),
                           object,
-                          translations.as_mutable_span().slice(node_vert_offsets[i]),
+                          translations.as_mutable_span().slice(node_vert_offsets[pos]),
                           positions_orig);
   });
 }
@@ -568,7 +552,7 @@ BLI_NOINLINE static void calc_topology_relax_factors_grids(const Depsgraph &deps
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, orig_data.positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, orig_data.normals, factors);
+    calc_front_face(cache.view_normal_symm, orig_data.normals, factors);
   }
 
   tls.distances.resize(grid_verts_num);
@@ -613,46 +597,42 @@ static void do_topology_relax_brush_grids(const Depsgraph &depsgraph,
   Array<float> factors(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<GridLocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     GridLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      calc_topology_relax_factors_grids(
-          depsgraph,
-          brush,
-          strength,
-          object,
-          nodes[i],
-          tls,
-          current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-          factors.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    calc_topology_relax_factors_grids(
+        depsgraph,
+        brush,
+        strength,
+        object,
+        nodes[i],
+        tls,
+        current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+        factors.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     GridLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      smooth::calc_relaxed_translations_grids(
-          subdiv_ccg,
-          faces,
-          corner_verts,
-          ss.face_sets,
-          ss.vert_to_face_map,
-          ss.vertex_info.boundary,
-          bke::pbvh::node_grid_indices(nodes[i]),
-          false,
-          factors.as_span().slice(node_vert_offsets[i]),
-          current_positions.as_span().slice(node_vert_offsets[i]),
-          tls.vert_neighbors,
-          translations.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    smooth::calc_relaxed_translations_grids(
+        subdiv_ccg,
+        faces,
+        corner_verts,
+        ss.face_sets,
+        ss.vert_to_face_map,
+        ss.vertex_info.boundary,
+        bke::pbvh::node_grid_indices(nodes[i]),
+        false,
+        factors.as_span().slice(node_vert_offsets[pos]),
+        current_positions.as_span().slice(node_vert_offsets[pos]),
+        tls.vert_neighbors,
+        translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     apply_positions_grids(sd,
                           bke::pbvh::node_grid_indices(nodes[i]),
                           object,
-                          current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-                          translations.as_mutable_span().slice(node_vert_offsets[i]));
+                          current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+                          translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 }
 
@@ -679,7 +659,7 @@ static void calc_topology_relax_factors_bmesh(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
   filter_region_clip_factors(ss, orig_positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, orig_normals, factors);
+    calc_front_face(cache.view_normal_symm, orig_normals, factors);
   }
 
   tls.distances.resize(verts.size());
@@ -715,40 +695,36 @@ static void do_topology_relax_brush_bmesh(const Depsgraph &depsgraph,
   Array<float> factors(node_vert_offsets.total_size());
 
   threading::EnumerableThreadSpecific<BMeshLocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     BMeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      calc_topology_relax_factors_bmesh(
-          depsgraph,
-          object,
-          brush,
-          nodes[i],
-          strength,
-          tls,
-          current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-          factors.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    calc_topology_relax_factors_bmesh(
+        depsgraph,
+        object,
+        brush,
+        nodes[i],
+        strength,
+        tls,
+        current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+        factors.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     BMeshLocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      smooth::calc_relaxed_translations_bmesh(
-          BKE_pbvh_bmesh_node_unique_verts(&nodes[i]),
-          current_positions.as_mutable_span().slice(node_vert_offsets[i]),
-          false,
-          factors.as_span().slice(node_vert_offsets[i]),
-          tls.vert_neighbors,
-          translations.as_mutable_span().slice(node_vert_offsets[i]));
-    });
+    smooth::calc_relaxed_translations_bmesh(
+        BKE_pbvh_bmesh_node_unique_verts(&nodes[i]),
+        current_positions.as_mutable_span().slice(node_vert_offsets[pos]),
+        false,
+        factors.as_span().slice(node_vert_offsets[pos]),
+        tls.vert_neighbors,
+        translations.as_mutable_span().slice(node_vert_offsets[pos]));
   });
 
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     apply_positions_bmesh(sd,
                           BKE_pbvh_bmesh_node_unique_verts(&nodes[i]),
                           object,
-                          translations.as_mutable_span().slice(node_vert_offsets[i]),
-                          current_positions.as_span().slice(node_vert_offsets[i]));
+                          translations.as_mutable_span().slice(node_vert_offsets[pos]),
+                          current_positions.as_span().slice(node_vert_offsets[pos]));
   });
 }
 /** \} */

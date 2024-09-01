@@ -2167,7 +2167,7 @@ static void do_grab_brush(const Depsgraph &depsgraph,
                          boundary.edit_info.strength_factor,
                          nodes[i],
                          tls,
-                         ss.cache->grab_delta_symmetry,
+                         ss.cache->grab_delta_symm,
                          boundary.initial_vert_position,
                          strength,
                          deform_target,
@@ -2192,7 +2192,7 @@ static void do_grab_brush(const Depsgraph &depsgraph,
                           boundary.edit_info.strength_factor,
                           nodes[i],
                           tls,
-                          ss.cache->grab_delta_symmetry,
+                          ss.cache->grab_delta_symm,
                           boundary.initial_vert_position,
                           strength,
                           deform_target);
@@ -2213,7 +2213,7 @@ static void do_grab_brush(const Depsgraph &depsgraph,
                           boundary.edit_info.strength_factor,
                           nodes[i],
                           tls,
-                          ss.cache->grab_delta_symmetry,
+                          ss.cache->grab_delta_symm,
                           boundary.initial_vert_position,
                           strength,
                           deform_target);
@@ -2916,10 +2916,10 @@ static float displacement_from_grab_delta_get(const SculptSession &ss,
                                               const SculptBoundary &boundary)
 {
   float4 plane;
-  const float3 normal = math::normalize(ss.cache->initial_location - boundary.pivot_position);
-  plane_from_point_normal_v3(plane, ss.cache->initial_location, normal);
+  const float3 normal = math::normalize(ss.cache->initial_location_symm - boundary.pivot_position);
+  plane_from_point_normal_v3(plane, ss.cache->initial_location_symm, normal);
 
-  const float3 pos = ss.cache->initial_location + ss.cache->grab_delta_symmetry;
+  const float3 pos = ss.cache->initial_location_symm + ss.cache->grab_delta_symm;
   return dist_signed_to_plane_v3(pos, plane);
 }
 
@@ -2954,9 +2954,6 @@ static std::pair<float, float> calc_boundary_falloff(const SculptBoundary &bound
     }
     case BRUSH_BOUNDARY_FALLOFF_CONSTANT:
       /* For constant falloff distances are not allocated, so this should never happen. */
-      BLI_assert_unreachable();
-      break;
-    default:
       BLI_assert_unreachable();
       break;
   }
@@ -3170,9 +3167,6 @@ static void init_boundary_mesh(const Depsgraph &depsgraph,
       case BRUSH_BOUNDARY_DEFORM_SMOOTH:
         /* Do nothing. These deform modes don't need any extra data to be precomputed. */
         break;
-      default:
-        BLI_assert_unreachable();
-        break;
     }
 
     init_falloff_mesh(mask, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
@@ -3231,9 +3225,6 @@ static void init_boundary_grids(Object &object,
       case BRUSH_BOUNDARY_DEFORM_SMOOTH:
         /* Do nothing. These deform modes don't need any extra data to be precomputed. */
         break;
-      default:
-        BLI_assert_unreachable();
-        break;
     }
 
     init_falloff_grids(
@@ -3288,9 +3279,6 @@ static void init_boundary_bmesh(Object &object,
       case BRUSH_BOUNDARY_DEFORM_SMOOTH:
         /* Do nothing. These deform modes don't need any extra data to be precomputed. */
         break;
-      default:
-        BLI_assert_unreachable();
-        break;
     }
 
     init_falloff_bmesh(bm, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
@@ -3333,9 +3321,6 @@ static float get_mesh_strength(const SculptSession &ss, const Brush &brush)
     }
     case BRUSH_BOUNDARY_DEFORM_SMOOTH:
       return strength;
-    default:
-      BLI_assert_unreachable();
-      break;
   }
 
   BLI_assert_unreachable();
@@ -3361,9 +3346,6 @@ void do_boundary_brush(const Depsgraph &depsgraph,
         break;
       case bke::pbvh::Type::BMesh:
         init_boundary_bmesh(ob, brush, symm_area);
-        break;
-      default:
-        BLI_assert_unreachable();
         break;
     }
   }
@@ -3429,9 +3411,6 @@ void do_boundary_brush(const Depsgraph &depsgraph,
                       *ss.cache->boundaries[symm_area],
                       strength,
                       eBrushDeformTarget(brush.deform_target));
-      break;
-    default:
-      BLI_assert_unreachable();
       break;
   }
 }
@@ -3669,9 +3648,6 @@ std::unique_ptr<SculptBoundaryPreview> preview_data_init(const Depsgraph &depsgr
       break;
     case bke::pbvh::Type::BMesh:
       boundary = data_init_bmesh(object, brush, std::get<BMVert *>(initial_vert), radius);
-      break;
-    default:
-      BLI_assert_unreachable();
       break;
   }
 

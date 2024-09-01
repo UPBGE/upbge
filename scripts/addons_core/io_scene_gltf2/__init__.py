@@ -5,7 +5,7 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (4, 3, 12),
+    "version": (4, 3, 24),
     'blender': (4, 2, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -157,10 +157,24 @@ def get_format_items(scene, context):
 def is_draco_available():
     # Initialize on first use
     if not hasattr(is_draco_available, "draco_exists"):
-        from .io.com import gltf2_io_draco_compression_extension
+        from .io.com import draco as gltf2_io_draco_compression_extension
         is_draco_available.draco_exists = gltf2_io_draco_compression_extension.dll_exists()
 
     return is_draco_available.draco_exists
+
+
+def set_debug_log():
+    import logging
+    if bpy.app.debug_value == 0:      # Default values => Display all messages except debug ones
+        return logging.INFO
+    elif bpy.app.debug_value == 1:
+        return logging.WARNING
+    elif bpy.app.debug_value == 2:
+        return logging.ERROR
+    elif bpy.app.debug_value == 3:
+        return logging.CRITICAL
+    elif bpy.app.debug_value == 4:
+        return logging.DEBUG
 
 
 class ConvertGLTF2_Base:
@@ -1039,9 +1053,9 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         import os
         import datetime
         import logging
-        from .io.com.gltf2_io_debug import Log
-        from .blender.exp import gltf2_blender_export
-        from .io.com.gltf2_io_path import path_to_uri
+        from .io.com.debug import Log
+        from .blender.exp import export as gltf2_blender_export
+        from .io.com.path import path_to_uri
 
         if self.will_save_settings:
             self.save_settings(context)
@@ -1051,7 +1065,7 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         # All custom export settings are stored in this container.
         export_settings = {}
 
-        export_settings['loglevel'] = logging.INFO
+        export_settings['loglevel'] = set_debug_log()
 
         export_settings['exported_images'] = {}
         export_settings['exported_texture_nodes'] = []
@@ -1505,6 +1519,8 @@ def export_panel_data_armature(layout, operator):
         row.prop(operator, 'export_armature_object_remove')
         row = body.row()
         row.prop(operator, 'export_hierarchy_flatten_bones')
+        row = body.row()
+        row.prop(operator, 'export_leaf_bone')
 
 
 def export_panel_data_skinning(layout, operator):
@@ -1863,7 +1879,7 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
     def import_gltf2(self, context):
         import os
 
-        self.set_debug_log()
+        self.loglevel = set_debug_log()
         import_settings = self.as_keywords()
 
         user_extensions = []
@@ -1896,7 +1912,7 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
     def unit_import(self, filename, import_settings):
         import time
         from .io.imp.gltf2_io_gltf import glTFImporter, ImportError
-        from .blender.imp.gltf2_blender_gltf import BlenderGlTF
+        from .blender.imp.blender_gltf import BlenderGlTF
 
         try:
             gltf_importer = glTFImporter(filename, import_settings)
@@ -1921,19 +1937,6 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         except ImportError as e:
             self.report({'ERROR'}, e.args[0])
             return {'CANCELLED'}
-
-    def set_debug_log(self):
-        import logging
-        if bpy.app.debug_value == 0:      # Default values => Display all messages except debug ones
-            self.loglevel = logging.INFO
-        elif bpy.app.debug_value == 1:
-            self.loglevel = logging.WARNING
-        elif bpy.app.debug_value == 2:
-            self.loglevel = logging.ERROR
-        elif bpy.app.debug_value == 3:
-            self.loglevel = logging.CRITICAL
-        elif bpy.app.debug_value == 4:
-            self.loglevel = logging.DEBUG
 
 
 def import_bone_panel(layout, operator):

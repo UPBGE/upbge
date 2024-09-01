@@ -88,7 +88,7 @@ static void apply_masks_faces(const Depsgraph &depsgraph,
   fill_factor_from_hide(mesh, verts, factors);
   filter_region_clip_factors(ss, positions_eval, verts, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, vert_normals, verts, factors);
+    calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
   }
 
   tls.distances.resize(verts.size());
@@ -147,34 +147,30 @@ static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
   for (const float strength : iteration_strengths(brush_strength)) {
     /* Calculate new masks into a separate array to avoid non-threadsafe access of values from
      * neighboring nodes. */
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        calc_smooth_masks_faces(faces,
-                                corner_verts,
-                                ss.vert_to_face_map,
-                                hide_poly,
-                                bke::pbvh::node_unique_verts(nodes[i]),
-                                mask.span.as_span(),
-                                tls,
-                                new_masks.as_mutable_span().slice(node_vert_offsets[i]));
-      });
+      calc_smooth_masks_faces(faces,
+                              corner_verts,
+                              ss.vert_to_face_map,
+                              hide_poly,
+                              bke::pbvh::node_unique_verts(nodes[i]),
+                              mask.span.as_span(),
+                              tls,
+                              new_masks.as_mutable_span().slice(node_vert_offsets[pos]));
     });
 
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        apply_masks_faces(depsgraph,
-                          brush,
-                          positions_eval,
-                          vert_normals,
-                          nodes[i],
-                          strength,
-                          object,
-                          tls,
-                          new_masks.as_span().slice(node_vert_offsets[i]),
-                          mask.span);
-      });
+      apply_masks_faces(depsgraph,
+                        brush,
+                        positions_eval,
+                        vert_normals,
+                        nodes[i],
+                        strength,
+                        object,
+                        tls,
+                        new_masks.as_span().slice(node_vert_offsets[pos]),
+                        mask.span);
     });
   }
   mask.finish();
@@ -199,7 +195,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   fill_factor_from_hide(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, subdiv_ccg, grids, factors);
+    calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
   }
 
   tls.distances.resize(positions.size());
@@ -252,7 +248,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   fill_factor_from_hide(verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal, verts, factors);
+    calc_front_face(cache.view_normal_symm, verts, factors);
   }
 
   tls.distances.resize(verts.size());

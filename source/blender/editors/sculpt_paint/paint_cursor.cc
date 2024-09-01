@@ -1413,6 +1413,10 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext *pcon
       float(pcontext->y - pcontext->region->winrct.ymin),
   };
 
+  /* Ensure that the PBVH is generated before we call SCULPT_cursor_geometry_info_update because
+   * the PBVH is needed to do a raycast to find the active vertex. */
+  BKE_sculpt_object_pbvh_ensure(pcontext->depsgraph, pcontext->vc.obact);
+
   /* This updates the active vertex, which is needed for most of the Sculpt/Vertex Colors tools to
    * work correctly */
   pcontext->prev_active_vert_ref = ss.active_vert_ref();
@@ -1971,14 +1975,14 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
       /* Display the simulation limits if sculpting outside them. */
       /* This does not makes much sense of plane falloff as the falloff is infinite or global. */
 
-      if (len_v3v3(ss.cache->true_location, ss.cache->true_initial_location) >
+      if (len_v3v3(ss.cache->location, ss.cache->initial_location) >
           ss.cache->radius * (1.0f + brush.cloth_sim_limit))
       {
         const float red[3] = {1.0f, 0.2f, 0.2f};
         cloth::simulation_limits_draw(pcontext->pos,
                                       brush,
-                                      ss.cache->true_initial_location,
-                                      ss.cache->true_initial_normal,
+                                      ss.cache->initial_location,
+                                      ss.cache->initial_normal,
                                       ss.cache->radius,
                                       2.0f,
                                       red,

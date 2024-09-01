@@ -1161,7 +1161,7 @@ static void alloc_and_store_hidden(const SculptSession &ss,
   }
 
   const Span<int> grid_indices = bke::pbvh::node_grid_indices(node);
-  unode.grid_hidden = BitGroupVector<>(grid_indices.size(), grid_hidden.group_size());
+  unode.grid_hidden = BitGroupVector<0>(grid_indices.size(), grid_hidden.group_size());
   for (const int i : grid_indices.index_range()) {
     unode.grid_hidden[i].copy_from(grid_hidden[grid_indices[i]]);
   }
@@ -1729,7 +1729,6 @@ static size_t node_size_in_bytes(const Node &node)
   size += node.col.as_span().size_in_bytes();
   size += node.mask.as_span().size_in_bytes();
   size += node.loop_col.as_span().size_in_bytes();
-  size += node.orig_loop_col.as_span().size_in_bytes();
   size += node.vert_indices.as_span().size_in_bytes();
   size += node.corner_indices.as_span().size_in_bytes();
   size += node.vert_hidden.size() / 8;
