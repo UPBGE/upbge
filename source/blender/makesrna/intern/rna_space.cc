@@ -7915,8 +7915,8 @@ static void rna_def_space_clip(BlenderRNA *brna)
       {SC_VIEW_DOPESHEET,
        "DOPESHEET",
        ICON_ACTION,
-       "Dopesheet",
-       "Dopesheet view for tracking data"},
+       "Dope Sheet",
+       "Dope Sheet view for tracking data"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

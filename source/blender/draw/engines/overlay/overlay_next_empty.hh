@@ -49,24 +49,33 @@ class Empties {
     EmptyInstanceBuf image_buf = {selection_type_, "image_buf"};
   } call_buffers_;
 
+  bool enabled_ = false;
+
  public:
   Empties(const SelectionType selection_type) : call_buffers_{selection_type} {};
 
   void begin_sync(Resources &res, const State &state, const View &view)
   {
+    enabled_ = state.space_type == SPACE_VIEW3D;
+
+    if (!enabled_) {
+      return;
+    }
+
     view_dist = state.view_dist_get(view.winmat());
 
     auto init_pass = [&](PassMain &pass, DRWState draw_state) {
       pass.init();
-      pass.state_set(draw_state | state.clipping_state);
+      pass.state_set(draw_state, state.clipping_plane_count);
       pass.shader_set(res.shaders.image_plane.get());
+      pass.bind_ubo("globalsBlock", &res.globals_buf);
       res.select_bind(pass);
     };
 
     auto init_sortable = [&](PassSortable &pass, DRWState draw_state) {
       pass.init();
       PassMain::Sub &sub = pass.sub("ResourceBind", -FLT_MAX);
-      sub.state_set(draw_state | state.clipping_state);
+      sub.state_set(draw_state, state.clipping_plane_count);
       res.select_bind(pass, sub);
     };
 
@@ -103,6 +112,10 @@ class Empties {
                    Resources &res,
                    const State &state)
   {
+    if (!enabled_) {
+      return;
+    }
+
     const float4 color = res.object_wire_color(ob_ref, state);
     const select::ID select_id = res.select_id(ob_ref);
     if (ob_ref.object->empty_drawtype == OB_EMPTY_IMAGE) {
@@ -153,6 +166,10 @@ class Empties {
 
   void end_sync(Resources &res, ShapeCache &shapes, const State &state)
   {
+    if (!enabled_) {
+      return;
+    }
+
     ps_.init();
     res.select_bind(ps_);
     end_sync(res, shapes, state, ps_, call_buffers_);
@@ -164,8 +181,8 @@ class Empties {
                        PassSimple::Sub &ps,
                        CallBuffers &call_buffers)
   {
-    ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
-                 state.clipping_state);
+    ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
+                 state.clipping_plane_count);
     ps.shader_set(res.shaders.extra_shape.get());
     ps.bind_ubo("globalsBlock", &res.globals_buf);
 
@@ -181,18 +198,30 @@ class Empties {
 
   void draw(Framebuffer &framebuffer, Manager &manager, View &view)
   {
+    if (!enabled_) {
+      return;
+    }
+
     GPU_framebuffer_bind(framebuffer);
     manager.submit(ps_, view);
   }
 
   void draw_background_images(Framebuffer &framebuffer, Manager &manager, View &view)
   {
+    if (!enabled_) {
+      return;
+    }
+
     GPU_framebuffer_bind(framebuffer);
     manager.submit(images_back_ps_, view);
   }
 
   void draw_images(Framebuffer &framebuffer, Manager &manager, View &view)
   {
+    if (!enabled_) {
+      return;
+    }
+
     GPU_framebuffer_bind(framebuffer);
 
     view_reference_images.sync(view.viewmat(),
@@ -204,6 +233,10 @@ class Empties {
 
   void draw_in_front_images(Framebuffer &framebuffer, Manager &manager, View &view)
   {
+    if (!enabled_) {
+      return;
+    }
+
     GPU_framebuffer_bind(framebuffer);
 
     view_reference_images.sync(view.viewmat(),
@@ -288,7 +321,7 @@ class Empties {
                                 const Object &ob,
                                 const bool use_alpha_blend,
                                 const float4x4 &mat,
-                                const Resources &res)
+                                Resources &res)
   {
     const bool in_front = state.use_in_front && (ob.dtx & OB_DRAW_IN_FRONT);
     if (in_front) {
@@ -309,13 +342,14 @@ class Empties {
 
   static PassMain::Sub &create_subpass(const State &state,
                                        const float4x4 &mat,
-                                       const Resources &res,
+                                       Resources &res,
                                        PassSortable &parent)
   {
     const float3 tmp = state.camera_position - mat.location();
     const float z = -math::dot(state.camera_forward, tmp);
     PassMain::Sub &sub = parent.sub("Sub", z);
     sub.shader_set(res.shaders.image_plane.get());
+    sub.bind_ubo("globalsBlock", &res.globals_buf);
     return sub;
   };
 

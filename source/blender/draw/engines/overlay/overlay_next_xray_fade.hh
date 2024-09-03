@@ -5,11 +5,11 @@
 /** \file
  * \ingroup draw_engine
  *
- * Overlay Xray Fade:
+ * Overlay X-ray Fade:
  *
  * Full-screen pass that dim overlays that are behind scene geometry.
- * This allows to have a nice transition between opaque (or 100% xray) and wire-frame only mode.
- * This is only available if Xray mode is enabled or in wire-frame mode.
+ * This allows to have a nice transition between opaque (or 100% X-ray) and wire-frame only mode.
+ * This is only available if X-ray mode is enabled or in wire-frame mode.
  */
 
 #pragma once
@@ -44,17 +44,19 @@ class XrayFade {
        * and overlay next. To be renamed after shaders are not shared anymore. */
       pass.bind_texture("depthTex", &res.xray_depth_tx);
       pass.bind_texture("xrayDepthTex", &res.depth_tx);
+      pass.bind_texture("xrayDepthTexInfront", &res.depth_in_front_tx);
       pass.push_constant("opacity", 1.0f - state.xray_opacity);
       pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     }
   }
 
-  void draw(Manager &manager)
+  void draw(Framebuffer &framebuffer, Manager &manager, View & /*view*/)
   {
     if (!enabled_) {
       return;
     }
 
+    GPU_framebuffer_bind(framebuffer);
     manager.submit(xray_fade_ps_);
   }
 };

@@ -16,6 +16,8 @@ class Background {
  private:
   PassSimple bg_ps_ = {"Background"};
 
+  GPUFrameBuffer *framebuffer_ref_ = nullptr;
+
  public:
   void begin_sync(Resources &res, const State &state)
   {
@@ -67,12 +69,21 @@ class Background {
     }
 
     bg_ps_.init();
-    bg_ps_.framebuffer_set(&res.overlay_output_fb);
+    bg_ps_.framebuffer_set(&framebuffer_ref_);
     /* Don't clear background for the node editor. The node editor draws the background and we
      * need to mask out the image from the already drawn overlay color buffer. */
     if (state.space_type != SPACE_NODE) {
       bg_ps_.clear_color(float4(0.0f));
     }
+
+    if ((state.clipping_plane_count != 0) && (state.rv3d) && (state.rv3d->clipbb)) {
+      bg_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_CULL_BACK);
+      bg_ps_.shader_set(res.shaders.background_clip_bound.get());
+      bg_ps_.push_constant("ucolor", res.theme_settings.color_clipping_border);
+      bg_ps_.push_constant("boundbox", &state.rv3d->clipbb->vec[0][0], 8);
+      bg_ps_.draw(DRW_cache_cube_get());
+    }
+
     bg_ps_.state_set(pass_state);
     bg_ps_.shader_set(res.shaders.background_fill.get());
     bg_ps_.bind_ubo("globalsBlock", &res.globals_buf);
@@ -81,18 +92,11 @@ class Background {
     bg_ps_.push_constant("colorOverride", color_override);
     bg_ps_.push_constant("bgType", background_type);
     bg_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
-
-    if (state.clipping_state != 0 && state.rv3d != nullptr && state.rv3d->clipbb != nullptr) {
-      bg_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_CULL_BACK);
-      bg_ps_.shader_set(res.shaders.background_clip_bound.get());
-      bg_ps_.push_constant("ucolor", res.theme_settings.color_clipping_border);
-      bg_ps_.push_constant("boundbox", &state.rv3d->clipbb->vec[0][0], 8);
-      bg_ps_.draw(DRW_cache_cube_get());
-    }
   }
 
-  void draw(Manager &manager)
+  void draw(Framebuffer &framebuffer, Manager &manager, View & /*view*/)
   {
+    framebuffer_ref_ = framebuffer;
     manager.submit(bg_ps_);
   }
 };

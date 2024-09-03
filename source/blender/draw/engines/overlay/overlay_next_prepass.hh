@@ -29,6 +29,8 @@ class Prepass {
   void begin_sync(Resources &res, const State &state)
   {
     enabled = !state.xray_enabled || (selection_type_ != SelectionType::DISABLED);
+    enabled &= state.space_type == SPACE_VIEW3D;
+
     if (!enabled) {
       /* Not used. But release the data. */
       ps_.init();
@@ -40,9 +42,10 @@ class Prepass {
     DRWState backface_cull_state = use_cull ? DRW_STATE_CULL_BACK : DRWState(0);
 
     ps_.init();
-    ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | state.clipping_state |
-                  backface_cull_state);
+    ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | backface_cull_state,
+                  state.clipping_plane_count);
     ps_.shader_set(res.shaders.depth_mesh.get());
+    ps_.bind_ubo("globalsBlock", &res.globals_buf);
     res.select_bind(ps_);
   }
 

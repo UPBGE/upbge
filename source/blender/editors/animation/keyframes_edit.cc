@@ -167,7 +167,7 @@ static short agrp_keyframes_loop(KeyframeEditData *ked,
   }
 
   /* Layered actions. */
-  animrig::ChannelBag channel_bag = agrp->channel_bag->wrap();
+  animrig::ChannelBag &channel_bag = agrp->channel_bag->wrap();
   Span<FCurve *> fcurves = channel_bag.fcurves().slice(agrp->fcurve_range_start,
                                                        agrp->fcurve_range_length);
   for (FCurve *fcurve : fcurves) {
@@ -1643,7 +1643,7 @@ static short select_bezier_invert(KeyframeEditData * /*ked*/, BezTriple *bezt)
   return 0;
 }
 
-KeyframeEditFunc ANIM_editkeyframes_select(short selectmode)
+KeyframeEditFunc ANIM_editkeyframes_select(const eEditKeyframes_Select selectmode)
 {
   switch (selectmode) {
     case SELECT_ADD: /* add */

@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
+
 struct Mesh;
 namespace blender::bke {
 class AttributeIDRef;
@@ -11,7 +14,10 @@ class AttributeIDRef;
 
 namespace blender::geometry {
 
-Mesh *create_grid_mesh(
-    int verts_x, int verts_y, float size_x, float size_y, const bke::AttributeIDRef &uv_map_id);
+Mesh *create_grid_mesh(int verts_x,
+                       int verts_y,
+                       float size_x,
+                       float size_y,
+                       const std::optional<std::string> &uv_map_id);
 
 }  // namespace blender::geometry

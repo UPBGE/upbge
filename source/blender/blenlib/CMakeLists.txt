@@ -491,6 +491,7 @@ endif()
 if(APPLE)
   list(APPEND SRC
     intern/storage_apple.mm
+    intern/fileops_apple.mm
   )
 endif()
 

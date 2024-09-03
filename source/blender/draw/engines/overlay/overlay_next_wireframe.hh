@@ -28,13 +28,14 @@ class Wireframe {
     PassMain::Sub *mesh_all_edges_ps_ = nullptr;
   } colored, non_colored;
 
-  bool enabled = false;
+  bool enabled_ = false;
 
  public:
   void begin_sync(Resources &res, const State &state)
   {
-    enabled = state.is_wireframe_mode || (state.overlay.flag & V3D_OVERLAY_WIREFRAMES);
-    if (!enabled) {
+    enabled_ = state.is_wireframe_mode || (state.overlay.flag & V3D_OVERLAY_WIREFRAMES);
+    enabled_ &= state.space_type == SPACE_VIEW3D;
+    if (!enabled_) {
       return;
     }
 
@@ -48,7 +49,8 @@ class Wireframe {
       auto &pass = wireframe_ps_;
       pass.init();
       pass.state_set(DRW_STATE_FIRST_VERTEX_CONVENTION | DRW_STATE_WRITE_COLOR |
-                     DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | state.clipping_state);
+                         DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
+                     state.clipping_plane_count);
       res.select_bind(pass);
 
       auto shader_pass =
@@ -87,7 +89,7 @@ class Wireframe {
                    Resources &res,
                    const bool in_edit_paint_mode)
   {
-    if (!enabled) {
+    if (!enabled_) {
       return;
     }
 
@@ -158,7 +160,7 @@ class Wireframe {
 
   void draw(Framebuffer &framebuffer, Manager &manager, View &view)
   {
-    if (!enabled) {
+    if (!enabled_) {
       return;
     }
 
