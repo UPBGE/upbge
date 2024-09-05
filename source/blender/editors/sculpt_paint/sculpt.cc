@@ -1123,12 +1123,6 @@ static bool brush_needs_rake_rotation(const Brush &brush)
 
 /** \} */
 
-enum StrokeFlags {
-  CLIP_X = 1,
-  CLIP_Y = 2,
-  CLIP_Z = 4,
-};
-
 static void rake_data_update(SculptRakeData *srd, const float co[3])
 {
   float rake_dist = len_v3v3(srd->follow_co, co);
@@ -1180,9 +1174,11 @@ static void restore_mask_from_undo_step(Object &object)
       bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
           ".sculpt_mask", bke::AttrDomain::Point);
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::Mask)) {
+        if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_mesh(object,
+                                                                                    nodes[i]))
+        {
           const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
-          array_utils::scatter(unode->mask.as_span(), verts, mask.span);
+          array_utils::scatter(*orig_data, verts, mask.span);
           BKE_pbvh_node_mark_update_mask(nodes[i]);
         }
       });
@@ -1193,13 +1189,12 @@ static void restore_mask_from_undo_step(Object &object)
       MutableSpan<bke::pbvh::BMeshNode> nodes = ss.pbvh->nodes<bke::pbvh::BMeshNode>();
       const int offset = CustomData_get_offset_named(&ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       if (offset != -1) {
-        node_mask.foreach_index([&](const int i) {
-          if (undo::get_node(&nodes[i], undo::Type::Mask)) {
-            for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
-              const float orig_mask = BM_log_original_mask(ss.bm_log, vert);
-              BM_ELEM_CD_SET_FLOAT(vert, offset, orig_mask);
+        node_mask.foreach_index(GrainSize(1), [&](const int i) {
+          for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
+            if (const float *orig_mask = BM_log_find_original_vert_mask(ss.bm_log, vert)) {
+              BM_ELEM_CD_SET_FLOAT(vert, offset, *orig_mask);
+              BKE_pbvh_node_mark_update_mask(nodes[i]);
             }
-            BKE_pbvh_node_mark_update_mask(nodes[i]);
           }
         });
       }
@@ -1212,13 +1207,15 @@ static void restore_mask_from_undo_step(Object &object)
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       const Span<CCGElem *> grids = subdiv_ccg.grids;
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::Mask)) {
+        if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_grids(object,
+                                                                                     nodes[i]))
+        {
           int index = 0;
-          for (const int grid : unode->grids) {
+          for (const int grid : bke::pbvh::node_grid_indices(nodes[i])) {
             CCGElem *elem = grids[grid];
             for (const int i : IndexRange(key.grid_area)) {
               if (grid_hidden.is_empty() || !grid_hidden[grid][i]) {
-                CCG_elem_offset_mask(key, elem, i) = unode->mask[index];
+                CCG_elem_offset_mask(key, elem, i) = (*orig_data)[index];
               }
               index++;
             }
@@ -1245,7 +1242,9 @@ static void restore_color_from_undo_step(Object &object)
   const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
   bke::GSpanAttributeWriter color_attribute = color::active_color_attribute_for_write(mesh);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::Color)) {
+    if (const std::optional<Span<float4>> orig_data = orig_color_data_lookup_mesh(object,
+                                                                                  nodes[i]))
+    {
       const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
       for (const int i : verts.index_range()) {
         color::color_vert_set(faces,
@@ -1253,7 +1252,7 @@ static void restore_color_from_undo_step(Object &object)
                               vert_to_face_map,
                               color_attribute.domain,
                               verts[i],
-                              unode->col[i],
+                              (*orig_data)[i],
                               color_attribute.span);
       }
     }
@@ -1272,10 +1271,10 @@ static void restore_face_set_from_undo_step(Object &object)
       MutableSpan<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
       bke::SpanAttributeWriter<int> attribute = face_set::ensure_face_sets_mesh(object);
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::FaceSet)) {
-          const Span<int> faces = unode->face_indices;
-          const Span<int> face_sets = unode->face_sets;
-          blender::array_utils::scatter(face_sets, faces, attribute.span);
+        if (const std::optional<Span<int>> orig_data = orig_face_set_data_lookup_mesh(object,
+                                                                                      nodes[i]))
+        {
+          scatter_data_mesh(*orig_data, bke::pbvh::node_faces(nodes[i]), attribute.span);
           BKE_pbvh_node_mark_update_face_sets(nodes[i]);
         }
       });
@@ -1283,13 +1282,18 @@ static void restore_face_set_from_undo_step(Object &object)
       break;
     }
     case bke::pbvh::Type::Grids: {
+      const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       MutableSpan<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
       bke::SpanAttributeWriter<int> attribute = face_set::ensure_face_sets_mesh(object);
+      threading::EnumerableThreadSpecific<Vector<int>> all_tls;
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::FaceSet)) {
-          const Span<int> faces = unode->face_indices;
-          const Span<int> face_sets = unode->face_sets;
-          blender::array_utils::scatter(face_sets, faces, attribute.span);
+        Vector<int> &tls = all_tls.local();
+        if (const std::optional<Span<int>> orig_data = orig_face_set_data_lookup_grids(object,
+                                                                                       nodes[i]))
+        {
+          const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
+              subdiv_ccg, nodes[i], tls);
+          scatter_data_mesh(*orig_data, faces, attribute.span);
           BKE_pbvh_node_mark_update_face_sets(nodes[i]);
         }
       });
@@ -1325,9 +1329,11 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
-          if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::Position)) {
+          if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_mesh(
+                  object, nodes[i]))
+          {
             const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
-            const Span<float3> undo_positions = unode->position.as_span().take_front(verts.size());
+            const Span<float3> undo_positions = orig_data->positions;
             if (need_translations) {
               tls.translations.resize(verts.size());
               translations_from_new_positions(
@@ -1388,13 +1394,15 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       const Span<CCGElem *> grids = subdiv_ccg.grids;
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const undo::Node *unode = undo::get_node(&nodes[i], undo::Type::Position)) {
+        if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_grids(
+                object, nodes[i]))
+        {
           int index = 0;
-          for (const int grid : unode->grids) {
+          for (const int grid : bke::pbvh::node_grid_indices(nodes[i])) {
             CCGElem *elem = grids[grid];
             for (const int i : IndexRange(key.grid_area)) {
               if (grid_hidden.is_empty() || !grid_hidden[grid][i]) {
-                CCG_elem_offset_co(key, elem, i) = unode->position[index];
+                CCG_elem_offset_co(key, elem, i) = orig_data->positions[index];
               }
               index++;
             }
@@ -1693,9 +1701,11 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
   const Span<int> verts = bke::pbvh::node_unique_verts(node);
 
   if (ss.cache && !ss.cache->accum) {
-    if (const undo::Node *unode = undo::get_node(&node, undo::Type::Position)) {
-      const Span<float3> orig_positions = unode->position.as_span().take_front(verts.size());
-      const Span<float3> orig_normals = unode->normal.as_span().take_front(verts.size());
+    if (const std::optional<OrigPositionData> orig_data = orig_position_data_get_mesh(object,
+                                                                                      node))
+    {
+      const Span<float3> orig_positions = orig_data->positions;
+      const Span<float3> orig_normals = orig_data->normals;
 
       tls.distances.reinitialize(verts.size());
       const MutableSpan<float> distances_sq = tls.distances;
@@ -1780,9 +1790,11 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
   const Span<int> grids = bke::pbvh::node_grid_indices(node);
 
   if (ss.cache && !ss.cache->accum) {
-    if (const undo::Node *unode = undo::get_node(&node, undo::Type::Position)) {
-      const Span<float3> orig_positions = unode->position.as_span();
-      const Span<float3> orig_normals = unode->normal.as_span();
+    if (const std::optional<OrigPositionData> orig_data = orig_position_data_get_grids(object,
+                                                                                       node))
+    {
+      const Span<float3> orig_positions = orig_data->positions;
+      const Span<float3> orig_normals = orig_data->normals;
 
       tls.distances.reinitialize(orig_positions.size());
       const MutableSpan<float> distances_sq = tls.distances;
@@ -1877,34 +1889,25 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
   const float normal_radius_sq = normal_radius * normal_radius;
   const float normal_radius_inv = math::rcp(normal_radius);
 
-  const undo::Node *unode = nullptr;
   bool use_original = false;
   if (ss.cache && !ss.cache->accum) {
-    unode = undo::get_node(&node, undo::Type::Position);
-    if (unode) {
-      use_original = undo::get_bmesh_log_entry() != nullptr;
-    }
+    use_original = undo::get_bmesh_log_entry() != nullptr;
   }
 
   /* When the mesh is edited we can't rely on original coords
    * (original mesh may not even have verts in brush radius). */
   if (use_original && has_bm_orco) {
-    float(*orco_coords)[3];
-    int(*orco_tris)[3];
-    int orco_tris_num;
-    BKE_pbvh_node_get_bm_orco_data(&const_cast<bke::pbvh::BMeshNode &>(node),
-                                   &orco_tris,
-                                   &orco_tris_num,
-                                   &orco_coords,
-                                   nullptr);
+    Span<float3> orig_positions;
+    Span<int3> orig_tris;
+    BKE_pbvh_node_get_bm_orco_data(node, orig_positions, orig_tris);
 
-    tls.positions.resize(orco_tris_num);
+    tls.positions.resize(orig_tris.size());
     const MutableSpan<float3> positions = tls.positions;
-    for (int i = 0; i < orco_tris_num; i++) {
+    for (const int i : orig_tris.index_range()) {
       const float *co_tri[3] = {
-          orco_coords[orco_tris[i][0]],
-          orco_coords[orco_tris[i][1]],
-          orco_coords[orco_tris[i][2]],
+          orig_positions[orig_tris[i][0]],
+          orig_positions[orig_tris[i][1]],
+          orig_positions[orig_tris[i][2]],
       };
       closest_on_tri_to_point_v3(positions[i], location, UNPACK3(co_tri));
     }
@@ -1914,15 +1917,15 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
     calc_brush_distances_squared(
         ss, positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
 
-    for (int i = 0; i < orco_tris_num; i++) {
+    for (const int i : orig_tris.index_range()) {
       const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
       const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
       if (!normal_test_r && !area_test_r) {
         continue;
       }
-      const float3 normal = math::normal_tri(float3(orco_coords[orco_tris[i][0]]),
-                                             float3(orco_coords[orco_tris[i][1]]),
-                                             float3(orco_coords[orco_tris[i][2]]));
+      const float3 normal = math::normal_tri(float3(orig_positions[orig_tris[i][0]]),
+                                             float3(orig_positions[orig_tris[i][1]]),
+                                             float3(orig_positions[orig_tris[i][2]]));
 
       const float distance = std::sqrt(distances_sq[i]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
@@ -2904,6 +2907,7 @@ static void sculpt_pbvh_update_pixels(const Depsgraph &depsgraph,
  * \{ */
 
 struct SculptRaycastData {
+  const Object *object;
   SculptSession *ss;
   const float *ray_start;
   const float *ray_normal;
@@ -2911,9 +2915,9 @@ struct SculptRaycastData {
   float depth;
   bool original;
   Span<blender::float3> vert_positions;
+  blender::OffsetIndices<int> faces;
   Span<int> corner_verts;
   Span<blender::int3> corner_tris;
-  Span<int> corner_tri_faces;
   blender::VArraySpan<bool> hide_poly;
 
   const SubdivCCG *subdiv_ccg;
@@ -2927,6 +2931,7 @@ struct SculptRaycastData {
 };
 
 struct SculptFindNearestToRayData {
+  const Object *object;
   SculptSession *ss;
   const float *ray_start, *ray_normal;
   bool hit;
@@ -2934,9 +2939,9 @@ struct SculptFindNearestToRayData {
   float dist_sq_to_ray;
   bool original;
   Span<float3> vert_positions;
+  blender::OffsetIndices<int> faces;
   Span<int> corner_verts;
   Span<blender::int3> corner_tris;
-  Span<int> corner_tri_faces;
   blender::VArraySpan<bool> hide_poly;
 
   const SubdivCCG *subdiv_ccg;
@@ -3254,15 +3259,15 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
     }
   }
 
-  node_mask.foreach_index([&](const int i) {
-    undo::push_node(depsgraph,
-                    ob,
-                    &nodes[i],
-                    brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK ? undo::Type::Mask :
-                                                                        undo::Type::Position);
-    BKE_pbvh_node_mark_update(nodes[i]);
-
-    BKE_pbvh_node_mark_topology_update(nodes[i]);
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Mask);
+  }
+  else {
+    undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Position);
+  }
+  node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_update(nodes[i]); });
+  node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
+  node_mask.foreach_index(GrainSize(1), [&](const int i) {
     BKE_pbvh_bmesh_node_save_orig(ss.bm, ss.bm_log, &nodes[i], false);
   });
 
@@ -3356,12 +3361,6 @@ static void push_undo_nodes(const Depsgraph &depsgraph,
     }
   }
   else if (SCULPT_brush_type_is_paint(brush.sculpt_brush_type)) {
-    const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
-    if (const bke::GAttributeReader attr = color::active_color_attribute(mesh)) {
-      if (attr.domain == bke::AttrDomain::Corner) {
-        BKE_pbvh_ensure_node_face_corners(*ss.pbvh, mesh.corner_tris());
-      }
-    }
     undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Color);
     switch (ss.pbvh->type()) {
       case bke::pbvh::Type::Mesh: {
@@ -4096,6 +4095,12 @@ StrokeCache::~StrokeCache()
 
 }  // namespace blender::ed::sculpt_paint
 
+enum class StrokeFlags : uint8_t {
+  ClipX = 1,
+  ClipY = 2,
+  ClipZ = 4,
+};
+
 namespace blender::ed::sculpt_paint {
 
 /* Initialize mirror modifier clipping. */
@@ -4118,7 +4123,7 @@ static void sculpt_init_mirror_clipping(const Object &ob, const SculptSession &s
         continue;
       }
       /* Enable sculpt clipping. */
-      ss.cache->mirror_modifier_clip.flag |= CLIP_X << i;
+      ss.cache->mirror_modifier_clip.flag |= uint8_t(StrokeFlags::ClipX) << i;
 
       /* Update the clip tolerance. */
       ss.cache->mirror_modifier_clip.tolerance[i] = std::max(
@@ -4527,6 +4532,8 @@ static void brush_delta_update(const Depsgraph &depsgraph,
   }
 
   /* Handle 'rake' */
+  cache->rake_rotation = std::nullopt;
+  cache->rake_rotation_symm = std::nullopt;
   invert_m4_m4(imat, ob.object_to_world().ptr());
   mul_mat3_m4_v3(imat, grab_location);
 
@@ -4761,18 +4768,30 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
   if (BKE_pbvh_node_get_tmin(&node) >= *tmin) {
     return;
   }
-  const float(*origco)[3] = nullptr;
-  bool use_origco = false;
 
+  bool use_origco = false;
+  Span<float3> origco;
   if (srd.original && srd.ss->cache) {
-    if (srd.ss->pbvh->type() == bke::pbvh::Type::BMesh) {
-      use_origco = true;
-    }
-    else {
-      /* Intersect with coordinates from before we started stroke. */
-      const undo::Node *unode = undo::get_node(&node, undo::Type::Position);
-      origco = (unode) ? reinterpret_cast<const float(*)[3]>(unode->position.data()) : nullptr;
-      use_origco = origco ? true : false;
+    switch (srd.ss->pbvh->type()) {
+      case bke::pbvh::Type::Mesh:
+        if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_mesh(
+                *srd.object, static_cast<const bke::pbvh::MeshNode &>(node)))
+        {
+          use_origco = true;
+          origco = orig_data->positions;
+        }
+        break;
+      case bke::pbvh::Type::Grids:
+        if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_grids(
+                *srd.object, static_cast<const bke::pbvh::GridsNode &>(node)))
+        {
+          use_origco = true;
+          origco = orig_data->positions;
+        }
+        break;
+      case bke::pbvh::Type::BMesh:
+        use_origco = true;
+        break;
     }
   }
 
@@ -4781,9 +4800,9 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                               origco,
                               use_origco,
                               srd.vert_positions,
+                              srd.faces,
                               srd.corner_verts,
                               srd.corner_tris,
-                              srd.corner_tri_faces,
                               srd.hide_poly,
                               srd.subdiv_ccg,
                               srd.ray_start,
@@ -4808,18 +4827,31 @@ static void sculpt_find_nearest_to_ray_cb(blender::bke::pbvh::Node &node,
   if (BKE_pbvh_node_get_tmin(&node) >= *tmin) {
     return;
   }
-  const float(*origco)[3] = nullptr;
-  bool use_origco = false;
 
+  bool use_origco = false;
+  Span<float3> origco;
   if (srd.original && srd.ss->cache) {
-    if (srd.ss->pbvh->type() == bke::pbvh::Type::BMesh) {
-      use_origco = true;
-    }
-    else {
-      /* Intersect with coordinates from before we started stroke. */
-      const undo::Node *unode = undo::get_node(&node, undo::Type::Position);
-      origco = (unode) ? reinterpret_cast<const float(*)[3]>(unode->position.data()) : nullptr;
-      use_origco = origco ? true : false;
+    switch (srd.ss->pbvh->type()) {
+      case bke::pbvh::Type::Mesh:
+        if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_mesh(
+                *srd.object, static_cast<const bke::pbvh::MeshNode &>(node)))
+        {
+          use_origco = true;
+          origco = orig_data->positions;
+        }
+        break;
+      case bke::pbvh::Type::Grids:
+        if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_grids(
+                *srd.object, static_cast<const bke::pbvh::GridsNode &>(node)))
+        {
+          use_origco = true;
+          origco = orig_data->positions;
+        }
+
+        break;
+      case bke::pbvh::Type::BMesh:
+        use_origco = true;
+        break;
     }
   }
 
@@ -4828,9 +4860,9 @@ static void sculpt_find_nearest_to_ray_cb(blender::bke::pbvh::Node &node,
                                           origco,
                                           use_origco,
                                           srd.vert_positions,
+                                          srd.faces,
                                           srd.corner_verts,
                                           srd.corner_tris,
-                                          srd.corner_tri_faces,
                                           srd.hide_poly,
                                           srd.subdiv_ccg,
                                           srd.ray_start,
@@ -4922,14 +4954,15 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
 
   SculptRaycastData srd{};
   srd.original = original;
+  srd.object = &ob;
   srd.ss = ob.sculpt;
   srd.hit = false;
   if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     srd.vert_positions = bke::pbvh::vert_positions_eval(*depsgraph, ob);
+    srd.faces = mesh.faces();
     srd.corner_verts = mesh.corner_verts();
     srd.corner_tris = mesh.corner_tris();
-    srd.corner_tri_faces = mesh.corner_tri_faces();
     const bke::AttributeAccessor attributes = mesh.attributes();
     srd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   }
@@ -5097,6 +5130,7 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
   bool hit = false;
   {
     SculptRaycastData srd;
+    srd.object = &ob;
     srd.ss = ob.sculpt;
     srd.ray_start = ray_start;
     srd.ray_normal = ray_normal;
@@ -5104,9 +5138,9 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
     if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
       const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
       srd.vert_positions = bke::pbvh::vert_positions_eval(*depsgraph, ob);
+      srd.faces = mesh.faces();
       srd.corner_verts = mesh.corner_verts();
       srd.corner_tris = mesh.corner_tris();
-      srd.corner_tri_faces = mesh.corner_tri_faces();
       const bke::AttributeAccessor attributes = mesh.attributes();
       srd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
     }
@@ -5139,14 +5173,15 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
 
   SculptFindNearestToRayData srd{};
   srd.original = original;
+  srd.object = &ob;
   srd.ss = ob.sculpt;
   srd.hit = false;
   if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     srd.vert_positions = bke::pbvh::vert_positions_eval(*depsgraph, ob);
+    srd.faces = mesh.faces();
     srd.corner_verts = mesh.corner_verts();
     srd.corner_tris = mesh.corner_tris();
-    srd.corner_tri_faces = mesh.corner_tri_faces();
     const bke::AttributeAccessor attributes = mesh.attributes();
     srd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   }
@@ -5846,11 +5881,6 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
  * (without having lag prior to every stroke), but also makes it so the affect
  * is localized to a specific brushes and brush types only. */
 
-enum {
-  SCULPT_TOPOLOGY_ID_NONE,
-  SCULPT_TOPOLOGY_ID_DEFAULT,
-};
-
 static void fake_neighbor_init(Object &object, const float max_dist)
 {
   SculptSession &ss = *object.sculpt;
@@ -6116,10 +6146,6 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
   }
 }
 
-struct SculptTopologyIDFloodFillData {
-  int next_id;
-};
-
 }  // namespace blender::ed::sculpt_paint
 
 namespace blender::ed::sculpt_paint::boundary {
@@ -6208,6 +6234,7 @@ bool SCULPT_vertex_is_occluded(const Object &object, const float3 &position, boo
 
   SculptRaycastData srd = {nullptr};
   srd.original = original;
+  srd.object = &object;
   srd.ss = &ss;
   srd.hit = false;
   srd.ray_start = ray_start;
@@ -6217,8 +6244,8 @@ bool SCULPT_vertex_is_occluded(const Object &object, const float3 &position, boo
   srd.corner_verts = ss.corner_verts;
   if (ss.pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+    srd.faces = mesh.faces();
     srd.corner_tris = mesh.corner_tris();
-    srd.corner_tri_faces = mesh.corner_tri_faces();
   }
   else if (ss.pbvh->type() == bke::pbvh::Type::Grids) {
     srd.subdiv_ccg = ss.subdiv_ccg;
@@ -7218,7 +7245,7 @@ void clip_and_lock_translations(const Sculpt &sd,
       continue;
     }
 
-    if (!(cache->mirror_modifier_clip.flag & (CLIP_X << axis))) {
+    if (!(cache->mirror_modifier_clip.flag & (uint8_t(StrokeFlags::ClipX) << axis))) {
       continue;
     }
 
@@ -7259,7 +7286,7 @@ void clip_and_lock_translations(const Sculpt &sd,
       continue;
     }
 
-    if (!(cache->mirror_modifier_clip.flag & (CLIP_X << axis))) {
+    if (!(cache->mirror_modifier_clip.flag & (uint8_t(StrokeFlags::ClipX) << axis))) {
       continue;
     }
 

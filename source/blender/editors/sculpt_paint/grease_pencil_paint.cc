@@ -156,24 +156,23 @@ static void create_blank_curve(bke::CurvesGeometry &curves, const bool on_back)
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-  attributes.for_all(
-      [&](const bke::AttributeIDRef &id, const bke::AttributeMetaData /*meta_data*/) {
-        bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(id);
+  attributes.for_all([&](const StringRef id, const bke::AttributeMetaData /*meta_data*/) {
+    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(id);
 
-        GMutableSpan attribute_data = dst.span;
+    GMutableSpan attribute_data = dst.span;
 
-        bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-          using T = decltype(dummy);
-          MutableSpan<T> span_data = attribute_data.typed<T>();
+    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      MutableSpan<T> span_data = attribute_data.typed<T>();
 
-          /* Loop through backwards to not overwrite the data. */
-          for (int i = span_data.size() - 2; i >= 0; i--) {
-            span_data[i + 1] = span_data[i];
-          }
-        });
-        dst.finish();
-        return true;
-      });
+      /* Loop through backwards to not overwrite the data. */
+      for (int i = span_data.size() - 2; i >= 0; i--) {
+        span_data[i + 1] = span_data[i];
+      }
+    });
+    dst.finish();
+    return true;
+  });
 }
 
 /**
@@ -200,7 +199,7 @@ static void extend_curve(bke::CurvesGeometry &curves, const bool on_back, const 
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-  attributes.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
+  attributes.for_all([&](const StringRef id, const bke::AttributeMetaData meta_data) {
     if (meta_data.domain != bke::AttrDomain::Point) {
       return true;
     }
@@ -601,12 +600,16 @@ struct PaintOperationExecutor {
     curves.update_curve_types();
 
     /* Initialize the rest of the attributes with default values. */
-    bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Point,
-                                      point_attributes_to_skip,
-                                      IndexRange(last_active_point, 1));
     bke::fill_attribute_range_default(
-        attributes, bke::AttrDomain::Curve, curve_attributes_to_skip, IndexRange(active_curve, 1));
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref(point_attributes_to_skip),
+        IndexRange(last_active_point, 1));
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Curve,
+        bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
+        IndexRange(active_curve, 1));
 
     drawing_->tag_topology_changed();
   }
@@ -961,10 +964,11 @@ struct PaintOperationExecutor {
     }
 
     /* Initialize the rest of the attributes with default values. */
-    bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Point,
-                                      point_attributes_to_skip,
-                                      curves.points_range().take_back(1));
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref(point_attributes_to_skip),
+        curves.points_range().take_back(1));
 
     drawing_->set_texture_matrices({self.texture_space_}, IndexRange::from_single(active_curve));
   }
@@ -1283,7 +1287,7 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
   const int last_active_point = curves.points_by_curve()[0].last();
 
   /* Shift the data before resizing to not delete the data at the end. */
-  attributes.for_all([&](const bke::AttributeIDRef &id, const bke::AttributeMetaData meta_data) {
+  attributes.for_all([&](const StringRef id, const bke::AttributeMetaData meta_data) {
     if (meta_data.domain != bke::AttrDomain::Point) {
       return true;
     }

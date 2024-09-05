@@ -31,7 +31,7 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
                                         Field<float3> position_field,
                                         Field<float> radius_field,
                                         Field<bool> selection_field,
-                                        const AnonymousAttributePropagationInfo &propagation_info)
+                                        const AttributeFilter &attribute_filter)
 {
   const bke::Instances &instances = *geometry_set.get_instances();
 
@@ -59,18 +59,18 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
   point_radii.finish();
 
   const bke::AttributeAccessor src_attributes = instances.attributes();
-  Map<AttributeIDRef, AttributeKind> attributes_to_propagate;
+  Map<StringRef, AttributeKind> attributes_to_propagate;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Instance},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,
-                                                 propagation_info,
+                                                 attribute_filter,
                                                  attributes_to_propagate);
   /* These two attributes are added by the implicit inputs above. */
   attributes_to_propagate.remove("position");
   attributes_to_propagate.remove("radius");
 
   for (const auto item : attributes_to_propagate.items()) {
-    const AttributeIDRef &id = item.key;
+    const StringRef id = item.key;
     const eCustomDataType type = item.value.data_type;
 
     const GAttributeReader src = src_attributes.lookup(id);
@@ -98,7 +98,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                 params.extract_input<Field<float3>>("Position"),
                                 params.extract_input<Field<float>>("Radius"),
                                 params.extract_input<Field<bool>>("Selection"),
-                                params.get_output_propagation_info("Points"));
+                                params.get_attribute_filter("Points"));
     geometry_set.keep_only({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Edit});
     params.set_output("Points", std::move(geometry_set));
   }

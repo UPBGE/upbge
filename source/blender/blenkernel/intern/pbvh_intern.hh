@@ -14,49 +14,49 @@
 
 namespace blender::bke::pbvh {
 
-bool ray_face_intersection_quad(const float ray_start[3],
+bool ray_face_intersection_quad(const float3 &ray_start,
                                 IsectRayPrecalc *isect_precalc,
-                                const float t0[3],
-                                const float t1[3],
-                                const float t2[3],
-                                const float t3[3],
+                                const float3 &t0,
+                                const float3 &t1,
+                                const float3 &t2,
+                                const float3 &t3,
                                 float *depth);
-bool ray_face_intersection_tri(const float ray_start[3],
+bool ray_face_intersection_tri(const float3 &ray_start,
                                IsectRayPrecalc *isect_precalc,
-                               const float t0[3],
-                               const float t1[3],
-                               const float t2[3],
+                               const float3 &t0,
+                               const float3 &t1,
+                               const float3 &t2,
                                float *depth);
 
-bool ray_face_nearest_quad(const float ray_start[3],
-                           const float ray_normal[3],
-                           const float t0[3],
-                           const float t1[3],
-                           const float t2[3],
-                           const float t3[3],
+bool ray_face_nearest_quad(const float3 &ray_start,
+                           const float3 &ray_normal,
+                           const float3 &t0,
+                           const float3 &t1,
+                           const float3 &t2,
+                           const float3 &t3,
                            float *r_depth,
                            float *r_dist_sq);
-bool ray_face_nearest_tri(const float ray_start[3],
-                          const float ray_normal[3],
-                          const float t0[3],
-                          const float t1[3],
-                          const float t2[3],
+bool ray_face_nearest_tri(const float3 &ray_start,
+                          const float3 &ray_normal,
+                          const float3 &t0,
+                          const float3 &t1,
+                          const float3 &t2,
                           float *r_depth,
                           float *r_dist_sq);
 
 /* pbvh_bmesh.cc */
 
 bool bmesh_node_raycast(blender::bke::pbvh::BMeshNode &node,
-                        const float ray_start[3],
-                        const float ray_normal[3],
+                        const float3 &ray_start,
+                        const float3 &ray_normal,
                         IsectRayPrecalc *isect_precalc,
                         float *dist,
                         bool use_original,
                         PBVHVertRef *r_active_vertex,
                         float *r_face_normal);
 bool bmesh_node_nearest_to_ray(blender::bke::pbvh::BMeshNode &node,
-                               const float ray_start[3],
-                               const float ray_normal[3],
+                               const float3 &ray_start,
+                               const float3 &ray_normal,
                                float *depth,
                                float *dist_sq,
                                bool use_original);
@@ -67,6 +67,5 @@ void bmesh_normals_update(Tree &pbvh, const IndexMask &nodes_to_update);
 
 void node_pixels_free(blender::bke::pbvh::Node *node);
 void pixels_free(blender::bke::pbvh::Tree *pbvh);
-void free_draw_buffers(blender::bke::pbvh::Tree &pbvh, blender::bke::pbvh::Node *node);
 
 }  // namespace blender::bke::pbvh

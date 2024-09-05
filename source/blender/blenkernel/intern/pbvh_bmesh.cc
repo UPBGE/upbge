@@ -22,8 +22,6 @@
 #include "BKE_ccg.hh"
 #include "BKE_pbvh_api.hh"
 
-#include "DRW_pbvh.hh"
-
 #include "bmesh.hh"
 #include "pbvh_intern.hh"
 
@@ -132,17 +130,19 @@ static std::array<BMEdge *, 3> bm_edges_from_tri(BMesh &bm, const Span<BMVert *>
   };
 }
 
-BLI_INLINE void bm_face_as_array_index_tri(BMFace *f, int r_index[3])
+BLI_INLINE std::array<BMVert *, 3> bm_face_as_array(BMFace *f)
 {
   BMLoop *l = BM_FACE_FIRST_LOOP(f);
 
   BLI_assert(f->len == 3);
 
-  r_index[0] = BM_elem_index_get(l->v);
+  std::array<BMVert *, 3> result;
+  result[0] = l->v;
   l = l->next;
-  r_index[1] = BM_elem_index_get(l->v);
+  result[1] = l->v;
   l = l->next;
-  r_index[2] = BM_elem_index_get(l->v);
+  result[2] = l->v;
+  return result;
 }
 
 /**
@@ -339,9 +339,6 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   }
   n->bm_faces_.clear_and_shrink();
 
-  if (n->draw_batches_) {
-    draw::pbvh::node_free(n->draw_batches_);
-  }
   n->flag_ &= ~PBVH_Leaf;
 
   /* Recurse. */
@@ -485,7 +482,8 @@ static BMFace *pbvh_bmesh_face_create(BMesh &bm,
   node->bm_faces_.add(f);
   BM_ELEM_CD_SET_INT(f, cd_face_node_offset, node_index);
 
-  node->flag_ |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_TopologyUpdated;
+  node->flag_ |= PBVH_UpdateDrawBuffers | PBVH_RebuildDrawBuffers | PBVH_UpdateNormals |
+                 PBVH_TopologyUpdated;
   node->flag_ &= ~PBVH_FullyHidden;
 
   /* Log the new face. */
@@ -547,7 +545,8 @@ static void pbvh_bmesh_vert_ownership_transfer(MutableSpan<BMeshNode> nodes,
                                                BMVert *v)
 {
   BMeshNode *current_owner = pbvh_bmesh_node_from_vert(nodes, cd_vert_node_offset, v);
-  current_owner->flag_ |= PBVH_UpdateDrawBuffers | PBVH_UpdateBB | PBVH_TopologyUpdated;
+  current_owner->flag_ |= PBVH_UpdateDrawBuffers | PBVH_RebuildDrawBuffers | PBVH_UpdateBB |
+                          PBVH_TopologyUpdated;
 
   BLI_assert(current_owner != new_owner);
 
@@ -560,7 +559,8 @@ static void pbvh_bmesh_vert_ownership_transfer(MutableSpan<BMeshNode> nodes,
   new_owner->bm_other_verts_.remove(v);
   BLI_assert(!new_owner->bm_other_verts_.contains(v));
 
-  new_owner->flag_ |= PBVH_UpdateDrawBuffers | PBVH_UpdateBB | PBVH_TopologyUpdated;
+  new_owner->flag_ |= PBVH_UpdateDrawBuffers | PBVH_RebuildDrawBuffers | PBVH_UpdateBB |
+                      PBVH_TopologyUpdated;
 }
 
 static void pbvh_bmesh_vert_remove(MutableSpan<BMeshNode> nodes,
@@ -585,7 +585,8 @@ static void pbvh_bmesh_vert_remove(MutableSpan<BMeshNode> nodes,
       f_node_index_prev = f_node_index;
 
       BMeshNode *f_node = &nodes[f_node_index];
-      f_node->flag_ |= PBVH_UpdateDrawBuffers | PBVH_UpdateBB | PBVH_TopologyUpdated;
+      f_node->flag_ |= PBVH_UpdateDrawBuffers | PBVH_RebuildDrawBuffers | PBVH_UpdateBB |
+                       PBVH_TopologyUpdated;
 
       /* Remove current ownership. */
       f_node->bm_other_verts_.remove(v);
@@ -638,7 +639,8 @@ static void pbvh_bmesh_face_remove(MutableSpan<BMeshNode> nodes,
   BM_log_face_removed(&bm_log, f);
 
   /* Mark node for update. */
-  f_node->flag_ |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_TopologyUpdated;
+  f_node->flag_ |= PBVH_UpdateDrawBuffers | PBVH_RebuildDrawBuffers | PBVH_UpdateNormals |
+                   PBVH_TopologyUpdated;
 }
 
 static Array<BMLoop *> pbvh_bmesh_edge_loops(BMEdge *e)
@@ -656,10 +658,9 @@ static Array<BMLoop *> pbvh_bmesh_edge_loops(BMEdge *e)
 
 static void pbvh_bmesh_node_drop_orig(BMeshNode *node)
 {
-  MEM_SAFE_FREE(node->bm_orco_);
-  MEM_SAFE_FREE(node->bm_ortri_);
-  MEM_SAFE_FREE(node->bm_orvert_);
-  node->bm_tot_ortri_ = 0;
+  node->orig_positions_ = {};
+  node->orig_tris_ = {};
+  node->orig_verts_ = {};
 }
 
 /****************************** EdgeQueue *****************************/
@@ -1830,8 +1831,8 @@ static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
 /************************* Called from pbvh.cc *************************/
 
 bool bmesh_node_raycast(BMeshNode &node,
-                        const float ray_start[3],
-                        const float ray_normal[3],
+                        const float3 &ray_start,
+                        const float3 &ray_normal,
                         IsectRayPrecalc *isect_precalc,
                         float *depth,
                         bool use_original,
@@ -1841,15 +1842,15 @@ bool bmesh_node_raycast(BMeshNode &node,
   bool hit = false;
   float nearest_vertex_co[3] = {0.0f};
 
-  use_original = use_original && node.bm_tot_ortri_;
+  use_original = use_original && !node.orig_tris_.is_empty();
 
-  if (use_original && node.bm_tot_ortri_) {
-    for (int i = 0; i < node.bm_tot_ortri_; i++) {
+  if (use_original) {
+    for (const int i : node.orig_tris_.index_range()) {
       float *cos[3];
 
-      cos[0] = node.bm_orco_[node.bm_ortri_[i][0]];
-      cos[1] = node.bm_orco_[node.bm_ortri_[i][1]];
-      cos[2] = node.bm_orco_[node.bm_ortri_[i][2]];
+      cos[0] = node.orig_positions_[node.orig_tris_[i][0]];
+      cos[1] = node.orig_positions_[node.orig_tris_[i][1]];
+      cos[2] = node.orig_positions_[node.orig_tris_[i][2]];
 
       if (ray_face_intersection_tri(ray_start, isect_precalc, cos[0], cos[1], cos[2], depth)) {
         hit = true;
@@ -1866,7 +1867,7 @@ bool bmesh_node_raycast(BMeshNode &node,
                 len_squared_v3v3(location, cos[j]) < len_squared_v3v3(location, nearest_vertex_co))
             {
               copy_v3_v3(nearest_vertex_co, cos[j]);
-              r_active_vertex->i = intptr_t(node.bm_orvert_[node.bm_ortri_[i][j]]);
+              r_active_vertex->i = intptr_t(node.orig_verts_[node.orig_tris_[i][j]]);
             }
           }
         }
@@ -1911,7 +1912,7 @@ bool bmesh_node_raycast(BMeshNode &node,
 }
 
 bool bmesh_node_raycast_detail(BMeshNode &node,
-                               const float ray_start[3],
+                               const float3 &ray_start,
                                IsectRayPrecalc *isect_precalc,
                                float *depth,
                                float *r_edge_length)
@@ -1954,22 +1955,22 @@ bool bmesh_node_raycast_detail(BMeshNode &node,
 }
 
 bool bmesh_node_nearest_to_ray(BMeshNode &node,
-                               const float ray_start[3],
-                               const float ray_normal[3],
+                               const float3 &ray_start,
+                               const float3 &ray_normal,
                                float *depth,
                                float *dist_sq,
                                bool use_original)
 {
   bool hit = false;
 
-  if (use_original && node.bm_tot_ortri_) {
-    for (int i = 0; i < node.bm_tot_ortri_; i++) {
-      const int *t = node.bm_ortri_[i];
+  if (use_original && !node.orig_tris_.is_empty()) {
+    for (const int i : node.orig_tris_.index_range()) {
+      const int *t = node.orig_tris_[i];
       hit |= ray_face_nearest_tri(ray_start,
                                   ray_normal,
-                                  node.bm_orco_[t[0]],
-                                  node.bm_orco_[t[1]],
-                                  node.bm_orco_[t[2]],
+                                  node.orig_positions_[t[0]],
+                                  node.orig_positions_[t[1]],
+                                  node.orig_positions_[t[2]],
                                   depth,
                                   dist_sq);
     }
@@ -2347,7 +2348,7 @@ bool bmesh_update_topology(BMesh &bm,
     if (node.flag_ & PBVH_Leaf && node.flag_ & PBVH_TopologyUpdated) {
       node.flag_ &= ~PBVH_TopologyUpdated;
 
-      if (node.bm_ortri_) {
+      if (!node.orig_tris_.is_empty()) {
         /* Reallocate original triangle data. */
         pbvh_bmesh_node_drop_orig(&node);
         BKE_pbvh_bmesh_node_save_orig(&bm, &bm_log, &node, true);
@@ -2362,75 +2363,79 @@ bool bmesh_update_topology(BMesh &bm,
   return modified;
 }
 
-}  // namespace blender::bke::pbvh
-
 /* Updates a given Tree Node with the original coordinates of the corresponding
  * BMesh vertex. Attempts to retrieve the value from the BMLog, falls back to the vertex's current
  * coordinates if it is either not found in the log or not requested. */
-static void BKE_pbvh_bmesh_node_copy_original_co(
-    BMLog *log, blender::bke::pbvh::BMeshNode *node, BMVert *v, int i, bool use_original)
+static void copy_original_vert(BMLog *log, BMeshNode *node, BMVert *v, int i, bool use_original)
 {
   if (!use_original) {
-    copy_v3_v3(node->bm_orco_[i], v->co);
+    node->orig_positions_[i] = v->co;
   }
   else {
     const float *origco = BM_log_find_original_vert_co(log, v);
     if (origco) {
-      copy_v3_v3(node->bm_orco_[i], origco);
+      node->orig_positions_[i] = origco;
     }
     else {
-      copy_v3_v3(node->bm_orco_[i], v->co);
+      node->orig_positions_[i] = v->co;
     }
   }
 
-  node->bm_orvert_[i] = v;
-  BM_elem_index_set(v, i); /* set_dirty! */
+  node->orig_verts_[i] = v;
 }
+
+}  // namespace blender::bke::pbvh
 
 void BKE_pbvh_bmesh_node_save_orig(BMesh *bm,
                                    BMLog *log,
                                    blender::bke::pbvh::BMeshNode *node,
                                    bool use_original)
 {
+  using namespace blender;
   /* Skip if original coords/triangles are already saved. */
-  if (node->bm_orco_) {
+  if (!node->orig_tris_.is_empty()) {
     return;
   }
 
   const int totvert = node->bm_unique_verts_.size() + node->bm_other_verts_.size();
 
-  const int tottri = node->bm_faces_.size();
+  node->orig_positions_.reinitialize(totvert);
+  node->orig_verts_.reinitialize(totvert);
 
-  node->bm_orco_ = static_cast<float(*)[3]>(
-      MEM_mallocN(sizeof(*node->bm_orco_) * totvert, __func__));
-  node->bm_ortri_ = static_cast<int(*)[3]>(
-      MEM_mallocN(sizeof(*node->bm_ortri_) * tottri, __func__));
-  node->bm_orvert_ = static_cast<BMVert **>(
-      MEM_mallocN(sizeof(*node->bm_orvert_) * totvert, __func__));
+  VectorSet<BMVert *> vert_map;
+  vert_map.reserve(totvert);
 
   /* Copy out the vertices and assign a temporary index. */
   int i = 0;
   for (BMVert *v : node->bm_unique_verts_) {
-    BKE_pbvh_bmesh_node_copy_original_co(log, node, v, i, use_original);
+    bke::pbvh::copy_original_vert(log, node, v, i, use_original);
+    vert_map.add(v);
     i++;
   }
   for (BMVert *v : node->bm_other_verts_) {
-    BKE_pbvh_bmesh_node_copy_original_co(log, node, v, i, use_original);
+    bke::pbvh::copy_original_vert(log, node, v, i, use_original);
+    vert_map.add(v);
     i++;
   }
   /* Likely this is already dirty. */
   bm->elem_index_dirty |= BM_VERT;
 
   /* Copy the triangles */
+  const int tris_num = std::count_if(
+      node->bm_faces_.begin(), node->bm_faces_.end(), [&](const BMFace *face) {
+        return !BM_elem_flag_test_bool(face, BM_ELEM_HIDDEN);
+      });
+  node->orig_tris_.reinitialize(tris_num);
   i = 0;
   for (BMFace *f : node->bm_faces_) {
     if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
       continue;
     }
-    blender::bke::pbvh::bm_face_as_array_index_tri(f, node->bm_ortri_[i]);
+    const std::array<BMVert *, 3> verts = bke::pbvh::bm_face_as_array(f);
+    node->orig_tris_[i] = int3(
+        vert_map.index_of(verts[0]), vert_map.index_of(verts[1]), vert_map.index_of(verts[2]));
     i++;
   }
-  node->bm_tot_ortri_ = i;
 }
 
 void BKE_pbvh_bmesh_after_stroke(BMesh &bm, blender::bke::pbvh::Tree &pbvh)

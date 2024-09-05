@@ -614,11 +614,10 @@ void GeometrySet::attribute_foreach(const Span<GeometryComponent::Type> componen
     const GeometryComponent &component = *this->get_component(component_type);
     const std::optional<AttributeAccessor> attributes = component.attributes();
     if (attributes.has_value()) {
-      attributes->for_all(
-          [&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
-            callback(attribute_id, meta_data, component);
-            return true;
-          });
+      attributes->for_all([&](const StringRef attribute_id, const AttributeMetaData &meta_data) {
+        callback(attribute_id, meta_data, component);
+        return true;
+      });
     }
   }
   if (include_instances && this->has_instances()) {
@@ -632,10 +631,10 @@ void GeometrySet::attribute_foreach(const Span<GeometryComponent::Type> componen
 void GeometrySet::propagate_attributes_from_layer_to_instances(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
-    const AnonymousAttributePropagationInfo &propagation_info)
+    const AttributeFilter &attribute_filter)
 {
-  src_attributes.for_all([&](const AttributeIDRef &id, const AttributeMetaData meta_data) {
-    if (id.is_anonymous() && !propagation_info.propagate(id.name())) {
+  src_attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
+    if (attribute_filter.allow_skip(id)) {
       return true;
     }
     const GAttributeReader src = src_attributes.lookup(id, AttrDomain::Layer);
@@ -660,8 +659,8 @@ void GeometrySet::gather_attributes_for_propagation(
     const Span<GeometryComponent::Type> component_types,
     const GeometryComponent::Type dst_component_type,
     bool include_instances,
-    const AnonymousAttributePropagationInfo &propagation_info,
-    Map<AttributeIDRef, AttributeKind> &r_attributes) const
+    const AttributeFilter &attribute_filter,
+    Map<StringRef, AttributeKind> &r_attributes) const
 {
   /* Only needed right now to check if an attribute is built-in on this component type.
    * TODO: Get rid of the dummy component. */
@@ -669,7 +668,7 @@ void GeometrySet::gather_attributes_for_propagation(
   this->attribute_foreach(
       component_types,
       include_instances,
-      [&](const AttributeIDRef &attribute_id,
+      [&](const StringRef attribute_id,
           const AttributeMetaData &meta_data,
           const GeometryComponent &component) {
         if (component.attributes()->is_builtin(attribute_id)) {
@@ -683,7 +682,7 @@ void GeometrySet::gather_attributes_for_propagation(
           /* Propagating string attributes is not supported yet. */
           return;
         }
-        if (attribute_id.is_anonymous() && !propagation_info.propagate(attribute_id.name())) {
+        if (attribute_filter.allow_skip(attribute_id)) {
           return;
         }
 

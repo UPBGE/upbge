@@ -79,7 +79,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::AttributeAccessor grease_pencil_attributes = grease_pencil->attributes();
   bke::MutableAttributeAccessor instances_attributes = instances->attributes_for_write();
   grease_pencil_attributes.for_all(
-      [&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
+      [&](const StringRef attribute_id, const AttributeMetaData &meta_data) {
         if (ELEM(attribute_id, "opacity")) {
           return true;
         }
@@ -129,7 +129,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool layers_as_instances = params.get_input<bool>("Layers as Instances");
   if (!layers_as_instances) {
     geometry::RealizeInstancesOptions options;
-    options.propagation_info = params.get_output_propagation_info("Curves");
+    const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
+    options.attribute_filter = attribute_filter;
     curves_geometry = geometry::realize_instances(curves_geometry, options);
   }
 

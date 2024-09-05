@@ -11,6 +11,7 @@
 #include "overlay_next_private.hh"
 
 #include "overlay_next_antialiasing.hh"
+#include "overlay_next_armature.hh"
 #include "overlay_next_background.hh"
 #include "overlay_next_bounds.hh"
 #include "overlay_next_camera.hh"
@@ -62,6 +63,7 @@ class Instance {
   struct OverlayLayer {
     const SelectionType selection_type_;
 
+    Armatures armatures = {selection_type_};
     Bounds bounds = {selection_type_};
     Cameras cameras = {selection_type_};
     Curves curves;
@@ -77,7 +79,7 @@ class Instance {
     Meshes meshes;
     Particles particles;
     Prepass prepass = {selection_type_};
-    Relations relations;
+    Relations relations = {selection_type_};
     Speakers speakers = {selection_type_};
     Wireframe wireframe;
   } regular{selection_type_}, infront{selection_type_};
@@ -119,6 +121,7 @@ class Instance {
                                  bool in_edit_mode,
                                  bool in_paint_mode,
                                  bool in_sculpt_mode);
+  bool object_is_in_front(const Object *object, const State &state);
 };
 
 }  // namespace blender::draw::overlay

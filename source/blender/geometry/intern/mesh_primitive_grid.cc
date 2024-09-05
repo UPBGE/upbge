@@ -14,7 +14,7 @@ static void calculate_uvs(Mesh *mesh,
                           const Span<int> corner_verts,
                           const float size_x,
                           const float size_y,
-                          const bke::AttributeIDRef &uv_map_id)
+                          const StringRef uv_map_id)
 {
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter uv_attribute = attributes.lookup_or_add_for_write_only_span<float2>(
@@ -41,7 +41,7 @@ Mesh *create_grid_mesh(const int verts_x,
                        const int verts_y,
                        const float size_x,
                        const float size_y,
-                       const std::optional<std::string> &uv_map_id)
+                       const std::optional<StringRef> &uv_map_id)
 {
   BLI_assert(verts_x > 0 && verts_y > 0);
   const int edges_x = verts_x - 1;

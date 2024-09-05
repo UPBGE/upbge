@@ -20,7 +20,7 @@ namespace blender::geometry {
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const float merge_distance,
                                     const IndexMask &selection,
-                                    const bke::AnonymousAttributePropagationInfo &propagation_info)
+                                    const bke::AttributeFilter &attribute_filter)
 {
   const bke::AttributeAccessor src_attributes = src_points.attributes();
   const Span<float3> positions = src_points.positions();
@@ -103,7 +103,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     point_merge_counts[dst_index]++;
   }
 
-  Set<bke::AttributeIDRef> attribute_ids = src_attributes.all_ids();
+  Set<StringRefNull> attribute_ids = src_attributes.all_ids();
 
   /* Transfer the ID attribute if it exists, using the ID of the first merged point. */
   if (attribute_ids.contains("id")) {
@@ -122,8 +122,8 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   }
 
   /* Transfer all other attributes. */
-  for (const bke::AttributeIDRef &id : attribute_ids) {
-    if (id.is_anonymous() && !propagation_info.propagate(id.name())) {
+  for (const StringRef id : attribute_ids) {
+    if (attribute_filter.allow_skip(id)) {
       continue;
     }
 
