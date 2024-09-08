@@ -14,6 +14,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1392,6 +1393,19 @@ bool ChannelBag::fcurve_remove(FCurve &fcurve_to_remove)
   return true;
 }
 
+void ChannelBag::fcurve_move(FCurve &fcurve, int to_fcurve_index)
+{
+  BLI_assert(to_fcurve_index >= 0 && to_fcurve_index < this->fcurves().size());
+
+  const int fcurve_index = this->fcurves().as_span().first_index_try(&fcurve);
+  BLI_assert_msg(fcurve_index >= 0, "FCurve not in this channel bag.");
+
+  array_shift_range(
+      this->fcurve_array, this->fcurve_array_num, fcurve_index, fcurve_index + 1, to_fcurve_index);
+
+  this->restore_channel_group_invariants();
+}
+
 void ChannelBag::fcurves_clear()
 {
   dna::array::clear(&this->fcurve_array, &this->fcurve_array_num, nullptr, fcurve_ptr_destructor);
@@ -1642,6 +1656,35 @@ bool ChannelBag::channel_group_remove(bActionGroup &group)
   this->restore_channel_group_invariants();
 
   return true;
+}
+
+void ChannelBag::channel_group_move(bActionGroup &group, const int to_group_index)
+{
+  BLI_assert(to_group_index >= 0 && to_group_index < this->channel_groups().size());
+
+  const int group_index = this->channel_groups().as_span().first_index_try(&group);
+  BLI_assert_msg(group_index >= 0, "Group not in this channel bag.");
+
+  /* Shallow copy, to track which fcurves should be moved in the second step. */
+  const bActionGroup pre_move_group = group;
+
+  /* First we move the group to its new position. The call to
+   * `restore_channel_group_invariants()` is necessary to update the group's
+   * fcurve range (as well as the ranges of the other groups) to match its new
+   * position in the group array. */
+  array_shift_range(
+      this->group_array, this->group_array_num, group_index, group_index + 1, to_group_index);
+  this->restore_channel_group_invariants();
+
+  /* Move the fcurves that were part of `group` (as recorded in
+   *`pre_move_group`) to their new positions (now in `group`) so that they're
+   * part of `group` again. */
+  array_shift_range(this->fcurve_array,
+                    this->fcurve_array_num,
+                    pre_move_group.fcurve_range_start,
+                    pre_move_group.fcurve_range_start + pre_move_group.fcurve_range_length,
+                    group.fcurve_range_start);
+  this->restore_channel_group_invariants();
 }
 
 void ChannelBag::channel_group_remove_raw(const int group_index)
@@ -1985,13 +2028,12 @@ bool ChannelBag::fcurve_assign_to_channel_group(FCurve &fcurve, bActionGroup &to
 
   /* Remove fcurve from old group, if it belongs to one. */
   if (fcurve.grp != nullptr) {
-    bActionGroup *old_group = fcurve.grp;
-
-    old_group->fcurve_range_length--;
-    if (old_group->fcurve_range_length == 0) {
-      const int old_group_index = this->channel_groups().as_span().first_index_try(old_group);
-      this->channel_group_remove_raw(old_group_index);
+    fcurve.grp->fcurve_range_length--;
+    if (fcurve.grp->fcurve_range_length == 0) {
+      const int group_index = this->channel_groups().as_span().first_index_try(fcurve.grp);
+      this->channel_group_remove_raw(group_index);
     }
+    this->restore_channel_group_invariants();
   }
 
   array_shift_range(this->fcurve_array,
@@ -2000,6 +2042,36 @@ bool ChannelBag::fcurve_assign_to_channel_group(FCurve &fcurve, bActionGroup &to
                     fcurve_index + 1,
                     to_group.fcurve_range_start + to_group.fcurve_range_length);
   to_group.fcurve_range_length++;
+
+  this->restore_channel_group_invariants();
+
+  return true;
+}
+
+bool ChannelBag::fcurve_ungroup(FCurve &fcurve)
+{
+  const int fcurve_index = this->fcurves().as_span().first_index_try(&fcurve);
+  if (fcurve_index == -1) {
+    return false;
+  }
+
+  if (fcurve.grp == nullptr) {
+    return true;
+  }
+
+  bActionGroup *old_group = fcurve.grp;
+
+  array_shift_range(this->fcurve_array,
+                    this->fcurve_array_num,
+                    fcurve_index,
+                    fcurve_index + 1,
+                    this->fcurve_array_num - 1);
+
+  old_group->fcurve_range_length--;
+  if (old_group->fcurve_range_length == 0) {
+    const int old_group_index = this->channel_groups().as_span().first_index_try(old_group);
+    this->channel_group_remove_raw(old_group_index);
+  }
 
   this->restore_channel_group_invariants();
 
@@ -2110,8 +2182,26 @@ Action *convert_to_layered_action(Main &bmain, const Action &legacy_action)
   bag->fcurve_array_num = fcu_count;
 
   int i = 0;
+  blender::Map<FCurve *, FCurve *> old_new_fcurve_map;
   LISTBASE_FOREACH_INDEX (FCurve *, fcu, &legacy_action.curves, i) {
     bag->fcurve_array[i] = BKE_fcurve_copy(fcu);
+    bag->fcurve_array[i]->grp = nullptr;
+    old_new_fcurve_map.add(fcu, bag->fcurve_array[i]);
+  }
+
+  LISTBASE_FOREACH (bActionGroup *, group, &legacy_action.groups) {
+    /* The resulting group might not have the same name, because the legacy system allowed
+     * duplicate names while the new system ensures uniqueness. */
+    bActionGroup &converted_group = bag->channel_group_create(group->name);
+    LISTBASE_FOREACH (FCurve *, fcu, &group->channels) {
+      if (fcu->grp != group) {
+        /* Since the group listbase points to the action listbase, it won't stop iterating when
+         * reaching the end of the group but iterate to the end of the action FCurves. */
+        break;
+      }
+      FCurve *new_fcurve = old_new_fcurve_map.lookup(fcu);
+      bag->fcurve_assign_to_channel_group(*new_fcurve, converted_group);
+    }
   }
 
   return &converted_action;

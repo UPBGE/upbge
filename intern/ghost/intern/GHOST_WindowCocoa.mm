@@ -370,16 +370,18 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
         CGColorSpaceRelease(colorspace);
       }
 
-      m_metalView = [[CocoaMetalView alloc] initWithFrame:rect];
+      m_metalView = [[CocoaMetalView alloc] initWithSystemCocoa:systemCocoa
+                                                    windowCocoa:this
+                                                          frame:rect];
       m_metalView.wantsLayer = YES;
       m_metalView.layer = m_metalLayer;
-      [m_metalView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
       view = m_metalView;
     }
     else {
       /* Fallback to OpenGL view if there is no Metal support. */
-      m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
-      [m_openGLView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
+      m_openGLView = [[CocoaOpenGLView alloc] initWithSystemCocoa:systemCocoa
+                                                      windowCocoa:this
+                                                            frame:rect];
       view = m_openGLView;
     }
 
@@ -969,6 +971,12 @@ NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) cons
         return [NSCursor operationNotAllowedCursor];
       case GHOST_kStandardCursorMove:
         return [NSCursor openHandCursor];
+      case GHOST_kStandardCursorHandOpen:
+        return [NSCursor openHandCursor];
+      case GHOST_kStandardCursorHandClosed:
+        return [NSCursor closedHandCursor];
+      case GHOST_kStandardCursorHandPoint:
+        return [NSCursor pointingHandCursor];
       case GHOST_kStandardCursorDefault:
         return [NSCursor arrowCursor];
       case GHOST_kStandardCursorKnife:

@@ -460,6 +460,7 @@ static void unlink_object_fn(bContext *C,
         case ID_GR: {
           Collection *parent = (Collection *)tsep->id;
           BKE_collection_object_remove(bmain, parent, ob, true);
+          DEG_id_tag_update(&parent->id, ID_RECALC_SYNC_TO_EVAL);
           break;
         }
         case ID_SCE: {
@@ -470,6 +471,7 @@ static void unlink_object_fn(bContext *C,
               if (BKE_collection_has_object(collection, ob)) {
                 BKE_collection_object_remove(bmain, collection, ob, true);
                 DEG_id_tag_update(&collection->id, ID_RECALC_HIERARCHY);
+                DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
               }
             }
             FOREACH_SCENE_COLLECTION_END;
@@ -478,6 +480,7 @@ static void unlink_object_fn(bContext *C,
           else {
             Collection *parent = scene->master_collection;
             BKE_collection_object_remove(bmain, parent, ob, true);
+            DEG_id_tag_update(&parent->id, ID_RECALC_SYNC_TO_EVAL);
           }
           break;
         }

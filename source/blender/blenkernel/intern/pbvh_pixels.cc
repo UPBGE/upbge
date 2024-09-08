@@ -163,7 +163,7 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
     tile_data.tile_number = image_tile.get_tile_number();
     float2 tile_offset = float2(image_tile.get_tile_offset());
 
-    for (const int face : node_faces(node)) {
+    for (const int face : node.faces()) {
       for (const int tri : bke::mesh::face_triangles_range(mesh_data.faces, face)) {
         for (const UVPrimitiveLookup::Entry &entry : uv_prim_lookup.lookup[tri]) {
           uv_islands::UVBorder uv_border = entry.uv_primitive->extract_border();
@@ -489,8 +489,7 @@ namespace blender::bke::pbvh {
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user)
 {
-  SculptSession &ss = *object.sculpt;
-  Tree &pbvh = *ss.pbvh;
+  Tree &pbvh = *object::pbvh_get(object);
   pixels::update_pixels(depsgraph, object, pbvh, image, image_user);
 }
 

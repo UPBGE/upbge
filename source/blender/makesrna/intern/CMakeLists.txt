@@ -253,6 +253,7 @@ set(INC
   ../../depsgraph
   ../../draw
   ../../gpu
+  ../../functions
   ../../ikplugin
   ../../imbuf
   ../../io/usd

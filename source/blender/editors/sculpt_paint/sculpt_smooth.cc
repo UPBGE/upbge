@@ -249,7 +249,6 @@ void average_data_bmesh(const Span<T> src, const Set<BMVert *, 0> &verts, const 
   int i = 0;
   for (BMVert *vert : verts) {
     T sum{};
-    neighbor_data.clear();
     const Span<BMVert *> neighbors = vert_neighbors_get_bmesh(*vert, neighbor_data);
     for (const BMVert *neighbor : neighbors) {
       sum += src[BM_elem_index_get(neighbor)];
@@ -292,7 +291,6 @@ void neighbor_position_average_bmesh(const Set<BMVert *, 0> &verts,
 
   int i = 0;
   for (BMVert *vert : verts) {
-    neighbor_data.clear();
     const Span<BMVert *> neighbors = vert_neighbors_get_bmesh(*vert, neighbor_data);
     new_positions[i] = average_positions(neighbors);
     i++;
@@ -307,7 +305,6 @@ void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
 
   int i = 0;
   for (BMVert *vert : verts) {
-    neighbor_data.clear();
     const Span<BMVert *> neighbors = vert_neighbors_get_interior_bmesh(*vert, neighbor_data);
     if (neighbors.is_empty()) {
       new_positions[i] = float3(vert->co);
@@ -737,13 +734,14 @@ void blur_geometry_data_array(const Object &object,
     Vector<float> new_factors;
   };
   const SculptSession &ss = *object.sculpt;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   IndexMaskMemory memory;
-  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*ss.pbvh, memory);
+  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
-  switch (ss.pbvh->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      const Span<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
+      const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
       const OffsetIndices faces = mesh.faces();
@@ -777,7 +775,7 @@ void blur_geometry_data_array(const Object &object,
       break;
     }
     case bke::pbvh::Type::Grids: {
-      const Span<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
+      const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
@@ -785,7 +783,7 @@ void blur_geometry_data_array(const Object &object,
         threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
           LocalData &tls = all_tls.local();
           node_mask.slice(range).foreach_index([&](const int node_index) {
-            const Span<int> grids = bke::pbvh::node_grid_indices(nodes[node_index]);
+            const Span<int> grids = nodes[node_index].grids();
             const int grid_verts_num = key.grid_area * grids.size();
 
             tls.new_factors.resize(grid_verts_num);
@@ -810,7 +808,7 @@ void blur_geometry_data_array(const Object &object,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const Span<bke::pbvh::BMeshNode> nodes = ss.pbvh->nodes<bke::pbvh::BMeshNode>();
+      const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       for ([[maybe_unused]] const int _ : IndexRange(iterations)) {
         threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
           LocalData &tls = all_tls.local();

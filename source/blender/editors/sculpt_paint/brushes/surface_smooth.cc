@@ -53,10 +53,11 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
                                                       const MutableSpan<float3> all_laplacian_disp)
 {
   const SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
   const float beta = brush.surface_smooth_current_vertex;
-  MutableSpan<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
+  MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
@@ -75,7 +76,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     LocalData &tls = all_tls.local();
-    const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
+    const Span<int> verts = nodes[i].verts();
 
     const MutableSpan<float> factors = all_factors.as_mutable_span().slice(node_offsets[pos]);
     fill_factor_from_hide_and_mask(mesh, verts, factors);
@@ -104,7 +105,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
   for ([[maybe_unused]] const int iteration : IndexRange(brush.surface_smooth_iterations)) {
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
+      const Span<int> verts = nodes[i].verts();
       const MutableSpan positions = gather_data_mesh(positions_eval, verts, tls.positions);
       const OrigPositionData orig_data = orig_position_data_get_mesh(object, nodes[i]);
       const Span<float> factors = all_factors.as_span().slice(node_offsets[pos]);
@@ -133,7 +134,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
 
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
+      const Span<int> verts = nodes[i].verts();
       const Span<float> factors = all_factors.as_span().slice(node_offsets[pos]);
 
       const MutableSpan<float3> laplacian_disp = gather_data_mesh(
@@ -169,10 +170,11 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
     const MutableSpan<float3> all_laplacian_disp)
 {
   const SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
   const float beta = brush.surface_smooth_current_vertex;
-  MutableSpan<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
+  MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
 
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -184,7 +186,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     LocalData &tls = all_tls.local();
-    const Span<int> grids = bke::pbvh::node_grid_indices(nodes[i]);
+    const Span<int> grids = nodes[i].grids();
     const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
 
     const MutableSpan<float> factors = all_factors.as_mutable_span().slice(node_offsets[pos]);
@@ -213,7 +215,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
   for ([[maybe_unused]] const int iteration : IndexRange(brush.surface_smooth_iterations)) {
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      const Span<int> grids = bke::pbvh::node_grid_indices(nodes[i]);
+      const Span<int> grids = nodes[i].grids();
       const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
       const OrigPositionData orig_data = orig_position_data_get_grids(object, nodes[i]);
       const Span<float> factors = all_factors.as_span().slice(node_offsets[pos]);
@@ -238,7 +240,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
 
     node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
       LocalData &tls = all_tls.local();
-      const Span<int> grids = bke::pbvh::node_grid_indices(nodes[i]);
+      const Span<int> grids = nodes[i].grids();
       const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
       const Span<float> factors = all_factors.as_span().slice(node_offsets[pos]);
 
@@ -271,10 +273,11 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
     const MutableSpan<float3> all_laplacian_disp)
 {
   const SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
   const float beta = brush.surface_smooth_current_vertex;
-  MutableSpan<bke::pbvh::BMeshNode> nodes = ss.pbvh->nodes<bke::pbvh::BMeshNode>();
+  MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
   Array<int> node_offset_data;
   const OffsetIndices node_offsets = create_node_vert_offsets_bmesh(
@@ -332,7 +335,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
           positions, orig_positions, average_positions, alpha, laplacian_disp, translations);
       scale_translations(translations, factors);
 
-      scatter_data_vert_bmesh(laplacian_disp.as_span(), verts, all_laplacian_disp);
+      scatter_data_bmesh(laplacian_disp.as_span(), verts, all_laplacian_disp);
 
       clip_and_lock_translations(sd, ss, positions, translations);
       apply_translations(translations, verts);
@@ -344,7 +347,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
       const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
       const Span<float> factors = all_factors.as_span().slice(node_offsets[pos]);
 
-      const MutableSpan<float3> laplacian_disp = gather_data_vert_bmesh(
+      const MutableSpan<float3> laplacian_disp = gather_data_bmesh(
           all_laplacian_disp.as_span(), verts, tls.laplacian_disp);
 
       tls.average_positions.resize(positions.size());
@@ -373,7 +376,7 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
   SculptSession &ss = *object.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  switch (ss.pbvh->type()) {
+  switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
       do_surface_smooth_brush_mesh(
           depsgraph, sd, brush, node_mask, object, ss.cache->surface_smooth_laplacian_disp);

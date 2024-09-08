@@ -140,11 +140,24 @@ struct MeshNode : public Node {
   LocalVertMap vert_indices_;
   /** The number of vertices in #vert_indices not shared with (owned by) another node. */
   int unique_verts_num_ = 0;
+
+  /** Return the faces contained by the node. */
+  Span<int> faces() const;
+  /** Return the "unique" vertices owned by the node, excluding vertices owned by other nodes. */
+  Span<int> verts() const;
+  /**
+   * Return all vertices used by faces in this node. The same as #verts(), with the shared
+   * vertices added at the end of the array.
+   */
+  Span<int> all_verts() const;
 };
 
 struct GridsNode : public Node {
   /** Multires grid indices for this node. Refers to a subset of Tree::prim_indices_. */
   Span<int> prim_indices_;
+
+  /** Return grid indices contained by the node. */
+  Span<int> grids() const;
 };
 
 struct BMeshNode : public Node {
@@ -215,7 +228,7 @@ BLI_INLINE PBVHVertRef BKE_pbvh_make_vref(intptr_t i)
   return ret;
 }
 
-BLI_INLINE int BKE_pbvh_vertex_to_index(blender::bke::pbvh::Tree &pbvh, PBVHVertRef v)
+BLI_INLINE int BKE_pbvh_vertex_to_index(const blender::bke::pbvh::Tree &pbvh, PBVHVertRef v)
 {
   return (pbvh.type() == blender::bke::pbvh::Type::BMesh && v.i != PBVH_REF_NONE ?
               BM_elem_index_get((BMVert *)(v.i)) :
@@ -236,7 +249,6 @@ std::unique_ptr<Tree> build_grids(const Mesh &base_mesh, const SubdivCCG &subdiv
 std::unique_ptr<Tree> build_bmesh(BMesh *bm);
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user);
-void free(std::unique_ptr<Tree> &pbvh);
 
 /* Ray-cast
  * the hit callback is called for all leaf nodes intersecting the ray;
@@ -384,12 +396,6 @@ namespace blender::bke::pbvh {
 
 void remove_node_draw_tags(bke::pbvh::Tree &pbvh, const IndexMask &node_mask);
 
-Span<int> node_grid_indices(const GridsNode &node);
-
-Span<int> node_faces(const MeshNode &node);
-Span<int> node_verts(const MeshNode &node);
-Span<int> node_unique_verts(const MeshNode &node);
-
 /**
  * Gather the indices of all base mesh faces in the node.
  * For convenience, pass a reference to the data in the result.
@@ -463,7 +469,7 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh);
 
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(blender::bke::pbvh::Tree &pbvh);
+blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(const blender::bke::pbvh::Tree &pbvh);
 namespace blender::bke::pbvh {
 IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
                                         Span<GridsNode> nodes,
@@ -534,5 +540,23 @@ void node_update_visibility_bmesh(BMeshNode &node);
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
 void update_node_bounds_grids(const CCGKey &key, Span<CCGElem *> grids, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
+
+inline Span<int> MeshNode::faces() const
+{
+  return this->face_indices_;
+}
+inline Span<int> MeshNode::verts() const
+{
+  return this->vert_indices_.as_span().slice(0, this->unique_verts_num_);
+}
+inline Span<int> MeshNode::all_verts() const
+{
+  return this->vert_indices_;
+}
+
+inline Span<int> GridsNode::grids() const
+{
+  return this->prim_indices_;
+}
 
 }  // namespace blender::bke::pbvh

@@ -809,6 +809,14 @@ TEST_F(ActionLayersTest, conversion_to_layered)
   ASSERT_EQ(bag->fcurve_array_num, 2);
   ASSERT_EQ(bag->fcurve_array[0]->totvert, 2);
 
+  ASSERT_EQ(BLI_listbase_count(&action->groups), 1);
+  ASSERT_EQ(BLI_listbase_count(&converted->groups), 0);
+
+  ASSERT_EQ(bag->channel_groups().size(), 1);
+  bActionGroup *group = bag->channel_group(0);
+  ASSERT_EQ(group->fcurve_range_length, 2);
+  ASSERT_STREQ(group->name, "Test");
+
   ASSERT_TRUE(bag->fcurve_array[0]->modifiers.first == nullptr);
   ASSERT_TRUE(bag->fcurve_array[1]->modifiers.first != nullptr);
 
@@ -820,6 +828,51 @@ TEST_F(ActionLayersTest, conversion_to_layered)
    * "_layered". */
   EXPECT_STREQ(converted->id.name,
                "ACname_for_an_action_that_is_exactly_64_chars_which_is_MA_layered");
+}
+
+TEST_F(ActionLayersTest, conversion_to_layered_action_groups)
+{
+  EXPECT_TRUE(action->is_empty());
+  action_fcurve_ensure(bmain, action, "Test", nullptr, {"location", 0});
+  action_fcurve_ensure(bmain, action, "Test", nullptr, {"rotation_euler", 1});
+  action_fcurve_ensure(bmain, action, "Test_Two", nullptr, {"scale", 1});
+  action_fcurve_ensure(bmain, action, "Test_Three", nullptr, {"show_name", 1});
+  action_fcurve_ensure(bmain, action, "Test_Rename", nullptr, {"show_axis", 1});
+
+  bActionGroup *rename_group = static_cast<bActionGroup *>(BLI_findlink(&action->groups, 3));
+  ASSERT_NE(rename_group, nullptr);
+  ASSERT_STREQ(rename_group->name, "Test_Rename");
+  /* Forcing a duplicate name which was allowed by legacy actions. */
+  strcpy(rename_group->name, "Test");
+
+  Action *converted = convert_to_layered_action(*bmain, *action);
+  Strip *strip = converted->layer(0)->strip(0);
+  KeyframeStrip key_strip = strip->as<KeyframeStrip>();
+  ChannelBag *bag = key_strip.channelbag(0);
+
+  ASSERT_EQ(BLI_listbase_count(&converted->groups), 0);
+  ASSERT_EQ(bag->channel_groups().size(), 4);
+
+  bActionGroup *test_group = bag->channel_group(0);
+  EXPECT_STREQ(test_group->name, "Test");
+  EXPECT_EQ(test_group->fcurve_range_length, 2);
+
+  bActionGroup *test_two_group = bag->channel_group(1);
+  EXPECT_STREQ(test_two_group->name, "Test_Two");
+  EXPECT_EQ(test_two_group->fcurve_range_length, 1);
+  EXPECT_STREQ(bag->fcurve_array[test_two_group->fcurve_range_start]->rna_path, "scale");
+
+  bActionGroup *test_three_group = bag->channel_group(2);
+  EXPECT_STREQ(test_three_group->name, "Test_Three");
+  EXPECT_EQ(test_three_group->fcurve_range_length, 1);
+  EXPECT_STREQ(bag->fcurve_array[test_three_group->fcurve_range_start]->rna_path, "show_name");
+
+  bActionGroup *test_rename_group = bag->channel_group(3);
+  EXPECT_STREQ(test_rename_group->name, "Test.001");
+  EXPECT_EQ(test_rename_group->fcurve_range_length, 1);
+  EXPECT_STREQ(bag->fcurve_array[test_rename_group->fcurve_range_start]->rna_path, "show_axis");
+
+  ASSERT_NE(converted, action);
 }
 
 TEST_F(ActionLayersTest, empty_to_layered)
@@ -851,6 +904,85 @@ class ChannelBagTest : public testing::Test {
     delete channel_bag;
   }
 };
+
+TEST_F(ChannelBagTest, fcurve_move)
+{
+  FCurve *fcu0 = &channel_bag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
+  FCurve *fcu1 = &channel_bag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
+  FCurve *fcu2 = &channel_bag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
+  FCurve *fcu3 = &channel_bag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group1"});
+  FCurve *fcu4 = &channel_bag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+
+  ASSERT_EQ(5, channel_bag->fcurves().size());
+  ASSERT_EQ(2, channel_bag->channel_groups().size());
+
+  bActionGroup *group0 = channel_bag->channel_group(0);
+  bActionGroup *group1 = channel_bag->channel_group(1);
+
+  /* Moving an fcurve to where it already is should be fine. */
+  channel_bag->fcurve_move(*fcu0, 0);
+  EXPECT_EQ(fcu0, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(group0, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(group1, fcu3->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+
+  /* Move to first. */
+  channel_bag->fcurve_move(*fcu4, 0);
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(2, group0->fcurve_range_length);
+  EXPECT_EQ(2, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(fcu4, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu4->grp);
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(group1, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(nullptr, fcu3->grp);
+
+  /* Move to last. */
+  channel_bag->fcurve_move(*fcu1, 4);
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(2, group0->fcurve_range_length);
+  EXPECT_EQ(2, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(fcu4, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu4->grp);
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(group1, fcu3->grp);
+  EXPECT_EQ(nullptr, fcu1->grp);
+
+  /* Move to middle. */
+  channel_bag->fcurve_move(*fcu4, 2);
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(2, group0->fcurve_range_length);
+  EXPECT_EQ(2, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(fcu0, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(group0, fcu2->grp);
+  EXPECT_EQ(group1, fcu4->grp);
+  EXPECT_EQ(group1, fcu3->grp);
+  EXPECT_EQ(nullptr, fcu1->grp);
+}
 
 TEST_F(ChannelBagTest, channel_group_create)
 {
@@ -1169,6 +1301,236 @@ TEST_F(ChannelBagTest, channel_group_fcurve_removal)
   channel_bag->fcurve_remove(*fcu2);
   ASSERT_EQ(0, channel_bag->fcurves().size());
   ASSERT_EQ(0, channel_bag->channel_groups().size());
+}
+
+TEST_F(ChannelBagTest, channel_group_move)
+{
+  FCurve *fcu0 = &channel_bag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
+  FCurve *fcu1 = &channel_bag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group1"});
+  FCurve *fcu2 = &channel_bag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
+  FCurve *fcu3 = &channel_bag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group2"});
+  FCurve *fcu4 = &channel_bag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+
+  ASSERT_EQ(5, channel_bag->fcurves().size());
+  ASSERT_EQ(3, channel_bag->channel_groups().size());
+
+  bActionGroup *group0 = channel_bag->channel_group(0);
+  bActionGroup *group1 = channel_bag->channel_group(1);
+  bActionGroup *group2 = channel_bag->channel_group(2);
+
+  channel_bag->channel_group_move(*group0, 2);
+  EXPECT_EQ(group1, channel_bag->channel_group(0));
+  EXPECT_EQ(group2, channel_bag->channel_group(1));
+  EXPECT_EQ(group0, channel_bag->channel_group(2));
+  EXPECT_EQ(0, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(2, group2->fcurve_range_start);
+  EXPECT_EQ(1, group2->fcurve_range_length);
+  EXPECT_EQ(3, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(fcu1, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(4));
+  EXPECT_EQ(group1, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(group2, fcu3->grp);
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+
+  channel_bag->channel_group_move(*group1, 1);
+  EXPECT_EQ(group2, channel_bag->channel_group(0));
+  EXPECT_EQ(group1, channel_bag->channel_group(1));
+  EXPECT_EQ(group0, channel_bag->channel_group(2));
+  EXPECT_EQ(0, group2->fcurve_range_start);
+  EXPECT_EQ(1, group2->fcurve_range_length);
+  EXPECT_EQ(1, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(3, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(fcu3, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(4));
+  EXPECT_EQ(group2, fcu3->grp);
+  EXPECT_EQ(group1, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+
+  channel_bag->channel_group_move(*group0, 0);
+  EXPECT_EQ(group0, channel_bag->channel_group(0));
+  EXPECT_EQ(group2, channel_bag->channel_group(1));
+  EXPECT_EQ(group1, channel_bag->channel_group(2));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(1, group2->fcurve_range_start);
+  EXPECT_EQ(1, group2->fcurve_range_length);
+  EXPECT_EQ(2, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(fcu0, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu0->grp);
+  EXPECT_EQ(group2, fcu3->grp);
+  EXPECT_EQ(group1, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+}
+
+TEST_F(ChannelBagTest, channel_group_move_fcurve_into)
+{
+  FCurve *fcu0 = &channel_bag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, std::nullopt});
+  FCurve *fcu1 = &channel_bag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, std::nullopt});
+  FCurve *fcu2 = &channel_bag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, std::nullopt});
+  bActionGroup *group0 = &channel_bag->channel_group_create("group0");
+  bActionGroup *group1 = &channel_bag->channel_group_create("group1");
+
+  ASSERT_EQ(3, channel_bag->fcurves().size());
+  EXPECT_EQ(fcu0, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(2));
+  ASSERT_EQ(2, channel_bag->channel_groups().size());
+  EXPECT_EQ(group0, channel_bag->channel_group(0));
+  EXPECT_EQ(group1, channel_bag->channel_group(1));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(0, group0->fcurve_range_length);
+  EXPECT_EQ(0, group1->fcurve_range_start);
+  EXPECT_EQ(0, group1->fcurve_range_length);
+
+  channel_bag->fcurve_assign_to_channel_group(*fcu2, *group1);
+  EXPECT_EQ(fcu2, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(2));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(0, group0->fcurve_range_length);
+  EXPECT_EQ(0, group1->fcurve_range_start);
+  EXPECT_EQ(1, group1->fcurve_range_length);
+
+  channel_bag->fcurve_assign_to_channel_group(*fcu1, *group0);
+  EXPECT_EQ(fcu1, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(2));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(1, group1->fcurve_range_start);
+  EXPECT_EQ(1, group1->fcurve_range_length);
+
+  channel_bag->fcurve_assign_to_channel_group(*fcu0, *group1);
+  EXPECT_EQ(fcu1, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(2));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(1, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+
+  channel_bag->fcurve_assign_to_channel_group(*fcu0, *group0);
+  EXPECT_EQ(fcu1, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(2));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(2, group0->fcurve_range_length);
+  EXPECT_EQ(2, group1->fcurve_range_start);
+  EXPECT_EQ(1, group1->fcurve_range_length);
+
+  channel_bag->fcurve_assign_to_channel_group(*fcu1, *group1);
+  EXPECT_EQ(fcu0, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(2));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(1, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+}
+
+TEST_F(ChannelBagTest, channel_group_fcurve_ungroup)
+{
+  FCurve *fcu0 = &channel_bag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
+  FCurve *fcu1 = &channel_bag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
+  FCurve *fcu2 = &channel_bag->fcurve_ensure(nullptr, {"fcu2", 0, std::nullopt, "group1"});
+  FCurve *fcu3 = &channel_bag->fcurve_ensure(nullptr, {"fcu3", 0, std::nullopt, "group1"});
+  FCurve *fcu4 = &channel_bag->fcurve_ensure(nullptr, {"fcu4", 0, std::nullopt, std::nullopt});
+
+  ASSERT_EQ(5, channel_bag->fcurves().size());
+  ASSERT_EQ(2, channel_bag->channel_groups().size());
+
+  bActionGroup *group0 = channel_bag->channel_group(0);
+  bActionGroup *group1 = channel_bag->channel_group(1);
+
+  /* Attempting to ungroup an fcurve that's not in the channel bag should fail. */
+  FCurve bogus = {};
+  EXPECT_FALSE(channel_bag->fcurve_ungroup(bogus));
+
+  /* Attempting to ungroup an fcurve that's already ungrouped is fine. */
+  EXPECT_TRUE(channel_bag->fcurve_ungroup(*fcu4));
+
+  /* Ungroup each fcurve until all are ungrouped. */
+
+  EXPECT_TRUE(channel_bag->fcurve_ungroup(*fcu0));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(1, group1->fcurve_range_start);
+  EXPECT_EQ(2, group1->fcurve_range_length);
+  EXPECT_EQ(fcu1, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(group1, fcu3->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+  EXPECT_EQ(nullptr, fcu0->grp);
+
+  EXPECT_TRUE(channel_bag->fcurve_ungroup(*fcu3));
+  EXPECT_EQ(0, group0->fcurve_range_start);
+  EXPECT_EQ(1, group0->fcurve_range_length);
+  EXPECT_EQ(1, group1->fcurve_range_start);
+  EXPECT_EQ(1, group1->fcurve_range_length);
+  EXPECT_EQ(fcu1, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(4));
+  EXPECT_EQ(group0, fcu1->grp);
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+  EXPECT_EQ(nullptr, fcu0->grp);
+  EXPECT_EQ(nullptr, fcu3->grp);
+
+  EXPECT_TRUE(channel_bag->fcurve_ungroup(*fcu1));
+  EXPECT_EQ(1, channel_bag->channel_groups().size());
+  EXPECT_EQ(group1, channel_bag->channel_group(0));
+  EXPECT_EQ(0, group1->fcurve_range_start);
+  EXPECT_EQ(1, group1->fcurve_range_length);
+  EXPECT_EQ(fcu2, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu4, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(4));
+  EXPECT_EQ(group1, fcu2->grp);
+  EXPECT_EQ(nullptr, fcu4->grp);
+  EXPECT_EQ(nullptr, fcu0->grp);
+  EXPECT_EQ(nullptr, fcu3->grp);
+  EXPECT_EQ(nullptr, fcu1->grp);
+
+  EXPECT_TRUE(channel_bag->fcurve_ungroup(*fcu2));
+  EXPECT_EQ(0, channel_bag->channel_groups().size());
+  EXPECT_EQ(fcu4, channel_bag->fcurve(0));
+  EXPECT_EQ(fcu0, channel_bag->fcurve(1));
+  EXPECT_EQ(fcu3, channel_bag->fcurve(2));
+  EXPECT_EQ(fcu1, channel_bag->fcurve(3));
+  EXPECT_EQ(fcu2, channel_bag->fcurve(4));
+  EXPECT_EQ(nullptr, fcu4->grp);
+  EXPECT_EQ(nullptr, fcu0->grp);
+  EXPECT_EQ(nullptr, fcu3->grp);
+  EXPECT_EQ(nullptr, fcu1->grp);
+  EXPECT_EQ(nullptr, fcu2->grp);
 }
 
 }  // namespace blender::animrig::tests

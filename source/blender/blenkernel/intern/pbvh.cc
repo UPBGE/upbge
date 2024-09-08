@@ -436,7 +436,7 @@ std::unique_ptr<Tree> build_mesh(const Mesh &mesh)
   if (!hide_vert.is_empty()) {
     threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
       for (const int i : range) {
-        const Span<int> verts = node_verts(nodes[i]);
+        const Span<int> verts = nodes[i].all_verts();
         if (std::all_of(verts.begin(), verts.end(), [&](const int i) { return hide_vert[i]; })) {
           nodes[i].flag_ |= PBVH_FullyHidden;
         }
@@ -549,6 +549,9 @@ static void build_nodes_recursive_grids(const Span<int> grid_to_face_map,
 
 std::unique_ptr<Tree> build_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
 {
+#ifdef DEBUG_BUILD_TIME
+  SCOPED_TIMER_AVERAGED(__func__);
+#endif
   std::unique_ptr<Tree> pbvh = std::make_unique<Tree>(Type::Grids);
 
   /* Find maximum number of grids per face. */
@@ -600,18 +603,23 @@ std::unique_ptr<Tree> build_grids(const Mesh &base_mesh, const SubdivCCG &subdiv
 
   Vector<GridsNode> &nodes = std::get<Vector<GridsNode>>(pbvh->nodes_);
   nodes.resize(1);
-  build_nodes_recursive_grids(subdiv_ccg.grid_to_face_map,
-                              material_index,
-                              leaf_limit,
-                              0,
-                              bounds,
-                              prim_bounds,
-                              0,
-                              elems.size(),
-                              Array<int>(pbvh->prim_indices_.size()),
-                              0,
-                              pbvh->prim_indices_,
-                              nodes);
+  {
+#ifdef DEBUG_BUILD_TIME
+    SCOPED_TIMER_AVERAGED("build_nodes_recursive_grids");
+#endif
+    build_nodes_recursive_grids(subdiv_ccg.grid_to_face_map,
+                                material_index,
+                                leaf_limit,
+                                0,
+                                bounds,
+                                prim_bounds,
+                                0,
+                                elems.size(),
+                                Array<int>(pbvh->prim_indices_.size()),
+                                0,
+                                pbvh->prim_indices_,
+                                nodes);
+  }
 
   update_bounds_grids(key, elems, *pbvh);
   store_bounds_orig(*pbvh);
@@ -620,7 +628,7 @@ std::unique_ptr<Tree> build_grids(const Mesh &base_mesh, const SubdivCCG &subdiv
   if (!grid_hidden.is_empty()) {
     threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
       for (const int i : range) {
-        const Span<int> grids = node_grid_indices(nodes[i]);
+        const Span<int> grids = nodes[i].grids();
         if (std::all_of(grids.begin(), grids.end(), [&](const int i) {
               return !bits::any_bit_unset(grid_hidden[i]);
             }))
@@ -703,11 +711,6 @@ static Node &first_node(Tree &pbvh)
 {
   BLI_assert(!tree_is_empty(pbvh));
   return std::visit([](auto &nodes) -> Node & { return nodes.first(); }, pbvh.nodes_);
-}
-
-void free(std::unique_ptr<Tree> &pbvh)
-{
-  pbvh.reset();
 }
 
 struct StackItem {
@@ -935,7 +938,7 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
@@ -966,7 +969,7 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
@@ -1022,7 +1025,7 @@ static void calc_node_face_normals(const Span<float3> positions,
                                    MutableSpan<float3> face_normals)
 {
   nodes_to_update.foreach_index(GrainSize(1), [&](const int i) {
-    normals_calc_faces(positions, faces, corner_verts, node_faces(nodes[i]), face_normals);
+    normals_calc_faces(positions, faces, corner_verts, nodes[i].faces(), face_normals);
   });
 }
 
@@ -1057,8 +1060,7 @@ static void calc_node_vert_normals(const GroupedSpan<int> vert_to_face_map,
                                    MutableSpan<float3> vert_normals)
 {
   nodes_to_update.foreach_index(GrainSize(1), [&](const int i) {
-    normals_calc_verts_simple(
-        vert_to_face_map, face_normals, node_unique_verts(nodes[i]), vert_normals);
+    normals_calc_verts_simple(vert_to_face_map, face_normals, nodes[i].verts(), vert_normals);
   });
 }
 
@@ -1190,7 +1192,7 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh)
 void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
 {
   Bounds<float3> bounds = negative_bounds();
-  for (const int vert : node_verts(node)) {
+  for (const int vert : node.all_verts()) {
     math::min_max(positions[vert], bounds.min, bounds.max);
   }
   node.bounds_ = bounds;
@@ -1199,7 +1201,7 @@ void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
 void update_node_bounds_grids(const CCGKey &key, const Span<CCGElem *> grids, GridsNode &node)
 {
   Bounds<float3> bounds = negative_bounds();
-  for (const int grid : node_grid_indices(node)) {
+  for (const int grid : node.grids()) {
     for (const int i : IndexRange(key.grid_area)) {
       math::min_max(CCG_elem_offset_co(key, grids[grid], i), bounds.min, bounds.max);
     }
@@ -1334,7 +1336,7 @@ void store_bounds_orig(Tree &pbvh)
 
 void node_update_mask_mesh(const Span<float> mask, MeshNode &node)
 {
-  const Span<int> verts = node_verts(node);
+  const Span<int> verts = node.all_verts();
   const bool fully_masked = std::all_of(
       verts.begin(), verts.end(), [&](const int vert) { return mask[vert] == 1.0f; });
   const bool fully_unmasked = std::all_of(
@@ -1368,7 +1370,7 @@ void node_update_mask_grids(const CCGKey &key, const Span<CCGElem *> grids, Grid
   BLI_assert(key.has_mask);
   bool fully_masked = true;
   bool fully_unmasked = true;
-  for (const int grid : node_grid_indices(node)) {
+  for (const int grid : node.grids()) {
     CCGElem *elem = grids[grid];
     for (const int i : IndexRange(key.grid_area)) {
       const float mask = CCG_elem_offset_mask(key, elem, i);
@@ -1465,7 +1467,7 @@ void update_mask(const Object &object, Tree &pbvh)
 void node_update_visibility_mesh(const Span<bool> hide_vert, MeshNode &node)
 {
   BLI_assert(!hide_vert.is_empty());
-  const Span<int> verts = node_verts(node);
+  const Span<int> verts = node.all_verts();
   const bool fully_hidden = std::all_of(
       verts.begin(), verts.end(), [&](const int vert) { return hide_vert[vert]; });
   SET_FLAG_FROM_TEST(node.flag_, fully_hidden, PBVH_FullyHidden);
@@ -1599,7 +1601,7 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(blender::bke::pbvh::Tree &pbvh)
+blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(const blender::bke::pbvh::Tree &pbvh)
 {
   using namespace blender;
   using namespace blender::bke::pbvh;
@@ -1609,7 +1611,7 @@ blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(blender::bke::pbvh::Tree &pb
   Bounds<float3> bounds = negative_bounds();
 
   PBVHIter iter;
-  pbvh_iter_begin(&iter, pbvh, {});
+  pbvh_iter_begin(&iter, const_cast<blender::bke::pbvh::Tree &>(pbvh), {});
   Node *node;
   while ((node = pbvh_iter_next(&iter, PBVH_Leaf))) {
     if (node->flag_ & PBVH_UpdateRedraw) {
@@ -1633,7 +1635,7 @@ IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
    * overhead regardless of selection size, but that is small. */
   Array<bool> faces_to_update(subdiv_ccg.faces.size(), false);
   nodes_mask.foreach_index(GrainSize(1), [&](const int i) {
-    for (const int grid : node_grid_indices(nodes[i])) {
+    for (const int grid : nodes[i].grids()) {
       faces_to_update[grid_to_face_map[grid]] = true;
     }
   });
@@ -1657,7 +1659,7 @@ Bounds<float3> bounds_get(const Tree &pbvh)
 int BKE_pbvh_get_grid_num_verts(const Object &object)
 {
   const SculptSession &ss = *object.sculpt;
-  BLI_assert(ss.pbvh->type() == blender::bke::pbvh::Type::Grids);
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids.size() * key.grid_area;
 }
@@ -1665,7 +1667,7 @@ int BKE_pbvh_get_grid_num_verts(const Object &object)
 int BKE_pbvh_get_grid_num_faces(const Object &object)
 {
   const SculptSession &ss = *object.sculpt;
-  BLI_assert(ss.pbvh->type() == blender::bke::pbvh::Type::Grids);
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids.size() * square_i(key.grid_size - 1);
 }
@@ -1807,16 +1809,6 @@ void remove_node_draw_tags(bke::pbvh::Tree &pbvh, const IndexMask &node_mask)
   }
 }
 
-Span<int> node_verts(const MeshNode &node)
-{
-  return node.vert_indices_;
-}
-
-Span<int> node_unique_verts(const MeshNode &node)
-{
-  return node.vert_indices_.as_span().take_front(node.unique_verts_num_);
-}
-
 Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
                                        const GridsNode &node,
                                        Vector<int> &faces)
@@ -1824,7 +1816,7 @@ Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
   faces.clear();
   const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
   int prev_face = -1;
-  for (const int grid : node_grid_indices(node)) {
+  for (const int grid : node.grids()) {
     const int face = grid_to_face_map[grid];
     if (face != prev_face) {
       faces.append(face);
@@ -1832,16 +1824,6 @@ Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
     }
   }
   return faces.as_span();
-}
-
-Span<int> node_faces(const MeshNode &node)
-{
-  return node.face_indices_;
-}
-
-Span<int> node_grid_indices(const GridsNode &node)
-{
-  return node.prim_indices_;
 }
 
 }  // namespace blender::bke::pbvh
@@ -2071,7 +2053,7 @@ static bool pbvh_faces_node_raycast(const MeshNode &node,
                                     int *r_active_face_index,
                                     float *r_face_normal)
 {
-  const Span<int> face_indices = node_faces(node);
+  const Span<int> face_indices = node.faces();
 
   bool hit = false;
   if (node_positions.is_empty()) {
@@ -2192,7 +2174,7 @@ static bool pbvh_grids_node_raycast(const SubdivCCG &subdiv_ccg,
                                     float *r_face_normal)
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<int> grids = node_grid_indices(node);
+  const Span<int> grids = node.grids();
   const int grid_size = key.grid_size;
   bool hit = false;
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
@@ -2473,7 +2455,7 @@ static bool pbvh_faces_node_nearest_to_ray(const MeshNode &node,
                                            float *depth,
                                            float *dist_sq)
 {
-  const Span<int> face_indices = node_faces(node);
+  const Span<int> face_indices = node.faces();
 
   bool hit = false;
   if (node_positions.is_empty()) {
@@ -2528,7 +2510,7 @@ static bool pbvh_grids_node_nearest_to_ray(const SubdivCCG &subdiv_ccg,
                                            float *dist_sq)
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<int> grids = node_grid_indices(node);
+  const Span<int> grids = node.grids();
   const int grid_size = key.grid_size;
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
   const Span<CCGElem *> elems = subdiv_ccg.grids;
@@ -2751,7 +2733,7 @@ static Span<float3> vert_positions_eval(const Object &object_orig, const Object 
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
@@ -2774,7 +2756,7 @@ static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Ob
 {
   SculptSession &ss = *object_orig.sculpt;
   Mesh &mesh_orig = *static_cast<Mesh *>(object_orig.data);
-  BLI_assert(object_orig.sculpt->pbvh->type() == Type::Mesh);
+  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
@@ -2849,7 +2831,7 @@ void BKE_pbvh_sync_visibility_from_verts(Object &object)
   using namespace blender;
   using namespace blender::bke;
   const SculptSession &ss = *object.sculpt;
-  switch (ss.pbvh->type()) {
+  switch (object::pbvh_get(object)->type()) {
     case blender::bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
       mesh_hide_vert_flush(mesh);
@@ -2998,7 +2980,7 @@ IndexMask node_draw_update_mask(const Tree &pbvh,
 PBVHVertRef BKE_pbvh_index_to_vertex(const Object &object, int index)
 {
   const SculptSession &ss = *object.sculpt;
-  const blender::bke::pbvh::Tree &pbvh = *ss.pbvh;
+  const blender::bke::pbvh::Tree &pbvh = *blender::bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case blender::bke::pbvh::Type::Mesh:
     case blender::bke::pbvh::Type::Grids:

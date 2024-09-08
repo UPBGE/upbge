@@ -627,7 +627,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
 void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
-void BKE_sculptsession_free_pbvh(SculptSession *ss);
+void BKE_sculptsession_free_pbvh(Object &object);
 void BKE_sculptsession_bm_to_me(Object *ob, bool reorder);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
 int BKE_sculptsession_vertex_count(const SculptSession *ss);
@@ -701,8 +701,17 @@ void BKE_sculpt_sync_face_visibility_to_grids(const Mesh &mesh, SubdivCCG &subdi
  */
 bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d);
 
-/** C accessor for #Object::sculpt::pbvh. */
-blender::bke::pbvh::Tree *BKE_object_sculpt_pbvh_get(Object *object);
+namespace blender::bke::object {
+
+/**
+ * Access the acceleration structure for raycasting, nearest queries, and spatially contiguous mesh
+ * updates and drawing. The BVH tree is used by sculpt, vertex paint, and weight paint object
+ * modes. This just accesses the BVH, to ensure it's built, use #BKE_sculpt_object_pbvh_ensure.
+ */
+pbvh::Tree *pbvh_get(Object &object);
+const pbvh::Tree *pbvh_get(const Object &object);
+
+}  // namespace blender::bke::object
 bool BKE_object_sculpt_use_dyntopo(const Object *object);
 
 /* paint_canvas.cc */

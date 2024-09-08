@@ -304,15 +304,21 @@ struct bAnimListElem {
   Main *bmain;
 
   /**
-   * For list element which corresponds to a f-curve, this is an ID which
-   * owns the f-curve.
+   * For list elements that correspond to an f-curve, a channel group, or an
+   * action slot, this is the ID which owns that data.
    *
-   * For example, if the f-curve is coming from Action, this id will be set to
-   * action's ID. But if this is a f-curve which is a driver, then the owner
-   * is set to, for example, object.
+   * For channel groups and action slots, that will always be an Action. For
+   * f-curves it's more complicated, because f-curves are sometimes owned by
+   * other ID types (e.g. driver f-curves are owned by objects, materials,
+   * etc.), so you have to be careful.
    *
    * NOTE: this is different from id above. The id above will be set to
    * an object if the f-curve is coming from action associated with that object.
+   *
+   * TODO: the responsibilities for this are getting overloaded, which makes it
+   * difficult to use confidently, and also makes its name misleading. Split off
+   * a separate `bAction` pointer that is simply null when the data isn't owned
+   * by an action.
    */
   ID *fcurve_owner_id;
 
@@ -446,8 +452,8 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
    (((ac) && ((ac)->spacetype == SPACE_GRAPH)) && ((agrp)->flag & AGRP_EXPANDED_G)))
 #define SEL_AGRP(agrp) (((agrp)->flag & AGRP_SELECTED) || ((agrp)->flag & AGRP_ACTIVE))
 /** F-Curve Channels. */
-#define EDITABLE_FCU(fcu) ((fcu->flag & FCURVE_PROTECTED) == 0)
-#define SEL_FCU(fcu) (fcu->flag & FCURVE_SELECTED)
+#define EDITABLE_FCU(fcu) (((fcu)->flag & FCURVE_PROTECTED) == 0)
+#define SEL_FCU(fcu) ((fcu)->flag & FCURVE_SELECTED)
 
 /* ShapeKey mode only */
 #define EDITABLE_SHAPEKEY(kb) ((kb->flag & KEYBLOCK_LOCKED) == 0)

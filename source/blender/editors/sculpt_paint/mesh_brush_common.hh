@@ -82,6 +82,52 @@ void translations_from_new_positions(Span<float3> new_positions,
 void transform_positions(Span<float3> src, const float4x4 &transform, MutableSpan<float3> dst);
 void transform_positions(const float4x4 &transform, MutableSpan<float3> positions);
 
+/** Gather data from an array aligned with all geometry vertices. */
+template<typename T> void gather_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
+template<typename T>
+MutableSpan<T> gather_data_mesh(const Span<T> src, const Span<int> indices, Vector<T> &dst)
+{
+  dst.resize(indices.size());
+  gather_data_mesh(src, indices, dst.as_mutable_span());
+  return dst;
+}
+template<typename T>
+void gather_data_grids(const SubdivCCG &subdiv_ccg,
+                       Span<T> src,
+                       Span<int> grids,
+                       MutableSpan<T> node_data);
+template<typename T>
+MutableSpan<T> gather_data_grids(const SubdivCCG &subdiv_ccg,
+                                 const Span<T> src,
+                                 const Span<int> grids,
+                                 Vector<T> &dst)
+{
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  dst.resize(grids.size() * key.grid_area);
+  gather_data_grids(subdiv_ccg, src, grids, dst.as_mutable_span());
+  return dst;
+}
+
+template<typename T>
+void gather_data_bmesh(Span<T> src, const Set<BMVert *, 0> &verts, MutableSpan<T> node_data);
+template<typename T>
+MutableSpan<T> gather_data_bmesh(const Span<T> src, const Set<BMVert *, 0> &verts, Vector<T> &dst)
+{
+  dst.resize(verts.size());
+  gather_data_bmesh(src, verts, dst.as_mutable_span());
+  return dst;
+}
+
+/** Scatter data from an array of the node's data to the referenced geometry vertices. */
+template<typename T> void scatter_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
+template<typename T>
+void scatter_data_grids(const SubdivCCG &subdiv_ccg,
+                        Span<T> node_data,
+                        Span<int> grids,
+                        MutableSpan<T> dst);
+template<typename T>
+void scatter_data_bmesh(Span<T> node_data, const Set<BMVert *, 0> &verts, MutableSpan<T> dst);
+
 /**
  * Note on the various positions arrays:
  * - positions_orig: Positions owned by the original mesh. Not the same as `positions_eval` if
@@ -119,54 +165,6 @@ void gather_grids_normals(const SubdivCCG &subdiv_ccg,
                           Span<int> grids,
                           MutableSpan<float3> normals);
 void gather_bmesh_normals(const Set<BMVert *, 0> &verts, MutableSpan<float3> normals);
-
-/** Gather data from an array aligned with all geometry vertices. */
-template<typename T> void gather_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
-template<typename T>
-MutableSpan<T> gather_data_mesh(const Span<T> src, const Span<int> indices, Vector<T> &dst)
-{
-  dst.resize(indices.size());
-  gather_data_mesh(src, indices, dst.as_mutable_span());
-  return dst;
-}
-template<typename T>
-void gather_data_grids(const SubdivCCG &subdiv_ccg,
-                       Span<T> src,
-                       Span<int> grids,
-                       MutableSpan<T> node_data);
-template<typename T>
-MutableSpan<T> gather_data_grids(const SubdivCCG &subdiv_ccg,
-                                 const Span<T> src,
-                                 const Span<int> grids,
-                                 Vector<T> &dst)
-{
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  dst.resize(grids.size() * key.grid_area);
-  gather_data_grids(subdiv_ccg, src, grids, dst.as_mutable_span());
-  return dst;
-}
-
-template<typename T>
-void gather_data_vert_bmesh(Span<T> src, const Set<BMVert *, 0> &verts, MutableSpan<T> node_data);
-template<typename T>
-MutableSpan<T> gather_data_vert_bmesh(const Span<T> src,
-                                      const Set<BMVert *, 0> &verts,
-                                      Vector<T> &dst)
-{
-  dst.resize(verts.size());
-  gather_data_vert_bmesh(src, verts, dst.as_mutable_span());
-  return dst;
-}
-
-/** Scatter data from an array of the node's data to the referenced geometry vertices. */
-template<typename T> void scatter_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
-template<typename T>
-void scatter_data_grids(const SubdivCCG &subdiv_ccg,
-                        Span<T> node_data,
-                        Span<int> grids,
-                        MutableSpan<T> dst);
-template<typename T>
-void scatter_data_vert_bmesh(Span<T> node_data, const Set<BMVert *, 0> &verts, MutableSpan<T> dst);
 
 /**
  * Calculate initial influence factors based on vertex visibility.

@@ -114,7 +114,8 @@ static void apply_new_mask_mesh(const Depsgraph &depsgraph,
                                 const Span<float> new_mask,
                                 MutableSpan<float> mask)
 {
-  MutableSpan<bke::pbvh::MeshNode> nodes = object.sculpt->pbvh->nodes<bke::pbvh::MeshNode>();
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   threading::EnumerableThreadSpecific<Vector<int>> all_tls;
   node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     Vector<int> &tls = all_tls.local();
@@ -138,7 +139,7 @@ static void smooth_mask_mesh(const OffsetIndices<int> faces,
                              FilterLocalData &tls,
                              MutableSpan<float> new_mask)
 {
-  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const Span<int> verts = node.verts();
 
   tls.vert_neighbors.resize(verts.size());
   const MutableSpan<Vector<int>> neighbors = tls.vert_neighbors;
@@ -156,7 +157,7 @@ static void sharpen_mask_mesh(const OffsetIndices<int> faces,
                               FilterLocalData &tls,
                               MutableSpan<float> new_mask)
 {
-  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const Span<int> verts = node.verts();
 
   tls.node_mask.resize(verts.size());
   const MutableSpan<float> node_mask = tls.node_mask;
@@ -180,7 +181,7 @@ static void grow_mask_mesh(const OffsetIndices<int> faces,
                            FilterLocalData &tls,
                            MutableSpan<float> new_mask)
 {
-  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const Span<int> verts = node.verts();
 
   tls.vert_neighbors.resize(verts.size());
   const MutableSpan<Vector<int>> neighbors = tls.vert_neighbors;
@@ -203,7 +204,7 @@ static void shrink_mask_mesh(const OffsetIndices<int> faces,
                              FilterLocalData &tls,
                              MutableSpan<float> new_mask)
 {
-  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const Span<int> verts = node.verts();
 
   tls.vert_neighbors.resize(verts.size());
   const MutableSpan<Vector<int>> neighbors = tls.vert_neighbors;
@@ -291,12 +292,13 @@ static void apply_new_mask_grids(const Depsgraph &depsgraph,
                                  const Span<float> new_mask)
 {
   SculptSession &ss = *object.sculpt;
-  MutableSpan<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
   node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
-    const Span<int> grids = bke::pbvh::node_grid_indices(nodes[i]);
+    const Span<int> grids = nodes[i].grids();
     const Span<float> new_node_mask = new_mask.slice(node_verts[pos]);
     if (mask_equals_array_grids(subdiv_ccg.grids, key, grids, new_node_mask)) {
       return;
@@ -314,8 +316,8 @@ static void smooth_mask_grids(const SubdivCCG &subdiv_ccg,
                               const bke::pbvh::GridsNode &node,
                               MutableSpan<float> new_mask)
 {
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
-  average_neighbor_mask_grids(subdiv_ccg, bke::pbvh::node_grid_indices(node), new_mask);
+  const Span<int> grids = node.grids();
+  average_neighbor_mask_grids(subdiv_ccg, node.grids(), new_mask);
   copy_old_hidden_mask_grids(subdiv_ccg, grids, new_mask);
 }
 
@@ -326,7 +328,7 @@ static void sharpen_mask_grids(const SubdivCCG &subdiv_ccg,
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const Span<int> grids = node.grids();
   const int grid_verts_num = grids.size() * key.grid_area;
 
   tls.node_mask.resize(grid_verts_num);
@@ -347,7 +349,7 @@ static void grow_mask_grids(const SubdivCCG &subdiv_ccg,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const Span<CCGElem *> elems = subdiv_ccg.grids;
 
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const Span<int> grids = node.grids();
 
   for (const int i : grids.index_range()) {
     const int grid = grids[i];
@@ -382,7 +384,7 @@ static void shrink_mask_grids(const SubdivCCG &subdiv_ccg,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const Span<CCGElem *> elems = subdiv_ccg.grids;
 
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const Span<int> grids = node.grids();
 
   for (const int i : grids.index_range()) {
     const int grid = grids[i];
@@ -419,7 +421,7 @@ static void increase_contrast_mask_grids(const Depsgraph &depsgraph,
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const Span<int> grids = node.grids();
   const int grid_verts_num = grids.size() * key.grid_area;
 
   tls.node_mask.resize(grid_verts_num);
@@ -450,7 +452,7 @@ static void decrease_contrast_mask_grids(const Depsgraph &depsgraph,
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const Span<int> grids = node.grids();
   const int grid_verts_num = grids.size() * key.grid_area;
 
   tls.node_mask.resize(grid_verts_num);
@@ -493,7 +495,8 @@ static void apply_new_mask_bmesh(const Depsgraph &depsgraph,
                                  const Span<float> new_mask)
 {
   SculptSession &ss = *object.sculpt;
-  MutableSpan<bke::pbvh::BMeshNode> nodes = ss.pbvh->nodes<bke::pbvh::BMeshNode>();
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   BMesh &bm = *ss.bm;
 
   node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
@@ -545,7 +548,6 @@ static void grow_mask_bmesh(const int mask_offset,
   Vector<BMVert *, 64> neighbors;
   int i = 0;
   for (BMVert *vert : verts) {
-    neighbors.clear();
     new_mask[i] = BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
     for (const BMVert *neighbor : vert_neighbors_get_bmesh(*vert, neighbors)) {
       new_mask[i] = std::max(BM_ELEM_CD_GET_FLOAT(neighbor, mask_offset), new_mask[i]);
@@ -565,7 +567,6 @@ static void shrink_mask_bmesh(const int mask_offset,
   Vector<BMVert *, 64> neighbors;
   int i = 0;
   for (BMVert *vert : verts) {
-    neighbors.clear();
     new_mask[i] = BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
     for (const BMVert *neighbor : vert_neighbors_get_bmesh(*vert, neighbors)) {
       new_mask[i] = std::min(BM_ELEM_CD_GET_FLOAT(neighbor, mask_offset), new_mask[i]);
@@ -655,7 +656,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
   SculptSession &ss = *ob.sculpt;
-  bke::pbvh::Tree &pbvh = *ob.sculpt->pbvh;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -674,7 +675,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
   threading::EnumerableThreadSpecific<FilterLocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      MutableSpan<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
+      MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       Mesh &mesh = *static_cast<Mesh *>(ob.data);
       const OffsetIndices<int> faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
@@ -779,7 +780,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
       break;
     }
     case bke::pbvh::Type::Grids: {
-      MutableSpan<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
+      MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
       Array<int> node_vert_offset_data;
@@ -845,7 +846,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      MutableSpan<bke::pbvh::BMeshNode> nodes = ss.pbvh->nodes<bke::pbvh::BMeshNode>();
+      MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       BMesh &bm = *ss.bm;
       BM_mesh_elem_index_ensure(&bm, BM_VERT);
       const int mask_offset = CustomData_get_offset_named(

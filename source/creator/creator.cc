@@ -357,7 +357,7 @@ int main(int argc,
         MEM_use_guarded_allocator();
         break;
       }
-      if (STR_ELEM(argv[i], "--", "--command")) {
+      if (STR_ELEM(argv[i], "--", "-c", "--command")) {
         break;
       }
     }

@@ -785,6 +785,70 @@ GPU_SHADER_CREATE_INFO(overlay_depth_only_clipped)
     .do_static_compilation(true)
     .additional_info("overlay_depth_only", "drw_clipped");
 
+GPU_SHADER_CREATE_INFO(overlay_depth_mesh)
+    .do_static_compilation(true)
+    .vertex_in(0, Type::VEC3, "pos")
+    .vertex_source("basic_depth_vert.glsl")
+    .fragment_source("overlay_depth_only_frag.glsl")
+    .additional_info("draw_globals", "draw_view", "draw_modelmat_new", "draw_resource_handle_new");
+
+GPU_SHADER_CREATE_INFO(overlay_depth_mesh_conservative)
+    .do_static_compilation(true)
+    .storage_buf(0, Qualifier::READ, "float", "pos[]", Frequency::GEOMETRY)
+    .push_constant(Type::IVEC2, "gpu_attr_0")
+    .vertex_source("overlay_depth_only_mesh_conservative_vert.glsl")
+    .fragment_source("overlay_depth_only_frag.glsl")
+    .additional_info("draw_globals",
+                     "draw_view",
+                     "draw_modelmat_new",
+                     "gpu_index_load",
+                     "draw_resource_handle_new");
+
+GPU_SHADER_INTERFACE_INFO(overlay_depth_only_gpencil_flat_iface, "gp_interp_flat")
+    .flat(Type::VEC2, "aspect")
+    .flat(Type::VEC4, "sspos");
+GPU_SHADER_INTERFACE_INFO(overlay_depth_only_gpencil_noperspective_iface,
+                          "gp_interp_noperspective")
+    .no_perspective(Type::VEC2, "thickness")
+    .no_perspective(Type::FLOAT, "hardness");
+
+GPU_SHADER_CREATE_INFO(overlay_depth_gpencil)
+    .do_static_compilation(true)
+    .typedef_source("gpencil_shader_shared.h")
+    .vertex_out(overlay_depth_only_gpencil_flat_iface)
+    .vertex_out(overlay_depth_only_gpencil_noperspective_iface)
+    .vertex_source("overlay_depth_only_gpencil_vert.glsl")
+    .fragment_source("overlay_depth_only_gpencil_frag.glsl")
+    .depth_write(DepthWrite::ANY)
+    .push_constant(Type::BOOL, "gpStrokeOrder3d") /* TODO(fclem): Move to a GPencil object UBO. */
+    .push_constant(Type::VEC4, "gpDepthPlane")    /* TODO(fclem): Move to a GPencil object UBO. */
+    .additional_info("draw_view",
+                     "draw_modelmat_new",
+                     "draw_resource_handle_new",
+                     "draw_globals",
+                     "draw_gpencil_new",
+                     "draw_object_infos_new");
+
+GPU_SHADER_CREATE_INFO(overlay_depth_pointcloud)
+    .do_static_compilation(true)
+    .vertex_source("basic_depth_pointcloud_vert.glsl")
+    .fragment_source("overlay_depth_only_frag.glsl")
+    .additional_info("draw_pointcloud_new",
+                     "draw_globals",
+                     "draw_view",
+                     "draw_modelmat_new",
+                     "draw_resource_handle_new");
+
+GPU_SHADER_CREATE_INFO(overlay_depth_curves)
+    .do_static_compilation(true)
+    .vertex_source("basic_depth_curves_vert.glsl")
+    .fragment_source("overlay_depth_only_frag.glsl")
+    .additional_info("draw_hair_new",
+                     "draw_globals",
+                     "draw_view",
+                     "draw_modelmat_new",
+                     "draw_resource_handle_new");
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

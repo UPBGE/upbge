@@ -112,7 +112,7 @@ static void color_filter_task(const Depsgraph &depsgraph,
 
   const Span<float4> orig_colors = orig_color_data_get_mesh(ob, node);
 
-  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const Span<int> verts = node.verts();
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
@@ -309,9 +309,11 @@ static void color_filter_task(const Depsgraph &depsgraph,
   }
 }
 
-static void sculpt_color_presmooth_init(const Mesh &mesh, SculptSession &ss)
+static void sculpt_color_presmooth_init(const Mesh &mesh, Object &object)
 {
-  MutableSpan<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
+  SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   const IndexMask &node_mask = ss.filter_cache->node_mask;
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
@@ -325,7 +327,7 @@ static void sculpt_color_presmooth_init(const Mesh &mesh, SculptSession &ss)
   const MutableSpan<float4> pre_smoothed_color = ss.filter_cache->pre_smoothed_color;
 
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    for (const int vert : bke::pbvh::node_unique_verts(nodes[i])) {
+    for (const int vert : nodes[i].verts()) {
       pre_smoothed_color[vert] = color_vert_get(
           faces, corner_verts, vert_to_face_map, colors, color_attribute.domain, vert);
     }
@@ -340,7 +342,7 @@ static void sculpt_color_presmooth_init(const Mesh &mesh, SculptSession &ss)
     threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
       LocalData &tls = all_tls.local();
       node_mask.slice(range).foreach_index([&](const int i) {
-        const Span<int> verts = bke::pbvh::node_unique_verts(nodes[i]);
+        const Span<int> verts = nodes[i].verts();
 
         tls.vert_neighbors.resize(verts.size());
         calc_vert_neighbors(faces, corner_verts, vert_to_face_map, {}, verts, tls.vert_neighbors);
@@ -364,7 +366,8 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   SculptSession &ss = *ob.sculpt;
-  MutableSpan<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
   const FilterType mode = FilterType(RNA_enum_get(op->ptr, "type"));
   float filter_strength = RNA_float_get(op->ptr, "strength");
@@ -375,7 +378,7 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 
   Mesh &mesh = *static_cast<Mesh *>(ob.data);
   if (filter_strength < 0.0 && ss.filter_cache->pre_smoothed_color.is_empty()) {
-    sculpt_color_presmooth_init(mesh, ss);
+    sculpt_color_presmooth_init(mesh, ob);
   }
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
@@ -456,7 +459,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   RNA_int_get_array(op->ptr, "start_mouse", mval);
   float mval_fl[2] = {float(mval[0]), float(mval[1])};
 
-  const bool use_automasking = auto_mask::is_enabled(sd, &ss, nullptr);
+  const bool use_automasking = auto_mask::is_enabled(sd, ob, nullptr);
   if (use_automasking) {
     /* Increment stroke id for auto-masking system. */
     SCULPT_stroke_id_next(ob);
@@ -470,7 +473,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   }
 
   /* Disable for multires and dyntopo for now */
-  if (!ss.pbvh || !SCULPT_handles_colors_report(ss, op->reports)) {
+  if (!bke::object::pbvh_get(ob) || !SCULPT_handles_colors_report(ob, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 

@@ -133,7 +133,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   const StrokeCache &cache = *ss.cache;
   const Mesh &mesh = *static_cast<Mesh *>(object.data);
 
-  const Span<int> verts = bke::pbvh::node_unique_verts(node);
+  const Span<int> verts = node.verts();
   const MutableSpan positions = gather_data_mesh(positions_eval, verts, tls.positions);
 
   tls.factors.resize(verts.size());
@@ -227,7 +227,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  const Span<int> grids = bke::pbvh::node_grid_indices(node);
+  const Span<int> grids = node.grids();
   const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
 
   tls.factors.resize(positions.size());
@@ -314,7 +314,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, positions, factors);
 
-  const MutableSpan<float> displacement_factors = gather_data_vert_bmesh(
+  const MutableSpan<float> displacement_factors = gather_data_bmesh(
       layer_displacement_factor.as_span(), verts, tls.displacement_factors);
 
   offset_displacement_factors(displacement_factors, factors, cache.bstrength);
@@ -324,7 +324,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   mask::gather_mask_bmesh(*ss.bm, verts, masks);
   clamp_displacement_factors(displacement_factors, masks);
 
-  scatter_data_vert_bmesh(displacement_factors.as_span(), verts, layer_displacement_factor);
+  scatter_data_bmesh(displacement_factors.as_span(), verts, layer_displacement_factor);
 
   Array<float3> orig_positions(verts.size());
   Array<float3> orig_normals(verts.size());
@@ -352,10 +352,11 @@ void do_layer_brush(const Depsgraph &depsgraph,
                     const IndexMask &node_mask)
 {
   SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
-  switch (object.sculpt->pbvh->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
       const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
@@ -391,7 +392,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
         displacement = ss.cache->layer_displacement_factor;
       }
 
-      MutableSpan<bke::pbvh::MeshNode> nodes = ss.pbvh->nodes<bke::pbvh::MeshNode>();
+      MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
@@ -419,7 +420,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
         ss.cache->layer_displacement_factor = Array<float>(SCULPT_vertex_count_get(object), 0.0f);
       }
       const MutableSpan<float> displacement = ss.cache->layer_displacement_factor;
-      MutableSpan<bke::pbvh::GridsNode> nodes = ss.pbvh->nodes<bke::pbvh::GridsNode>();
+      MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
@@ -433,7 +434,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
         ss.cache->layer_displacement_factor = Array<float>(SCULPT_vertex_count_get(object), 0.0f);
       }
       const MutableSpan<float> displacement = ss.cache->layer_displacement_factor;
-      MutableSpan<bke::pbvh::BMeshNode> nodes = ss.pbvh->nodes<bke::pbvh::BMeshNode>();
+      MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
