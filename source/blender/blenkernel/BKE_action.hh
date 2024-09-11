@@ -352,6 +352,9 @@ bool BKE_pose_copy_result(bPose *to, bPose *from);
  */
 void BKE_pose_rest(bPose *pose, bool selected_bones_only);
 
+/* Copy the data from the action-pose (src) into the pose */
+void extract_pose_from_pose(struct bPose *pose, const struct bPose *src);
+
 /**
  * Tag pose for recalculation. Also tag all related data to be recalculated.
  */
