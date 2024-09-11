@@ -31,7 +31,6 @@
 #include "DNA_mask_types.h"
 #include "DNA_space_types.h"
 /* Forward declarations */
-struct ImBuf;
 
 struct OVERLAY_FramebufferList {
   GPUFrameBuffer *overlay_default_fb;
@@ -335,7 +334,7 @@ struct OVERLAY_PrivateData {
   OVERLAY_ArmatureCallBuffers armature_call_buffers[2];
 
   View3DOverlay overlay;
-  enum eContextObjectMode ctx_mode;
+  eContextObjectMode ctx_mode;
   char space_type;
   bool clear_in_front;
   bool use_in_front;

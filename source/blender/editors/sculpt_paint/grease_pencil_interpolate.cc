@@ -261,9 +261,14 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
   }();
 
   /* Compute curve length and flip mode for each pair. */
-  Vector<int> dst_curve_offsets;
-  Vector<bool> dst_curve_flip;
-  const OffsetIndices dst_points_by_curve = [&]() {
+  Array<int> dst_curve_offsets(curves_by_pair.size() + 1, 0);
+  Array<bool> dst_curve_flip(curves_by_pair.size(), false);
+  const OffsetIndices<int> dst_points_by_curve = [&]() {
+    /* Last entry for overall size. */
+    if (curves_by_pair.is_empty()) {
+      return OffsetIndices<int>{};
+    }
+
     for (const int pair_range_i : curves_by_pair.index_range()) {
       const IndexRange pair_range = curves_by_pair[pair_range_i];
       BLI_assert(!pair_range.is_empty());
@@ -288,28 +293,22 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
         const IndexRange from_points = from_points_by_curve[from_curve];
         const IndexRange to_points = to_points_by_curve[to_curve];
 
-        dst_curve_offsets.append(std::max(from_points.size(), to_points.size()));
+        dst_curve_offsets[pair_index] = std::max(from_points.size(), to_points.size());
         switch (flip_mode) {
           case InterpolateFlipMode::None:
-            dst_curve_flip.append(false);
+            dst_curve_flip[pair_index] = false;
             break;
           case InterpolateFlipMode::Flip:
-            dst_curve_flip.append(true);
+            dst_curve_flip[pair_index] = true;
             break;
           case InterpolateFlipMode::FlipAuto: {
-            dst_curve_flip.append(compute_auto_flip(from_positions.slice(from_points),
-                                                    to_positions.slice(to_points)));
+            dst_curve_flip[pair_index] = compute_auto_flip(from_positions.slice(from_points),
+                                                           to_positions.slice(to_points));
             break;
           }
         }
       }
     }
-    /* Last entry for overall size. */
-    if (dst_curve_offsets.is_empty()) {
-      return OffsetIndices<int>{};
-    }
-
-    dst_curve_offsets.append(0);
     return offset_indices::accumulate_counts_to_offsets(dst_curve_offsets);
   }();
   const int dst_point_num = dst_points_by_curve.total_size();
@@ -429,11 +428,6 @@ static void grease_pencil_interpolate_update(bContext &C, const wmOperator &op)
   Object &object = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
   const auto flip_mode = InterpolateFlipMode(RNA_enum_get(op.ptr, "flip"));
-  Paint &paint = scene.toolsettings->gp_paint->paint;
-  Brush *brush = BKE_paint_brush(&paint);
-  Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
-      CTX_data_main(&C), &object, brush);
-  const int material_index = BKE_object_material_index_get(&object, material);
 
   opdata.layer_mask.foreach_index([&](const int layer_index) {
     Layer &layer = *grease_pencil.layer(layer_index);
@@ -463,12 +457,6 @@ static void grease_pencil_interpolate_update(bContext &C, const wmOperator &op)
           positions);
       interpolated_curves.tag_positions_changed();
     }
-
-    bke::SpanAttributeWriter<int> materials =
-        interpolated_curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-            "material_index", bke::AttrDomain::Curve);
-    materials.span.fill(material_index);
-    materials.finish();
 
     dst_drawing->strokes_for_write() = std::move(interpolated_curves);
     dst_drawing->tag_topology_changed();

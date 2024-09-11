@@ -500,8 +500,7 @@ static int hide_show_all_exec(bContext *C, wmOperator *op)
 
   const VisAction action = VisAction(RNA_enum_get(op->ptr, "action"));
 
-  bke::pbvh::Tree *pbvh = BKE_sculpt_object_pbvh_ensure(depsgraph, &ob);
-  BLI_assert(bke::object::pbvh_get(ob) == pbvh);
+  bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, ob);
 
   /* Start undo. */
   switch (action) {
@@ -514,9 +513,9 @@ static int hide_show_all_exec(bContext *C, wmOperator *op)
   }
 
   IndexMaskMemory memory;
-  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
+  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
-  switch (pbvh->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       partialvis_all_update_mesh(*depsgraph, ob, action, node_mask);
       break;
@@ -575,8 +574,8 @@ static void partialvis_masked_update_grids(Depsgraph &depsgraph,
 
   const bool value = action_to_hide(action);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<CCGElem *> grids = subdiv_ccg.grids;
-  if (!key.has_mask) {
+  const Span<float> masks = subdiv_ccg.masks;
+  if (masks.is_empty()) {
     grid_hide_update(depsgraph,
                      object,
                      node_mask,
@@ -584,14 +583,11 @@ static void partialvis_masked_update_grids(Depsgraph &depsgraph,
   }
   else {
     grid_hide_update(
-        depsgraph, object, node_mask, [&](const int grid_index, MutableBoundedBitSpan hide) {
-          CCGElem *grid = grids[grid_index];
-          for (const int y : IndexRange(key.grid_size)) {
-            for (const int x : IndexRange(key.grid_size)) {
-              CCGElem *elem = CCG_grid_elem(key, grid, x, y);
-              if (CCG_elem_mask(key, elem) > 0.5f) {
-                hide[y * key.grid_size + x].set(value);
-              }
+        depsgraph, object, node_mask, [&](const int grid, MutableBoundedBitSpan hide) {
+          const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
+          for (const int i : grid_masks.index_range()) {
+            if (grid_masks[i] > 0.5f) {
+              hide[i].set(value);
             }
           }
         });
@@ -620,8 +616,7 @@ static int hide_show_masked_exec(bContext *C, wmOperator *op)
 
   const VisAction action = VisAction(RNA_enum_get(op->ptr, "action"));
 
-  bke::pbvh::Tree *pbvh = BKE_sculpt_object_pbvh_ensure(depsgraph, &ob);
-  BLI_assert(bke::object::pbvh_get(ob) == pbvh);
+  bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, ob);
 
   /* Start undo. */
   switch (action) {
@@ -634,9 +629,9 @@ static int hide_show_masked_exec(bContext *C, wmOperator *op)
   }
 
   IndexMaskMemory memory;
-  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
+  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
-  switch (pbvh->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       partialvis_masked_update_mesh(*depsgraph, ob, action, node_mask);
       break;
@@ -779,13 +774,12 @@ static int visibility_invert_exec(bContext *C, wmOperator *op)
   Object &object = *CTX_data_active_object(C);
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
-  bke::pbvh::Tree *pbvh = BKE_sculpt_object_pbvh_ensure(&depsgraph, &object);
-  BLI_assert(bke::object::pbvh_get(object) == pbvh);
+  bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(depsgraph, object);
 
   IndexMaskMemory memory;
-  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
+  const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
   undo::push_begin(object, op);
-  switch (pbvh->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       invert_visibility_mesh(depsgraph, object, node_mask);
       break;
@@ -1105,8 +1099,7 @@ static int visibility_filter_exec(bContext *C, wmOperator *op)
   Object &object = *CTX_data_active_object(C);
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
-  bke::pbvh::Tree &pbvh = *BKE_sculpt_object_pbvh_ensure(&depsgraph, &object);
-  BLI_assert(bke::object::pbvh_get(object) == &pbvh);
+  bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(depsgraph, object);
 
   const VisAction mode = VisAction(RNA_enum_get(op->ptr, "action"));
 
@@ -1240,20 +1233,17 @@ static void partialvis_gesture_update_grids(Depsgraph &depsgraph,
 
   const bool value = action_to_hide(action);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<CCGElem *> grids = subdiv_ccg.grids;
-  grid_hide_update(
-      depsgraph, *object, node_mask, [&](const int grid_index, MutableBoundedBitSpan hide) {
-        CCGElem *grid = grids[grid_index];
-        for (const int y : IndexRange(key.grid_size)) {
-          for (const int x : IndexRange(key.grid_size)) {
-            CCGElem *elem = CCG_grid_elem(key, grid, x, y);
-            if (gesture::is_affected(gesture_data, CCG_elem_co(key, elem), CCG_elem_no(key, elem)))
-            {
-              hide[y * key.grid_size + x].set(value);
-            }
-          }
-        }
-      });
+  const Span<float3> positions = subdiv_ccg.positions;
+  const Span<float3> normals = subdiv_ccg.normals;
+  grid_hide_update(depsgraph, *object, node_mask, [&](const int grid, MutableBoundedBitSpan hide) {
+    const Span<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grid));
+    const Span<float3> grid_normals = normals.slice(bke::ccg::grid_range(key, grid));
+    for (const int i : grid_positions.index_range()) {
+      if (gesture::is_affected(gesture_data, grid_positions[i], grid_normals[i])) {
+        hide[i].set(value);
+      }
+    }
+  });
 }
 
 static void partialvis_gesture_update_bmesh(gesture::GestureData &gesture_data)
@@ -1277,7 +1267,7 @@ static void hide_show_begin(bContext &C, wmOperator &op, gesture::GestureData & 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
 
   undo::push_begin(*ob, &op);
-  BKE_sculpt_object_pbvh_ensure(depsgraph, ob);
+  bke::object::pbvh_ensure(*depsgraph, *ob);
 }
 
 static void hide_show_apply_for_symmetry_pass(bContext &C, gesture::GestureData &gesture_data)

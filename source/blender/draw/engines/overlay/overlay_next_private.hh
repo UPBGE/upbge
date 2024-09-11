@@ -44,15 +44,17 @@ struct State {
   const ViewLayer *view_layer;
   const Scene *scene;
   const View3D *v3d;
+  const SpaceLink *space_data;
   const ARegion *region;
   const RegionView3D *rv3d;
   const Base *active_base;
   DRWTextStore *dt;
   View3DOverlay overlay;
   float pixelsize;
-  enum eSpace_Type space_type;
-  enum eContextObjectMode ctx_mode;
-  enum eObjectMode object_mode;
+  eSpace_Type space_type;
+  eContextObjectMode ctx_mode;
+  eObjectMode object_mode;
+  const Object *object_active;
   bool clear_in_front;
   bool use_in_front;
   bool is_wireframe_mode;
@@ -70,6 +72,11 @@ struct State {
   float3 camera_position;
   float3 camera_forward;
   int clipping_plane_count;
+
+  /* Active Image properties. Only valid image space only. */
+  int2 image_size;
+  float2 image_uv_aspect;
+  float2 image_aspect;
 
   float view_dist_get(const float4x4 &winmat) const
   {
@@ -199,7 +206,10 @@ class ShaderModule {
   ShaderPtr curve_edit_points;
   ShaderPtr curve_edit_line;
   ShaderPtr curve_edit_handles;
+  ShaderPtr facing;
   ShaderPtr grid = shader("overlay_grid");
+  ShaderPtr grid_background;
+  ShaderPtr grid_image;
   ShaderPtr legacy_curve_edit_wires;
   ShaderPtr legacy_curve_edit_normals = shader("overlay_edit_curve_normals");
   ShaderPtr legacy_curve_edit_handles = shader("overlay_edit_curve_handle_next");
@@ -223,6 +233,17 @@ class ShaderModule {
   ShaderPtr sculpt_mesh;
   ShaderPtr sculpt_curves;
   ShaderPtr sculpt_curves_cage;
+  ShaderPtr uniform_color;
+  ShaderPtr uv_analysis_stretch_angle;
+  ShaderPtr uv_analysis_stretch_area;
+  ShaderPtr uv_brush_stencil;
+  ShaderPtr uv_edit_edge = shader("overlay_edit_uv_edges_next");
+  ShaderPtr uv_edit_face;
+  ShaderPtr uv_edit_facedot;
+  ShaderPtr uv_edit_vert;
+  ShaderPtr uv_image_borders;
+  ShaderPtr uv_paint_mask;
+  ShaderPtr uv_wireframe = shader("overlay_wireframe_uv");
   ShaderPtr xray_fade;
 
   /** Selectable Shaders */
@@ -246,7 +267,6 @@ class ShaderModule {
   ShaderPtr extra_wire;
   ShaderPtr extra_loose_points;
   ShaderPtr extra_ground_line;
-  ShaderPtr facing;
   ShaderPtr fluid_grid_lines_flags;
   ShaderPtr fluid_grid_lines_flat;
   ShaderPtr fluid_grid_lines_range;
@@ -446,6 +466,21 @@ struct Resources : public select::SelectMap {
   {
     ThemeColorID theme_id = object_wire_theme_id(ob_ref, state);
     return background_blend_color(theme_id);
+  }
+
+  float4 background_color_get(const State &state)
+  {
+    if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_WORLD) {
+      if (state.scene->world) {
+        return float4(float3(&state.scene->world->horr));
+      }
+    }
+    else if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
+      return state.v3d->shading.background_color;
+    }
+    float4 color;
+    UI_GetThemeColor3fv(TH_BACK, color);
+    return color;
   }
 
   void free_movieclips_textures()

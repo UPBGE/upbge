@@ -22,9 +22,9 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector_types.hh"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
+#include "BLI_task.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -293,18 +293,7 @@ Vector<Sequence *> seq_get_shown_sequences(const Scene *scene,
   return result;
 }
 
-/* Strip corner coordinates in screen pixel space. Note that they might not be
- * axis aligned when rotation is present. */
-struct StripScreenQuad {
-  float2 v0, v1, v2, v3;
-
-  bool is_empty() const
-  {
-    return v0 == v1 && v2 == v3 && v0 == v2;
-  }
-};
-
-static StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Sequence *seq)
+StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Sequence *seq)
 {
   Scene *scene = context->scene;
   const int x = context->rectx;
@@ -508,13 +497,11 @@ static void sequencer_image_crop_init(const Sequence *seq,
   BLI_rctf_init(r_crop, left, in->x - right, bottom, in->y - top);
 }
 
-/* Check whether transform introduces transparent ares in the result (happens when the transformed
- * image does not fully cover the render frame).
- *
- * The check is done by checking whether all corners of viewport fit inside of the transformed
- * image. If they do not the image will have transparent areas. */
-static bool seq_image_transform_transparency_gained(const SeqRenderData *context, Sequence *seq)
+static bool is_strip_covering_screen(const SeqRenderData *context, const Sequence *seq)
 {
+  /* The check is done by checking whether all corners of viewport fit inside
+   * of the transformed strip. If they do not, the strip does not cover
+   * whole screen. */
   float x0 = 0.0f;
   float y0 = 0.0f;
   float x1 = float(context->rectx);
@@ -528,7 +515,7 @@ static bool seq_image_transform_transparency_gained(const SeqRenderData *context
   StripScreenQuad quad = get_strip_screen_quad(context, seq);
   StripScreenQuad screen{float2(x0, y0), float2(x1, y0), float2(x0, y1), float2(x1, y1)};
 
-  return !is_quad_a_inside_b(screen, quad);
+  return is_quad_a_inside_b(screen, quad);
 }
 
 /* Automatic filter:
@@ -601,50 +588,48 @@ static void sequencer_preprocess_transform_crop(
 
   IMB_transform(in, out, IMB_TRANSFORM_MODE_CROP_SRC, filter, transform_matrix, &source_crop);
 
-  if (!seq_image_transform_transparency_gained(context, seq)) {
+  if (is_strip_covering_screen(context, seq)) {
     out->planes = in->planes;
   }
   else {
+    /* Strip is not covering full viewport, which means areas with transparency
+     * are introduced for sure. */
     out->planes = R_IMF_PLANES_RGBA;
   }
 }
 
-static void multibuf(ImBuf *ibuf, const float fmul, const bool multiply_alpha)
+static void multiply_ibuf(ImBuf *ibuf, const float fmul, const bool multiply_alpha)
 {
-  uchar *rt;
-  float *rt_float;
-
-  int a;
-
-  rt = ibuf->byte_buffer.data;
-  rt_float = ibuf->float_buffer.data;
-
-  if (rt) {
-    const int imul = int(256.0f * fmul);
-    a = ibuf->x * ibuf->y;
-    while (a--) {
-      rt[0] = min_ii((imul * rt[0]) >> 8, 255);
-      rt[1] = min_ii((imul * rt[1]) >> 8, 255);
-      rt[2] = min_ii((imul * rt[2]) >> 8, 255);
-      if (multiply_alpha) {
-        rt[3] = min_ii((imul * rt[3]) >> 8, 255);
+  const size_t pixel_count = IMB_get_rect_len(ibuf);
+  if (ibuf->byte_buffer.data != nullptr) {
+    threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
+      uchar *ptr = ibuf->byte_buffer.data + range.first() * 4;
+      const int imul = int(256.0f * fmul);
+      for ([[maybe_unused]] const int64_t i : range) {
+        ptr[0] = min_ii((imul * ptr[0]) >> 8, 255);
+        ptr[1] = min_ii((imul * ptr[1]) >> 8, 255);
+        ptr[2] = min_ii((imul * ptr[2]) >> 8, 255);
+        if (multiply_alpha) {
+          ptr[3] = min_ii((imul * ptr[3]) >> 8, 255);
+        }
+        ptr += 4;
       }
-
-      rt += 4;
-    }
+    });
   }
-  if (rt_float) {
-    a = ibuf->x * ibuf->y;
-    while (a--) {
-      rt_float[0] *= fmul;
-      rt_float[1] *= fmul;
-      rt_float[2] *= fmul;
-      if (multiply_alpha) {
-        rt_float[3] *= fmul;
-      }
 
-      rt_float += 4;
-    }
+  if (ibuf->float_buffer.data != nullptr) {
+    threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
+      float *ptr = ibuf->float_buffer.data + range.first() * 4;
+      for ([[maybe_unused]] const int64_t i : range) {
+        ptr[0] *= fmul;
+        ptr[1] *= fmul;
+        ptr[2] *= fmul;
+        if (multiply_alpha) {
+          ptr[3] *= fmul;
+        }
+        ptr += 4;
+      }
+    });
   }
 }
 
@@ -714,7 +699,7 @@ static ImBuf *input_preprocess(const SeqRenderData *context,
 
   if (mul != 1.0f) {
     const bool multiply_alpha = (seq->flag & SEQ_MULTIPLY_ALPHA);
-    multibuf(preprocessed_ibuf, mul, multiply_alpha);
+    multiply_ibuf(preprocessed_ibuf, mul, multiply_alpha);
   }
 
   if (seq->modifiers.first) {

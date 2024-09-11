@@ -29,10 +29,6 @@
 class SeqQuadsBatch;
 struct ARegion;
 struct ARegionType;
-struct Depsgraph;
-struct wmGizmoGroupType;
-struct wmGizmoType;
-struct Main;
 struct Scene;
 struct SeqRetimingKey;
 struct Sequence;
@@ -181,7 +177,6 @@ int seq_effect_find_selected(Scene *scene,
                              int type,
                              Sequence **r_selseq1,
                              Sequence **r_selseq2,
-                             Sequence **r_selseq3,
                              const char **r_error_str);
 
 /* Operator helpers. */

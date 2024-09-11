@@ -45,7 +45,6 @@ typedef struct GPUVertBufHandle GPUVertBufHandle;
 /* Forward declarations so the actual declarations can happen top-down. */
 struct ActionLayer;
 struct ActionSlot;
-struct ActionSlot_runtime;
 struct ActionStrip;
 struct ActionChannelBag;
 
@@ -1276,7 +1275,7 @@ typedef struct ActionChannelBag {
   blender::animrig::ChannelBag &wrap();
   const blender::animrig::ChannelBag &wrap() const;
 #endif
-} ChannelBag;
+} ActionChannelBag;
 
 #ifdef __cplusplus
 /* Some static assertions that things that should have the same type actually do. */

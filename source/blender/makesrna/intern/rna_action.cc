@@ -18,7 +18,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -484,7 +484,7 @@ static ActionChannelBag *rna_ChannelBags_new(KeyframeActionStrip *dna_strip,
     return nullptr;
   }
 
-  ChannelBag &channelbag = key_strip.channelbag_for_slot_add(slot);
+  animrig::ChannelBag &channelbag = key_strip.channelbag_for_slot_add(slot);
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   /* No need to tag the depsgraph, as there is no new animation yet. */

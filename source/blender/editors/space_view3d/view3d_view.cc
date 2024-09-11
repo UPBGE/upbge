@@ -15,7 +15,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
@@ -307,7 +307,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 /** \name Window and View Matrix Calculation
  * \{ */
 
-void view3d_winmatrix_set(Depsgraph *depsgraph,
+void view3d_winmatrix_set(const Depsgraph *depsgraph,
                           ARegion *region,
                           const View3D *v3d,
                           const rcti *rect)
@@ -387,7 +387,7 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   mat4_to_quat(rv3d->viewquat, rv3d->viewmat);
 }
 
-void view3d_viewmatrix_set(Depsgraph *depsgraph,
+void view3d_viewmatrix_set(const Depsgraph *depsgraph,
                            const Scene *scene,
                            const View3D *v3d,
                            RegionView3D *rv3d,
@@ -829,10 +829,10 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
   float min[3], max[3], box[3];
   float size = 0.0f;
   uint local_view_bit;
-  bool ok = false;
+  bool changed = false;
 
   if (v3d->localvd) {
-    return ok;
+    return changed;
   }
 
   INIT_MINMAX(min, max);
@@ -843,7 +843,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     /* TODO(dfelinto): We can kick one of the other 3D views out of local view
      * specially if it is not being used. */
     BKE_report(reports, RPT_ERROR, "No more than 16 local views");
-    ok = false;
+    changed = false;
   }
   else {
     BKE_view_layer_synced_ensure(scene, view_layer);
@@ -857,7 +857,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
         Object *ob_eval = DEG_get_evaluated_object(depsgraph, base_iter->object);
         BKE_object_minmax(ob_eval ? ob_eval : base_iter->object, min, max);
         base_iter->local_view_bits |= local_view_bit;
-        ok = true;
+        changed = true;
       }
       FOREACH_BASE_IN_EDIT_MODE_END;
     }
@@ -868,7 +868,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
           Object *ob_eval = DEG_get_evaluated_object(depsgraph, base->object);
           BKE_object_minmax(ob_eval ? ob_eval : base->object, min, max);
           base->local_view_bits |= local_view_bit;
-          ok = true;
+          changed = true;
         }
         else {
           base->local_view_bits &= ~local_view_bit;
@@ -880,8 +880,18 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     size = max_fff(box[0], box[1], box[2]);
   }
 
-  if (ok == false) {
+  if (changed == false) {
     return false;
+  }
+
+  /* Apply any running smooth-view values before reading from the viewport. */
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->regiontype == RGN_TYPE_WINDOW) {
+      RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+      if (rv3d->sms) {
+        ED_view3d_smooth_view_force_finish_no_camera_lock(depsgraph, wm, win, scene, v3d, region);
+      }
+    }
   }
 
   v3d->localvd = static_cast<View3D *>(MEM_mallocN(sizeof(View3D), "localview"));
@@ -942,10 +952,10 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     }
   }
 
-  return ok;
+  return changed;
 }
 
-static void view3d_localview_exit(const Depsgraph *depsgraph,
+static bool view3d_localview_exit(const Depsgraph *depsgraph,
                                   wmWindowManager *wm,
                                   wmWindow *win,
                                   const Scene *scene,
@@ -955,14 +965,28 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
                                   const int smooth_viewtx)
 {
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
+  bool changed = false;
 
   if (v3d->localvd == nullptr) {
-    return;
+    return changed;
   }
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     if (base->local_view_bits & v3d->local_view_uid) {
       base->local_view_bits &= ~v3d->local_view_uid;
+    }
+  }
+
+  /* Apply any running smooth-view values before reading from the viewport. */
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->regiontype == RGN_TYPE_WINDOW) {
+      RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+      if (rv3d->localvd == nullptr) {
+        continue;
+      }
+      if (rv3d->sms) {
+        ED_view3d_smooth_view_force_finish_no_camera_lock(depsgraph, wm, win, scene, v3d, region);
+      }
     }
   }
 
@@ -991,6 +1015,7 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
         camera_new_rv3d = (rv3d->localvd->persp == RV3D_CAMOB) ? camera_new : nullptr;
 
         rv3d->view = rv3d->localvd->view;
+        rv3d->view_axis_roll = rv3d->localvd->view_axis_roll;
         rv3d->persp = rv3d->localvd->persp;
         rv3d->camzoom = rv3d->localvd->camzoom;
 
@@ -1009,8 +1034,10 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
 
       MEM_freeN(rv3d->localvd);
       rv3d->localvd = nullptr;
+      changed = true;
     }
   }
+  return changed;
 }
 
 bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
@@ -1036,9 +1063,8 @@ bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
     }
   }
 
-  view3d_localview_exit(
+  return view3d_localview_exit(
       depsgraph, wm, win, scene, view_layer, area, frame_selected, smooth_viewtx);
-  return true;
 }
 
 static int localview_exec(bContext *C, wmOperator *op)
@@ -1056,9 +1082,8 @@ static int localview_exec(bContext *C, wmOperator *op)
   bool changed;
 
   if (v3d->localvd) {
-    view3d_localview_exit(
+    changed = view3d_localview_exit(
         depsgraph, wm, win, scene, view_layer, area, frame_selected, smooth_viewtx);
-    changed = true;
   }
   else {
     changed = view3d_localview_init(depsgraph,

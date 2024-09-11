@@ -1237,10 +1237,12 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
       [&]() {
         gather_attributes(curves.attributes(),
                           AttrDomain::Point,
+                          AttrDomain::Point,
                           attribute_filter,
                           points_to_copy,
                           dst_curves.attributes_for_write());
         gather_attributes(curves.attributes(),
+                          AttrDomain::Curve,
                           AttrDomain::Curve,
                           attribute_filter,
                           curves_to_copy,
@@ -1289,14 +1291,19 @@ CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
 
   gather_attributes_group_to_group(src_attributes,
                                    AttrDomain::Point,
+                                   AttrDomain::Point,
                                    attribute_filter,
                                    points_by_curve,
                                    dst_points_by_curve,
                                    curves_to_copy,
                                    dst_attributes);
 
-  gather_attributes(
-      src_attributes, AttrDomain::Curve, attribute_filter, curves_to_copy, dst_attributes);
+  gather_attributes(src_attributes,
+                    AttrDomain::Curve,
+                    AttrDomain::Curve,
+                    attribute_filter,
+                    curves_to_copy,
+                    dst_attributes);
 
   dst_curves.update_curve_types();
   dst_curves.remove_attributes_based_on_types();
@@ -1421,6 +1428,14 @@ void CurvesGeometry::remove_attributes_based_on_types()
   if (!this->has_curve_with_type({CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
     attributes.remove(ATTR_RESOLUTION);
   }
+}
+
+CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
+{
+  CurvesGeometry curves(0, curve_num);
+  curves.point_num = point_num;
+  CustomData_free_layer_named(&curves.point_data, "position", 0);
+  return curves;
 }
 
 /** \} */

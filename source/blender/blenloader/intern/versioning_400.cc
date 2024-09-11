@@ -65,7 +65,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
@@ -2653,6 +2653,7 @@ static void update_paint_modes_for_brush_assets(Main &bmain)
                 CTX_MODE_SCULPT_GREASE_PENCIL,
                 CTX_MODE_WEIGHT_GPENCIL_LEGACY,
                 CTX_MODE_WEIGHT_GREASE_PENCIL,
+                CTX_MODE_VERTEX_GREASE_PENCIL,
                 CTX_MODE_VERTEX_GPENCIL_LEGACY,
                 CTX_MODE_SCULPT_CURVES))
       {
