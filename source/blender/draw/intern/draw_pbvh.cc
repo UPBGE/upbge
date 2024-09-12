@@ -155,7 +155,7 @@ class DrawCacheImpl : public DrawCache {
    * Free all GPU data for nodes with a changed visible triangle count. The next time the data is
    * requested it will be rebuilt.
    */
-  void free_nodes_with_changed_topology(const Object &object, const IndexMask &node_mask);
+  void free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh, const IndexMask &node_mask);
 
   BitSpan ensure_use_flat_layout(const Object &object, const OrigMeshData &orig_mesh_data);
 
@@ -494,20 +494,6 @@ template<> ColorGeometry4b fallback_value_for_fill()
   return fallback_value_for_fill<ColorGeometry4f>().encode();
 }
 
-static int count_visible_tris_mesh(const OffsetIndices<int> faces,
-                                   const Span<int> face_indices,
-                                   const Span<bool> hide_poly)
-{
-  int tris_count = 0;
-  for (const int face : face_indices) {
-    if (!hide_poly.is_empty() && hide_poly[face]) {
-      continue;
-    }
-    tris_count += bke::mesh::face_triangles_num(faces[face].size());
-  }
-  return tris_count;
-}
-
 static int count_visible_tris_bmesh(const Set<BMFace *, 0> &faces)
 {
   return std::count_if(faces.begin(), faces.end(), [&](const BMFace *face) {
@@ -523,11 +509,10 @@ static int count_visible_tris_bmesh(const Set<BMFace *, 0> &faces)
  * simpler overall to just tag the node whenever there is such a topology change, and for now there
  * is no real downside.
  */
-static IndexMask calc_topology_changed_nodes(const Object &object,
+static IndexMask calc_topology_changed_nodes(const bke::pbvh::Tree &pbvh,
                                              const IndexMask &node_mask,
                                              IndexMaskMemory &memory)
 {
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -572,22 +557,27 @@ DrawCacheImpl::~DrawCacheImpl()
   }
 }
 
-void DrawCacheImpl::free_nodes_with_changed_topology(const Object &object,
+void DrawCacheImpl::free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh,
                                                      const IndexMask &node_mask)
 {
   /* NOTE: Theoretically we shouldn't need to free batches with a changed triangle count, but
    * currently it's the simplest way to reallocate all the GPU data while keeping everything in a
    * consistent state. */
   IndexMaskMemory memory;
-  const IndexMask nodes_to_free = calc_topology_changed_nodes(object, node_mask, memory);
+  const IndexMask nodes_to_free = calc_topology_changed_nodes(pbvh, node_mask, memory);
 
   free_ibos(lines_ibos_, nodes_to_free);
   free_ibos(lines_ibos_coarse_, nodes_to_free);
   free_ibos(tris_ibos_, nodes_to_free);
   free_ibos(tris_ibos_coarse_, nodes_to_free);
-  /* TODO: No need to free VBOs visibility changes because of indexing (except for BMesh). */
-  for (AttributeData &data : attribute_vbos_.values()) {
-    free_vbos(data.vbos, nodes_to_free);
+  if (pbvh.type() == bke::pbvh::Type::BMesh) {
+    /* For BMesh, VBOs are only filled with data for visible triangles, and topology can also
+     * completely change due to dynamic topology, so VBOs must be rebuilt from scratch. For other
+     * types, actual topology doesn't change, and visibility changes are accounted for by the index
+     * buffers. */
+    for (AttributeData &data : attribute_vbos_.values()) {
+      free_vbos(data.vbos, nodes_to_free);
+    }
   }
 
   free_batches(lines_batches_, nodes_to_free);
@@ -1724,7 +1714,6 @@ BitSpan DrawCacheImpl::ensure_use_flat_layout(const Object &object,
 }
 
 BLI_NOINLINE static void ensure_vbos_allocated_mesh(const Object &object,
-                                                    const OrigMeshData &orig_mesh_data,
                                                     const GPUVertFormat &format,
                                                     const IndexMask &node_mask,
                                                     const MutableSpan<gpu::VertBuf *> vbos)
@@ -1733,14 +1722,11 @@ BLI_NOINLINE static void ensure_vbos_allocated_mesh(const Object &object,
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   const Mesh &mesh = *static_cast<Mesh *>(object.data);
   const OffsetIndices<int> faces = mesh.faces();
-  const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   node_mask.foreach_index(GrainSize(64), [&](const int i) {
     if (!vbos[i]) {
       vbos[i] = GPU_vertbuf_create_with_format(format);
     }
-    const Span<int> face_indices = nodes[i].faces();
-    const int verts_num = count_visible_tris_mesh(faces, face_indices, hide_poly) * 3;
+    const int verts_num = offset_indices::sum_group_sizes(faces, nodes[i].faces());
     GPU_vertbuf_data_alloc(*vbos[i], verts_num);
   });
 }
@@ -1822,7 +1808,7 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
 
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      ensure_vbos_allocated_mesh(object, orig_mesh_data, format, mask, vbos);
+      ensure_vbos_allocated_mesh(object, format, mask, vbos);
       fill_vbos_mesh(object, orig_mesh_data, mask, attr, vbos);
       break;
     }
@@ -1917,9 +1903,10 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
 {
   const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object));
   const OrigMeshData orig_mesh_data{*static_cast<const Mesh *>(object_orig.data)};
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
-  this->free_nodes_with_changed_topology(object, nodes_to_update);
+  this->free_nodes_with_changed_topology(pbvh, nodes_to_update);
 
   const Span<gpu::IndexBuf *> ibos = this->ensure_tri_indices(
       object, orig_mesh_data, nodes_to_update, request.use_coarse_grids);
@@ -1940,7 +1927,6 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
 
   /* Except for the first iteration of the draw loop, we only need to rebuild batches for nodes
    * with changed topology (visible triangle count). */
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   Vector<gpu::Batch *> &batches = tris_batches_.lookup_or_add_default(request);
   batches.resize(pbvh.nodes_num(), nullptr);
   nodes_to_update.foreach_index(GrainSize(64), [&](const int i) {
@@ -1961,9 +1947,10 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
 {
   const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object));
   const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
-  this->free_nodes_with_changed_topology(object, nodes_to_update);
+  this->free_nodes_with_changed_topology(pbvh, nodes_to_update);
 
   const Span<gpu::VertBuf *> position = this->ensure_attribute_data(
       object, orig_mesh_data, CustomRequest::Position, nodes_to_update);
@@ -1972,7 +1959,6 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
 
   /* Except for the first iteration of the draw loop, we only need to rebuild batches for nodes
    * with changed topology (visible triangle count). */
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   Vector<gpu::Batch *> &batches = request.use_coarse_grids ? lines_batches_coarse_ :
                                                              lines_batches_;
   batches.resize(pbvh.nodes_num(), nullptr);

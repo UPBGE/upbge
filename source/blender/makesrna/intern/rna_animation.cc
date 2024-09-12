@@ -192,6 +192,7 @@ static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportLis
 
 static void rna_AnimData_tweakmode_set(PointerRNA *ptr, const bool value)
 {
+  ID *animated_id = ptr->owner_id;
   AnimData *adt = (AnimData *)ptr->data;
 
   /* NOTE: technically we should also set/unset SCE_NLA_EDIT_ON flag on the
@@ -200,10 +201,10 @@ static void rna_AnimData_tweakmode_set(PointerRNA *ptr, const bool value)
    * dealt with at some point. */
 
   if (value) {
-    BKE_nla_tweakmode_enter(adt);
+    BKE_nla_tweakmode_enter({*animated_id, *adt});
   }
   else {
-    BKE_nla_tweakmode_exit(adt);
+    BKE_nla_tweakmode_exit({*animated_id, *adt});
   }
 }
 
@@ -348,6 +349,12 @@ static void rna_AnimData_action_slot_set(PointerRNA *ptr, PointerRNA value, Repo
     BKE_reportf(reports, RPT_ERROR, "Cannot assign slot %s to %s.", slot.name, animated_id->name);
     return;
   }
+}
+
+static void rna_AnimData_action_slot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  blender::animrig::Slot::users_invalidate(*bmain);
+  rna_AnimData_dependency_update(bmain, scene, ptr);
 }
 
 /* Skip any slot that is not suitable for the ID owning the AnimData. */
@@ -1710,7 +1717,8 @@ static void rna_def_animdata(BlenderRNA *brna)
       "data-block, and its name is used to find the right slot when assigning an Action");
   RNA_def_property_pointer_funcs(
       prop, "rna_AnimData_action_slot_get", "rna_AnimData_action_slot_set", nullptr, nullptr);
-  RNA_def_property_update(prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_AnimData_dependency_update");
+  RNA_def_property_update(
+      prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_AnimData_action_slot_update");
   /* `adt.action_slot` is exposed to RNA as a pointer for things like the action slot selector in
    * the GUI. The ground truth of the assigned slot, however, is `action_slot_handle` declared
    * above. That property is used for library override operations, and this pointer property should

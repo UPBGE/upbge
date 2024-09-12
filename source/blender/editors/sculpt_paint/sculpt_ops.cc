@@ -178,11 +178,15 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
 static bool sculpt_no_multires_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
-  if (ob) {
-    const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob);
-    if (SCULPT_mode_poll(C) && ob->sculpt && pbvh) {
-      return pbvh->type() != bke::pbvh::Type::Grids;
-    }
+  if (!ob) {
+    return false;
+  }
+  if (ob->type != OB_MESH) {
+    return false;
+  }
+  const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob);
+  if (SCULPT_mode_poll(C) && ob->sculpt && pbvh) {
+    return pbvh->type() != bke::pbvh::Type::Grids;
   }
   return false;
 }
@@ -1154,8 +1158,6 @@ static int sculpt_bake_cavity_exec(bContext *C, wmOperator *op)
   brush2.automasking_flags = 0;
   brush2.automasking_boundary_edges_propagation_steps = 1;
   brush2.automasking_cavity_curve = sd2.automasking_cavity_curve;
-
-  SCULPT_stroke_id_next(ob);
 
   std::unique_ptr<auto_mask::Cache> automasking = auto_mask::cache_init(
       *depsgraph, sd2, &brush2, ob);

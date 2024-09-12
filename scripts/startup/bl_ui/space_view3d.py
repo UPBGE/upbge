@@ -1661,7 +1661,6 @@ class VIEW3D_MT_view(Menu):
         props = layout.operator(
             "render.opengl",
             text="Viewport Render Keyframes",
-            icon='RENDER_ANIMATION',
         )
         props.animation = True
         props.render_keyed_only = True
@@ -8281,6 +8280,7 @@ class VIEW3D_PT_overlay_grease_pencil_options(Panel):
             'WEIGHT_GREASE_PENCIL': iface_("Weight Grease Pencil"),
             'OBJECT': iface_("Grease Pencil"),
             'SCULPT_GREASE_PENCIL': iface_("Sculpt Grease Pencil"),
+            'VERTEX_GREASE_PENCIL': iface_("Vertex Grease Pencil"),
         }[context.mode], translate=False)
 
         layout.prop(overlay, "use_gpencil_onion_skin", text="Onion Skin")

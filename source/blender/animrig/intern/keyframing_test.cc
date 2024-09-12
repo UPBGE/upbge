@@ -100,7 +100,7 @@ class KeyframingTest : public testing::Test {
      * NLA strip, and make that strip active and in tweak mode. */
     AnimData *adt = BKE_animdata_ensure_id(&object_with_nla->id);
     NlaTrack *track = BKE_nlatrack_new_head(&adt->nla_tracks, false);
-    NlaStrip *strip = BKE_nlastack_add_strip(adt, nla_action, false);
+    NlaStrip *strip = BKE_nlastack_add_strip({object_with_nla->id, *adt}, nla_action, false);
     track->flag |= NLATRACK_ACTIVE;
     strip->flag |= NLASTRIP_FLAG_ACTIVE;
     strip->start = -10.0;
@@ -109,7 +109,7 @@ class KeyframingTest : public testing::Test {
     strip->actend = 1000.0;
     strip->scale = 1.0;
     strip->blendmode = NLASTRIP_MODE_COMBINE;
-    BKE_nla_tweakmode_enter(adt);
+    BKE_nla_tweakmode_enter({object_with_nla->id, *adt});
   }
 
   void TearDown() override

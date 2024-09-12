@@ -209,6 +209,7 @@ class ShaderModule {
   ShaderPtr facing;
   ShaderPtr grid = shader("overlay_grid");
   ShaderPtr grid_background;
+  ShaderPtr grid_grease_pencil = shader("overlay_gpencil_canvas");
   ShaderPtr grid_image;
   ShaderPtr legacy_curve_edit_wires;
   ShaderPtr legacy_curve_edit_normals = shader("overlay_edit_curve_normals");
@@ -230,6 +231,12 @@ class ShaderModule {
   ShaderPtr outline_prepass_pointcloud;
   ShaderPtr outline_prepass_gpencil;
   ShaderPtr outline_detect = shader("overlay_outline_detect");
+  ShaderPtr paint_region_edge;
+  ShaderPtr paint_region_face;
+  ShaderPtr paint_region_vert;
+  ShaderPtr paint_texture;
+  ShaderPtr paint_weight;
+  ShaderPtr paint_weight_fake_shading; /* TODO(fclem): Specialization constant. */
   ShaderPtr sculpt_mesh;
   ShaderPtr sculpt_curves;
   ShaderPtr sculpt_curves_cage;
