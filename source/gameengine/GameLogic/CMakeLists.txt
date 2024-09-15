@@ -208,14 +208,10 @@ if(WITH_SDL)
   list(APPEND INC_SYS
     ${SDL_INCLUDE_DIR}
   )
-
   add_definitions(-DWITH_SDL)
 
   if(WITH_GHOST_SDL)
     add_definitions(-DWITH_GHOST_SDL)
-  endif()
-  if(WITH_SDL_DYNLOAD)
-    add_definitions(-DWITH_SDL_DYNLOAD)
   endif()
 endif()
 

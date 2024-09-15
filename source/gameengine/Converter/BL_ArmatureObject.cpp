@@ -31,6 +31,7 @@
 
 #include "BL_ArmatureObject.h"
 
+#include "ANIM_action.hh"
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
@@ -435,8 +436,8 @@ void BL_ArmatureObject::ApplyPose()
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
-
-  animsys_evaluate_action(&ptrrna, action, evalCtx, false);
+  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
+  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

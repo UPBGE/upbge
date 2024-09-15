@@ -141,13 +141,6 @@ if(WITH_AUDASPACE)
   add_definitions(-DWITH_AUDASPACE)
 endif()
 
-if(WITH_SDL AND WITH_SDL_DYNLOAD)
-  list(APPEND INC
-    ../../../extern/sdlew/include
-  )
-  add_definitions(-DWITH_SDL_DYNLOAD)
-endif()
-
 if(WITH_GAMEENGINE_BPPLAYER)
   list(APPEND INC
     ../../../intern/spindle

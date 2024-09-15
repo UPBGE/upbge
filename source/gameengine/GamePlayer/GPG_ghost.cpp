@@ -141,10 +141,6 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #  include "utfconv.hh"
 #endif  // WIN32
 
-#ifdef WITH_SDL_DYNLOAD
-#  include "sdlew.h"
-#endif
-
 #ifdef WITH_GAMEENGINE_BPPLAYER
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
@@ -807,10 +803,6 @@ int main(int argc,
   signal(SIGFPE, SIG_IGN);
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
-
-#ifdef WITH_SDL_DYNLOAD
-  sdlewInit();
-#endif
 
   //GPU_backend_type_selection_set(GPU_BACKEND_VULKAN);
 
