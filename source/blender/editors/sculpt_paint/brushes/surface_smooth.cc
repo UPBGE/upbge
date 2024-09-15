@@ -62,6 +62,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
+  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
 
@@ -112,7 +113,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
 
       tls.vert_neighbors.resize(verts.size());
       calc_vert_neighbors(
-          faces, corner_verts, ss.vert_to_face_map, hide_poly, verts, tls.vert_neighbors);
+          faces, corner_verts, vert_to_face_map, hide_poly, verts, tls.vert_neighbors);
 
       tls.average_positions.resize(verts.size());
       const MutableSpan<float3> average_positions = tls.average_positions;
@@ -142,7 +143,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
 
       tls.vert_neighbors.resize(verts.size());
       calc_vert_neighbors(
-          faces, corner_verts, ss.vert_to_face_map, hide_poly, verts, tls.vert_neighbors);
+          faces, corner_verts, vert_to_face_map, hide_poly, verts, tls.vert_neighbors);
 
       tls.average_positions.resize(verts.size());
       const MutableSpan<float3> average_laplacian_disps = tls.average_positions;
@@ -375,9 +376,10 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
                              const IndexMask &node_mask)
 {
   SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  switch (bke::object::pbvh_get(object)->type()) {
+  switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       do_surface_smooth_brush_mesh(
           depsgraph, sd, brush, node_mask, object, ss.cache->surface_smooth_laplacian_disp);
@@ -394,6 +396,7 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
   }
+  bke::pbvh::update_bounds(depsgraph, object, pbvh);
 }
 
 }  // namespace blender::ed::sculpt_paint

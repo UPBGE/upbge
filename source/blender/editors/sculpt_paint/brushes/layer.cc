@@ -410,14 +410,17 @@ void do_layer_brush(const Depsgraph &depsgraph,
                      tls,
                      displacement,
                      positions_orig);
+          bke::pbvh::update_node_bounds_mesh(positions_eval, nodes[i]);
         });
       });
       persistent_disp_attr.finish();
       break;
     }
     case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+      MutableSpan<float3> positions = subdiv_ccg.positions;
       if (ss.cache->layer_displacement_factor.is_empty()) {
-        ss.cache->layer_displacement_factor = Array<float>(SCULPT_vertex_count_get(object), 0.0f);
+        ss.cache->layer_displacement_factor = Array<float>(positions.size(), 0.0f);
       }
       const MutableSpan<float> displacement = ss.cache->layer_displacement_factor;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
@@ -425,6 +428,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           calc_grids(depsgraph, sd, brush, object, nodes[i], tls, displacement);
+          bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
         });
       });
       break;
@@ -439,11 +443,14 @@ void do_layer_brush(const Depsgraph &depsgraph,
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           calc_bmesh(depsgraph, sd, brush, object, nodes[i], tls, displacement);
+          bke::pbvh::update_node_bounds_bmesh(nodes[i]);
         });
       });
       break;
     }
   }
+  pbvh.tag_positions_changed(node_mask);
+  bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
 }  // namespace blender::ed::sculpt_paint

@@ -254,17 +254,13 @@ void calc_smooth_translations(const Depsgraph &depsgraph,
       const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
+      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
-          calc_translations_faces(positions_eval,
-                                  faces,
-                                  corner_verts,
-                                  ss.vert_to_face_map,
-                                  nodes[i],
-                                  tls,
-                                  translations);
+          calc_translations_faces(
+              positions_eval, faces, corner_verts, vert_to_face_map, nodes[i], tls, translations);
         });
       });
       break;
@@ -337,17 +333,20 @@ void do_enhance_details_brush(const Depsgraph &depsgraph,
                      object,
                      tls,
                      positions_orig);
-          BKE_pbvh_node_mark_positions_update(nodes[i]);
+          bke::pbvh::update_node_bounds_mesh(positions_eval, nodes[i]);
         });
       });
       break;
     }
     case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+      MutableSpan<float3> positions = subdiv_ccg.positions;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           calc_grids(depsgraph, sd, object, brush, translations, strength, nodes[i], tls);
+          bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
         });
       });
       break;
@@ -358,11 +357,14 @@ void do_enhance_details_brush(const Depsgraph &depsgraph,
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           calc_bmesh(depsgraph, sd, object, brush, translations, strength, nodes[i], tls);
+          bke::pbvh::update_node_bounds_bmesh(nodes[i]);
         });
       });
       break;
     }
   }
+  pbvh.tag_positions_changed(node_mask);
+  bke::pbvh::flush_bounds_to_parents(pbvh);
 }
 
 }  // namespace blender::ed::sculpt_paint

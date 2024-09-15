@@ -2403,7 +2403,15 @@ class VIEW3D_MT_paint_vertex_grease_pencil(Menu):
     bl_label = "Paint"
 
     def draw(self, _context):
-        pass
+        layout = self.layout
+
+        layout.operator("grease_pencil.vertex_color_set", text="Set Color Attribute")
+        layout.operator("grease_pencil.stroke_reset_vertex_color")
+        layout.separator()
+        layout.operator("grease_pencil.vertex_color_invert", text="Invert")
+        layout.operator("grease_pencil.vertex_color_levels", text="Levels")
+        layout.operator("grease_pencil.vertex_color_hsv", text="Hue/Saturation/Value")
+        layout.operator("grease_pencil.vertex_color_brightness_contrast", text="Brightness/Contrast")
 
 
 class VIEW3D_MT_select_edit_gpencil(Menu):
@@ -6055,6 +6063,16 @@ class VIEW3D_MT_weight_grease_pencil(Menu):
 
     def draw(self, _context):
         layout = self.layout
+
+        layout.operator("grease_pencil.weight_sample", text="Sample Weight")
+
+        layout.separator()
+
+        layout.operator("grease_pencil.vertex_group_normalize_all", text="Normalize All")
+        layout.operator("grease_pencil.vertex_group_normalize", text="Normalize")
+
+        layout.separator()
+
         layout.operator("grease_pencil.weight_invert", text="Invert Weight")
         layout.operator("grease_pencil.vertex_group_smooth", text="Smooth")
 

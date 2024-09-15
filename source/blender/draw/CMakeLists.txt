@@ -293,6 +293,7 @@ set(SRC
   engines/overlay/overlay_next_bounds.hh
   engines/overlay/overlay_next_camera.hh
   engines/overlay/overlay_next_curve.hh
+  engines/overlay/overlay_next_edit_text.hh
   engines/overlay/overlay_next_empty.hh
   engines/overlay/overlay_next_facing.hh
   engines/overlay/overlay_next_fade.hh
@@ -307,6 +308,8 @@ set(SRC
   engines/overlay/overlay_next_lightprobe.hh
   engines/overlay/overlay_next_mesh.hh
   engines/overlay/overlay_next_metaball.hh
+  engines/overlay/overlay_next_mode_transfer.hh
+  engines/overlay/overlay_next_origin.hh
   engines/overlay/overlay_next_outline.hh
   engines/overlay/overlay_next_paint.hh
   engines/overlay/overlay_next_particle.hh

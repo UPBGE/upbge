@@ -23,6 +23,7 @@
 
 #include "DNA_brush_enums.h"
 #include "DNA_customdata_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_enums.h"
 
 #include "BKE_pbvh.hh"
@@ -341,22 +342,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
     int level = 0;
   } multires = {};
 
-  /* Depsgraph for the Cloth Brush solver to get the colliders. */
-  Depsgraph *depsgraph = nullptr;
-
-  /* These are always assigned to base mesh data when using Type::Mesh. */
-  blender::OffsetIndices<int> faces;
-  blender::Span<int> corner_verts;
-
-  /* These contain the vertex and poly counts of the final mesh. */
-  int totvert = 0;
-  int faces_num = 0;
-
   KeyBlock *shapekey_active = nullptr;
-
-  /* Mesh connectivity maps. */
-  /* Vertices to adjacent polys. */
-  blender::GroupedSpan<int> vert_to_face_map;
 
   /* Edges to adjacent faces. */
   blender::Array<int> edge_to_face_offsets;
@@ -367,21 +353,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::Array<int> vert_to_edge_offsets;
   blender::Array<int> vert_to_edge_indices;
   blender::GroupedSpan<int> vert_to_edge_map;
-
-  /* Mesh Face Sets */
-  /* Total number of faces of the base mesh. */
-  int totfaces = 0;
-
-  /* The 0 ID is not used by the tools or the visibility system, it is just used when creating new
-   * geometry (the trim tool, for example) to detect which geometry was just added, so it can be
-   * assigned a valid Face Set after creation. Tools are not intended to run with Face Sets IDs set
-   * to 0. */
-  const int *face_sets = nullptr;
-  /**
-   * A reference to the ".hide_poly" attribute, to store whether (base) faces are hidden.
-   * May be null.
-   */
-  const bool *hide_poly = nullptr;
 
   /* BMesh for dynamic topology sculpting */
   BMesh *bm = nullptr;
@@ -432,7 +403,6 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* TODO(jbakker): Replace rv3d and v3d with ViewContext */
   RegionView3D *rv3d = nullptr;
   View3D *v3d = nullptr;
-  Scene *scene = nullptr;
 
   /* Dynamic mesh preview */
   blender::Array<int> preview_verts;
@@ -466,7 +436,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
       /* Needed to continuously re-apply over the same weights (BRUSH_ACCUMULATE disabled).
        * Lazy initialize as needed (flag is set to 1 to tag it as uninitialized). */
-      MDeformVert *dvert_prev;
+      blender::Array<MDeformVert> dvert_prev;
     } wpaint;
 
     /* TODO: identify sculpt-only fields */
@@ -554,7 +524,6 @@ void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
 void BKE_sculptsession_free_pbvh(Object &object);
 void BKE_sculptsession_bm_to_me(Object *ob, bool reorder);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
-int BKE_sculptsession_vertex_count(const SculptSession *ss);
 
 /**
  * Create new color layer on object if it doesn't have one and if experimental feature set has
@@ -574,11 +543,6 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
  * it's the last modifier on the stack and it is not on the first level.
  */
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob);
-/**
- * Update the pointer to the ".hide_poly" attribute. This is necessary because it is dynamically
- * created, removed, and made mutable.
- */
-void BKE_sculpt_hide_poly_pointer_update(Object &object);
 
 /**
  * Ensures a mask layer exists. If depsgraph and bmain are non-null,
@@ -607,9 +571,10 @@ namespace blender::bke::object {
 pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object);
 
 /**
- * Access the acceleration structure for raycasting, nearest queries, and spatially contiguous mesh
- * updates and drawing. The BVH tree is used by sculpt, vertex paint, and weight paint object
- * modes. This just accesses the BVH, to ensure it's built, use #pbvh_ensure.
+ * Access the acceleration structure for ray-casting,
+ * nearest queries, and spatially contiguous mesh updates and drawing.
+ * The BVH tree is used by sculpt, vertex paint, and weight paint object modes.
+ * This just accesses the BVH, to ensure it's built, use #pbvh_ensure.
  */
 pbvh::Tree *pbvh_get(Object &object);
 const pbvh::Tree *pbvh_get(const Object &object);

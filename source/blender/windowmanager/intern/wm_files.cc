@@ -1745,6 +1745,20 @@ static void wm_history_file_update()
  *
  * \{ */
 
+static blender::int2 blend_file_thumb_clamp_size(const int size[2], const int limit)
+{
+  blender::int2 result;
+  if (size[0] > size[1]) {
+    result.x = limit;
+    result.y = max_ii(1, int((float(size[1]) / float(size[0])) * limit));
+  }
+  else {
+    result.x = max_ii(1, int((float(size[0]) / float(size[1])) * limit));
+    result.y = limit;
+  }
+  return result;
+}
+
 /**
  * Screen-shot the active window.
  */
@@ -1758,7 +1772,7 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
   }
 
   /* The window to capture should be a main window (without parent). */
-  while (win && win->parent) {
+  while (win->parent) {
     win = win->parent;
   }
 
@@ -1766,36 +1780,33 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
   int win_size[2];
   /* NOTE: always read from front-buffer as drawing a window can cause problems while saving,
    * even if this means the thumbnail from the screen-shot fails to be created, see: #98462. */
-  uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size);
-  ImBuf *ibuf = IMB_allocFromBufferOwn(buffer, nullptr, win_size[0], win_size[1], 24);
+  ImBuf *ibuf = nullptr;
 
-  if (ibuf) {
-    int ex, ey;
-    if (ibuf->x > ibuf->y) {
-      ex = BLEN_THUMB_SIZE;
-      ey = max_ii(1, int((float(ibuf->y) / float(ibuf->x)) * BLEN_THUMB_SIZE));
-    }
-    else {
-      ex = max_ii(1, int((float(ibuf->x) / float(ibuf->y)) * BLEN_THUMB_SIZE));
-      ey = BLEN_THUMB_SIZE;
-    }
+  if (uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size)) {
+    const blender::int2 thumb_size_2x = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE * 2);
+    const blender::int2 thumb_size = blend_file_thumb_clamp_size(win_size, BLEN_THUMB_SIZE);
+
+    ibuf = IMB_allocFromBufferOwn(buffer, nullptr, win_size[0], win_size[1], 24);
+    BLI_assert(ibuf != nullptr); /* Never expected to fail. */
 
     /* File-system thumbnail image can be 256x256. */
-    IMB_scale(ibuf, ex * 2, ey * 2, IMBScaleFilter::Box, false);
-
-    /* Save metadata for quick access. */
-    char version_st[10] = {0};
-    SNPRINTF(version_st, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
-    IMB_metadata_ensure(&ibuf->metadata);
-    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_st);
+    IMB_scale(ibuf, thumb_size_2x.x, thumb_size_2x.y, IMBScaleFilter::Box, false);
 
     /* Thumbnail inside blend should be 128x128. */
     ImBuf *thumb_ibuf = IMB_dupImBuf(ibuf);
-    IMB_scale(thumb_ibuf, ex, ey, IMBScaleFilter::Box, false);
+    IMB_scale(thumb_ibuf, thumb_size.x, thumb_size.y, IMBScaleFilter::Box, false);
 
     BlendThumbnail *thumb = BKE_main_thumbnail_from_imbuf(nullptr, thumb_ibuf);
     IMB_freeImBuf(thumb_ibuf);
     *r_thumb = thumb;
+  }
+
+  if (ibuf) {
+    /* Save metadata for quick access. */
+    char version_str[10];
+    SNPRINTF(version_str, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
+    IMB_metadata_ensure(&ibuf->metadata);
+    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_str);
   }
 
   /* Must be freed by caller. */
@@ -1900,10 +1911,10 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
     thumb_ibuf = IMB_dupImBuf(ibuf);
 
     /* Save metadata for quick access. */
-    char version_st[10] = {0};
-    SNPRINTF(version_st, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
+    char version_str[10];
+    SNPRINTF(version_str, "%d.%01d", BLENDER_VERSION / 100, BLENDER_VERSION % 100);
     IMB_metadata_ensure(&ibuf->metadata);
-    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_st);
+    IMB_metadata_set_field(ibuf->metadata, "Thumb::Blender::Version", version_str);
 
     /* BLEN_THUMB_SIZE is size of thumbnail inside blend file: 128x128. */
     IMB_scale(thumb_ibuf, BLEN_THUMB_SIZE, BLEN_THUMB_SIZE, IMBScaleFilter::Box, false);
@@ -3108,13 +3119,13 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   }
 
   /* Date. */
-  char date_st[FILELIST_DIRENTRY_DATE_LEN];
-  char time_st[FILELIST_DIRENTRY_TIME_LEN];
+  char date_str[FILELIST_DIRENTRY_DATE_LEN];
+  char time_str[FILELIST_DIRENTRY_TIME_LEN];
   bool is_today, is_yesterday;
   BLI_filelist_entry_datetime_to_string(
-      nullptr, int64_t(stats.st_mtime), false, time_st, date_st, &is_today, &is_yesterday);
+      nullptr, int64_t(stats.st_mtime), false, time_str, date_str, &is_today, &is_yesterday);
   if (is_today || is_yesterday) {
-    STRNCPY(date_st, is_today ? TIP_("Today") : TIP_("Yesterday"));
+    STRNCPY(date_str, is_today ? TIP_("Today") : TIP_("Yesterday"));
   }
 
   /* Size. */
@@ -3124,8 +3135,8 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   return fmt::format("{}\n\n{}: {} {}\n{}: {}",
                      filepath,
                      TIP_("Modified"),
-                     date_st,
-                     time_st,
+                     date_str,
+                     time_str,
                      TIP_("Size"),
                      size_str);
 }

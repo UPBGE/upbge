@@ -15,6 +15,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_compat.h"
 #include "BLI_function_ref.hh"
@@ -24,6 +25,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -79,17 +81,22 @@ class Node {
 
   /* Indicates whether this node is a leaf or not; also used for
    * marking various updates that need to be applied. */
-  PBVHNodeFlags flag_ = PBVH_UpdateBB | PBVH_RebuildDrawBuffers | PBVH_UpdateDrawBuffers |
-                        PBVH_UpdateRedraw;
+  PBVHNodeFlags flag_ = PBVH_UpdateRedraw;
 
-  /* Used for ray-casting: how close the bounding-box is to the ray point. */
+  /**
+   * Used for ray-casting: how close the bounding-box is to the ray point.
+   * \todo Remove and store elsewhere.
+   */
   float tmin_ = 0.0f;
 
-  /* Used to flash colors of updated node bounding boxes in
+  /**
+   * Used to flash colors of updated node bounding boxes in
    * debug draw mode (when G.debug_value / bpy.app.debug_value is 889).
+   * \todo Remove and store elsewhere.
    */
   int debug_draw_gen_ = 0;
 
+  /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 };
 
@@ -176,6 +183,12 @@ struct BMeshNode : public Node {
 class DrawCache {
  public:
   virtual ~DrawCache() = default;
+  virtual void tag_positions_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_visibility_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_topology_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_face_sets_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_masks_changed(const IndexMask &node_mask) = 0;
+  virtual void tag_attribute_changed(const IndexMask &node_mask, StringRef attribute_name) = 0;
 };
 
 /**
@@ -192,6 +205,28 @@ class Tree {
   /* Memory backing for Node.prim_indices. */
   Array<int> prim_indices_;
 
+  /**
+   * If true, the bounds for the corresponding node index is out of date.
+   * \note Values are only meaningful for leaf nodes.
+   * \note The vector's size may not match the size of the nodes array.
+   */
+  BitVector<> bounds_dirty_;
+
+  /**
+   * If true, the normals for the corresponding node index are out of date.
+   * \note Values are only meaningful for leaf nodes.
+   * \note The vector's size may not match the size of the nodes array.
+   */
+  BitVector<> normals_dirty_;
+
+  /**
+   * If true, the visibility status for the corresponding node indices are out of date.
+   * \note Values are only meaningful for leaf nodes.
+   * \note The vector's size may not match the size of the nodes array.
+   */
+  BitVector<> visibility_dirty_;
+
+  /** \todo Remove and store elsewhere. */
   float planes_[6][4];
   int num_planes_;
 
@@ -211,6 +246,32 @@ class Tree {
   {
     return this->type_;
   }
+
+  /**
+   * Mark data based on positions for specific BVH nodes dirty. In particular: bounds, normals,
+   * and GPU data buffers. That data is recomputed later on in functions like #update_bounds.
+   * \warning Must not be called from multiple threads in parallel.
+   */
+  void tag_positions_changed(const IndexMask &node_mask);
+
+  /** Tag nodes where face or vertex visibility has changed.  */
+  void tag_visibility_changed(const IndexMask &node_mask);
+
+  /**
+   * Tag nodes that have a different number of vertices or faces (currently just for Type::BMesh).
+   */
+  void tag_topology_changed(const IndexMask &node_mask);
+
+  /** Tag nodes where face sets have changed, causing refresh of derived data. */
+  void tag_face_sets_changed(const IndexMask &node_mask);
+
+  /** Tag nodes where mask values have changed, causing refresh of derived data. */
+  void tag_masks_changed(const IndexMask &node_mask);
+
+  /**
+   * Tag nodes where generic attribute data has changed (not positions, masks, or face sets).
+   */
+  void tag_attribute_changed(const IndexMask &node_mask, StringRef attribute_name);
 };
 
 }  // namespace blender::bke::pbvh
@@ -373,13 +434,6 @@ bool bmesh_update_topology(BMesh &bm,
 /* Node Access */
 
 void BKE_pbvh_node_mark_update(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_update_mask(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_update_color(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_update_face_sets(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_update_visibility(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_rebuild_draw(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_redraw(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_positions_update(blender::bke::pbvh::Node &node);
 void BKE_pbvh_node_mark_topology_update(blender::bke::pbvh::Node &node);
 void BKE_pbvh_node_fully_hidden_set(blender::bke::pbvh::Node &node, int fully_hidden);
 bool BKE_pbvh_node_fully_hidden_get(const blender::bke::pbvh::Node &node);
@@ -391,8 +445,6 @@ bool BKE_pbvh_node_fully_unmasked_get(const blender::bke::pbvh::Node &node);
 void BKE_pbvh_mark_rebuild_pixels(blender::bke::pbvh::Tree &pbvh);
 
 namespace blender::bke::pbvh {
-
-void remove_node_draw_tags(bke::pbvh::Tree &pbvh, const IndexMask &node_mask);
 
 /**
  * Gather the indices of all base mesh faces in the node.
@@ -444,7 +496,7 @@ namespace blender::bke::pbvh {
 
 /**
  * Recalculate node bounding boxes based on the current coordinates. Calculation is only done for
- * affected nodes with the #PBVH_UpdateBB flag set.
+ * affected nodes that have been tagged by #PBVH::tag_positions_changed().
  */
 void update_bounds(const Depsgraph &depsgraph, const Object &object, Tree &pbvh);
 void update_bounds_mesh(Span<float3> vert_positions, Tree &pbvh);
@@ -459,7 +511,11 @@ void update_bounds_bmesh(const BMesh &bm, Tree &pbvh);
  */
 void store_bounds_orig(Tree &pbvh);
 
-void update_mask(const Object &object, Tree &pbvh);
+/** Update node "fully masked" and "fully unmasked" values after mask values have been changed. */
+void update_mask_mesh(const Mesh &mesh, const IndexMask &node_mask, Tree &pbvh);
+void update_mask_grids(const SubdivCCG &subdiv_ccg, const IndexMask &node_mask, Tree &pbvh);
+void update_mask_bmesh(const BMesh &bm, const IndexMask &node_mask, Tree &pbvh);
+
 void update_visibility(const Object &object, Tree &pbvh);
 void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh);
 /** Update geometry normals (potentially on the original object geometry). */
@@ -523,10 +579,6 @@ IndexMask search_nodes(const Tree &pbvh,
                        IndexMaskMemory &memory,
                        FunctionRef<bool(const Node &)> filter_fn);
 
-IndexMask node_draw_update_mask(const Tree &pbvh,
-                                const IndexMask &node_mask,
-                                IndexMaskMemory &memory);
-
 void node_update_mask_mesh(Span<float> mask, MeshNode &node);
 void node_update_mask_grids(const CCGKey &key, Span<float> masks, GridsNode &node);
 void node_update_mask_bmesh(int mask_offset, BMeshNode &node);
@@ -536,8 +588,15 @@ void node_update_visibility_grids(const BitGroupVector<> &grid_hidden, GridsNode
 void node_update_visibility_bmesh(BMeshNode &node);
 
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
-void update_node_bounds_grids(const CCGKey &key, Span<float3> positions, GridsNode &node);
+void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
+
+/**
+ * Run the last step of the BVH bounds recalculation process, propagating updated leaf node bounds
+ * to their parent/ancestor inner nodes. This is meant to be used after leaf node bounds have been
+ * computed separately.
+ */
+void flush_bounds_to_parents(Tree &pbvh);
 
 inline Span<int> MeshNode::faces() const
 {

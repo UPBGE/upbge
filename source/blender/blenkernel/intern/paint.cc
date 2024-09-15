@@ -1629,10 +1629,10 @@ void BKE_sculptsession_free_vwpaint_data(SculptSession *ss)
 {
   if (ss->mode_type == OB_MODE_WEIGHT_PAINT) {
     MEM_SAFE_FREE(ss->mode.wpaint.alpha_weight);
-    if (ss->mode.wpaint.dvert_prev) {
-      BKE_defvert_array_free_elems(ss->mode.wpaint.dvert_prev, ss->totvert);
-      MEM_freeN(ss->mode.wpaint.dvert_prev);
-      ss->mode.wpaint.dvert_prev = nullptr;
+    if (!ss->mode.wpaint.dvert_prev.is_empty()) {
+      BKE_defvert_array_free_elems(ss->mode.wpaint.dvert_prev.data(),
+                                   ss->mode.wpaint.dvert_prev.size());
+      ss->mode.wpaint.dvert_prev = {};
     }
   }
 }
@@ -1675,7 +1675,6 @@ void BKE_sculptsession_free_pbvh(Object &object)
   }
 
   ss->pbvh.reset();
-  ss->vert_to_face_map = {};
   ss->edge_to_face_offsets = {};
   ss->edge_to_face_indices = {};
   ss->edge_to_face_map = {};
@@ -1965,7 +1964,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
    * evaluated yet. */
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh_unchecked(ob_eval);
   MultiresModifierData *mmd = sculpt_multires_modifier_get(scene, ob, true);
-  const bool use_face_sets = (ob->mode & OB_MODE_SCULPT) != 0;
 
   BLI_assert(mesh_eval != nullptr);
 
@@ -1975,13 +1973,9 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     return;
   }
 
-  ss.depsgraph = depsgraph;
-
   ss.deform_modifiers_active = sculpt_modifiers_active(scene, sd, ob);
 
   ss.building_vp_handle = false;
-
-  ss.scene = scene;
 
   ss.shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(ob) : nullptr;
 
@@ -1991,45 +1985,16 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     ss.multires.active = true;
     ss.multires.modifier = mmd;
     ss.multires.level = mmd->sculptlvl;
-    ss.totvert = mesh_eval->verts_num;
-    ss.faces_num = mesh_eval->faces_num;
-    ss.totfaces = mesh_orig->faces_num;
-
-    /* These are assigned to the base mesh in Multires. This is needed because Face Sets operators
-     * and tools use the Face Sets data from the base mesh when Multires is active. */
-    ss.faces = mesh_orig->faces();
-    ss.corner_verts = mesh_orig->corner_verts();
   }
   else {
-    ss.totvert = mesh_orig->verts_num;
-    ss.faces_num = mesh_orig->faces_num;
-    ss.totfaces = mesh_orig->faces_num;
-    ss.faces = mesh_orig->faces();
-    ss.corner_verts = mesh_orig->corner_verts();
     ss.multires.active = false;
     ss.multires.modifier = nullptr;
     ss.multires.level = 0;
   }
 
-  /* Sculpt Face Sets. */
-  if (use_face_sets) {
-    ss.face_sets = static_cast<const int *>(
-        CustomData_get_layer_named(&mesh_orig->face_data, CD_PROP_INT32, ".sculpt_face_set"));
-  }
-  else {
-    ss.face_sets = nullptr;
-  }
-
-  ss.hide_poly = (bool *)CustomData_get_layer_named(
-      &mesh_orig->face_data, CD_PROP_BOOL, ".hide_poly");
-
   ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
 
   pbvh::Tree &pbvh = object::pbvh_ensure(*depsgraph, *ob);
-
-  if (ob->type == OB_MESH) {
-    ss.vert_to_face_map = mesh_orig->vert_to_face_map();
-  }
 
   if (ss.deform_modifiers_active) {
     /* Painting doesn't need crazyspace, use already evaluated mesh coordinates if possible. */
@@ -2119,6 +2084,11 @@ static void sculpt_update_object(Depsgraph *depsgraph,
       BKE_texpaint_slots_refresh_object(scene, ob);
     }
   }
+
+  /* This solves a crash when running a sculpt brush in background mode, because there is no redraw
+   * after entering sculpt mode to make sure normals are allocated. Recalculating normals with
+   * every brush step is too expensive currently. */
+  bke::pbvh::update_normals(*depsgraph, *ob, pbvh);
 }
 
 void BKE_sculpt_update_object_before_eval(Object *ob_eval)
@@ -2159,6 +2129,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
   else if (pbvh) {
     IndexMaskMemory memory;
     const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
+    pbvh->tag_positions_changed(node_mask);
     switch (pbvh->type()) {
       case bke::pbvh::Type::Mesh: {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh->nodes<bke::pbvh::MeshNode>();
@@ -2219,13 +2190,6 @@ void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bo
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
 
   sculpt_update_object(depsgraph, ob_orig, ob_eval, is_paint_tool);
-}
-
-void BKE_sculpt_hide_poly_pointer_update(Object &object)
-{
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-  object.sculpt->hide_poly = static_cast<const bool *>(
-      CustomData_get_layer_named(&mesh.face_data, CD_PROP_BOOL, ".hide_poly"));
 }
 
 void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
@@ -2517,15 +2481,4 @@ void BKE_paint_face_set_overlay_color_get(const int face_set, const int seed, uc
              &rgba[1],
              &rgba[2]);
   rgba_float_to_uchar(r_color, rgba);
-}
-
-int BKE_sculptsession_vertex_count(const SculptSession *ss)
-{
-  if (ss->bm) {
-    return ss->bm->totvert;
-  }
-  if (ss->subdiv_ccg) {
-    return ss->subdiv_ccg->positions.size();
-  }
-  return ss->totvert;
 }

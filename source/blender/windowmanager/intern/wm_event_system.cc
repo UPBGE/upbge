@@ -1127,7 +1127,10 @@ static void wm_operator_reports(bContext *C,
     CLOG_STR_INFO(WM_LOG_OPERATORS, 1, pystring.c_str());
 
     if (caller_owns_reports == false) {
-      BKE_reports_print(op->reports, RPT_DEBUG); /* Print out reports to console. */
+      /* Print out reports to console.
+       * When quiet, only show warnings, suppressing info and other non-essential warnings. */
+      const eReportType level = G.quiet ? RPT_WARNING : RPT_DEBUG;
+      BKE_reports_print(op->reports, level);
     }
 
     if (op->type->flag & OPTYPE_REGISTER) {
@@ -5250,6 +5253,34 @@ static int wm_event_type_from_ghost_key(GHOST_TKey key)
   return EVENT_NONE;
 }
 
+/**
+ * \return The WM enum for button or `fallback`.
+ */
+static int wm_event_type_from_ghost_button(const GHOST_TButton button, const int fallback)
+{
+#define CASE_BUTTON(ghost_button, type) \
+  case ghost_button: \
+    return type
+
+  switch (button) {
+    CASE_BUTTON(GHOST_kButtonMaskLeft, LEFTMOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskMiddle, MIDDLEMOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskRight, RIGHTMOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskButton4, BUTTON4MOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskButton5, BUTTON5MOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskButton6, BUTTON6MOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskButton7, BUTTON7MOUSE);
+    case GHOST_kButtonMaskNone: {
+      BLI_assert_unreachable();
+    }
+  }
+
+#undef CASE_BUTTON
+
+  BLI_assert_unreachable();
+  return fallback;
+}
+
 static void wm_eventemulation(wmEvent *event, bool test_only)
 {
   /* Store last middle-mouse event value to make emulation work
@@ -5837,30 +5868,12 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
     case GHOST_kEventButtonUp: {
       const GHOST_TEventButtonData *bd = static_cast<const GHOST_TEventButtonData *>(customdata);
 
-      /* Get value and type from Ghost. */
+      /* Get value and type from GHOST.
+       *
+       * NOTE(@ideasman42): Unknown mouse buttons are treated as middle-mouse (historic stuff).
+       * GHOST should never generate unknown events and this logic can probably be removed. */
       event.val = (type == GHOST_kEventButtonDown) ? KM_PRESS : KM_RELEASE;
-
-      if (bd->button == GHOST_kButtonMaskLeft) {
-        event.type = LEFTMOUSE;
-      }
-      else if (bd->button == GHOST_kButtonMaskRight) {
-        event.type = RIGHTMOUSE;
-      }
-      else if (bd->button == GHOST_kButtonMaskButton4) {
-        event.type = BUTTON4MOUSE;
-      }
-      else if (bd->button == GHOST_kButtonMaskButton5) {
-        event.type = BUTTON5MOUSE;
-      }
-      else if (bd->button == GHOST_kButtonMaskButton6) {
-        event.type = BUTTON6MOUSE;
-      }
-      else if (bd->button == GHOST_kButtonMaskButton7) {
-        event.type = BUTTON7MOUSE;
-      }
-      else {
-        event.type = MIDDLEMOUSE;
-      }
+      event.type = wm_event_type_from_ghost_button(bd->button, MIDDLEMOUSE);
 
       /* Get tablet data. */
       wm_tablet_data_from_ghost(&bd->tablet, &event.tablet);

@@ -12,7 +12,8 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   if(NOT DEFINED WITH_IN_SOURCE_BUILD)
     message(FATAL_ERROR
       "CMake generation for blender is not allowed within the source directory!"
-      "\n Remove \"${CMAKE_SOURCE_DIR}/CMakeCache.txt\" and try again from another folder, e.g.:"
+      "\n Remove \"${CMAKE_SOURCE_DIR}/CMakeCache.txt\""
+      "\n then try again from another directory, e.g.:"
       "\n "
       "\n rm -rf CMakeCache.txt CMakeFiles"
       "\n cd .."
@@ -500,7 +501,7 @@ option(WITH_IO_STL "Enable STL 3D file format support (*.stl)" ON)
 option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)" ON)
 
 # Sound output
-option(WITH_SDL "Enable SDL for sound" ON)
+option(WITH_SDL "Enable SDL for sound" OFF)
 option(WITH_OPENAL "Enable OpenAL Support (http://www.openal.org)" ON)
 if(APPLE)
   option(WITH_COREAUDIO "Enable CoreAudio for audio support on macOS" ON)
@@ -517,9 +518,6 @@ if(NOT WIN32)
   option(WITH_JACK_DYNLOAD "Enable runtime dynamic JACK libraries loading" OFF)
 else()
   set(WITH_JACK OFF)
-endif()
-if(UNIX AND NOT APPLE)
-  option(WITH_SDL_DYNLOAD "Enable runtime dynamic SDL libraries loading" OFF)
 endif()
 if(UNIX AND NOT APPLE)
   option(WITH_PULSEAUDIO "Enable PulseAudio for audio support on Linux" ON)
@@ -598,10 +596,10 @@ Install redistributable runtime, otherwise install into CMAKE_INSTALL_PREFIX"
   )
 endif()
 
-option(WITH_PYTHON_INSTALL "Copy system python into the blender install folder" ON)
+option(WITH_PYTHON_INSTALL "Copy system python into the blender install directory" ON)
 
 option(WITH_INSTALL_COPYRIGHT "\
-Copy the official Blender Authors's copyright.txt into the Blender install folder"
+Copy the official Blender Authors's copyright.txt into the Blender install directory"
   OFF
 )
 mark_as_advanced(WITH_INSTALL_COPYRIGHT)
@@ -621,17 +619,20 @@ Path to python site-packages or dist-packages containing 'numpy' module"
   mark_as_advanced(PYTHON_NUMPY_INCLUDE_DIRS)
 endif()
 if(WITH_PYTHON_INSTALL)
-  option(WITH_PYTHON_INSTALL_NUMPY "Copy system NumPy into the blender install folder" ON)
+  option(WITH_PYTHON_INSTALL_NUMPY "Copy system NumPy into the blender install directory" ON)
 
   if(UNIX AND NOT APPLE)
-    option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
+    option(WITH_PYTHON_INSTALL_REQUESTS "\
+Copy system requests into the blender install directory"
+      ON
+    )
     set(PYTHON_REQUESTS_PATH "" CACHE PATH "\
 Path to python site-packages or dist-packages containing 'requests' module"
     )
     mark_as_advanced(PYTHON_REQUESTS_PATH)
   endif()
 
-  option(WITH_PYTHON_INSTALL_ZSTANDARD "Copy zstandard into the blender install folder" ON)
+  option(WITH_PYTHON_INSTALL_ZSTANDARD "Copy zstandard into the blender install directory" ON)
   set(PYTHON_ZSTANDARD_PATH "" CACHE PATH "\
 Path to python site-packages or dist-packages containing 'zstandard' module"
   )
@@ -1121,13 +1122,13 @@ endif()
 
 if(WIN32 OR XCODE)
   option(IDE_GROUP_SOURCES_IN_FOLDERS "\
-Organize the source files in filters matching the source folders."
+Organize the source files in filters matching the source directory."
     ON
   )
   mark_as_advanced(IDE_GROUP_SOURCES_IN_FOLDERS)
 
   option(IDE_GROUP_PROJECTS_IN_FOLDERS "\
-Organize the projects according to source folder structure."
+Organize the projects according to source directory structure."
     ON
   )
   mark_as_advanced(IDE_GROUP_PROJECTS_IN_FOLDERS)
@@ -1189,7 +1190,7 @@ default install path"
   endif()
 endif()
 
-# Effective install path including config folder, as a generator expression.
+# Effective install path including config directory, as a generator expression.
 get_property(GENERATOR_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(GENERATOR_IS_MULTI_CONFIG)
   string(
@@ -2830,7 +2831,6 @@ if(FIRST_RUN)
   info_cfg_option(WITH_PULSEAUDIO)
   info_cfg_option(WITH_PULSEAUDIO_DYNLOAD)
   info_cfg_option(WITH_SDL)
-  info_cfg_option(WITH_SDL_DYNLOAD)
   info_cfg_option(WITH_WASAPI)
 
   info_cfg_text("Compression:")

@@ -297,7 +297,7 @@ TEST_F(ActionLayersTest, slot_remove)
     /* For referencing the slot handle after the slot is removed. */
     const slot_handle_t slot2_handle = slot2.handle;
 
-    /* Create a Channelbag for each slot. */
+    /* Create a Channel-bag for each slot. */
     action->layer_keystrip_ensure();
     KeyframeStrip &strip = action->layer(0)->strip(0)->as<KeyframeStrip>();
     strip.channelbag_for_slot_ensure(slot1);
@@ -308,7 +308,7 @@ TEST_F(ActionLayersTest, slot_remove)
     EXPECT_TRUE(action->slot_remove(slot2));
     EXPECT_EQ(5, action->last_slot_handle);
 
-    /* Check the correct slot + channelbag are removed. */
+    /* Check the correct slot + channel-bag are removed. */
     EXPECT_EQ(action->slot_for_handle(slot1.handle), &slot1);
     EXPECT_EQ(action->slot_for_handle(slot2_handle), nullptr);
     EXPECT_EQ(action->slot_for_handle(slot3.handle), &slot3);
@@ -882,6 +882,134 @@ TEST_F(ActionLayersTest, empty_to_layered)
   ASSERT_TRUE(converted != action);
   ASSERT_TRUE(converted->is_action_layered());
   ASSERT_FALSE(converted->is_action_legacy());
+}
+
+/*-----------------------------------------------------------*/
+
+/* Allocate fcu->bezt, and also return a unique_ptr to it for easily freeing the memory. */
+static void allocate_keyframes(FCurve &fcu, const size_t num_keyframes)
+{
+  fcu.bezt = MEM_cnew_array<BezTriple>(num_keyframes, __func__);
+}
+
+/* Append keyframe, assumes that fcu->bezt is allocated and has enough space. */
+static void add_keyframe(FCurve &fcu, float x, float y)
+{
+  /* The insert_keyframe functions are in the editors, so we cannot link to those here. */
+  BezTriple the_keyframe;
+  memset(&the_keyframe, 0, sizeof(the_keyframe));
+
+  /* Copied from insert_vert_fcurve() in `keyframing.cc`. */
+  the_keyframe.vec[0][0] = x - 1.0f;
+  the_keyframe.vec[0][1] = y;
+  the_keyframe.vec[1][0] = x;
+  the_keyframe.vec[1][1] = y;
+  the_keyframe.vec[2][0] = x + 1.0f;
+  the_keyframe.vec[2][1] = y;
+
+  memcpy(&fcu.bezt[fcu.totvert], &the_keyframe, sizeof(the_keyframe));
+  fcu.totvert++;
+}
+
+static void add_fcurve_to_action(Action &action, FCurve &fcu)
+{
+  Slot &slot = action.slot_array_num > 0 ? *action.slot(0) : action.slot_add();
+  action.layer_keystrip_ensure();
+  KeyframeStrip &strip = action.layer(0)->strip(0)->as<KeyframeStrip>();
+  ChannelBag &cbag = strip.channelbag_for_slot_ensure(slot);
+  cbag.fcurve_append(fcu);
+}
+
+class ActionQueryTest : public testing::Test {
+ public:
+  Main *bmain;
+
+  static void SetUpTestSuite()
+  {
+    /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
+    CLG_init();
+
+    /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    bmain = BKE_main_new();
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain);
+  }
+
+  Action &action_new()
+  {
+    return *static_cast<Action *>(BKE_id_new(bmain, ID_AC, "ACÄnimåtië"));
+  }
+};
+
+TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
+{
+  /* No FCurves. */
+  {
+    const Action &empty = action_new();
+    EXPECT_EQ((float2{0.0f, 0.0f}), empty.get_frame_range_of_keys(false));
+  }
+
+  /* One curve with one key. */
+  {
+    FCurve &fcu = *MEM_cnew<FCurve>(__func__);
+    allocate_keyframes(fcu, 1);
+    add_keyframe(fcu, 1.0f, 2.0f);
+
+    Action &action = action_new();
+    add_fcurve_to_action(action, fcu);
+
+    const float2 frame_range = action.get_frame_range_of_keys(false);
+    EXPECT_FLOAT_EQ(frame_range[0], 1.0f);
+    EXPECT_FLOAT_EQ(frame_range[1], 1.0f);
+  }
+
+  /* Two curves with one key each on different frames. */
+  {
+    FCurve &fcu1 = *MEM_cnew<FCurve>(__func__);
+    FCurve &fcu2 = *MEM_cnew<FCurve>(__func__);
+    allocate_keyframes(fcu1, 1);
+    allocate_keyframes(fcu2, 1);
+    add_keyframe(fcu1, 1.0f, 2.0f);
+    add_keyframe(fcu2, 1.5f, 2.0f);
+
+    Action &action = action_new();
+    add_fcurve_to_action(action, fcu1);
+    add_fcurve_to_action(action, fcu2);
+
+    const float2 frame_range = action.get_frame_range_of_keys(false);
+    EXPECT_FLOAT_EQ(frame_range[0], 1.0f);
+    EXPECT_FLOAT_EQ(frame_range[1], 1.5f);
+  }
+
+  /* One curve with two keys. */
+  {
+    FCurve &fcu = *MEM_cnew<FCurve>(__func__);
+    allocate_keyframes(fcu, 2);
+    add_keyframe(fcu, 1.0f, 2.0f);
+    add_keyframe(fcu, 1.5f, 2.0f);
+
+    Action &action = action_new();
+    add_fcurve_to_action(action, fcu);
+
+    const float2 frame_range = action.get_frame_range_of_keys(false);
+    EXPECT_FLOAT_EQ(frame_range[0], 1.0f);
+    EXPECT_FLOAT_EQ(frame_range[1], 1.5f);
+  }
+
+  /* TODO: action with fcurve modifiers. */
 }
 
 /*-----------------------------------------------------------*/

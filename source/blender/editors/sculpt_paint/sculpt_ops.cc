@@ -667,24 +667,25 @@ static int sculpt_sample_color_invoke(bContext *C, wmOperator *op, const wmEvent
 
   BKE_sculpt_update_object_for_edit(CTX_data_depsgraph_pointer(C), &ob, false);
 
-  /* No color attribute? Set color to white. */
   const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
-  const GroupedSpan<int> vert_to_face_map = ss.vert_to_face_map;
+  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::GAttributeReader color_attribute = color::active_color_attribute(mesh);
 
   float4 active_vertex_color;
-  if (!color_attribute) {
+  if (!color_attribute || std::holds_alternative<std::monostate>(ss.active_vert())) {
     active_vertex_color = float4(1.0f);
   }
-  const GVArraySpan colors = *color_attribute;
-  active_vertex_color = color::color_vert_get(faces,
-                                              corner_verts,
-                                              vert_to_face_map,
-                                              colors,
-                                              color_attribute.domain,
-                                              std::get<int>(ss.active_vert()));
+  else {
+    const GVArraySpan colors = *color_attribute;
+    active_vertex_color = color::color_vert_get(faces,
+                                                corner_verts,
+                                                vert_to_face_map,
+                                                colors,
+                                                color_attribute.domain,
+                                                std::get<int>(ss.active_vert()));
+  }
 
   float color_srgb[3];
   IMB_colormanagement_scene_linear_to_srgb_v3(color_srgb, active_vertex_color);
@@ -766,9 +767,9 @@ static void sculpt_mask_by_color_contiguous_mesh(const Depsgraph &depsgraph,
                                                  const bool invert,
                                                  const bool preserve_mask)
 {
-  SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan colors = *attributes.lookup_or_default<ColorGeometry4f>(
       mesh.active_color_attribute, bke::AttrDomain::Point, {});
@@ -779,7 +780,7 @@ static void sculpt_mask_by_color_contiguous_mesh(const Depsgraph &depsgraph,
   flood_fill::FillDataMesh flood(mesh.verts_num);
   flood.add_initial(vert);
 
-  flood.execute(object, ss.vert_to_face_map, [&](int /*from_v*/, int to_v) {
+  flood.execute(object, vert_to_face_map, [&](int /*from_v*/, int to_v) {
     const float4 current_color = float4(colors[to_v]);
 
     float new_vertex_mask = sculpt_mask_by_color_delta_get(
@@ -879,7 +880,6 @@ static int sculpt_mask_by_color_invoke(bContext *C, wmOperator *op, const wmEven
     sculpt_mask_by_color_full_mesh(*depsgraph, ob, active_vert, threshold, invert, preserve_mask);
   }
 
-  bke::pbvh::update_mask(ob, *bke::object::pbvh_get(ob));
   undo::push_end(ob);
 
   flush_update_done(C, ob, UpdateType::Mask);
@@ -1179,40 +1179,43 @@ static int sculpt_bake_cavity_exec(bContext *C, wmOperator *op)
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           bake_mask_mesh(*depsgraph, ob, *automasking, mode, factor, nodes[i], tls, mask.span);
-          BKE_pbvh_node_mark_update_mask(nodes[i]);
           bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
         });
       });
       break;
     }
     case bke::pbvh::Type::Grids: {
+      SubdivCCG &subdiv_ccg = *ob.sculpt->subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+      MutableSpan<float> masks = subdiv_ccg.masks;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           bake_mask_grids(*depsgraph, ob, *automasking, mode, factor, nodes[i], tls);
-          BKE_pbvh_node_mark_update_mask(nodes[i]);
+          bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
         });
       });
-      bke::pbvh::update_mask(ob, pbvh);
       break;
     }
     case bke::pbvh::Type::BMesh: {
+      const int mask_offset = CustomData_get_offset_named(
+          &ob.sculpt->bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
           bake_mask_bmesh(*depsgraph, ob, *automasking, mode, factor, nodes[i], tls);
-          BKE_pbvh_node_mark_update_mask(nodes[i]);
+          bke::pbvh::node_update_mask_bmesh(mask_offset, nodes[i]);
         });
       });
-      bke::pbvh::update_mask(ob, pbvh);
       break;
     }
   }
 
   undo::push_end(ob);
 
+  pbvh.tag_masks_changed(node_mask);
   flush_update_done(C, ob, UpdateType::Mask);
   SCULPT_tag_update_overlays(C);
 
