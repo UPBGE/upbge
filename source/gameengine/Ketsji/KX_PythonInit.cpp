@@ -1293,12 +1293,12 @@ static PyObject *gPyClearDebugList(PyObject *)
 static PyObject *gPyGetDisplayDimensions(PyObject *)
 {
   PyObject *result;
-  int width, height;
+  blender::int2 scr_size;
 
-  KX_GetActiveEngine()->GetCanvas()->GetDisplayDimensions(width, height);
+  KX_GetActiveEngine()->GetCanvas()->GetDisplayDimensions(scr_size);
 
   result = PyTuple_New(2);
-  PyTuple_SET_ITEMS(result, PyLong_FromLong(width), PyLong_FromLong(height));
+  PyTuple_SET_ITEMS(result, PyLong_FromLong(scr_size[0]), PyLong_FromLong(scr_size[1]));
 
   return result;
 }

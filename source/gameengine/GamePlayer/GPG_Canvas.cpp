@@ -182,7 +182,7 @@ bool GPG_Canvas::GetSwapInterval(int &intervalOut)
   return false;
 }
 
-void GPG_Canvas::GetDisplayDimensions(int &width, int &height)
+void GPG_Canvas::GetDisplayDimensions(blender::int2 &scr_size)
 {
   unsigned int uiwidth;
   unsigned int uiheight;
@@ -190,8 +190,8 @@ void GPG_Canvas::GetDisplayDimensions(int &width, int &height)
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   system->getMainDisplayDimensions(uiwidth, uiheight);
 
-  width = uiwidth;
-  height = uiheight;
+  scr_size[0] = uiwidth;
+  scr_size[1] = uiheight;
 }
 
 void GPG_Canvas::ResizeWindow(int width, int height)

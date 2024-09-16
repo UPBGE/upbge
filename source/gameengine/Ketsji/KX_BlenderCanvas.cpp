@@ -86,9 +86,9 @@ bool KX_BlenderCanvas::GetSwapInterval(int &intervalOut)
   return wm_window_get_swap_interval(m_win, &intervalOut);
 }
 
-void KX_BlenderCanvas::GetDisplayDimensions(int &width, int &height)
+void KX_BlenderCanvas::GetDisplayDimensions(blender::int2 &scr_size)
 {
-  wm_get_screensize(&width, &height);
+  wm_get_screensize(scr_size);
 }
 
 void KX_BlenderCanvas::ResizeWindow(int width, int height)

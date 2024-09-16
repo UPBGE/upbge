@@ -468,7 +468,10 @@ bool WM_init_game(bContext *C)
     /* Fullscreen */
     if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
       WM_operator_name_call(C, "WM_OT_window_fullscreen_toggle", WM_OP_EXEC_DEFAULT, NULL, NULL);
-      wm_get_screensize(&ar->winrct.xmax, &ar->winrct.ymax);
+      blender::int2 scr_size;
+      wm_get_screensize(scr_size);
+      ar->winrct.xmax = scr_size[0];
+      ar->winrct.ymax = scr_size[1];
       ar->winx = ar->winrct.xmax + 1;
       ar->winy = ar->winrct.ymax + 1;
     }

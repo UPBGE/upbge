@@ -88,7 +88,7 @@ class GPG_Canvas : public RAS_ICanvas {
 
   virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
-  virtual void GetDisplayDimensions(int &width, int &height);
+  virtual void GetDisplayDimensions(blender::int2 &scr_size);
 
   virtual void Resize(int width, int height);
   virtual void ResizeWindow(int width, int height);

@@ -33,6 +33,8 @@
 
 #include "RAS_Rasterizer.h"
 
+#include "BLI_math_vector_types.hh"
+
 class RAS_Rect;
 
 struct ImageFormatData;
@@ -113,7 +115,7 @@ class RAS_ICanvas {
   /// Proceed the actual screenshot at the frame end.
   void FlushScreenshots();
 
-  virtual void GetDisplayDimensions(int &width, int &height) = 0;
+  virtual void GetDisplayDimensions(blender::int2 &scr_size) = 0;
 
   virtual void ResizeWindow(int width, int height) = 0;
 

@@ -74,7 +74,7 @@ class KX_BlenderCanvas : public RAS_ICanvas {
   virtual void SetSwapInterval(int interval);
   virtual bool GetSwapInterval(int &intervalOut);
 
-  virtual void GetDisplayDimensions(int &width, int &height);
+  virtual void GetDisplayDimensions(blender::int2 &scr_size);
   virtual void ResizeWindow(int width, int height);
   virtual void Resize(int width, int height);
 
