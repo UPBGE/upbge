@@ -845,9 +845,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
             BKE_collection_has_object_recursive(collection_active, object_active))
         {
           template_id_liboverride_hierarchy_collections_tag_recursive(collection_active, id, true);
-          if (object_active != nullptr) {
-            object_active->id.tag |= ID_TAG_DOIT;
-          }
+          object_active->id.tag |= ID_TAG_DOIT;
           BKE_lib_override_library_create(bmain,
                                           scene,
                                           view_layer,
@@ -2236,7 +2234,8 @@ static void template_search_buttons(const bContext *C,
 {
   uiBlock *block = uiLayoutGetBlock(layout);
   uiRNACollectionSearch *search_data = &template_search.search_data;
-  StructRNA *type = RNA_property_pointer_type(&search_data->target_ptr, search_data->target_prop);
+  const StructRNA *type = RNA_property_pointer_type(&search_data->target_ptr,
+                                                    search_data->target_prop);
   const bool editable = RNA_property_editable(&search_data->target_ptr, search_data->target_prop);
   PointerRNA active_ptr = RNA_property_pointer_get(&search_data->target_ptr,
                                                    search_data->target_prop);
@@ -6533,7 +6532,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   UI_block_emboss_set(block, previous_emboss);
 }
 
-static bool uiTemplateInputStatusAzone(uiLayout *layout, AZone *az, ARegion *region)
+static bool uiTemplateInputStatusAzone(uiLayout *layout, const AZone *az, const ARegion *region)
 {
   if (az->type == AZONE_AREA) {
     uiItemL(layout, nullptr, ICON_MOUSE_LMB_DRAG);

@@ -309,6 +309,7 @@ set(SRC
   engines/overlay/overlay_next_mesh.hh
   engines/overlay/overlay_next_metaball.hh
   engines/overlay/overlay_next_mode_transfer.hh
+  engines/overlay/overlay_next_motion_path.hh
   engines/overlay/overlay_next_origin.hh
   engines/overlay/overlay_next_outline.hh
   engines/overlay/overlay_next_paint.hh
@@ -734,6 +735,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_image_vert.glsl
   engines/overlay/shaders/overlay_motion_path_line_frag.glsl
   engines/overlay/shaders/overlay_motion_path_line_geom.glsl
+  engines/overlay/shaders/overlay_motion_path_line_next_vert.glsl
   engines/overlay/shaders/overlay_motion_path_line_vert.glsl
   engines/overlay/shaders/overlay_motion_path_line_vert_no_geom.glsl
   engines/overlay/shaders/overlay_motion_path_point_vert.glsl
@@ -746,6 +748,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_outline_prepass_pointcloud_vert.glsl
   engines/overlay/shaders/overlay_outline_prepass_vert.glsl
   engines/overlay/shaders/overlay_outline_prepass_vert_no_geom.glsl
+  engines/overlay/shaders/overlay_outline_prepass_wire_vert.glsl
   engines/overlay/shaders/overlay_paint_face_vert.glsl
   engines/overlay/shaders/overlay_paint_point_vert.glsl
   engines/overlay/shaders/overlay_paint_texture_frag.glsl

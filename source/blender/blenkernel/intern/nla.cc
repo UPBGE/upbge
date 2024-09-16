@@ -2269,7 +2269,7 @@ static void nla_tweakmode_find_active(const ListBase /*NlaTrack*/ *nla_tracks,
 
 bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
 {
-  NlaTrack *nlt, *activeTrack = nullptr;
+  NlaTrack *activeTrack = nullptr;
   NlaStrip *activeStrip = nullptr;
   AnimData &adt = owned_adt.adt;
 
@@ -2318,7 +2318,7 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
    */
   activeTrack->flag |= NLATRACK_DISABLED;
   if ((adt.flag & ADT_NLA_EVAL_UPPER_TRACKS) == 0) {
-    for (nlt = activeTrack->next; nlt; nlt = nlt->next) {
+    for (NlaTrack *nlt = activeTrack->next; nlt; nlt = nlt->next) {
       nlt->flag |= NLATRACK_DISABLED;
     }
   }
@@ -2344,7 +2344,12 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
     animrig::Action &strip_action = activeStrip->act->wrap();
     if (strip_action.is_action_layered()) {
       animrig::Slot *strip_slot = strip_action.slot_for_handle(activeStrip->action_slot_handle);
-      strip_action.assign_id(strip_slot, owned_adt.owner_id);
+      if (animrig::assign_action_and_slot(&strip_action, strip_slot, owned_adt.owner_id) !=
+          animrig::ActionSlotAssignmentResult::OK)
+      {
+        printf("NLA tweak-mode enter - could not assign slot %s\n",
+               strip_slot ? strip_slot->name : "-unassigned-");
+      }
     }
     else {
       adt.action = activeStrip->act;
@@ -2671,7 +2676,7 @@ namespace blender::bke::nla {
 
 bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback)
 {
-  AnimData *adt = BKE_animdata_from_id(id);
+  const AnimData *adt = BKE_animdata_from_id(id);
   if (!adt) {
     /* Having no NLA trivially means that we've looped through all the strips. */
     return true;
