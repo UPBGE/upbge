@@ -183,29 +183,6 @@ const float *SCULPT_vertex_co_get(const Depsgraph &depsgraph,
   return nullptr;
 }
 
-const blender::float3 SCULPT_vertex_normal_get(const Depsgraph &depsgraph,
-                                               const Object &object,
-                                               PBVHVertRef vertex)
-{
-  const SculptSession &ss = *object.sculpt;
-  switch (blender::bke::object::pbvh_get(object)->type()) {
-    case blender::bke::pbvh::Type::Mesh: {
-      const Span<float3> vert_normals = blender::bke::pbvh::vert_normals_eval(depsgraph, object);
-      return vert_normals[vertex.i];
-    }
-    case blender::bke::pbvh::Type::BMesh: {
-      BMVert *v = (BMVert *)vertex.i;
-      return v->no;
-    }
-    case blender::bke::pbvh::Type::Grids: {
-      const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-      return subdiv_ccg.normals[vertex.i];
-    }
-  }
-  BLI_assert_unreachable();
-  return {};
-}
-
 namespace blender::ed::sculpt_paint {
 
 Span<float3> vert_positions_for_grab_active_get(const Depsgraph &depsgraph, const Object &object)
@@ -318,6 +295,11 @@ int vert_face_set_get(const GroupedSpan<int> vert_to_face_map,
   return face_set;
 }
 
+int vert_face_set_get(const int /*face_set_offset*/, const BMVert & /*vert*/)
+{
+  return SCULPT_FACE_SET_NONE;
+}
+
 bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
                        const Span<int> face_sets,
                        const int vert,
@@ -424,7 +406,7 @@ bool vert_has_unique_face_set(const Object &object, PBVHVertRef vertex)
       const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
       SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vertex.i);
       return vert_has_unique_face_set(
-          vert_to_face_map, corner_verts, faces, face_sets, *ss.subdiv_ccg, coord);
+          faces, corner_verts, vert_to_face_map, face_sets, *ss.subdiv_ccg, coord);
     }
   }
   return false;
@@ -489,9 +471,9 @@ static bool sculpt_check_unique_face_set_for_edge_in_base_mesh(
   return true;
 }
 
-bool vert_has_unique_face_set(const GroupedSpan<int> vert_to_face_map,
+bool vert_has_unique_face_set(const OffsetIndices<int> faces,
                               const Span<int> corner_verts,
-                              const OffsetIndices<int> faces,
+                              const GroupedSpan<int> vert_to_face_map,
                               const Span<int> face_sets,
                               const SubdivCCG &subdiv_ccg,
                               SubdivCCGCoord coord)
@@ -642,11 +624,11 @@ static void vertex_neighbors_get_faces(const Object &object,
   }
 }
 
-Span<int> vert_neighbors_get_mesh(const int vert,
-                                  const OffsetIndices<int> faces,
+Span<int> vert_neighbors_get_mesh(const OffsetIndices<int> faces,
                                   const Span<int> corner_verts,
                                   const GroupedSpan<int> vert_to_face,
                                   const Span<bool> hide_poly,
+                                  const int vert,
                                   Vector<int> &r_neighbors)
 {
   r_neighbors.clear();
@@ -770,8 +752,8 @@ bool vert_is_boundary(const Object &object, const PBVHVertRef vertex)
   return false;
 }
 
-bool vert_is_boundary(const Span<bool> hide_poly,
-                      const GroupedSpan<int> vert_to_face_map,
+bool vert_is_boundary(const GroupedSpan<int> vert_to_face_map,
+                      const Span<bool> hide_poly,
                       const BitSpan boundary,
                       const int vert)
 {
@@ -781,10 +763,10 @@ bool vert_is_boundary(const Span<bool> hide_poly,
   return boundary[vert].test();
 }
 
-bool vert_is_boundary(const SubdivCCG &subdiv_ccg,
+bool vert_is_boundary(const OffsetIndices<int> faces,
                       const Span<int> corner_verts,
-                      const OffsetIndices<int> faces,
                       const BitSpan boundary,
+                      const SubdivCCG &subdiv_ccg,
                       const SubdivCCGCoord vert)
 {
   /* TODO: Unlike the base mesh implementation this method does NOT take into account face
@@ -7244,6 +7226,83 @@ void clip_and_lock_translations(const Sculpt &sd,
   }
 }
 
+PositionDeformData::PositionDeformData(const Depsgraph &depsgraph, Object &object_orig)
+{
+  Mesh &mesh = *static_cast<Mesh *>(object_orig.data);
+  this->eval = bke::pbvh::vert_positions_eval(depsgraph, object_orig);
+
+  if (!object_orig.sculpt->deform_imats.is_empty()) {
+    deform_imats_ = object_orig.sculpt->deform_imats;
+  }
+  orig_ = mesh.vert_positions_for_write();
+
+  MutableSpan eval_mut = bke::pbvh::vert_positions_eval_for_write(depsgraph, object_orig);
+  if (eval_mut.data() != orig_.data()) {
+    eval_mut_ = eval_mut;
+  }
+
+  if (Key *keys = mesh.key) {
+    keys_ = keys;
+    const int active_index = object_orig.shapenr - 1;
+    active_key_ = BKE_keyblock_find_by_index(keys, active_index);
+    basis_active_ = active_key_ == keys->refkey;
+    dependent_keys_ = BKE_keyblock_get_dependent_keys(keys_, active_index);
+  }
+  else {
+    keys_ = nullptr;
+    active_key_ = nullptr;
+    basis_active_ = false;
+  }
+}
+
+static void copy_indices(const Span<float3> src, const Span<int> indices, MutableSpan<float3> dst)
+{
+  for (const int i : indices) {
+    dst[i] = src[i];
+  }
+}
+
+void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int> verts) const
+{
+  if (eval_mut_) {
+    /* Apply translations to the evaluated mesh. This is necessary because multiple brush
+     * evaluations can happen in between object reevaluations (otherwise just deforming the
+     * original positions would be enough). */
+    apply_translations(translations, verts, *eval_mut_);
+  }
+
+  if (deform_imats_) {
+    /* Apply the reverse procedural deformation, since subsequent translation happens to the state
+     * from "before" deforming modifiers. */
+    apply_crazyspace_to_translations(*deform_imats_, verts, translations);
+  }
+
+  if (KeyBlock *key = active_key_) {
+    const MutableSpan active_key_data(static_cast<float3 *>(key->data), key->totelem);
+    if (basis_active_) {
+      /* The active shape key positions and the mesh positions are always kept in sync. */
+      apply_translations(translations, verts, orig_);
+      copy_indices(orig_, verts, active_key_data);
+    }
+    else {
+      apply_translations(translations, verts, active_key_data);
+    }
+
+    if (dependent_keys_) {
+      int i;
+      LISTBASE_FOREACH_INDEX (KeyBlock *, other_key, &keys_->block, i) {
+        if ((other_key != key) && (*dependent_keys_)[i]) {
+          MutableSpan data(static_cast<float3 *>(other_key->data), other_key->totelem);
+          apply_translations(translations, verts, data);
+        }
+      }
+    }
+  }
+  else {
+    apply_translations(translations, verts, orig_);
+  }
+}
+
 void update_shape_keys(Object &object,
                        const Mesh &mesh,
                        const KeyBlock &active_key,
@@ -7272,43 +7331,6 @@ void update_shape_keys(Object &object,
       }
     }
   }
-}
-
-void write_translations(const Depsgraph &depsgraph,
-                        const Sculpt &sd,
-                        Object &object,
-                        const Span<float3> positions_eval,
-                        const Span<int> verts,
-                        const MutableSpan<float3> translations,
-                        const MutableSpan<float3> positions_orig)
-{
-  SculptSession &ss = *object.sculpt;
-
-  clip_and_lock_translations(sd, ss, positions_eval, verts, translations);
-
-  MutableSpan<float3> positions_eval_mut = bke::pbvh::vert_positions_eval_for_write(depsgraph,
-                                                                                    object);
-  if (positions_eval_mut.data() != positions_orig.data()) {
-    apply_translations(translations, verts, positions_eval_mut);
-  }
-
-  if (!ss.deform_imats.is_empty()) {
-    apply_crazyspace_to_translations(ss.deform_imats, verts, translations);
-  }
-
-  const Mesh &mesh = *static_cast<Mesh *>(object.data);
-  const KeyBlock *active_key = BKE_keyblock_from_object(&object);
-  if (!active_key) {
-    apply_translations(translations, verts, positions_orig);
-    return;
-  }
-
-  const bool basis_shapekey_active = active_key == mesh.key->refkey;
-  if (basis_shapekey_active) {
-    apply_translations(translations, verts, positions_orig);
-  }
-
-  update_shape_keys(object, mesh, *active_key, verts, translations, positions_orig);
 }
 
 void scale_translations(const MutableSpan<float3> translations, const Span<float> factors)
@@ -7441,7 +7463,7 @@ void calc_vert_neighbors(const OffsetIndices<int> faces,
   BLI_assert(result.size() == verts.size());
   BLI_assert(corner_verts.size() == faces.total_size());
   for (const int i : verts.index_range()) {
-    vert_neighbors_get_mesh(verts[i], faces, corner_verts, vert_to_face, hide_poly, result[i]);
+    vert_neighbors_get_mesh(faces, corner_verts, vert_to_face, hide_poly, verts[i], result[i]);
   }
 }
 
@@ -7500,7 +7522,7 @@ void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
     Vector<int> &neighbors = result[i];
-    vert_neighbors_get_mesh(verts[i], faces, corner_verts, vert_to_face, hide_poly, neighbors);
+    vert_neighbors_get_mesh(faces, corner_verts, vert_to_face, hide_poly, verts[i], neighbors);
 
     if (boundary_verts[vert]) {
       if (neighbors.size() == 2) {

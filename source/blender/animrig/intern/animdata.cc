@@ -115,9 +115,9 @@ static bAction *find_related_action(Main &bmain, ID &id)
       }
 
       case ID_KE: {
-        /* Shapekeys.  */
+        /* Shape-keys. */
         Key *key = (Key *)related_id;
-        /* Shapekeys are not embedded but there is currently no way to reuse them. */
+        /* Shape-keys are not embedded but there is currently no way to reuse them. */
         BLI_assert(ID_REAL_USERS(related_id) == 1);
         related_ids.append_non_duplicates(key->from);
         break;
@@ -172,7 +172,7 @@ static bAction *find_related_action(Main &bmain, ID &id)
 
         Key *key = BKE_key_from_id(related_id);
         if (key) {
-          /* No check for multi user because the Shapekey cannot be shared. */
+          /* No check for multi user because the shape-key cannot be shared. */
           BLI_assert(ID_REAL_USERS(&key->id) == 1);
           related_ids.append_non_duplicates(&key->id);
         }
@@ -387,8 +387,8 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
     for (const Strip *strip : layer->strips()) {
       switch (strip->type()) {
         case Strip::Type::Keyframe: {
-          const KeyframeStrip &key_strip = strip->as<KeyframeStrip>();
-          const ChannelBag *channelbag_for_slot = key_strip.channelbag_for_slot(*slot);
+          const StripKeyframeData &strip_data = strip->data<StripKeyframeData>(action);
+          const ChannelBag *channelbag_for_slot = strip_data.channelbag_for_slot(*slot);
           if (!channelbag_for_slot) {
             continue;
           }

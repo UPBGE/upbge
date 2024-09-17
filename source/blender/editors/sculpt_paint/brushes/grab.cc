@@ -53,11 +53,10 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
                        const float3 &offset,
-                       const Span<float3> positions_eval,
                        const bke::pbvh::MeshNode &node,
                        Object &object,
                        LocalData &tls,
-                       const MutableSpan<float3> positions_orig)
+                       const PositionDeformData &position_data)
 {
   SculptSession &ss = *object.sculpt;
   const StrokeCache &cache = *ss.cache;
@@ -94,7 +93,8 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   translations_from_offset_and_factors(offset, factors, translations);
 
-  write_translations(depsgraph, sd, object, positions_eval, verts, translations, positions_orig);
+  clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
+  position_data.deform(translations, verts);
 }
 
 static void calc_grids(const Depsgraph &depsgraph,
@@ -216,23 +216,13 @@ void do_grab_brush(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
-      MutableSpan<float3> positions_orig = mesh.vert_positions_for_write();
+      const PositionDeformData position_data(depsgraph, object);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
         LocalData &tls = all_tls.local();
         node_mask.slice(range).foreach_index([&](const int i) {
-          calc_faces(depsgraph,
-                     sd,
-                     brush,
-                     grab_delta,
-                     positions_eval,
-                     nodes[i],
-                     object,
-                     tls,
-                     positions_orig);
-          bke::pbvh::update_node_bounds_mesh(positions_eval, nodes[i]);
+          calc_faces(depsgraph, sd, brush, grab_delta, nodes[i], object, tls, position_data);
+          bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
         });
       });
       break;
@@ -264,6 +254,72 @@ void do_grab_brush(const Depsgraph &depsgraph,
   }
   pbvh.tag_positions_changed(node_mask);
   bke::pbvh::flush_bounds_to_parents(pbvh);
+}
+
+void geometry_preview_lines_update(Depsgraph &depsgraph,
+                                   Object &object,
+                                   SculptSession &ss,
+                                   float radius)
+{
+  ss.preview_verts = {};
+
+  /* This function is called from the cursor drawing code, so the tree may not be built yet. */
+  const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(object);
+  if (!pbvh) {
+    return;
+  }
+
+  if (!ss.deform_modifiers_active) {
+    return;
+  }
+
+  if (pbvh->type() != bke::pbvh::Type::Mesh) {
+    return;
+  }
+
+  BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
+
+  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  /* Always grab active shape key if the sculpt happens on shapekey. */
+  const Span<float3> positions = ss.shapekey_active ?
+                                     bke::pbvh::vert_positions_eval(depsgraph, object) :
+                                     mesh.vert_positions();
+  const OffsetIndices faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+
+  const int active_vert = std::get<int>(ss.active_vert());
+  const float3 brush_co = positions[active_vert];
+  const float radius_sq = radius * radius;
+
+  Vector<int> preview_verts;
+  Vector<int> neighbors;
+  BitVector<> visited_verts(positions.size());
+  std::queue<int> queue;
+  queue.push(active_vert);
+  while (!queue.empty()) {
+    const int from_vert = queue.front();
+    queue.pop();
+
+    neighbors.clear();
+    for (const int neighbor : vert_neighbors_get_mesh(
+             faces, corner_verts, vert_to_face_map, hide_poly, from_vert, neighbors))
+    {
+      preview_verts.append(from_vert);
+      preview_verts.append(neighbor);
+      if (visited_verts[neighbor]) {
+        continue;
+      }
+      visited_verts[neighbor].set();
+      if (math::distance_squared(brush_co, positions[neighbor]) < radius_sq) {
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  ss.preview_verts = preview_verts.as_span();
 }
 
 }  // namespace blender::ed::sculpt_paint

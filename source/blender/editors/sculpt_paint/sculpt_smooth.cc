@@ -175,7 +175,7 @@ void average_data_grids(const SubdivCCG &subdiv_ccg,
 {
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  BLI_assert(grids.size() * key.grid_area == src.size());
+  BLI_assert(grids.size() * key.grid_area == dst.size());
 
   for (const int i : grids.index_range()) {
     const int grid = grids[i];
@@ -568,7 +568,7 @@ void calc_relaxed_translations_grids(const SubdivCCG &subdiv_ccg,
         if (filter_boundary_face_sets) {
           neighbors[node_vert].remove_if([&](const SubdivCCGCoord neighbor) {
             return face_set::vert_has_unique_face_set(
-                vert_to_face_map, corner_verts, faces, face_sets, subdiv_ccg, neighbor);
+                faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, neighbor);
           });
         }
 
