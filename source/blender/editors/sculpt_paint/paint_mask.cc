@@ -43,6 +43,7 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
+#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
@@ -775,9 +776,10 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
       Array<bool> node_changed(node_mask.min_array_size(), false);
 
       threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
-        node_mask.slice(range).foreach_index([&](const int i) {
+        node_mask.slice(range).foreach_index([&](const int node_index) {
+          bke::pbvh::GridsNode &node = nodes[node_index];
           bool any_changed = false;
-          for (const int grid : nodes[i].grids()) {
+          for (const int grid : node.grids()) {
             const int vert_start = grid * key.grid_area;
             BKE_subdiv_ccg_foreach_visible_grid_vert(key, grid_hidden, grid, [&](const int i) {
               const int vert = vert_start + i;
@@ -785,14 +787,14 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
                 float &mask = masks[vert];
                 if (!any_changed) {
                   any_changed = true;
-                  undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
+                  undo::push_node(depsgraph, object, &node, undo::Type::Mask);
                 }
                 mask = mask_gesture_get_new_value(mask, op.mode, op.value);
               }
             });
             if (any_changed) {
-              bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
-              node_changed[i] = true;
+              bke::pbvh::node_update_mask_grids(key, masks, node);
+              node_changed[node_index] = true;
             }
           }
         });
