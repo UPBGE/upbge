@@ -701,8 +701,8 @@ BLI_NOINLINE static void calc_perpendicular_pinch_forces(const Span<float3> posi
   const float3 z_object_space = math::normalize(imat.z_axis());
   for (const int i : positions.index_range()) {
     const float3 disp_center = math::normalize(location - positions[i]);
-    const float3 x_disp = x_object_space - math::dot(disp_center, x_object_space);
-    const float3 z_disp = z_object_space - math::dot(disp_center, z_object_space);
+    const float3 x_disp = x_object_space * math::dot(disp_center, x_object_space);
+    const float3 z_disp = z_object_space * math::dot(disp_center, z_object_space);
     forces[i] = x_disp + z_disp;
   }
 }
@@ -2403,6 +2403,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
 
 static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
@@ -2428,7 +2429,7 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
     return OPERATOR_CANCELLED;
   }
 
-  undo::push_begin(ob, op);
+  undo::push_begin(scene, ob, op);
   filter::cache_init(C,
                      ob,
                      sd,

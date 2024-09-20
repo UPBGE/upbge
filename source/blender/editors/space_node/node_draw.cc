@@ -2593,7 +2593,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                        nullptr,
                        0.0f,
                        0.0f,
-                       "");
+                       panel_decl->description.c_str());
     UI_but_func_pushed_state_set(but, [&state](const uiBut &) { return state.is_collapsed(); });
     UI_but_func_set(
         but, node_panel_toggle_button_cb, const_cast<bNodePanelState *>(&state), &ntree);
@@ -3435,7 +3435,7 @@ static void node_draw_basis(const bContext &C,
   float iconofs = rct.xmax - 0.35f * U.widget_unit;
 
   /* Group edit. This icon should be the first for the node groups. */
-  if (node.type == NODE_GROUP) {
+  if (node.is_group()) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
     uiBut *but = uiDefIconBut(&block,
@@ -3482,7 +3482,7 @@ static void node_draw_basis(const bContext &C,
                     (void *)"NODE_OT_preview_toggle");
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
-  if (node.is_group() && node.typeinfo->ui_icon != ICON_NONE) {
+  if (ELEM(node.type, NODE_CUSTOM, NODE_CUSTOM_GROUP) && node.typeinfo->ui_icon != ICON_NONE) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
     uiDefIconBut(&block,

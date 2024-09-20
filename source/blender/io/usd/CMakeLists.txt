@@ -14,7 +14,7 @@ if(WIN32)
 endif()
 add_definitions(-DBOOST_ALL_NO_LIB)
 
-# Precompiled Linux libs are made with GCC, and USD uses some extensions
+# Pre-compiled Linux libraries are made with GCC, and USD uses some extensions
 # which lead to an incompatible ABI for Clang. Using those extensions with
 # Clang as well works around the issue.
 if(UNIX AND NOT APPLE)
@@ -108,6 +108,7 @@ set(SRC
   intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
+  intern/usd_writer_points.cc
   intern/usd_writer_transform.cc
   intern/usd_writer_volume.cc
 
@@ -155,6 +156,7 @@ set(SRC
   intern/usd_writer_material.hh
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
+  intern/usd_writer_points.hh
   intern/usd_writer_transform.hh
   intern/usd_writer_volume.hh
 

@@ -71,6 +71,7 @@ set(SRC
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
+  intern/bake_geometry_nodes_modifier_pack.cc
   intern/bake_items.cc
   intern/bake_items_paths.cc
   intern/bake_items_serialize.cc
@@ -346,6 +347,7 @@ set(SRC
   BKE_bake_data_block_id.hh
   BKE_bake_data_block_map.hh
   BKE_bake_geometry_nodes_modifier.hh
+  BKE_bake_geometry_nodes_modifier_pack.hh
   BKE_bake_items.hh
   BKE_bake_items_paths.hh
   BKE_bake_items_serialize.hh

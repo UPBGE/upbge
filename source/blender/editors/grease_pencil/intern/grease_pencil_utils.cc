@@ -119,8 +119,13 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
                                    const View3D &view3d,
                                    const Object &eval_object,
                                    const bke::greasepencil::Layer *layer,
-                                   const ReprojectMode reproject_mode)
-    : region_(&region), view3d_(&view3d)
+                                   const ReprojectMode reproject_mode,
+                                   const float surface_offset,
+                                   ViewDepths *view_depths)
+    : region_(&region),
+      view3d_(&view3d),
+      depth_cache_(view_depths),
+      surface_offset_(surface_offset)
 {
   layer_space_to_world_space_ = (layer != nullptr) ? layer->to_world_space(eval_object) :
                                                      eval_object.object_to_world();
@@ -170,11 +175,14 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
       surface_offset_ = 0.0f;
       placement_loc_ = layer_space_to_world_space_.location();
       break;
-    /* TODO: Implement ReprojectMode::Surface for reproject operator */
+    case ReprojectMode::Surface:
+      depth_ = DrawingPlacementDepth::Surface;
+      placement_loc_ = layer_space_to_world_space_.location();
+      break;
     default:
       depth_ = DrawingPlacementDepth::ObjectOrigin;
       surface_offset_ = 0.0f;
-      placement_loc_ = float3(0.0f);
+      placement_loc_ = layer_space_to_world_space_.location();
       break;
   }
 
@@ -343,15 +351,12 @@ void DrawingPlacement::project(const Span<float2> src, MutableSpan<float3> dst) 
 
 float3 DrawingPlacement::reproject(const float3 pos) const
 {
+  const float3 world_pos = math::transform_point(layer_space_to_world_space_, pos);
   float3 proj_point;
   if (depth_ == DrawingPlacementDepth::Surface) {
     /* First project the position into view space. */
     float2 co;
-    if (ED_view3d_project_float_global(region_,
-                                       math::transform_point(layer_space_to_world_space_, pos),
-                                       co,
-                                       V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK)
-    {
+    if (ED_view3d_project_float_global(region_, world_pos, co, V3D_PROJ_TEST_NOP)) {
       /* Can't reproject the point. */
       return pos;
     }
@@ -365,10 +370,10 @@ float3 DrawingPlacement::reproject(const float3 pos) const
     float3 ray_co, ray_no;
     if (rv3d->is_persp) {
       ray_co = float3(rv3d->viewinv[3]);
-      ray_no = math::normalize(ray_co - math::transform_point(layer_space_to_world_space_, pos));
+      ray_no = math::normalize(ray_co - world_pos);
     }
     else {
-      ray_co = math::transform_point(layer_space_to_world_space_, pos);
+      ray_co = world_pos;
       ray_no = -float3(rv3d->viewinv[2]);
     }
     float4 plane;
@@ -741,7 +746,7 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
 
     /* Add drawing at current frame. */
     Drawing *current_drawing = grease_pencil.get_drawing_at(layer, current_frame);
-    if (!added_drawings.contains(current_drawing)) {
+    if (current_drawing != nullptr && !added_drawings.contains(current_drawing)) {
       const int frame_group = selected_frames.index_of(current_frame);
       drawings_grouped_per_frame[frame_group].append(
           {*current_drawing, layer_i, current_frame, falloff_per_selected_frame[frame_group]});

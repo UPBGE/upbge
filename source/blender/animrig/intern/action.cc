@@ -44,6 +44,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
+#include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_nla.hh"
@@ -137,6 +138,28 @@ template<typename T> static void shrink_array_and_remove(T **array, int *num, co
 
   blender::uninitialized_move_n(*array, index, new_array);
   blender::uninitialized_move_n(*array + index + 1, *num - index - 1, new_array + index);
+  MEM_freeN(*array);
+
+  *array = new_array;
+  *num = new_array_num;
+}
+
+/**
+ * Same as `shrink_array_and_remove()` above, except instead of shifting all the
+ * elements after the removed item over to fill the gap, it just swaps in the last
+ * element to where the removed element was.
+ */
+template<typename T> static void shrink_array_and_swap_remove(T **array, int *num, const int index)
+{
+  BLI_assert(index >= 0 && index < *num);
+  const int new_array_num = *num - 1;
+  T *new_array = MEM_cnew_array<T>(new_array_num, __func__);
+
+  blender::uninitialized_move_n(*array, index, new_array);
+  if (index < new_array_num) {
+    new_array[index] = (*array)[new_array_num];
+    blender::uninitialized_move_n(*array + index + 1, *num - index - 2, new_array + index + 1);
+  }
   MEM_freeN(*array);
 
   *array = new_array;
@@ -577,6 +600,42 @@ int Action::strip_keyframe_data_append(StripKeyframeData *strip_data)
   return this->strip_keyframe_data_array_num - 1;
 }
 
+void Action::strip_keyframe_data_remove_if_unused(const int index)
+{
+  BLI_assert(index >= 0 && index < this->strip_keyframe_data_array_num);
+
+  /* Make sure the data isn't being used anywhere. */
+  for (Layer *layer : this->layers()) {
+    for (Strip *strip : layer->strips()) {
+      if (strip->type() == Strip::Type::Keyframe && strip->data_index == index) {
+        return;
+      }
+    }
+  }
+
+  /* Free the item to be removed. */
+  MEM_delete<StripKeyframeData>(
+      static_cast<StripKeyframeData *>(this->strip_keyframe_data_array[index]));
+
+  /* Remove the item, swapping in the item at the end of the array. */
+  shrink_array_and_swap_remove<ActionStripKeyframeData *>(
+      &this->strip_keyframe_data_array, &this->strip_keyframe_data_array_num, index);
+
+  /* Update strips that pointed at the swapped-in item.
+   *
+   * Note that we don't special-case the corner-case where the removed data was
+   * at the end of the array, but it ends up not mattering because then
+   * `old_index == index`. */
+  const int old_index = this->strip_keyframe_data_array_num;
+  for (Layer *layer : this->layers()) {
+    for (Strip *strip : layer->strips()) {
+      if (strip->type() == Strip::Type::Keyframe && strip->data_index == old_index) {
+        strip->data_index = index;
+      }
+    }
+  }
+}
+
 Span<const StripKeyframeData *> Action::strip_keyframe_data() const
 {
   /* The reinterpret cast is needed because `strip_keyframe_data_array` is for
@@ -649,7 +708,7 @@ bool Action::has_single_frame() const
   bool found_key = false;
   float found_key_frame = 0.0f;
 
-  for (const FCurve *fcu : fcurves_all(*this)) {
+  for (const FCurve *fcu : legacy::fcurves_all(this)) {
     switch (fcu->totvert) {
       case 0:
         /* No keys, so impossible to come to a conclusion on this curve alone. */
@@ -696,7 +755,7 @@ float2 Action::get_frame_range() const
     return {this->frame_start, this->frame_end};
   }
 
-  Vector<const FCurve *> all_fcurves = fcurves_all(*this);
+  Vector<const FCurve *> all_fcurves = legacy::fcurves_all(this);
   return get_frame_range_of_fcurves(all_fcurves, false);
 }
 
@@ -713,7 +772,7 @@ float2 Action::get_frame_range_of_slot(const slot_handle_t slot_handle) const
     fcurves_to_consider = fcurves_for_action_slot(*this, slot_handle);
   }
   else {
-    legacy_fcurves = fcurves_all(*this);
+    legacy_fcurves = legacy::fcurves_all(this);
     fcurves_to_consider = legacy_fcurves;
   }
 
@@ -722,7 +781,7 @@ float2 Action::get_frame_range_of_slot(const slot_handle_t slot_handle) const
 
 float2 Action::get_frame_range_of_keys(const bool include_modifiers) const
 {
-  return get_frame_range_of_fcurves(fcurves_all(*this), include_modifiers);
+  return get_frame_range_of_fcurves(legacy::fcurves_all(this), include_modifiers);
 }
 
 static float2 get_frame_range_of_fcurves(Span<const FCurve *> fcurves,
@@ -868,15 +927,28 @@ static void strip_ptr_destructor(ActionStrip **dna_strip_ptr)
   MEM_delete(&strip);
 };
 
-bool Layer::strip_remove(Strip &strip)
+bool Layer::strip_remove(Action &owning_action, Strip &strip)
 {
   const int64_t strip_index = this->find_strip_index(strip);
   if (strip_index < 0) {
     return false;
   }
 
+  const Strip::Type strip_type = strip.type();
+  const int data_index = strip.data_index;
+
   dna::array::remove_index(
       &this->strip_array, &this->strip_array_num, nullptr, strip_index, strip_ptr_destructor);
+
+  /* It's important that we do this *after* removing the strip itself
+   * (immediately above), because otherwise the strip will be found as a
+   * still-existing user of the strip data and thus the strip data won't be
+   * removed even if this strip was the last user. */
+  switch (strip_type) {
+    case Strip::Type::Keyframe:
+      owning_action.strip_keyframe_data_remove_if_unused(data_index);
+      break;
+  }
 
   return true;
 }
@@ -2044,6 +2116,7 @@ animrig::ChannelBag *channelbag_for_action_slot(Action &action, const slot_handl
 
 Span<FCurve *> fcurves_for_action_slot(Action &action, const slot_handle_t slot_handle)
 {
+  BLI_assert(action.is_action_layered());
   assert_baklava_phase_1_invariants(action);
   animrig::ChannelBag *bag = channelbag_for_action_slot(action, slot_handle);
   if (!bag) {
@@ -2054,71 +2127,13 @@ Span<FCurve *> fcurves_for_action_slot(Action &action, const slot_handle_t slot_
 
 Span<const FCurve *> fcurves_for_action_slot(const Action &action, const slot_handle_t slot_handle)
 {
+  BLI_assert(action.is_action_layered());
   assert_baklava_phase_1_invariants(action);
   const animrig::ChannelBag *bag = channelbag_for_action_slot(action, slot_handle);
   if (!bag) {
     return {};
   }
   return bag->fcurves();
-}
-
-/* Lots of template args to support transparent non-const and const versions. */
-template<typename ActionType,
-         typename FCurveType,
-         typename LayerType,
-         typename StripType,
-         typename StripKeyframeDataType,
-         typename ChannelBagType>
-static Vector<FCurveType *> fcurves_all_into(ActionType &action)
-{
-  /* Empty means Empty. */
-  if (action.is_empty()) {
-    return {};
-  }
-
-  /* Legacy Action. */
-  if (action.is_action_legacy()) {
-    Vector<FCurveType *> legacy_fcurves;
-    LISTBASE_FOREACH (FCurveType *, fcurve, &action.curves) {
-      legacy_fcurves.append(fcurve);
-    }
-    return legacy_fcurves;
-  }
-
-  /* Layered Action. */
-  BLI_assert(action.is_action_layered());
-
-  Vector<FCurveType *> all_fcurves;
-  for (LayerType *layer : action.layers()) {
-    for (StripType *strip : layer->strips()) {
-      switch (strip->type()) {
-        case Strip::Type::Keyframe: {
-          StripKeyframeDataType &strip_data = strip->template data<StripKeyframeData>(action);
-          for (ChannelBagType *bag : strip_data.channelbags()) {
-            for (FCurveType *fcurve : bag->fcurves()) {
-              all_fcurves.append(fcurve);
-            }
-          }
-        }
-      }
-    }
-  }
-  return all_fcurves;
-}
-
-Vector<FCurve *> fcurves_all(Action &action)
-{
-  return fcurves_all_into<Action, FCurve, Layer, Strip, StripKeyframeData, ChannelBag>(action);
-}
-
-Vector<const FCurve *> fcurves_all(const Action &action)
-{
-  return fcurves_all_into<const Action,
-                          const FCurve,
-                          const Layer,
-                          const Strip,
-                          const StripKeyframeData,
-                          const ChannelBag>(action);
 }
 
 FCurve *action_fcurve_find(bAction *act, FCurveDescriptor fcurve_descriptor)
@@ -2469,6 +2484,69 @@ Action *convert_to_layered_action(Main &bmain, const Action &legacy_action)
   }
 
   return &converted_action;
+}
+
+/**
+ * Clone information from the given slot into this slot while retaining important info like the
+ * slot handle and runtime data. This copies the name which might clash with other names on the
+ * action. Call `slot_name_ensure_unique` after.
+ */
+static void clone_slot(Slot &from, Slot &to)
+{
+  ActionSlotRuntimeHandle *runtime = to.runtime;
+  slot_handle_t handle = to.handle;
+  *reinterpret_cast<ActionSlot *>(&to) = *reinterpret_cast<ActionSlot *>(&from);
+  to.runtime = runtime;
+  to.handle = handle;
+}
+
+void move_slot(Main &bmain, Slot &source_slot, Action &from_action, Action &to_action)
+{
+  BLI_assert(from_action.slots().as_span().contains(&source_slot));
+  BLI_assert(&from_action != &to_action);
+
+  /* No merging of strips or layers is handled. All data is put into the assumed single strip. */
+  assert_baklava_phase_1_invariants(from_action);
+  assert_baklava_phase_1_invariants(to_action);
+
+  StripKeyframeData &from_strip_data = from_action.layer(0)->strip(0)->data<StripKeyframeData>(
+      from_action);
+  StripKeyframeData &to_strip_data = to_action.layer(0)->strip(0)->data<StripKeyframeData>(
+      to_action);
+
+  Slot &target_slot = to_action.slot_add();
+  clone_slot(source_slot, target_slot);
+  slot_name_ensure_unique(to_action, target_slot);
+
+  ChannelBag *channel_bag = from_strip_data.channelbag_for_slot(source_slot.handle);
+  BLI_assert(channel_bag != nullptr);
+  channel_bag->slot_handle = target_slot.handle;
+  grow_array_and_append<ActionChannelBag *>(
+      &to_strip_data.channelbag_array, &to_strip_data.channelbag_array_num, channel_bag);
+  int index = from_strip_data.find_channelbag_index(*channel_bag);
+  shrink_array_and_remove<ActionChannelBag *>(
+      &from_strip_data.channelbag_array, &from_strip_data.channelbag_array_num, index);
+
+  /* Reassign all users of `source_slot` to the action `to_action` and the slot `target_slot`. */
+  for (ID *user : source_slot.users(bmain)) {
+    const auto assign_other_action =
+        [&](bAction *&action_ptr_ref, slot_handle_t &slot_handle_ref, char *slot_name) -> bool {
+      /* Only reassign if the reference is actually from the same action. Could be from a different
+       * action when using the NLA or action constraints. */
+      if (action_ptr_ref != &from_action) {
+        return true;
+      }
+      generic_assign_action(*user, &to_action, action_ptr_ref, slot_handle_ref, slot_name);
+      const ActionSlotAssignmentResult result = generic_assign_action_slot(
+          &target_slot, *user, action_ptr_ref, slot_handle_ref, slot_name);
+      BLI_assert(result == ActionSlotAssignmentResult::OK);
+      UNUSED_VARS_NDEBUG(result);
+      return true;
+    };
+    foreach_action_slot_use_with_references(*user, assign_other_action);
+  }
+
+  from_action.slot_remove(source_slot);
 }
 
 }  // namespace blender::animrig

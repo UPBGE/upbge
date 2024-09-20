@@ -1809,6 +1809,8 @@ void UI_block_funcN_set(uiBlock *block,
                         uiButArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
 void UI_but_func_rename_set(uiBut *but, uiButHandleRenameFunc func, void *arg1);
+void UI_but_func_rename_full_set(uiBut *but,
+                                 std::function<void(std::string &new_name)> rename_full_func);
 void UI_but_func_set(uiBut *but, uiButHandleFunc func, void *arg1, void *arg2);
 void UI_but_funcN_set(uiBut *but,
                       uiButHandleNFunc funcN,
@@ -2548,7 +2550,8 @@ void uiTemplateSearch(uiLayout *layout,
                       PointerRNA *searchptr,
                       const char *searchpropname,
                       const char *newop,
-                      const char *unlinkop);
+                      const char *unlinkop,
+                      const char *text = nullptr);
 void uiTemplateSearchPreview(uiLayout *layout,
                              bContext *C,
                              PointerRNA *ptr,
@@ -2558,7 +2561,8 @@ void uiTemplateSearchPreview(uiLayout *layout,
                              const char *newop,
                              const char *unlinkop,
                              int rows,
-                             int cols);
+                             int cols,
+                             const char *text = nullptr);
 /**
  * This is creating/editing RNA-Paths
  *
@@ -3082,6 +3086,9 @@ void uiItemsFullEnumO_items(uiLayout *layout,
 struct uiPropertySplitWrapper {
   uiLayout *label_column;
   uiLayout *property_row;
+  /**
+   * Column for decorators. Note that this may be null, see #uiItemPropertySplitWrapperCreate().
+   */
   uiLayout *decorate_column;
 };
 
@@ -3089,13 +3096,20 @@ struct uiPropertySplitWrapper {
  * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
  * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
  * special needs.
+ *
+ * The returned #uiPropertySplitWrapper.decorator_column may be null when decorators are disabled
+ * (#uiLayoutGetPropDecorate() returns false).
  */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
 void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
 uiBut *uiItemL_ex(uiLayout *layout, const char *name, int icon, bool highlight, bool redalert);
 /**
- * Helper to add a label and creates a property split layout if needed.
+ * Helper to add a label using a property split layout if needed. After calling this the
+ * active layout will be the one to place the labeled items in. An additional layout may be
+ * returned to place decorator buttons in.
+ *
+ * \return the layout to place decorators in, if #UI_ITEM_PROP_SEP is enabled. Otherwise null.
  */
 uiLayout *uiItemL_respect_property_split(uiLayout *layout, const char *text, int icon);
 /**

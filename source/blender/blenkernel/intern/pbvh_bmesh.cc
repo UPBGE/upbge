@@ -1862,17 +1862,17 @@ bool bmesh_node_raycast(BMeshNode &node,
                         float *r_face_normal)
 {
   bool hit = false;
-  float nearest_vertex_co[3] = {0.0f};
+  float3 nearest_vertex_co(0.0f);
 
   use_original = use_original && !node.orig_tris_.is_empty();
 
   if (use_original) {
-    for (const int i : node.orig_tris_.index_range()) {
+    for (const int tri_idx : node.orig_tris_.index_range()) {
       float *cos[3];
 
-      cos[0] = node.orig_positions_[node.orig_tris_[i][0]];
-      cos[1] = node.orig_positions_[node.orig_tris_[i][1]];
-      cos[2] = node.orig_positions_[node.orig_tris_[i][2]];
+      cos[0] = node.orig_positions_[node.orig_tris_[tri_idx][0]];
+      cos[1] = node.orig_positions_[node.orig_tris_[tri_idx][1]];
+      cos[2] = node.orig_positions_[node.orig_tris_[tri_idx][2]];
 
       if (ray_face_intersection_tri(ray_start, isect_precalc, cos[0], cos[1], cos[2], depth)) {
         hit = true;
@@ -1882,14 +1882,14 @@ bool bmesh_node_raycast(BMeshNode &node,
         }
 
         if (r_active_vertex) {
-          float location[3] = {0.0f};
+          float3 location(0.0f);
           madd_v3_v3v3fl(location, ray_start, ray_normal, *depth);
-          for (const int j : IndexRange(3)) {
-            if (j == 0 ||
-                len_squared_v3v3(location, cos[j]) < len_squared_v3v3(location, nearest_vertex_co))
+          for (const int i : IndexRange(3)) {
+            if (i == 0 ||
+                len_squared_v3v3(location, cos[i]) < len_squared_v3v3(location, nearest_vertex_co))
             {
-              copy_v3_v3(nearest_vertex_co, cos[j]);
-              r_active_vertex->i = intptr_t(node.orig_verts_[node.orig_tris_[i][j]]);
+              copy_v3_v3(nearest_vertex_co, cos[i]);
+              r_active_vertex->i = intptr_t(node.orig_verts_[node.orig_tris_[tri_idx][i]]);
             }
           }
         }
@@ -1914,14 +1914,14 @@ bool bmesh_node_raycast(BMeshNode &node,
           }
 
           if (r_active_vertex) {
-            float location[3] = {0.0f};
+            float3 location(0.0f);
             madd_v3_v3v3fl(location, ray_start, ray_normal, *depth);
-            for (const int j : IndexRange(3)) {
-              if (j == 0 || len_squared_v3v3(location, v_tri[j]->co) <
+            for (const int i : IndexRange(3)) {
+              if (i == 0 || len_squared_v3v3(location, v_tri[i]->co) <
                                 len_squared_v3v3(location, nearest_vertex_co))
               {
-                copy_v3_v3(nearest_vertex_co, v_tri[j]->co);
-                r_active_vertex->i = intptr_t(v_tri[j]);
+                copy_v3_v3(nearest_vertex_co, v_tri[i]->co);
+                r_active_vertex->i = intptr_t(v_tri[i]);
               }
             }
           }
@@ -1979,7 +1979,7 @@ bool bmesh_node_raycast_detail(BMeshNode &node,
 bool bmesh_node_nearest_to_ray(BMeshNode &node,
                                const float3 &ray_start,
                                const float3 &ray_normal,
-                               float *depth,
+                               float *r_depth,
                                float *dist_sq,
                                bool use_original)
 {
@@ -1993,7 +1993,7 @@ bool bmesh_node_nearest_to_ray(BMeshNode &node,
                                   node.orig_positions_[t[0]],
                                   node.orig_positions_[t[1]],
                                   node.orig_positions_[t[2]],
-                                  depth,
+                                  r_depth,
                                   dist_sq);
     }
   }
@@ -2005,7 +2005,7 @@ bool bmesh_node_nearest_to_ray(BMeshNode &node,
 
         BM_face_as_array_vert_tri(f, v_tri);
         hit |= ray_face_nearest_tri(
-            ray_start, ray_normal, v_tri[0]->co, v_tri[1]->co, v_tri[2]->co, depth, dist_sq);
+            ray_start, ray_normal, v_tri[0]->co, v_tri[1]->co, v_tri[2]->co, r_depth, dist_sq);
       }
     }
   }
@@ -2209,28 +2209,27 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
 
 /***************************** Public API *****************************/
 
-std::unique_ptr<Tree> build_bmesh(BMesh *bm)
+Tree Tree::from_bmesh(BMesh &bm)
 {
-  std::unique_ptr<Tree> pbvh = std::make_unique<Tree>(Type::BMesh);
-
-  const int cd_vert_node_offset = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_vertex");
-  const int cd_face_node_offset = CustomData_get_offset_named(
-      &bm->pdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_face");
-
-  if (bm->totface == 0) {
+  Tree pbvh(Type::BMesh);
+  if (bm.totface == 0) {
     return pbvh;
   }
 
+  const int cd_vert_node_offset = CustomData_get_offset_named(
+      &bm.vdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_vertex");
+  const int cd_face_node_offset = CustomData_get_offset_named(
+      &bm.pdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_face");
+
   /* bounding box array of all faces, no need to recalculate every time. */
-  Array<Bounds<float3>> face_bounds(bm->totface);
-  Array<BMFace *> nodeinfo(bm->totface);
+  Array<Bounds<float3>> face_bounds(bm.totface);
+  Array<BMFace *> nodeinfo(bm.totface);
   MemArena *arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "fast Tree node storage");
 
   BMIter iter;
   BMFace *f;
   int i;
-  BM_ITER_MESH_INDEX (f, &iter, bm, BM_FACES_OF_MESH, i) {
+  BM_ITER_MESH_INDEX (f, &iter, &bm, BM_FACES_OF_MESH, i) {
     face_bounds[i] = negative_bounds();
 
     BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
@@ -2245,16 +2244,16 @@ std::unique_ptr<Tree> build_bmesh(BMesh *bm)
     BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
   }
   /* Likely this is already dirty. */
-  bm->elem_index_dirty |= BM_FACE;
+  bm.elem_index_dirty |= BM_FACE;
 
   BMVert *v;
-  BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+  BM_ITER_MESH (v, &iter, &bm, BM_VERTS_OF_MESH) {
     BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
   }
 
   /* Set up root node. */
   FastNodeBuildInfo rootnode = {0};
-  rootnode.totface = bm->totface;
+  rootnode.totface = bm.totface;
 
   /* Start recursion, assign faces to nodes accordingly. */
   pbvh_bmesh_node_limit_ensure_fast(nodeinfo, face_bounds, &rootnode, arena);
@@ -2264,14 +2263,14 @@ std::unique_ptr<Tree> build_bmesh(BMesh *bm)
 
   /* Start with all faces in the root node. */
   /* Take root node and visit and populate children recursively. */
-  Vector<BMeshNode> &nodes = std::get<Vector<BMeshNode>>(pbvh->nodes_);
+  Vector<BMeshNode> &nodes = std::get<Vector<BMeshNode>>(pbvh.nodes_);
   nodes.resize(1);
   pbvh_bmesh_create_nodes_fast_recursive(
       nodes, cd_vert_node_offset, cd_face_node_offset, nodeinfo, face_bounds, &rootnode, 0);
 
-  pbvh->tag_positions_changed(nodes.index_range());
-  update_bounds_bmesh(*bm, *pbvh);
-  store_bounds_orig(*pbvh);
+  pbvh.tag_positions_changed(nodes.index_range());
+  update_bounds_bmesh(bm, pbvh);
+  store_bounds_orig(pbvh);
 
   threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
     for (const int i : range) {
@@ -2285,7 +2284,7 @@ std::unique_ptr<Tree> build_bmesh(BMesh *bm)
     }
   });
 
-  update_mask_bmesh(*bm, nodes.index_range(), *pbvh);
+  update_mask_bmesh(bm, nodes.index_range(), pbvh);
 
   BLI_memarena_free(arena);
   return pbvh;

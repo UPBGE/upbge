@@ -291,78 +291,6 @@ bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int 
   return false;
 }
 
-bool vert_has_face_set(const Object &object, PBVHVertRef vertex, int face_set)
-{
-  const SculptSession &ss = *object.sculpt;
-  switch (bke::object::pbvh_get(object)->type()) {
-    case bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-      const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-      if (!face_sets) {
-        return face_set == SCULPT_FACE_SET_NONE;
-      }
-      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-      for (const int face_index : vert_to_face_map[vertex.i]) {
-        if (face_sets[face_index] == face_set) {
-          return true;
-        }
-      }
-      return false;
-    }
-    case bke::pbvh::Type::BMesh:
-      return true;
-    case bke::pbvh::Type::Grids: {
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-      const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-      if (!face_sets) {
-        return face_set == SCULPT_FACE_SET_NONE;
-      }
-      const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-      const int grid_index = vertex.i / key.grid_area;
-      const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg, grid_index);
-      return face_sets[face_index] == face_set;
-    }
-  }
-  return true;
-}
-
-bool vert_has_unique_face_set(const Object &object, PBVHVertRef vertex)
-{
-  const SculptSession &ss = *object.sculpt;
-  switch (bke::object::pbvh_get(object)->type()) {
-    case bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-      const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
-                                                           bke::AttrDomain::Face);
-      return vert_has_unique_face_set(vert_to_face_map, face_sets, vertex.i);
-    }
-    case bke::pbvh::Type::BMesh: {
-      const int face_set_offset = CustomData_get_offset_named(
-          &object.sculpt->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
-      BMVert *v = reinterpret_cast<BMVert *>(vertex.i);
-      return vert_has_unique_face_set(face_set_offset, *v);
-    }
-    case bke::pbvh::Type::Grids: {
-      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
-      const OffsetIndices<int> faces = base_mesh.faces();
-      const Span<int> corner_verts = base_mesh.corner_verts();
-      const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
-      const bke::AttributeAccessor attributes = base_mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
-                                                           bke::AttrDomain::Face);
-      const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-      SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vertex.i);
-      return vert_has_unique_face_set(
-          faces, corner_verts, vert_to_face_map, face_sets, *ss.subdiv_ccg, coord);
-    }
-  }
-  return false;
-}
-
 bool vert_has_unique_face_set(const GroupedSpan<int> vert_to_face_map,
                               const Span<int> face_sets,
                               int vert)
@@ -521,58 +449,7 @@ Span<int> vert_neighbors_get_mesh(const OffsetIndices<int> faces,
   return r_neighbors.as_span();
 }
 
-}  // namespace blender::ed::sculpt_paint
-
-static bool check_boundary_vert_in_base_mesh(const SculptSession &ss, const int index)
-{
-  return ss.vertex_info.boundary[index];
-}
-
-namespace blender::ed::sculpt_paint {
-
 namespace boundary {
-
-bool vert_is_boundary(const Object &object, const PBVHVertRef vertex)
-{
-  const SculptSession &ss = *object.sculpt;
-  switch (bke::object::pbvh_get(object)->type()) {
-    case bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-      const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-      if (!hide::vert_all_faces_visible_get(hide_poly, vert_to_face_map, vertex.i)) {
-        return true;
-      }
-      return check_boundary_vert_in_base_mesh(ss, vertex.i);
-    }
-    case bke::pbvh::Type::BMesh: {
-      BMVert *v = (BMVert *)vertex.i;
-      return BM_vert_is_boundary(v);
-    }
-    case bke::pbvh::Type::Grids: {
-      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
-      const OffsetIndices<int> faces = base_mesh.faces();
-      const Span<int> corner_verts = base_mesh.corner_verts();
-      const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-      SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vertex.i);
-      int v1, v2;
-      const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
-          *ss.subdiv_ccg, coord, corner_verts, faces, v1, v2);
-      switch (adjacency) {
-        case SUBDIV_CCG_ADJACENT_VERTEX:
-          return check_boundary_vert_in_base_mesh(ss, v1);
-        case SUBDIV_CCG_ADJACENT_EDGE:
-          return check_boundary_vert_in_base_mesh(ss, v1) &&
-                 check_boundary_vert_in_base_mesh(ss, v2);
-        case SUBDIV_CCG_ADJACENT_NONE:
-          return false;
-      }
-    }
-  }
-
-  return false;
-}
 
 bool vert_is_boundary(const GroupedSpan<int> vert_to_face_map,
                       const Span<bool> hide_poly,
@@ -2757,7 +2634,7 @@ struct SculptRaycastData {
   const SubdivCCG *subdiv_ccg;
 
   PBVHVertRef active_vertex;
-  float *face_normal;
+  float3 face_normal;
 
   int active_face_grid_index;
 
@@ -4570,7 +4447,7 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                               &srd.isect_precalc,
                               &srd.depth,
                               &srd.active_vertex,
-                              &srd.active_face_grid_index,
+                              srd.active_face_grid_index,
                               srd.face_normal))
   {
     srd.hit = true;
@@ -4690,7 +4567,7 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   const Brush &brush = *BKE_paint_brush_for_read(BKE_paint_get_active_from_context(C));
-  float ray_start[3], ray_end[3], ray_normal[3], depth, face_normal[3], mat[3][3];
+  float ray_start[3], ray_end[3], ray_normal[3], depth, mat[3][3];
   float viewDir[3] = {0.0f, 0.0f, 1.0f};
   bool original = false;
 
@@ -4737,7 +4614,6 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   srd.ray_start = ray_start;
   srd.ray_normal = ray_normal;
   srd.depth = depth;
-  srd.face_normal = face_normal;
 
   isect_ray_tri_watertight_v3_precalc(&srd.isect_precalc, ray_normal);
   bke::pbvh::raycast(
@@ -4870,7 +4746,7 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
   using namespace blender;
   using namespace blender::ed::sculpt_paint;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  float ray_start[3], ray_end[3], ray_normal[3], depth, face_normal[3];
+  float ray_start[3], ray_end[3], ray_normal[3], depth;
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
@@ -4915,7 +4791,6 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
     SCULPT_vertex_random_access_ensure(ob);
     srd.depth = depth;
     srd.original = original;
-    srd.face_normal = face_normal;
     isect_ray_tri_watertight_v3_precalc(&srd.isect_precalc, ray_normal);
 
     bke::pbvh::raycast(
@@ -5257,6 +5132,7 @@ static bool over_mesh(bContext *C, wmOperator * /*op*/, const float mval[2])
 static void stroke_undo_begin(const bContext *C, wmOperator *op)
 {
   using namespace blender::ed::sculpt_paint;
+  const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
@@ -5270,7 +5146,7 @@ static void stroke_undo_begin(const bContext *C, wmOperator *op)
     ED_image_undo_push_begin(op->type->name, PaintMode::Sculpt);
   }
   else {
-    undo::push_begin_ex(ob, sculpt_brush_type_name(sd));
+    undo::push_begin_ex(scene, ob, sculpt_brush_type_name(sd));
   }
 }
 
@@ -5974,7 +5850,7 @@ bool SCULPT_vertex_is_occluded(const Depsgraph &depsgraph,
 {
   using namespace blender;
   SculptSession &ss = *object.sculpt;
-  float ray_start[3], ray_end[3], ray_normal[3], face_normal[3];
+  float ray_start[3], ray_end[3], ray_normal[3];
 
   ViewContext *vc = ss.cache ? ss.cache->vc : &ss.filter_cache->vc;
 
@@ -5998,7 +5874,6 @@ bool SCULPT_vertex_is_occluded(const Depsgraph &depsgraph,
   srd.ray_start = ray_start;
   srd.ray_normal = ray_normal;
   srd.depth = depth;
-  srd.face_normal = face_normal;
   if (pbvh.type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(object.data);
     srd.vert_positions = bke::pbvh::vert_positions_eval(depsgraph, object);

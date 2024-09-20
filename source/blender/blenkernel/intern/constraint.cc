@@ -2904,6 +2904,11 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
 {
   bActionConstraint *data = static_cast<bActionConstraint *>(con->data);
 
+  if (!data->act) {
+    /* Without an Action, this constraint cannot do anything. */
+    return;
+  }
+
   if (VALID_CONS_TARGET(ct) || data->flag & ACTCON_USE_EVAL_TIME) {
     float tempmat[4][4], vec[3];
     float s, t;
@@ -2956,19 +2961,12 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
        * to apply. This compares to the min/max boundary values first, before doing the
        * normalization by the (max-min) range, to get predictable, valid values when that range is
        * zero. */
-      const float value_of_target = vec[axis];
       const float range = data->max - data->min;
-      if (value_of_target <= data->min) {
-        s = 0.0f;
-      }
-      else if (value_of_target >= data->max) {
-        s = 1.0f;
-      }
-      else if (range == 0.0f) {
+      if (range == 0.0f) {
         s = 0.0f;
       }
       else {
-        s = (value_of_target - data->min) / range;
+        s = (vec[axis] - data->min) / range;
       }
     }
 
@@ -2984,19 +2982,19 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
              (cob->pchan) ? cob->pchan->name : nullptr);
     }
 
-    /* TODO: add an action slot selector to the constraint settings. */
-    BLI_assert(data->act);
-    const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
-        *data->act);
-
     /* Get the appropriate information from the action */
     if (cob->type == CONSTRAINT_OBTYPE_OBJECT || (data->flag & ACTCON_BONE_USE_OBJECT_ACTION)) {
       Object workob;
 
       /* evaluate using workob */
       /* FIXME: we don't have any consistent standards on limiting effects on object... */
-      what_does_obaction(
-          cob->ob, &workob, nullptr, data->act, slot_handle, nullptr, &anim_eval_context);
+      what_does_obaction(cob->ob,
+                         &workob,
+                         nullptr,
+                         data->act,
+                         data->action_slot_handle,
+                         nullptr,
+                         &anim_eval_context);
       BKE_object_to_mat4(&workob, ct->matrix);
     }
     else if (cob->type == CONSTRAINT_OBTYPE_BONE) {
@@ -3013,8 +3011,13 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
       tchan->rotmode = pchan->rotmode;
 
       /* evaluate action using workob (it will only set the PoseChannel in question) */
-      what_does_obaction(
-          cob->ob, &workob, &pose, data->act, slot_handle, pchan->name, &anim_eval_context);
+      what_does_obaction(cob->ob,
+                         &workob,
+                         &pose,
+                         data->act,
+                         data->action_slot_handle,
+                         pchan->name,
+                         &anim_eval_context);
 
       /* convert animation to matrices for use here */
       BKE_pchan_calc_mat(tchan);
@@ -6736,3 +6739,11 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
     }
   }
 }
+
+/* Some static asserts to ensure that the bActionConstraint data is using the expected types for
+ * some of the fields. This check is done here instead of in DNA_constraint_types.h to avoid the
+ * inclusion of an DNA_anim_types.h in DNA_constraint_types.h just for this assert. */
+static_assert(
+    std::is_same_v<decltype(ActionSlot::handle), decltype(bActionConstraint::action_slot_handle)>);
+static_assert(
+    std::is_same_v<decltype(ActionSlot::name), decltype(bActionConstraint::action_slot_name)>);

@@ -507,6 +507,9 @@ struct uiAfterFunc {
   void *rename_arg1;
   void *rename_orig;
 
+  std::function<void(std::string &new_name)> rename_full_func = nullptr;
+  std::string rename_full_new;
+
   uiBlockHandleFunc handle_func;
   void *handle_func_arg;
   int retval;
@@ -837,8 +840,9 @@ static void popup_check(bContext *C, wmOperator *op)
  */
 static bool ui_afterfunc_check(const uiBlock *block, const uiBut *but)
 {
-  return (but->func || but->apply_func || but->funcN || but->rename_func || but->optype ||
-          but->rnaprop || block->handle_func || (block->handle && block->handle->popup_op));
+  return (but->func || but->apply_func || but->funcN || but->rename_func ||
+          but->rename_full_func || but->optype || but->rnaprop || block->handle_func ||
+          (block->handle && block->handle->popup_op));
 }
 
 /**
@@ -876,6 +880,10 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
   after->rename_func = but->rename_func;
   after->rename_arg1 = but->rename_arg1;
   after->rename_orig = but->rename_orig; /* needs free! */
+
+  after->rename_full_func = but->rename_full_func;
+  after->rename_full_new = std::move(but->rename_full_new);
+  but->rename_full_new = "";
 
   after->handle_func = block->handle_func;
   after->handle_func_arg = block->handle_func_arg;
@@ -1076,6 +1084,11 @@ static void ui_apply_but_funcs_after(bContext *C)
 
     if (after.context) {
       CTX_store_set(C, nullptr);
+    }
+
+    if (after.rename_full_func) {
+      BLI_assert(!after.rename_func);
+      after.rename_full_func(after.rename_full_new);
     }
 
     if (after.func) {
