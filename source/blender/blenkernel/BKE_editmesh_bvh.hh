@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
 struct BMBVHTree;
@@ -24,24 +25,24 @@ typedef bool (*BMBVHTree_FaceFilter)(struct BMFace *f, void *userdata);
 
 BMBVHTree *BKE_bmbvh_new_from_editmesh(struct BMEditMesh *em,
                                        int flag,
-                                       const float (*cos_cage)[3],
+                                       const blender::float3 *cos_cage,
                                        bool cos_cage_free);
 BMBVHTree *BKE_bmbvh_new_ex(struct BMesh *bm,
                             blender::Span<std::array<BMLoop *, 3>> looptris,
                             int flag,
-                            const float (*cos_cage)[3],
+                            const blender::float3 *cos_cage,
                             bool cos_cage_free,
                             bool (*test_fn)(struct BMFace *, void *user_data),
                             void *user_data);
 BMBVHTree *BKE_bmbvh_new(struct BMesh *bm,
                          blender::Span<std::array<BMLoop *, 3>> looptris,
                          int flag,
-                         const float (*cos_cage)[3],
+                         const blender::float3 *cos_cage,
                          bool cos_cage_free);
 void BKE_bmbvh_free(BMBVHTree *tree);
 struct BVHTree *BKE_bmbvh_tree_get(BMBVHTree *tree);
 
-struct BMFace *BKE_bmbvh_ray_cast(BMBVHTree *tree,
+struct BMFace *BKE_bmbvh_ray_cast(const BMBVHTree *tree,
                                   const float co[3],
                                   const float dir[3],
                                   float radius,
@@ -49,7 +50,7 @@ struct BMFace *BKE_bmbvh_ray_cast(BMBVHTree *tree,
                                   float r_hitout[3],
                                   float r_cagehit[3]);
 
-struct BMFace *BKE_bmbvh_ray_cast_filter(BMBVHTree *tree,
+struct BMFace *BKE_bmbvh_ray_cast_filter(const BMBVHTree *tree,
                                          const float co[3],
                                          const float dir[3],
                                          float radius,
@@ -62,8 +63,12 @@ struct BMFace *BKE_bmbvh_ray_cast_filter(BMBVHTree *tree,
 /**
  * Find a vert closest to co in a sphere of radius dist_max.
  */
-struct BMVert *BKE_bmbvh_find_vert_closest(BMBVHTree *tree, const float co[3], float dist_max);
-struct BMFace *BKE_bmbvh_find_face_closest(BMBVHTree *tree, const float co[3], float dist_max);
+struct BMVert *BKE_bmbvh_find_vert_closest(const BMBVHTree *tree,
+                                           const float co[3],
+                                           float dist_max);
+struct BMFace *BKE_bmbvh_find_face_closest(const BMBVHTree *tree,
+                                           const float co[3],
+                                           float dist_max);
 
 /**
  * Overlap indices reference the looptris.

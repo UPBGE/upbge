@@ -4305,7 +4305,7 @@ static void gesture_pinch_handle_begin(void *data,
   /* Reset defaults. */
   seat->pointer_gesture_pinch = GWL_SeatStatePointerGesture_Pinch{};
 
-  GHOST_WindowWayland *win = nullptr;
+  const GHOST_WindowWayland *win = nullptr;
   if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
     win = ghost_wl_surface_user_data(wl_surface_focus);
   }
@@ -8273,7 +8273,8 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   debug_context);
+                                                   debug_context,
+                                                   gpuSettings.preferred_device);
 
       if (context->initializeDrawingContext()) {
         context->setUserData(wl_surface);
@@ -8400,7 +8401,8 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
       is_dialog,
       ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
       exclusive,
-      (gpuSettings.flags & GHOST_gpuDebugContext) != 0);
+      (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
+      gpuSettings.preferred_device);
 
   if (window) {
     if (window->getValid()) {

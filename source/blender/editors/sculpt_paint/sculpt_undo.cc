@@ -37,6 +37,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string.h"
@@ -90,9 +91,6 @@
 
 namespace blender::ed::sculpt_paint::undo {
 
-/* Uncomment to print the undo stack in the console on push/undo/redo. */
-// #define SCULPT_UNDO_DEBUG
-
 /* Implementation of undo system for objects in sculpt mode.
  *
  * Each undo step in sculpt mode consists of list of nodes, each node contains:
@@ -136,7 +134,6 @@ namespace blender::ed::sculpt_paint::undo {
 
 struct Node {
   Array<float3, 0> position;
-  Array<float3, 0> orig_position;
   Array<float3, 0> normal;
   Array<float4, 0> col;
   Array<float, 0> mask;
@@ -269,10 +266,6 @@ struct SculptUndoStep {
 
   /* Active color attribute at the end of this undo step. */
   SculptAttrRef active_color_end;
-
-#ifdef SCULPT_UNDO_DEBUG
-  int id;
-#endif
 };
 
 static SculptUndoStep *get_active_step()
@@ -289,121 +282,6 @@ static StepData *get_step_data()
   }
   return nullptr;
 }
-
-#ifdef SCULPT_UNDO_DEBUG
-#  ifdef _
-#    undef _
-#  endif
-#  define _(type) \
-    case type: \
-      return #type;
-static char *undo_type_to_str(int type)
-{
-  switch (type) {
-    _(Type::DyntopoBegin)
-    _(Type::DyntopoEnd)
-    _(Type::Position)
-    _(Type::Geometry)
-    _(Type::DyntopoSymmetrize)
-    _(Type::FaceSet)
-    _(Type::HideVert)
-    _(Type::HideFace)
-    _(Type::Mask)
-    _(Type::Color)
-    default:
-      return "unknown node type";
-  }
-}
-#  undef _
-
-static int nodeidgen = 1;
-
-static void print_sculpt_node(Object &ob, Node *node)
-{
-  printf("    %s:%s {applied=%d}\n", undo_type_to_str(node->type), node->idname, node->applied);
-
-  if (node->bm_entry) {
-    BM_log_print_entry(object.sculpt ? object.sculpt->bm : nullptr, node->bm_entry);
-  }
-}
-
-static void print_step(Object &ob, UndoStep *us, UndoStep *active, int i)
-{
-  Node *node;
-
-  if (us->type != BKE_UNDOSYS_TYPE_SCULPT) {
-    printf("%d %s (non-sculpt): '%s', type:%s, use_memfile_step:%s\n",
-           i,
-           us == active ? "->" : "  ",
-           us->name,
-           us->type->name,
-           us->use_memfile_step ? "true" : "false");
-    return;
-  }
-
-  int id = -1;
-
-  SculptUndoStep *su = (SculptUndoStep *)us;
-  if (!su->id) {
-    su->id = nodeidgen++;
-  }
-
-  id = su->id;
-
-  printf("id=%d %s %d %s (use_memfile_step=%s)\n",
-         id,
-         us == active ? "->" : "  ",
-         i,
-         us->name,
-         us->use_memfile_step ? "true" : "false");
-
-  if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
-    StepData *step_data = reinterpret_cast<SculptUndoStep *>(us)->data;
-
-    for (node = step_data->nodes.first; node; node = node->next) {
-      print_sculpt_node(ob, node);
-    }
-  }
-}
-static void print_nodes(Object &ob, void *active)
-{
-
-  printf("=================== Sculpt undo steps ==============\n");
-
-  UndoStack *ustack = ED_undo_stack_get();
-  UndoStep *us = ustack->steps.first;
-  if (active == nullptr) {
-    active = ustack->step_active;
-  }
-
-  if (!us) {
-    return;
-  }
-
-  printf("\n");
-  if (ustack->step_init) {
-    printf("===Undo initialization stepB===\n");
-    print_step(ob, ustack->step_init, active, -1);
-    printf("===============\n");
-  }
-
-  int i = 0, act_i = -1;
-  for (; us; us = us->next, i++) {
-    if (active == us) {
-      act_i = i;
-    }
-
-    print_step(ob, us, active, i);
-  }
-
-  if (ustack->step_active) {
-    printf("\n\n==Active step:==\n");
-    print_step(ob, ustack->step_active, active, act_i);
-  }
-}
-#else
-static void print_nodes(Object & /*ob*/, void * /*active*/) {}
-#endif
 
 static bool use_multires_undo(const StepData &step_data, const SculptSession &ss)
 {
@@ -425,26 +303,6 @@ static bool topology_matches(const StepData &step_data, const Object &object)
 static bool indices_contain_true(const Span<bool> data, const Span<int> indices)
 {
   return std::any_of(indices.begin(), indices.end(), [&](const int i) { return data[i]; });
-}
-
-static bool test_swap_v3_v3(float3 &a, float3 &b)
-{
-  /* No need for float comparison here (memory is exactly equal or not). */
-  if (memcmp(a, b, sizeof(float[3])) != 0) {
-    std::swap(a, b);
-    return true;
-  }
-  return false;
-}
-
-static bool restore_deformed(
-    const SculptSession &ss, Node &unode, int uindex, int oindex, float3 &coord)
-{
-  if (test_swap_v3_v3(coord, unode.orig_position[uindex])) {
-    copy_v3_v3(unode.position[uindex], ss.deform_cos[oindex]);
-    return true;
-  }
-  return false;
 }
 
 static bool restore_active_shape_key(bContext &C,
@@ -474,75 +332,28 @@ static bool restore_active_shape_key(bContext &C,
   return true;
 }
 
-static void restore_position_mesh(Object &object,
+static void restore_position_mesh(const Depsgraph &depsgraph,
+                                  Object &object,
                                   const Span<std::unique_ptr<Node>> unodes,
                                   MutableSpan<bool> modified_verts)
 {
-  SculptSession &ss = *object.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  PositionDeformData position_data(depsgraph, object);
+  threading::EnumerableThreadSpecific<Vector<float3>> all_tls;
+  threading::parallel_for(unodes.index_range(), 1, [&](const IndexRange range) {
+    Vector<float3> &translations = all_tls.local();
+    for (const int i : range) {
+      Node &unode = *unodes[i];
+      const Span<int> verts = unode.vert_indices.as_span().take_front(unode.unique_verts_num);
+      translations.resize(verts.size());
+      translations_from_new_positions(unode.position, verts, position_data.eval, translations);
 
-  if (ss.shapekey_active) {
-    float(*vertCos)[3] = BKE_keyblock_convert_to_vertcos(&object, ss.shapekey_active);
-    MutableSpan key_positions(reinterpret_cast<float3 *>(vertCos), ss.shapekey_active->totelem);
+      gather_data_mesh(position_data.eval, verts, unode.position.as_mutable_span());
 
-    for (const std::unique_ptr<Node> &unode : unodes) {
-      const Span<int> verts = unode->vert_indices.as_span().take_front(unode->unique_verts_num);
-      if (!unode->orig_position.is_empty()) {
-        if (ss.deform_modifiers_active) {
-          for (const int i : verts.index_range()) {
-            restore_deformed(ss, *unode, i, verts[i], key_positions[verts[i]]);
-          }
-        }
-        else {
-          for (const int i : verts.index_range()) {
-            std::swap(key_positions[verts[i]], unode->orig_position[i]);
-          }
-        }
-      }
-      else {
-        for (const int i : verts.index_range()) {
-          std::swap(key_positions[verts[i]], unode->position[i]);
-        }
-      }
+      position_data.deform(translations, verts);
+
+      modified_verts.fill_indices(verts, true);
     }
-
-    /* Propagate new coords to keyblock. */
-    SCULPT_vertcos_to_key(object, ss.shapekey_active, key_positions);
-
-    /* bke::pbvh::Tree uses its own vertex array, so coords should be */
-    /* propagated to bke::pbvh::Tree here. */
-    BKE_pbvh_vert_coords_apply(pbvh, key_positions);
-
-    MEM_freeN(vertCos);
-  }
-  else {
-    Mesh &mesh = *static_cast<Mesh *>(object.data);
-    MutableSpan<float3> positions = mesh.vert_positions_for_write();
-
-    for (const std::unique_ptr<Node> &unode : unodes) {
-      const Span<int> verts = unode->vert_indices.as_span().take_front(unode->unique_verts_num);
-      if (!unode->orig_position.is_empty()) {
-        if (ss.deform_modifiers_active) {
-          for (const int i : verts.index_range()) {
-            restore_deformed(ss, *unode, i, verts[i], positions[verts[i]]);
-            modified_verts[verts[i]] = true;
-          }
-        }
-        else {
-          for (const int i : verts.index_range()) {
-            std::swap(positions[verts[i]], unode->orig_position[i]);
-            modified_verts[verts[i]] = true;
-          }
-        }
-      }
-      else {
-        for (const int i : verts.index_range()) {
-          std::swap(positions[verts[i]], unode->position[i]);
-          modified_verts[verts[i]] = true;
-        }
-      }
-    }
-  }
+  });
 }
 
 static void restore_position_grids(MutableSpan<float3> positions,
@@ -1011,7 +822,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         }
         const Mesh &mesh = *static_cast<const Mesh *>(object.data);
         Array<bool> modified_verts(mesh.verts_num, false);
-        restore_position_mesh(object, step_data.nodes, modified_verts);
+        restore_position_mesh(*depsgraph, object, step_data.nodes, modified_verts);
 
         const IndexMask changed_nodes = IndexMask::from_predicate(
             node_mask, GrainSize(1), memory, [&](const int i) {
@@ -1283,22 +1094,12 @@ static void store_vert_visibility_grids(const SubdivCCG &subdiv_ccg,
 
 static void store_positions_mesh(const Depsgraph &depsgraph, const Object &object, Node &unode)
 {
-  SculptSession &ss = *object.sculpt;
   gather_data_mesh(bke::pbvh::vert_positions_eval(depsgraph, object),
                    unode.vert_indices.as_span(),
                    unode.position.as_mutable_span());
   gather_data_mesh(bke::pbvh::vert_normals_eval(depsgraph, object),
                    unode.vert_indices.as_span(),
                    unode.normal.as_mutable_span());
-  if (ss.deform_modifiers_active) {
-    const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-    const Span<float3> orig_positions = ss.shapekey_active ? Span(static_cast<const float3 *>(
-                                                                      ss.shapekey_active->data),
-                                                                  mesh.verts_num) :
-                                                             mesh.vert_positions();
-    gather_data_mesh(
-        orig_positions, unode.vert_indices.as_span(), unode.orig_position.as_mutable_span());
-  }
 }
 
 static void store_positions_grids(const SubdivCCG &subdiv_ccg, Node &unode)
@@ -1429,7 +1230,6 @@ static void fill_node_data_mesh(const Depsgraph &depsgraph,
                                 const Type type,
                                 Node &unode)
 {
-  const SculptSession &ss = *object.sculpt;
   const Mesh &mesh = *static_cast<Mesh *>(object.data);
 
   unode.vert_indices = node.all_verts();
@@ -1450,9 +1250,6 @@ static void fill_node_data_mesh(const Depsgraph &depsgraph,
       unode.position.reinitialize(verts_num);
       /* Needed for original data lookup. */
       unode.normal.reinitialize(verts_num);
-      if (ss.deform_modifiers_active) {
-        unode.orig_position.reinitialize(unode.vert_indices.size());
-      }
       store_positions_mesh(depsgraph, object, unode);
       break;
     }
@@ -1520,9 +1317,6 @@ static void fill_node_data_grids(const Object &object,
       unode.position.reinitialize(verts_num);
       /* Needed for original data lookup. */
       unode.normal.reinitialize(verts_num);
-      if (ss.deform_modifiers_active) {
-        unode.orig_position.reinitialize(unode.vert_indices.size());
-      }
       store_positions_grids(subdiv_ccg, unode);
       break;
     }
@@ -1795,11 +1589,6 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
   attr->type = meta_data->data_type;
 }
 
-void push_begin(const Scene &scene, Object &ob, const wmOperator *op)
-{
-  push_begin_ex(scene, ob, op->type->name);
-}
-
 void push_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
 {
   UndoStack *ustack = ED_undo_stack_get();
@@ -1857,16 +1646,15 @@ void push_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   }
 }
 
-void push_end(Object &ob)
+void push_begin(const Scene &scene, Object &ob, const wmOperator *op)
 {
-  push_end_ex(ob, false);
+  push_begin_ex(scene, ob, op->type->name);
 }
 
 static size_t node_size_in_bytes(const Node &node)
 {
   size_t size = sizeof(Node);
   size += node.position.as_span().size_in_bytes();
-  size += node.orig_position.as_span().size_in_bytes();
   size += node.normal.as_span().size_in_bytes();
   size += node.col.as_span().size_in_bytes();
   size += node.mask.as_span().size_in_bytes();
@@ -1926,7 +1714,11 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
       ustack, BKE_UNDOSYS_TYPE_SCULPT);
 
   save_active_attribute(ob, &us->active_color_end);
-  print_nodes(ob, nullptr);
+}
+
+void push_end(Object &ob)
+{
+  push_end_ex(ob, false);
 }
 
 /* -------------------------------------------------------------------- */
@@ -2013,8 +1805,6 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
-
-  print_nodes(*CTX_data_active_object(C), nullptr);
 }
 
 static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
@@ -2023,8 +1813,6 @@ static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
-
-  print_nodes(*CTX_data_active_object(C), nullptr);
 }
 
 static void step_decode_undo(bContext *C,

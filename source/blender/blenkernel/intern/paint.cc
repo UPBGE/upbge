@@ -789,12 +789,16 @@ static void paint_brush_default_essentials_name_get(
       name = "Pencil";
       /* Different default brush for some brush types. */
       if (brush_type) {
-        switch (*brush_type) {
+        switch (eBrushGPaintType(*brush_type)) {
           case GPAINT_BRUSH_TYPE_ERASE:
             name = "Eraser Hard";
             break;
           case GPAINT_BRUSH_TYPE_FILL:
             name = "Fill Area";
+            break;
+          case GPAINT_BRUSH_TYPE_DRAW:
+          case GPAINT_BRUSH_TYPE_TINT:
+            /* Use default, don't override. */
             break;
         }
       }
@@ -849,7 +853,7 @@ static void paint_brush_set_default_reference(Paint *paint,
   blender::StringRefNull eraser_name;
 
   paint_brush_default_essentials_name_get(
-      eObjectMode(paint->runtime.ob_mode), std::nullopt, &name, nullptr);
+      eObjectMode(paint->runtime.ob_mode), std::nullopt, &name, &eraser_name);
 
   if (do_regular && !name.is_empty()) {
     paint_brush_set_essentials_reference(paint, name.c_str());
@@ -1412,9 +1416,21 @@ bool BKE_paint_select_vert_test(const Object *ob)
           (ob->mode & OB_MODE_WEIGHT_PAINT || ob->mode & OB_MODE_VERTEX_PAINT));
 }
 
+bool BKE_paint_select_grease_pencil_test(const Object *ob)
+{
+  if (ob == nullptr || ob->data == nullptr) {
+    return false;
+  }
+  if (ob->type == OB_GREASE_PENCIL) {
+    return (ob->mode & OB_MODE_SCULPT_GPENCIL_LEGACY);
+  }
+  return false;
+}
+
 bool BKE_paint_select_elem_test(const Object *ob)
 {
-  return (BKE_paint_select_vert_test(ob) || BKE_paint_select_face_test(ob));
+  return (BKE_paint_select_vert_test(ob) || BKE_paint_select_face_test(ob) ||
+          BKE_paint_select_grease_pencil_test(ob));
 }
 
 bool BKE_paint_always_hide_test(const Object *ob)

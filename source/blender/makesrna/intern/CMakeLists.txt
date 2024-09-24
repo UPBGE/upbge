@@ -254,8 +254,8 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../draw
-  ../../gpu
   ../../functions
+  ../../gpu
   ../../ikplugin
   ../../imbuf
   ../../io/usd

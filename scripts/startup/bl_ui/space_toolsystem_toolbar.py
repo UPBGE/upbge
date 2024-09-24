@@ -2213,6 +2213,16 @@ class _defs_grease_pencil_edit:
             draw_settings=draw_settings,
         )
 
+    @ToolDef.from_fn
+    def texture_gradient():
+        return dict(
+            idname="builtin.texture_gradient",
+            label="Gradient",
+            icon="ops.paint.weight_gradient",
+            widget=None,
+            keymap=(),
+        )
+
 
 class _defs_image_generic:
 
@@ -3390,6 +3400,17 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         ),
     )
 
+    _tools_grease_pencil_primitives = (
+        (
+            _defs_grease_pencil_paint.box,
+            _defs_grease_pencil_paint.circle,
+            _defs_grease_pencil_paint.line,
+            _defs_grease_pencil_paint.polyline,
+            _defs_grease_pencil_paint.arc,
+            _defs_grease_pencil_paint.curve,
+        ),
+    )
+
     _tools_view3d_add = (
         _defs_view3d_add.cube_add,
         _defs_view3d_add.cone_add,
@@ -3553,6 +3574,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _defs_grease_pencil_edit.interpolate,
             None,
+            _defs_grease_pencil_edit.texture_gradient,
+            None,
             *_tools_annotate,
         ],
         'PARTICLE': [
@@ -3660,19 +3683,13 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_view3d_generic.cursor,
             None,
             _brush_tool,
-            _defs_grease_pencil_paint.fill,
             _defs_grease_pencil_paint.erase,
+            _defs_grease_pencil_paint.fill,
+            *_tools_grease_pencil_primitives,
             None,
             _defs_grease_pencil_paint.trim,
             None,
             _defs_grease_pencil_paint.eyedropper,
-            None,
-            _defs_grease_pencil_paint.line,
-            _defs_grease_pencil_paint.polyline,
-            _defs_grease_pencil_paint.arc,
-            _defs_grease_pencil_paint.curve,
-            _defs_grease_pencil_paint.box,
-            _defs_grease_pencil_paint.circle,
             None,
             _defs_grease_pencil_paint.interpolate,
         ],

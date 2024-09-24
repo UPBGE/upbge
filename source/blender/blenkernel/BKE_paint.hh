@@ -221,9 +221,10 @@ Brush *BKE_paint_brush_from_essentials(Main *bmain, const char *name);
  * asset reference will still be updated).
  *
  * \note #WM_toolsystem_activate_brush_and_tool() might be the preferable way to change the active
- * brush. It also lets the toolsystem decide if the active tool should be changed given the type of
- * brush, and it updates the "last used brush" for the previous tool. #BKE_paint_brush_set() should
- * only be called to force a brush to be active, circumventing the tool system.
+ * brush. It also lets the tool-system decide if the active tool should be changed given the type
+ * of brush, and it updates the "last used brush" for the previous tool.
+ * #BKE_paint_brush_set() should only be called to force a brush to be active,
+ * circumventing the tool system.
  */
 bool BKE_paint_brush_set(Paint *paint, Brush *brush);
 /**
@@ -265,6 +266,10 @@ bool BKE_paint_select_face_test(const Object *ob);
  * Return true when in vertex/weight paint + vertex-select mode?
  */
 bool BKE_paint_select_vert_test(const Object *ob);
+/**
+ * Return true when in grease pencil sculpt mode.
+ */
+bool BKE_paint_select_grease_pencil_test(const Object *ob);
 /**
  * used to check if selection is possible
  * (when we don't care if its face or vert)
@@ -332,8 +337,6 @@ struct SculptBoundaryPreview {
 };
 
 struct SculptFakeNeighbors {
-  bool use_fake_neighbors;
-
   /* Max distance used to calculate neighborhood information. */
   float current_max_distance;
 

@@ -249,30 +249,29 @@ bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *bru
     return false;
   }
 
-  if (active_tool->runtime->brush_type == -1) {
-    /* Only update the main brush binding to reference the newly active brush. */
-    toolsystem_main_brush_binding_update_from_active(paint);
-    return true;
-  }
-
-  toolsystem_brush_type_binding_update(paint, paint_mode, active_tool->runtime->brush_type);
-
   /* If necessary, find a compatible tool to switch to. */
   {
     std::optional<int> brush_type = BKE_paint_get_brush_type_from_paintmode(brush, paint_mode);
     if (!brush_type) {
       BLI_assert_unreachable();
       WM_toolsystem_ref_set_by_id(C, "builtin.brush");
-      return true;
     }
-
-    if (!brush_type_is_compatible_with_active_tool(C, *brush_type)) {
+    else if (!brush_type_is_compatible_with_active_tool(C, *brush_type)) {
       std::optional<blender::StringRefNull> compatible_tool = find_tool_id_from_brush_type_id(
           C, *brush_type);
       WM_toolsystem_ref_set_by_id(C, compatible_tool.value_or("builtin.brush").c_str());
     }
-    return true;
   }
+
+  if (active_tool->runtime->brush_type == -1) {
+    /* Only update the main brush binding to reference the newly active brush. */
+    toolsystem_main_brush_binding_update_from_active(paint);
+  }
+  else {
+    toolsystem_brush_type_binding_update(paint, paint_mode, active_tool->runtime->brush_type);
+  }
+
+  return true;
 }
 
 static void toolsystem_brush_activate_from_toolref_for_object_particle(const bContext *C,
@@ -371,8 +370,8 @@ static void toolsystem_brush_activate_from_toolref_for_object_paint(const bConte
  * Activate a brush compatible with \a tref, call when the active tool changes.
  */
 static void toolsystem_brush_activate_from_toolref(const bContext *C,
-                                                   WorkSpace *workspace,
-                                                   bToolRef *tref)
+                                                   const WorkSpace *workspace,
+                                                   const bToolRef *tref)
 {
   BLI_assert(tref->runtime->flag & TOOLREF_FLAG_USE_BRUSHES);
 
@@ -1015,13 +1014,13 @@ void WM_toolsystem_update_from_context(
 
 bool WM_toolsystem_active_tool_is_brush(const bContext *C)
 {
-  bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
+  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
   return tref_rt && (tref_rt->flag & TOOLREF_FLAG_USE_BRUSHES);
 }
 
 bool WM_toolsystem_active_tool_has_custom_cursor(const bContext *C)
 {
-  bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
+  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
   return tref_rt && (tref_rt->cursor != WM_CURSOR_DEFAULT);
 }
 

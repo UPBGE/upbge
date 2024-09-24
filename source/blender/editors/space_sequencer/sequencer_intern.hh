@@ -83,6 +83,8 @@ struct SeqChannelDrawContext {
 
 struct StripDrawContext {
   Sequence *seq;
+  const FCurve *curve = nullptr; /* Curve for overlay, if any (blend factor or volume). */
+
   /* Strip boundary in timeline space. Content start/end is clamped by left/right handle. */
   float content_start, content_end, bottom, top;
   float left_handle, right_handle; /* Position in frames. */
@@ -99,6 +101,7 @@ struct StripDrawContext {
   bool missing_data_block;
   bool missing_media;
   bool is_connected;
+  bool is_muted;
 };
 
 struct TimelineDrawContext {

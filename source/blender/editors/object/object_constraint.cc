@@ -360,7 +360,7 @@ static void test_constraint(
     else {
       animrig::Action &action = data->act->wrap();
       if (action.is_action_legacy()) {
-        if (data->act->idroot != ID_OB) {
+        if (data->act->idroot != ID_OB && data->act->idroot != 0) {
           /* Only object-rooted actions can be used. */
           data->act = nullptr;
           con->flag |= CONSTRAINT_DISABLE;
@@ -1083,7 +1083,7 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
     Curve *cu = (Curve *)data->tar->data;
 
     if (ELEM(nullptr, cu->adt, cu->adt->action) ||
-        (BKE_fcurve_find(&cu->adt->action->curves, "eval_time", 0) == nullptr))
+        (animrig::fcurve_find_in_assigned_slot(*cu->adt, {"eval_time", 0}) == nullptr))
     {
       /* create F-Curve for path animation */
       act = animrig::id_action_ensure(bmain, &cu->id);

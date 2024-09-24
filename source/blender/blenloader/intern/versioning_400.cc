@@ -2780,6 +2780,31 @@ static void add_image_editor_asset_shelf(Main &bmain)
   }
 }
 
+static void node_reroute_add_storage(bNodeTree &tree)
+{
+  for (bNode *node : tree.all_nodes()) {
+    if (node->is_reroute()) {
+      if (node->storage != nullptr) {
+        continue;
+      }
+
+      bNodeSocket &input = *static_cast<bNodeSocket *>(node->inputs.first);
+      bNodeSocket &output = *static_cast<bNodeSocket *>(node->outputs.first);
+
+      /* Use uniform identifier for sockets. In old Blender versions (<=2021, up to af0b7925), the
+       * identifiers were sometimes all lower case. Fixing those wrong socket identifiers is
+       * important because otherwise they loose links now that the reroute node also uses node
+       * declarations. */
+      STRNCPY(input.identifier, "Input");
+      STRNCPY(output.identifier, "Output");
+
+      NodeReroute *data = MEM_cnew<NodeReroute>(__func__);
+      STRNCPY(data->type_idname, input.idname);
+      node->storage = data;
+    }
+  }
+}
+
 /**
  * It was possible that curve attributes were initialized to 0 even if that is not allowed for some
  * attributes.
@@ -2821,6 +2846,51 @@ static void add_bevel_modifier_attribute_name_defaults(Main &bmain)
           STRNCPY(bmd->edge_weight_name, "bevel_weight_edge");
         }
       }
+    }
+  }
+}
+
+static void hide_simulation_node_skip_socket_value(Main &bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, tree, &bmain.nodetrees) {
+    LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+      if (node->type != GEO_NODE_SIMULATION_OUTPUT) {
+        continue;
+      }
+      bNodeSocket *skip_input = static_cast<bNodeSocket *>(node->inputs.first);
+      if (!skip_input || !STREQ(skip_input->identifier, "Skip")) {
+        continue;
+      }
+      auto *default_value = static_cast<bNodeSocketValueBoolean *>(skip_input->default_value);
+      if (!default_value->value) {
+        continue;
+      }
+      bool is_linked = false;
+      LISTBASE_FOREACH (bNodeLink *, link, &tree->links) {
+        if (link->tosock == skip_input) {
+          is_linked = true;
+        }
+      }
+      if (is_linked) {
+        continue;
+      }
+
+      bNode &input_node = version_node_add_empty(*tree, "FunctionNodeInputBool");
+      input_node.parent = node->parent;
+      input_node.locx = node->locx - 25;
+      input_node.locy = node->locy;
+
+      NodeInputBool *input_node_storage = MEM_cnew<NodeInputBool>(__func__);
+      input_node.storage = input_node_storage;
+      input_node_storage->boolean = true;
+
+      bNodeSocket &input_node_socket = version_node_add_socket(
+          *tree, input_node, SOCK_OUT, "NodeSocketBool", "Boolean");
+
+      version_node_add_link(*tree, input_node, input_node_socket, *node, *skip_input);
+
+      /* Change the old socket value so that the versioning code is not run again. */
+      default_value->value = false;
     }
   }
 }
@@ -4638,6 +4708,17 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 24)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      node_reroute_add_storage(*ntree);
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 26)) {
+    hide_simulation_node_skip_socket_value(*bmain);
   }
 
   /**
