@@ -458,25 +458,23 @@ static void view3d_userdata_lassoselect_init(LassoSelectUserData *r_data,
 
 static bool view3d_selectable_data(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
-
   if (!ED_operator_region_view3d_active(C)) {
     return false;
   }
-  if (ob == nullptr) {
-    return false;
+  if (Object *ob = CTX_data_active_object(C)) {
+    if (ob->mode & OB_MODE_EDIT) {
+      return ob->type != OB_FONT;
+    }
+    if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_TEXTURE_PAINT | OB_MODE_SCULPT_GPENCIL_LEGACY))
+    {
+      return BKE_paint_select_elem_test(ob);
+    }
+    if (ob->mode & OB_MODE_WEIGHT_PAINT) {
+      return BKE_paint_select_elem_test(ob) && BKE_object_pose_armature_get_with_wpaint_check(ob);
+    }
   }
 
-  if (ob->mode & OB_MODE_EDIT) {
-    return ob->type != OB_FONT;
-  }
-  if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_TEXTURE_PAINT | OB_MODE_SCULPT_GPENCIL_LEGACY)) {
-    return BKE_paint_select_elem_test(ob);
-  }
-  if (ob->mode & OB_MODE_WEIGHT_PAINT) {
-    return BKE_paint_select_elem_test(ob) && BKE_object_pose_armature_get_with_wpaint_check(ob);
-  }
-  return false;
+  return true;
 }
 
 /* helper also for box_select */

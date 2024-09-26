@@ -209,4 +209,75 @@ bool assigned_action_has_keyframes(AnimData *adt)
   return action.has_keyframes(adt->slot_handle);
 }
 
+Vector<bActionGroup *> channel_groups_all(bAction *action)
+{
+  if (!action) {
+    return {};
+  }
+
+  Action &action_wrap = action->wrap();
+
+#ifdef WITH_ANIM_BAKLAVA
+  /* Legacy Action. */
+  if (action_wrap.is_action_legacy()) {
+#endif /* WITH_ANIM_BAKLAVA */
+    Vector<bActionGroup *> legacy_groups;
+    LISTBASE_FOREACH (bActionGroup *, group, &action_wrap.groups) {
+      legacy_groups.append(group);
+    }
+    return legacy_groups;
+#ifdef WITH_ANIM_BAKLAVA
+  }
+
+  /* Layered Action. */
+  Vector<bActionGroup *> all_groups;
+  for (Layer *layer : action_wrap.layers()) {
+    for (Strip *strip : layer->strips()) {
+      switch (strip->type()) {
+        case Strip::Type::Keyframe: {
+          StripKeyframeData &strip_data = strip->template data<StripKeyframeData>(action_wrap);
+          for (ChannelBag *bag : strip_data.channelbags()) {
+            all_groups.extend(bag->channel_groups());
+          }
+        }
+      }
+    }
+  }
+  return all_groups;
+#endif /* WITH_ANIM_BAKLAVA */
+}
+
+Vector<bActionGroup *> channel_groups_for_assigned_slot(AnimData *adt)
+{
+  if (!adt || !adt->action) {
+    return {};
+  }
+
+  Action &action = adt->action->wrap();
+
+  /* Legacy Action. */
+  if (action.is_action_legacy()) {
+    return channel_groups_all(adt->action);
+  }
+
+  /* Layered Action. */
+  ChannelBag *bag = channelbag_for_action_slot(action, adt->slot_handle);
+  if (!bag) {
+    return {};
+  }
+
+  Vector<bActionGroup *> slot_groups(bag->channel_groups());
+  return slot_groups;
+}
+
+bool action_treat_as_legacy(const bAction &action)
+{
+  const Action &action_wrap = action.wrap();
+  if (action_wrap.is_empty()) {
+    const bool may_do_layered = USER_EXPERIMENTAL_TEST(&U, use_animation_baklava);
+    return !may_do_layered;
+  }
+  return action_wrap.is_action_legacy();
+}
+
 }  // namespace blender::animrig::legacy

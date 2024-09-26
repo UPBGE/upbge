@@ -201,8 +201,8 @@ static void add_orco_mesh(Object &ob,
     }
   }
   else {
-    /* TODO(sybren): totvert should potentially change here, as ob->data
-     * or em may have a different number of vertices than dm. */
+    /* TODO(@sybren): `totvert` should potentially change here, as `ob->data`
+     * or `em` may have a different number of vertices than the evaluated `mesh`. */
     Array<float3> storage;
     const Span<float3> orco = get_orco_coords(ob, em, layer, storage);
     if (!orco.is_empty()) {
@@ -218,7 +218,8 @@ static void add_orco_mesh(Object &ob,
   }
 }
 
-/* Does final touches to the final evaluated mesh, making sure it is perfectly usable.
+/**
+ * Does final touches to the final evaluated mesh, making sure it is perfectly usable.
  *
  * This is needed because certain information is not passed along intermediate meshes allocated
  * during stack evaluation.

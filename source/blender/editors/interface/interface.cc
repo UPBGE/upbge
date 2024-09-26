@@ -61,7 +61,7 @@
 #include "RNA_enum_types.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "ED_numinput.hh"
@@ -1737,6 +1737,7 @@ enum PredefinedExtraOpIconType {
   PREDEFINED_EXTRA_OP_ICON_NONE = 1,
   PREDEFINED_EXTRA_OP_ICON_CLEAR,
   PREDEFINED_EXTRA_OP_ICON_EYEDROPPER,
+  PREDEFINED_EXTRA_OP_ICON_BONE_EYEDROPPER
 };
 
 static PointerRNA *ui_but_extra_operator_icon_add_ptr(uiBut *but,
@@ -1828,6 +1829,23 @@ static bool ui_but_icon_extra_is_visible_search_eyedropper(uiBut *but)
   return ((but->editstr == nullptr) && (idcode == ID_OB || OB_DATA_SUPPORT_ID(idcode)));
 }
 
+static bool ui_but_icon_extra_is_visible_bone_eyedropper(uiBut *but)
+{
+  if (but->type != UI_BTYPE_SEARCH_MENU || !(but->flag & UI_BUT_VALUE_CLEAR)) {
+    return false;
+  }
+  if (but->editstr != nullptr) {
+    return false;
+  }
+  if (!ELEM(RNA_property_type(but->rnaprop), PROP_STRING, PROP_POINTER)) {
+    return false;
+  }
+  uiButSearch *search_but = (uiButSearch *)but;
+  StructRNA *type = RNA_property_pointer_type(&search_but->rnasearchpoin,
+                                              search_but->rnasearchprop);
+  return type == &RNA_Bone || type == &RNA_EditBone;
+}
+
 static PredefinedExtraOpIconType ui_but_icon_extra_get(uiBut *but)
 {
   switch (but->type) {
@@ -1845,6 +1863,9 @@ static PredefinedExtraOpIconType ui_but_icon_extra_get(uiBut *but)
       }
       else if (ui_but_icon_extra_is_visible_search_eyedropper(but)) {
         return PREDEFINED_EXTRA_OP_ICON_EYEDROPPER;
+      }
+      else if (ui_but_icon_extra_is_visible_bone_eyedropper(but)) {
+        return PREDEFINED_EXTRA_OP_ICON_BONE_EYEDROPPER;
       }
       break;
     default:
@@ -1876,6 +1897,17 @@ static void ui_but_predefined_extra_operator_icons_add(uiBut *but)
       optype = id_eyedropper_ot;
       icon = ICON_EYEDROPPER;
 
+      break;
+    }
+    case PREDEFINED_EXTRA_OP_ICON_BONE_EYEDROPPER: {
+      static wmOperatorType *id_eyedropper_ot = nullptr;
+      if (!id_eyedropper_ot) {
+        id_eyedropper_ot = WM_operatortype_find("UI_OT_eyedropper_bone", false);
+      }
+      BLI_assert(id_eyedropper_ot);
+
+      optype = id_eyedropper_ot;
+      icon = ICON_EYEDROPPER;
       break;
     }
     case PREDEFINED_EXTRA_OP_ICON_CLEAR: {
@@ -2549,13 +2581,13 @@ void ui_but_v3_get(uiBut *but, float vec[3])
     }
   }
   else if (but->pointype == UI_BUT_POIN_CHAR) {
-    const char *cp = (char *)but->poin;
+    const char *cp = but->poin;
     vec[0] = float(cp[0]) / 255.0f;
     vec[1] = float(cp[1]) / 255.0f;
     vec[2] = float(cp[2]) / 255.0f;
   }
   else if (but->pointype == UI_BUT_POIN_FLOAT) {
-    const float *fp = (float *)but->poin;
+    const float *fp = reinterpret_cast<float *>(but->poin);
     copy_v3_v3(vec, fp);
   }
   else {
@@ -2580,31 +2612,110 @@ void ui_but_v3_set(uiBut *but, const float vec[3])
     PropertyRNA *prop = but->rnaprop;
 
     if (RNA_property_type(prop) == PROP_FLOAT) {
-      int tot;
-      int a;
+      int tot = RNA_property_array_length(&but->rnapoin, prop);
 
-      tot = RNA_property_array_length(&but->rnapoin, prop);
       BLI_assert(tot > 0);
       if (tot == 3) {
         RNA_property_float_set_array(&but->rnapoin, prop, vec);
       }
       else {
         tot = min_ii(tot, 3);
-        for (a = 0; a < tot; a++) {
+        for (int a = 0; a < tot; a++) {
           RNA_property_float_set_index(&but->rnapoin, prop, a, vec[a]);
         }
       }
     }
   }
   else if (but->pointype == UI_BUT_POIN_CHAR) {
-    char *cp = (char *)but->poin;
+    char *cp = but->poin;
     cp[0] = char(lround(vec[0] * 255.0f));
     cp[1] = char(lround(vec[1] * 255.0f));
     cp[2] = char(lround(vec[2] * 255.0f));
   }
   else if (but->pointype == UI_BUT_POIN_FLOAT) {
-    float *fp = (float *)but->poin;
+    float *fp = reinterpret_cast<float *>(but->poin);
     copy_v3_v3(fp, vec);
+  }
+}
+
+void ui_but_v4_get(uiBut *but, float vec[4])
+{
+  if (but->editvec) {
+    copy_v4_v4(vec, but->editvec);
+  }
+
+  if (but->rnaprop) {
+    PropertyRNA *prop = but->rnaprop;
+
+    zero_v4(vec);
+
+    if (RNA_property_type(prop) == PROP_FLOAT) {
+      int tot = RNA_property_array_length(&but->rnapoin, prop);
+      BLI_assert(tot > 0);
+      if (tot == 4) {
+        RNA_property_float_get_array(&but->rnapoin, prop, vec);
+      }
+      else {
+        tot = min_ii(tot, 4);
+        for (int a = 0; a < tot; a++) {
+          vec[a] = RNA_property_float_get_index(&but->rnapoin, prop, a);
+        }
+      }
+    }
+  }
+  else if (but->pointype == UI_BUT_POIN_CHAR) {
+    const char *cp = but->poin;
+    vec[0] = float(cp[0]) / 255.0f;
+    vec[1] = float(cp[1]) / 255.0f;
+    vec[2] = float(cp[2]) / 255.0f;
+    vec[3] = float(cp[3]) / 255.0f;
+  }
+  else if (but->pointype == UI_BUT_POIN_FLOAT) {
+    const float *fp = reinterpret_cast<float *>(but->poin);
+    copy_v4_v4(vec, fp);
+  }
+  else {
+    if (but->editvec == nullptr) {
+      fprintf(stderr, "%s: can't get color, should never happen\n", __func__);
+      zero_v4(vec);
+    }
+  }
+}
+
+void ui_but_v4_set(uiBut *but, const float vec[4])
+{
+  if (but->editvec) {
+    copy_v4_v4(but->editvec, vec);
+  }
+
+  if (but->rnaprop) {
+    PropertyRNA *prop = but->rnaprop;
+
+    if (RNA_property_type(prop) == PROP_FLOAT) {
+      int tot = RNA_property_array_length(&but->rnapoin, prop);
+
+      BLI_assert(tot > 0);
+      if (tot == 4) {
+        RNA_property_float_set_array(&but->rnapoin, prop, vec);
+      }
+      else {
+        tot = min_ii(tot, 4);
+        for (int a = 0; a < tot; a++) {
+          RNA_property_float_set_index(&but->rnapoin, prop, a, vec[a]);
+        }
+      }
+    }
+  }
+  else if (but->pointype == UI_BUT_POIN_CHAR) {
+    char *cp = but->poin;
+    cp[0] = char(lround(vec[0] * 255.0f));
+    cp[1] = char(lround(vec[1] * 255.0f));
+    cp[2] = char(lround(vec[2] * 255.0f));
+    cp[3] = char(lround(vec[3] * 255.0f));
+  }
+  else if (but->pointype == UI_BUT_POIN_FLOAT) {
+    float *fp = reinterpret_cast<float *>(but->poin);
+    copy_v4_v4(fp, vec);
   }
 }
 

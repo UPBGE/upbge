@@ -203,20 +203,20 @@ int active_face_set_get(const Object &object)
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-      if (!face_sets) {
+      if (!face_sets || !ss.active_face_index) {
         return SCULPT_FACE_SET_NONE;
       }
-      return face_sets[ss.active_face_index];
+      return face_sets[*ss.active_face_index];
     }
     case bke::pbvh::Type::Grids: {
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-      if (!face_sets) {
+      if (!face_sets || !ss.active_grid_index) {
         return SCULPT_FACE_SET_NONE;
       }
       const int face_index = BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg,
-                                                               ss.active_grid_index);
+                                                               *ss.active_grid_index);
       return face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh:
@@ -3127,8 +3127,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
           depsgraph, ob, 1.0f, 0.0f, 0.0f, false, true);
     }
     cloth::brush_store_simulation_state(depsgraph, ob, *ss.cache->cloth_sim);
-    cloth::ensure_nodes_constraints(
-        sd, ob, node_mask, *ss.cache->cloth_sim, ss.cache->location_symm, FLT_MAX);
+    cloth::ensure_nodes_constraints(sd,
+                                    ob,
+                                    node_mask,
+                                    *ss.cache->cloth_sim,
+                                    ss.cache->location_symm,
+                                    std::numeric_limits<float>::max());
   }
 
   bool invert = ss.cache->pen_flip || ss.cache->invert;
@@ -4645,15 +4649,15 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   switch (pbvh->type()) {
     case bke::pbvh::Type::Mesh:
       ss.active_face_index = srd.active_face_grid_index;
-      ss.active_grid_index = 0;
+      ss.active_grid_index = std::nullopt;
       break;
     case bke::pbvh::Type::Grids:
-      ss.active_face_index = 0;
+      ss.active_face_index = std::nullopt;
       ss.active_grid_index = srd.active_face_grid_index;
       break;
     case bke::pbvh::Type::BMesh:
-      ss.active_face_index = 0;
-      ss.active_grid_index = 0;
+      ss.active_face_index = std::nullopt;
+      ss.active_grid_index = std::nullopt;
       break;
   }
 
@@ -4820,8 +4824,8 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
   }
   srd.ray_start = ray_start;
   srd.ray_normal = ray_normal;
-  srd.depth = FLT_MAX;
-  srd.dist_sq_to_ray = FLT_MAX;
+  srd.depth = std::numeric_limits<float>::max();
+  srd.dist_sq_to_ray = std::numeric_limits<float>::max();
 
   bke::pbvh::find_nearest_to_ray(
       pbvh,
@@ -4836,7 +4840,7 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
     add_v3_v3(out, ray_start);
   }
 
-  float closest_radius_sq = FLT_MAX;
+  float closest_radius_sq = std::numeric_limits<float>::max();
   if (limit_closest_radius) {
     closest_radius_sq = sculpt_calc_radius(vc, brush, *CTX_data_scene(C), out);
     closest_radius_sq *= closest_radius_sq;
@@ -6538,26 +6542,24 @@ void calc_brush_cube_distances(const Brush &brush,
   const float hardness = 1.0f - roundness;
   for (const int i : verts.index_range()) {
     if (factors[i] == 0.0f) {
-      r_distances[i] = FLT_MAX;
+      r_distances[i] = std::numeric_limits<float>::max();
       continue;
     }
     const float3 local = math::abs(math::transform_point(mat, positions[verts[i]]));
 
-    if (!(local[0] <= 1.0f && local[1] <= 1.0f && local[2] <= 1.0f)) {
+    if (!(local.x <= 1.0f && local.y <= 1.0f && local.z <= 1.0f)) {
       factors[i] = 0.0f;
-      r_distances[i] = FLT_MAX;
+      r_distances[i] = std::numeric_limits<float>::max();
       continue;
     }
-    if (std::min(local[0], local[1]) > hardness) {
+    if (std::min(local.x, local.y) > hardness) {
       /* Corner, distance to the center of the corner circle. */
-      float r_point[3];
-      copy_v3_fl(r_point, hardness);
-      r_distances[i] = len_v2v2(r_point, local) / roundness;
+      r_distances[i] = math::distance(float2(hardness), float2(local)) / roundness;
       continue;
     }
-    if (std::max(local[0], local[1]) > hardness) {
+    if (std::max(local.x, local.y) > hardness) {
       /* Side, distance to the square XY axis. */
-      r_distances[i] = (std::max(local[0], local[1]) - hardness) / roundness;
+      r_distances[i] = (std::max(local.x, local.y) - hardness) / roundness;
       continue;
     }
 
@@ -6579,26 +6581,24 @@ void calc_brush_cube_distances(const Brush &brush,
   const float hardness = 1.0f - roundness;
   for (const int i : positions.index_range()) {
     if (factors[i] == 0.0f) {
-      r_distances[i] = FLT_MAX;
+      r_distances[i] = std::numeric_limits<float>::max();
       continue;
     }
     const float3 local = math::abs(math::transform_point(mat, positions[i]));
 
-    if (!(local[0] <= 1.0f && local[1] <= 1.0f && local[2] <= 1.0f)) {
+    if (!(local.x <= 1.0f && local.y <= 1.0f && local.z <= 1.0f)) {
       factors[i] = 0.0f;
-      r_distances[i] = FLT_MAX;
+      r_distances[i] = std::numeric_limits<float>::max();
       continue;
     }
-    if (std::min(local[0], local[1]) > hardness) {
+    if (std::min(local.x, local.y) > hardness) {
       /* Corner, distance to the center of the corner circle. */
-      float r_point[3];
-      copy_v3_fl(r_point, hardness);
-      r_distances[i] = len_v2v2(r_point, local) / roundness;
+      r_distances[i] = math::distance(float2(hardness), float2(local)) / roundness;
       continue;
     }
-    if (std::max(local[0], local[1]) > hardness) {
+    if (std::max(local.x, local.y) > hardness) {
       /* Side, distance to the square XY axis. */
-      r_distances[i] = (std::max(local[0], local[1]) - hardness) / roundness;
+      r_distances[i] = (std::max(local.x, local.y) - hardness) / roundness;
       continue;
     }
 
@@ -6614,11 +6614,13 @@ void apply_hardness_to_distances(const float radius,
   if (hardness == 0.0f) {
     return;
   }
+  const float threshold = hardness * radius;
   if (hardness == 1.0f) {
-    distances.fill(0.0f);
+    for (const int i : distances.index_range()) {
+      distances[i] = distances[i] < threshold ? 0.0f : radius;
+    }
     return;
   }
-  const float threshold = hardness * radius;
   const float radius_inv = math::rcp(radius);
   const float hardness_inv_rcp = math::rcp(1.0f - hardness);
   for (const int i : distances.index_range()) {

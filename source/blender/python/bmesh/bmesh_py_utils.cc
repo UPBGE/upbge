@@ -16,14 +16,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "../mathutils/mathutils.h"
+#include "../mathutils/mathutils.hh"
 
 #include "bmesh.hh"
-#include "bmesh_py_types.h"
-#include "bmesh_py_utils.h" /* own include */
+#include "bmesh_py_types.hh"
+#include "bmesh_py_utils.hh" /* own include */
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
 PyDoc_STRVAR(
     /* Wrap. */

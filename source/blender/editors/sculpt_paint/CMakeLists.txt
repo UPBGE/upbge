@@ -126,7 +126,9 @@ set(SRC
   grease_pencil_trace_util.hh
   grease_pencil_weight_paint.hh
   mesh_brush_common.hh
+  paint_hide.hh
   paint_intern.hh
+  paint_mask.hh
   sculpt_automask.hh
   sculpt_boundary.hh
   sculpt_cloth.hh
@@ -156,8 +158,6 @@ set(SRC
   brushes/draw_vector_displacement.cc
   brushes/elastic_deform.cc
   brushes/enhance_details.cc
-  brushes/fill.cc
-  brushes/flatten.cc
   brushes/grab.cc
   brushes/inflate.cc
   brushes/layer.cc
@@ -166,9 +166,9 @@ set(SRC
   brushes/multires_displacement_eraser.cc
   brushes/multires_displacement_smear.cc
   brushes/pinch.cc
+  brushes/plane.cc
   brushes/relax.cc
   brushes/rotate.cc
-  brushes/scrape.cc
   brushes/smooth.cc
   brushes/smooth_mask.cc
   brushes/snake_hook.cc

@@ -158,7 +158,7 @@ bool VKBackend::is_supported()
     if (missing_capabilities.is_empty()) {
       /* This device meets minimum requirements. */
       CLOG_INFO(&LOG,
-                0,
+                2,
                 "Device [%s] supports minimum requirements. Skip checking other GPUs. Another GPU "
                 "can still be selected during auto-detection.",
                 vk_properties.deviceName);
@@ -279,6 +279,13 @@ void VKBackend::platform_init(const VKDevice &device)
            properties.deviceName,
            driver_version.c_str(),
            GPU_ARCHITECTURE_IMR);
+
+  CLOG_INFO(&LOG,
+            0,
+            "Using vendor [%s] device [%s] driver version [%s].",
+            vendor_name.c_str(),
+            device.vk_physical_device_properties_.deviceName,
+            driver_version.c_str());
 }
 
 void VKBackend::detect_workarounds(VKDevice &device)
@@ -344,7 +351,7 @@ void VKBackend::samplers_update()
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)
 {
   VKContext &context = *VKContext::get();
-  render_graph::VKResourceAccessInfo &resources = context.update_and_get_access_info();
+  render_graph::VKResourceAccessInfo &resources = context.reset_and_get_access_info();
   render_graph::VKDispatchNode::CreateInfo dispatch_info(resources);
   context.update_pipeline_data(dispatch_info.dispatch_node.pipeline_data);
   dispatch_info.dispatch_node.group_count_x = groups_x_len;
@@ -358,7 +365,7 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
   BLI_assert(indirect_buf);
   VKContext &context = *VKContext::get();
   VKStorageBuffer &indirect_buffer = *unwrap(indirect_buf);
-  render_graph::VKResourceAccessInfo &resources = context.update_and_get_access_info();
+  render_graph::VKResourceAccessInfo &resources = context.reset_and_get_access_info();
   render_graph::VKDispatchIndirectNode::CreateInfo dispatch_indirect_info(resources);
   context.update_pipeline_data(dispatch_indirect_info.dispatch_indirect_node.pipeline_data);
   dispatch_indirect_info.dispatch_indirect_node.buffer = indirect_buffer.vk_handle();

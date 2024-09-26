@@ -17,12 +17,12 @@
 
 #include "RNA_access.hh"
 
-#include "bpy_app_handlers.h"
-#include "bpy_rna.h"
+#include "bpy_app_handlers.hh"
+#include "bpy_rna.hh"
 
-#include "../generic/python_utildefines.h"
+#include "../generic/python_utildefines.hh"
 
-#include "BPY_extern.h"
+#include "BPY_extern.hh"
 
 void bpy_app_generic_callback(Main *main,
                               PointerRNA **pointers,
