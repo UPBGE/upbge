@@ -29,7 +29,7 @@
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"

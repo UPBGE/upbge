@@ -28,7 +28,7 @@ set(SRC
   bgl.h
   bl_math_py_api.hh
   blf_py_api.hh
-  bpy_internal_import.h
+  bpy_internal_import.hh
   idprop_py_api.hh
   idprop_py_ui_api.hh
   imbuf_py_api.hh

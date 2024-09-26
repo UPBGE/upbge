@@ -34,7 +34,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"

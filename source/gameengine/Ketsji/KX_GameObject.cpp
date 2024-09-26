@@ -66,8 +66,8 @@
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
-#  include "bpy_rna.h"
-#  include "python_utildefines.h"
+#  include "bpy_rna.hh"
+#  include "python_utildefines.hh"
 #endif
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);

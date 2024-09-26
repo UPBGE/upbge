@@ -36,7 +36,7 @@
 #include "RAS_BucketManager.h"
 
 #ifdef WITH_PYTHON
-#  include "bpy_rna.h"
+#  include "bpy_rna.hh"
 #endif
 
 KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,

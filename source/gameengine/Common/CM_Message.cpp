@@ -26,7 +26,7 @@
 
 #include "CM_Message.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "termcolor.hpp"
 
 #include "SCA_ILogicBrick.h"
@@ -34,7 +34,7 @@
 #ifdef WITH_PYTHON
 
 #  include "EXP_Python.h"
-#  include "py_capi_utils.h"  // for PyC_FileAndNum only
+#  include "py_capi_utils.hh"  // for PyC_FileAndNum only
 
 #endif  // WITH_PYTHON
 

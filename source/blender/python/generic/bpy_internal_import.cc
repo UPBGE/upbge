@@ -32,7 +32,7 @@
 #include "DNA_text_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -40,10 +40,10 @@
 /* UNUSED */
 #include "BKE_text.h" /* txt_to_buf */
 
-#include "py_capi_utils.h"
-#include "python_compat.h"
+#include "py_capi_utils.hh"
+#include "python_compat.hh"
 
-#include "bpy_internal_import.h" /* own include */
+#include "bpy_internal_import.hh" /* own include */
 
 static Main *bpy_import_main = nullptr;
 static ListBase bpy_import_main_list;

@@ -20,12 +20,7 @@
 
 /* Note, the BGE needs to use this too, keep it minimal */
 
-#ifndef __BPY_INTERNAL_IMPORT_H__
-#define __BPY_INTERNAL_IMPORT_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 /* python redefines :/ */
 #ifdef _POSIX_C_SOURCE
@@ -57,9 +52,3 @@ void bpy_import_main_extra_add(struct Main *maggie);
 void bpy_import_main_extra_remove(struct Main *maggie);
 
 extern PyMethodDef bpy_import_meth;
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __BPY_INTERNAL_IMPORT_H__ */

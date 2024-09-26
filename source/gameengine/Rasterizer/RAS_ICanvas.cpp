@@ -26,7 +26,7 @@
 
 #include "BKE_image.h"
 #include "BKE_image_format.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "DNA_scene_types.h"

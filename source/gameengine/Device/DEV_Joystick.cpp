@@ -36,7 +36,7 @@
 #endif
 
 #include "BKE_appdir.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "CM_Message.h"
 #include "DEV_JoystickPrivate.h"

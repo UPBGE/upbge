@@ -24,7 +24,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
@@ -45,9 +45,9 @@
 #ifdef WITH_PYTHON
 #  include "Python.h"
 
-#  include "../../python/intern/bpy_rna.h"
-#  include "generic/bpy_internal_import.h"
-#  include "generic/py_capi_utils.h"
+#  include "../../python/intern/bpy_rna.hh"
+#  include "generic/bpy_internal_import.hh"
+#  include "generic/py_capi_utils.hh"
 #endif
 
 #include <string.h>

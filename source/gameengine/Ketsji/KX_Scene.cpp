@@ -93,7 +93,7 @@
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
-#  include "bpy_rna.h"
+#  include "bpy_rna.hh"
 #endif
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)

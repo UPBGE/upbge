@@ -36,7 +36,7 @@
 
 #ifdef WITH_PYTHON
 #  include "compile.h"
-#  include "py_capi_utils.h"
+#  include "py_capi_utils.hh"
 #endif  // WITH_PYTHON
 
 #include "CM_Message.h"

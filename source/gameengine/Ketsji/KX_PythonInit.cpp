@@ -43,8 +43,8 @@
 
 #  include <Python.h>
 
-#  include "../blender/python/BPY_extern.h"
-#  include "../blender/python/BPY_extern_python.h"
+#  include "../blender/python/BPY_extern.hh"
+#  include "../blender/python/BPY_extern_python.hh"
 #  include "BKE_appdir.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_context.hh"
@@ -59,21 +59,21 @@
 #  include "DNA_scene_types.h"
 #  include "MEM_guardedalloc.h"
 #  include "bgl.h"
-#  include "bl_math_py_api.h"
-#  include "blf_py_api.h"
-#  include "bmesh/bmesh_py_api.h"
-#  include "bpy.h"  // for bpy_sys_module_backup
-#  include "bpy_intern_string.h"
-#  include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
-#  include "bpy_path.h"
-#  include "bpy_rna.h"
+#  include "bl_math_py_api.hh"
+#  include "blf_py_api.hh"
+#  include "bmesh/bmesh_py_api.hh"
+#  include "bpy.hh"  // for bpy_sys_module_backup
+#  include "bpy_intern_string.hh"
+#  include "bpy_internal_import.hh" /* from the blender python api, but we want to import text too! */
+#  include "bpy_path.hh"
+#  include "bpy_rna.hh"
 #  include "gpu/gpu_py_api.hh"
-#  include "idprop_py_api.h"
-#  include "imbuf_py_api.h"
+#  include "idprop_py_api.hh"
+#  include "imbuf_py_api.hh"
 #  include "marshal.h"    /* python header for loading/saving dicts */
-#  include "mathutils.h"  // 'mathutils' module copied here so the blenderlayer can use.
-#  include "py_capi_utils.h"
-#  include "python_utildefines.h"
+#  include "mathutils.hh"  // 'mathutils' module copied here so the blenderlayer can use.
+#  include "py_capi_utils.hh"
+#  include "python_utildefines.hh"
 
 #  ifdef WITH_AUDASPACE
 #    include "../../../../intern/audaspace/intern/AUD_PyInit.h"
