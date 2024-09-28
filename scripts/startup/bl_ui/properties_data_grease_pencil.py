@@ -176,9 +176,6 @@ class GREASE_PENCIL_MT_grease_pencil_add_layer_extra(Menu):
         ob = context.object
         grease_pencil = ob.data
         layer = grease_pencil.layers.active
-        space = context.space_data
-
-        layout.operator("grease_pencil.layer_group_add", text="Add Group")
 
         layout.separator()
         layout.operator("grease_pencil.layer_duplicate", text="Duplicate", icon='DUPLICATE').empty_keyframes = False
@@ -222,6 +219,8 @@ class DATA_PT_grease_pencil_layers(DataButtonsPanel, Panel):
     @classmethod
     def draw_settings(cls, layout, grease_pencil):
         layer = grease_pencil.layers.active
+        is_layer_active = layer is not None
+        is_group_active = grease_pencil.layer_groups.active is not None
 
         row = layout.row()
         row.template_grease_pencil_layer_tree()
@@ -230,7 +229,13 @@ class DATA_PT_grease_pencil_layers(DataButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.operator_context = 'EXEC_DEFAULT'
         sub.operator("grease_pencil.layer_add", icon='ADD', text="")
-        sub.operator("grease_pencil.layer_remove", icon='REMOVE', text="")
+        sub.operator("grease_pencil.layer_group_add", icon='NEWFOLDER', text="")
+        sub.separator()
+
+        if is_layer_active:
+            sub.operator("grease_pencil.layer_remove", icon='REMOVE', text="")
+        if is_group_active:
+            sub.operator("grease_pencil.layer_group_remove", icon='REMOVE', text="").keep_children = True
 
         sub.separator()
 
@@ -242,7 +247,7 @@ class DATA_PT_grease_pencil_layers(DataButtonsPanel, Panel):
         sub.operator("grease_pencil.layer_move", icon='TRIA_UP', text="").direction = 'UP'
         sub.operator("grease_pencil.layer_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-        if not layer:
+        if not is_layer_active:
             return
 
         layout.use_property_split = True

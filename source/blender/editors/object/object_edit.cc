@@ -721,6 +721,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
       obedit->mode &= ~OB_MODE_EDIT;
       /* Also happens when mesh is shared across multiple objects. #69834. */
       DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+      /* Leaving edit mode may modify the original object data; tag that as well. */
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
     }
     return true;
   }
@@ -743,6 +745,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
 
     /* also flush ob recalc, doesn't take much overhead, but used for particles */
     DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+    /* Leaving edit mode may modify the original object data; tag that as well. */
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene);
 

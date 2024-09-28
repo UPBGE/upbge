@@ -462,6 +462,8 @@ typedef struct GreasePencil {
   CustomData layers_data;
   /**
    * The index of the active attribute in the UI.
+   *
+   * Set to -1 when none is active.
    */
   int attributes_active_index;
   char _pad2[4];
@@ -554,6 +556,12 @@ typedef struct GreasePencil {
       const blender::bke::greasepencil::Layer &duplicate_layer);
   blender::bke::greasepencil::LayerGroup &add_layer_group(
       blender::bke::greasepencil::LayerGroup &parent_group, blender::StringRefNull name);
+
+  /**
+   *  Adds multiple layers with an empty name.
+   *  Note: Evaluated Grease Pencil geometry is allowed to have layers with the same name.
+   */
+  void add_layers_for_eval(int num_new_layers);
 
   /* Moving nodes. */
   void move_node_up(blender::bke::greasepencil::TreeNode &node, int step = 1);

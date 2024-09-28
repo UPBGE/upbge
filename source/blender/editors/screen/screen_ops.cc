@@ -1660,6 +1660,8 @@ struct sAreaMoveData {
   int bigger, smaller, origval, step;
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
+  bScreen *screen;
+  void *draw_callback; /* Call #screen_draw_move_highlight */
 };
 
 /* helper call to move area-edge, sets limits
@@ -1762,6 +1764,13 @@ static void area_move_set_limits(wmWindow *win,
   }
 }
 
+static void area_move_draw_cb(const wmWindow * /*win*/, void *userdata)
+{
+  const wmOperator *op = static_cast<const wmOperator *>(userdata);
+  const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
+  screen_draw_move_highlight(md->screen, md->dir_axis);
+}
+
 /* validate selection inside screen, set variables OK */
 /* return false: init failed */
 static bool area_move_init(bContext *C, wmOperator *op)
@@ -1803,6 +1812,9 @@ static bool area_move_init(bContext *C, wmOperator *op)
       win, screen, md->dir_axis, &md->bigger, &md->smaller, &use_bigger_smaller_snap);
 
   md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+
+  md->screen = screen;
+  md->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), area_move_draw_cb, op);
 
   return true;
 }
@@ -1993,6 +2005,11 @@ static void area_move_apply(bContext *C, wmOperator *op)
 
 static void area_move_exit(bContext *C, wmOperator *op)
 {
+  sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
+  if (md->draw_callback) {
+    WM_draw_cb_exit(CTX_wm_window(C), md->draw_callback);
+  }
+
   MEM_SAFE_FREE(op->customdata);
 
   /* this makes sure aligned edges will result in aligned grabbing */

@@ -22,7 +22,27 @@ namespace blender::gpu {
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
 VKImmediate::VKImmediate() {}
-VKImmediate::~VKImmediate() {}
+VKImmediate::~VKImmediate()
+{
+  BLI_assert_msg(recycling_buffers_.is_empty(),
+                 "VKImmediate::deinit must be called before destruction.");
+  BLI_assert_msg(active_buffers_.is_empty(),
+                 "VKImmediate::deinit must be called before destruction");
+}
+
+void VKImmediate::deinit(VKDevice &device)
+{
+  while (!recycling_buffers_.is_empty()) {
+    std::unique_ptr<VKBuffer> buffer = recycling_buffers_.pop_last();
+    buffer->free_immediately(device);
+    buffer.release();
+  }
+  while (!active_buffers_.is_empty()) {
+    std::unique_ptr<VKBuffer> buffer = active_buffers_.pop_last();
+    buffer->free_immediately(device);
+    buffer.release();
+  }
+}
 
 uchar *VKImmediate::begin()
 {
@@ -107,7 +127,7 @@ VKBuffer &VKImmediate::ensure_space(size_t bytes_needed)
   }
 
   size_t alloc_size = new_buffer_size(bytes_needed);
-  CLOG_INFO(&LOG, 2, "Allocate buffer (size=%d)", (int)alloc_size);
+  CLOG_INFO(&LOG, 2, "Allocate buffer (size=%d)", int(alloc_size));
   buffer_offset_ = 0;
   active_buffers_.append(std::make_unique<VKBuffer>());
   VKBuffer &result = *active_buffers_.last();
@@ -122,12 +142,10 @@ VKBuffer &VKImmediate::ensure_space(size_t bytes_needed)
 void VKImmediate::reset()
 {
   if (!recycling_buffers_.is_empty()) {
-    CLOG_INFO(&LOG, 2, "Discarding %d unused buffers", (int)recycling_buffers_.size());
-    recycling_buffers_.clear();
+    CLOG_INFO(&LOG, 2, "Discarding %d unused buffers", int(recycling_buffers_.size()));
   }
-  while (!active_buffers_.is_empty()) {
-    recycling_buffers_.append(active_buffers_.pop_last());
-  }
+  recycling_buffers_.clear();
+  recycling_buffers_ = std::move(active_buffers_);
 }
 
 }  // namespace blender::gpu
