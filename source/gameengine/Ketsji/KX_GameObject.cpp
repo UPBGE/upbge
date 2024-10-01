@@ -43,6 +43,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_mesh_types.h"
 #include "DRW_render.hh"
 #include "WM_api.hh"
 
@@ -1168,7 +1169,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
 
     Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentLodLevel->GetObject());
     /* Try to get the object with all modifiers applied */
-    ob_eval->data = eval_lod_ob->data;
+    Mesh *lod_mesh = (Mesh *)eval_lod_ob->data;
+    BKE_object_eval_assign_data(ob_eval, &lod_mesh->id, false);
   }
 
   if (updatePhysicsShape) {
