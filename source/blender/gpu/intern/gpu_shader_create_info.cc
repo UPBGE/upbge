@@ -11,6 +11,7 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_threads.h"
 
 #include "BKE_global.hh"
 
@@ -99,6 +100,11 @@ void ShaderCreateInfo::finalize()
     return;
   }
   finalized_ = true;
+
+#if 0
+  /* TODO(Miguel Pozo): This triggers for image renders. */
+  BLI_assert(BLI_thread_is_main());
+#endif
 
   Set<StringRefNull> deps_merged;
 
