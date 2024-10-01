@@ -3893,14 +3893,10 @@ void DRW_gpu_context_create_blenderplayer(void *ghost_system)
   DST.system_gpu_context = WM_system_gpu_context_create_blenderplayer(ghost_system);
   WM_system_gpu_context_activate(DST.system_gpu_context);
   /* Be sure to create gpu_context too. */
-  DST.blender_gpu_context = GPU_context_create(0, DST.system_gpu_context);
-  /* Set default Blender OpenGL state */
-  // GPU_state_init();
-  /* So we activate the window's one afterwards. */
-
-  /* IDK if it is really needed to have a win->eventstate in blenderplayer ? */
-  // wm_window_ensure_eventstate(win);
-
+  DST.blender_gpu_context = GPU_context_create(nullptr, DST.system_gpu_context);
+  /* Setup compilation context. */
+  DRW_shader_init();
+  /* Activate the window's context afterwards. */
   wm_window_reset_drawable();
 }
 
