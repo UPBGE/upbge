@@ -42,7 +42,11 @@ bool editable_grease_pencil_poll(bContext *C)
   if (!ED_operator_object_active_editable_ex(C, object)) {
     return false;
   }
-  if (!ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GPENCIL_LEGACY)) {
+  if (!ELEM(object->mode,
+            OB_MODE_EDIT,
+            OB_MODE_SCULPT_GPENCIL_LEGACY,
+            OB_MODE_VERTEX_GPENCIL_LEGACY))
+  {
     return false;
   }
   return true;
@@ -237,6 +241,7 @@ void ED_operatortypes_grease_pencil()
   ED_operatortypes_grease_pencil_layers();
   ED_operatortypes_grease_pencil_select();
   ED_operatortypes_grease_pencil_edit();
+  ED_operatortypes_grease_pencil_join();
   ED_operatortypes_grease_pencil_material();
   ED_operatortypes_grease_pencil_primitives();
   ED_operatortypes_grease_pencil_weight_paint();

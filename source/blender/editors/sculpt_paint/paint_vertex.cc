@@ -1094,7 +1094,7 @@ static void do_vpaint_brush_blur_loops(const bContext *C,
     const Span<int> verts = nodes[i].verts();
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide(mesh, verts, factors);
+    fill_factor_from_hide(hide_vert, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -1249,7 +1249,7 @@ static void do_vpaint_brush_blur_verts(const bContext *C,
     const Span<int> verts = nodes[i].verts();
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide(mesh, verts, factors);
+    fill_factor_from_hide(hide_vert, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -1407,7 +1407,7 @@ static void do_vpaint_brush_smear(const bContext *C,
     const Span<int> verts = nodes[i].verts();
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide(mesh, verts, factors);
+    fill_factor_from_hide(hide_vert, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -1589,7 +1589,7 @@ static void calculate_average_color(VPaintData &vpd,
       const Span<int> verts = nodes[i].verts();
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
-      fill_factor_from_hide(mesh, verts, factors);
+      fill_factor_from_hide(hide_vert, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1718,7 +1718,7 @@ static void vpaint_do_draw(const bContext *C,
     const Span<int> verts = nodes[i].verts();
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide(mesh, verts, factors);
+    fill_factor_from_hide(hide_vert, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -2320,7 +2320,7 @@ void PAINT_OT_vertex_color_set(wmOperatorType *ot)
   ot->description = "Fill the active vertex color layer with the current paint color";
 
   ot->exec = vertex_color_set_exec;
-  ot->poll = vertex_paint_mode_poll;
+  ot->poll = vertex_paint_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

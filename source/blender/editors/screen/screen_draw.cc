@@ -174,14 +174,14 @@ void ED_screen_draw_edges(wmWindow *win)
 
   if (region) {
     /* Find active area from active region. */
-    const int pos[2] = {region->winrct.xmin, region->winrct.ymin};
+    const int pos[2] = {BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
     active_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, pos);
   }
 
   if (!active_area) {
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       AZone *zone = ED_area_actionzone_find_xy(area, win->eventstate->xy);
-      /* Get area from action zone, if not scrollbar. */
+      /* Get area from action zone, if not scroll-bar. */
       if (zone && zone->type != AZONE_REGION_SCROLL) {
         active_area = area;
         break;

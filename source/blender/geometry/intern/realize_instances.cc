@@ -2116,6 +2116,7 @@ static void execute_realize_grease_pencil_task(
   for (const int layer_i : src_layers.index_range()) {
     const bke::greasepencil::Layer &src_layer = *src_layers[layer_i];
     bke::greasepencil::Layer &dst_layer = *dst_layers[layer_i];
+    BKE_grease_pencil_copy_layer_parameters(src_layer, dst_layer);
 
     dst_layer.set_name(src_layer.name());
     dst_layer.set_local_transform(task.transform * src_layer.local_transform());
