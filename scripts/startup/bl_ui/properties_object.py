@@ -449,7 +449,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
 
 
 class OBJECT_PT_animation(ObjectButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
-    _animated_id_context_property = 'object'
+    _animated_id_context_property = "object"
 
 
 class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
