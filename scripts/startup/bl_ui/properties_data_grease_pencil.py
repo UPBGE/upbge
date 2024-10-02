@@ -216,6 +216,11 @@ class GREASE_PENCIL_MT_grease_pencil_add_layer_extra(Menu):
             layout.prop(layer, "ignore_locked_materials")
 
         layout.separator()
+        layout.operator("grease_pencil.layer_merge", text="Merge Down").mode = 'ACTIVE'
+        layout.operator("grease_pencil.layer_merge", text="Merge Group").mode = 'GROUP'
+        layout.operator("grease_pencil.layer_merge", text="Merge All").mode = 'ALL'
+
+        layout.separator()
         layout.operator("grease_pencil.layer_duplicate_object", text="Copy Layer to Selected").only_active = True
         layout.operator("grease_pencil.layer_duplicate_object", text="Copy All Layers to Selected").only_active = False
 
@@ -227,6 +232,7 @@ class GREASE_PENCIL_MT_group_context_menu(Menu):
         layout = self.layout
         layout.operator("grease_pencil.layer_group_remove", text="Delete Group").keep_children = False
         layout.operator("grease_pencil.layer_group_remove", text="Ungroup").keep_children = True
+        layout.operator("grease_pencil.layer_merge", text="Merge Group").mode = 'GROUP'
 
         layout.separator()
         row = layout.row(align=True)
@@ -395,12 +401,79 @@ class DATA_PT_grease_pencil_settings(DataButtonsPanel, Panel):
 
 
 class DATA_PT_grease_pencil_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
-    _animated_id_context_property = 'grease_pencil'
+    _animated_id_context_property = "grease_pencil"
 
 
 class DATA_PT_grease_pencil_custom_props(DataButtonsPanel, PropertyPanel, Panel):
     _context_path = "object.data"
     _property_type = bpy.types.GreasePencilv3
+
+
+class GREASE_PENCIL_UL_attributes(UIList):
+    def filter_items(self, _context, data, property):
+        attributes = getattr(data, property)
+        flags = []
+        indices = [i for i in range(len(attributes))]
+
+        # Filtering by name
+        if self.filter_name:
+            flags = bpy.types.UI_UL_list.filter_items_by_name(
+                self.filter_name, self.bitflag_filter_item, attributes, "name", reverse=self.use_filter_invert)
+        if not flags:
+            flags = [self.bitflag_filter_item] * len(attributes)
+
+        # Filtering internal attributes
+        for idx, item in enumerate(attributes):
+            flags[idx] = 0 if item.is_internal else flags[idx]
+
+        # Reorder by name.
+        if self.use_filter_sort_alpha:
+            indices = bpy.types.UI_UL_list.sort_items_by_name(attributes, "name")
+
+        return flags, indices
+
+    def draw_item(self, _context, layout, _data, attribute, _icon, _active_data, _active_propname, _index):
+        data_type = attribute.bl_rna.properties["data_type"].enum_items[attribute.data_type]
+
+        split = layout.split(factor=0.50)
+        split.emboss = 'NONE'
+        split.prop(attribute, "name", text="")
+        sub = split.row()
+        sub.alignment = 'RIGHT'
+        sub.active = False
+        sub.label(text=data_type.name)
+
+
+class DATA_PT_grease_pencil_attributes(DataButtonsPanel, Panel):
+    bl_label = "Attributes"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+
+    def draw(self, context):
+        grease_pencil = context.grease_pencil
+
+        layout = self.layout
+        row = layout.row()
+
+        col = row.column()
+        col.template_list(
+            "GREASE_PENCIL_UL_attributes",
+            "attributes",
+            grease_pencil,
+            "attributes",
+            grease_pencil.attributes,
+            "active_index",
+            rows=3,
+        )
+
+        col = row.column(align=True)
+        col.operator("geometry.attribute_add", icon='ADD', text="")
+        col.operator("geometry.attribute_remove", icon='REMOVE', text="")
 
 
 classes = (
@@ -420,6 +493,8 @@ classes = (
     GREASE_PENCIL_MT_grease_pencil_add_layer_extra,
     GREASE_PENCIL_MT_group_context_menu,
     DATA_PT_grease_pencil_animation,
+    GREASE_PENCIL_UL_attributes,
+    DATA_PT_grease_pencil_attributes,
 )
 
 
