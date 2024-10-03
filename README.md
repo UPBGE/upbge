@@ -18,3 +18,4 @@ You can take a look at the release notes to see all the new features:
 
 ## From The Team
 We hope that new users will join the project, to help us test new features, report bugs, provide feedback and ideas to improve UPBGE (https://github.com/UPBGE/blender/issues), and that new developers will join the team to help us develop shiny new features for the game engine.
+
