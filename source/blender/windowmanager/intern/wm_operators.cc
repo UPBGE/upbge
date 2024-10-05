@@ -2638,7 +2638,7 @@ static void radial_control_set_initial_mouse(bContext *C, RadialControl *rc, con
   rc->scale_fac = 1.0f;
   if (rc->ptr.owner_id && GS(rc->ptr.owner_id->name) == ID_BR && rc->prop == &rna_Brush_size) {
     Brush *brush = reinterpret_cast<Brush *>(rc->ptr.owner_id);
-    if ((brush && brush->gpencil_settings) && (brush->ob_mode == OB_MODE_PAINT_GPENCIL_LEGACY) &&
+    if ((brush && brush->gpencil_settings) && (brush->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) &&
         (brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW) &&
         (brush->flag & BRUSH_LOCK_SIZE) != 0)
     {
@@ -4238,7 +4238,6 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "CLIP_OT_select_circle");
   WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
   WM_modalkeymap_assign(keymap, "NODE_OT_select_circle");
-  WM_modalkeymap_assign(keymap, "GPENCIL_OT_select_circle");
   WM_modalkeymap_assign(keymap, "GRAPH_OT_select_circle");
   WM_modalkeymap_assign(keymap, "ACTION_OT_select_circle");
 }
@@ -4330,7 +4329,6 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom_border");
   WM_modalkeymap_assign(keymap, "IMAGE_OT_render_border");
   WM_modalkeymap_assign(keymap, "IMAGE_OT_view_zoom_border");
-  WM_modalkeymap_assign(keymap, "GPENCIL_OT_select_box");
 }
 
 /* Lasso modal operators. */
@@ -4352,8 +4350,6 @@ static void gesture_lasso_modal_keymap(wmKeyConfig *keyconf)
 
   /* Assign map to operators. */
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_lasso");
-  WM_modalkeymap_assign(keymap, "GPENCIL_OT_stroke_cutter");
-  WM_modalkeymap_assign(keymap, "GPENCIL_OT_select_lasso");
   WM_modalkeymap_assign(keymap, "MASK_OT_select_lasso");
   WM_modalkeymap_assign(keymap, "PAINT_OT_mask_lasso_gesture");
   WM_modalkeymap_assign(keymap, "SCULPT_OT_face_set_lasso_gesture");

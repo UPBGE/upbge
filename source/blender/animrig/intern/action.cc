@@ -1230,11 +1230,17 @@ Slot *assign_action_ensure_slot_for_keying(Action &action, ID &animated_id)
     slot = &action.slot_add_for_id(animated_id);
   }
 
-  if (!assign_action(&action, animated_id)) {
+  /* Only try to assign the Action to the ID if it is not already assigned.
+   * Assignment can fail when the ID is in NLA Tweak mode. */
+  const std::optional<std::pair<Action *, Slot *>> assigned = get_action_slot_pair(animated_id);
+  const bool is_correct_action = assigned && assigned->first == &action;
+  if (!is_correct_action && !assign_action(&action, animated_id)) {
     return nullptr;
   }
 
-  if (assign_action_slot(slot, animated_id) != ActionSlotAssignmentResult::OK) {
+  const bool is_correct_slot = assigned && assigned->second == slot;
+  if (!is_correct_slot && assign_action_slot(slot, animated_id) != ActionSlotAssignmentResult::OK)
+  {
     /* This should never happen, as a few lines above a new slot is created for
      * this ID if the found one wasn't deemed suitable. */
     BLI_assert_unreachable();
@@ -1439,6 +1445,20 @@ ActionSlotAssignmentResult assign_action_and_slot(Action *action,
     return ActionSlotAssignmentResult::MissingAction;
   }
   return assign_action_slot(slot_to_assign, animated_id);
+}
+
+ActionSlotAssignmentResult assign_tmpaction_and_slot_handle(bAction *action,
+                                                            const slot_handle_t slot_handle,
+                                                            const OwnedAnimData owned_adt)
+{
+  if (!assign_tmpaction(action, owned_adt)) {
+    return ActionSlotAssignmentResult::MissingAction;
+  }
+  return generic_assign_action_slot_handle(slot_handle,
+                                           owned_adt.owner_id,
+                                           owned_adt.adt.tmpact,
+                                           owned_adt.adt.tmp_slot_handle,
+                                           owned_adt.adt.tmp_slot_name);
 }
 
 /* TODO: rename to get_action(). */
@@ -2336,6 +2356,20 @@ Vector<FCurve *> fcurves_in_action_slot_filtered(bAction *act,
   return found;
 }
 
+Vector<FCurve *> fcurves_in_listbase_filtered(ListBase /* FCurve * */ fcurves,
+                                              FunctionRef<bool(const FCurve &fcurve)> predicate)
+{
+  Vector<FCurve *> found;
+
+  LISTBASE_FOREACH (FCurve *, fcurve, &fcurves) {
+    if (predicate(*fcurve)) {
+      found.append(fcurve);
+    }
+  }
+
+  return found;
+}
+
 FCurve *action_fcurve_ensure(Main *bmain,
                              bAction *act,
                              const char group[],
@@ -2543,6 +2577,31 @@ void action_fcurve_move(Action &action_dst,
   UNUSED_VARS_NDEBUG(is_detached);
 
   action_fcurve_attach(action_dst, action_slot_dst, fcurve, group_name);
+}
+
+void channelbag_fcurves_move(ChannelBag &channelbag_dst, ChannelBag &channelbag_src)
+{
+  while (!channelbag_src.fcurves().is_empty()) {
+    FCurve &fcurve = *channelbag_src.fcurve(0);
+
+    /* Store the group name locally, as the group will be removed if this was its
+     * last F-Curve. */
+    std::optional<std::string> group_name;
+    if (fcurve.grp) {
+      group_name = fcurve.grp->name;
+    }
+
+    const bool is_detached = channelbag_src.fcurve_detach(fcurve);
+    BLI_assert(is_detached);
+    UNUSED_VARS_NDEBUG(is_detached);
+
+    channelbag_dst.fcurve_append(fcurve);
+
+    if (group_name) {
+      bActionGroup &group = channelbag_dst.channel_group_ensure(*group_name);
+      channelbag_dst.fcurve_assign_to_channel_group(fcurve, group);
+    }
+  }
 }
 
 bool ChannelBag::fcurve_assign_to_channel_group(FCurve &fcurve, bActionGroup &to_group)
