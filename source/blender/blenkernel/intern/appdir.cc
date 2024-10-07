@@ -51,7 +51,10 @@
 #  endif
 /* #mkdtemp on OSX (and probably all *BSD?), not worth making specific check for this OS. */
 #  include <unistd.h>
-#endif /* WIN32 */
+
+#  include <pwd.h> /* For `passwd` access. */
+
+#endif /* !WIN32 */
 
 static const char _str_null[] = "(null)";
 #define STR_OR_FALLBACK(a) ((a) ? (a) : _str_null)
@@ -134,7 +137,7 @@ static char *blender_version_decimal(const int version)
 const char *BKE_appdir_folder_default()
 {
 #ifndef WIN32
-  return BLI_getenv("HOME");
+  return BKE_appdir_folder_home();
 #else  /* Windows */
   static char documentfolder[FILE_MAXDIR];
 
@@ -168,13 +171,26 @@ const char *BKE_appdir_folder_default_or_root()
 
 const char *BKE_appdir_folder_home()
 {
+  const char *home_dir = nullptr;
+
 #ifdef WIN32
-  return BLI_getenv("userprofile");
-#elif defined(__APPLE__)
-  return BLI_expand_tilde("~/");
+  home_dir = BLI_getenv("userprofile");
 #else
-  return BLI_getenv("HOME");
+
+#  if defined(__APPLE__)
+  home_dir = BLI_expand_tilde("~/");
+#  endif
+  if (home_dir == nullptr) {
+    home_dir = BLI_getenv("HOME");
+    if (home_dir == nullptr) {
+      if (const passwd *pwuser = getpwuid(getuid())) {
+        home_dir = pwuser->pw_dir;
+      }
+    }
+  }
 #endif
+
+  return home_dir;
 }
 
 bool BKE_appdir_folder_documents(char *dir)
@@ -242,7 +258,9 @@ bool BKE_appdir_font_folder_default(char *dir, size_t dir_maxncpy)
     BLI_strncpy_wchar_as_utf8(test_dir, wpath, sizeof(test_dir));
   }
 #elif defined(__APPLE__)
-  STRNCPY(test_dir, BLI_expand_tilde("~/Library/Fonts"));
+  if (const char *fonts_dir = BLI_expand_tilde("~/Library/Fonts")) {
+    STRNCPY(test_dir, fonts_dir);
+  }
 #else
   STRNCPY(test_dir, "/usr/share/fonts");
 #endif
