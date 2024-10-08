@@ -4951,9 +4951,6 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 
   PointerRNA ptr;
 
-  /* Mouse position as if in middle of area. */
-  const int loc[2] = {BLI_rcti_cent_x(&area->totrct), BLI_rcti_cent_y(&area->totrct)};
-
   uiItemFullO(layout,
               "SCREEN_OT_area_join",
               IFACE_("Move/Split Area"),
@@ -4962,7 +4959,6 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
               WM_OP_INVOKE_DEFAULT,
               UI_ITEM_NONE,
               &ptr);
-  RNA_int_set_array(&ptr, "source_xy", loc);
 
   uiItemS(layout);
 
