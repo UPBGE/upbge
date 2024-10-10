@@ -1597,10 +1597,6 @@ void UI_OT_eyedropper_depth(wmOperatorType *ot);
 
 void UI_OT_eyedropper_driver(wmOperatorType *ot);
 
-/* interface_eyedropper_gpencil_color.c */
-
-void UI_OT_eyedropper_gpencil_color(wmOperatorType *ot);
-
 /* eyedropper_grease_pencil_color.cc */
 
 void UI_OT_eyedropper_grease_pencil_color(wmOperatorType *ot);

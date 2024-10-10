@@ -1187,7 +1187,9 @@ class VIEW3D_MT_editor_menus(Menu):
             elif mode_string in {'EDIT_CURVE', 'EDIT_SURFACE'}:
                 layout.menu("VIEW3D_MT_edit_curve_ctrlpoints")
                 layout.menu("VIEW3D_MT_edit_curve_segments")
-            elif mode_string in {'EDIT_CURVES', 'EDIT_POINT_CLOUD'}:
+            elif mode_string == 'EDIT_POINT_CLOUD':
+                layout.template_node_operator_asset_root_items()
+            elif mode_string == 'EDIT_CURVES':
                 layout.menu("VIEW3D_MT_edit_curves_control_points")
                 layout.menu("VIEW3D_MT_edit_curves_segments")
                 layout.template_node_operator_asset_root_items()
@@ -7508,6 +7510,9 @@ class VIEW3D_PT_snapping(Panel):
         col.prop(tool_settings, "snap_elements_individual", expand=True)
 
         col.separator()
+
+        if 'INCREMENT' in tool_settings.snap_elements:
+            col.prop(tool_settings, "use_snap_grid_absolute")
 
         if 'VOLUME' in tool_settings.snap_elements:
             col.prop(tool_settings, "use_snap_peel_object")

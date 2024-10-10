@@ -21,7 +21,6 @@
 #include "ED_clip.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_image.hh"
-#include "ED_node.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_uvedit.hh"
@@ -1289,7 +1288,10 @@ int transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
         }
         else if (event->prev_val == KM_PRESS) {
           t->modifiers |= MOD_PRECISION;
-          t->mouse.precision = true;
+          /* Mouse position during Snap to Grid is not affected by precision. */
+          if (!(validSnap(t) && t->tsnap.target_type == SCE_SNAP_TO_GRID)) {
+            t->mouse.precision = true;
+          }
 
           t->redraw |= TREDRAW_HARD;
         }
@@ -1742,25 +1744,9 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
         wmMsgParams_RNA msg_key_params = {{nullptr}};
         msg_key_params.ptr = RNA_pointer_create(&t->scene->id, &RNA_ToolSettings, ts);
-
-        if (t->spacetype == SPACE_NODE) {
-          snap_flag_ptr = &ts->snap_flag_node;
-          msg_key_params.prop = &rna_ToolSettings_use_snap_node;
-        }
-        else if (t->spacetype == SPACE_IMAGE) {
-          snap_flag_ptr = &ts->snap_uv_flag;
-          msg_key_params.prop = &rna_ToolSettings_use_snap_uv;
-        }
-        else if (t->spacetype == SPACE_SEQ) {
-          snap_flag_ptr = &ts->snap_flag_seq;
-          msg_key_params.prop = &rna_ToolSettings_use_snap_sequencer;
-        }
-        else {
-          snap_flag_ptr = &ts->snap_flag;
-          msg_key_params.prop = &rna_ToolSettings_use_snap;
-        }
-
-        if (((t->modifiers & MOD_SNAP) != 0) != ((*snap_flag_ptr & SCE_SNAP) != 0)) {
+        if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
+            (bool(t->modifiers & MOD_SNAP) != bool(*snap_flag_ptr & SCE_SNAP)))
+        {
           SET_FLAG_FROM_TEST(*snap_flag_ptr, t->modifiers & MOD_SNAP, SCE_SNAP);
           WM_msg_publish_rna_params(t->mbus, &msg_key_params);
         }
@@ -1846,44 +1832,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
   if ((prop = RNA_struct_find_property(op->ptr, "correct_uv"))) {
     RNA_property_boolean_set(
         op->ptr, prop, (t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT_SLIDE) != 0);
-  }
-}
-
-static void initSnapSpatial(TransInfo *t, float r_snap[3], float *r_snap_precision)
-{
-  /* Default values. */
-  r_snap[0] = r_snap[1] = 1.0f;
-  r_snap[2] = 0.0f;
-  *r_snap_precision = 0.1f;
-
-  if (t->spacetype == SPACE_VIEW3D) {
-    /* Used by incremental snap. */
-    if (t->region->regiondata) {
-      View3D *v3d = static_cast<View3D *>(t->area->spacedata.first);
-      r_snap[0] = r_snap[1] = r_snap[2] = ED_view3d_grid_view_scale(
-          t->scene, v3d, t->region, nullptr);
-    }
-  }
-  else if (t->spacetype == SPACE_IMAGE) {
-    SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
-    View2D *v2d = &t->region->v2d;
-    int grid_size = SI_GRID_STEPS_LEN;
-    float zoom_factor = ED_space_image_zoom_level(v2d, grid_size);
-    float grid_steps_x[SI_GRID_STEPS_LEN];
-    float grid_steps_y[SI_GRID_STEPS_LEN];
-
-    ED_space_image_grid_steps(sima, grid_steps_x, grid_steps_y, grid_size);
-    /* Snapping value based on what type of grid is used (adaptive-subdividing or custom-grid). */
-    r_snap[0] = ED_space_image_increment_snap_value(grid_size, grid_steps_x, zoom_factor);
-    r_snap[1] = ED_space_image_increment_snap_value(grid_size, grid_steps_y, zoom_factor);
-    *r_snap_precision = 0.5f;
-  }
-  else if (t->spacetype == SPACE_CLIP) {
-    r_snap[0] = r_snap[1] = 0.125f;
-    *r_snap_precision = 0.5f;
-  }
-  else if (t->spacetype == SPACE_NODE) {
-    r_snap[0] = r_snap[1] = ED_node_grid_size();
   }
 }
 
@@ -2050,8 +1998,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   }
 
   initSnapping(t, op); /* Initialize snapping data AFTER mode flags. */
-
-  initSnapSpatial(t, t->snap_spatial, &t->snap_spatial_precision);
 
   /* EVIL! pose-mode code can switch translation to rotate when 1 bone is selected.
    * will be removed (ton). */
