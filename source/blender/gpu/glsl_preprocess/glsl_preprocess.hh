@@ -330,7 +330,7 @@ class Preprocessor {
     /* Example: `pri$$1(2@ b)$` > `{int c_ = print_header(1, 2); c_ = print_data(c_, b); }` */
     {
       std::regex regex(R"(pri\$\$?(\d{1,2})\()");
-      out_str = std::regex_replace(out_str, regex, "{int c_ = print_header($1, ");
+      out_str = std::regex_replace(out_str, regex, "{uint c_ = print_header($1u, ");
     }
     {
       std::regex regex(R"(\@)");
@@ -345,7 +345,7 @@ class Preprocessor {
 
   void static_strings_parsing(const std::string &str)
   {
-    /* Matches any character inside a pair of unescaped quote. */
+    /* Matches any character inside a pair of un-escaped quote. */
     std::regex regex(R"("(?:[^"])*")");
     regex_global_search(
         str, regex, [&](const std::smatch &match) { static_strings_.insert(match[0].str()); });
@@ -379,7 +379,8 @@ class Preprocessor {
     }
     std::stringstream suffix;
     for (const std::string &str_var : static_strings_) {
-      suffix << "// " << hash("string") << " " << hash_string(str_var) << " " << str_var << "\n";
+      std::string no_quote = str_var.substr(1, str_var.size() - 2);
+      suffix << "// " << hash("string") << " " << hash_string(str_var) << " " << no_quote << "\n";
     }
     return suffix.str();
   }
@@ -466,7 +467,7 @@ class Preprocessor {
     /* Example: `const uint global_var = 1u;`. Matches if not indented (i.e. inside a scope). */
     std::regex regex(R"(const \w+ \w+ =)");
     regex_global_search(str, regex, [&](const std::smatch &match) {
-      /* Positive lookbehind is not supported in std::regex. Do it manually. */
+      /* Positive look-behind is not supported in #std::regex. Do it manually. */
       if (match.prefix().str().back() == '\n') {
         const char *msg =
             "Global scope constant expression found. These get allocated per-thread in MSL. "
@@ -604,7 +605,7 @@ class Preprocessor {
     std::stringstream suffix;
     suffix << "#line 1 ";
 #ifdef __APPLE__
-    /* For now, only Metal supports filname in line directive.
+    /* For now, only Metal supports filename in line directive.
      * There is no way to know the actual backend, so we assume Apple uses Metal. */
     /* TODO(fclem): We could make it work using a macro to choose between the filename and the hash
      * at runtime. i.e.: `FILENAME_MACRO(12546546541, 'filename.glsl')` This should work for both
