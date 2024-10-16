@@ -446,12 +446,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
 #define ANIMDATA_HAS_ACTION_LEGACY(id) \
   ((id)->adt && (id)->adt->action && (id)->adt->action->wrap().is_action_legacy())
 
-#ifdef WITH_ANIM_BAKLAVA
-#  define ANIMDATA_HAS_ACTION_LAYERED(id) \
-    ((id)->adt && (id)->adt->action && (id)->adt->action->wrap().is_action_layered())
-#else
-#  define ANIMDATA_HAS_ACTION_LAYERED(id) false
-#endif
+#define ANIMDATA_HAS_ACTION_LAYERED(id) \
+  ((id)->adt && (id)->adt->action && (id)->adt->action->wrap().is_action_layered())
 
 /* quick macro to test if AnimData is usable for drivers */
 #define ANIMDATA_HAS_DRIVERS(id) ((id)->adt && (id)->adt->drivers.first)
@@ -2213,8 +2209,10 @@ static size_t animdata_filter_grease_pencil_data(bAnimContext *ac,
    */
   if (filter_mode & ANIMFILTER_ANIMDATA) {
     /* Just add data block container. */
-    ANIMCHANNEL_NEW_CHANNEL(
-        ac->bmain, grease_pencil, ANIMTYPE_GREASE_PENCIL_DATABLOCK, grease_pencil, nullptr);
+    if (grease_pencil->adt != nullptr) {
+      ANIMCHANNEL_NEW_CHANNEL(
+          ac->bmain, grease_pencil, ANIMTYPE_GREASE_PENCIL_DATABLOCK, grease_pencil, nullptr);
+    }
   }
   else {
     ListBase tmp_data = {nullptr, nullptr};
