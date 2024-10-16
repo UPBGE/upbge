@@ -31,8 +31,11 @@
 
 #include "BL_ScalarInterpolator.h"
 
+#include "ANIM_action.hh"
 #include "BKE_fcurve.hh"
 #include "DNA_anim_types.h"
+
+using namespace blender::animrig;
 
 BL_ScalarInterpolator::BL_ScalarInterpolator(FCurve *fcu)
     :m_fcu(fcu)
@@ -55,9 +58,24 @@ BL_InterpolatorList::BL_InterpolatorList(bAction *action) : m_action(action)
     return;
   }
 
-  for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
+  /*for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
     if (fcu->rna_path) {
       m_interpolators.emplace_back(fcu);
+    }
+  }*/
+
+  Action &new_action = action->wrap();
+
+  for (Layer *layer : new_action.layers()) {
+    for (Strip *strip : layer->strips()) {
+      if (strip->type() != Strip::Type::Keyframe) {
+        continue;
+      }
+      for (ChannelBag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
+        for (FCurve *fcu : bag->fcurves()) {
+          m_interpolators.emplace_back(fcu);
+        }
+      }
     }
   }
 }
