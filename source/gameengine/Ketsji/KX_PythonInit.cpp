@@ -2181,7 +2181,7 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
         /* Mac-OS allows file/directory names to contain `:` character
          * (represented as `/` in the Finder) but current Python lib (as of release 3.1.1)
          * doesn't handle these correctly. */
-        if (strchr(py_path_bundle, ':')) {
+        if (strchr(py_path_bundle->c_str(), ':')) {
           fprintf(stderr,
                   "Warning! Blender application is located in a path containing ':' or '/' chars\n"
                   "This may make python import function fail\n");
@@ -2424,7 +2424,7 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
         /* Mac-OS allows file/directory names to contain `:` character
          * (represented as `/` in the Finder) but current Python lib (as of release 3.1.1)
          * doesn't handle these correctly. */
-        if (strchr(py_path_bundle, ':')) {
+        if (strchr(py_path_bundle->c_str(), ':')) {
           fprintf(stderr,
                   "Warning! Blender application is located in a path containing ':' or '/' chars\n"
                   "This may make python import function fail\n");
