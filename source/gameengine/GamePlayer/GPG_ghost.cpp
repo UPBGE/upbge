@@ -39,6 +39,7 @@
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
+#include "BKE_blender_cli_command.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_cachefile.hh"
@@ -1777,7 +1778,7 @@ int main(int argc,
     }
   }
 
-  #if defined(WITH_PYTHON) && !defined(WITH_PYTHON_MODULE)
+#if defined(WITH_PYTHON) && !defined(WITH_PYTHON_MODULE)
   /* Without this, we there isn't a good way to manage false-positive resource leaks
    * where a #PyObject references memory allocated with guarded-alloc, #71362.
    *
@@ -1790,13 +1791,25 @@ int main(int argc,
    * Don't run this code when `C` is null because #pyrna_unregister_class
    * passes in `CTX_data_main(C)` to un-registration functions.
    * Further: `addon_utils.disable_all()` may call into functions that expect a valid context,
-   * supporting all these code-paths with a NULL context is quite involved for such a corner-case.
+   * supporting all these code-paths with a null context is quite involved for such a corner-case.
+   *
+   * Check `CTX_py_init_get(C)` in case this function runs before Python has been initialized.
+   * Which can happen when the GPU backend fails to initialize.
    */
-  if (C) {
-    const char *imports[2] = {"addon_utils", nullptr};
-    BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
+  if (C && CTX_py_init_get(C)) {
+    /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules.  */
+    const char *imports[] = {"bpy.utils", nullptr};
+    BPY_run_string_eval(C, imports, "bpy.utils._on_exit()");
   }
 #endif
+
+  /* Perform this early in case commands reference other data freed later in this function.
+   * This most run:
+   * - After add-ons are disabled because they may unregister commands.
+   * - Before Python exits so Python objects can be de-referenced.
+   * - Before #BKE_blender_atexit runs they free the `argv` on WIN32.
+   */
+  BKE_blender_cli_command_free_all();
 
   BLI_timer_free();
 
