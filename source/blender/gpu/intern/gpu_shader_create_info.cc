@@ -476,13 +476,6 @@ void gpu_shader_create_info_init()
 /* Declare, register and construct the infos. */
 #include "gpu_shader_create_info_list.hh"
 
-/* Baked shader data appended to create infos. */
-/* TODO(jbakker): should call a function with a callback. so we could switch implementations.
- * We cannot compile bf_gpu twice. */
-#ifdef GPU_RUNTIME
-#  include "gpu_shader_baked.hh"
-#endif
-
   /* WORKAROUND: Replace draw_mesh info with the legacy one for systems that have problems with UBO
    * indexing. */
   if (GPU_type_matches_ex(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD,
@@ -543,9 +536,6 @@ void gpu_shader_create_info_init()
 
     /* Edit UV Edges. */
     overlay_edit_uv_edges = overlay_edit_uv_edges_no_geom;
-
-    /* GPencil stroke. */
-    gpu_shader_gpencil_stroke = gpu_shader_gpencil_stroke_no_geom;
 
     /* NOTE: As atomic data types can alter shader gen if native atomics are unsupported, we need
      * to use differing create info's to handle the tile optimized check. This does prevent
