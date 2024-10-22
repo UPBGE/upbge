@@ -2,7 +2,7 @@ void remainder(float frame, float x, float y, out float remainder_temp, out floa
 {
   float L = x * y;
   quotient_floored = floor(frame / L);
-  remainder_temp = frame - (quotient_floored * L);
+  remainder_temp = (frame - (quotient_floored * L) + 0.000001) * 0.999999;
 }
 
 void node_sprites_animation(float frame,
