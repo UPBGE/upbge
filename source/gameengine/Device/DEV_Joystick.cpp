@@ -68,6 +68,9 @@ void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
 
+  /* To have xbox gamepads vibrations working on windows in recent SDL versions. To be tested with other gamepads/OS */
+  SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "0");
+
   /* Initializing Game Controller related subsystems */
   bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1);
 
