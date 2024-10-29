@@ -46,9 +46,8 @@
 
 #include <algorithm>
 #include <atomic>
-#include <stdexcept>
+#include <optional>
 #include <thread>
-#include <unordered_map>
 #include <unordered_set>
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
@@ -1188,6 +1187,13 @@ struct GWL_Seat {
   GWL_DataOffer *data_offer_copy_paste = nullptr;
   std::mutex data_offer_copy_paste_mutex;
 
+  /**
+   * Cache the result of #GHOST_SystemWayland::hasClipboardImage as checking the file
+   * header every time will be expensive, especially if this happens on redraw.
+   * Reset whenever the data offer changes.
+   */
+  std::optional<GHOST_TSuccess> data_offer_copy_paste_has_image = std::nullopt;
+
   GWL_DataSource *data_source = nullptr;
   std::mutex data_source_mutex;
 
@@ -2293,10 +2299,10 @@ static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInf
 
 static constexpr const char *ghost_wl_mime_text_plain = "text/plain";
 static constexpr const char *ghost_wl_mime_text_utf8 = "text/plain;charset=utf-8";
-static constexpr const char *ghost_wl_mime_text_uri = "text/uri-list";
+static constexpr const char *ghost_wl_mime_text_uri_list = "text/uri-list";
 
 static const char *ghost_wl_mime_preference_order[] = {
-    ghost_wl_mime_text_uri,
+    ghost_wl_mime_text_uri_list,
     ghost_wl_mime_text_utf8,
     ghost_wl_mime_text_plain,
 };
@@ -3396,6 +3402,7 @@ static void data_offer_handle_offer(void *data,
                                     wl_data_offer * /*wl_data_offer*/,
                                     const char *mime_type)
 {
+  /* NOTE: locking isn't needed as the #GWL_DataOffer wont have been assigned to the #GWL_Seat. */
   CLOG_INFO(LOG, 2, "offer (mime_type=%s)", mime_type);
   GWL_DataOffer *data_offer = static_cast<GWL_DataOffer *>(data);
   data_offer->types.insert(mime_type);
@@ -3405,6 +3412,7 @@ static void data_offer_handle_source_actions(void *data,
                                              wl_data_offer * /*wl_data_offer*/,
                                              const uint32_t source_actions)
 {
+  /* NOTE: locking isn't needed as the #GWL_DataOffer wont have been assigned to the #GWL_Seat. */
   CLOG_INFO(LOG, 2, "source_actions (%u)", source_actions);
   GWL_DataOffer *data_offer = static_cast<GWL_DataOffer *>(data);
   data_offer->dnd.source_actions = (enum wl_data_device_manager_dnd_action)source_actions;
@@ -3414,6 +3422,7 @@ static void data_offer_handle_action(void *data,
                                      wl_data_offer * /*wl_data_offer*/,
                                      const uint32_t dnd_action)
 {
+  /* NOTE: locking isn't needed as the #GWL_DataOffer wont have been assigned to the #GWL_Seat. */
   CLOG_INFO(LOG, 2, "actions (%u)", dnd_action);
   GWL_DataOffer *data_offer = static_cast<GWL_DataOffer *>(data);
   data_offer->dnd.action = (enum wl_data_device_manager_dnd_action)dnd_action;
@@ -3592,7 +3601,7 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
     const uint64_t event_ms = seat->system->getMilliSeconds();
     const wl_fixed_t xy[2] = {UNPACK2(data_offer->dnd.xy)};
 
-    const bool nil_terminate = (mime_receive != ghost_wl_mime_text_uri);
+    const bool nil_terminate = (mime_receive != ghost_wl_mime_text_uri_list);
     size_t data_buf_len = 0;
     const char *data_buf = read_buffer_from_data_offer(
         data_offer, mime_receive, nullptr, nil_terminate, &data_buf_len);
@@ -3612,7 +3621,7 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
       void *ghost_dnd_data = nullptr;
 
       /* Failure to receive drop data. */
-      if (mime_receive == ghost_wl_mime_text_uri) {
+      if (mime_receive == ghost_wl_mime_text_uri_list) {
         std::vector<std::string_view> uris = gwl_clipboard_uri_ranges(data_buf, data_buf_len);
 
         GHOST_TStringArray *flist = static_cast<GHOST_TStringArray *>(
@@ -3674,6 +3683,7 @@ static void data_device_handle_selection(void *data,
     wl_data_offer_destroy(seat->data_offer_copy_paste->wl.id);
     delete seat->data_offer_copy_paste;
     seat->data_offer_copy_paste = nullptr;
+    seat->data_offer_copy_paste_has_image = std::nullopt;
   }
   /* Clearing complete. */
 
@@ -3687,6 +3697,7 @@ static void data_device_handle_selection(void *data,
   GWL_DataOffer *data_offer = static_cast<GWL_DataOffer *>(wl_data_offer_get_user_data(id));
   /* Transfer ownership of the `data_offer`. */
   seat->data_offer_copy_paste = data_offer;
+  seat->data_offer_copy_paste_has_image = std::nullopt;
 }
 
 static const wl_data_device_listener data_device_listener = {
@@ -5592,6 +5603,7 @@ static void primary_selection_offer_offer(void *data,
                                           zwp_primary_selection_offer_v1 *id,
                                           const char *type)
 {
+  /* NOTE: locking isn't needed as the #GWL_DataOffer wont have been assigned to the #GWL_Seat. */
   GWL_PrimarySelection_DataOffer *data_offer = static_cast<GWL_PrimarySelection_DataOffer *>(data);
   if (data_offer->wp.id != id) {
     CLOG_INFO(LOG, 2, "offer: %p: offer for unknown selection %p of %s (skipped)", data, id, type);
@@ -5647,7 +5659,7 @@ static void primary_selection_device_handle_selection(
     return;
   }
   CLOG_INFO(LOG, 2, "selection");
-  /* Get new data offer. */
+  /* Transfer ownership of the `data_offer`. */
   GWL_PrimarySelection_DataOffer *data_offer = static_cast<GWL_PrimarySelection_DataOffer *>(
       zwp_primary_selection_offer_v1_get_user_data(id));
   primary->data_offer = data_offer;
@@ -7759,6 +7771,10 @@ static char *system_clipboard_get_primary_selection(GWL_Display *display,
     const char *mime_receive = mime_receive_override ?
                                    mime_receive_override :
                                    system_clipboard_text_mime_type(data_offer->types);
+    GHOST_ASSERT((mime_receive_override == nullptr) ||
+                     data_offer->types.count(mime_receive_override) != 0,
+                 "Mime type override not found in data offer, caller must check");
+
     if (mime_receive) {
       /* Receive the clipboard in a thread, performing round-trips while waiting.
        * This is needed so pasting contents from our own `primary->data_source` doesn't hang. */
@@ -7816,6 +7832,10 @@ static char *system_clipboard_get(GWL_Display *display,
     const char *mime_receive = mime_receive_override ?
                                    mime_receive_override :
                                    system_clipboard_text_mime_type(data_offer->types);
+    GHOST_ASSERT((mime_receive_override == nullptr) ||
+                     data_offer->types.count(mime_receive_override) != 0,
+                 "Mime type override not found in data offer, caller must check");
+
     if (mime_receive) {
       /* Receive the clipboard in a thread, performing round-trips while waiting.
        * This is needed so pasting contents from our own `seat->data_source` doesn't hang. */
@@ -7955,25 +7975,33 @@ void GHOST_SystemWayland::putClipboard(const char *buffer, bool selection) const
 
 static constexpr const char *ghost_wl_mime_img_png = "image/png";
 
-GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage(void) const
+GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage() const
 {
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+#endif
+
   GWL_Seat *seat = gwl_display_seat_active_get(display_);
   if (UNLIKELY(!seat)) {
     return GHOST_kFailure;
   }
 
+  if (seat->data_offer_copy_paste_has_image.has_value()) {
+    return *seat->data_offer_copy_paste_has_image;
+  }
+
+  GHOST_TSuccess result = GHOST_kFailure;
+
   GWL_DataOffer *data_offer = seat->data_offer_copy_paste;
   if (data_offer) {
     if (data_offer->types.count(ghost_wl_mime_img_png)) {
-      return GHOST_kSuccess;
+      result = GHOST_kSuccess;
     }
-    if (data_offer->types.count(ghost_wl_mime_text_uri)) {
+    else if (data_offer->types.count(ghost_wl_mime_text_uri_list)) {
       const bool nil_terminate = true;
       size_t data_buf_len = 0;
       char *data = system_clipboard_get(
-          display_, nil_terminate, ghost_wl_mime_text_uri, &data_buf_len);
-
-      GHOST_TSuccess result = GHOST_kFailure;
+          display_, nil_terminate, ghost_wl_mime_text_uri_list, &data_buf_len);
 
       if (data) {
         std::vector<std::string_view> uris = gwl_clipboard_uri_ranges(data, data_buf_len);
@@ -7987,11 +8015,12 @@ GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage(void) const
         }
         free(data);
       }
-      return result;
     }
   }
 
-  return GHOST_kFailure;
+  seat->data_offer_copy_paste_has_image = result;
+
+  return result;
 }
 
 uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
@@ -8025,11 +8054,11 @@ uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
         free(data);
       }
     }
-    else if (data_offer->types.count(ghost_wl_mime_text_uri)) {
+    else if (data_offer->types.count(ghost_wl_mime_text_uri_list)) {
       const bool nil_terminate = true;
       size_t data_len = 0;
       char *data = system_clipboard_get(
-          display_, nil_terminate, ghost_wl_mime_text_uri, &data_len);
+          display_, nil_terminate, ghost_wl_mime_text_uri_list, &data_len);
 
       if (data) {
         std::vector<std::string_view> uris = gwl_clipboard_uri_ranges(data, data_len);
