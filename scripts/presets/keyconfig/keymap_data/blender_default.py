@@ -3903,7 +3903,8 @@ def km_grease_pencil_edit_mode(params):
          "alt": True}, {"properties": [("type", "TOGGLE")]}),
 
         # Join selection
-        ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "ctrl": True}, None),
+        ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "ctrl": True},
+         {"properties": [("type", 'JOIN')]}),
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "shift": True, "ctrl": True},
          {"properties": [("type", 'JOINCOPY')]}),
 
