@@ -72,7 +72,6 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH'}
 
@@ -182,7 +181,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
 
 class DATA_PT_levels_of_detail(CameraButtonsPanel, Panel):
     bl_label = "Levels of Detail"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):

@@ -3100,8 +3100,8 @@ enum {
 
 /** #SceneEEVEE.gameflag UPBGE */
 enum {
-  SCE_EEVEE_SMAA = (1 << 0),
-  SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 1),
+  //SCE_EEVEE_SMAA = (1 << 0),
+  //SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 1),
   SCE_EEVEE_WORLD_VOLUMES_ENABLED = (1 << 2),  // (only used to disable wo volumes in overlay pass)
 };
 
