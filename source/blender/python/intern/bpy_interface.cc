@@ -983,7 +983,13 @@ bool BPY_string_is_keyword(const char *str)
   return false;
 }
 
-/* EVIL: define `text.cc` functions here (declared in `BKE_text.h`). */
+/* -------------------------------------------------------------------- */
+/** \name Character Classification
+ *
+ * Define `text.cc` functions here (declared in `BKE_text.h`),
+ * This could be removed if Blender gets its own unicode library.
+ * \{ */
+
 int text_check_identifier_unicode(const uint ch)
 {
   return (ch < 255 && text_check_identifier(char(ch))) || Py_UNICODE_ISALNUM(ch);
@@ -993,6 +999,8 @@ int text_check_identifier_nodigit_unicode(const uint ch)
 {
   return (ch < 255 && text_check_identifier_nodigit(char(ch))) || Py_UNICODE_ISALPHA(ch);
 }
+
+/** \} */
 
 /*************** UPBGE *****************/
 
@@ -1006,3 +1014,4 @@ void BPY_python_rna_alloc_types(void)  // Just to call from blenderplayer
   pyrna_alloc_types();
 }
 /*********** End of UPBGE **************/
+
