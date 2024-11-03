@@ -11,7 +11,7 @@
 
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
@@ -22,6 +22,8 @@
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
 #include "editors/sculpt_paint/sculpt_smooth.hh"
+
+#include "bmesh.hh"
 
 namespace blender::ed::sculpt_paint {
 
@@ -187,12 +189,6 @@ static void calc_translations_bmesh(const bke::pbvh::BMeshNode &node,
 
 }  // namespace enhance_details_cc
 
-/**
- * The brush uses translations calculated at the beginning of the stroke. They can't be calculated
- * dynamically because changing positions will influence neighboring translations. However we can
- * reduce the cost in some cases by skipping initializing values for vertices in hidden or masked
- * nodes.
- */
 void calc_smooth_translations(const Depsgraph &depsgraph,
                               const Object &object,
                               const IndexMask &node_mask,
