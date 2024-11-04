@@ -161,6 +161,12 @@ void Camera::sync()
                                    overscan_,
                                    data.winmat.ptr());
 
+    if (params.lens == 0.0f) {
+      /* Can happen for the case of XR.
+       * In this case the produced winmat is degenerate. So just revert to the input matrix. */
+      DRW_view_winmat_get(inst_.drw_view, data.winmat.ptr(), false);
+    }
+
     if (inst_.scene->flag & SCE_INTERACTIVE) { // tmp fix for game render loop view UPBGE (no support for overscan)
       DRW_view_winmat_get(inst_.drw_view, data.winmat.ptr(), false);
     }
