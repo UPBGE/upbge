@@ -23,7 +23,7 @@
     .energy_deprecated = 10.0f, \
     .spotsize = DEG2RADF(45.0f), \
     .spotblend = 0.15f, \
-    .mode = LA_SHADOW | LA_USE_SOFT_FALLOFF | LA_SOFT_SHADOWS, \
+    .mode = LA_SHADOW | LA_USE_SOFT_FALLOFF, \
     .clipsta = 0.05f, \
     .area_size = 0.25f, \
     .area_sizey = 0.25f, \

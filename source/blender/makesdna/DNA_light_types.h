@@ -138,7 +138,7 @@ enum {
   /** Use absolute resolution clamping instead of relative. */
   LA_SHAD_RES_ABSOLUTE = 1 << 22,
   LA_SHADOW_JITTER = 1 << 23,
-  LA_SOFT_SHADOWS = 1 << 31, /* Sof shadow per light -- UPBGE */
+  // LA_SOFT_SHADOWS = 1 << 31, /* Sof shadow per light - not implemented in eevee-next -- UPBGE */
 };
 
 /** #Light::falloff_type */

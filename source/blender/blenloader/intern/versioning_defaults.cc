@@ -551,9 +551,9 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
     cam->lodfactor = 1.0f;
   }
-  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+  /*LISTBASE_FOREACH (Light *, light, &bmain->lights) {
     light->mode |= LA_SOFT_SHADOWS;
-  }
+  }*/
   LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
     collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
     collection->flag |= COLLECTION_IS_SPAWNED;

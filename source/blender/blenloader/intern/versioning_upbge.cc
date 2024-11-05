@@ -170,9 +170,9 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
       cam->lodfactor = 1.0f;
     }
-    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    /*LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       light->mode |= LA_SOFT_SHADOWS;
-    }
+    }*/
     LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
       collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
       collection->flag |= COLLECTION_IS_SPAWNED;
@@ -361,11 +361,11 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 3)) {
+  /*if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 3)) {
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       light->mode |= LA_SOFT_SHADOWS;
     }
-  }
+  }*/
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 4)) {
     if (!DNA_struct_member_exists(fd->filesdna, "Object", "float", "lodfactor")) {
