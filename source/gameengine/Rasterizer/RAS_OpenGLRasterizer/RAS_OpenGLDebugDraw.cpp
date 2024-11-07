@@ -31,6 +31,7 @@
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 
+#include "KX_Camera.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "RAS_ICanvas.h"
@@ -81,12 +82,16 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   }
   else {  // Non viewport render pipeline
     if (!debugDraw->m_lines.empty()) {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      KX_Scene *scene = KX_GetActiveScene();
+      KX_Camera *cam = scene->GetActiveCamera();
+      float proj[4][4];
+      float view[4][4];
+      cam->GetProjectionMatrix().getValue(&proj[0][0]);
+      cam->GetModelviewMatrix().getValue(&view[0][0]);
       GPU_matrix_push();
       GPU_matrix_push_projection();
-      GPU_matrix_projection_set(rv3d->winmat);
-      GPU_matrix_set(rv3d->viewmat);
+      GPU_matrix_projection_set(proj);
+      GPU_matrix_set(view);
 
       GPU_line_smooth(true);
       GPU_line_width(1.0f);
