@@ -60,6 +60,10 @@ if(WITH_RENDERDOC)
   add_definitions(-DWITH_RENDERDOC)
 endif()
 
+if(WITH_GPU_SHADER_ASSERT)
+  add_definitions(-DWITH_GPU_SHADER_ASSERT)
+endif()
+
 set(INC_SYS
 )
 

@@ -1632,7 +1632,7 @@ def pyrna2sphinx(basepath):
                 fw("   .. data:: {:s}\n".format(identifier))
             else:
                 fw("   .. attribute:: {:s}\n".format(identifier))
-            # Also write `noindex` on requerst.
+            # Also write `noindex` on request.
             if ("bpy.types", struct_id, identifier) in RST_NOINDEX_ATTR:
                 fw("      :noindex:\n")
             fw("\n")
