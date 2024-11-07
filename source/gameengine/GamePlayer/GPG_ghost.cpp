@@ -1060,6 +1060,8 @@ int main(int argc,
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
 
+  GPU_backend_type_selection_set(eGPUBackendType(U.gpu_backend));
+
   /* Call again to set from userpreferences... */
   BLT_lang_set("");
 
