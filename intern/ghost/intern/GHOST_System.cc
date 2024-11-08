@@ -124,7 +124,7 @@ bool GHOST_System::validWindow(GHOST_IWindow *window)
 
 GHOST_TSuccess GHOST_System::beginFullScreen(const GHOST_DisplaySetting &setting,
                                              GHOST_IWindow **window,
-                                             const bool stereoVisual)
+                                             const GHOST_GPUSettings &gpu_settings)
 {
   GHOST_TSuccess success = GHOST_kFailure;
   GHOST_ASSERT(m_windowManager, "GHOST_System::beginFullScreen(): invalid window manager");
@@ -138,9 +138,9 @@ GHOST_TSuccess GHOST_System::beginFullScreen(const GHOST_DisplaySetting &setting
                                                            setting);
       if (success == GHOST_kSuccess) {
         // GHOST_PRINT("GHOST_System::beginFullScreen(): creating full-screen window\n");
-        success = createFullScreenWindow((GHOST_Window **)window, setting, stereoVisual);
+        success = createFullScreenWindow((GHOST_Window **)window, setting, gpu_settings);
         if (success == GHOST_kSuccess) {
-          m_windowManager->beginFullScreen(*window, stereoVisual);
+          m_windowManager->beginFullScreen(*window, (gpu_settings.flags & GHOST_gpuStereoVisual) != 0);
         }
         else {
           m_displayManager->setCurrentDisplaySetting(GHOST_DisplayManager::kMainDisplay,
@@ -404,22 +404,8 @@ GHOST_TSuccess GHOST_System::exit()
 
 GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window **window,
                                                     const GHOST_DisplaySetting &settings,
-                                                    const bool stereoVisual)
+                                                    const GHOST_GPUSettings &gpu_settings)
 {
-  GHOST_GPUSettings gpuSettings = {0};
-
-  if (stereoVisual) {
-    gpuSettings.flags |= GHOST_gpuStereoVisual;
-  }
-#if defined(WITH_OPENGL_BACKEND)
-  gpuSettings.context_type = GHOST_kDrawingContextTypeOpenGL;
-#elif defined(WITH_METAL_BACKEND)
-  gpuSettings.context_type = GHOST_kDrawingContextTypeMetal;
-#elif defined(WITH_VULKAN_BACKEND)
-  gpuSettings.context_type = GHOST_kDrawingContextTypeVulkan;
-#else
-#  error
-#endif
   /* NOTE: don't use #getCurrentDisplaySetting() because on X11 we may
    * be zoomed in and the desktop may be bigger than the viewport. */
   GHOST_ASSERT(m_displayManager,
@@ -431,7 +417,7 @@ GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window **window,
                                          settings.xPixels,
                                          settings.yPixels,
                                          GHOST_kWindowStateNormal,
-                                         gpuSettings,
+                                         gpu_settings,
                                          true /*exclusive*/);
   return (*window == nullptr) ? GHOST_kFailure : GHOST_kSuccess;
 }

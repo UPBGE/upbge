@@ -360,8 +360,16 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   setting.bpp = bpp;
   setting.frequency = frequency;
 
+  GHOST_GPUSettings gpu_settings = {0};
+  if (stereoVisual) {
+    gpu_settings.flags |= GHOST_gpuStereoVisual;
+  }
+
+  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+
   GHOST_IWindow *window = nullptr;
-  system->beginFullScreen(setting, &window, stereoVisual);
+  system->beginFullScreen(setting, &window, gpu_settings);
   window->setCursorVisibility(false);
   /* note that X11 ignores this (it uses a window internally for fullscreen) */
   window->setState(GHOST_kWindowStateFullScreen);
@@ -1885,7 +1893,7 @@ int main(int argc,
   ANIM_keyingset_infos_exit();
 
 #ifdef WITH_PYTHON
-  BPY_python_end(true);
+  BPY_python_end(false);
 #endif
 
   ED_file_exit(); /* for fsmenu */

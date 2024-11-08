@@ -225,16 +225,14 @@ GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
   GHOST_IWindow *window = nullptr;
-  bool bstereoVisual;
-
+  GHOST_GPUSettings gpu_settings = {0};
   if (stereoVisual) {
-    bstereoVisual = true;
+    gpu_settings.flags |= GHOST_gpuStereoVisual;
   }
-  else {
-    bstereoVisual = false;
-  }
+  /* temp: upbge, hardcoded because unused */
+  gpu_settings.context_type = GHOST_kDrawingContextTypeOpenGL;
 
-  system->beginFullScreen(*setting, &window, bstereoVisual);
+  system->beginFullScreen(*setting, &window, gpu_settings);
 
   return (GHOST_WindowHandle)window;
 }
