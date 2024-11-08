@@ -118,10 +118,8 @@ static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
   }
   bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
 
-  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
-    if (not_eevee) {
-      return OB_RENDER;
-    }
+  if (not_eevee) {
+    return OB_RENDER;
   }
   return v3d->shading.type;
 }
