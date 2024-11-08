@@ -113,7 +113,7 @@ class GHOST_System : public GHOST_ISystem {
    */
   GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                  GHOST_IWindow **window,
-                                 const bool stereoVisual);
+                                 const GHOST_GPUSettings &gpu_settings);
 
   /**
    * Updates the resolution while in full-screen mode.
@@ -404,7 +404,7 @@ class GHOST_System : public GHOST_ISystem {
    */
   GHOST_TSuccess createFullScreenWindow(GHOST_Window **window,
                                         const GHOST_DisplaySetting &settings,
-                                        const bool stereoVisual);
+                                        const GHOST_GPUSettings &gpu_settings);
 
   /** The display manager (platform dependent). */
   GHOST_DisplayManager *m_displayManager;

@@ -287,7 +287,7 @@ class GHOST_ISystem {
    */
   virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                          GHOST_IWindow **window,
-                                         const bool stereoVisual) = 0;
+                                         const GHOST_GPUSettings &gpu_settings) = 0;
 
   /**
    * Updates the resolution while in full-screen mode.
