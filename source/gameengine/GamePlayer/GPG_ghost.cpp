@@ -1398,7 +1398,6 @@ int main(int argc,
 
 #ifdef WITH_PYTHON
         PyObject *globalDict = nullptr;
-        initGamePlayerPythonScripting(argc, argv, C);
 #endif
         /* Set Viewport render mode and shading type for the whole runtime */
         bool first_time_window = true;
@@ -1701,6 +1700,11 @@ int main(int argc,
             ED_screen_refresh_blenderplayer(win);
 
             if (first_time_window) {
+#  ifdef WITH_PYTHON
+              BPY_python_start(C, argc, (const char **)argv);
+              PyEval_AcquireThread(PyGILState_GetThisThreadState());
+#  endif WITH_PYTHON
+
               /* We need to have first an ogl context bound and it's done
                * in wm_window_ghostwindow_blenderplayer_ensure.
                */
