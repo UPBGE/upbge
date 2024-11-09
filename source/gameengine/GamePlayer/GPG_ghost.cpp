@@ -87,6 +87,7 @@
 #include "ED_asset.hh"
 #include "ED_datafiles.h"
 #include "ED_gpencil_legacy.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframing.hh"
 #include "ED_node.hh"
@@ -1856,6 +1857,7 @@ int main(int argc,
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
   ED_node_clipboard_free();
+  blender::ed::greasepencil::clipboard_free();
   UV_clipboard_free();
   wm_clipboard_free();
 
@@ -1918,6 +1920,7 @@ int main(int argc,
   DRW_gpu_context_enable_ex(false);
   UI_exit();
   GPU_pass_cache_free();
+  GPU_shader_cache_dir_clear_old();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);
   DRW_gpu_context_destroy();
