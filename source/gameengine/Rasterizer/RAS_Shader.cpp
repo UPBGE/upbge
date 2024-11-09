@@ -25,6 +25,7 @@
 #include "RAS_Shader.h"
 
 #include "BLI_alloca.h"
+#include "BLI_string_ref.hh"
 #include "GPU_immediate.hh"
 #include "MEM_guardedalloc.h"
 
@@ -267,11 +268,20 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type) const
   return prog;
 }
 
+static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *str)
+{
+  if (!str) {
+    return std::nullopt;
+  }
+  return blender::StringRefNull(str);
+}
+
 bool RAS_Shader::LinkProgram(bool isCustomShader)
 {
   std::string vert;
   std::string frag;
   std::string geom;
+  const char *shname = "custom";
 
   if (m_error) {
     goto program_error;
@@ -285,16 +295,17 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
   vert = GetParsedProgram(VERTEX_PROGRAM);
   frag = GetParsedProgram(FRAGMENT_PROGRAM);
   geom = GetParsedProgram(GEOMETRY_PROGRAM);
-  m_shader = GPU_shader_create_ex(vert.c_str(),
-                                  frag.c_str(),
-                                  geom.empty() ? nullptr : geom.c_str(),
-                                  nullptr,
-                                  nullptr,
-                                  nullptr,
+
+  m_shader = GPU_shader_create_ex(c_str_to_stringref_opt(vert.c_str()),
+                                  c_str_to_stringref_opt(frag.c_str()),
+                                  geom.empty() ? std::nullopt : c_str_to_stringref_opt(geom.c_str()),
+                                  std::nullopt,
+                                  std::nullopt,
+                                  std::nullopt,
                                   GPU_SHADER_TFB_NONE,
                                   NULL,
                                   0,
-                                  "custom");
+                                  blender::StringRefNull(shname));
   if (!m_shader) {
     goto program_error;
   }
