@@ -85,14 +85,14 @@ class ConsoleLogger(Handler):
         super().__init__(level)
 
     def emit(self, record) -> None:
-        context = None
+        context_override = None
 
         if not hasattr(bpy.context.screen, "areas"):
             return
 
         for area in bpy.context.screen.areas:
             if area.type == "CONSOLE":
-                context = {
+                context_override = {
                     "area": area,
                     "space_data": area.spaces.active,
                     "region": area.regions[-1],
@@ -100,7 +100,7 @@ class ConsoleLogger(Handler):
                     "screen": bpy.context.screen
                 }
 
-        if not context:
+        if not context_override:
             return
 
         # noinspection PyBroadException
@@ -119,9 +119,10 @@ class ConsoleLogger(Handler):
                     msg_type = "OUTPUT"
 
                 # noinspection PyArgumentList
-                bpy.ops.console.scrollback_append(context, text=line, type=msg_type)
+                with bpy.context.temp_override(**context_override):
+                    bpy.ops.console.scrollback_append(text=line, type=msg_type)
 
-            context["area"].tag_redraw()
+            context_override["area"].tag_redraw()
 
             self.flush()
         except RecursionError:
