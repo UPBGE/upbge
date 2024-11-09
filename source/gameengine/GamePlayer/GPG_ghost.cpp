@@ -1702,7 +1702,6 @@ int main(int argc,
             if (first_time_window) {
 #  ifdef WITH_PYTHON
               BPY_python_start(C, argc, (const char **)argv);
-              PyEval_AcquireThread(PyGILState_GetThisThreadState());
 #  endif WITH_PYTHON
 
               /* We need to have first an ogl context bound and it's done
@@ -1736,6 +1735,9 @@ int main(int argc,
                                        useViewportRender,
                                        shadingTypeRuntime);
 #ifdef WITH_PYTHON
+            // Acquire Python's GIL (global interpreter lock)
+            // so we can safely run Python code and API calls
+            PyGILState_Ensure();
             if (!globalDict) {
               globalDict = PyDict_New();
             }
