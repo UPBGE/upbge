@@ -46,12 +46,12 @@ PyMODINIT_FUNC initGameLogicPythonBinding(void);
 PyMODINIT_FUNC initGameKeysPythonBinding(void);
 PyMODINIT_FUNC initRasterizerPythonBinding(void);
 PyMODINIT_FUNC initVideoTexturePythonBinding(void);
-void initGamePlayerPythonScripting(int argc, char **argv, struct bContext *C);
-void postInitGamePlayerPythonScripting(struct Main *maggie,
-                                       int argc,
-                                       char **argv,
-                                       struct bContext *C,
-                                       bool *audioDeviceIsInitialized);
+
+void InitGamePlayerPythonScripting(struct Main *maggie,
+                                   int argc,
+                                   char **argv,
+                                   struct bContext *C,
+                                   bool *audioDeviceIsInitialized);
 void initGamePythonScripting(struct Main *maggie,
                              struct bContext *C,
                              bool *audioDeviceIsInitialized);
