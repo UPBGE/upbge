@@ -42,6 +42,8 @@
 #include "BL_IpoConvert.h"
 #include "CM_Message.h"
 
+using namespace blender::animrig;
+
 BL_Action::BL_Action(class KX_GameObject *gameobj)
     : m_action(nullptr),
       m_blendpose(nullptr),
@@ -306,44 +308,57 @@ enum eActionType {
 static bool ActionMatchesName(bAction *action, char *name, eActionType type)
 {
   // std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
-  LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
-    if (fcu->rna_path) {
-      char pattern[256];
-      char md_name_esc[sizeof(name) * 2];
-      switch (type) {
-        case ACT_TYPE_MODIFIER:
-          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
-          BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md_name_esc);
-          break;
-        case ACT_TYPE_GPMODIFIER:
-          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
-          BLI_snprintf(pattern, sizeof(pattern), "grease_pencil_modifiers[\"%s\"]", md_name_esc);
-          break;
-        case ACT_TYPE_CONSTRAINT:
-          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
-          BLI_snprintf(pattern, sizeof(pattern), "constraints[\"%s\"]", md_name_esc);
-          break;
-        case ACT_TYPE_IDPROP:
-          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
-          BLI_snprintf(pattern, sizeof(pattern), "[\"%s\"]", md_name_esc);
-          break;
-        default:
-          BLI_str_escape(pattern, "", sizeof(pattern));
-          break;
+  Action &new_action = action->wrap();
+
+  for (Layer *layer : new_action.layers()) {
+    for (Strip *strip : layer->strips()) {
+      if (strip->type() != Strip::Type::Keyframe) {
+        continue;
       }
-      // std::cout << "fcu name: " << fcu->rna_path << std::endl;
-      // std::cout << "data name: " << pattern << std::endl;
-      /* Find a correspondance between ob->modifier/ob->constraint... and actuator action
-       * (m_action) */
-      if (strstr(fcu->rna_path, pattern)) {
-        // std::cout << "fcu and name match" << std::endl;
-        return true;
+      for (ChannelBag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
+        for (FCurve *fcu : bag->fcurves()) {
+          if (fcu->rna_path) {
+            char pattern[256];
+            char md_name_esc[sizeof(name) * 2];
+            switch (type) {
+              case ACT_TYPE_MODIFIER:
+                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md_name_esc);
+                break;
+              case ACT_TYPE_GPMODIFIER:
+                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_snprintf(
+                    pattern, sizeof(pattern), "grease_pencil_modifiers[\"%s\"]", md_name_esc);
+                break;
+              case ACT_TYPE_CONSTRAINT:
+                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_snprintf(pattern, sizeof(pattern), "constraints[\"%s\"]", md_name_esc);
+                break;
+              case ACT_TYPE_IDPROP:
+                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_snprintf(pattern, sizeof(pattern), "[\"%s\"]", md_name_esc);
+                break;
+              default:
+                BLI_str_escape(pattern, "", sizeof(pattern));
+                break;
+            }
+            // std::cout << "fcu name: " << fcu->rna_path << std::endl;
+            // std::cout << "data name: " << pattern << std::endl;
+            /* Find a correspondance between ob->modifier/ob->constraint... and actuator action
+             * (m_action) */
+            if (strstr(fcu->rna_path, pattern)) {
+              // std::cout << "fcu and name match" << std::endl;
+              return true;
+            }
+          }
+          // std::cout << "fcu and name DON'T match" << std::endl;
+          return false;
+        }
+        // std::cout << "fcu and name DON'T match" << std::endl;
+        return false;
       }
     }
-    // std::cout << "fcu and name DON'T match" << std::endl;
-    return false;
   }
-  // std::cout << "fcu and name DON'T match" << std::endl;
   return false;
 }
 
