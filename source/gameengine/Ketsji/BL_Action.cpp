@@ -351,14 +351,11 @@ static bool ActionMatchesName(bAction *action, char *name, eActionType type)
               return true;
             }
           }
-          // std::cout << "fcu and name DON'T match" << std::endl;
-          return false;
         }
-        // std::cout << "fcu and name DON'T match" << std::endl;
-        return false;
       }
     }
   }
+  // std::cout << "fcu and name DON'T match" << std::endl;
   return false;
 }
 
