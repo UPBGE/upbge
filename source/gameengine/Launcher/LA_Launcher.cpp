@@ -260,13 +260,13 @@ void LA_Launcher::InitEngine()
   KX_SetActiveScene(m_kxStartScene);
 
 #ifdef WITH_AUDASPACE
-  if (m_audioDeviceIsInitialized) {
+  //if (m_audioDeviceIsInitialized) {
     // Initialize 3D Audio Settings.
     AUD_Device *device = BKE_sound_get_device();
     AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
     AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
     AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
-  }
+  //}
 #endif  // WITH_AUDASPACE
 
   m_converter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
@@ -361,10 +361,10 @@ void LA_Launcher::ExitEngine()
   ExitPython();
 
 #ifdef WITH_AUDASPACE
-  if (m_audioDeviceIsInitialized) {
+  //if (m_audioDeviceIsInitialized) {
     // Stop all remaining playing sounds.
     AUD_Device_stopAll(BKE_sound_get_device());
-  }
+  //}
 #endif  // WITH_AUDASPACE
 
   m_exitRequested = KX_ExitRequest::NO_REQUEST;
