@@ -1893,7 +1893,7 @@ int main(int argc,
   ANIM_keyingset_infos_exit();
 
 #ifdef WITH_PYTHON
-  BPY_python_end(false);
+  BPY_python_end(true);
 #endif
 
   ED_file_exit(); /* for fsmenu */
