@@ -675,7 +675,12 @@ def _preferences_ensure_disabled(
             if not hasattr(repo_module, pkg_id):
                 print("Repo module \"{:s}.{:s}\" not a sub-module!".format(".".join(module_base_elem), pkg_id))
 
-        addon_utils.disable(addon_module_name, default_set=default_set, handle_error=error_fn)
+        addon_utils.disable(
+            addon_module_name,
+            default_set=default_set,
+            refresh_handled=True,
+            handle_error=error_fn,
+        )
 
         modules_clear.append(pkg_id)
 
@@ -725,7 +730,12 @@ def _preferences_ensure_enabled(*, repo_item, pkg_id_sequence, result, handle_er
         if not loaded_state:
             continue
 
-        addon_utils.enable(addon_module_name, default_set=loaded_default, handle_error=handle_error)
+        addon_utils.enable(
+            addon_module_name,
+            default_set=loaded_default,
+            refresh_handled=True,
+            handle_error=handle_error,
+        )
 
 
 def _preferences_ensure_enabled_all(*, addon_restore, handle_error):
@@ -766,7 +776,13 @@ def _preferences_install_post_enable_on_install(
                 continue
 
             addon_module_name = "{:s}.{:s}.{:s}".format(_ext_base_pkg_idname, repo_item.module, pkg_id)
-            addon_utils.enable(addon_module_name, default_set=True, handle_error=handle_error)
+            addon_utils.enable(
+                addon_module_name,
+                default_set=True,
+                # Handled by `_extensions_repo_sync_wheels`.
+                refresh_handled=True,
+                handle_error=handle_error,
+            )
         elif item_local.type == "theme":
             if has_theme:
                 continue
@@ -1000,6 +1016,7 @@ def _extensions_wheel_filter_for_this_system(wheels):
                     if python_version_current[0] == python_version[0]:
                         python_version_is_compat = True
                         break
+                else:
                     if python_version_current == python_version:
                         python_version_is_compat = True
                         break
@@ -2074,11 +2091,21 @@ class EXTENSIONS_OT_package_upgrade_all(Operator, _ExtCmdMixIn):
                 error_fn=self.error_fn_from_exception,
             )
 
-        repo_stats_calc()
-
         # TODO: it would be nice to include this message in the banner.
         def handle_error(ex):
             self.report({'ERROR'}, str(ex))
+
+        # Ensure wheels are refreshed before re-enabling.
+        _extensions_repo_refresh_on_change(
+            repo_cache_store,
+            extensions_enabled=set(
+                (repo_item.module, pkg_id)
+                for (repo_item, pkg_id_sequence, result) in self._addon_restore
+                for pkg_id in pkg_id_sequence
+            ),
+            compat_calc=True,
+            stats_calc=True,
+        )
 
         _preferences_ensure_enabled_all(
             addon_restore=self._addon_restore,

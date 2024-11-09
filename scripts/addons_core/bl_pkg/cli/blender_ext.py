@@ -1838,34 +1838,34 @@ def pkg_manifest_validate_field_build_path_list(value: list[Any], strict: bool) 
 
     for item in value:
         if not isinstance(item, str):
-            return "Expected \"paths\" to be a list of strings, found {:s}".format(str(type(item)))
+            return "Expected \"paths\" to be a list of strings, found \"{:s}\"".format(str(type(item)))
         if not item:
             return "Expected \"paths\" items to be a non-empty string"
         if "\\" in item:
-            return "Expected \"paths\" items to use \"/\" slashes, found: {:s}".format(item)
+            return "Expected \"paths\" items to use \"/\" slashes, found: \"{:s}\"".format(item)
         if "\n" in item:
-            return "Expected \"paths\" items to contain single lines, found: {:s}".format(item)
+            return "Expected \"paths\" items to contain single lines, found: \"{:s}\"".format(item)
         # TODO: properly handle WIN32 absolute paths.
         if item.startswith("/"):
-            return "Expected \"paths\" to be relative, found: {:s}".format(item)
+            return "Expected \"paths\" to be relative, found: \"{:s}\"".format(item)
 
         # Disallow references to `../../path` as this wont map into a the archive properly.
         # Further it may provide a security problem.
         item_native = os.path.normpath(item if os.sep == "/" else item.replace("/", "\\"))
         if item_native.startswith(".." + os.sep):
-            return "Expected \"paths\" items to reference paths within a directory, found: {:s}".format(item)
+            return "Expected \"paths\" items to reference paths within a directory, found: \"{:s}\"".format(item)
 
         # Disallow duplicate names (when lower-case) to avoid collisions on case insensitive file-systems.
         item_native_lower = item_native.lower()
         len_prev = len(value_duplicate_check)
         value_duplicate_check.add(item_native_lower)
         if len_prev == len(value_duplicate_check):
-            return "Expected \"paths\" to contain unique paths, duplicate found: {:s}".format(item)
+            return "Expected \"paths\" to contain unique paths, duplicate found: \"{:s}\"".format(item)
 
         # Having to support this optionally ends up being reasonably complicated.
         # Simply throw an error if it's included, so it can be added at build time.
         if item_native == PKG_MANIFEST_FILENAME_TOML:
-            return "Expected \"paths\" not to contain the manifest, found: {:s}".format(item)
+            return "Expected \"paths\" not to contain the manifest, found: \"{:s}\"".format(item)
 
         # NOTE: other checks could be added here, (exclude control characters for example).
         # Such cases are quite unlikely so supporting them isn't so important.
@@ -4502,11 +4502,14 @@ class subcmd_author:
             *(manifest.wheels or ()),
         )
         build_paths_wheel_range = 1, 1 + len(manifest.wheels or ())
+        # Exclude when checking file listing because the extra paths are mixed with user defined paths,
+        # and including the manifest raises an error.
+        build_paths_extra_skip_index = 1
 
         if manifest_build_data is not None:
             manifest_build_test = PkgManifest_Build.from_dict_all_errors(
                 manifest_build_data,
-                extra_paths=build_paths_extra,
+                extra_paths=build_paths_extra[build_paths_extra_skip_index:],
             )
             if isinstance(manifest_build_test, list):
                 for error_msg in manifest_build_test:
@@ -4697,6 +4700,9 @@ class subcmd_author:
                                 zip_fh.writestr(filepath_rel, zip_data_override, compress_type=compress_type)
                             else:
                                 zip_fh.write(filepath_abs, filepath_rel, compress_type=compress_type)
+                        except FileNotFoundError:
+                            msglog.fatal_error("Error adding to archive, file not found: \"{:s}\"".format(filepath_rel))
+                            return False
                         except Exception as ex:
                             msglog.fatal_error("Error adding to archive \"{:s}\"".format(str(ex)))
                             return False
