@@ -288,9 +288,7 @@ static void object_copy_data(Main *bmain,
   ob_dst->avs = ob_src->avs;
   ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
 
-  /* Do not copy object's preview
-   * (mostly due to the fact renderers create temp copy of objects). */
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) { /* XXX TODO: temp hack. */
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
     BKE_previewimg_id_copy(&ob_dst->id, &ob_src->id);
   }
   else {
@@ -2177,9 +2175,6 @@ bool BKE_object_is_in_editmode(const Object *ob)
     case OB_SURF:
     case OB_CURVES_LEGACY:
       return ((Curve *)ob->data)->editnurb != nullptr;
-    case OB_GPENCIL_LEGACY:
-      /* Grease Pencil object has no edit mode data. */
-      return GPENCIL_EDIT_MODE((bGPdata *)ob->data);
     case OB_CURVES:
     case OB_POINTCLOUD:
     case OB_GREASE_PENCIL:
