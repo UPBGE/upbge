@@ -51,7 +51,7 @@
 
 #ifdef WITH_GAMEENGINE
 #  include "BKE_callbacks.hh"
-#  include "BKE_image.h"
+#  include "BKE_image.hh"
 #  include "BLI_listbase.h"
 
 #  include "LA_SystemCommandLine.h"

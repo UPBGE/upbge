@@ -48,7 +48,7 @@
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
