@@ -22,7 +22,7 @@
  *  \ingroup ketsji
  */
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "BL_Texture.h"
 
