@@ -52,12 +52,12 @@ class KX_BlenderCanvas : public RAS_ICanvas {
  private:
   int m_viewport[4];
 
-  bool m_useViewportRender;
-
   wmWindowManager *m_wm;
   wmWindow *m_win;
   RAS_Rect m_area_rect;
   ARegion *m_ar;
+
+  bool m_useViewportRender;
 
  public:
   /* Construct a new canvas.
