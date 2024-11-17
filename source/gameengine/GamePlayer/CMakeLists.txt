@@ -76,6 +76,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::animrig
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph

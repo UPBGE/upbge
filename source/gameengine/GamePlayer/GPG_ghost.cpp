@@ -126,6 +126,9 @@
 #include "LA_PlayerLauncher.h"
 #include "LA_SystemCommandLine.h"
 
+// keep at the bottom for linking
+#include "ANIM_keyingsets.hh"
+
 void UV_clipboard_free(void);
 
 #ifdef __APPLE__
@@ -1911,7 +1914,7 @@ int main(int argc,
   BLT_lang_free();
 #endif
 
-  ANIM_keyingset_infos_exit();
+  blender::animrig::keyingset_infos_exit();
 
 #ifdef WITH_PYTHON
   BPY_python_end(true);
