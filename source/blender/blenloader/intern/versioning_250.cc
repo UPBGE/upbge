@@ -82,8 +82,7 @@
 /* 2.50 patch */
 static void area_add_header_region(ScrArea *area, ListBase *lb)
 {
-  ARegion *region = static_cast<ARegion *>(
-      MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+  ARegion *region = BKE_area_region_new();
 
   BLI_addtail(lb, region);
   region->regiontype = RGN_TYPE_HEADER;
@@ -134,16 +133,14 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
     /* first channels for ipo action nla... */
     switch (sl->spacetype) {
       case SPACE_GRAPH:
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
         region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 
         /* for some reason, this doesn't seem to go auto like for NLA... */
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_RIGHT;
@@ -152,8 +149,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
 
       case SPACE_ACTION:
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
@@ -162,8 +158,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
 
       case SPACE_NLA:
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
@@ -171,8 +166,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
 
         /* for some reason, some files still don't get this auto */
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_RIGHT;
@@ -181,7 +175,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
 
       case SPACE_NODE:
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "nodetree area for node"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_LEFT;
@@ -191,12 +185,12 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->flag = RGN_FLAG_HIDDEN;
         break;
       case SPACE_FILE:
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "nodetree area for node"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
 
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "ui area for file"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_TOP;
@@ -209,15 +203,14 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
             break;
           }
         }
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "preview area for sequencer"));
+        region = BKE_area_region_new();
         BLI_insertlinkbefore(lb, region_main, region);
         sequencer_init_preview_region(region);
         break;
       }
       case SPACE_VIEW3D:
         /* toolbar */
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "toolbar for view3d"));
+        region = BKE_area_region_new();
 
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_TOOLS;
@@ -225,8 +218,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->flag = RGN_FLAG_HIDDEN;
 
         /* tool properties */
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "tool properties for view3d"));
+        region = BKE_area_region_new();
 
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_TOOL_PROPS;
@@ -234,7 +226,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->flag = RGN_FLAG_HIDDEN;
 
         /* buttons/list view */
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "buttons for view3d"));
+        region = BKE_area_region_new();
 
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
@@ -243,7 +235,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
 #if 0
       case SPACE_PROPERTIES:
         /* context UI region */
-        region = MEM_callocN(sizeof(ARegion), "area region from do_versions");
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_RIGHT;
@@ -254,7 +246,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
   }
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+  region = BKE_area_region_new();
 
   BLI_addtail(lb, region);
   region->winrct = area->totrct;
@@ -1261,8 +1253,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
                   break;
                 }
               }
-              ARegion *region = static_cast<ARegion *>(
-                  MEM_callocN(sizeof(ARegion), "preview area for sequencer"));
+              ARegion *region = BKE_area_region_new();
               BLI_insertlinkbefore(regionbase, region_main, region);
               sequencer_init_preview_region(region);
             }

@@ -8,9 +8,13 @@
  * Converted and adapted from HLSL to GLSL by Clément Foucault
  */
 
+#include "infos/workbench_effect_dof_info.hh"
+
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof)
 
 #define dof_aperturesize dofParams.x
 #define dof_distance dofParams.y
@@ -45,7 +49,9 @@ float decode_signed_coc(vec2 cocs)
  */
 #ifdef PREPARE
 
-void main()
+FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_prepare)
+
+void main_prepare()
 {
   ivec4 texel = ivec4(gl_FragCoord.xyxy) * 2 + ivec4(0, 0, 1, 1);
 
@@ -88,7 +94,9 @@ void main()
  */
 #ifdef DOWNSAMPLE
 
-void main()
+FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_downsample)
+
+void main_downsample()
 {
   vec4 texel = vec4(gl_FragCoord.xyxy) * 2.0 + vec4(0.0, 0.0, 1.0, 1.0);
   texel = (texel - 0.5) / vec4(textureSize(sceneColorTex, 0).xyxy);
@@ -101,7 +109,6 @@ void main()
   vec4 color3 = textureLod(sceneColorTex, texel.zy, 0.0);
   vec4 color4 = textureLod(sceneColorTex, texel.xw, 0.0);
 
-  vec4 depths;
   vec2 cocs1 = textureLod(inputCocTex, texel.xy, 0.0).rg;
   vec2 cocs2 = textureLod(inputCocTex, texel.zw, 0.0).rg;
   vec2 cocs3 = textureLod(inputCocTex, texel.zy, 0.0).rg;
@@ -203,6 +210,8 @@ void main()
  */
 #ifdef BLUR1
 
+FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_blur1)
+
 vec2 get_random_vector(float offset)
 {
   /* Interleaved gradient noise by Jorge Jimenez
@@ -215,7 +224,7 @@ vec2 get_random_vector(float offset)
   // return noise.rg * sqrt(ign);
 }
 
-void main()
+void main_blur1()
 {
   vec2 uv = gl_FragCoord.xy * invertedViewportSize * 2.0;
 
@@ -264,7 +273,9 @@ void main()
  */
 #ifdef BLUR2
 
-void main()
+FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_blur2)
+
+void main_blur2()
 {
   /* Half Res pass */
   vec2 pixel_size = 1.0 / vec2(textureSize(blurTex, 0).xy);
@@ -339,7 +350,9 @@ void main()
  */
 #ifdef RESOLVE
 
-void main()
+FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_resolve)
+
+void main_resolve()
 {
   /* Full-screen pass. */
   vec2 pixel_size = 0.5 / vec2(textureSize(halfResColorTex, 0).xy);
@@ -355,3 +368,26 @@ void main()
   finalColorMul = vec4(1.0 - blend);
 }
 #endif
+
+void main()
+{
+#ifdef PREPARE
+  main_prepare();
+#endif
+
+#ifdef DOWNSAMPLE
+  main_downsample();
+#endif
+
+#ifdef BLUR1
+  main_blur1();
+#endif
+
+#ifdef BLUR2
+  main_blur2();
+#endif
+
+#ifdef RESOLVE
+  main_resolve();
+#endif
+}
