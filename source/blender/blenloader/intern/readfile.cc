@@ -214,7 +214,10 @@ struct BHeadN {
 /** \name Blend Loader Reporting Wrapper
  * \{ */
 
-void BLO_reportf_wrap(BlendFileReadReport *reports, eReportType type, const char *format, ...)
+void BLO_reportf_wrap(BlendFileReadReport *reports,
+                      const eReportType type,
+                      const char *format,
+                      ...)
 {
   char fixed_buf[1024]; /* should be long enough */
 
@@ -265,7 +268,7 @@ static OldNewMap *oldnewmap_new()
  * \return `true` if the \a oldaddr key has been successfully added to the \a onm, and no existing
  * entry was overwritten.
  */
-static bool oldnewmap_insert(OldNewMap *onm, const void *oldaddr, void *newaddr, int nr)
+static bool oldnewmap_insert(OldNewMap *onm, const void *oldaddr, void *newaddr, const int nr)
 {
   if (oldaddr == nullptr || newaddr == nullptr) {
     return false;
@@ -274,17 +277,20 @@ static bool oldnewmap_insert(OldNewMap *onm, const void *oldaddr, void *newaddr,
   return onm->map.add_overwrite(oldaddr, NewAddress{newaddr, nr});
 }
 
-static void oldnewmap_lib_insert(FileData *fd, const void *oldaddr, ID *newaddr, int id_code)
+static void oldnewmap_lib_insert(FileData *fd, const void *oldaddr, ID *newaddr, const int id_code)
 {
   oldnewmap_insert(fd->libmap, oldaddr, newaddr, id_code);
 }
 
-void blo_do_versions_oldnewmap_insert(OldNewMap *onm, const void *oldaddr, void *newaddr, int nr)
+void blo_do_versions_oldnewmap_insert(OldNewMap *onm,
+                                      const void *oldaddr,
+                                      void *newaddr,
+                                      const int nr)
 {
   oldnewmap_insert(onm, oldaddr, newaddr, nr);
 }
 
-static void *oldnewmap_lookup_and_inc(OldNewMap *onm, const void *addr, bool increase_users)
+static void *oldnewmap_lookup_and_inc(OldNewMap *onm, const void *addr, const bool increase_users)
 {
   NewAddress *entry = onm->map.lookup_ptr(addr);
   if (entry == nullptr) {
@@ -658,7 +664,7 @@ static void switch_endian_bh8(BHead8 *bhead)
   }
 }
 
-static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, bool do_endian_swap)
+static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, const bool do_endian_swap)
 {
   BHead4 *bhead4 = (BHead4 *)bhead;
   int64_t old;
@@ -1206,7 +1212,7 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 
 static FileData *blo_filedata_from_file_descriptor(const char *filepath,
                                                    BlendFileReadReport *reports,
-                                                   int filedes)
+                                                   const int filedes)
 {
   char header[7];
   FileReader *rawfile = BLI_filereader_new_file(filedes);
@@ -1330,7 +1336,9 @@ static FileData *blo_filedata_from_file_minimal(const char *filepath)
   return nullptr;
 }
 
-FileData *blo_filedata_from_memory(const void *mem, int memsize, BlendFileReadReport *reports)
+FileData *blo_filedata_from_memory(const void *mem,
+                                   const int memsize,
+                                   BlendFileReadReport *reports)
 {
   if (!mem || memsize < SIZEOFBLENDERHEADER) {
     BKE_report(
@@ -1596,7 +1604,7 @@ static void blo_cache_storage_entry_register(
 
 /** Restore a cache data entry from old ID into new one, when reading some undo memfile. */
 static void blo_cache_storage_entry_restore_in_new(
-    ID *id, const IDCacheKey *key, void **cache_p, uint flags, void *cache_storage_v)
+    ID *id, const IDCacheKey *key, void **cache_p, const uint flags, void *cache_storage_v)
 {
   BLOCacheStorage *cache_storage = static_cast<BLOCacheStorage *>(cache_storage_v);
 
@@ -1630,8 +1638,11 @@ static void blo_cache_storage_entry_restore_in_new(
 }
 
 /** Clear as needed a cache data entry from old ID, when reading some undo memfile. */
-static void blo_cache_storage_entry_clear_in_old(
-    ID * /*id*/, const IDCacheKey *key, void **cache_p, uint /*flags*/, void *cache_storage_v)
+static void blo_cache_storage_entry_clear_in_old(ID * /*id*/,
+                                                 const IDCacheKey *key,
+                                                 void **cache_p,
+                                                 const uint /*flags*/,
+                                                 void *cache_storage_v)
 {
   BLOCacheStorage *cache_storage = static_cast<BLOCacheStorage *>(cache_storage_v);
 
@@ -1757,7 +1768,7 @@ static void switch_endian_structs(const SDNA *filesdna, BHead *bhead)
 static const char *get_alloc_name(FileData *fd,
                                   BHead *bh,
                                   const char *blockname,
-                                  int id_type_index = INDEX_ID_NULL)
+                                  const int id_type_index = INDEX_ID_NULL)
 {
 #ifndef NDEBUG
   /* Storage key is a pair of (string , int), where the first is the concatenation of the 'owner
@@ -2801,7 +2812,7 @@ static void read_libblock_undo_restore_at_old_address(FileData *fd, Main *main, 
 }
 
 static bool read_libblock_undo_restore(
-    FileData *fd, Main *main, BHead *bhead, int id_tag, ID **r_id_old)
+    FileData *fd, Main *main, BHead *bhead, const int id_tag, ID **r_id_old)
 {
   BLI_assert(fd->old_idmap_uid != nullptr);
 
@@ -4939,7 +4950,7 @@ ID *BLO_read_get_new_id_address(BlendLibReader *reader,
   return static_cast<ID *>(newlibadr(reader->fd, self_id, is_linked_only, id));
 }
 
-ID *BLO_read_get_new_id_address_from_session_uid(BlendLibReader *reader, uint session_uid)
+ID *BLO_read_get_new_id_address_from_session_uid(BlendLibReader *reader, const uint session_uid)
 {
   return BKE_main_idmap_lookup_uid(reader->fd->new_idmap_uid, session_uid);
 }
@@ -4975,25 +4986,25 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
   list->last = prev;
 }
 
-void BLO_read_char_array(BlendDataReader *reader, int array_size, char **ptr_p)
+void BLO_read_char_array(BlendDataReader *reader, const int array_size, char **ptr_p)
 {
   *ptr_p = reinterpret_cast<char *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(char) * array_size));
 }
 
-void BLO_read_uint8_array(BlendDataReader *reader, int array_size, uint8_t **ptr_p)
+void BLO_read_uint8_array(BlendDataReader *reader, const int array_size, uint8_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<uint8_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint8_t) * array_size));
 }
 
-void BLO_read_int8_array(BlendDataReader *reader, int array_size, int8_t **ptr_p)
+void BLO_read_int8_array(BlendDataReader *reader, const int array_size, int8_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<int8_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int8_t) * array_size));
 }
 
-void BLO_read_int32_array(BlendDataReader *reader, int array_size, int32_t **ptr_p)
+void BLO_read_int32_array(BlendDataReader *reader, const int array_size, int32_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<int32_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int32_t) * array_size));
@@ -5003,7 +5014,7 @@ void BLO_read_int32_array(BlendDataReader *reader, int array_size, int32_t **ptr
   }
 }
 
-void BLO_read_uint32_array(BlendDataReader *reader, int array_size, uint32_t **ptr_p)
+void BLO_read_uint32_array(BlendDataReader *reader, const int array_size, uint32_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<uint32_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint32_t) * array_size));
@@ -5013,7 +5024,7 @@ void BLO_read_uint32_array(BlendDataReader *reader, int array_size, uint32_t **p
   }
 }
 
-void BLO_read_float_array(BlendDataReader *reader, int array_size, float **ptr_p)
+void BLO_read_float_array(BlendDataReader *reader, const int array_size, float **ptr_p)
 {
   *ptr_p = reinterpret_cast<float *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(float) * array_size));
@@ -5023,12 +5034,12 @@ void BLO_read_float_array(BlendDataReader *reader, int array_size, float **ptr_p
   }
 }
 
-void BLO_read_float3_array(BlendDataReader *reader, int array_size, float **ptr_p)
+void BLO_read_float3_array(BlendDataReader *reader, const int array_size, float **ptr_p)
 {
   BLO_read_float_array(reader, array_size * 3, ptr_p);
 }
 
-void BLO_read_double_array(BlendDataReader *reader, int array_size, double **ptr_p)
+void BLO_read_double_array(BlendDataReader *reader, const int array_size, double **ptr_p)
 {
   *ptr_p = reinterpret_cast<double *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(double) * array_size));
@@ -5068,7 +5079,7 @@ void BLO_read_string(BlendDataReader *reader, const char **ptr_p)
 }
 
 static void convert_pointer_array_64_to_32(BlendDataReader *reader,
-                                           uint array_size,
+                                           const uint array_size,
                                            const uint64_t *src,
                                            uint32_t *dst)
 {
@@ -5088,7 +5099,7 @@ static void convert_pointer_array_64_to_32(BlendDataReader *reader,
 }
 
 static void convert_pointer_array_32_to_64(BlendDataReader * /*reader*/,
-                                           uint array_size,
+                                           const uint array_size,
                                            const uint32_t *src,
                                            uint64_t *dst)
 {
