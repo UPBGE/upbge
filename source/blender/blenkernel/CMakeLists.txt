@@ -116,6 +116,7 @@ set(SRC
   intern/curve_to_mesh_convert.cc
   intern/curveprofile.cc
   intern/curves.cc
+  intern/curves_attributes.cc
   intern/curves_geometry.cc
   intern/curves_utils.cc
   intern/customdata.cc
@@ -151,6 +152,7 @@ set(SRC
   intern/gpencil_legacy.cc
   intern/gpencil_modifier_legacy.cc
   intern/grease_pencil.cc
+  intern/grease_pencil_attributes.cc
   intern/grease_pencil_convert_legacy.cc
   intern/grease_pencil_vertex_groups.cc
   intern/icons.cc
@@ -167,6 +169,7 @@ set(SRC
   intern/image_partial_update.cc
   intern/image_save.cc
   intern/instances.cc
+  intern/instances_attributes.cc
   intern/ipo.cc
   intern/kelvinlet.cc
   intern/key.cc
@@ -198,6 +201,7 @@ set(SRC
   intern/mball.cc
   intern/mball_tessellate.cc
   intern/mesh.cc
+  intern/mesh_attributes.cc
   intern/mesh_calc_edges.cc
   intern/mesh_compare.cc
   intern/mesh_convert.cc
@@ -266,6 +270,7 @@ set(SRC
   intern/pbvh_uv_islands.cc
   intern/pointcache.cc
   intern/pointcloud.cc
+  intern/pointcloud_attributes.cc
   intern/pose_backup.cc
   intern/preferences.cc
   intern/preview_image.cc
