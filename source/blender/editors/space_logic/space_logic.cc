@@ -104,21 +104,21 @@ static SpaceLink *logic_new(const ScrArea *sa, const Scene */*scene*/)
                      (BUTS_SENS_STATE | BUTS_ACT_STATE));
 
   /* header */
-  region = MEM_cnew<ARegion>("header for logic");
+  region = BKE_area_region_new();
 
   BLI_addtail(&slogic->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = RGN_ALIGN_BOTTOM;
 
   /* buttons/list view */
-  region = MEM_cnew<ARegion>("buttons for logic");
+  region = BKE_area_region_new();
 
   BLI_addtail(&slogic->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
 
   /* main region */
-  region = MEM_cnew<ARegion>("main region for logic");
+  region = BKE_area_region_new();
 
   BLI_addtail(&slogic->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -233,7 +233,7 @@ static void logic_main_region_init(wmWindowManager *wm, ARegion *region)
 
   ///* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "Logic Bricks Editor", SPACE_LOGIC, 0);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void logic_main_region_draw(const bContext *C, ARegion *region)
@@ -266,7 +266,7 @@ static void logic_buttons_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Logic Bricks Editor", SPACE_LOGIC, 0);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void logic_buttons_region_draw(const bContext *C, ARegion *region)

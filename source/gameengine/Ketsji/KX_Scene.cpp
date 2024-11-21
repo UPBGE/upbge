@@ -484,7 +484,7 @@ void KX_Scene::ReinitBlenderContextVariables()
             ARegionType *art;
             st = BKE_spacetype_from_id(SPACE_VIEW3D);
             art = BKE_regiontype_from_id(st, RGN_TYPE_WINDOW);
-            region->type = art;
+            region->runtime->type = art;
             region->regiontype = RGN_TYPE_WINDOW;
             win->scene = GetBlenderScene();
             return;
@@ -803,8 +803,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
-        region->visible = true;
-        region->do_draw |= RGN_DRAWING;
+        ED_region_tag_redraw(region);
         scene->flag |= SCE_IS_BLENDERPLAYER;
         region->winrct = window;
         region->winx = canvas->GetWidth();

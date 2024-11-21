@@ -33,6 +33,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_screen.hh"
 
 #include "ED_screen.hh"
 #include "ED_undo.hh"
@@ -119,7 +120,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
     uiBlock *block;
     uiLinkLine *line, *nline;
     uiBut *but;
-    for (block = static_cast<uiBlock *>(region->uiblocks.first); block; block = block->next) {
+    for (block = static_cast<uiBlock *>(region->runtime->uiblocks.first); block; block = block->next) {
       but = static_cast<uiBut *>(block->buttons.first);
       while (but) {
         if (but->type == UI_BTYPE_LINK && but->link) {
