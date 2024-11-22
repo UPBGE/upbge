@@ -4932,7 +4932,7 @@ void *BLO_read_struct_array_with_size(BlendDataReader *reader,
 
 void *BLO_read_struct_by_name_array(BlendDataReader *reader,
                                     const char *struct_name,
-                                    const uint32_t items_num,
+                                    const int64_t items_num,
                                     const void *old_address)
 {
   const int struct_index = DNA_struct_find_with_alias(reader->fd->memsdna, struct_name);
@@ -4986,25 +4986,25 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
   list->last = prev;
 }
 
-void BLO_read_char_array(BlendDataReader *reader, const int array_size, char **ptr_p)
+void BLO_read_char_array(BlendDataReader *reader, const int64_t array_size, char **ptr_p)
 {
   *ptr_p = reinterpret_cast<char *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(char) * array_size));
 }
 
-void BLO_read_uint8_array(BlendDataReader *reader, const int array_size, uint8_t **ptr_p)
+void BLO_read_uint8_array(BlendDataReader *reader, const int64_t array_size, uint8_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<uint8_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint8_t) * array_size));
 }
 
-void BLO_read_int8_array(BlendDataReader *reader, const int array_size, int8_t **ptr_p)
+void BLO_read_int8_array(BlendDataReader *reader, const int64_t array_size, int8_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<int8_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int8_t) * array_size));
 }
 
-void BLO_read_int32_array(BlendDataReader *reader, const int array_size, int32_t **ptr_p)
+void BLO_read_int32_array(BlendDataReader *reader, const int64_t array_size, int32_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<int32_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int32_t) * array_size));
@@ -5014,7 +5014,7 @@ void BLO_read_int32_array(BlendDataReader *reader, const int array_size, int32_t
   }
 }
 
-void BLO_read_uint32_array(BlendDataReader *reader, const int array_size, uint32_t **ptr_p)
+void BLO_read_uint32_array(BlendDataReader *reader, const int64_t array_size, uint32_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<uint32_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint32_t) * array_size));
@@ -5024,7 +5024,7 @@ void BLO_read_uint32_array(BlendDataReader *reader, const int array_size, uint32
   }
 }
 
-void BLO_read_float_array(BlendDataReader *reader, const int array_size, float **ptr_p)
+void BLO_read_float_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
 {
   *ptr_p = reinterpret_cast<float *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(float) * array_size));
@@ -5034,12 +5034,12 @@ void BLO_read_float_array(BlendDataReader *reader, const int array_size, float *
   }
 }
 
-void BLO_read_float3_array(BlendDataReader *reader, const int array_size, float **ptr_p)
+void BLO_read_float3_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
 {
   BLO_read_float_array(reader, array_size * 3, ptr_p);
 }
 
-void BLO_read_double_array(BlendDataReader *reader, const int array_size, double **ptr_p)
+void BLO_read_double_array(BlendDataReader *reader, const int64_t array_size, double **ptr_p)
 {
   *ptr_p = reinterpret_cast<double *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(double) * array_size));
@@ -5079,7 +5079,7 @@ void BLO_read_string(BlendDataReader *reader, const char **ptr_p)
 }
 
 static void convert_pointer_array_64_to_32(BlendDataReader *reader,
-                                           const uint array_size,
+                                           const int64_t array_size,
                                            const uint64_t *src,
                                            uint32_t *dst)
 {
@@ -5099,7 +5099,7 @@ static void convert_pointer_array_64_to_32(BlendDataReader *reader,
 }
 
 static void convert_pointer_array_32_to_64(BlendDataReader * /*reader*/,
-                                           const uint array_size,
+                                           const int64_t array_size,
                                            const uint32_t *src,
                                            uint64_t *dst)
 {
@@ -5109,7 +5109,7 @@ static void convert_pointer_array_32_to_64(BlendDataReader * /*reader*/,
   }
 }
 
-void BLO_read_pointer_array(BlendDataReader *reader, const int array_size, void **ptr_p)
+void BLO_read_pointer_array(BlendDataReader *reader, const int64_t array_size, void **ptr_p)
 {
   FileData *fd = reader->fd;
 
