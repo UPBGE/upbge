@@ -1339,6 +1339,8 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
   GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 1);
+  /* Avoid the batch being rendered at all. */
+  GPU_vertbuf_data_len_set(*vbo, 0);
 
   GPU_batch_vertbuf_add(&batch, vbo, true);
 }
@@ -1575,6 +1577,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       DRW_vbo_request(cache.batch.surface, &mbuflist->vbo.uv);
     }
     drw_add_attributes_vbo(cache.batch.surface, mbuflist, &cache.attr_used);
+  }
+  assert_deps_valid(
+      MBC_VIEWER_ATTRIBUTE_OVERLAY,
+      {BUFFER_INDEX(ibo.tris), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.attr_viewer)});
+  if (DRW_batch_requested(cache.batch.surface_viewer_attribute, GPU_PRIM_TRIS)) {
+    DRW_ibo_request(cache.batch.surface_viewer_attribute, &mbuflist->ibo.tris);
+    DRW_vbo_request(cache.batch.surface_viewer_attribute, &mbuflist->vbo.pos);
+    DRW_vbo_request(cache.batch.surface_viewer_attribute, &mbuflist->vbo.attr_viewer);
   }
   assert_deps_valid(MBC_ALL_VERTS, {BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.nor)});
   if (DRW_batch_requested(cache.batch.all_verts, GPU_PRIM_POINTS)) {
@@ -1927,19 +1937,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     else {
       init_empty_dummy_batch(*cache.batch.edituv_fdots);
-    }
-  }
-  assert_deps_valid(
-      MBC_VIEWER_ATTRIBUTE_OVERLAY,
-      {BUFFER_INDEX(ibo.tris), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.attr_viewer)});
-  if (DRW_batch_requested(cache.batch.surface_viewer_attribute, GPU_PRIM_TRIS)) {
-    if (edit_mapping_valid) {
-      DRW_ibo_request(cache.batch.surface_viewer_attribute, &mbuflist->ibo.tris);
-      DRW_vbo_request(cache.batch.surface_viewer_attribute, &mbuflist->vbo.pos);
-      DRW_vbo_request(cache.batch.surface_viewer_attribute, &mbuflist->vbo.attr_viewer);
-    }
-    else {
-      init_empty_dummy_batch(*cache.batch.surface_viewer_attribute);
     }
   }
 
