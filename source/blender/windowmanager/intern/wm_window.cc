@@ -718,7 +718,7 @@ static void wm_window_ensure_eventstate(wmWindow *win)
   wm_window_update_eventstate(win);
 }
 
-static bool wm_window_update_size_position(wmWindow *win);
+//static bool wm_window_update_size_position(wmWindow *win);
 
 /* Belongs to below. */
 static void wm_window_ghostwindow_add(wmWindowManager *wm,
@@ -916,7 +916,7 @@ void wm_window_ghostwindows_remove_invalid(bContext *C, wmWindowManager *wm)
 }
 
 /* Update window size and position based on data from GHOST window. */
-static bool wm_window_update_size_position(wmWindow *win)
+bool wm_window_update_size_position(wmWindow *win)
 {
   GHOST_RectangleHandle client_rect = GHOST_GetClientBounds(
       static_cast<GHOST_WindowHandle>(win->ghostwin));
