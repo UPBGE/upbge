@@ -42,6 +42,7 @@
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "MEM_guardedalloc.h"
+#include "wm_window.hh"
 
 #include "KX_Globals.h"
 
@@ -52,7 +53,9 @@ GPG_Canvas::GPG_Canvas(bContext *C, RAS_Rasterizer *rasty, GHOST_IWindow *window
     GHOST_Rect bnds;
     m_window->getClientBounds(bnds);
     m_nativePixelSize = window->getNativePixelSize();
-    this->Resize(bnds.getWidth(), bnds.getHeight());
+    m_viewportArea = RAS_Rect(bnds.getWidth() * m_nativePixelSize,
+                              bnds.getHeight() * m_nativePixelSize);
+    m_windowArea = RAS_Rect(bnds.getWidth(), bnds.getHeight());
   }
 }
 
@@ -83,8 +86,16 @@ void GPG_Canvas::EndDraw()
 
 void GPG_Canvas::Resize(int width, int height)
 {
-  m_viewportArea = RAS_Rect(width * m_nativePixelSize, height * m_nativePixelSize);
-  m_windowArea = RAS_Rect(width, height);
+  if (m_windowArea.GetWidth() != width || m_windowArea.GetHeight() != height) {
+    m_viewportArea = RAS_Rect(width * m_nativePixelSize, height * m_nativePixelSize);
+    m_windowArea = RAS_Rect(width, height);
+    /* Following code needed to properly resize window with VULKAN backend */
+    wmWindow *win = CTX_wm_window(m_context);
+    win->sizex = width;
+    win->sizey = height;
+    wm_window_set_size(win, win->sizex, win->sizey);
+    wm_window_update_size_position(win);
+  }
 }
 
 void GPG_Canvas::MakeScreenShot(const std::string &filename)
