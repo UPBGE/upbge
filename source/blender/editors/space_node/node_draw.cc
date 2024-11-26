@@ -2398,7 +2398,9 @@ static void node_draw_panels_background(const bNode &node)
   BLI_assert(is_node_panels_supported(node));
 
   float panel_color[4];
-  UI_GetThemeColorShade4fv(TH_NODE, -15, panel_color);
+  UI_GetThemeColor4fv(TH_PANEL_SUB_BACK, panel_color);
+  /* Increase contrast in nodes a bit. */
+  panel_color[3] *= 1.5f;
   const rctf &totr = node.runtime->totr;
 
   const nodes::PanelDeclaration *final_panel_decl = nullptr;
@@ -3710,7 +3712,7 @@ static void node_draw_hidden(const bContext &C,
                         showname,
                         round_fl_to_int(rct.xmin + NODE_MARGIN_X),
                         round_fl_to_int(centy - NODE_DY * 0.5f),
-                        short(BLI_rctf_size_x(&rct) - ((18.0f + 12.0f) * UI_SCALE_FAC)),
+                        short(BLI_rctf_size_x(&rct) - (2 * U.widget_unit)),
                         short(NODE_DY),
                         nullptr,
                         0,
