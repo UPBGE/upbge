@@ -186,7 +186,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
     layer.particles.edit_object_sync(manager, ob_ref, resources, state);
   }
 
-  if (in_paint_mode) {
+  if (in_paint_mode && !state.hide_overlays) {
     switch (ob_ref.object->type) {
       case OB_MESH:
         /* TODO(fclem): Make it part of a #Meshes. */
@@ -249,7 +249,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (state.is_wireframe_mode || !state.hide_overlays) {
-    layer.wireframe.object_sync_ex(manager, ob_ref, resources, state, in_edit_paint_mode);
+    layer.wireframe.object_sync_ex(
+        manager, ob_ref, resources, state, in_edit_paint_mode, in_edit_mode);
   }
 
   if (!state.hide_overlays) {
@@ -454,7 +455,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
 
   auto draw_line = [&](OverlayLayer &layer, Framebuffer &framebuffer) {
     layer.bounds.draw_line(framebuffer, manager, view);
-    layer.wireframe.draw_line_ex(framebuffer, resources, manager, view);
+    layer.wireframe.draw_line(framebuffer, manager, view);
     layer.cameras.draw_line(framebuffer, manager, view);
     layer.empties.draw_line(framebuffer, manager, view);
     layer.axes.draw_line(framebuffer, manager, view);
@@ -515,6 +516,12 @@ void Instance::draw_v3d(Manager &manager, View &view)
     }
 
     infront.prepass.draw_line(resources.overlay_line_in_front_fb, manager, view);
+  }
+  {
+    /* Copy depth at the end of the prepass to avoid splitting the main render pass. */
+    /* TODO(fclem): Better get rid of it. */
+    regular.wireframe.copy_depth(resources.depth_target_tx);
+    infront.wireframe.copy_depth(resources.depth_target_in_front_tx);
   }
   {
     /* Line only pass. */
