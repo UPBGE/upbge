@@ -250,6 +250,12 @@ class VKRenderGraph : public NonCopyable {
   void debug_group_end();
 
   /**
+   * Return the full debug group of the given node_handle. Returns an empty string when debug
+   * groups are not enabled (`--debug-gpu`).
+   */
+  std::string full_debug_group(NodeHandle node_handle) const;
+
+  /**
    * Utility function that is used during debugging.
    *
    * When debugging most of the time know the node_handle that is needed after the node has been
@@ -259,6 +265,11 @@ class VKRenderGraph : public NonCopyable {
   NodeHandle next_node_handle()
   {
     return nodes_.size();
+  }
+
+  bool is_empty()
+  {
+    return nodes_.is_empty();
   }
 
   void debug_print(NodeHandle node_handle) const;
