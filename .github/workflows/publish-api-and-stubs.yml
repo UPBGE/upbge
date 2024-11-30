@@ -31,7 +31,7 @@ jobs:
         sudo apt update && \
         sudo apt dist-upgrade && \
         sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
-          cmake-curses-gui cmake-gui patch build-essential git git-lfs subversion libx11-dev \
+          cmake-curses-gui cmake-gui patch libx11-dev \
           libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
           libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
 
@@ -134,8 +134,7 @@ jobs:
       run: | 
         sudo apt update && \
         sudo apt dist-upgrade && \
-        sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libtbb12 libavutil57 \
-          libavformat59 libavdevice59 libboost-locale1.74.0 libopenimageio-dev
+        sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libx11-dev wayland-protocols
 
     - name: Install Python
       uses: actions/setup-python@v5
