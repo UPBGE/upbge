@@ -21,9 +21,9 @@ jobs:
     steps:
     - name: Setup APT
       run: |
-        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03oracular.list \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03oracular.list \
           -o /etc/apt/sources.list.d/03oracular.list && \
-        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03ubuntu \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
           -o /etc/apt/apt.conf.d/03ubuntu
 
     - name: Install Tools
@@ -53,7 +53,7 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v3
       with:
-        repository: "lordloki/upbge"
+        repository: "UPBGE/upbge"
         ref: "master"
         path: "upbge"
 
@@ -125,9 +125,9 @@ jobs:
 
     - name: Setup APT
       run: |
-        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03oracular.list \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03oracular.list \
           -o /etc/apt/sources.list.d/03oracular.list && \
-        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03ubuntu \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
           -o /etc/apt/apt.conf.d/03ubuntu
 
     - name: Install Tools
@@ -155,7 +155,7 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v3
       with:
-        repository: "lordloki/upbge"
+        repository: "UPBGE/upbge"
         ref: "master"
         path: "upbge"
 
