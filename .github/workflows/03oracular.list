@@ -1,0 +1,5 @@
+deb http://archive.ubuntu.com/ubuntu/ oracular main restricted
+deb http://archive.ubuntu.com/ubuntu/ oracular-updates main restricted
+
+deb http://archive.ubuntu.com/ubuntu/ oracular universe
+deb http://archive.ubuntu.com/ubuntu/ oracular-updates universe
