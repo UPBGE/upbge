@@ -16,26 +16,24 @@ env:
 jobs:
   build:
     name: Build UPBGE
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Setup APT
       run: |
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01lunar.list \
-          -o /etc/apt/sources.list.d/01lunar.list && \
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01ubuntu \
-          -o /etc/apt/apt.conf.d/01ubuntu
-    # We downgrade libgbm1 & libglapi-mesa to fix libegl-mesa0 installation
+        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03oracular.list \
+          -o /etc/apt/sources.list.d/03oracular.list && \
+        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03ubuntu \
+          -o /etc/apt/apt.conf.d/03ubuntu
+
     - name: Install Tools
       run: | 
         sudo apt update && \
         sudo apt dist-upgrade && \
-        sudo apt --allow-downgrades install libgbm1=23.0.4-0ubuntu1~23.04.1 && \
-        sudo apt --allow-downgrades install libglapi-mesa=23.0.4-0ubuntu1~23.04.1 && \
-        sudo apt install -y build-essential cmake libembree-dev libavutil-dev \
-          libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
-          libavformat-dev libswscale-dev libavdevice-dev libblas3 libopenimageio-dev \
-          libzstd-dev libopenimageio-dev libfreetype-dev libepoxy-dev libdecor-0-dev
+        sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
+          cmake-curses-gui cmake-gui patch build-essential git git-lfs subversion libx11-dev \
+          libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
+          libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
 
     - name: Install Python
       uses: actions/setup-python@v5
@@ -45,7 +43,7 @@ jobs:
     - name: Install Python Dependencies
       run: | 
         curl https://bootstrap.pypa.io/get-pip.py | python && \
-        python -m pip install numpy requests cython
+        python -m pip install numpy requests cython idna charset-normalizer urllib3 certifi zstandard pybind11
 
     - name: Setup Python Path
       run: |
@@ -55,26 +53,25 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v3
       with:
-        repository: "UPBGE/upbge"
+        repository: "lordloki/upbge"
         ref: "master"
         path: "upbge"
 
-    - name: Checkout addons
-      uses: actions/checkout@v3
-      with:
-        repository: "UPBGE/blender-addons"
-        ref: "master"
-        path: "blender-addons"
-
-    - name: Checkout addons-contrib
-      run: git clone --depth=1 https://projects.blender.org/blender/blender-addons-contrib.git
-
-    - name: Checkout translations
-      run: git clone --depth=1 https://projects.blender.org/blender/blender-translations.git
-
-    - name: Checkout dev-tools
-      run: git clone --depth=1 https://projects.blender.org/blender/blender-dev-tools.git
-
+    - name: Checkout addons and addons_contrib
+      run: |
+        cd upbge/scripts && \
+        git clone https://github.com/UPBGE/blender-addons.git addons && \
+        git submodule sync && \
+        git submodule update --init --recursive --remote && \
+        git submodule foreach git checkout main && \
+        git submodule foreach git pull --rebase origin main && \
+        git clone https://projects.blender.org/blender/blender-addons-contrib.git addons_contrib
+        
+    - name: Download Precompiled Libs
+      run: |
+        cd upbge && \
+        ./build_files/utils/make_update.py --use-linux-libraries
+        
     - name: Configure CMake
       run: |
         cmake -S upbge -B build \
@@ -97,14 +94,14 @@ jobs:
 
     - name: Copy Release Scripts
       run: make -C build install
-
+      
     - name: Archive Build
       if: ${{ !env.ACT }}
       run: tar zcvf build.tar.gz build
 
     - name: Upload Build
       if: ${{ !env.ACT }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: blender
         path: build.tar.gz
@@ -112,13 +109,13 @@ jobs:
 
   publish_api:
     name: Publish API Documentation
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build]
 
     steps:
     - name: Download Build
       if: ${{ !env.ACT }}
-      uses: actions/download-artifact@v4.1.7
+      uses: actions/download-artifact@v4
       with:
         name: blender
 
@@ -128,10 +125,10 @@ jobs:
 
     - name: Setup APT
       run: |
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01lunar.list \
-          -o /etc/apt/sources.list.d/01lunar.list && \
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/01ubuntu \
-          -o /etc/apt/apt.conf.d/01ubuntu
+        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03oracular.list \
+          -o /etc/apt/sources.list.d/03oracular.list && \
+        sudo curl https://raw.githubusercontent.com/lordloki/upbge/master/.github/workflows/03ubuntu \
+          -o /etc/apt/apt.conf.d/03ubuntu
 
     - name: Install Tools
       run: | 
@@ -158,14 +155,14 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v3
       with:
-        repository: "UPBGE/upbge"
+        repository: "lordloki/upbge"
         ref: "master"
         path: "upbge"
 
     - name: Prepare API Documentation
       working-directory: build
       run: | 
-        rm -Rf bin/4.0/python && \
+        rm -Rf bin/4.4/python && \
         bin/blender --python-use-system-env --background -noaudio --factory-startup \
                     --python ../upbge/doc/python_api/sphinx_doc_gen.py -- \
                     --output "${{ github.workspace }}/python_api"
@@ -191,7 +188,7 @@ jobs:
 
     - name: Upload Documents
       if: ${{ !env.ACT }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: apidocs
         path: apidocs.tar.gz
@@ -199,13 +196,13 @@ jobs:
 
   publish_stubs:
     name: Publish API Stubs
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [publish_api]
 
     steps:
     - name: Download Build
       if: ${{ !env.ACT }}
-      uses: actions/download-artifact@v4.1.7
+      uses: actions/download-artifact@v4
       with:
         name: blender
 
@@ -215,7 +212,7 @@ jobs:
 
     - name: Download Documents
       if: ${{ !env.ACT }}
-      uses: actions/download-artifact@v4.1.7
+      uses: actions/download-artifact@v4
       with:
         name: apidocs
 
@@ -254,4 +251,3 @@ jobs:
         password: ${{ secrets.PYPI_TOKEN }}
         packages-dir: python_api/upbge-stub/dist
         skip-existing: true
-
