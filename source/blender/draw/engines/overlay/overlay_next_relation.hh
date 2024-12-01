@@ -32,13 +32,13 @@ class Relations : Overlay {
 
   LinePrimitiveBuf relations_buf_;
   PointPrimitiveBuf points_buf_;
-  EmptyInstanceBuf plain_axes_buf;
+  EmptyInstanceBuf arrows_buf;
 
  public:
   Relations(SelectionType selection_type)
       : relations_buf_(selection_type, "relations_buf_"),
         points_buf_(selection_type, "points_buf_"),
-        plain_axes_buf(selection_type, "plain_axes_buf")
+        arrows_buf(selection_type, "arrows_buf")
   {
   }
 
@@ -50,7 +50,7 @@ class Relations : Overlay {
 
     points_buf_.clear();
     relations_buf_.clear();
-    plain_axes_buf.clear();
+    arrows_buf.clear();
   }
 
   void object_sync(Manager & /*manager*/,
@@ -136,7 +136,7 @@ class Relations : Overlay {
         loc_rot_size_to_mat4(tmp, xyz, rotmat, scale);
         mul_m4_m4m4(tmp, ob->object_to_world().ptr(), tmp);
         ExtraInstanceData data(float4x4(tmp), color, 1.0f);
-        plain_axes_buf.append(data, select_id);
+        arrows_buf.append(data, select_id);
       }
     }
 
@@ -234,7 +234,7 @@ class Relations : Overlay {
                    state.clipping_plane_count);
       sub_pass.shader_set(res.shaders.extra_shape.get());
       sub_pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-      plain_axes_buf.end_sync(sub_pass, res.shapes.plain_axes.get());
+      arrows_buf.end_sync(sub_pass, res.shapes.arrows.get());
     }
   }
 
