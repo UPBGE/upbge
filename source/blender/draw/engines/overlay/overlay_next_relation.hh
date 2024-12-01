@@ -25,16 +25,20 @@ namespace blender::draw::overlay {
  */
 class Relations : Overlay {
 
+ using EmptyInstanceBuf = ShapeInstanceBuf<ExtraInstanceData>;
+
  private:
   PassSimple ps_ = {"Relations"};
 
   LinePrimitiveBuf relations_buf_;
   PointPrimitiveBuf points_buf_;
+  EmptyInstanceBuf plain_axes_buf;
 
  public:
   Relations(SelectionType selection_type)
       : relations_buf_(selection_type, "relations_buf_"),
-        points_buf_(selection_type, "points_buf_")
+        points_buf_(selection_type, "points_buf_"),
+        plain_axes_buf(selection_type, "plain_axes_buf")
   {
   }
 
@@ -46,6 +50,7 @@ class Relations : Overlay {
 
     points_buf_.clear();
     relations_buf_.clear();
+    plain_axes_buf.clear();
   }
 
   void object_sync(Manager & /*manager*/,
@@ -110,6 +115,28 @@ class Relations : Overlay {
         relations_buf_.append(rbc_ob2->object_to_world().location(),
                               ob->object_to_world().location(),
                               relation_color);
+      }
+    }
+
+    /* UPBGE: rigid body joint constraint pivot */
+    const select::ID select_id = res.select_id(ob_ref);
+    const float4 color = res.object_wire_color(ob_ref, state);
+    for (bConstraint *con = static_cast<bConstraint *>(ob->constraints.first); con;
+         con = con->next) {
+      bRigidBodyJointConstraint *rcon = static_cast<bRigidBodyJointConstraint *>(con->data);
+      if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
+        float tmp[4][4];
+        float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
+        float axis[3] = {rcon->axX, rcon->axY, rcon->axZ};
+        float scale[3];
+        float rotmat[3][3];
+        copy_v3_v3(scale, ob->scale);
+        mul_v3_fl(scale, 0.2f);
+        axis_angle_to_mat3(rotmat, axis, len_v3(axis));
+        loc_rot_size_to_mat4(tmp, xyz, rotmat, scale);
+        mul_m4_m4m4(tmp, ob->object_to_world().ptr(), tmp);
+        ExtraInstanceData data(float4x4(tmp), color, 1.0f);
+        plain_axes_buf.append(data, select_id);
       }
     }
 
@@ -199,6 +226,15 @@ class Relations : Overlay {
                          state.clipping_plane_count);
       sub_pass.shader_set(res.shaders.extra_loose_points.get());
       points_buf_.end_sync(sub_pass);
+    }
+    {
+      PassSimple::Sub &sub_pass = ps_.sub("rbjoint_pivot");
+      sub_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
+                             DRW_STATE_DEPTH_LESS_EQUAL,
+                   state.clipping_plane_count);
+      sub_pass.shader_set(res.shaders.extra_shape.get());
+      sub_pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      plain_axes_buf.end_sync(sub_pass, res.shapes.plain_axes.get());
     }
   }
 
