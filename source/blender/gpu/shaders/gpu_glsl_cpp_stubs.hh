@@ -170,7 +170,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_RGB(T) \
   SWIZZLE_RG(T) \
-  SwizzleBase<T, 2> rb, gb, br, bg, bb, bw; \
+  SwizzleBase<T, 2> rb, gb, br, bg, bb; \
   SwizzleBase<T, 3> rrb, rgb, rbr, rbg, rbb, grb, ggb, gbr, gbg, gbb, brr, brg, brb, bgr, bgg, \
       bgb, bbr, bbg, bbb; \
   SwizzleBase<T, 4> rrrb, rrgb, rrbr, rrbg, rrbb, rgrb, rggb, rgbr, rgbg, rgbb, rbrr, rbrg, rbrb, \
@@ -200,7 +200,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_RGBA(T) \
   SWIZZLE_RGB(T) \
-  SwizzleBase<T, 2> ra, ga, ar, ag, ab, aa; \
+  SwizzleBase<T, 2> ra, ga, ba, ar, ag, ab, aa; \
   SwizzleBase<T, 3> rra, rga, rba, rar, rag, rab, raa, gra, gga, gba, gar, gag, gab, gaa, bra, \
       bga, bba, bar, bag, bab, baa, arr, arg, arb, ara, agr, agg, agb, aga, abr, abg, abb, aba, \
       aar, aag, aab, aaa; \
@@ -354,6 +354,29 @@ using int2 = VecBase<int, 2>;
 using int3 = VecBase<int, 3>;
 using int4 = VecBase<int, 4>;
 
+using uchar = unsigned int;
+using uchar2 = VecBase<uchar, 2>;
+using uchar3 = VecBase<uchar, 3>;
+using uchar4 = VecBase<uchar, 4>;
+
+using char2 = VecBase<char, 2>;
+using char3 = VecBase<char, 3>;
+using char4 = VecBase<char, 4>;
+
+using ushort = unsigned short;
+using ushort2 = VecBase<ushort, 2>;
+using ushort3 = VecBase<ushort, 3>;
+using ushort4 = VecBase<ushort, 4>;
+
+using short2 = VecBase<short, 2>;
+using short3 = VecBase<short, 3>;
+using short4 = VecBase<short, 4>;
+
+using half = double;
+using half2 = VecBase<half, 2>;
+using half3 = VecBase<half, 3>;
+using half4 = VecBase<half, 4>;
+
 using bool2 = VecBase<bool, 2>;
 using bool3 = VecBase<bool, 3>;
 using bool4 = VecBase<bool, 4>;
@@ -394,6 +417,19 @@ using BVEC2 = bool2;
 using BVEC3 = bool3;
 using BVEC4 = bool4;
 
+using bool32_t = uint;
+
+/** Packed types are needed for MSL which have different alignment rules for float3. */
+using packed_float2 = float2;
+using packed_float3 = float3;
+using packed_float4 = float4;
+using packed_int2 = int2;
+using packed_int3 = int3;
+using packed_int4 = int4;
+using packed_uint2 = uint2;
+using packed_uint3 = uint3;
+using packed_uint4 = uint4;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -421,8 +457,8 @@ template<int C, int R> struct MatOp {
 
   MatT operator*(MatT) const RET;
 
-  friend ColT operator*(RowT, MatT) RET;
-  friend RowT operator*(MatT, ColT) RET;
+  friend RowT operator*(ColT, MatT) RET;
+  friend ColT operator*(MatT, RowT) RET;
 };
 
 template<int R> struct MatBase<2, R> : MatOp<2, R> {
@@ -629,6 +665,7 @@ IMG_TEMPLATE uint imageAtomicMin(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicMax(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicAnd(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicXor(T &, IntCoord, uint) RET;
+IMG_TEMPLATE uint imageAtomicOr(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicExchange(T &, IntCoord, uint) RET;
 IMG_TEMPLATE uint imageAtomicCompSwap(T &, IntCoord, uint, uint) RET;
 /* Cannot write to a read only image. */
@@ -637,6 +674,7 @@ IMG_TEMPLATE uint imageAtomicMin(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicMax(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicAnd(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicXor(const T &, IntCoord, uint) = delete;
+IMG_TEMPLATE uint imageAtomicOr(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicExchange(const T &, IntCoord, uint) = delete;
 IMG_TEMPLATE uint imageAtomicCompSwap(const T &, IntCoord, uint, uint) = delete;
 
@@ -739,6 +777,7 @@ template<typename T, typename U> T pow(T, U) RET;
 template<typename T> T round(T) RET;
 template<typename T> T smoothstep(T, T, T) RET;
 template<typename T> T sqrt(T) RET;
+double step(double, double) RET;
 template<int D> VecBase<double, D> step(VecOp<double, D>, VecOp<double, D>) RET;
 template<int D> VecBase<double, D> step(double, VecOp<double, D>) RET;
 template<typename T> T trunc(T) RET;

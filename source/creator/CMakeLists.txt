@@ -498,6 +498,14 @@ if(WITH_PYTHON)
     endif()
   endif()
   unset(FREESTYLE_EXCLUDE_CONDITIONAL)
+
+  if(WITH_DRACO)
+    install(
+      PROGRAMS $<TARGET_FILE:extern_draco>
+      DESTINATION ${TARGETDIR_VER}/scripts/addons_core/io_scene_gltf2
+    )
+  endif()
+
 endif()
 
 # fonts
@@ -1011,19 +1019,6 @@ file(REMOVE ${CMAKE_BINARY_DIR}/bin/lib/libglapi.so.0.0.0)\n
     endif()
   endif()
 
-  if(WITH_DRACO)
-    if(WITH_PYTHON_MODULE)
-      install(
-        PROGRAMS $<TARGET_FILE:extern_draco>
-        DESTINATION ${CMAKE_BINARY_DIR}/bin/bpy/lib
-      )
-    else()
-      install(
-        PROGRAMS $<TARGET_FILE:extern_draco>
-        DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
-      )
-    endif()
-  endif()
 elseif(WIN32)
   if(WITH_WINDOWS_EXTERNAL_MANIFEST)
     install(
@@ -1564,20 +1559,6 @@ elseif(WIN32)
     )
   endif()
 
-  if(WITH_DRACO)
-    if(WITH_PYTHON_MODULE)
-      install(
-        PROGRAMS $<TARGET_FILE:extern_draco>
-        DESTINATION ${CMAKE_BINARY_DIR}/bin/bpy/lib
-      )
-    else()
-      install(
-        PROGRAMS $<TARGET_FILE:extern_draco>
-        DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
-      )
-    endif()
-  endif()
-
   if(WITH_PYTHON_MODULE AND TARGETDIR_BPY)
     install(
       TARGETS blender
@@ -1652,18 +1633,18 @@ elseif(APPLE)
 
   install(
     FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
-    DESTINATION "./Blender.app/Contents"
+    DESTINATION "Blender.app/Contents"
   )
 
   install_dir(
     ${OSX_APP_SOURCEDIR}/Contents/Resources
-    "./Blender.app/Contents"
+    "Blender.app/Contents"
   )
 
   if(WITH_BLENDER_THUMBNAILER)
     install(
       TARGETS blender-thumbnailer
-      DESTINATION "./Blender.app/Contents/MacOS"
+      DESTINATION "Blender.app/Contents/MacOS"
     )
   endif()
 
@@ -1722,23 +1703,10 @@ elseif(APPLE)
     unset(PYTHON_EXECUTABLE_NAME_ONLY)
     install(
       PROGRAMS ${CMAKE_BINARY_DIR}/release/darwin/scripts/blender-system-info.sh
-      DESTINATION "./Blender.app/Contents/Resources"
+      DESTINATION "Blender.app/Contents/Resources"
     )
   endif()
 
-  if(WITH_DRACO)
-    if(WITH_PYTHON_MODULE)
-      install(
-        PROGRAMS $<TARGET_FILE:extern_draco>
-        DESTINATION ${CMAKE_BINARY_DIR}/bin/bpy/lib
-      )
-    else()
-      install(
-        PROGRAMS $<TARGET_FILE:extern_draco>
-        DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
-      )
-    endif()
-  endif()
 endif()
 
 # -----------------------------------------------------------------------------

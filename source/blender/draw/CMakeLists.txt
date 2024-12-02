@@ -162,39 +162,11 @@ set(SRC
   engines/select/select_draw_utils.cc
   engines/select/select_engine.cc
   engines/select/select_instance.cc
-  engines/overlay/overlay_antialiasing.cc
   engines/overlay/overlay_armature.cc
-  engines/overlay/overlay_background.cc
-  engines/overlay/overlay_edit_curve.cc
-  engines/overlay/overlay_edit_curves.cc
-  engines/overlay/overlay_edit_mesh.cc
-  engines/overlay/overlay_edit_text.cc
-  engines/overlay/overlay_edit_uv.cc
-  engines/overlay/overlay_engine.cc
-  engines/overlay/overlay_extra.cc
-  engines/overlay/overlay_facing.cc
-  engines/overlay/overlay_fade.cc
-  engines/overlay/overlay_grease_pencil.cc
-  engines/overlay/overlay_grid.cc
-  engines/overlay/overlay_image.cc
-  engines/overlay/overlay_lattice.cc
-  engines/overlay/overlay_metaball.cc
-  engines/overlay/overlay_mode_transfer.cc
-  engines/overlay/overlay_motion_path.cc
   engines/overlay/overlay_next_engine.cc
   engines/overlay/overlay_next_instance.cc
   engines/overlay/overlay_next_shader.cc
   engines/overlay/overlay_next_shape.cc
-  engines/overlay/overlay_outline.cc
-  engines/overlay/overlay_paint.cc
-  engines/overlay/overlay_particle.cc
-  engines/overlay/overlay_sculpt.cc
-  engines/overlay/overlay_sculpt_curves.cc
-  engines/overlay/overlay_shader.cc
-  engines/overlay/overlay_viewer_attribute.cc
-  engines/overlay/overlay_viewer_text.cc
-  engines/overlay/overlay_volume.cc
-  engines/overlay/overlay_wireframe.cc
 
   DRW_engine.hh
   DRW_pbvh.hh
@@ -280,6 +252,7 @@ set(SRC
   engines/image/image_state.hh
   engines/image/image_partial_updater.hh
   engines/image/image_private.hh
+  engines/image/image_shader.hh
   engines/image/image_shader_params.hh
   engines/image/image_space.hh
   engines/image/image_space_image.hh
@@ -354,7 +327,12 @@ set(LIB
 set(GLSL_SRC
   engines/eevee_next/shaders/eevee_ambient_occlusion_lib.glsl
   engines/eevee_next/shaders/eevee_ambient_occlusion_pass_comp.glsl
-  engines/eevee_next/shaders/eevee_attributes_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_curves_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_gpencil_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_mesh_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_point_cloud_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_volume_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_world_lib.glsl
   engines/eevee_next/shaders/eevee_bxdf_lib.glsl
   engines/eevee_next/shaders/eevee_bxdf_microfacet_lib.glsl
   engines/eevee_next/shaders/eevee_bxdf_diffuse_lib.glsl
@@ -597,6 +575,7 @@ set(GLSL_SRC
   intern/shaders/draw_command_generate_comp.glsl
   intern/shaders/draw_debug_draw_display_frag.glsl
   intern/shaders/draw_debug_draw_display_vert.glsl
+  intern/shaders/draw_grease_pencil_lib.glsl
   intern/shaders/draw_intersect_lib.glsl
   intern/shaders/draw_math_geom_lib.glsl
   intern/shaders/draw_model_lib.glsl
