@@ -315,7 +315,7 @@ static bool ActionMatchesName(bAction *action, char *name, eActionType type)
       if (strip->type() != Strip::Type::Keyframe) {
         continue;
       }
-      for (ChannelBag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
+      for (Channelbag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
         for (FCurve *fcu : bag->fcurves()) {
           if (fcu->rna_path) {
             char pattern[256];

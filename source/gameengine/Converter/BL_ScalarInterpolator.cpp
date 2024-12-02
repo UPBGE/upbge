@@ -71,7 +71,7 @@ BL_InterpolatorList::BL_InterpolatorList(bAction *action) : m_action(action)
       if (strip->type() != Strip::Type::Keyframe) {
         continue;
       }
-      for (ChannelBag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
+      for (Channelbag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
         for (FCurve *fcu : bag->fcurves()) {
           m_interpolators.emplace_back(fcu);
         }
