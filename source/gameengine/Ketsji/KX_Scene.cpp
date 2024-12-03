@@ -803,6 +803,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
+        region->runtime->visible = true;
         ED_region_tag_redraw(region);
         scene->flag |= SCE_IS_BLENDERPLAYER;
         region->winrct = window;
