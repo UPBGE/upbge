@@ -5322,6 +5322,18 @@ static bool match_region_with_redraws(const ScrArea *area,
         break;
     }
   }
+  else if (regiontype == RGN_TYPE_TOOLS) {
+    switch (spacetype) {
+      case SPACE_SPREADSHEET:
+        if (redraws & TIME_SPREADSHEETS) {
+          return true;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   return false;
 }
 
@@ -5385,7 +5397,7 @@ static void screen_animation_region_tag_redraw(
   ED_region_tag_redraw(region);
 }
 
-// #define PROFILE_AUDIO_SYNCH
+// #define PROFILE_AUDIO_SYNC
 
 static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
@@ -5398,7 +5410,7 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
 
   wmWindow *win = CTX_wm_window(C);
 
-#ifdef PROFILE_AUDIO_SYNCH
+#ifdef PROFILE_AUDIO_SYNC
   static int old_frame = 0;
   int newfra_int;
 #endif
@@ -5434,23 +5446,15 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
   else if ((scene->audio.flag & AUDIO_SYNC) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
            isfinite(time = BKE_sound_sync_scene(scene_eval)))
   {
-    double newfra = time * FPS;
+    scene->r.cfra = round(time * FPS);
 
-    /* give some space here to avoid jumps */
-    if (newfra + 0.5 > scene->r.cfra && newfra - 0.5 < scene->r.cfra) {
-      scene->r.cfra++;
-    }
-    else {
-      scene->r.cfra = max_ii(scene->r.cfra, round(newfra));
-    }
-
-#ifdef PROFILE_AUDIO_SYNCH
+#ifdef PROFILE_AUDIO_SYNC
     newfra_int = scene->r.cfra;
     if (newfra_int < old_frame) {
-      printf("back jump detected, frame %d!\n", newfra_int);
+      printf("back -%d jump detected, frame %d!\n", old_frame - newfra_int, old_frame);
     }
     else if (newfra_int > old_frame + 1) {
-      printf("forward jump detected, frame %d!\n", newfra_int);
+      printf("forward +%d jump detected, frame %d!\n", newfra_int - old_frame, old_frame);
     }
     fflush(stdout);
     old_frame = newfra_int;
@@ -5544,7 +5548,7 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
 
   if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
     DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
-#ifdef PROFILE_AUDIO_SYNCH
+#ifdef PROFILE_AUDIO_SYNC
     old_frame = scene->r.cfra;
 #endif
   }
@@ -5616,6 +5620,42 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
  *
  * Animation Playback with Timer.
  * \{ */
+
+void ED_reset_audio_device(bContext *C)
+{
+  /* If sound was playing back when we changed any sound settings, we need to make sure that
+   * we reinitalize the playback state properly. Audaspace pauses playback on re-initializing
+   * the playback device, so we need to make sure we re-initalize the playback state on our
+   * end as well. (Otherwise the sound device might be in a weird state and crashes Blender)
+   */
+  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
+  wmWindow *timer_win = nullptr;
+  const bool is_playing = screen != nullptr;
+  bool playback_sync = false;
+  int play_direction = 0;
+
+  if (is_playing) {
+    ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+    timer_win = screen->animtimer->win;
+    /* -1 means play backwards. */
+    play_direction = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? -1 : 1;
+    playback_sync = sad->flag & ANIMPLAY_FLAG_SYNC;
+    /* Stop playback. */
+    ED_screen_animation_play(C, 0, 0);
+  }
+  Main *bmain = CTX_data_main(C);
+  /* Re-initalize the audio device. */
+  BKE_sound_init(bmain);
+  if (is_playing) {
+    /* We need to set the context window to the window that was playing back previously.
+     * Otherwise we will attach the new playback timer to an other window.
+     */
+    wmWindow *win = CTX_wm_window(C);
+    CTX_wm_window_set(C, timer_win);
+    ED_screen_animation_play(C, playback_sync, play_direction);
+    CTX_wm_window_set(C, win);
+  }
+}
 
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 {

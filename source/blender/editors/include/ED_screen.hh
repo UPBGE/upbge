@@ -208,6 +208,10 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco);
 
 /* areas */
 /**
+ * Ensure #ScrArea.type and #ARegion.type are set and valid.
+ */
+void ED_area_and_region_types_init(ScrArea *area);
+/**
  * Called in screen_refresh, or screens_init, also area size changes.
  */
 void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area);
@@ -507,6 +511,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
 /**
  * Toggle operator.
  */
+void ED_reset_audio_device(bContext *C);
 int ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.

@@ -673,7 +673,11 @@ static bool region_poll(const bContext *C,
                         const ScrArea *area,
                         const ARegion *region)
 {
-  if (!region->runtime->type || !region->runtime->type->poll) {
+  if (!region->runtime->type) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  if (!region->runtime->type->poll) {
     /* Show region by default. */
     return true;
   }
@@ -744,17 +748,17 @@ static void screen_refresh(bContext *C,
   bScreen *screen = WM_window_get_active_screen(win);
   bool do_refresh = screen->do_refresh;
 
-  /* Returns true if a change was done that requires refreshing. */
-  if (screen_regions_poll(C, win, screen)) {
-    do_refresh = true;
-  }
-
-  if (!force_full_refresh && !do_refresh) {
-    return;
-  }
-
   /* Exception for background mode, we only need the screen context. */
   if (!G.background) {
+
+    /* Returns true if a change was done that requires refreshing. */
+    if (screen_regions_poll(C, win, screen)) {
+      do_refresh = true;
+    }
+
+    if (!force_full_refresh && !do_refresh) {
+      return;
+    }
 
     /* Called even when creating the ghost window fails in #WM_window_open. */
     if (win->ghostwin) {
@@ -799,6 +803,16 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
     if (BKE_workspace_active_get(win->workspace_hook) == nullptr) {
       BKE_workspace_active_set(win->workspace_hook,
                                static_cast<WorkSpace *>(bmain->workspaces.first));
+    }
+
+    if (!G.background) {
+      const bScreen *screen = WM_window_get_active_screen(win);
+      ED_screen_areas_iter (win, screen, area) {
+        /* Set area and region types early so areas and regions are in a usable state. This may be
+         * needed by further (re-)initialization logic, specifically region polling needs it early
+         * on (see #130583). */
+        ED_area_and_region_types_init(area);
+      }
     }
 
     ED_screen_refresh(C, wm, win);
@@ -1815,9 +1829,6 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
     sad->from_anim_edit = ELEM(spacetype, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA);
 
     screen->animtimer->customdata = sad;
-
-    /* Seek audio to ensure playback in preview range with AV sync. */
-    DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   }
 
   /* Notifier caught by top header, for button. */

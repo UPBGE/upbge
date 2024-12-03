@@ -917,6 +917,20 @@ void BKE_sound_play_scene(Scene *scene)
 
   AUD_Device_lock(sound_device);
 
+  if (scene->sound_scrub_handle &&
+      AUD_Handle_getStatus(scene->sound_scrub_handle) != AUD_STATUS_INVALID)
+  {
+    /* If the audio scrub handle is playbing back, stop to make sure it is not active.
+     * Otherwise, it will trigger a callback that will stop audio playback.
+     */
+    AUD_Handle_stop(scene->sound_scrub_handle);
+    scene->sound_scrub_handle = nullptr;
+    /* The scrub_handle started playback with playback_handle, stop it so we can
+     * properly restart it.
+     */
+    AUD_Handle_pause(scene->playback_handle);
+  }
+
   status = scene->playback_handle ? AUD_Handle_getStatus(scene->playback_handle) :
                                     AUD_STATUS_INVALID;
 
@@ -930,7 +944,11 @@ void BKE_sound_play_scene(Scene *scene)
   }
 
   if (status != AUD_STATUS_PLAYING) {
-    AUD_Handle_setPosition(scene->playback_handle, cur_time);
+    /* Seeking the synchronizer will also seek the playback handle.
+     * Even if we don't have A/V sync on, keep the synchronizer and handle
+     * seek time in sync.
+     */
+    AUD_seekSynchronizer(scene->playback_handle, cur_time);
     AUD_Handle_resume(scene->playback_handle);
   }
 
@@ -991,10 +1009,8 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
   }
 
   if (scene->audio.flag & AUDIO_SCRUB && !animation_playing) {
+    /* Playback one frame of audio without advancing the timeline. */
     AUD_Handle_setPosition(scene->playback_handle, cur_time);
-    if (scene->audio.flag & AUDIO_SYNC) {
-      AUD_seekSynchronizer(scene->playback_handle, cur_time);
-    }
     AUD_Handle_resume(scene->playback_handle);
     if (scene->sound_scrub_handle &&
         AUD_Handle_getStatus(scene->sound_scrub_handle) != AUD_STATUS_INVALID)
@@ -1008,15 +1024,12 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
       scene->sound_scrub_handle = AUD_pauseAfter(scene->playback_handle, one_frame);
     }
   }
-  else {
-    if (scene->audio.flag & AUDIO_SYNC) {
-      AUD_seekSynchronizer(scene->playback_handle, cur_time);
-    }
-    else {
-      if (status == AUD_STATUS_PLAYING) {
-        AUD_Handle_setPosition(scene->playback_handle, cur_time);
-      }
-    }
+  else if (status == AUD_STATUS_PLAYING) {
+    /* Seeking the synchronizer will also seek the playback handle.
+     * Even if we don't have A/V sync on, keep the synchronizer and handle
+     * seek time in sync.
+     */
+    AUD_seekSynchronizer(scene->playback_handle, cur_time);
   }
 
   AUD_Device_unlock(sound_device);
