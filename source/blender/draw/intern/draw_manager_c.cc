@@ -3785,7 +3785,7 @@ void DRW_game_render_loop(bContext *C,
 
   DRW_state_reset();
 
-  DRW_curves_update();
+  DRW_curves_update(*DRW_manager_get());
 
   drw_engines_draw_scene();
 
