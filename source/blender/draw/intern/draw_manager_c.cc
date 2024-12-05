@@ -2658,7 +2658,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_overlay,
                          const bool use_only_selected)
 {
   using namespace blender::draw;
@@ -2690,9 +2689,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   if (use_gpencil) {
     use_drw_engine(&draw_engine_gpencil_type);
   }
-  if (use_overlay) {
-    drw_engines_enable_overlays();
-  }
+  drw_engines_enable_overlays();
 
   drw_task_graph_init();
 

@@ -4327,7 +4327,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
   }
 
   {
-    BVHTreeFromMesh treeData = {nullptr};
     float avg_brushNor[3] = {0.0f};
     const float brush_radius = brush->paint_distance * surface->radius_scale;
     int numOfVerts;
@@ -4371,7 +4370,8 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     /* check bounding box collision */
     if (grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush, brush_radius)) {
       /* Build a bvh tree from transformed vertices */
-      if (BKE_bvhtree_from_mesh_get(&treeData, mesh, BVHTREE_FROM_CORNER_TRIS, 4)) {
+      BVHTreeFromMesh treeData = mesh->bvh_corner_tris();
+      if (treeData.tree != nullptr) {
         int c_index;
         int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];
 
@@ -4412,8 +4412,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         }
       }
     }
-    /* free bvh tree */
-    free_bvhtree_from_mesh(&treeData);
     BKE_id_free(nullptr, mesh);
   }
 
