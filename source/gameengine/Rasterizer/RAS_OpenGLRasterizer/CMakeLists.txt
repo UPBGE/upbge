@@ -37,8 +37,8 @@ set(INC
   ../../../blender/blenkernel
   ../../../blender/blentranslation
   ../../../blender/bmesh
+  ../../../blender/draw
   ../../../blender/draw/intern
-  ../../../blender/draw/engines/eevee/
   ../../../blender/gpu
   ../../../blender/makesrna
   ../../../blender/render

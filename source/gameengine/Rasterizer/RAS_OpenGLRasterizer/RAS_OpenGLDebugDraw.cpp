@@ -27,6 +27,7 @@
 #include "RAS_DebugDraw.h"
 
 #include "BLF_api.hh"
+#include "../draw/intern/draw_command.hh"
 #include "DRW_render.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -125,7 +126,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     /* Restore default states + depth always (default bge depth test)
      * (Post processing draw callbacks can have modify gpu states) */
-    DRW_state_reset();
+    blender::draw::command::StateSet::set();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
 
     /* The Performances profiler */

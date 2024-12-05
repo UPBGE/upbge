@@ -167,7 +167,7 @@ void Camera::sync()
     }
 
     if (inst_.scene->flag & SCE_INTERACTIVE) { // tmp fix for game render loop view UPBGE (no support for overscan)
-      DRW_view_winmat_get(inst_.drw_view, data.winmat.ptr(), false);
+      data.winmat = inst_.drw_view->winmat();
     }
   }
   else if (inst_.render) {

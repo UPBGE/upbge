@@ -3622,8 +3622,6 @@ void DRW_game_render_loop(bContext *C,
   /* Resize viewport if needed and set active view */
   GPU_viewport_bind(viewport, 0, window);
 
-  DRW_view_set_active(NULL);
-
   DST.draw_ctx.region = ar;
   DST.draw_ctx.v3d = v3d;
   DST.draw_ctx.rv3d = rv3d;
@@ -3729,12 +3727,11 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_cache_finish();
 
   drw_task_graph_deinit();
-  DRW_render_instance_buffer_finish();
 
   GPU_framebuffer_bind(DST.default_framebuffer);
   GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
-  DRW_state_reset();
+  blender::draw::command::StateSet::set();
 
   DRW_curves_update(*DRW_manager_get());
 
@@ -3750,7 +3747,7 @@ void DRW_game_render_loop(bContext *C,
 
   DRW_smoke_exit(DST.vmempool);
 
-  DRW_state_reset();
+  blender::draw::command::StateSet::set();
 
   drw_engines_disable();
 
@@ -3814,7 +3811,7 @@ void DRW_gpu_context_create_blenderplayer(void *ghost_system)
  */
 void DRW_transform_to_display_image_render(GPUTexture *tex)
 {
-  drw_state_set(DRW_STATE_WRITE_COLOR);
+  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -3856,7 +3853,7 @@ void DRW_transform_to_display(GPUViewport *viewport,
                               Scene *scene,
                               rcti *rect)
 {
-  drw_state_set(DRW_STATE_WRITE_COLOR);
+  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 
   bool use_scene_lights = (!v3d ||
                            ((v3d->shading.type == OB_MATERIAL) &&

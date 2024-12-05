@@ -39,6 +39,7 @@
 #include <boost/format.hpp>
 
 #include "BLI_rect.h"
+#include "../draw/intern/draw_command.hh"
 #include "DRW_render.hh"
 #include "GPU_context.hh"
 #include "GPU_immediate.hh"
@@ -807,7 +808,7 @@ void KX_KetsjiEngine::Render()
     ARegion *region = CTX_wm_region(m_context);
     wmWindowViewport(CTX_wm_window(m_context));
 
-    DRW_state_reset();
+    blender::draw::command::StateSet::set();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
 
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
