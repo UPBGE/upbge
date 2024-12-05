@@ -40,6 +40,7 @@ struct CurvesUniformBufPool;
 struct DRW_Attributes;
 struct DRW_MeshCDMask;
 class CurveRefinePass;
+class View;
 }  // namespace blender::draw
 struct GPUMaterial;
 
@@ -194,136 +195,6 @@ struct DRWObjectInfos {
 BLI_STATIC_ASSERT_ALIGN(DRWObjectMatrix, 16)
 BLI_STATIC_ASSERT_ALIGN(DRWObjectInfos, 16)
 
-typedef enum {
-  /* Draw Commands */
-  DRW_CMD_DRAW = 0, /* Only sortable type. Must be 0. */
-  DRW_CMD_DRAW_RANGE = 1,
-  DRW_CMD_DRAW_INSTANCE = 2,
-  DRW_CMD_DRAW_INSTANCE_RANGE = 3,
-  DRW_CMD_DRAW_PROCEDURAL = 4,
-  DRW_CMD_DRAW_INDIRECT = 5,
-
-  /* Compute Commands. */
-  DRW_CMD_COMPUTE = 8,
-  DRW_CMD_COMPUTE_REF = 9,
-  DRW_CMD_COMPUTE_INDIRECT = 10,
-
-  /* Other Commands */
-  DRW_CMD_BARRIER = 11,
-  DRW_CMD_CLEAR = 12,
-  DRW_CMD_DRWSTATE = 13,
-  DRW_CMD_STENCIL = 14,
-  DRW_CMD_SELECTID = 15,
-  /* Needs to fit in 4bits */
-} eDRWCommandType;
-
-#define DRW_MAX_DRAW_CMD_TYPE DRW_CMD_DRAW_INDIRECT
-
-struct DRWCommandDraw {
-  blender::gpu::Batch *batch;
-  DRWResourceHandle handle;
-};
-
-/* Assume DRWResourceHandle to be 0. */
-struct DRWCommandDrawRange {
-  blender::gpu::Batch *batch;
-  DRWResourceHandle handle;
-  uint vert_first;
-  uint vert_count;
-};
-
-struct DRWCommandDrawInstance {
-  blender::gpu::Batch *batch;
-  DRWResourceHandle handle;
-  uint inst_count;
-  uint use_attrs; /* bool */
-};
-
-struct DRWCommandDrawInstanceRange {
-  blender::gpu::Batch *batch;
-  DRWResourceHandle handle;
-  uint inst_first;
-  uint inst_count;
-};
-
-struct DRWCommandDrawIndirect {
-  blender::gpu::Batch *batch;
-  DRWResourceHandle handle;
-  GPUStorageBuf *indirect_buf;
-};
-
-struct DRWCommandCompute {
-  int groups_x_len;
-  int groups_y_len;
-  int groups_z_len;
-};
-
-struct DRWCommandComputeRef {
-  int *groups_ref;
-};
-
-struct DRWCommandComputeIndirect {
-  GPUStorageBuf *indirect_buf;
-};
-
-struct DRWCommandBarrier {
-  eGPUBarrier type;
-};
-
-struct DRWCommandDrawProcedural {
-  blender::gpu::Batch *batch;
-  DRWResourceHandle handle;
-  uint vert_count;
-};
-
-struct DRWCommandSetMutableState {
-  /** State changes (or'd or and'd with the pass's state) */
-  DRWState enable;
-  DRWState disable;
-};
-
-struct DRWCommandSetStencil {
-  uint write_mask;
-  uint comp_mask;
-  uint ref;
-};
-
-struct DRWCommandSetSelectID {
-  blender::gpu::VertBuf *select_buf;
-  uint select_id;
-};
-
-struct DRWCommandClear {
-  eGPUFrameBufferBits clear_channels;
-  uchar r, g, b, a; /* [0..1] for each channels. Normalized. */
-  float depth;      /* [0..1] for depth. Normalized. */
-  uchar stencil;    /* Stencil value [0..255] */
-};
-
-union DRWCommand {
-  DRWCommandDraw draw;
-  DRWCommandDrawRange range;
-  DRWCommandDrawInstance instance;
-  DRWCommandDrawInstanceRange instance_range;
-  DRWCommandDrawProcedural procedural;
-  DRWCommandDrawIndirect draw_indirect;
-  DRWCommandCompute compute;
-  DRWCommandComputeRef compute_ref;
-  DRWCommandComputeIndirect compute_indirect;
-  DRWCommandBarrier barrier;
-  DRWCommandSetMutableState state;
-  DRWCommandSetStencil stencil;
-  DRWCommandSetSelectID select_id;
-  DRWCommandClear clear;
-};
-
-/** Used for aggregating calls into #blender::gpu::VertBuf's. */
-struct DRWCallBuffer {
-  blender::gpu::VertBuf *buf;
-  blender::gpu::VertBuf *buf_select;
-  int count;
-};
-
 /** Used by #DRWUniform.type */
 /* TODO(@jbakker): rename to DRW_RESOURCE/DRWResourceType. */
 typedef enum {
@@ -449,42 +320,6 @@ struct DRWPass {
   char name[MAX_PASS_NAME];
 };
 
-#define MAX_CULLED_VIEWS 32
-
-struct DRWView {
-  /**
-   * These float4x4 (as well as the ViewMatrices) have alignment requirements in C++
-   * (see math::MatBase) that isn't fulfilled in C. So they need to be manually aligned.
-   * Since the DRWView are allocated using BLI_memblock, the chunks are given to be 16 bytes
-   * aligned (equal to the alignment of float4x4). We then assert that the DRWView itself is 16
-   * bytes aligned.
-   */
-  float4x4 persmat;
-  float4x4 persinv;
-  ViewMatrices storage;
-
-  /** Parent view if this is a sub view. nullptr otherwise. */
-  DRWView *parent;
-
-  float4 clip_planes[6];
-
-  /** Number of active clip planes. */
-  int clip_planes_len;
-  /** Does culling result needs to be updated. */
-  bool is_dirty;
-  /** Does facing needs to be reversed? */
-  bool is_inverted;
-  /** Culling */
-  uint32_t culling_mask;
-  BoundBox frustum_corners;
-  BoundSphere frustum_bsphere;
-  float frustum_planes[6][4];
-  /** Custom visibility function. */
-  void *user_data;
-};
-/* Needed to assert that alignment is the same in C++ and C. */
-BLI_STATIC_ASSERT_ALIGN(DRWView, 16);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -512,8 +347,6 @@ struct DRWCommandChunk {
   /* 4bits for each command. */
   uint64_t command_type[6];
   /* -- 64 bytes aligned -- */
-  DRWCommand commands[96];
-  /* -- 64 bytes aligned -- */
 };
 
 struct DRWCommandSmallChunk {
@@ -523,7 +356,6 @@ struct DRWCommandSmallChunk {
   /* 4bits for each command. */
   /* TODO: reduce size of command_type. */
   uint64_t command_type[6];
-  DRWCommand commands[6];
 };
 
 /* Only true for 64-bit platforms. */
@@ -544,13 +376,11 @@ struct DRWData {
   /** Memory-pools for draw-calls. */
   BLI_memblock *commands;
   BLI_memblock *commands_small;
-  BLI_memblock *callbuffers;
   BLI_memblock *obmats;
   BLI_memblock *obinfos;
   BLI_memblock *cullstates;
   BLI_memblock *shgroups;
   BLI_memblock *uniforms;
-  BLI_memblock *views;
   BLI_memblock *passes;
   BLI_memblock *images;
   GPUUniformBuf **matrices_ubo;
@@ -576,6 +406,7 @@ struct DRWData {
   /** Per draw-call curves object data. */
   blender::draw::CurvesUniformBufPool *curves_ubos;
   blender::draw::CurveRefinePass *curves_refine;
+  blender::draw::View *default_view;
 };
 
 /* ------------- DRAW DEBUG - UPBGE ------------ */
@@ -660,10 +491,6 @@ struct DRWManager {
   GPUShader *shader;
   blender::gpu::Batch *batch;
 
-  /* Managed by `DRW_state_set`, `DRW_state_reset` */
-  DRWState state;
-  DRWState state_lock;
-
   /* Per viewport */
   GPUViewport *viewport;
   GPUFrameBuffer *default_framebuffer;
@@ -687,14 +514,9 @@ struct DRWManager {
   /* Convenience pointer to text_store owned by the viewport */
   DRWTextStore **text_store_p;
 
-  bool buffer_finish_called; /* Avoid bad usage of DRW_render_instance_buffer_finish */
-
   /** True, when drawing is in progress, see #DRW_draw_in_progress. */
   bool in_progress;
 
-  DRWView *view_default;
-  DRWView *view_active;
-  DRWView *view_previous;
   uint primary_view_num;
 
 #ifdef USE_GPU_SELECT
@@ -732,14 +554,10 @@ extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded renderi
 
 void drw_texture_set_parameters(GPUTexture *tex, DRWTextureFlag flags);
 
-void drw_state_set(DRWState state);
-
 void drw_debug_draw();
 void drw_debug_init();
 void drw_debug_module_free(DRWDebugModule *module);
 GPUStorageBuf *drw_debug_gpu_draw_buf_get();
-
-eDRWCommandType command_type_get(const uint64_t *command_type_bits, int index);
 
 void drw_batch_cache_validate(Object *ob);
 void drw_batch_cache_generate_requested(Object *ob);

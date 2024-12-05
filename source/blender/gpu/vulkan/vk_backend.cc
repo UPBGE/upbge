@@ -145,6 +145,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (!extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+  if (!extensions.contains(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+  }
 
   return missing_capabilities;
 }
@@ -267,7 +270,9 @@ void VKBackend::platform_init()
   vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, vk_physical_devices.data());
   int index = 0;
   for (VkPhysicalDevice vk_physical_device : vk_physical_devices) {
-    if (missing_capabilities_get(vk_physical_device).is_empty()) {
+    if (missing_capabilities_get(vk_physical_device).is_empty() &&
+        GPU_vulkan_is_supported_driver(vk_physical_device))
+    {
       VkPhysicalDeviceProperties vk_properties = {};
       vkGetPhysicalDeviceProperties(vk_physical_device, &vk_properties);
       std::stringstream identifier;

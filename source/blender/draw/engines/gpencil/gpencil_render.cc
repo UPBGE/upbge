@@ -43,9 +43,8 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
 
   invert_m4_m4(viewmat, viewinv);
 
-  DRWView *view = DRW_view_create(viewmat, winmat, nullptr, nullptr);
-  DRW_view_default_set(view);
-  DRW_view_set_active(view);
+  blender::draw::View::default_set(float4x4(viewmat), float4x4(winmat));
+  blender::draw::View &view = blender::draw::View::default_get();
 
   /* Create depth texture & color texture from render result. */
   const char *viewname = RE_GetActiveRenderView(engine->re);
@@ -66,7 +65,7 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
 
     int pix_num = rpass_z_src->rectx * rpass_z_src->recty;
 
-    if (DRW_view_is_persp_get(view)) {
+    if (view.is_persp()) {
       for (int i = 0; i < pix_num; i++) {
         pix_z[i] = (-winmat[3][2] / -pix_z[i]) - winmat[2][2];
         pix_z[i] = clamp_f(pix_z[i] * 0.5f + 0.5f, 0.0f, 1.0f);
@@ -74,8 +73,8 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
     }
     else {
       /* Keep in mind, near and far distance are negatives. */
-      float near = DRW_view_near_distance_get(view);
-      float far = DRW_view_far_distance_get(view);
+      float near = view.near_clip();
+      float far = view.far_clip();
       float range_inv = 1.0f / fabsf(far - near);
       for (int i = 0; i < pix_num; i++) {
         pix_z[i] = (pix_z[i] + near) * range_inv;
@@ -178,13 +177,12 @@ static void GPENCIL_render_result_z(RenderLayer *rl,
                              GPU_DATA_FLOAT,
                              ro_buffer_data);
 
-  float winmat[4][4];
-  DRW_view_winmat_get(nullptr, winmat, false);
+  float4x4 winmat = blender::draw::View::default_get().winmat();
 
   int pix_num = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
 
   /* Convert GPU depth [0..1] to view Z [near..far] */
-  if (DRW_view_is_persp_get(nullptr)) {
+  if (blender::draw::View::default_get().is_persp()) {
     for (int i = 0; i < pix_num; i++) {
       if (ro_buffer_data[i] == 1.0f) {
         ro_buffer_data[i] = 1e10f; /* Background */
@@ -197,8 +195,8 @@ static void GPENCIL_render_result_z(RenderLayer *rl,
   }
   else {
     /* Keep in mind, near and far distance are negatives. */
-    float near = DRW_view_near_distance_get(nullptr);
-    float far = DRW_view_far_distance_get(nullptr);
+    float near = blender::draw::View::default_get().near_clip();
+    float far = blender::draw::View::default_get().far_clip();
     float range = fabsf(far - near);
 
     for (int i = 0; i < pix_num; i++) {
@@ -253,8 +251,6 @@ void GPENCIL_render_to_image(void *ved,
   GPENCIL_cache_init(vedata);
   DRW_render_object_iter(vedata, engine, depsgraph, GPENCIL_render_cache);
   GPENCIL_cache_finish(vedata);
-
-  DRW_render_instance_buffer_finish();
 
   DRW_manager_get()->end_sync();
 

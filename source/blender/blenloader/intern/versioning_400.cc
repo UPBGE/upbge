@@ -109,13 +109,6 @@ static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
   }
 }
 
-struct ActionUserInfo {
-  ID *id;
-  blender::animrig::slot_handle_t *slot_handle;
-  bAction **action_ptr_ptr;
-  char *slot_name;
-};
-
 static void convert_action_in_place(blender::animrig::Action &action)
 {
   using namespace blender::animrig;
@@ -179,6 +172,14 @@ static void convert_action_in_place(blender::animrig::Action &action)
 static void version_legacy_actions_to_layered(Main *bmain)
 {
   using namespace blender::animrig;
+
+  struct ActionUserInfo {
+    ID *id;
+    slot_handle_t *slot_handle;
+    bAction **action_ptr_ptr;
+    char *slot_name;
+  };
+
   blender::Map<bAction *, blender::Vector<ActionUserInfo>> action_users;
   LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
     Action &action = dna_action->wrap();
@@ -188,54 +189,37 @@ static void version_legacy_actions_to_layered(Main *bmain)
     action_users.add(dna_action, {});
   }
 
+  auto callback = [&](ID &animated_id,
+                      bAction *&action_ptr_ref,
+                      slot_handle_t &slot_handle_ref,
+                      char *slot_name) -> bool {
+    blender::Vector<ActionUserInfo> *action_user_vector = action_users.lookup_ptr(action_ptr_ref);
+    /* Only actions that need to be converted are in this map. */
+    if (!action_user_vector) {
+      return true;
+    }
+    ActionUserInfo user_info;
+    user_info.id = &animated_id;
+    user_info.action_ptr_ptr = &action_ptr_ref;
+    user_info.slot_handle = &slot_handle_ref;
+    user_info.slot_name = slot_name;
+    action_user_vector->append(user_info);
+    return true;
+  };
+
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    auto callback = [&](ID &animated_id,
-                        bAction *&action_ptr_ref,
-                        slot_handle_t &slot_handle_ref,
-                        char *slot_name) -> bool {
-      blender::Vector<ActionUserInfo> *action_user_vector = action_users.lookup_ptr(
-          action_ptr_ref);
-      /* Only actions that need to be converted are in this map. */
-      if (!action_user_vector) {
-        return true;
-      }
-      ActionUserInfo user_info;
-      user_info.id = &animated_id;
-      user_info.action_ptr_ptr = &action_ptr_ref;
-      user_info.slot_handle = &slot_handle_ref;
-      user_info.slot_name = slot_name;
-      action_user_vector->append(user_info);
-      return true;
-    };
-
-    auto embedded_id_callback = [&](LibraryIDLinkCallbackData *cb_data) -> int {
-      ID *linked_id = *cb_data->id_pointer;
-
-      /* We only process embedded IDs with this callback. */
-      if (!linked_id || (linked_id->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
-        return IDWALK_RET_STOP_RECURSION;
-      }
-
-      foreach_action_slot_use_with_references(*linked_id, callback);
-
-      return IDWALK_RET_NOP;
-    };
-
-    /* Process the main ID itself. */
+    /* Process the ID itself. */
     foreach_action_slot_use_with_references(*id, callback);
 
     /* Process embedded IDs, as these are not listed in bmain, but still can
-     * have their own Action+Slot. */
-    BKE_library_foreach_ID_link(
-        bmain,
-        id,
-        embedded_id_callback,
-        nullptr,
-        IDWALK_RECURSE | IDWALK_READONLY |
-            /* This is more about "we don't care" than "must be ignored". We don't pass an owner
-             * ID, and it's not used in the callback either, so don't bother looking it up.  */
-            IDWALK_IGNORE_MISSING_OWNER_ID);
+     * have their own Action+Slot. Unfortunately there is no generic looper
+     * for embedded IDs. At this moment the only animatable embedded ID is a
+     * node tree. */
+    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    if (node_tree) {
+      foreach_action_slot_use_with_references(node_tree->id, callback);
+    }
   }
   FOREACH_MAIN_ID_END;
 
@@ -293,6 +277,19 @@ static void version_legacy_actions_to_layered(Main *bmain)
           break;
       }
     }
+  }
+}
+
+static void version_fcurve_noise_modifier(FCurve &fcurve)
+{
+  LISTBASE_FOREACH (FModifier *, fcurve_modifier, &fcurve.modifiers) {
+    if (fcurve_modifier->type != FMODIFIER_TYPE_NOISE) {
+      continue;
+    }
+    FMod_Noise *data = static_cast<FMod_Noise *>(fcurve_modifier->data);
+    data->lacunarity = 2.0f;
+    data->roughness = 0.5f;
+    data->legacy_noise = true;
   }
 }
 
@@ -5180,6 +5177,27 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         remove_triangulate_node_min_size_input(ntree);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 9)) {
+    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+      blender::animrig::Action &action = dna_action->wrap();
+      blender::animrig::foreach_fcurve_in_action(
+          action, [&](FCurve &fcurve) { version_fcurve_noise_modifier(fcurve); });
+    }
+
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      AnimData *adt = BKE_animdata_from_id(id);
+      if (!adt) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+        version_fcurve_noise_modifier(*fcu);
+      }
+    }
+    FOREACH_MAIN_ID_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to

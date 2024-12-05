@@ -76,15 +76,9 @@ namespace blender::draw {
 class TextureFromPool;
 }  // namespace blender::draw
 
-typedef struct DRWCallBuffer DRWCallBuffer;
-typedef struct DRWInterface DRWInterface;
 typedef struct DRWPass DRWPass;
-typedef struct DRWShaderLibrary DRWShaderLibrary;
 typedef struct DRWShadingGroup DRWShadingGroup;
 typedef struct DRWUniform DRWUniform;
-typedef struct DRWView DRWView;
-typedef struct DRWShaderLibrary DRWShaderLibrary;
-typedef struct GPUViewport GPUViewport;
 
 /* TODO: Put it somewhere else? */
 struct BoundSphere {
@@ -296,110 +290,6 @@ enum eDRWAttrType {
   DRW_ATTR_FLOAT,
 };
 
-/* Views. */
-
-/**
- * Create a view with culling.
- */
-DRWView *DRW_view_create(const float viewmat[4][4],
-                         const float winmat[4][4],
-                         const float (*culling_viewmat)[4],
-                         const float (*culling_winmat)[4]);
-/**
- * Create a view with culling done by another view.
- */
-DRWView *DRW_view_create_sub(const DRWView *parent_view,
-                             const float viewmat[4][4],
-                             const float winmat[4][4]);
-
-/**
- * Update matrices of a view created with #DRW_view_create.
- */
-void DRW_view_update(DRWView *view,
-                     const float viewmat[4][4],
-                     const float winmat[4][4],
-                     const float (*culling_viewmat)[4],
-                     const float (*culling_winmat)[4]);
-/**
- * Update matrices of a view created with #DRW_view_create_sub.
- */
-void DRW_view_update_sub(DRWView *view, const float viewmat[4][4], const float winmat[4][4]);
-
-/**
- * \return default view if it is a viewport render.
- */
-const DRWView *DRW_view_default_get();
-/**
- * MUST only be called once per render and only in render mode. Sets default view.
- */
-void DRW_view_default_set(const DRWView *view);
-/**
- * \warning Only use in render AND only if you are going to set view_default again.
- */
-void DRW_view_reset();
-/**
- * Set active view for rendering.
- */
-void DRW_view_set_active(const DRWView *view);
-const DRWView *DRW_view_get_active();
-
-/**
- * This only works if DRWPasses have been tagged with DRW_STATE_CLIP_PLANES,
- * and if the shaders have support for it (see usage of gl_ClipDistance).
- * \note planes must be in world space.
- */
-void DRW_view_clip_planes_set(DRWView *view, float (*planes)[4], int plane_len);
-
-/* For all getters, if view is nullptr, default view is assumed. */
-
-void DRW_view_winmat_get(const DRWView *view, float mat[4][4], bool inverse);
-void DRW_view_viewmat_get(const DRWView *view, float mat[4][4], bool inverse);
-void DRW_view_persmat_get(const DRWView *view, float mat[4][4], bool inverse);
-
-/**
- * \return world space frustum corners.
- */
-void DRW_view_frustum_corners_get(const DRWView *view, BoundBox *corners);
-/**
- * \return world space frustum sides as planes.
- * See #draw_frustum_culling_planes_calc() for the plane order.
- */
-std::array<float4, 6> DRW_view_frustum_planes_get(const DRWView *view);
-
-/**
- * These are in view-space, so negative if in perspective.
- * Extract near and far clip distance from the projection matrix.
- */
-float DRW_view_near_distance_get(const DRWView *view);
-float DRW_view_far_distance_get(const DRWView *view);
-bool DRW_view_is_persp_get(const DRWView *view);
-
-/* Culling, return true if object is inside view frustum. */
-
-/**
- * \return True if the given BoundSphere intersect the current view frustum.
- * bsphere must be in world space.
- */
-bool DRW_culling_sphere_test(const DRWView *view, const BoundSphere *bsphere);
-/**
- * \return True if the given BoundBox intersect the current view frustum.
- * bbox must be in world space.
- */
-bool DRW_culling_box_test(const DRWView *view, const BoundBox *bbox);
-/**
- * \return True if the view frustum is inside or intersect the given plane.
- * plane must be in world space.
- */
-bool DRW_culling_plane_test(const DRWView *view, const float plane[4]);
-/**
- * Return True if the given box intersect the current view frustum.
- * This function will have to be replaced when world space bounding-box per objects is implemented.
- */
-bool DRW_culling_min_max_test(const DRWView *view, float obmat[4][4], float min[3], float max[3]);
-
-void DRW_culling_frustum_corners_get(const DRWView *view, BoundBox *corners);
-void DRW_culling_frustum_planes_get(const DRWView *view, float planes[6][4]);
-
 /* Viewport. */
 
 const float *DRW_viewport_size_get();
@@ -420,10 +310,7 @@ void DRW_render_object_iter(
     RenderEngine *engine,
     Depsgraph *depsgraph,
     void (*callback)(void *vedata, Object *ob, RenderEngine *engine, Depsgraph *depsgraph));
-/**
- * Must run after all instance datas have been added.
- */
-void DRW_render_instance_buffer_finish();
+
 /**
  * \warning Changing frame might free the #ViewLayerEngineData.
  */
@@ -509,23 +396,6 @@ void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadin
 
 void DRW_draw_callbacks_pre_scene();
 void DRW_draw_callbacks_post_scene();
-
-/**
- * Reset state to not interfere with other UI draw-call.
- */
-void DRW_state_reset_ex(DRWState state);
-void DRW_state_reset();
-/**
- * Use with care, intended so selection code can override passes depth settings,
- * which is important for selection to work properly.
- *
- * Should be set in main draw loop, cleared afterwards
- */
-void DRW_state_lock(DRWState state);
-
-/* Selection. */
-
-void DRW_select_load_id(uint id);
 
 /* Draw State. */
 

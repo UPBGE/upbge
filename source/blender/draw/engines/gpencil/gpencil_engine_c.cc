@@ -173,8 +173,7 @@ void GPENCIL_engine_init(void *ved)
     gpencil_light_ambient_add(stl->pd->global_light_pool, world_light);
   }
 
-  float viewmatinv[4][4];
-  DRW_view_viewmat_get(nullptr, viewmatinv, true);
+  float4x4 viewmatinv = blender::draw::View::default_get().viewinv();
   copy_v3_v3(stl->pd->camera_z_axis, viewmatinv[2]);
   copy_v3_v3(stl->pd->camera_pos, viewmatinv[3]);
   stl->pd->camera_z_offset = dot_v3v3(viewmatinv[3], viewmatinv[2]);
@@ -911,8 +910,7 @@ void GPENCIL_draw_scene(void *ved)
     GPU_framebuffer_multi_clear(fbl->gpencil_fb, clear_cols);
   }
 
-  blender::draw::View &view = vedata->instance->view;
-  view.sync(DRW_view_get_active());
+  blender::draw::View &view = blender::draw::View::default_get();
 
   LISTBASE_FOREACH (GPENCIL_tObject *, ob, &pd->tobjects) {
     GPENCIL_draw_object(vedata, view, ob);

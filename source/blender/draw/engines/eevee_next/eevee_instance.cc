@@ -51,7 +51,7 @@ void Instance::init(const int2 &output_res,
                     Depsgraph *depsgraph_,
                     Object *camera_object_,
                     const RenderLayer *render_layer_,
-                    const DRWView *drw_view_,
+                    View *drw_view_,
                     const View3D *v3d_,
                     const RegionView3D *rv3d_)
 {
@@ -184,7 +184,7 @@ void Instance::view_update()
 /** \name Sync
  *
  * Sync will gather data from the scene that can change over a time step (i.e: motion steps).
- * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources (i.e: DRWView) as
+ * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources as
  * well as querying temp texture pool. All DRWPasses should be ready by the end end_sync().
  * \{ */
 
@@ -358,8 +358,6 @@ void Instance::render_sync()
   manager->end_sync();
 
   /* TODO: Remove old draw manager calls. */
-  DRW_render_instance_buffer_finish();
-
   DRW_curves_update(*manager);
 }
 
