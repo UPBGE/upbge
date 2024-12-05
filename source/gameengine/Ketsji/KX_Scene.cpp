@@ -487,6 +487,7 @@ void KX_Scene::ReinitBlenderContextVariables()
             region->runtime->type = art;
             region->regiontype = RGN_TYPE_WINDOW;
             win->scene = GetBlenderScene();
+            screen->active_region = region;
             return;
           }
         }

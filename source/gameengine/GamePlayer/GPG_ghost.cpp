@@ -69,6 +69,7 @@
 #include "BKE_tracking.h"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
+#include "BKE_workspace.hh"
 #include "BLF_api.hh"
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
@@ -1700,12 +1701,10 @@ int main(int argc,
               BLI_remlink(&wm->windows, win_in_list);
             }
 
-            /* The following is needed to run some bpy operators in blenderplayer */
-            ED_screen_refresh_blenderplayer(win);
-
             if (first_time_window) {
 #  ifdef WITH_PYTHON
               BPY_python_start(C, argc, (const char **)argv);
+              CTX_py_init_set(C, true);
 #  endif WITH_PYTHON
 
               /* We need to have first an ogl context bound and it's done
@@ -1723,6 +1722,37 @@ int main(int argc,
               shadingTypeRuntime = GetShadingTypeRuntime(C);
             }
             first_time_window = false;
+
+            WM_keyconfig_update_postpone_begin();
+
+            WM_keyconfig_init(C);
+
+            // wm_init_scripts_extensions_once(C);
+
+            WM_keyconfig_update_postpone_end();
+            WM_keyconfig_update(static_cast<wmWindowManager *>(G_MAIN->wm.first));
+
+            if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
+              ED_screens_init(C, G_MAIN, wm);
+              wm->init_flag |= WM_INIT_FLAG_WINDOW;
+            }
+            /* The following is needed to run some bpy operators in blenderplayer */
+            ED_screen_refresh_blenderplayer(win);
+
+            bScreen *screen = CTX_wm_screen(C);
+            WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
+            WM_window_set_active_screen(win, workspace, screen);
+
+            /* Make all ARegion invisible as we only want 3D view to be drawn - also, drawing everything
+               would need more code to be initialized */
+            ED_screen_areas_iter (win, screen, area_iter) {
+              LISTBASE_FOREACH (ARegion *, region, &area_iter->regionbase) {
+                region->runtime->visible = 0;
+              }
+            }
+
+            /* Drawing gizmos is not supported, then hide it */
+            CTX_wm_view3d(C)->gizmo_flag |= V3D_GIZMO_HIDE;
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,

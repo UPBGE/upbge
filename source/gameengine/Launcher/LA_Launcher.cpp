@@ -247,7 +247,6 @@ void LA_Launcher::InitEngine()
                   m_argv,
                   m_context,
                   &m_audioDeviceIsInitialized);
-  CTX_py_init_set(m_context, true);
 #endif  // WITH_PYTHON
 
   // Create a scene converter, create and convert the stratingscene.
