@@ -1739,8 +1739,6 @@ int main(int argc,
               ED_screens_init(C, G_MAIN, wm);
               wm->init_flag |= WM_INIT_FLAG_WINDOW;
             }
-            /* The following is needed to run some bpy operators in blenderplayer */
-            ED_screen_refresh_blenderplayer(win);
 
             WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
             WM_window_set_active_screen(win, workspace, screen);

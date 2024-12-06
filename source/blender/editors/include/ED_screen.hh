@@ -753,5 +753,4 @@ enum eScreenCycle {
 
 /* UPBGE */
 bool ED_operator_logic_active(bContext *C);
-void ED_screen_refresh_blenderplayer(wmWindow *win);
 /*********/

@@ -2019,25 +2019,3 @@ wmWindow *ED_screen_window_find(const bScreen *screen, const wmWindowManager *wm
   }
   return nullptr;
 }
-
-/* UPBGE: Simplified version of ED_screen_refresh.
- * It is used to set some SCREEN CONTEXT variables which are needed to run some
- * scripts using bpy operators from blenderplayer.
- */
-void ED_screen_refresh_blenderplayer(wmWindow *win)
-{
-  bScreen *screen = WM_window_get_active_screen(win);
-
-  WM_window_set_dpi(win);
-
-  ED_screen_global_areas_refresh(win);
-
-  screen_geom_vertices_scale(win, screen);
-
-  screen->do_refresh = false;
-  /* prevent multiwin errors */
-  screen->winid = win->winid;
-
-  screen->context = reinterpret_cast<void *>(ed_screen_context);
-}
-/******************************************************************************/
