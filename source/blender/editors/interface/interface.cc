@@ -72,6 +72,7 @@
 #include "interface_intern.hh"
 
 using blender::StringRef;
+using blender::StringRefNull;
 using blender::Vector;
 
 /* prototypes. */
@@ -491,8 +492,9 @@ static void ui_block_bounds_calc_centered(wmWindow *window, uiBlock *block)
   ui_block_bounds_calc(block);
 }
 
-static void ui_block_bounds_calc_post_centered(uiBlock *block, const blender::int2 &xy)
+static void ui_block_bounds_calc_post_centered(uiBlock *block)
 {
+  const blender::int2 xy(block->handle->region->winrct.xmin, block->handle->region->winrct.ymin);
   const int margin = int(12.0f * UI_SCALE_FAC);
   ui_block_bounds_calc(block);
   UI_block_translate(block, xy[0] - block->rect.xmin + margin, xy[1] - block->rect.ymin + margin);
@@ -1787,11 +1789,11 @@ void ui_but_extra_operator_icons_free(uiBut *but)
 }
 
 PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
-                                           const char *opname,
+                                           const StringRefNull opname,
                                            wmOperatorCallContext opcontext,
                                            int icon)
 {
-  wmOperatorType *optype = WM_operatortype_find(opname, false);
+  wmOperatorType *optype = WM_operatortype_find(opname.c_str(), false);
 
   if (optype) {
     return ui_but_extra_operator_icon_add_ptr(but, optype, opcontext, icon);
@@ -2127,7 +2129,7 @@ void UI_block_end_ex(const bContext *C,
         ui_block_bounds_calc_centered(window, block);
       }
       else {
-        ui_block_bounds_calc_post_centered(block, xy);
+        ui_block_bounds_calc_post_centered(block);
       }
       break;
     case UI_BLOCK_BOUNDS_PIE_CENTER:
@@ -4985,7 +4987,7 @@ static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
 static uiBut *ui_def_but_rna(uiBlock *block,
                              int type,
                              int retval,
-                             const char *str,
+                             std::optional<StringRefNull> str,
                              int x,
                              int y,
                              short width,
@@ -5027,7 +5029,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
       if (!str) {
         str = item[i].name;
 #ifdef WITH_INTERNATIONAL
-        str = CTX_IFACE_(RNA_property_translation_context(prop), str);
+        str = CTX_IFACE_(RNA_property_translation_context(prop), str->c_str());
 #endif
       }
 
@@ -5096,7 +5098,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
   }
 
   /* now create button */
-  uiBut *but = ui_def_but(block, type, retval, str, x, y, width, height, nullptr, min, max, tip);
+  uiBut *but = ui_def_but(block, type, retval, *str, x, y, width, height, nullptr, min, max, tip);
 
   if (but->type == UI_BTYPE_NUM) {
     /* Set default values, can be overridden later. */
@@ -5176,19 +5178,19 @@ static uiBut *ui_def_but_rna(uiBlock *block,
 static uiBut *ui_def_but_rna_propname(uiBlock *block,
                                       int type,
                                       int retval,
-                                      const char *str,
+                                      std::optional<StringRefNull> str,
                                       int x,
                                       int y,
                                       short width,
                                       short height,
                                       PointerRNA *ptr,
-                                      const char *propname,
+                                      const StringRefNull propname,
                                       int index,
                                       float min,
                                       float max,
                                       const char *tip)
 {
-  PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
   uiBut *but;
   if (prop) {
@@ -5654,13 +5656,13 @@ uiBut *uiDefButBitC(uiBlock *block,
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 const char *str,
+                 const std::optional<StringRefNull> str,
                  int x,
                  int y,
                  short width,
                  short height,
                  PointerRNA *ptr,
-                 const char *propname,
+                 const StringRefNull propname,
                  int index,
                  float min,
                  float max,
@@ -5674,7 +5676,7 @@ uiBut *uiDefButR(uiBlock *block,
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      const char *str,
+                      const std::optional<StringRefNull> str,
                       int x,
                       int y,
                       short width,
@@ -5709,20 +5711,20 @@ uiBut *uiDefButO_ptr(uiBlock *block,
 }
 uiBut *uiDefButO(uiBlock *block,
                  int type,
-                 const char *opname,
+                 const StringRefNull opname,
                  wmOperatorCallContext opcontext,
-                 const char *str,
+                 std::optional<StringRef> str,
                  int x,
                  int y,
                  short width,
                  short height,
                  const char *tip)
 {
-  wmOperatorType *ot = WM_operatortype_find(opname, false);
-  if (str == nullptr && ot == nullptr) {
+  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false);
+  if (!str && ot == nullptr) {
     str = opname;
   }
-  return uiDefButO_ptr(block, type, ot, opcontext, str, x, y, width, height, tip);
+  return uiDefButO_ptr(block, type, ot, opcontext, *str, x, y, width, height, tip);
 }
 
 uiBut *uiDefIconBut(uiBlock *block,
@@ -5919,7 +5921,7 @@ uiBut *uiDefIconButR(uiBlock *block,
                      short width,
                      short height,
                      PointerRNA *ptr,
-                     const char *propname,
+                     const StringRefNull propname,
                      int index,
                      float min,
                      float max,
@@ -5968,7 +5970,7 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
 }
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
-                     const char *opname,
+                     const StringRefNull opname,
                      wmOperatorCallContext opcontext,
                      int icon,
                      int x,
@@ -5977,7 +5979,7 @@ uiBut *uiDefIconButO(uiBlock *block,
                      short height,
                      const char *tip)
 {
-  wmOperatorType *ot = WM_operatortype_find(opname, false);
+  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false);
   return uiDefIconButO_ptr(block, type, ot, opcontext, icon, x, y, width, height, tip);
 }
 
@@ -6032,13 +6034,13 @@ uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
                          int icon,
-                         const char *str,
+                         const std::optional<StringRefNull> str,
                          int x,
                          int y,
                          short width,
                          short height,
                          PointerRNA *ptr,
-                         const char *propname,
+                         blender::StringRefNull propname,
                          int index,
                          float min,
                          float max,
@@ -6054,7 +6056,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              const char *str,
+                              const std::optional<blender::StringRefNull> str,
                               int x,
                               int y,
                               short width,
@@ -6091,7 +6093,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 }
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
-                         const char *opname,
+                         const StringRefNull opname,
                          wmOperatorCallContext opcontext,
                          int icon,
                          const StringRef str,
@@ -6101,7 +6103,7 @@ uiBut *uiDefIconTextButO(uiBlock *block,
                          short height,
                          const char *tip)
 {
-  wmOperatorType *ot = WM_operatortype_find(opname, false);
+  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false);
   if (str.is_empty()) {
     return uiDefIconButO_ptr(block, type, ot, opcontext, icon, x, y, width, height, tip);
   }
@@ -6286,19 +6288,25 @@ PointerRNA *UI_but_operator_ptr_ensure(uiBut *but)
   return but->opptr;
 }
 
-void UI_but_context_ptr_set(uiBlock *block, uiBut *but, const char *name, const PointerRNA *ptr)
+void UI_but_context_ptr_set(uiBlock *block,
+                            uiBut *but,
+                            const StringRef name,
+                            const PointerRNA *ptr)
 {
   bContextStore *ctx = CTX_store_add(block->contexts, name, ptr);
   ctx->used = true;
   but->context = ctx;
 }
 
-const PointerRNA *UI_but_context_ptr_get(const uiBut *but, const char *name, const StructRNA *type)
+const PointerRNA *UI_but_context_ptr_get(const uiBut *but,
+                                         const StringRef name,
+                                         const StructRNA *type)
 {
   return CTX_store_ptr_lookup(but->context, name, type);
 }
 
-std::optional<blender::StringRefNull> UI_but_context_string_get(const uiBut *but, const char *name)
+std::optional<blender::StringRefNull> UI_but_context_string_get(const uiBut *but,
+                                                                const StringRef name)
 {
   if (!but->context) {
     return {};

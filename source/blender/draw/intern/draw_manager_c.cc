@@ -338,31 +338,6 @@ static void drw_context_state_init()
   }
 }
 
-static void draw_unit_state_create()
-{
-  DRWObjectInfos *infos = static_cast<DRWObjectInfos *>(BLI_memblock_alloc(DST.vmempool->obinfos));
-  DRWObjectMatrix *mats = static_cast<DRWObjectMatrix *>(BLI_memblock_alloc(DST.vmempool->obmats));
-  DRWCullingState *culling = static_cast<DRWCullingState *>(
-      BLI_memblock_alloc(DST.vmempool->cullstates));
-
-  unit_m4(mats->model);
-  unit_m4(mats->modelinverse);
-
-  copy_v3_fl(infos->orcotexfac[0], 0.0f);
-  copy_v3_fl(infos->orcotexfac[1], 1.0f);
-
-  infos->ob_index = 0;
-  infos->ob_random = 0.0f;
-  infos->ob_flag = 1.0f;
-  copy_v3_fl(infos->ob_color, 1.0f);
-
-  /* TODO(fclem): get rid of this. */
-  culling->bsphere.radius = -1.0f;
-  culling->user_data = nullptr;
-
-  DRW_handle_increment(&DST.resource_handle);
-}
-
 DRWData *DRW_viewport_data_create()
 {
   DRWData *drw_data = static_cast<DRWData *>(MEM_callocN(sizeof(DRWData), "DRWData"));
@@ -370,31 +345,6 @@ DRWData *DRW_viewport_data_create()
   drw_data->texture_pool = DRW_texture_pool_create();
 
   drw_data->idatalist = DRW_instance_data_list_create();
-
-  drw_data->commands = BLI_memblock_create(sizeof(DRWCommandChunk));
-  drw_data->commands_small = BLI_memblock_create(sizeof(DRWCommandSmallChunk));
-  drw_data->shgroups = BLI_memblock_create(sizeof(DRWShadingGroup));
-  drw_data->uniforms = BLI_memblock_create(sizeof(DRWUniformChunk));
-  drw_data->images = BLI_memblock_create(sizeof(GPUTexture *));
-  drw_data->obattrs_ubo_pool = DRW_uniform_attrs_pool_new();
-  drw_data->vlattrs_name_cache = BLI_ghash_new(
-      BLI_ghashutil_inthash_p_simple, BLI_ghashutil_intcmp, "View Layer Attribute names");
-  {
-    uint chunk_len = sizeof(DRWObjectMatrix) * DRW_RESOURCE_CHUNK_LEN;
-    drw_data->obmats = BLI_memblock_create_ex(sizeof(DRWObjectMatrix), chunk_len);
-  }
-  {
-    uint chunk_len = sizeof(DRWObjectInfos) * DRW_RESOURCE_CHUNK_LEN;
-    drw_data->obinfos = BLI_memblock_create_ex(sizeof(DRWObjectInfos), chunk_len);
-  }
-  {
-    uint chunk_len = sizeof(DRWCullingState) * DRW_RESOURCE_CHUNK_LEN;
-    drw_data->cullstates = BLI_memblock_create_ex(sizeof(DRWCullingState), chunk_len);
-  }
-  {
-    uint chunk_len = sizeof(DRWPass) * DRW_RESOURCE_CHUNK_LEN;
-    drw_data->passes = BLI_memblock_create_ex(sizeof(DRWPass), chunk_len);
-  }
 
   drw_data->default_view = new blender::draw::View("DrawDefaultView");
 
@@ -404,47 +354,8 @@ DRWData *DRW_viewport_data_create()
   return drw_data;
 }
 
-/* Reduce ref count of the textures used by a viewport. */
-static void draw_texture_release(DRWData *drw_data)
-{
-  /* Release Image textures. */
-  BLI_memblock_iter iter;
-  GPUTexture **tex;
-  BLI_memblock_iternew(drw_data->images, &iter);
-  while ((tex = static_cast<GPUTexture **>(BLI_memblock_iterstep(&iter)))) {
-    GPU_texture_free(*tex);
-  }
-}
-
-static void draw_prune_vlattrs(DRWData *drw_data)
-{
-  drw_data->vlattrs_ubo_ready = false;
-
-  /* Forget known attributes after they are unused for a few frames. */
-  LISTBASE_FOREACH_MUTABLE (GPULayerAttr *, attr, &drw_data->vlattrs_name_list) {
-    if (++attr->users > 10) {
-      BLI_ghash_remove(
-          drw_data->vlattrs_name_cache, POINTER_FROM_UINT(attr->hash_code), nullptr, nullptr);
-      BLI_freelinkN(&drw_data->vlattrs_name_list, attr);
-    }
-  }
-}
-
 static void drw_viewport_data_reset(DRWData *drw_data)
 {
-  draw_texture_release(drw_data);
-  draw_prune_vlattrs(drw_data);
-
-  BLI_memblock_clear(drw_data->commands, nullptr);
-  BLI_memblock_clear(drw_data->commands_small, nullptr);
-  BLI_memblock_clear(drw_data->obmats, nullptr);
-  BLI_memblock_clear(drw_data->obinfos, nullptr);
-  BLI_memblock_clear(drw_data->cullstates, nullptr);
-  BLI_memblock_clear(drw_data->shgroups, nullptr);
-  BLI_memblock_clear(drw_data->uniforms, nullptr);
-  BLI_memblock_clear(drw_data->passes, nullptr);
-  BLI_memblock_clear(drw_data->images, nullptr);
-  DRW_uniform_attrs_pool_clear_all(drw_data->obattrs_ubo_pool);
   DRW_instance_data_list_free_unused(drw_data->idatalist);
   DRW_instance_data_list_resize(drw_data->idatalist);
   DRW_instance_data_list_reset(drw_data->idatalist);
@@ -453,36 +364,10 @@ static void drw_viewport_data_reset(DRWData *drw_data)
 
 void DRW_viewport_data_free(DRWData *drw_data)
 {
-  draw_texture_release(drw_data);
-
-  BLI_memblock_destroy(drw_data->commands, nullptr);
-  BLI_memblock_destroy(drw_data->commands_small, nullptr);
-  BLI_memblock_destroy(drw_data->obmats, nullptr);
-  BLI_memblock_destroy(drw_data->obinfos, nullptr);
-  BLI_memblock_destroy(drw_data->cullstates, nullptr);
-  BLI_memblock_destroy(drw_data->shgroups, nullptr);
-  BLI_memblock_destroy(drw_data->uniforms, nullptr);
-  BLI_memblock_destroy(drw_data->passes, nullptr);
-  BLI_memblock_destroy(drw_data->images, nullptr);
-  DRW_uniform_attrs_pool_free(drw_data->obattrs_ubo_pool);
-  BLI_ghash_free(drw_data->vlattrs_name_cache, nullptr, nullptr);
-  BLI_freelistN(&drw_data->vlattrs_name_list);
-  if (drw_data->vlattrs_ubo) {
-    GPU_uniformbuf_free(drw_data->vlattrs_ubo);
-    MEM_freeN(drw_data->vlattrs_buf);
-  }
   DRW_instance_data_list_free(drw_data->idatalist);
   DRW_texture_pool_free(drw_data->texture_pool);
   for (int i = 0; i < 2; i++) {
     DRW_view_data_free(drw_data->view_data[i]);
-  }
-  if (drw_data->matrices_ubo != nullptr) {
-    for (int i = 0; i < drw_data->ubo_len; i++) {
-      GPU_uniformbuf_free(drw_data->matrices_ubo[i]);
-      GPU_uniformbuf_free(drw_data->obinfos_ubo[i]);
-    }
-    MEM_freeN(drw_data->matrices_ubo);
-    MEM_freeN(drw_data->obinfos_ubo);
   }
   DRW_volume_ubos_pool_free(drw_data->volume_grids_ubos);
   DRW_curves_ubos_pool_free(drw_data->curves_ubos);
@@ -538,8 +423,6 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
 
   dst->viewport = viewport;
   dst->view_data_active = dst->vmempool->view_data[view];
-  dst->resource_handle = 0;
-  dst->pass_handle = 0;
   dst->primary_view_num = 0;
 
   drw_viewport_data_reset(dst->vmempool);
@@ -578,8 +461,6 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
   DefaultFramebufferList *dfbl = DRW_view_data_default_framebuffer_list_get(dst->view_data_active);
   dst->default_framebuffer = dfbl->default_fb;
 
-  draw_unit_state_create();
-
   if (rv3d != nullptr) {
     dst->pixsize = rv3d->pixsize;
     blender::draw::View::default_set(float4x4(rv3d->viewmat), float4x4(rv3d->winmat));
@@ -616,10 +497,6 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
   if (G_draw.clipping_ubo == nullptr) {
     G_draw.clipping_ubo = GPU_uniformbuf_create_ex(
         sizeof(float4) * 6, nullptr, "G_draw.clipping_ubo");
-  }
-
-  if (dst->draw_list == nullptr) {
-    dst->draw_list = GPU_draw_list_create(DRW_DRAWLIST_LEN);
   }
 
   memset(dst->object_instance_data, 0x0, sizeof(dst->object_instance_data));
@@ -1057,8 +934,6 @@ static void drw_engines_world_update(Scene *scene)
 
 static void drw_engines_cache_populate(Object *ob)
 {
-  DST.ob_handle = 0;
-
   /* HACK: DrawData is copied by copy-on-eval from the duplicated object.
    * This is valid for IDs that cannot be instantiated but this
    * is not what we want in this case so we clear the pointer
@@ -2102,7 +1977,6 @@ void DRW_render_object_iter(
     if ((object_type_exclude_viewport & (1 << ob->type)) == 0) {
       DST.dupli_parent = data_.dupli_parent;
       DST.dupli_source = data_.dupli_object_current;
-      DST.ob_handle = 0;
       drw_duplidata_load(ob);
 
       if (!DST.dupli_source) {
@@ -3127,11 +3001,6 @@ void DRW_engines_free()
   DRW_UBO_FREE_SAFE(G_draw.clipping_ubo);
   DRW_TEXTURE_FREE_SAFE(G_draw.ramp);
   DRW_TEXTURE_FREE_SAFE(G_draw.weight_ramp);
-
-  if (DST.draw_list) {
-    GPU_draw_list_discard(DST.draw_list);
-    DST.draw_list = NULL; /* UPBGE */
-  }
 
   DRW_gpu_context_disable();
 }
