@@ -804,15 +804,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
-        region->runtime->visible = true;
-        ED_region_tag_redraw(region);
         scene->flag |= SCE_IS_BLENDERPLAYER;
         region->winrct = window;
         region->winx = canvas->GetWidth();
         region->winy = canvas->GetHeight();
-        wmWindow *win = CTX_wm_window(C);
-        bScreen *screen = WM_window_get_active_screen(win);
-        screen->state = SCREENFULL;
         /* Force camera projection matrix to be the same as viewport one (for mouse events) */
         cam->SetProjectionMatrix(MT_Matrix4x4(&CTX_wm_region_view3d(C)->winmat[0][0]));
       }
@@ -829,7 +824,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
         }
       }
 #endif
-
+      CTX_wm_region(C)->runtime->visible = true;
       ED_region_tag_redraw(CTX_wm_region(C));
       wm_draw_update(C);
 

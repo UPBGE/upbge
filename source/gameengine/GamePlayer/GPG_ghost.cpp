@@ -1732,6 +1732,9 @@ int main(int argc,
             WM_keyconfig_update_postpone_end();
             WM_keyconfig_update(static_cast<wmWindowManager *>(G_MAIN->wm.first));
 
+            bScreen *screen = WM_window_get_active_screen(win);
+            screen->state = SCREENFULL;
+
             if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
               ED_screens_init(C, G_MAIN, wm);
               wm->init_flag |= WM_INIT_FLAG_WINDOW;
@@ -1739,7 +1742,6 @@ int main(int argc,
             /* The following is needed to run some bpy operators in blenderplayer */
             ED_screen_refresh_blenderplayer(win);
 
-            bScreen *screen = CTX_wm_screen(C);
             WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
             WM_window_set_active_screen(win, workspace, screen);
 
