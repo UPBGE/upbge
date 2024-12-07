@@ -352,7 +352,7 @@ KX_Scene::~KX_Scene()
   }
   else {
     // Free the allocated profile a last time
-    DRW_game_viewport_render_loop_end();
+    DRW_game_viewport_render_loop_end(GetBlenderScene());
   }
 
   /* Fixes issue when switching .blend erm...*/

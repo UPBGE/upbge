@@ -494,7 +494,7 @@ void DRW_game_render_loop(struct bContext *C,
 
 void DRW_game_render_loop_end(void);
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
-void DRW_game_viewport_render_loop_end(void);
+void DRW_game_viewport_render_loop_end(Scene *scene);
 void DRW_transform_to_display(struct GPUViewport *viewport,
                               struct GPUTexture *tex,
                               struct View3D *v3d,
@@ -509,7 +509,7 @@ struct GPUViewport *DRW_game_gpu_viewport_get(void);
 void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4]);
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize);
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str);
-void drw_debug_draw_bge(void);
+void drw_debug_draw_bge(Scene *scene);
 /*********/
 
 /**************************END OF GAME ENGINE*******************************/

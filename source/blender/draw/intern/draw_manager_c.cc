@@ -1353,7 +1353,7 @@ void DRW_draw_callbacks_post_scene()
     drw_debug_draw();
 
     /* UPBGE */
-    drw_debug_draw_bge();
+    drw_debug_draw_bge(DST.draw_ctx.scene);
     GPU_matrix_projection_set(rv3d->winmat);
     GPU_matrix_set(rv3d->viewmat);
     /**************************/
@@ -3401,7 +3401,7 @@ static void drw_debug_draw_boxes_bge(void)
   immUnbindProgram();
 }
 
-static void drw_debug_draw_text_bge(void)
+static void drw_debug_draw_text_bge(Scene *scene)
 {
   int count = BLI_linklist_count((LinkNode *)DST.debug_bge.texts);
 
@@ -3418,9 +3418,9 @@ static void drw_debug_draw_text_bge(void)
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
   int font_size = 10;
-  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
-  if (scene) {
-    short profile_size = scene->gm.profileSize;
+  Scene *sce_orig = (Scene *)DEG_get_original_id(&scene->id);
+  if (sce_orig) {
+    short profile_size = sce_orig->gm.profileSize;
     switch (profile_size) {
       case 0:  // don't change default font size
         break;
@@ -3457,11 +3457,12 @@ static void drw_debug_draw_text_bge(void)
   BLF_disable(blf_mono_font, BLF_SHADOW);
 }
 
-void drw_debug_draw_bge(void)
+void drw_debug_draw_bge(Scene *scene)
 {
+  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   drw_debug_draw_lines_bge();
   drw_debug_draw_boxes_bge();
-  drw_debug_draw_text_bge();
+  drw_debug_draw_text_bge(scene);
 }
 
 /*--End of UPBGE Viewport Debug Drawing--*/
@@ -3632,9 +3633,9 @@ void DRW_game_render_loop_end()
   GPU_viewport_free(DRW_game_gpu_viewport_get());
 }
 
-void DRW_game_viewport_render_loop_end()
+void DRW_game_viewport_render_loop_end(Scene *scene)
 {
-  drw_debug_draw_bge();
+  drw_debug_draw_bge(scene);
 }
 
 void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
