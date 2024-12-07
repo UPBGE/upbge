@@ -336,7 +336,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void RenderAfterCameraSetupImageRender(KX_Camera *cam, const struct rcti *window);
   Object *GetGameDefaultCamera();
   void ReinitBlenderContextVariables();
-  void ConfigureOverlays();
   void AddOverlayCollection(KX_Camera *overlay_cam, struct Collection *collection);
   void RemoveOverlayCollection(struct Collection *collection);
   void SetCurrentGPUViewport(struct GPUViewport *viewport);

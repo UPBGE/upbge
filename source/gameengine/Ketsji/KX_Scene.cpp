@@ -277,7 +277,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * (viewport render or not) and (blenderplayer or not)
    */
   CTX_wm_view3d(C)->shading.type = KX_GetActiveEngine()->ShadingTypeRuntime();
-  ConfigureOverlays();
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
@@ -493,18 +492,6 @@ void KX_Scene::ReinitBlenderContextVariables()
         }
       }
     }
-  }
-}
-
-void KX_Scene::ConfigureOverlays()
-{
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  View3D *v3d = CTX_wm_view3d(C);
-  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-  bool useViewportRenderInBlenderplayer = KX_GetActiveEngine()->UseViewportRender() &&
-                                          canvas->IsBlenderPlayer();
-  if (useViewportRenderInBlenderplayer) {
-    v3d->flag2 |= V3D_HIDE_OVERLAYS;
   }
 }
 

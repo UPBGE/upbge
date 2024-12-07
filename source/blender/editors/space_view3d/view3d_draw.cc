@@ -1142,6 +1142,12 @@ static void view3d_draw_border(const bContext *C, ARegion *region)
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   View3D *v3d = CTX_wm_view3d(C);
 
+  /* UPBGE: Don't draw camera border in blenderplayer */
+  if (scene->flag & SCE_IS_BLENDERPLAYER) {
+    return;
+  }
+  /********************/
+
   if (rv3d->persp == RV3D_CAMOB) {
     drawviewborder(scene, depsgraph, region, v3d);
   }

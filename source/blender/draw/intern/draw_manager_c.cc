@@ -1398,12 +1398,7 @@ void DRW_draw_callbacks_post_scene()
     GPU_depth_test(GPU_DEPTH_NONE);
     drw_engines_draw_text();
 
-    /* UPBGE */
-    Scene *orig_scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
-    if (!(orig_scene->flag & SCE_IS_BLENDERPLAYER)) {
-      DRW_draw_region_info();
-    }
-    /**************************/
+    DRW_draw_region_info();
 
     /* Annotations - temporary drawing buffer (screen-space). */
     /* XXX: Or should we use a proper draw/overlay engine for this case? */

@@ -1746,13 +1746,19 @@ int main(int argc,
             /* Make all ARegion invisible as we only want 3D view to be drawn - also, drawing everything
                would need more code to be initialized */
             ED_screen_areas_iter (win, screen, area_iter) {
+              /* this is to prevent a bug with gizmos drawing - if gizmos drawing is enabled by user during runtime */
+              area_iter->full = screen;
+              /* tag all areas for full redraw at least 1 time to prevent bugs during wm_draw_update */
+              ED_area_tag_redraw(area_iter);
               LISTBASE_FOREACH (ARegion *, region, &area_iter->regionbase) {
                 region->runtime->visible = 0;
               }
             }
 
-            /* Drawing gizmos is not supported, then hide it */
+            /* Don't draw gizmos by default */
             CTX_wm_view3d(C)->gizmo_flag |= V3D_GIZMO_HIDE;
+            /* Don't draw overlays by default */
+            CTX_wm_view3d(C)->flag2 |= V3D_HIDE_OVERLAYS;
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,
