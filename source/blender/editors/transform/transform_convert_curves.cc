@@ -260,7 +260,7 @@ static void createTransCurvesVerts(bContext * /*C*/, TransInfo *t)
       tc.data_len = curves.points_num() + 2 * bezier_points.size();
       points_to_transform_per_attribute[i].append(curves.points_range());
 
-      if (bezier_points.size() > 0) {
+      if (selection_attribute_names.size() > 1) {
         points_to_transform_per_attribute[i].append(bezier_points);
         points_to_transform_per_attribute[i].append(bezier_points);
       }
@@ -447,7 +447,8 @@ void curve_populate_trans_data_structs(
     const blender::Span<blender::IndexMask> points_to_transform_per_attr,
     const blender::IndexMask &affected_curves,
     bool use_connected_only,
-    const blender::IndexMask &bezier_curves)
+    const blender::IndexMask &bezier_curves,
+    void *extra)
 {
   using namespace blender;
   const std::array<Span<float3>, 3> src_positions_per_selection_attr = {
@@ -502,6 +503,8 @@ void curve_populate_trans_data_structs(
         if (selection[point_in_domain_i]) {
           td.flag = TD_SELECTED;
         }
+
+        td.extra = extra;
 
         if (value_attribute) {
           float *value = &((*value_attribute)[point_in_domain_i]);

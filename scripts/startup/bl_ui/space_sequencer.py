@@ -885,6 +885,7 @@ class SEQUENCER_MT_strip_transform(Menu):
 
             layout.separator()
             layout.operator("sequencer.gap_remove").all = False
+            layout.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
             layout.operator("sequencer.gap_insert")
 
 
@@ -1009,7 +1010,7 @@ class SEQUENCER_MT_strip(Menu):
 
             layout.operator("sequencer.copy", text="Copy")
             layout.operator("sequencer.paste", text="Paste")
-            layout.operator("sequencer.duplicate_move")
+            layout.operator("sequencer.duplicate_move", text="Duplicate")
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")

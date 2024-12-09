@@ -80,6 +80,7 @@
 #include "ED_fileselect.hh"
 #include "ED_id_management.hh"
 #include "ED_info.hh"
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
@@ -1080,6 +1081,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
           DEG_relations_tag_update(bmain);
         }
+        ED_node_tree_propagate_change(C, CTX_data_main(C), nullptr);
         undo_push_label = "Make Single User";
       }
       break;
@@ -7151,6 +7153,10 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
   if (icon != 0) {
     for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
       uiItemL(layout, "", icon_mod[j]);
+      const float offset = ui_event_icon_offset(icon_mod[j]);
+      if (offset != 0.0f) {
+        uiItemS_ex(layout, offset);
+      }
     }
 
     /* Icon and text separately is closer together with aligned layout. */

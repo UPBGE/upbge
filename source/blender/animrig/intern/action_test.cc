@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ANIM_action.hh"
+#include "action_internal.hh"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -300,6 +301,22 @@ TEST_F(ActionLayersTest, add_slot)
     EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot.handle);
 
     EXPECT_STREQ(cube->id.name, slot.identifier);
+    EXPECT_EQ(ID_OB, slot.idtype);
+  }
+
+  { /* Creating a Slot for a specific ID that already had a slot assigned before should name it
+     * after that previous slot. This should also ensure that the first two characters are actually
+     * correct for the ID type. */
+    AnimData *adt = BKE_animdata_ensure_id(&cube->id);
+    STRNCPY_UTF8(adt->last_slot_identifier, "$$Kübuš 😹");
+    Slot &slot = action->slot_add_for_id(cube->id);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, slot.handle);
+
+    EXPECT_STREQ("Kübuš 😹", slot.identifier + 2)
+        << "The last-assigned slot name should be reused";
+    EXPECT_STREQ("OBKübuš 😹", slot.identifier)
+        << "The ID type encoded in the slot identifier should be correct";
     EXPECT_EQ(ID_OB, slot.idtype);
   }
 }
@@ -608,11 +625,11 @@ TEST_F(ActionLayersTest, rename_slot_identifier_collision)
   EXPECT_STREQ("New Slot Name.001", slot2.identifier);
 }
 
-TEST_F(ActionLayersTest, find_suitable_slot)
+TEST_F(ActionLayersTest, generic_slot_for_autoassign)
 {
   /* ===
    * Empty case, no slots exist yet and the ID doesn't even have an AnimData. */
-  EXPECT_EQ(nullptr, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(nullptr, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, but the ID doesn't have any AnimData yet.
@@ -621,7 +638,7 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   slot.handle = 327;
   STRNCPY_UTF8(slot.identifier, "OBKüüübus");
   slot.idtype = GS(cube->id.name);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, and the ID has an AnimData with the same
@@ -638,22 +655,16 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   /* Configure adt to use the handle of one slot, and the identifier of the other. */
   adt->slot_handle = other_slot.handle;
   STRNCPY_UTF8(adt->last_slot_identifier, slot.identifier);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
 
   /* ===
-   * Same situation as above (AnimData has identifier of one slot, but the handle of another),
-   * except that the Action has already been assigned. In this case the handle should take
-   * precedence. */
-  adt->action = action;
-  id_us_plus(&action->id);
-  EXPECT_EQ(&other_slot, action->find_suitable_slot_for(cube->id));
-
-  /* ===
-   * A slot exists, but doesn't match anything in the action data of the cube. This should fall
-   * back to using the ID name. */
+   * Assigned slot info exists, but doesn't match anything in the action data of the cube. This
+   * should fall back to using the ID name. */
   adt->slot_handle = 161;
   STRNCPY_UTF8(adt->last_slot_identifier, "¿¿What's this??");
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
 }
 
 TEST_F(ActionLayersTest, active_slot)
