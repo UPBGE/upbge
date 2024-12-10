@@ -90,31 +90,18 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
   const GreasePencilLineartModifierData *source_lmd =
       reinterpret_cast<const GreasePencilLineartModifierData *>(md);
-  const LineartModifierRuntime *source_runtime = reinterpret_cast<const LineartModifierRuntime *>(
-      source_lmd->runtime);
+  const LineartModifierRuntime *source_runtime = source_lmd->runtime;
 
   GreasePencilLineartModifierData *target_lmd =
       reinterpret_cast<GreasePencilLineartModifierData *>(target);
 
-  target_lmd->runtime = MEM_new<LineartModifierRuntime>(__func__);
-  LineartModifierRuntime *target_runtime = reinterpret_cast<LineartModifierRuntime *>(
-      target_lmd->runtime);
-
-  blender::Set<const Object *> *object_dependencies = source_runtime->object_dependencies.get();
-  if (object_dependencies) {
-    target_runtime->object_dependencies.reset(
-        new blender::Set<const Object *>(*object_dependencies));
-  }
-  else {
-    target_runtime->object_dependencies.release();
-  }
+  target_lmd->runtime = MEM_new<LineartModifierRuntime>(__func__, *source_runtime);
 }
 
 static void free_data(ModifierData *md)
 {
   GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
-  if (lmd->runtime) {
-    LineartModifierRuntime *runtime = reinterpret_cast<LineartModifierRuntime *>(lmd->runtime);
+  if (LineartModifierRuntime *runtime = lmd->runtime) {
     MEM_delete(runtime);
     lmd->runtime = nullptr;
   }
@@ -190,20 +177,14 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   if (!runtime) {
     runtime = MEM_new<LineartModifierRuntime>(__func__);
     lmd->runtime = runtime;
-    runtime->object_dependencies = nullptr;
   }
-  Set<const Object *> *object_dependencies = runtime->object_dependencies.get();
-  if (!object_dependencies) {
-    runtime->object_dependencies = std::make_unique<Set<const Object *>>();
-    object_dependencies = runtime->object_dependencies.get();
-  }
+  Set<const Object *> &object_dependencies = runtime->object_dependencies;
+  object_dependencies.clear();
 
-  object_dependencies->clear();
-  add_this_collection(
-      *ctx->scene->master_collection, ctx, DAG_EVAL_VIEWPORT, *object_dependencies);
+  add_this_collection(*ctx->scene->master_collection, ctx, DAG_EVAL_VIEWPORT, object_dependencies);
 
   /* No need to add any non-geometry objects into `lmd->object_dependencies` because we won't be
-   * loading */
+   * loading... */
   if (lmd->calculation_flags & MOD_LINEART_USE_CUSTOM_CAMERA && lmd->source_camera) {
     DEG_add_object_relation(
         ctx->node, lmd->source_camera, DEG_OB_COMP_TRANSFORM, "Line Art Modifier");

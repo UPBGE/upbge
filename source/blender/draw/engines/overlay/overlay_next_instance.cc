@@ -45,7 +45,6 @@ void Instance::init()
   /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
   state.clipping_plane_count = clipping_enabled_ ? 6 : 0;
 
-  state.pixelsize = U.pixelsize;
   state.ctx_mode = CTX_data_mode_enum_ex(ctx->object_edit, ctx->obact, ctx->object_mode);
   state.space_data = ctx->space_data;
   state.space_type = state.v3d != nullptr ? SPACE_VIEW3D : eSpace_Type(ctx->space_data->spacetype);
@@ -342,8 +341,17 @@ void Instance::end_sync()
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
     DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
-    DRW_texture_ensure_fullscreen_2d(
-        &dtxl->depth_in_front, GPU_DEPTH24_STENCIL8, DRWTextureFlag(0));
+    if (dtxl->depth_in_front == nullptr) {
+      int2 size = int2(DRW_viewport_size_get()[0], DRW_viewport_size_get()[1]);
+
+      dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
+                                                   size.x,
+                                                   size.y,
+                                                   1,
+                                                   GPU_DEPTH24_STENCIL8,
+                                                   GPU_TEXTURE_USAGE_GENERAL,
+                                                   nullptr);
+    }
 
     GPU_framebuffer_ensure_config(
         &dfbl->in_front_fb,
@@ -440,7 +448,7 @@ void Instance::draw_v2d(Manager &manager, View &view)
   GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, float4(0.0));
 
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
-  grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
+  grid.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 }
 
