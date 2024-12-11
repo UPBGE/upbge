@@ -53,6 +53,15 @@ int SEQ_retiming_key_index_get(const Sequence *seq, const SeqRetimingKey *key)
   return key - seq->retiming_keys;
 }
 
+static int content_frame_index_get(const Scene *scene,
+                                   const Sequence *seq,
+                                   const int timeline_frame)
+{
+  const int sound_offset = SEQ_time_get_rounded_sound_offset(scene, seq);
+  return (timeline_frame - SEQ_time_start_frame_get(seq) - sound_offset) *
+         SEQ_time_media_playback_rate_factor_get(scene, seq);
+}
+
 SeqRetimingKey *SEQ_retiming_key_get_by_timeline_frame(const Scene *scene,
                                                        const Sequence *seq,
                                                        const int timeline_frame)
@@ -155,6 +164,10 @@ bool SEQ_retiming_data_is_editable(const Sequence *seq)
 
 bool SEQ_retiming_is_allowed(const Sequence *seq)
 {
+  if (seq->len < 2) {
+    return false;
+  }
+
   return ELEM(seq->type,
               SEQ_TYPE_SOUND_RAM,
               SEQ_TYPE_IMAGE,
@@ -297,6 +310,9 @@ float seq_retiming_evaluate(const Sequence *seq, const float frame_index)
 
 static SeqRetimingKey *seq_retiming_add_key(Sequence *seq, float frame_index)
 {
+  if (!SEQ_retiming_is_allowed(seq)) {
+    return nullptr;
+  }
   /* Clamp timeline frame to strip content range. */
   if (frame_index <= 0) {
     return &seq->retiming_keys[0];
@@ -348,11 +364,7 @@ static SeqRetimingKey *seq_retiming_add_key(Sequence *seq, float frame_index)
 
 SeqRetimingKey *SEQ_retiming_add_key(const Scene *scene, Sequence *seq, const int timeline_frame)
 {
-  const int sound_offset = SEQ_time_get_rounded_sound_offset(scene, seq);
-  const float frame_index = (timeline_frame - SEQ_time_start_frame_get(seq) - sound_offset) *
-                            SEQ_time_media_playback_rate_factor_get(scene, seq);
-
-  return seq_retiming_add_key(seq, frame_index);
+  return seq_retiming_add_key(seq, content_frame_index_get(scene, seq, timeline_frame));
 }
 
 void SEQ_retiming_transition_key_frame_set(const Scene *scene,
@@ -364,8 +376,7 @@ void SEQ_retiming_transition_key_frame_set(const Scene *scene,
   SeqRetimingKey *key_end = key_start + 1;
   const int start_frame_index = key_start->strip_frame_index;
   const int midpoint = key_start->original_strip_frame_index;
-  const int new_frame_index = (timeline_frame - SEQ_time_start_frame_get(seq)) *
-                              SEQ_time_media_playback_rate_factor_get(scene, seq);
+  const int new_frame_index = content_frame_index_get(scene, seq, timeline_frame);
   int new_midpoint_offset = new_frame_index - midpoint;
   const float prev_segment_step = seq_retiming_segment_step_get(key_start - 1);
   const float next_segment_step = seq_retiming_segment_step_get(key_end);

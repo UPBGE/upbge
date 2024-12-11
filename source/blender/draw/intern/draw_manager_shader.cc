@@ -445,9 +445,4 @@ void DRW_shader_queue_optimize_material(GPUMaterial *mat)
   drw_deferred_queue_append(mat, true);
 }
 
-void DRW_shader_free(GPUShader *shader)
-{
-  GPU_shader_free(shader);
-}
-
 /** \} */

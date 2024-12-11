@@ -280,14 +280,6 @@ DupliObject *DRW_object_get_dupli(const Object * /*ob*/)
 /** \name Viewport (DRW_viewport)
  * \{ */
 
-void DRW_render_viewport_size_set(const int size[2])
-{
-  DST.size[0] = size[0];
-  DST.size[1] = size[1];
-  DST.inv_size[0] = 1.0f / size[0];
-  DST.inv_size[1] = 1.0f / size[1];
-}
-
 const float *DRW_viewport_size_get()
 {
   return DST.size;
@@ -2991,9 +2983,9 @@ void DRW_engines_free()
   drw_debug_module_free(DST.debug);
   DST.debug = nullptr;
 
-  DRW_UBO_FREE_SAFE(G_draw.block_ubo);
-  DRW_UBO_FREE_SAFE(G_draw.view_ubo);
-  DRW_UBO_FREE_SAFE(G_draw.clipping_ubo);
+  GPU_UBO_FREE_SAFE(G_draw.block_ubo);
+  GPU_UBO_FREE_SAFE(G_draw.view_ubo);
+  GPU_UBO_FREE_SAFE(G_draw.clipping_ubo);
   GPU_TEXTURE_FREE_SAFE(G_draw.ramp);
   GPU_TEXTURE_FREE_SAFE(G_draw.weight_ramp);
 

@@ -135,41 +135,6 @@ struct DrawEngineType {
   void (*store_metadata)(void *vedata, RenderResult *render_result);
 };
 
-/* Textures */
-enum DRWTextureFlag {
-  DRW_TEX_FILTER = (1 << 0),
-  DRW_TEX_WRAP = (1 << 1),
-  DRW_TEX_COMPARE = (1 << 2),
-  DRW_TEX_MIPMAP = (1 << 3),
-};
-
-/**
- * Textures from `DRW_texture_pool_query_*` have the options
- * #DRW_TEX_FILTER for color float textures, and no options
- * for depth textures and integer textures.
- */
-GPUTexture *DRW_texture_pool_query_2d(int w,
-                                      int h,
-                                      eGPUTextureFormat format,
-                                      DrawEngineType *engine_type);
-GPUTexture *DRW_texture_pool_query_fullscreen(eGPUTextureFormat format,
-                                              DrawEngineType *engine_type);
-
-/* Explicit parameter variants. */
-GPUTexture *DRW_texture_pool_query_2d_ex(
-    int w, int h, eGPUTextureFormat format, eGPUTextureUsage usage, DrawEngineType *engine_type);
-GPUTexture *DRW_texture_pool_query_fullscreen_ex(eGPUTextureFormat format,
-                                                 eGPUTextureUsage usage,
-                                                 DrawEngineType *engine_type);
-
-#define DRW_UBO_FREE_SAFE(ubo) \
-  do { \
-    if (ubo != nullptr) { \
-      GPU_uniformbuf_free(ubo); \
-      ubo = nullptr; \
-    } \
-  } while (0)
-
 /* Shaders */
 void DRW_shader_init();
 void DRW_shader_exit();
@@ -193,21 +158,6 @@ GPUMaterial *DRW_shader_from_material(
     void *thunk,
     GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);
 void DRW_shader_queue_optimize_material(GPUMaterial *mat);
-void DRW_shader_free(GPUShader *shader);
-#define DRW_SHADER_FREE_SAFE(shader) \
-  do { \
-    if (shader != nullptr) { \
-      DRW_shader_free(shader); \
-      shader = nullptr; \
-    } \
-  } while (0)
-
-/* Batches */
-
-enum eDRWAttrType {
-  DRW_ATTR_INT,
-  DRW_ATTR_FLOAT,
-};
 
 /* Viewport. */
 
@@ -234,10 +184,6 @@ void DRW_render_object_iter(
  * \warning Changing frame might free the #ViewLayerEngineData.
  */
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe);
-/**
- * \warning only use for custom pipeline. 99% of the time, you don't want to use this.
- */
-void DRW_render_viewport_size_set(const int size[2]);
 
 /**
  * Assume a valid GL context is bound (and that the gl_context_mutex has been acquired).
@@ -304,14 +250,6 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object,
 
 Object *DRW_object_get_dupli_parent(const Object *ob);
 DupliObject *DRW_object_get_dupli(const Object *ob);
-
-/* Draw commands */
-
-void DRW_draw_pass(DRWPass *pass);
-/**
- * Draw only a subset of shgroups. Used in special situations as grease pencil strokes.
- */
-void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
 
 void DRW_draw_callbacks_pre_scene();
 void DRW_draw_callbacks_post_scene();

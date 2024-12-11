@@ -103,7 +103,7 @@ using bContextDataCallback = int /*eContextResult*/ (*)(const bContext *C,
 
 struct bContextStoreEntry {
   std::string name;
-  std::variant<PointerRNA, std::string> value;
+  std::variant<PointerRNA, std::string, int64_t> value;
 };
 
 struct bContextStore {
@@ -163,6 +163,9 @@ bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &co
 bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                              blender::StringRef name,
                              blender::StringRef str);
+bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
+                             blender::StringRef name,
+                             int64_t value);
 bContextStore *CTX_store_add_all(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                                  const bContextStore *context);
 const bContextStore *CTX_store_get(const bContext *C);
@@ -172,6 +175,7 @@ const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
                                        const StructRNA *type = nullptr);
 std::optional<blender::StringRefNull> CTX_store_string_lookup(const bContextStore *store,
                                                               blender::StringRef name);
+std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store, blender::StringRef name);
 
 /* need to store if python is initialized or not */
 bool CTX_py_init_get(bContext *C);
@@ -271,6 +275,7 @@ enum {
   CTX_DATA_TYPE_COLLECTION,
   CTX_DATA_TYPE_PROPERTY,
   CTX_DATA_TYPE_STRING,
+  CTX_DATA_TYPE_INT64,
 };
 
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);
@@ -292,6 +297,7 @@ void CTX_data_collection_remap_property(blender::MutableSpan<PointerRNA> collect
                                         const char *propname);
 
 std::optional<blender::StringRefNull> CTX_data_string_get(const bContext *C, const char *member);
+std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member);
 
 /**
  * \param C: Context.
@@ -308,6 +314,7 @@ int /*eContextResult*/ CTX_data_get(const bContext *C,
                                     PropertyRNA **r_prop,
                                     int *r_index,
                                     blender::StringRef *r_str,
+                                    std::optional<int64_t> *r_int_value,
                                     short *r_type);
 
 void CTX_data_id_pointer_set(bContextDataResult *result, ID *id);

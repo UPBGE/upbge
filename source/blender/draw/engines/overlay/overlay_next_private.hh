@@ -170,6 +170,22 @@ struct State {
 
   /** Convenience functions. */
 
+  /* Scene geometry is solid. Occlude overlays behind scene geometry. */
+  bool is_solid() const
+  {
+    return xray_opacity == 1.0f;
+  }
+  /* Scene geometry is semi-transparent. Fade overlays behind scene geometry (see #XrayFade). */
+  bool is_xray() const
+  {
+    return (xray_opacity < 1.0f) && (xray_opacity > 0.0f);
+  }
+  /* Scene geometry is fully transparent. Scene geometry does not occlude overlays. */
+  bool is_wire() const
+  {
+    return xray_opacity == 0.0f;
+  }
+
   bool is_space_v3d() const
   {
     return this->space_type == SPACE_VIEW3D;
@@ -334,7 +350,7 @@ class ShaderModule {
   struct ShaderDeleter {
     void operator()(GPUShader *shader)
     {
-      DRW_SHADER_FREE_SAFE(shader);
+      GPU_SHADER_FREE_SAFE(shader);
     }
   };
   using ShaderPtr = std::unique_ptr<GPUShader, ShaderDeleter>;
