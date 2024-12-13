@@ -75,15 +75,25 @@ VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, const int /*flag*/)
   return vfont_dst;
 }
 
-VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, ulong character)
+VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
 {
   if (!vfont) {
     return nullptr;
   }
 
   int font_id = -1;
+  const bool is_builtin = BKE_vfont_is_builtin(vfont);
 
-  if (BKE_vfont_is_builtin(vfont)) {
+  /* If the default font is selected (usually because nothing has been selected)
+   * then allow use of the fallback font stack when characters are not found in it.
+   * This allows a nice first experience, for testing, and allows the translation of the initial
+   * "Text" string. However, when a different specific font then do not use fallback,
+   * only allow characters that are included in that font.
+   * Do this for predictable control of what is shown when selecting specific fonts,
+   * also for consistent output when the UI fonts are changed or updated. */
+  const bool use_fallback = is_builtin;
+
+  if (is_builtin) {
     font_id = BLF_load_mem(
         vfont->data->name, static_cast<const uchar *>(builtin_font_data), builtin_font_size);
   }
@@ -93,21 +103,18 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, ulong character)
   }
 
   if (font_id == -1) {
-    /* This could happen for a saved file with an unpacked local font that was
-     * later removed. Load the default UI font so we can still show _something_. */
-    font_id = BLF_load_mem(
-        vfont->data->name, static_cast<const uchar *>(builtin_font_data), builtin_font_size);
+    return nullptr;
   }
 
   VChar *che = (VChar *)MEM_callocN(sizeof(VChar), "objfnt_char");
-  che->index = character;
 
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(font_id, character, &che->nurbsbase, vfont->data->scale);
+  che->width = BLF_character_to_curves(
+      font_id, character, &che->nurbsbase, vfont->data->scale, use_fallback);
 
-  BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(che->index), che);
+  BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
   BLF_unload_id(font_id);
   return che;
 }

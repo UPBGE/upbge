@@ -109,6 +109,7 @@ set(LIB
   PRIVATE bf::animrig
   bf_sequencer
   bf_intern_ghost
+  bf_compositor
 )
 
 if(WIN32)
@@ -184,13 +185,6 @@ endif()
 
 if(WITH_INPUT_IME)
   add_definitions(-DWITH_INPUT_IME)
-endif()
-
-if(WITH_COMPOSITOR_CPU)
-  list(APPEND LIB
-    bf_compositor
-  )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
 endif()
 
 if(WITH_XR_OPENXR)

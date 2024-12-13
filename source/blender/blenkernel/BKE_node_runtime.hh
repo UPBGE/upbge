@@ -78,6 +78,12 @@ struct NodeIDEquality {
 
 namespace blender::bke {
 
+enum class FieldSocketState : int8_t {
+  RequiresSingle,
+  CanBeField,
+  IsField,
+};
+
 using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
 
 struct NodeLinkError {
@@ -154,6 +160,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
+  /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */
+  Array<FieldSocketState> field_states;
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
@@ -218,12 +226,6 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   Vector<bNode *> root_frames;
 };
 
-enum class FieldSocketState {
-  RequiresSingle,
-  CanBeField,
-  IsField,
-};
-
 /**
  * Run-time data for every socket. This should only contain data that is somewhat persistent (i.e.
  * data that lives longer than a single depsgraph evaluation + redraw). Data that's only used in
@@ -250,14 +252,9 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
   /**
    * The location of the socket in the tree, calculated while drawing the nodes and invalid if the
    * node tree hasn't been drawn yet. In the node tree's "world space" (the same as
-   * #bNode::runtime::totr).
+   * #bNode::runtime::draw_bounds).
    */
   float2 location;
-
-  /**
-   * This is computed during field inferencing and influences the socket shape in geometry nodes.
-   */
-  std::optional<FieldSocketState> field_state;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> directly_linked_links;
@@ -281,7 +278,7 @@ class bNodePanelRuntime : NonCopyable, NonMovable {
  public:
   /* The vertical location of the panel in the tree, calculated while drawing the nodes and invalid
    * if the node tree hasn't been drawn yet. In the node tree's "world space" (the same as
-   * #bNode::runtime::totr). */
+   * #bNode::runtime::draw_bounds). */
   std::optional<float> header_center_y;
   std::optional<bNodePanelExtent> content_extent;
 };
@@ -322,20 +319,8 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** The original node in the tree (for localized tree). */
   bNode *original = nullptr;
 
-  /**
-   * XXX:
-   * TODO: `prvr` does not exist!
-   * Node totr size depends on the `prvr` size, which in turn is determined from preview size.
-   * In earlier versions bNodePreview was stored directly in nodes, but since now there can be
-   * multiple instances using different preview images it is possible that required node size
-   * varies between instances. preview_xsize, preview_ysize defines a common reserved size for
-   * preview rect for now, could be replaced by more accurate node instance drawing,
-   * but that requires removing totr from DNA and replacing all uses with per-instance data.
-   */
-  /** Reserved size of the preview rect. */
-  short preview_xsize, preview_ysize = 0;
   /** Calculated bounding box of node in the view space of the node editor (including UI scale). */
-  rctf totr{};
+  rctf draw_bounds{};
 
   /** Used at runtime when going through the tree. Initialize before use. */
   short tmp_flag = 0;

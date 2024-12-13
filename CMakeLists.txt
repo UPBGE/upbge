@@ -350,9 +350,6 @@ option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer applicati
 mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 
 option(WITH_PLAYER        "Build Player" ON)
-
-# Compositor
-option(WITH_COMPOSITOR_CPU "Enable the Full-Frame CPU nodal compositor" ON)
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
 option(WITH_OPENSUBDIV "Enable OpenSubdiv for surface subdivision" ON)

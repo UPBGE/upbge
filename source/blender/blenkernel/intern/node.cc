@@ -2483,6 +2483,18 @@ bNode *node_find_node_try(bNodeTree &ntree, bNodeSocket &socket)
   return nullptr;
 }
 
+const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
+                                                                        const StringRef identifier)
+{
+  ntree.ensure_interface_cache();
+  for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
+    if (input->identifier == identifier) {
+      return input;
+    }
+  }
+  return nullptr;
+}
+
 bNode *node_find_root_parent(bNode *node)
 {
   bNode *parent_iter = node;
@@ -3297,9 +3309,6 @@ static void node_preview_init_tree_recursive(bNodeInstanceHash *previews,
     bNodeInstanceKey key = node_instance_key(parent_key, ntree, node);
 
     if (node_preview_used(node)) {
-      node->runtime->preview_xsize = xsize;
-      node->runtime->preview_ysize = ysize;
-
       node_preview_verify(previews, key, xsize, ysize, false);
     }
 
@@ -3666,6 +3675,10 @@ void node_tree_set_output(bNodeTree *ntree)
 
 bNodeTree **node_tree_ptr_from_id(ID *id)
 {
+  /* If this is ever extended such that a non-animatable ID type can embed a node
+   * tree, update blender::animrig::internal::rebuild_slot_user_cache(). That
+   * function assumes that node trees can only be embedded by animatable IDs. */
+
   switch (GS(id->name)) {
     case ID_MA:
       return &reinterpret_cast<Material *>(id)->nodetree;
@@ -3955,8 +3968,8 @@ bool node_declaration_ensure(bNodeTree *ntree, bNode *node)
 
 void node_dimensions_get(const bNode *node, float *r_width, float *r_height)
 {
-  *r_width = node->runtime->totr.xmax - node->runtime->totr.xmin;
-  *r_height = node->runtime->totr.ymax - node->runtime->totr.ymin;
+  *r_width = node->runtime->draw_bounds.xmax - node->runtime->draw_bounds.xmin;
+  *r_height = node->runtime->draw_bounds.ymax - node->runtime->draw_bounds.ymin;
 }
 
 void node_tag_update_id(bNode *node)
