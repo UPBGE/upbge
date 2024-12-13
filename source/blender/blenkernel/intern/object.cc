@@ -391,7 +391,7 @@ static void object_free_data(ID *id)
 static void library_foreach_sensorsObjectLooper(bSensor */*sensor*/,
                                                 ID **id_pointer,
                                                 void *user_data,
-                                                int cb_flag)
+                                                LibraryForeachIDCallbackFlag cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
@@ -400,7 +400,7 @@ static void library_foreach_sensorsObjectLooper(bSensor */*sensor*/,
 static void library_foreach_controllersObjectLooper(bController */*controller*/,
                                                     ID **id_pointer,
                                                     void *user_data,
-                                                    int cb_flag)
+                                                    LibraryForeachIDCallbackFlag cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
@@ -409,7 +409,7 @@ static void library_foreach_controllersObjectLooper(bController */*controller*/,
 static void library_foreach_actuatorsObjectLooper(bActuator */*actuator*/,
                                                   ID **id_pointer,
                                                   void *user_data,
-                                                  int cb_flag)
+                                                  LibraryForeachIDCallbackFlag cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
@@ -418,7 +418,7 @@ static void library_foreach_actuatorsObjectLooper(bActuator */*actuator*/,
 static void library_foreach_proxiesObjectLooper(PythonProxy */*proxy*/,
                                                 ID **id_pointer,
                                                 void *user_data,
-                                                int cb_flag)
+                                                LibraryForeachIDCallbackFlag cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);

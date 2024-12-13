@@ -22,15 +22,14 @@
 
 #pragma once
 
+#include "BKE_lib_query.hh"
+
 #include "DNA_windowmanager_types.h" /* for ReportType */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 typedef void (*BKEPyProxyIDFunc)(struct PythonProxy *pp,
                                  struct ID **idpoin,
                                  void *userdata,
-                                 int cb_flag);
+                                 LibraryForeachIDCallbackFlag cb_flag);
 
 struct PythonProxy *BKE_custom_object_new(char *import,
                                           struct ReportList *reports,
@@ -63,7 +62,3 @@ void BKE_python_proxy_id_loop(struct PythonProxy *pp, BKEPyProxyIDFunc func, voi
 void BKE_python_proxies_id_loop(struct ListBase *complist, BKEPyProxyIDFunc func, void *userdata);
 
 void *BKE_python_proxy_argument_dict_new(struct PythonProxy *pp);
-
-#ifdef __cplusplus
-}
-#endif

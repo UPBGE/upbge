@@ -93,15 +93,15 @@ const char *BKE_sca_get_name_state(Object *ob, short bit);
 typedef void (*SCASensorIDFunc)(struct bSensor *sensor,
                                 struct ID **idpoin,
                                 void *userdata,
-                                int cb_flag);
+                                LibraryForeachIDCallbackFlag cb_flag);
 typedef void (*SCAControllerIDFunc)(struct bController *controller,
                                     struct ID **idpoin,
                                     void *userdata,
-                                    int cb_flag);
+                                    LibraryForeachIDCallbackFlag cb_flag);
 typedef void (*SCAActuatorIDFunc)(struct bActuator *actuator,
                                   struct ID **idpoin,
                                   void *userdata,
-                                  int cb_flag);
+                                  LibraryForeachIDCallbackFlag cb_flag);
 
 void BKE_sca_sensors_id_loop(struct ListBase *senslist, SCASensorIDFunc func, void *userdata);
 void BKE_sca_controllers_id_loop(struct ListBase *contlist,
