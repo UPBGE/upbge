@@ -1757,8 +1757,10 @@ int main(int argc,
 
             /* Don't draw gizmos by default */
             CTX_wm_view3d(C)->gizmo_flag |= V3D_GIZMO_HIDE;
-            /* Don't draw overlays by default */
-            CTX_wm_view3d(C)->flag2 |= V3D_HIDE_OVERLAYS;
+            if (useViewportRender) {
+              /* Don't draw overlays by default */
+              CTX_wm_view3d(C)->flag2 |= V3D_HIDE_OVERLAYS;
+            }
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,
