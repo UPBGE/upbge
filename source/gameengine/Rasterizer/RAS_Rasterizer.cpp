@@ -384,14 +384,14 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
+  GPU_matrix_reset();
+
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE);
   GPUTexture *tex = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
-  GPU_texture_bind(tex, 0);
+  immBindTexture("image", tex);
   float mat[4][4];
   unit_m4(mat);
   immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
-
-   /* Texture is already bound to GL_TEXTURE0 unit. */
 
   /* Full screen triangle */
   immBegin(GPU_PRIM_TRIS, 3);
