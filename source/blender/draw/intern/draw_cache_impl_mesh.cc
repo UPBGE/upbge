@@ -570,7 +570,7 @@ static bool mesh_batch_cache_valid(Object &object, Mesh &mesh)
     return false;
   }
 
-  if (cache->mat_len != mesh_render_mat_len_get(object, mesh)) {
+  if (cache->mat_len != BKE_object_material_count_with_fallback_eval(&object)) {
     return false;
   }
 
@@ -596,7 +596,7 @@ static void mesh_batch_cache_init(Object &object, Mesh &mesh)
     // cache->vert_len = mesh_render_verts_len_get(mesh);
   }
 
-  cache->mat_len = mesh_render_mat_len_get(object, mesh);
+  cache->mat_len = BKE_object_material_count_with_fallback_eval(&object);
   cache->surface_per_mat = Array<gpu::Batch *>(cache->mat_len, nullptr);
   cache->tris_per_mat = Array<gpu::IndexBuf *>(cache->mat_len, nullptr);
 
@@ -1031,11 +1031,6 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_sculpt(Object &object, Mesh &mesh)
 
   mesh_batch_cache_request_surface_batches(cache);
   return cache.batch.surface;
-}
-
-int DRW_mesh_material_count_get(const Object &object, const Mesh &mesh)
-{
-  return mesh_render_mat_len_get(object, mesh);
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_sculpt_overlays(Mesh &mesh)

@@ -482,6 +482,14 @@ struct bNodeTreeType {
   /* Check if the socket type is valid for this tree type. */
   bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type);
 
+  /**
+   * If true, then some UI elements related to building node groups will be hidden.
+   * This can be used by Python-defined custom node tree types.
+   *
+   * This is a uint8_t instead of bool to avoid compiler warnings in generated RNA code.
+   */
+  uint8_t no_group_interface;
+
   /* RNA integration */
   ExtensionRNA rna_ext;
 };
@@ -703,7 +711,7 @@ bNode *node_find_node_try(bNodeTree &ntree, bNodeSocket &socket);
 
 /**
  * Find the node that contains the given socket. This uses the node topology cache, meaning
- * subsequent access after changing the node tree will be more expensive, but ammortized over time,
+ * subsequent access after changing the node tree will be more expensive, but amortized over time,
  * the cost is constant.
  */
 bNode &node_find_node(bNodeTree &ntree, bNodeSocket &socket);
