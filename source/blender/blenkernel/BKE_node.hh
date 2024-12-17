@@ -77,11 +77,11 @@ namespace inverse_eval {
 class InverseEvalParams;
 }  // namespace inverse_eval
 }  // namespace nodes
-namespace realtime_compositor {
+namespace compositor {
 class Context;
 class NodeOperation;
 class ShaderNode;
-}  // namespace realtime_compositor
+}  // namespace compositor
 }  // namespace blender
 
 namespace blender::bke {
@@ -133,10 +133,11 @@ using NodeGatherSocketLinkOperationsFunction =
 using NodeGatherAddOperationsFunction =
     void (*)(blender::nodes::GatherAddNodeSearchParams &params);
 
-using NodeGetCompositorOperationFunction = blender::realtime_compositor::NodeOperation
-    *(*)(blender::realtime_compositor::Context &context, blender::nodes::DNode node);
+using NodeGetCompositorOperationFunction =
+    blender::compositor::NodeOperation *(*)(blender::compositor::Context &context,
+                                            blender::nodes::DNode node);
 using NodeGetCompositorShaderNodeFunction =
-    blender::realtime_compositor::ShaderNode *(*)(blender::nodes::DNode node);
+    blender::compositor::ShaderNode *(*)(blender::nodes::DNode node);
 using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
@@ -327,10 +328,10 @@ struct bNodeType {
    * responsibility of the caller. */
   NodeGetCompositorShaderNodeFunction get_compositor_shader_node;
 
-  /* A message to display in the node header for unsupported realtime compositor nodes. The message
+  /* A message to display in the node header for unsupported compositor nodes. The message
    * is assumed to be static and thus require no memory handling. This field is to be removed when
    * all nodes are supported. */
-  const char *realtime_compositor_unsupported_message;
+  const char *compositor_unsupported_message;
 
   /* Build a multi-function for this node. */
   NodeMultiFunctionBuildFunction build_multi_function;

@@ -35,7 +35,7 @@ static void node_composit_buts_composite(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class CompositeOperation : public NodeOperation {
  public:
@@ -135,7 +135,8 @@ class CompositeOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, float4(image.load_pixel<float4>(texel).xyz(), 1.0f));
+      output.store_pixel(texel + bounds.min,
+                         float4(image.load_pixel<float4, true>(texel).xyz(), 1.0f));
     });
   }
 
@@ -243,9 +244,9 @@ class CompositeOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(
-          texel + bounds.min,
-          float4(image.load_pixel<float4>(texel).xyz(), alpha.load_pixel<float>(texel)));
+      output.store_pixel(texel + bounds.min,
+                         float4(image.load_pixel<float4, true>(texel).xyz(),
+                                alpha.load_pixel<float, true>(texel)));
     });
   }
 

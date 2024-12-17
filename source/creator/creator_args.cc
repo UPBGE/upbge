@@ -1135,6 +1135,20 @@ static int arg_handle_disable_depsgraph_on_file_load(int /*argc*/,
   return 0;
 }
 
+static const char arg_handle_disable_liboverride_auto_resync_doc[] =
+    "\n"
+    "\tDo not perform library override automatic resync when loading a new blendfile.\n"
+    "\n"
+    "\tNOTE: this is an alternative way to get the same effect as when setting the\n"
+    "\t`No Override Auto Resync` User Preferences Debug option.";
+static int arg_handle_disable_liboverride_auto_resync(int /*argc*/,
+                                                      const char ** /*argv*/,
+                                                      void * /*data*/)
+{
+  G.fileflags |= G_LIBOVERRIDE_NO_AUTO_RESYNC;
+  return 0;
+}
+
 static const char arg_handle_log_level_set_doc[] =
     "<level>\n"
     "\tSet the logging verbosity level (higher for more details) defaults to 1,\n"
@@ -2777,6 +2791,12 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
                nullptr,
                "--disable-depsgraph-on-file-load",
                CB(arg_handle_disable_depsgraph_on_file_load),
+               nullptr);
+
+  BLI_args_add(ba,
+               nullptr,
+               "--disable-liboverride-auto-resync",
+               CB(arg_handle_disable_liboverride_auto_resync),
                nullptr);
 
   BLI_args_add(ba, "-a", nullptr, CB(arg_handle_playback_mode), nullptr);

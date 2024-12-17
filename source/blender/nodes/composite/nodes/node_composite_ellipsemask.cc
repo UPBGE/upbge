@@ -78,7 +78,7 @@ static void node_composit_buts_ellipsemask(uiLayout *layout, bContext * /*C*/, P
   uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 template<CMPNodeMaskType MaskType>
 static void ellipse_mask(const Result &base_mask,
@@ -97,8 +97,8 @@ static void ellipse_mask(const Result &base_mask,
   uv = float2x2(float2(cos_angle, -sin_angle), float2(sin_angle, cos_angle)) * uv;
   bool is_inside = math::length(uv / radius) < 1.0f;
 
-  float base_mask_value = base_mask.load_pixel<float>(texel);
-  float value = value_mask.load_pixel<float>(texel);
+  float base_mask_value = base_mask.load_pixel<float, true>(texel);
+  float value = value_mask.load_pixel<float, true>(texel);
 
   float output_mask_value = 0.0f;
   if constexpr (MaskType == CMP_NODE_MASKTYPE_ADD) {

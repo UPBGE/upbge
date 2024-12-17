@@ -54,7 +54,7 @@ static void node_composit_buts_despeckle(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(col, ptr, "threshold_neighbor", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class DespeckleOperation : public NodeOperation {
  public:
@@ -172,7 +172,7 @@ class DespeckleOperation : public NodeOperation {
       }
 
       /* We need to despeckle, so write the mean accumulated color. */
-      float factor = factor_image.load_pixel<float>(texel);
+      float factor = factor_image.load_pixel<float, true>(texel);
       float4 mean_color = accumulated_color / accumulated_weight;
       output.store_pixel(texel, math::interpolate(center_color, mean_color, factor));
     });

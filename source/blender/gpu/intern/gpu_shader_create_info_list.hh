@@ -39,7 +39,7 @@
 #include "gpu_srgb_to_framebuffer_space_info.hh"
 
 #ifdef WITH_GTESTS
-#  ifdef WITH_GPU_DRAW_TESTS
+#  ifdef WITH_GPU_BACKEND_TESTS
 #    include "gpu_shader_test_info.hh"
 #  endif
 #endif
@@ -50,7 +50,7 @@
 #  include "gpu_shader_fullscreen_blit_info.hh"
 #endif
 
-/* Realtime compositor. */
+/* Compositor. */
 #include "compositor_alpha_crop_info.hh"
 #include "compositor_bilateral_blur_info.hh"
 #include "compositor_bokeh_blur_info.hh"
