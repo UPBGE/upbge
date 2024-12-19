@@ -102,6 +102,7 @@
 #include "GPU_context.hh"
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
+#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_thumbs.hh"
 #include "MEM_CacheLimiterC-Api.h"
@@ -864,10 +865,8 @@ int main(int argc,
   /* Initialize sub-systems that use `BKE_appdir.h`. */
   IMB_init();
 
-#ifdef WITH_FFMPEG
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
   IMB_ffmpeg_init();
-#endif
 
   RNA_init();
 

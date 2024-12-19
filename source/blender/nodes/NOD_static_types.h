@@ -128,7 +128,7 @@ DefNode(ShaderNode,     SH_NODE_WAVELENGTH,         0,                      Wave
 DefNode(ShaderNode,     SH_NODE_WIREFRAME,          def_sh_tex_wireframe,   Wireframe,        "Wireframe",         "Retrieve the edges of an object as it appears to Cycles.\nNote: as meshes are triangulated before being processed by Cycles, topology will always appear triangulated")
 
 /* UPBGE*/
-DefNode(ShaderNode,     SH_NODE_SPRITES_ANIMATION,  0,                      "SPRITES_ANIMATION",  SpritesAnimation, "Sprites Animation", ""       )
+DefNode(ShaderNode,     SH_NODE_SPRITES_ANIMATION,  0,                      SpritesAnimation, "Sprites Animation", "")
 
 /* NOTE: #OutputFile node has special RNA setup function called in `rna_nodetree.cc`. */
 DefNode(CompositorNode, CMP_NODE_ALPHAOVER,         def_cmp_alpha_over,     AlphaOver,        "Alpha Over",          "Overlay a foreground image onto a background image")

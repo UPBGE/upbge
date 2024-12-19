@@ -21,11 +21,11 @@ set(INC
   ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
+  ../../blender/imbuf/movie/intern
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
   ../../blender/render
-  ../../../intern/ffmpeg
   ../../../intern/decklink
   ../../../intern/gpudirect
   ../../../intern/atomic

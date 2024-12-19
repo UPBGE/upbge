@@ -23,12 +23,11 @@
 
 #  include "Exception.h"
 #  include "BLI_time.h"
+#  include "ffmpeg_util.hh"
 
 
 extern "C" {
-#  include <libavcodec/avcodec.h>
 #  include <libavutil/imgutils.h>
-#  include <libswscale/swscale.h>
 }
 
 // default framerate
@@ -422,7 +421,7 @@ void *VideoFFmpeg::cacheThread(void *data)
           if (input->data[0] != 0 || input->data[1] != 0 || input->data[2] != 0 ||
               input->data[3] != 0) {
             if (video->m_deinterlace) {
-              if (av_image_deinterlace((AVFrame *)video->m_frameDeinterlaced,
+              if (ffmpeg_deinterlace((AVFrame *)video->m_frameDeinterlaced,
                                        (const AVFrame *)video->m_frame,
                                        video->m_codecCtx->pix_fmt,
                                        video->m_codecCtx->width,
@@ -1024,7 +1023,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
         }
 
         if (m_deinterlace) {
-          if (av_image_deinterlace((AVFrame *)m_frameDeinterlaced,
+          if (ffmpeg_deinterlace((AVFrame *)m_frameDeinterlaced,
                                    (const AVFrame *)m_frame,
                                    m_codecCtx->pix_fmt,
                                    m_codecCtx->width,

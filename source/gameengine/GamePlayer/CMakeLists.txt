@@ -50,6 +50,7 @@ set(INC
   ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
+  ../../blender/imbuf/movie
   ../../blender/makesrna
   ../../blender/python
   ../../blender/render
