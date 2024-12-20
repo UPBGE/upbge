@@ -33,11 +33,12 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
+
+#include "MOV_read.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_edit.hh"
@@ -106,7 +107,7 @@ static void seq_add_set_name(Scene *scene, Sequence *seq, SeqLoadData *load_data
 
 static void seq_add_set_view_transform(Scene *scene, Sequence *seq, SeqLoadData *load_data)
 {
-  const char *strip_colorspace = seq->strip->colorspace_settings.name;
+  const char *strip_colorspace = seq->data->colorspace_settings.name;
 
   if (load_data->flags & SEQ_LOAD_SET_VIEW_TRANSFORM) {
     const char *role_colorspace_byte;
@@ -188,7 +189,7 @@ Sequence *SEQ_add_effect_strip(Scene *scene, ListBase *seqbase, SeqLoadData *loa
 
 void SEQ_add_image_set_directory(Sequence *seq, const char *dirpath)
 {
-  STRNCPY(seq->strip->dirpath, dirpath);
+  STRNCPY(seq->data->dirpath, dirpath);
 }
 
 void SEQ_add_image_load_file(Scene *scene, Sequence *seq, size_t strip_frame, const char *filename)
@@ -200,18 +201,17 @@ void SEQ_add_image_load_file(Scene *scene, Sequence *seq, size_t strip_frame, co
 
 void SEQ_add_image_init_alpha_mode(Sequence *seq)
 {
-  if (seq->strip && seq->strip->stripdata) {
+  if (seq->data && seq->data->stripdata) {
     char filepath[FILE_MAX];
     ImBuf *ibuf;
 
-    BLI_path_join(
-        filepath, sizeof(filepath), seq->strip->dirpath, seq->strip->stripdata->filename);
+    BLI_path_join(filepath, sizeof(filepath), seq->data->dirpath, seq->data->stripdata->filename);
     BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
     /* Initialize input color space. */
     if (seq->type == SEQ_TYPE_IMAGE) {
       ibuf = IMB_loadiffname(
-          filepath, IB_test | IB_alphamode_detect, seq->strip->colorspace_settings.name);
+          filepath, IB_test | IB_alphamode_detect, seq->data->colorspace_settings.name);
 
       /* Byte images are default to straight alpha, however sequencer
        * works in premul space, so mark strip to be premultiplied first.
@@ -233,8 +233,8 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   Sequence *seq = SEQ_sequence_alloc(
       seqbase, load_data->start_frame, load_data->channel, SEQ_TYPE_IMAGE);
   seq->len = load_data->image.len;
-  Strip *strip = seq->strip;
-  strip->stripdata = static_cast<StripElem *>(
+  StripData *data = seq->data;
+  data->stripdata = static_cast<StripElem *>(
       MEM_callocN(load_data->image.len * sizeof(StripElem), "stripelem"));
 
   if (seq->len == 1) {
@@ -254,11 +254,11 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   char file_path[FILE_MAX];
   STRNCPY(file_path, load_data->path);
   BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
-  ImBuf *ibuf = IMB_loadiffname(file_path, IB_rect, seq->strip->colorspace_settings.name);
+  ImBuf *ibuf = IMB_loadiffname(file_path, IB_rect, seq->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
-    StripElem *strip_elem = strip->stripdata;
+    StripElem *strip_elem = data->stripdata;
     for (int i = 0; i < load_data->image.len; i++) {
       strip_elem->orig_width = ibuf->x;
       strip_elem->orig_height = ibuf->y;
@@ -271,7 +271,7 @@ Sequence *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   }
 
   /* Set Last active directory. */
-  STRNCPY(scene->ed->act_imagedir, seq->strip->dirpath);
+  STRNCPY(scene->ed->act_imagedir, seq->data->dirpath);
   seq_add_set_view_transform(scene, seq, load_data);
   seq_add_set_name(scene, seq, load_data);
   seq_add_generic_update(scene, seq);
@@ -323,12 +323,12 @@ Sequence *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
    * See #47135 for under shoot example. */
   seq->len = std::max(1, int(round((info.length - sound->offset_time) * FPS)));
 
-  Strip *strip = seq->strip;
+  StripData *data = seq->data;
   /* We only need 1 element to store the filename. */
-  StripElem *se = strip->stripdata = static_cast<StripElem *>(
+  StripElem *se = data->stripdata = static_cast<StripElem *>(
       MEM_callocN(sizeof(StripElem), "stripelem"));
   BLI_path_split_dir_file(
-      load_data->path, strip->dirpath, sizeof(strip->dirpath), se->filename, sizeof(se->filename));
+      load_data->path, data->dirpath, sizeof(data->dirpath), se->filename, sizeof(se->filename));
 
   if (seq->sound != nullptr) {
     if (load_data->flags & SEQ_LOAD_SOUND_MONO) {
@@ -346,7 +346,7 @@ Sequence *SEQ_add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   }
 
   /* Set Last active directory. */
-  BLI_strncpy(scene->ed->act_sounddir, strip->dirpath, FILE_MAXDIR);
+  BLI_strncpy(scene->ed->act_sounddir, data->dirpath, FILE_MAXDIR);
   seq_add_set_name(scene, seq, load_data);
   seq_add_generic_update(scene, seq);
 
@@ -398,8 +398,8 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   char colorspace[64] = "\0"; /* MAX_COLORSPACE_NAME */
   bool is_multiview_loaded = false;
   const int totfiles = seq_num_files(scene, load_data->views_format, load_data->use_multiview);
-  ImBufAnim **anim_arr = static_cast<ImBufAnim **>(
-      MEM_callocN(sizeof(ImBufAnim *) * totfiles, "Video files"));
+  MovieReader **anim_arr = static_cast<MovieReader **>(
+      MEM_callocN(sizeof(MovieReader *) * totfiles, "Video files"));
   int i;
   int orig_width = 0;
   int orig_height = 0;
@@ -440,21 +440,21 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   load_data->r_video_stream_start = 0.0;
 
   if (anim_arr[0] != nullptr) {
-    short fps_denom;
-    float fps_num;
-
-    IMB_anim_get_fps(anim_arr[0], true, &fps_denom, &fps_num);
-
-    video_fps = fps_denom / fps_num;
+    short fps_num;
+    float fps_denom;
+    bool have_fps = MOV_get_fps_num_denom(anim_arr[0], fps_num, fps_denom);
+    if (have_fps) {
+      video_fps = fps_num / fps_denom;
+    }
 
     /* Adjust scene's frame rate settings to match. */
-    if (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS) {
-      scene->r.frs_sec = fps_denom;
-      scene->r.frs_sec_base = fps_num;
+    if (have_fps && (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS)) {
+      scene->r.frs_sec = fps_num;
+      scene->r.frs_sec_base = fps_denom;
       DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
     }
 
-    load_data->r_video_stream_start = IMB_anim_get_offset(anim_arr[0]);
+    load_data->r_video_stream_start = MOV_get_start_offset_seconds(anim_arr[0]);
   }
 
   Sequence *seq = SEQ_sequence_alloc(
@@ -481,20 +481,19 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
   }
 
   if (anim_arr[0] != nullptr) {
-    seq->len = IMB_anim_get_duration(anim_arr[0], IMB_TC_RECORD_RUN);
+    seq->len = MOV_get_duration_frames(anim_arr[0], IMB_TC_RECORD_RUN);
 
-    IMB_anim_load_metadata(anim_arr[0]);
+    MOV_load_metadata(anim_arr[0]);
 
     /* Set initial scale based on load_data->fit_method. */
-    orig_width = IMB_anim_get_image_width(anim_arr[0]);
-    orig_height = IMB_anim_get_image_height(anim_arr[0]);
+    orig_width = MOV_get_image_width(anim_arr[0]);
+    orig_height = MOV_get_image_height(anim_arr[0]);
     SEQ_set_scale_to_fit(
         seq, orig_width, orig_height, scene->r.xsch, scene->r.ysch, load_data->fit_method);
 
-    short frs_sec;
-    float frs_sec_base;
-    if (IMB_anim_get_fps(anim_arr[0], true, &frs_sec, &frs_sec_base)) {
-      seq->media_playback_rate = float(frs_sec) / frs_sec_base;
+    float fps = MOV_get_fps(anim_arr[0]);
+    if (fps > 0.0f) {
+      seq->media_playback_rate = fps;
     }
   }
 
@@ -503,17 +502,17 @@ Sequence *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqL
     seq->flag |= SEQ_AUTO_PLAYBACK_RATE;
   }
 
-  STRNCPY(seq->strip->colorspace_settings.name, colorspace);
+  STRNCPY(seq->data->colorspace_settings.name, colorspace);
 
-  Strip *strip = seq->strip;
+  StripData *data = seq->data;
   /* We only need 1 element for MOVIE strips. */
   StripElem *se;
-  strip->stripdata = se = static_cast<StripElem *>(MEM_callocN(sizeof(StripElem), "stripelem"));
-  strip->stripdata->orig_width = orig_width;
-  strip->stripdata->orig_height = orig_height;
-  strip->stripdata->orig_fps = video_fps;
+  data->stripdata = se = static_cast<StripElem *>(MEM_callocN(sizeof(StripElem), "stripelem"));
+  data->stripdata->orig_width = orig_width;
+  data->stripdata->orig_height = orig_height;
+  data->stripdata->orig_fps = video_fps;
   BLI_path_split_dir_file(
-      load_data->path, strip->dirpath, sizeof(strip->dirpath), se->filename, sizeof(se->filename));
+      load_data->path, data->dirpath, sizeof(data->dirpath), se->filename, sizeof(se->filename));
 
   seq_add_set_view_transform(scene, seq, load_data);
   seq_add_set_name(scene, seq, load_data);
@@ -549,7 +548,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
   switch (seq->type) {
     case SEQ_TYPE_IMAGE: {
       /* Hack? */
-      size_t olen = MEM_allocN_len(seq->strip->stripdata) / sizeof(StripElem);
+      size_t olen = MEM_allocN_len(seq->data->stripdata) / sizeof(StripElem);
 
       seq->len = olen;
       seq->len -= seq->anim_startofs;
@@ -567,7 +566,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
                                 (scene->r.scemode & R_MULTIVIEW) != 0;
 
       BLI_path_join(
-          filepath, sizeof(filepath), seq->strip->dirpath, seq->strip->stripdata->filename);
+          filepath, sizeof(filepath), seq->data->dirpath, seq->data->stripdata->filename);
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       SEQ_relations_sequence_free_anim(seq);
@@ -582,14 +581,14 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
 
         if (prefix[0] != '\0') {
           for (i = 0; i < totfiles; i++) {
-            ImBufAnim *anim;
+            MovieReader *anim;
             char filepath_view[FILE_MAX];
 
             seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
             anim = openanim(filepath_view,
                             IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                             seq->streamindex,
-                            seq->strip->colorspace_settings.name);
+                            seq->data->colorspace_settings.name);
 
             if (anim) {
               seq_anim_add_suffix(scene, anim, i);
@@ -603,11 +602,11 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
       }
 
       if (is_multiview_loaded == false) {
-        ImBufAnim *anim;
+        MovieReader *anim;
         anim = openanim(filepath,
                         IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                         seq->streamindex,
-                        seq->strip->colorspace_settings.name);
+                        seq->data->colorspace_settings.name);
         if (anim) {
           sanim = static_cast<StripAnim *>(MEM_mallocN(sizeof(StripAnim), "Strip Anim"));
           BLI_addtail(&seq->anims, sanim);
@@ -622,12 +621,12 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, const boo
         return;
       }
 
-      IMB_anim_load_metadata(sanim->anim);
+      MOV_load_metadata(sanim->anim);
 
-      seq->len = IMB_anim_get_duration(
+      seq->len = MOV_get_duration_frames(
           sanim->anim,
-          IMB_Timecode_Type(seq->strip->proxy ? IMB_Timecode_Type(seq->strip->proxy->tc) :
-                                                IMB_TC_RECORD_RUN));
+          IMB_Timecode_Type(seq->data->proxy ? IMB_Timecode_Type(seq->data->proxy->tc) :
+                                               IMB_TC_RECORD_RUN));
 
       seq->len -= seq->anim_startofs;
       seq->len -= seq->anim_endofs;
@@ -715,7 +714,7 @@ void SEQ_add_movie_reload_if_needed(
   }
   else {
     LISTBASE_FOREACH (StripAnim *, sanim, &seq->anims) {
-      if (!IMB_anim_can_produce_frames(sanim->anim)) {
+      if (!MOV_is_initialized_and_valid(sanim->anim)) {
         /* Anim cannot produce frames, try reloading. */
         must_reload = true;
         break;
@@ -741,7 +740,7 @@ void SEQ_add_movie_reload_if_needed(
 
   /* Check if there are still anims that cannot produce frames. */
   LISTBASE_FOREACH (StripAnim *, sanim, &seq->anims) {
-    if (!IMB_anim_can_produce_frames(sanim->anim)) {
+    if (!MOV_is_initialized_and_valid(sanim->anim)) {
       /* There still is an anim that cannot produce frames. */
       *r_can_produce_frames = false;
       return;

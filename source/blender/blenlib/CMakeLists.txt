@@ -60,7 +60,6 @@ set(SRC
   intern/cpp_types.cc
   intern/delaunay_2d.cc
   intern/dot_export.cc
-  intern/dynlib.cc
   intern/easing.c
   intern/endian_switch.c
   intern/expr_pylike_eval.c
@@ -224,7 +223,6 @@ set(SRC
   BLI_disjoint_set.hh
   BLI_dot_export.hh
   BLI_dot_export_attribute_enums.hh
-  BLI_dynlib.h
   BLI_dynstr.h
   BLI_easing.h
   BLI_endian_defines.h
@@ -352,7 +350,6 @@ set(SRC
   BLI_rand.h
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh
-  BLI_range.h
   BLI_rect.h
   BLI_resource_scope.hh
   BLI_scanfill.h

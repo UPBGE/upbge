@@ -37,9 +37,10 @@
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
-#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "MOV_read.hh"
 
 #include "multiview.hh"
 #include "proxy.hh"
@@ -168,7 +169,7 @@ const char *SEQ_sequence_give_name(const Sequence *seq)
 
   if (!name) {
     if (!(seq->type & SEQ_TYPE_EFFECT)) {
-      return seq->strip->dirpath;
+      return seq->data->dirpath;
     }
 
     return DATA_("Effect");
@@ -212,19 +213,19 @@ static void open_anim_filepath(Sequence *seq,
     sanim->anim = openanim(filepath,
                            IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                            seq->streamindex,
-                           seq->strip->colorspace_settings.name);
+                           seq->data->colorspace_settings.name);
   }
   else {
     sanim->anim = openanim_noload(filepath,
                                   IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                                   seq->streamindex,
-                                  seq->strip->colorspace_settings.name);
+                                  seq->data->colorspace_settings.name);
   }
 }
 
 static bool use_proxy(Editing *ed, Sequence *seq)
 {
-  StripProxy *proxy = seq->strip->proxy;
+  StripProxy *proxy = seq->data->proxy;
   return proxy && ((proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_DIR) != 0 ||
                    (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE));
 }
@@ -241,7 +242,7 @@ static void proxy_dir_get(Editing *ed, Sequence *seq, size_t str_len, char *r_pr
       }
     }
     else {
-      BLI_strncpy(r_proxy_dirpath, seq->strip->proxy->dirpath, str_len);
+      BLI_strncpy(r_proxy_dirpath, seq->data->proxy->dirpath, str_len);
     }
     BLI_path_abs(r_proxy_dirpath, BKE_main_blendfile_path_from_global());
   }
@@ -288,7 +289,7 @@ static bool open_anim_file_multiview(Scene *scene, Sequence *seq, const char *fi
 
     index_dir_set(ed, seq, sanim);
     BLI_addtail(&seq->anims, sanim);
-    IMB_suffix_anim(sanim->anim, suffix);
+    MOV_set_multiview_suffix(sanim->anim, suffix);
     is_multiview_loaded = true;
   }
 
@@ -308,7 +309,7 @@ void seq_open_anim_file(Scene *scene, Sequence *seq, bool openfile)
 
   Editing *ed = scene->ed;
   char filepath[FILE_MAX];
-  BLI_path_join(filepath, sizeof(filepath), seq->strip->dirpath, seq->strip->stripdata->filename);
+  BLI_path_join(filepath, sizeof(filepath), seq->data->dirpath, seq->data->stripdata->filename);
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
 
   bool is_multiview = (seq->flag & SEQ_USE_VIEWS) != 0 && (scene->r.scemode & R_MULTIVIEW) != 0;
@@ -383,8 +384,8 @@ Sequence *SEQ_sequence_from_strip_elem(ListBase *seqbase, StripElem *se)
 
   for (iseq = static_cast<Sequence *>(seqbase->first); iseq; iseq = iseq->next) {
     Sequence *seq_found;
-    if ((iseq->strip && iseq->strip->stripdata) &&
-        ARRAY_HAS_ITEM(se, iseq->strip->stripdata, iseq->len))
+    if ((iseq->data && iseq->data->stripdata) &&
+        ARRAY_HAS_ITEM(se, iseq->data->stripdata, iseq->len))
     {
       break;
     }
@@ -427,8 +428,8 @@ Mask *SEQ_active_mask_get(Scene *scene)
 
 void SEQ_alpha_mode_from_file_extension(Sequence *seq)
 {
-  if (seq->strip && seq->strip->stripdata) {
-    const char *filename = seq->strip->stripdata->filename;
+  if (seq->data && seq->data->stripdata) {
+    const char *filename = seq->data->stripdata->filename;
     seq->alpha_mode = BKE_image_alpha_mode_from_extension_ex(filename);
   }
 }
@@ -471,7 +472,7 @@ void SEQ_set_scale_to_fit(const Sequence *seq,
                           const int preview_height,
                           const eSeqImageFitMethod fit_method)
 {
-  StripTransform *transform = seq->strip->transform;
+  StripTransform *transform = seq->data->transform;
 
   switch (fit_method) {
     case SEQ_SCALE_TO_FIT:
