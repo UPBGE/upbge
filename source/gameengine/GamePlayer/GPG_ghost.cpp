@@ -102,11 +102,11 @@
 #include "GPU_context.hh"
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
-#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_thumbs.hh"
 #include "MEM_CacheLimiterC-Api.h"
 #include "MEM_guardedalloc.h"
+#include "MOV_util.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 #include "RE_texture.h"
@@ -866,7 +866,7 @@ int main(int argc,
   IMB_init();
 
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
-  IMB_ffmpeg_init();
+  MOV_init();
 
   RNA_init();
 

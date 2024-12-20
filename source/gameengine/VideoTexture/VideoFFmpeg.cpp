@@ -23,7 +23,7 @@
 
 #  include "Exception.h"
 #  include "BLI_time.h"
-#  include "ffmpeg_util.hh"
+#  include "movie_util.hh"
 
 
 extern "C" {
