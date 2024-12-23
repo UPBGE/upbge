@@ -9,7 +9,7 @@
 # dependencies have one assigned.
 
 set(ZLIB_VERSION 1.2.13)
-set(ZLIB_URI https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz)
+set(ZLIB_URI https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz)
 set(ZLIB_HASH 9b8aa094c4e5765dabf4da391f00d15c)
 set(ZLIB_HASH_TYPE MD5)
 set(ZLIB_FILE zlib-${ZLIB_VERSION}.tar.gz)
@@ -164,9 +164,9 @@ set(OPENMP_URI https://github.com/llvm/llvm-project/releases/download/llvmorg-${
 set(OPENMP_HASH_TYPE MD5)
 set(OPENMP_FILE openmp-${OPENMP_VERSION}.src.tar.xz)
 
-set(OPENIMAGEIO_VERSION v2.4.11.0)
+set(OPENIMAGEIO_VERSION v2.4.15.0)
 set(OPENIMAGEIO_URI https://github.com/OpenImageIO/oiio/archive/refs/tags/${OPENIMAGEIO_VERSION}.tar.gz)
-set(OPENIMAGEIO_HASH 7eb997479ecfe7d9fa59cc8ddd35d0ae)
+set(OPENIMAGEIO_HASH 784391406ee309075a3f82e60a42f023)
 set(OPENIMAGEIO_HASH_TYPE MD5)
 set(OPENIMAGEIO_FILE OpenImageIO-${OPENIMAGEIO_VERSION}.tar.gz)
 
@@ -208,11 +208,11 @@ set(OSL_FILE OpenShadingLanguage-${OSL_VERSION}.tar.gz)
 # BZIP2, FFI, SQLITE and change the versions in this file as well. For compliance
 # reasons there can be no exceptions to this.
 
-set(PYTHON_VERSION 3.10.12)
+set(PYTHON_VERSION 3.10.13)
 set(PYTHON_SHORT_VERSION 3.10)
 set(PYTHON_SHORT_VERSION_NO_DOTS 310)
 set(PYTHON_URI https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz)
-set(PYTHON_HASH 49b0342476b984e106d308c25d657f12)
+set(PYTHON_HASH 8847dc6458d1431d0ae0f55942deeb89)
 set(PYTHON_HASH_TYPE MD5)
 set(PYTHON_FILE Python-${PYTHON_VERSION}.tar.xz)
 set(PYTHON_CPE "cpe:2.3:a:python:python:${PYTHON_VERSION}:-:*:*:*:*:*:*")
@@ -321,6 +321,12 @@ set(X264_HASH bb4f7da03936b5a030ed5827133b58eb3f701d7e5dce32cca4ba6df93797d42e)
 set(X264_HASH_TYPE SHA256)
 set(X264_FILE x264-${X264_VERSION}.tar.gz)
 
+set(XVIDCORE_VERSION 1.3.7)
+set(XVIDCORE_URI https://downloads.xvid.com/downloads/xvidcore-${XVIDCORE_VERSION}.tar.gz)
+set(XVIDCORE_HASH abbdcbd39555691dd1c9b4d08f0a031376a3b211652c0d8b3b8aa9be1303ce2d)
+set(XVIDCORE_HASH_TYPE SHA256)
+set(XVIDCORE_FILE xvidcore-${XVIDCORE_VERSION}.tar.gz)
+
 set(OPENJPEG_VERSION 2.5.0)
 set(OPENJPEG_SHORT_VERSION 2.5)
 set(OPENJPEG_URI https://github.com/uclouvain/openjpeg/archive/v${OPENJPEG_VERSION}.tar.gz)
@@ -348,16 +354,16 @@ set(ICONV_HASH 7d2a800b952942bb2880efb00cfd524c)
 set(ICONV_HASH_TYPE MD5)
 set(ICONV_FILE libiconv-${ICONV_VERSION}.tar.gz)
 
-set(SNDFILE_VERSION 1.1.0)
-set(SNDFILE_URI https://github.com/libsndfile/libsndfile/releases/download/1.1.0/libsndfile-${SNDFILE_VERSION}.tar.xz)
-set(SNDFILE_HASH e63dead2b4f0aaf323687619d007ee6a)
+set(SNDFILE_VERSION 1.2.2)
+set(SNDFILE_URI https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-${SNDFILE_VERSION}.tar.xz)
+set(SNDFILE_HASH 04e2e6f726da7c5dc87f8cf72f250d04)
 set(SNDFILE_HASH_TYPE MD5)
 set(SNDFILE_FILE libsndfile-${SNDFILE_VERSION}.tar.xz)
 set(SNDFILE_CPE "cpe:2.3:a:libsndfile_project:libsndfile:${SNDFILE_VERSION}:*:*:*:*:*:*:*")
 
-set(WEBP_VERSION 1.2.2)
+set(WEBP_VERSION 1.3.2)
 set(WEBP_URI https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-${WEBP_VERSION}.tar.gz)
-set(WEBP_HASH b5e2e414a8adee4c25fe56b18dd9c549)
+set(WEBP_HASH 34869086761c0e2da6361035f7b64771)
 set(WEBP_HASH_TYPE MD5)
 set(WEBP_FILE libwebp-${WEBP_VERSION}.tar.gz)
 set(WEBP_CPE "cpe:2.3:a:webmproject:libwebp:${WEBP_VERSION}:*:*:*:*:*:*:*")
@@ -453,9 +459,9 @@ set(LZMA_HASH_TYPE SHA256)
 set(LZMA_FILE xz-${LZMA_VERSION}.tar.bz2)
 
 # NOTE: Python's build has been modified to use our ssl version.
-set(SSL_VERSION 3.0.9)
+set(SSL_VERSION 3.1.2)
 set(SSL_URI https://www.openssl.org/source/openssl-${SSL_VERSION}.tar.gz)
-set(SSL_HASH eb1ab04781474360f77c318ab89d8c5a03abc38e63d65a603cabbf1b00a1dc90)
+set(SSL_HASH a0ce69b8b97ea6a35b96875235aa453b966ba3cba8af2de23657d8b6767d6539)
 set(SSL_HASH_TYPE SHA256)
 set(SSL_FILE openssl-${SSL_VERSION}.tar.gz)
 set(SSL_CPE "cpe:2.3:a:openssl:openssl:${SSL_VERSION}:*:*:*:*:*:*:*")
@@ -668,15 +674,15 @@ set(UNIFIED_RUNTIME_FILE unified-runtime-${UNIFIED_RUNTIME_VERSION}.tar.gz)
 # compiler, the versions used are taken from the following location
 # https://github.com/intel/intel-graphics-compiler/releases
 
-set(IGC_VERSION 1.0.13064.7)
+set(IGC_VERSION 1.0.15468.25)
 set(IGC_URI https://github.com/intel/intel-graphics-compiler/archive/refs/tags/igc-${IGC_VERSION}.tar.gz)
-set(IGC_HASH a929abd4cca2b293961ec0437ee4b3b2147bd3b2c8a3c423af78c0c359b2e5ae)
+set(IGC_HASH c2c36af98ead4f4f6975633eaa53f45b84cb96ce48d9bfa879bebfaf12367b79)
 set(IGC_HASH_TYPE SHA256)
 set(IGC_FILE igc-${IGC_VERSION}.tar.gz)
 
-set(IGC_LLVM_VERSION llvmorg-11.1.0)
+set(IGC_LLVM_VERSION llvmorg-14.0.5)
 set(IGC_LLVM_URI https://github.com/llvm/llvm-project/archive/refs/tags/${IGC_LLVM_VERSION}.tar.gz)
-set(IGC_LLVM_HASH 53a0719f3f4b0388013cfffd7b10c7d5682eece1929a9553c722348d1f866e79)
+set(IGC_LLVM_HASH a4a57f029cb81f04618e05853f05fc2d21b64353c760977d8e7799bf7218a23a)
 set(IGC_LLVM_HASH_TYPE SHA256)
 set(IGC_LLVM_FILE ${IGC_LLVM_VERSION}.tar.gz)
 
@@ -690,33 +696,33 @@ set(IGC_LLVM_FILE ${IGC_LLVM_VERSION}.tar.gz)
 #
 # WARNING WARNING WARNING
 
-set(IGC_OPENCL_CLANG_VERSION ee31812ea8b89d08c2918f045d11a19bd33525c5)
+set(IGC_OPENCL_CLANG_VERSION cf95b338d14685e4f3402ab1828bef31d48f1fd6)
 set(IGC_OPENCL_CLANG_URI https://github.com/intel/opencl-clang/archive/${IGC_OPENCL_CLANG_VERSION}.tar.gz)
-set(IGC_OPENCL_CLANG_HASH 1db6735bbcfaa31e8a9ba39f121d6bafa806ea8919e9f56782d6aaa67771ddda)
+set(IGC_OPENCL_CLANG_HASH e6191148c87ac7fdc2806b04feeb008c217344ee4dd1308b87e4c6cf3112d4bc)
 set(IGC_OPENCL_CLANG_HASH_TYPE SHA256)
 set(IGC_OPENCL_CLANG_FILE opencl-clang-${IGC_OPENCL_CLANG_VERSION}.tar.gz)
 
-set(IGC_VCINTRINSICS_VERSION v0.11.0)
+set(IGC_VCINTRINSICS_VERSION v0.13.0)
 set(IGC_VCINTRINSICS_URI https://github.com/intel/vc-intrinsics/archive/refs/tags/${IGC_VCINTRINSICS_VERSION}.tar.gz)
-set(IGC_VCINTRINSICS_HASH e5acd5626ce7fa6d41ce154c50ac805eda734ee66af94ef28e680ac2ad81bb9f)
+set(IGC_VCINTRINSICS_HASH f98e265b38312cceaa3276b9800e0c5b1f167e5807d50abd9585268c7025e9b7)
 set(IGC_VCINTRINSICS_HASH_TYPE SHA256)
 set(IGC_VCINTRINSICS_FILE vc-intrinsics-${IGC_VCINTRINSICS_VERSION}.tar.gz)
 
-set(IGC_SPIRV_HEADERS_VERSION sdk-1.3.204.1)
+set(IGC_SPIRV_HEADERS_VERSION sdk-1.3.239.0)
 set(IGC_SPIRV_HEADERS_URI https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/${IGC_SPIRV_HEADERS_VERSION}.tar.gz)
-set(IGC_SPIRV_HEADERS_HASH 262864053968c217d45b24b89044a7736a32361894743dd6cfe788df258c746c)
+set(IGC_SPIRV_HEADERS_HASH fdaf6670e311cd1c08ae90bf813e89dd31630205bc60030ffd25fb0af39b51fe)
 set(IGC_SPIRV_HEADERS_HASH_TYPE SHA256)
 set(IGC_SPIRV_HEADERS_FILE SPIR-V-Headers-${IGC_SPIRV_HEADERS_VERSION}.tar.gz)
 
-set(IGC_SPIRV_TOOLS_VERSION sdk-1.3.204.1)
+set(IGC_SPIRV_TOOLS_VERSION sdk-1.3.239.0)
 set(IGC_SPIRV_TOOLS_URI https://github.com/KhronosGroup/SPIRV-Tools/archive/refs/tags/${IGC_SPIRV_TOOLS_VERSION}.tar.gz)
-set(IGC_SPIRV_TOOLS_HASH 6e19900e948944243024aedd0a201baf3854b377b9cc7a386553bc103b087335)
+set(IGC_SPIRV_TOOLS_HASH 327b2dba4515646eee28c1a5fe1332891e81c8b6ff289363f52877f3e67c2d81)
 set(IGC_SPIRV_TOOLS_HASH_TYPE SHA256)
 set(IGC_SPIRV_TOOLS_FILE SPIR-V-Tools-${IGC_SPIRV_TOOLS_VERSION}.tar.gz)
 
-set(IGC_SPIRV_TRANSLATOR_VERSION d739c01d65ec00dee64dedd40deed805216a7193)
+set(IGC_SPIRV_TRANSLATOR_VERSION 7e332d0acc8ee57462d9fbedefaf411fc193fdd0)
 set(IGC_SPIRV_TRANSLATOR_URI https://github.com/KhronosGroup/SPIRV-LLVM-Translator/archive/${IGC_SPIRV_TRANSLATOR_VERSION}.tar.gz)
-set(IGC_SPIRV_TRANSLATOR_HASH ddc0cc9ccbe59dadeaf291012d59de142b2e9f2b124dbb634644d39daddaa13e)
+set(IGC_SPIRV_TRANSLATOR_HASH 29aadf5fd4e64ff1d4f86446eacd6a7439efeb280478988c36314c4441072c36)
 set(IGC_SPIRV_TRANSLATOR_HASH_TYPE SHA256)
 set(IGC_SPIRV_TRANSLATOR_FILE SPIR-V-Translator-${IGC_SPIRV_TRANSLATOR_VERSION}.tar.gz)
 
@@ -724,15 +730,15 @@ set(IGC_SPIRV_TRANSLATOR_FILE SPIR-V-Translator-${IGC_SPIRV_TRANSLATOR_VERSION}.
 ### Intel Graphics Compiler DEPS END ###
 ########################################
 
-set(GMMLIB_VERSION intel-gmmlib-22.3.0)
+set(GMMLIB_VERSION intel-gmmlib-22.3.11)
 set(GMMLIB_URI https://github.com/intel/gmmlib/archive/refs/tags/${GMMLIB_VERSION}.tar.gz)
-set(GMMLIB_HASH c1f33e1519edfc527127baeb0436b783430dfd256c643130169a3a71dc86aff9)
+set(GMMLIB_HASH b97f4e501c1e902a559cbd6597c008a700f4ab8c495680bf1968db99c6547afe)
 set(GMMLIB_HASH_TYPE SHA256)
 set(GMMLIB_FILE ${GMMLIB_VERSION}.tar.gz)
 
-set(OCLOC_VERSION 23.05.25593.18)
+set(OCLOC_VERSION 23.43.27642.40)
 set(OCLOC_URI https://github.com/intel/compute-runtime/archive/refs/tags/${OCLOC_VERSION}.tar.gz)
-set(OCLOC_HASH 122415028e631922ae999c996954dfd98ce9a32decd564d5484c31476ec9306e)
+set(OCLOC_HASH 67d0c6f3103ff12408a628e14f7170da3e0220313e10799693d576cea7821fe2)
 set(OCLOC_HASH_TYPE SHA256)
 set(OCLOC_FILE ocloc-${OCLOC_VERSION}.tar.gz)
 

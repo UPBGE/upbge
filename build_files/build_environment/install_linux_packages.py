@@ -131,10 +131,19 @@ BUILD_MANDATORY_SUBPACKAGES = (
                                   DISTRO_ID_ARCH: "base-devel",
                                   },
             ),
-    Package(name="Git",
+    Package(name="Git", is_group=True,
+            sub_packages=(
+                Package(name="Git LFS",
+                        distro_package_names={DISTRO_ID_DEBIAN: "git-lfs",
+                                              DISTRO_ID_FEDORA: "git-lfs",
+                                              DISTRO_ID_SUSE: "git-lfs",
+                                              DISTRO_ID_ARCH: "git-lfs",
+                                              },
+                        ),
+            ),
             distro_package_names={DISTRO_ID_DEBIAN: "git",
                                   DISTRO_ID_FEDORA: "git",
-                                  DISTRO_ID_SUSE: None,
+                                  DISTRO_ID_SUSE: "git",
                                   DISTRO_ID_ARCH: "git",
                                   },
             ),
@@ -278,7 +287,7 @@ DEPS_CRITICAL_SUBPACKAGES = (
             distro_package_names={DISTRO_ID_DEBIAN: "libegl-dev",
                                   DISTRO_ID_FEDORA: "mesa-libEGL-devel",
                                   DISTRO_ID_SUSE: "Mesa-libEGL-devel",
-                                  DISTRO_ID_ARCH: None, # Included in libglvnd.
+                                  DISTRO_ID_ARCH: None,  # Included in libglvnd.
                                   },
             ),
 )

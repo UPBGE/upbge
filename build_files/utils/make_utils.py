@@ -6,12 +6,11 @@ Utility functions for make update and make tests.
 """
 
 import re
+import os
 import shutil
 import subprocess
 import sys
-import os
 from pathlib import Path
-from urllib.parse import urljoin
 
 from typing import (
     Sequence,
@@ -19,18 +18,30 @@ from typing import (
 )
 
 
-def call(cmd: Sequence[str], exit_on_error: bool = True, silent: bool = False) -> int:
+def call(cmd: Sequence[str], exit_on_error: bool = True, silent: bool = False, env=None) -> int:
     if not silent:
-        print(" ".join([str(x) for x in cmd]))
+        cmd_str = ""
+        if env:
+            cmd_str += " ".join([f"{item[0]}={item[1]}" for item in env.items()])
+            cmd_str += " "
+        cmd_str += " ".join([str(x) for x in cmd])
+        print(cmd_str)
+
+    env_full = None
+    if env:
+        env_full = os.environ.copy()
+        for key, value in env.items():
+            env_full[key] = value
 
     # Flush to ensure correct order output on Windows.
     sys.stdout.flush()
     sys.stderr.flush()
 
     if silent:
-        retcode = subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        retcode = subprocess.call(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env_full)
     else:
-        retcode = subprocess.call(cmd)
+        retcode = subprocess.call(cmd, env=env_full)
 
     if exit_on_error and retcode != 0:
         sys.exit(retcode)
@@ -46,7 +57,7 @@ def check_output(cmd: Sequence[str], exit_on_error: bool = True) -> str:
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True)
     except subprocess.CalledProcessError as e:
         if exit_on_error:
-            sys.stderr.write(" ".join(cmd))
+            sys.stderr.write(" ".join(cmd) + "\n")
             sys.stderr.write(e.output + "\n")
             sys.exit(e.returncode)
         output = ""
@@ -85,25 +96,6 @@ def git_remote_exist(git_command: str, remote_name: str) -> bool:
     return remote_url != remote_name
 
 
-def git_get_resolved_submodule_url(git_command: str, blender_url: str, submodule_path: str) -> str:
-    git_root = check_output([git_command, "rev-parse", "--show-toplevel"])
-    dot_gitmodules = os.path.join(git_root, ".gitmodules")
-
-    submodule_key_prefix = f"submodule.{submodule_path}"
-    submodule_key_url = f"{submodule_key_prefix}.url"
-
-    gitmodule_url = git_get_config(
-        git_command, submodule_key_url, file=dot_gitmodules)
-
-    # A bit of a trickery to construct final URL.
-    # Only works for the relative submodule URLs.
-    #
-    # Note that unless the LHS URL ends up with a slash urljoin treats the last component as a
-    # file.
-    assert gitmodule_url.startswith('..')
-    return urljoin(blender_url + "/", gitmodule_url)
-
-
 def git_is_remote_repository(git_command: str, repo: str) -> bool:
     """Returns true if the given repository is a valid/clonable git repo"""
     exit_code = call((git_command, "ls-remote", repo, "HEAD"), exit_on_error=False, silent=True)
@@ -111,7 +103,8 @@ def git_is_remote_repository(git_command: str, repo: str) -> bool:
 
 
 def git_branch(git_command: str) -> str:
-    # Get current branch name.
+    """Get current branch name."""
+
     try:
         branch = subprocess.check_output([git_command, "rev-parse", "--abbrev-ref", "HEAD"])
     except subprocess.CalledProcessError as e:
@@ -135,44 +128,89 @@ def git_set_config(git_command: str, key: str, value: str, file: Optional[str] =
     return check_output([git_command, "config", key, value])
 
 
-def git_tag(git_command: str) -> Optional[str]:
-    # Get current tag name.
-    try:
-        tag = subprocess.check_output([git_command, "describe", "--exact-match"], stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        return None
-
-    return tag.strip().decode('utf8')
+def _git_submodule_config_key(submodule_dir: Path, key: str) -> str:
+    submodule_dir_str = submodule_dir.as_posix()
+    return f"submodule.{submodule_dir_str}.{key}"
 
 
-def git_branch_release_version(branch: str, tag: Optional[str]) -> Optional[str]:
-    re_match = re.search("^blender-v(.*)-release$", branch)
-    release_version = None
-    if re_match:
-        release_version = re_match.group(1)
-    elif tag:
-        re_match = re.search(r"^v([0-9]*\.[0-9]*).*", tag)
-        if re_match:
-            release_version = re_match.group(1)
-    return release_version
+def is_git_submodule_enabled(git_command: str, submodule_dir: Path):
+    """Check whether submodule denoted by its directory within the repository is enabled"""
+
+    git_root = Path(check_output([git_command, "rev-parse", "--show-toplevel"]))
+    gitmodules = git_root / ".gitmodules"
+
+    # Check whether the submodule actually exists.
+    # Request path of an unknown submodule will cause non-zero exit code.
+    path = git_get_config(
+        git_command, _git_submodule_config_key(submodule_dir, "path"), str(gitmodules))
+    if not path:
+        return False
+
+    # When the "update" strategy is not provided explicitly in the the local configuration
+    # `git config` returns a non-zero exit code. For those assume the default "checkout"
+    # strategy.
+    update = check_output(
+        (git_command, "config", "--local", _git_submodule_config_key(submodule_dir, "update")),
+        exit_on_error=False)
+
+    return update.lower() != "none"
 
 
-def svn_libraries_base_url(release_version: Optional[str], branch: Optional[str] = None) -> str:
-    if release_version:
-        svn_branch = "tags/blender-" + release_version + "-release"
-    elif branch:
-        svn_branch = "branches/" + branch
-    else:
-        svn_branch = "trunk"
-    return "https://svn.blender.org/svnroot/bf-blender/" + svn_branch + "/lib/"
+def git_enable_submodule(git_command: str, submodule_dir: Path):
+    """Enable submodule denoted by its directory within the repository"""
+
+    command = (git_command,
+               "config",
+               "--local",
+               _git_submodule_config_key(submodule_dir, "update"),
+               "checkout")
+    call(command, exit_on_error=True, silent=True)
+
+
+def git_update_submodule(git_command: str, submodule_dir: Path) -> bool:
+    """
+    Update the given submodule.
+
+    The submodule is denoted by its path within the repository.
+    This function will initialize the submodule if it has not been initialized.
+
+    Returns true if the update succeeded
+    """
+
+    # Use the two stage update process:
+    # - Step 1: checkout the submodule to the desired (by the parent repository) hash, but
+    #           skip the LFS smudging.
+    # - Step 2: Fetch LFS files, if needed.
+    #
+    # This allows to show download progress, potentially allowing resuming the download
+    # progress, and even recovering from partial/corrupted checkout of submodules.
+    #
+    # This bypasses the limitation of submodules which are configured as "update=checkout"
+    # with regular `git submodule update` which, depending on the Git version will not report
+    # any progress. This is because submodule--helper.c configures Git checkout process with
+    # the "quiet" flag, so that there is no detached head information printed after submodule
+    # update, and since Git 2.33 the LFS messages "Filtering contents..." is suppressed by
+    #
+    #   https://github.com/git/git/commit/7a132c628e57b9bceeb88832ea051395c0637b16
+    #
+    # Doing "git lfs pull" after checkout with GIT_LFS_SKIP_SMUDGE=true seems to be the
+    # valid process. For example, https://www.mankier.com/7/git-lfs-faq
+
+    env = {"GIT_LFS_SKIP_SMUDGE": "1"}
+
+    if call((git_command, "submodule", "update", "--init", "--progress", submodule_dir),
+            exit_on_error=False, env=env) != 0:
+        return False
+
+    return call((git_command, "-C", submodule_dir, "lfs", "pull"),
+                exit_on_error=False) == 0
 
 
 def command_missing(command: str) -> bool:
     # Support running with Python 2 for macOS
     if sys.version_info >= (3, 0):
         return shutil.which(command) is None
-    else:
-        return False
+    return False
 
 
 class BlenderVersion:
