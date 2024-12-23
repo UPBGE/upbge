@@ -31,7 +31,7 @@ static const char *GetApplicationSupportDir(const char *versionstr,
 
     snprintf(tempPath,
              len_tempPath,
-             "%s/UPBGE/%s",
+             "%s/Blender/%s",
              [basePath cStringUsingEncoding:NSASCIIStringEncoding],
              versionstr);
   }

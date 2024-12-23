@@ -97,6 +97,25 @@ static void gwl_xdg_decor_window_destroy(WGL_XDG_Decor_Window *decor)
 }
 
 /* -------------------------------------------------------------------- */
+/** \name Rounding Utilities
+ * \{ */
+
+static void gwl_round_int_by(int *value_p, const int round_value)
+{
+  GHOST_ASSERT(round_value > 0, "Invalid rounding value!");
+  *value_p = (*value_p / round_value) * round_value;
+}
+
+static void gwl_round_int2_by(int value_p[2], const int round_value)
+{
+  GHOST_ASSERT(round_value > 0, "Invalid rounding value!");
+  value_p[0] = (value_p[0] / round_value) * round_value;
+  value_p[1] = (value_p[1] / round_value) * round_value;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Window-Viewport/Wayland to/from Scale Conversion
  * \{ */
 
@@ -263,7 +282,7 @@ struct GWL_Window {
    * These pending actions can't be performed when WAYLAND handlers are running from a thread.
    * Postpone their execution until the main thread can handle them.
    */
-  std::atomic<bool> pending_actions[PENDING_NUM];
+  std::atomic<bool> pending_actions[PENDING_NUM] = {false};
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 };
 
@@ -1338,10 +1357,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
   /* The window surface must be rounded to the scale,
    * failing to do so causes the WAYLAND-server to close the window immediately. */
-  window_->frame.size[0] = (window_->frame.size[0] / window_->frame.buffer_scale) *
-                           window_->frame.buffer_scale;
-  window_->frame.size[1] = (window_->frame.size[1] / window_->frame.buffer_scale) *
-                           window_->frame.buffer_scale;
+  gwl_round_int2_by(window_->frame.size, window_->frame.buffer_scale);
 
   window_->is_dialog = is_dialog;
 
@@ -1504,6 +1520,11 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCursorShape(GHOST_TStandardCursor s
 #endif
   const GHOST_TSuccess ok = system_->cursor_shape_set(shape);
   m_cursorShape = (ok == GHOST_kSuccess) ? shape : GHOST_kStandardCursorDefault;
+
+  if (ok == GHOST_kSuccess) {
+    /* For the cursor to display when the event queue isn't being handled. */
+    wl_display_flush(system_->wl_display());
+  }
   return ok;
 }
 
@@ -1521,7 +1542,14 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_server_guard{*system_->server_mutex};
 #endif
-  return system_->cursor_shape_custom_set(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
+  const GHOST_TSuccess ok = system_->cursor_shape_custom_set(
+      bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
+
+  if (ok == GHOST_kSuccess) {
+    /* For the cursor to display when the event queue isn't being handled. */
+    wl_display_flush(system_->wl_display());
+  }
+  return ok;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitmap)
@@ -1574,8 +1602,11 @@ GHOST_TSuccess GHOST_WindowWayland::setClientSize(const uint32_t width, const ui
   std::lock_guard lock_frame_guard{window_->frame_pending_mutex};
 #endif
 
-  window_->frame_pending.size[0] = width;
-  window_->frame_pending.size[1] = height;
+  GWL_WindowFrame &frame_pending = window_->frame_pending;
+
+  frame_pending.size[0] = width;
+  frame_pending.size[1] = height;
+  gwl_round_int2_by(frame_pending.size, frame_pending.buffer_scale);
 
   gwl_window_frame_pending_size_set(window_, nullptr, nullptr, nullptr);
 
@@ -1666,7 +1697,12 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCursorVisibility(bool visible)
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_server_guard{*system_->server_mutex};
 #endif
-  return system_->cursor_visibility_set(visible);
+  const GHOST_TSuccess ok = system_->cursor_visibility_set(visible);
+  if (ok == GHOST_kSuccess) {
+    /* For the cursor to display when the event queue isn't being handled. */
+    wl_display_flush(system_->wl_display());
+  }
+  return ok;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setState(GHOST_TWindowState state)
@@ -2071,9 +2107,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
         window_->frame_pending.size[i] = (value * scale_next) / scale_prev;
       }
       if (window_->frame_pending.buffer_scale > 1) {
-        window_->frame_pending.size[i] = (window_->frame_pending.size[i] /
-                                          window_->frame_pending.buffer_scale) *
-                                         window_->frame_pending.buffer_scale;
+        gwl_round_int_by(&window_->frame_pending.size[i], window_->frame_pending.buffer_scale);
       }
     }
 

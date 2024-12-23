@@ -2346,7 +2346,10 @@ static void data_device_handle_leave(void *data, struct wl_data_device * /*wl_da
 {
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   std::lock_guard lock{seat->data_offer_dnd_mutex};
-
+  /* The user may have only dragged over the window decorations. */
+  if (seat->data_offer_dnd == nullptr) {
+    return;
+  }
   CLOG_INFO(LOG, 2, "leave");
 
   dnd_events(seat, GHOST_kEventDraggingExited);
@@ -2367,6 +2370,10 @@ static void data_device_handle_motion(void *data,
 {
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   std::lock_guard lock{seat->data_offer_dnd_mutex};
+  /* The user may have only dragged over the window decorations. */
+  if (seat->data_offer_dnd == nullptr) {
+    return;
+  }
 
   CLOG_INFO(LOG, 2, "motion");
 
@@ -2381,6 +2388,8 @@ static void data_device_handle_drop(void *data, struct wl_data_device * /*wl_dat
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   std::lock_guard lock{seat->data_offer_dnd_mutex};
 
+  /* No need to check this for null (as other callbacks do).
+   * because the the data-offer has not been accepted (actions set... etc). */
   GWL_DataOffer *data_offer = seat->data_offer_dnd;
 
   /* Use a blank string for  `mime_receive` to prevent crashes, although could also be `nullptr`.
@@ -4630,14 +4639,9 @@ static void output_handle_done(void *data, struct wl_output * /*wl_output*/)
   CLOG_INFO(LOG, 2, "done");
 
   GWL_Output *output = static_cast<GWL_Output *>(data);
-  int32_t size_native[2];
-  if (output->transform & WL_OUTPUT_TRANSFORM_90) {
-    size_native[0] = output->size_native[1];
-    size_native[1] = output->size_native[0];
-  }
-  else {
-    size_native[0] = output->size_native[0];
-    size_native[1] = output->size_native[1];
+  int32_t size_native[2] = {UNPACK2(output->size_native)};
+  if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+    std::swap(size_native[0], size_native[1]);
   }
 
   /* If `xdg-output` is present, calculate the true scale of the desktop */
@@ -6233,8 +6237,13 @@ void GHOST_SystemWayland::getMainDisplayDimensions(uint32_t &width, uint32_t &he
     return;
   }
   /* We assume first output as main. */
-  width = uint32_t(display_->outputs[0]->size_native[0]);
-  height = uint32_t(display_->outputs[0]->size_native[1]);
+  const GWL_Output *output = display_->outputs[0];
+  int32_t size_native[2] = {UNPACK2(output->size_native)};
+  if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+    std::swap(size_native[0], size_native[1]);
+  }
+  width = uint32_t(size_native[0]);
+  height = uint32_t(size_native[1]);
 }
 
 void GHOST_SystemWayland::getAllDisplayDimensions(uint32_t &width, uint32_t &height) const
@@ -6248,14 +6257,18 @@ void GHOST_SystemWayland::getAllDisplayDimensions(uint32_t &width, uint32_t &hei
 
   for (const GWL_Output *output : display_->outputs) {
     int32_t xy[2] = {0, 0};
+    int32_t size_native[2] = {UNPACK2(output->size_native)};
     if (output->has_position_logical) {
       xy[0] = output->position_logical[0];
       xy[1] = output->position_logical[1];
     }
+    if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+      std::swap(size_native[0], size_native[1]);
+    }
     xy_min[0] = std::min(xy_min[0], xy[0]);
     xy_min[1] = std::min(xy_min[1], xy[1]);
-    xy_max[0] = std::max(xy_max[0], xy[0] + output->size_native[0]);
-    xy_max[1] = std::max(xy_max[1], xy[1] + output->size_native[1]);
+    xy_max[0] = std::max(xy_max[0], xy[0] + size_native[0]);
+    xy_max[1] = std::max(xy_max[1], xy[1] + size_native[1]);
   }
 
   width = xy_max[0] - xy_min[0];
@@ -6970,7 +6983,7 @@ static const char *ghost_wl_app_id = (
 #ifdef WITH_GHOST_WAYLAND_APP_ID
     STRINGIFY(WITH_GHOST_WAYLAND_APP_ID)
 #else
-    "upbge"
+    "blender"
 #endif
 );
 
