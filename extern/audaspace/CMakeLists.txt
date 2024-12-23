@@ -722,7 +722,6 @@ endif()
 
 # Python
 if(WITH_PYTHON)
-	add_definitions(-DWITH_PYTHON) #UPBGE
 	if(AUDASPACE_STANDALONE)
 		find_package(PythonLibs 3.2 ${PACKAGE_OPTION})
 		find_package(NumPy ${PACKAGE_OPTION})

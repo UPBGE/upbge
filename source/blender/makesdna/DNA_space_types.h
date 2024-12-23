@@ -189,8 +189,8 @@ typedef struct SpaceProperties {
 // #define CONTEXT_TYPES   2
 #  define CONTEXT_SHADING 3
 #  define CONTEXT_EDITING 4
-#  define CONTEXT_SCRIPT 5
-#  define CONTEXT_LOGIC 6
+// #define CONTEXT_SCRIPT  5
+// #define CONTEXT_LOGIC   6
 
 /* SpaceProperties.mainb old (deprecated) */
 // #define BUTS_VIEW           0
@@ -201,7 +201,7 @@ typedef struct SpaceProperties {
 #  define BUTS_WORLD 5
 #  define BUTS_RENDER 6
 #  define BUTS_EDIT 7
-#  define BUTS_GAME 8
+// #define BUTS_GAME           8
 #  define BUTS_FPAINT 9
 #  define BUTS_RADIO 10
 #  define BUTS_SCRIPT 11
@@ -230,7 +230,6 @@ typedef enum eSpaceButtons_Context {
   BCONTEXT_SHADERFX = 15,
   BCONTEXT_OUTPUT = 16,
   BCONTEXT_COLLECTION = 17,
-  BCONTEXT_GAME = 18,
 
   /* Keep last. */
   BCONTEXT_TOT,
@@ -255,20 +254,6 @@ typedef enum eSpaceButtons_OutlinerSync {
 } eSpaceButtons_OutlinerSync;
 
 /** \} */
-
-/* sbuts->scaflag */
-#define BUTS_SENS_SEL 1
-#define BUTS_SENS_ACT 2
-#define BUTS_SENS_LINK 4
-#define BUTS_CONT_SEL 8
-#define BUTS_CONT_ACT 16
-#define BUTS_CONT_LINK 32
-#define BUTS_ACT_SEL 64
-#define BUTS_ACT_ACT 128
-#define BUTS_ACT_LINK 256
-#define BUTS_SENS_STATE 512
-#define BUTS_ACT_STATE 1024
-#define BUTS_CONT_INIT_STATE 2048
 
 /* -------------------------------------------------------------------- */
 /** \name Outliner
@@ -1665,25 +1650,6 @@ enum {
   SNODE_INSERTOFS_DIR_LEFT = 1,
 };
 
-/* Game Logic Editor ===================================== */
-
-/* Logic Editor */
-typedef struct SpaceLogic {
-  SpaceLink *next, *prev;
-  ListBase regionbase; /* storage of regions for inactive spaces */
-  int spacetype;
-  float blockscale DNA_DEPRECATED;
-
-  short blockhandler[8] DNA_DEPRECATED;
-
-  short flag, scaflag;
-  char _pad[4];
-
-  char import_string[64];
-
-  struct bGPdata *gpd; /* grease-pencil data */
-} SpaceLogic;
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2103,7 +2069,9 @@ typedef enum eSpace_Type {
   SPACE_TIME = 15, /* Deprecated */
 #endif
   SPACE_NODE = 16,
+#ifdef DNA_DEPRECATED_ALLOW
   SPACE_LOGIC = 17, /* Deprecated */
+#endif
   SPACE_CONSOLE = 18,
   SPACE_USERPREF = 19,
   SPACE_CLIP = 20,

@@ -192,8 +192,4 @@ DNA_STRUCT_RENAME_ELEM(bTheme, tv3d, space_view3d)
  * global_areas. See D9442. */
 DNA_STRUCT_RENAME_ELEM(wmWindow, global_area_map, global_areas)
 
-/* UPBGE */
-DNA_STRUCT_RENAME(PythonComponent, PythonProxy)
-DNA_STRUCT_RENAME(PythonComponentProperty, PythonProxyProperty)
-
 /* NOTE: Keep sorted! */

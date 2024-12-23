@@ -164,8 +164,6 @@ set(SRC
   # Private headers.
   intern/BLI_mempool_private.h
 
-  ../../../extern/wcwidth/wcwidth.c
-
   # Header as source (included in C files above).
   intern/kdtree_impl.h
   intern/list_sort_impl.h
@@ -384,8 +382,6 @@ set(SRC
   BLI_winstuff.h
   PIL_time.h
   PIL_time_utildefines.h
-
-  ../../../extern/wcwidth/wcwidth.h
 
   # Without these files listed, they aren't known to CMake.
   ../../../extern/json/include/json.hpp

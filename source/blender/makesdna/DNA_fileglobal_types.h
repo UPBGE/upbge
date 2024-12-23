@@ -20,10 +20,8 @@ typedef struct FileGlobal {
   char subvstr[4];
 
   short subversion;
-  short upbgeversion;
-  short upbgesubversion;
   short minversion, minsubversion;
-  char _pad[2];
+  char _pad[6];
   struct bScreen *curscreen;
   struct Scene *curscene;
   struct ViewLayer *cur_view_layer;

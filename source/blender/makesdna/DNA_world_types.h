@@ -86,7 +86,7 @@ typedef struct World {
 #define WO_MIST (1 << 0)
 #define WO_MODE_UNUSED_1 (1 << 1) /* cleared */
 #define WO_MODE_UNUSED_2 (1 << 2) /* cleared */
-#define WO_ACTIVITY_CULLING (1 << 3)
+#define WO_MODE_UNUSED_3 (1 << 3) /* cleared */
 #define WO_MODE_UNUSED_4 (1 << 4) /* cleared */
 #define WO_MODE_UNUSED_5 (1 << 5) /* cleared */
 #define WO_AMB_OCC (1 << 6)

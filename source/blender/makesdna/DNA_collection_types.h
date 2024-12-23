@@ -83,10 +83,10 @@ typedef struct Collection {
   unsigned int layer DNA_DEPRECATED;
   float instance_offset[3];
 
-  uint16_t flag;
+  uint8_t flag;
   int8_t color_tag;
 
-  char _pad0;
+  char _pad0[2];
 
   uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags; /* #eCollectionLineArt_Flags */
@@ -115,8 +115,6 @@ enum {
   COLLECTION_IS_MASTER = (1 << 5),
   /** for object_cache_instanced. */
   COLLECTION_HAS_OBJECT_CACHE_INSTANCED = (1 << 6),
-  /** UPBGE to alternate between old spawn method */
-  COLLECTION_IS_SPAWNED = (1 << 14),
 };
 
 #define COLLECTION_FLAG_ALL_RUNTIME \

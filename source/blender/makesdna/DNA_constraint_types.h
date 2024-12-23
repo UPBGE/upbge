@@ -403,8 +403,7 @@ typedef struct bRigidBodyJointConstraint {
   float maxLimit[6];
   float extraFz;
   short flag;
-  short _pad;
-  float breaking;
+  char _pad[6];
 } bRigidBodyJointConstraint;
 
 /* Clamp-To Constraint */
@@ -643,8 +642,7 @@ typedef enum eBConstraint_Types {
   CONSTRAINT_TYPE_STRETCHTO = 15,
   /** floor constraint */
   CONSTRAINT_TYPE_MINMAX = 16,
-  /** rigidbody constraint */
-  CONSTRAINT_TYPE_RIGIDBODYJOINT = 17,
+  /* CONSTRAINT_TYPE_DEPRECATED = 17 */
   CONSTRAINT_TYPE_CLAMPTO = 18,
   /** transformation (loc/rot/size -> loc/rot/size) constraint */
   CONSTRAINT_TYPE_TRANSFORM = 19,
@@ -1165,23 +1163,11 @@ typedef enum eObjectSolver_Flags {
   OBJECTSOLVER_SET_INVERSE = (1 << 1),
 } eObjectSolver_Flags;
 
-/* Rigid-Body Constraint */
-#define CONSTRAINT_DRAW_PIVOT 0x40
-#define CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
-#define CONSTRAINT_USE_BREAKING 0x100
-
 /* ObjectSolver Constraint -> flag */
 typedef enum eStretchTo_Flags {
   STRETCHTOCON_USE_BULGE_MIN = (1 << 0),
   STRETCHTOCON_USE_BULGE_MAX = (1 << 1),
 } eStretchTo_Flags;
-
-/* important: these defines need to match up with PHY_DynamicTypes headerfile */
-#define CONSTRAINT_RB_BALL 1
-#define CONSTRAINT_RB_HINGE 2
-#define CONSTRAINT_RB_CONETWIST 4
-#define CONSTRAINT_RB_VEHICLE 11
-#define CONSTRAINT_RB_GENERIC6DOF 12
 
 #ifdef __cplusplus
 }

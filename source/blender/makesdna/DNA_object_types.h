@@ -101,29 +101,6 @@ enum {
   BOUNDBOX_DIRTY = (1 << 1),
 };
 
-typedef struct LodLevel {
-  struct LodLevel *next, *prev;
-  struct Object *source;
-  int flags;
-  float distance, _pad;
-  int obhysteresis;
-} LodLevel;
-
-typedef struct ObjectActivityCulling {
-  /* For game engine, values around active camera where physics or logic are suspended */
-  float physicsRadius;
-  float logicRadius;
-
-  int flags;
-  int _pad;
-} ObjectActivityCulling;
-
-/* object activity flags */
-enum {
-  OB_ACTIVITY_PHYSICS = (1 << 0),
-  OB_ACTIVITY_LOGIC = (1 << 1),
-};
-
 struct CustomData_MeshMasks;
 
 /** Not saved in file! */
@@ -364,7 +341,7 @@ typedef struct Object {
   float constinv[4][4];
 
   /** Copy of Base's layer in the scene. */
-  unsigned int lay;
+  unsigned int lay DNA_DEPRECATED;
 
   /** Copy of Base. */
   short flag;
@@ -480,90 +457,6 @@ typedef struct Object {
 
   /** Runtime evaluation data (keep last). */
   Object_Runtime runtime;
-
-  /************UPBGE**************/
-
-  /** Contains data for levels of detail. */
-  ListBase lodlevels;
-  LodLevel *currentlod;
-  float lodfactor, _pad4[1];
-
-  /* settings for game engine bullet soft body */
-  struct BulletSoftBody *bsoft;
-
-  short scaflag;    /* ui state for game logic */
-  short scavisflag; /* more display settings for game logic */
-  short _pad53[2];
-
-  /* during realtime */
-
-  /* note that inertia is only called inertia for historical reasons
-   * and is not changed to avoid DNA surgery. It actually reflects the
-   * Size value in the GameButtons (= radius) */
-
-  float mass, damping, inertia;
-  /* The form factor k is introduced to give the user more control
-   * and to fix incompatibility problems.
-   * For rotational symmetric objects, the inertia value can be
-   * expressed as: Theta = k * m * r^2
-   * where m = Mass, r = Radius
-   * For a Sphere, the form factor is by default = 0.4
-   */
-
-  float formfactor;
-  float rdamping;
-  float margin;
-  float max_vel;    /* clamp the maximum velocity 0.0 is disabled */
-  float min_vel;    /* clamp the minimum velocity 0.0 is disabled */
-  float max_angvel; /* clamp the maximum angular velocity, 0.0 is disabled */
-  float min_angvel; /* clamp the minimum angular velocity, 0.0 is disabled */
-  float obstacleRad;
-
-  /* "Character" physics properties */
-  float step_height;
-  float jump_speed;
-  float fall_speed;
-  float max_slope;
-  short max_jumps;
-
-  /* for now used to temporarily holds the type of collision object */
-  short body_type;
-
-  /** bit masks of game controllers that are active */
-  unsigned int state;
-  /** bit masks of initial state as recorded by the users */
-  unsigned int init_state;
-
-  struct PythonProxy *custom_object;
-
-  ListBase prop;        /* game logic property list (not to be confused with IDProperties) */
-  ListBase sensors;     /* game logic sensors */
-  ListBase controllers; /* game logic controllers */
-  ListBase actuators;   /* game logic actuators */
-  ListBase components;  /* python components */
-
-  struct ObjectActivityCulling activityCulling;
-
-  float sf; /* sf is time-offset */
-
-  int gameflag;
-  int gameflag2;
-
-  float anisotropicFriction[3];
-
-  /* dynamic properties */
-  float friction, rolling_friction, fh, reflect;
-  float fhdist, xyfrict;
-  short dynamode, _pad51[3];
-
-  /* rigid body ccd */
-  float ccd_motion_threshold;
-  float ccd_swept_sphere_radius;
-
-  void *_pad54;
-
-  /********End of UPBGE***********/
-
 } Object;
 
 /** DEPRECATED: this is not used anymore because hooks are now modifiers. */
@@ -592,11 +485,6 @@ typedef struct ObHook {
 } ObHook;
 
 /* **************** OBJECT ********************* */
-
-/***********UPBGE****************/
-/* dynamode */
-#define OB_FH_NOR 2
-/********End of UPBGE************/
 
 /**
  * This is used as a flag for many kinds of data that use selections, examples include:
@@ -716,9 +604,6 @@ enum {
   PARVERT3 = 6,
   PARBONE = 7,
 
-  /** Slow parenting - UPBGE: still used in game engine */
-  PARSLOW = 16,
-
 };
 
 /** #Object.transflag (short) */
@@ -739,7 +624,6 @@ enum {
   OB_TRANSFLAG_UNUSED_12 = 1 << 12, /* cleared */
   /* runtime constraints disable */
   OB_NO_CONSTRAINTS = 1 << 13,
-  OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY = 1 << 14,  // UPBGE
 
   OB_DUPLI = OB_DUPLIVERTS | OB_DUPLICOLLECTION | OB_DUPLIFACES | OB_DUPLIPARTS,
 };
@@ -804,18 +688,10 @@ enum {
   OB_BOUND_SPHERE = 1,
   OB_BOUND_CYLINDER = 2,
   OB_BOUND_CONE = 3,
-  OB_BOUND_TRIANGLE_MESH = 4,
-  OB_BOUND_CONVEX_HULL = 5,
-  /*  OB_BOUND_DYN_MESH      = 6, */ /*UNUSED*/
+  // OB_BOUND_TRIANGLE_MESH = 4, /* UNUSED */
+  // OB_BOUND_CONVEX_HULL = 5,   /* UNUSED */
+  // OB_BOUND_DYN_MESH = 6,      /* UNUSED */
   OB_BOUND_CAPSULE = 7,
-  OB_BOUND_EMPTY = 8,
-};
-
-/* lod flags */
-enum {
-  OB_LOD_USE_MESH = 1 << 0,
-  OB_LOD_USE_MAT = 1 << 1,
-  OB_LOD_USE_HYST = 1 << 2,
 };
 
 /* **************** BASE ********************* */
@@ -848,95 +724,6 @@ enum {
 #ifdef DNA_DEPRECATED_ALLOW
 #  define OB_FLAG_UNUSED_12 (1 << 12) /* cleared */
 #endif
-
-/* controller state */
-#define OB_MAX_STATES 30
-
-/* collision masks */
-#define OB_MAX_COL_MASKS 16
-
-/* ob->gameflag */
-enum {
-  OB_DYNAMIC = 1 << 0,
-  OB_CHILD = 1 << 1,
-  OB_ACTOR = 1 << 2,
-  OB_INERTIA_LOCK_X = 1 << 3,
-  OB_INERTIA_LOCK_Y = 1 << 4,
-  OB_INERTIA_LOCK_Z = 1 << 5,
-  OB_DO_FH = 1 << 6,
-  OB_ROT_FH = 1 << 7,
-  OB_ANISOTROPIC_FRICTION = 1 << 8,
-  OB_GHOST = 1 << 9,
-  OB_RIGID_BODY = 1 << 10,
-  OB_BOUNDS = 1 << 11,
-
-  OB_COLLISION_RESPONSE = 1 << 12,
-  OB_SECTOR = 1 << 13,
-  OB_PROP = 1 << 14,
-  OB_MAINACTOR = 1 << 15,
-
-  OB_COLLISION = 1 << 16,
-  OB_SOFT_BODY = 1 << 17,
-  OB_OCCLUDER = 1 << 18,
-  OB_SENSOR = 1 << 19,
-  OB_NAVMESH = 1 << 20,
-  OB_HASOBSTACLE = 1 << 21,
-  OB_CHARACTER = 1 << 22,
-
-  OB_RECORD_ANIMATION = 1 << 23,
-
-  OB_OVERLAY_COLLECTION = 1 << 24,
-
-  OB_LOD_UPDATE_PHYSICS = 1 << 25,
-};
-
-/* ob->gameflag2 */
-enum {
-  OB_NEVER_DO_ACTIVITY_CULLING = 1 << 0,
-  OB_LOCK_RIGID_BODY_X_AXIS = 1 << 2,
-  OB_LOCK_RIGID_BODY_Y_AXIS = 1 << 3,
-  OB_LOCK_RIGID_BODY_Z_AXIS = 1 << 4,
-  OB_LOCK_RIGID_BODY_X_ROT_AXIS = 1 << 5,
-  OB_LOCK_RIGID_BODY_Y_ROT_AXIS = 1 << 6,
-  OB_LOCK_RIGID_BODY_Z_ROT_AXIS = 1 << 7,
-  OB_CCD_RIGID_BODY = 1 << 8,
-
-  /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
-};
-
-/* ob->body_type */
-enum {
-  OB_BODY_TYPE_NO_COLLISION = 0,
-  OB_BODY_TYPE_STATIC = 1,
-  OB_BODY_TYPE_DYNAMIC = 2,
-  OB_BODY_TYPE_RIGID = 3,
-  OB_BODY_TYPE_SOFT = 4,
-  OB_BODY_TYPE_OCCLUDER = 5,
-  OB_BODY_TYPE_SENSOR = 6,
-  OB_BODY_TYPE_NAVMESH = 7,
-  OB_BODY_TYPE_CHARACTER = 8,
-};
-
-/* ob->scavisflag */
-enum {
-  OB_VIS_SENS = 1 << 0,
-  OB_VIS_CONT = 1 << 1,
-  OB_VIS_ACT = 1 << 2,
-};
-
-/* ob->scaflag */
-enum {
-  OB_SHOWSENS = 1 << 6,
-  OB_SHOWACT = 1 << 7,
-  OB_ADDSENS = 1 << 8,
-  OB_ADDCONT = 1 << 9,
-  OB_ADDACT = 1 << 10,
-  OB_SHOWCONT = 1 << 11,
-  OB_ALLSTATE = 1 << 12,
-  OB_INITSTBIT = 1 << 13,
-  OB_DEBUGSTATE = 1 << 14,
-  OB_SHOWSTATE = 1 << 15,
-};
 
 /** #Object.visibility_flag */
 enum {

@@ -39,8 +39,6 @@
     .ortho_scale = 6.0, \
     .flag = CAM_SHOWPASSEPARTOUT, \
     .passepartalpha = 0.5f, \
-    .lodfactor = 1.0f, \
-    .gameflag = GAME_CAM_OBJECT_ACTIVITY_CULLING, \
  \
     .dof = _DNA_DEFAULT_CameraDOFSettings, \
  \

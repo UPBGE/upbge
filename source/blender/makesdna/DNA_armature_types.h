@@ -235,10 +235,10 @@ typedef enum eBone_Flag {
 #endif
   /** set to prevent hinge child bones from influencing the transform center */
   BONE_HINGE_CHILD_TRANSFORM = (1 << 14),
-  //#ifdef DNA_DEPRECATED_ALLOW
+#ifdef DNA_DEPRECATED_ALLOW
   /** No parent scale */
   BONE_NO_SCALE = (1 << 15),
-  //#endif
+#endif
   /** hidden bone when drawing PoseChannels (for ghost drawing) */
   BONE_HIDDEN_PG = (1 << 16),
   /** bone should be drawn as OB_WIRE, regardless of draw-types of view+armature */

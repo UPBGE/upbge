@@ -26,14 +26,6 @@ struct bNodeTree;
 
 /* WATCH IT: change type? also make changes in ipo.h */
 
-/* Game Engine Options (old Texface mode, transp and flag) */
-typedef struct GameSettings {
-  int flag;
-  int alpha_blend;
-  int face_orientation;
-  int _pad1;
-} GameSettings;
-
 typedef struct TexPaintSlot {
   DNA_DEFINE_CXX_METHODS(TexPaintSlot)
 
@@ -209,13 +201,7 @@ typedef struct Material {
   struct Ipo *ipo DNA_DEPRECATED;
   struct PreviewImage *preview;
 
-  /* dynamic properties */
-  float friction DNA_DEPRECATED, fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
-  float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
-  short dynamode DNA_DEPRECATED, _pad50[5];
-  struct GameSettings game;
-
-  /* Freestyle line settings */
+  /* Freestyle line settings. */
   float line_col[4];
   short line_priority;
   short vcol_alpha;
@@ -247,31 +233,6 @@ typedef struct Material {
   struct MaterialGPencilStyle *gp_style;
   struct MaterialLineArt lineart;
 } Material;
-
-/* **************** GAME PROPERTIES ********************* */
-// Blend Transparency Options - alpha_blend /* match GPU_material::GPUBlendMode */
-#define GEMAT_SOLID 0              /* GPU_BLEND_SOLID */
-#define GEMAT_ADD 1                /* GPU_BLEND_ADD */
-#define GEMAT_ALPHA 2              /* GPU_BLEND_ALPHA */
-#define GEMAT_CLIP 4               /* GPU_BLEND_CLIP */
-#define GEMAT_ALPHA_SORT 8         /* GPU_BLEND_ALPHA_SORT */
-#define GEMAT_ALPHA_TO_COVERAGE 16 /* GPU_BLEND_ALPHA_TO_COVERAGE */
-
-// Game Options - flag
-#define GEMAT_BACKCULL 16 /* KX_BACKCULL */
-#define GEMAT_SHADED 32   /* KX_LIGHT */
-#define GEMAT_TEXT 64     /* RAS_RENDER_3DPOLYGON_TEXT */
-#define GEMAT_NOPHYSICS 128
-#define GEMAT_INVISIBLE 256
-
-// Face Orientation Options - face_orientation
-#define GEMAT_NORMAL 0
-#define GEMAT_HALO 512       /* BILLBOARD_SCREENALIGNED  */
-#define GEMAT_BILLBOARD 1024 /* BILLBOARD_AXISALIGNED */
-#define GEMAT_SHADOW 2048    /* SHADOW */
-
-// Use Textures - not defined directly in the UI
-#define GEMAT_TEX 4096 /* KX_TEX */
 
 /* **************** MATERIAL ********************* */
 

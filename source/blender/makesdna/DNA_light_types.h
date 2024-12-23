@@ -125,7 +125,6 @@ typedef struct Light {
 /* #define LA_SHOW_SHADOW_BOX (1 << 18) */
 #define LA_SHAD_CONTACT (1 << 19)
 #define LA_CUSTOM_ATTENUATION (1 << 20)
-#define LA_SOFT_SHADOWS (1 << 21) /* Sof shadow per light -- UPBGE */
 
 /* falloff_type */
 #define LA_FALLOFF_CONSTANT 0

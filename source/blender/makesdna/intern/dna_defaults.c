@@ -200,7 +200,6 @@ SDNA_DEFAULT_DECL_STRUCT(MovieClipScopes);
 
 /* DNA_object_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(Object);
-SDNA_DEFAULT_DECL_STRUCT(BulletSoftBody);  // UPBGE
 
 /* DNA_particle_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(ParticleSettings);
@@ -363,9 +362,6 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     /* DNA_brush_defaults.h */
     SDNA_DEFAULT_DECL(Brush),
 
-    /* insterted in DNA_object_defaults */
-    SDNA_DEFAULT_DECL(BulletSoftBody),  // UPBGE
-
     /* DNA_cachefile_defaults.h */
     SDNA_DEFAULT_DECL(CacheFile),
 
@@ -442,8 +438,6 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(PhysicsSettings, Scene.physics_settings),
     SDNA_DEFAULT_DECL_EX(SceneDisplay, Scene.display),
     SDNA_DEFAULT_DECL_EX(SceneEEVEE, Scene.eevee),
-    SDNA_DEFAULT_DECL_EX(GameData, Scene.gm),              /* UPBGE */
-    SDNA_DEFAULT_DECL_EX(RecastData, Scene.gm.recastData), /* UPBGE */
 
     SDNA_DEFAULT_DECL(ToolSettings),
     SDNA_DEFAULT_DECL_EX(CurvePaintSettings, ToolSettings.curve_paint_settings),

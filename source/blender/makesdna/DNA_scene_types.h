@@ -864,174 +864,6 @@ typedef struct RenderProfile {
 
 } RenderProfile;
 
-/* *************************************************************** */
-/* Game Engine */
-
-typedef struct GameFraming {
-  float col[3];
-  char type, _pad1, _pad2, _pad3;
-} GameFraming;
-
-/* GameFraming.type */
-#define SCE_GAMEFRAMING_BARS 0
-#define SCE_GAMEFRAMING_EXTEND 1
-#define SCE_GAMEFRAMING_SCALE 2
-
-typedef struct RecastData {
-  float cellsize;
-  float cellheight;
-  float agentmaxslope;
-  float agentmaxclimb;
-  float agentheight;
-  float agentradius;
-  float edgemaxlen;
-  float edgemaxerror;
-  float regionminsize;
-  float regionmergesize;
-  int vertsperpoly;
-  float detailsampledist;
-  float detailsamplemaxerror;
-  char partitioning;
-  char _pad1;
-  short _pad2[5];
-} RecastData;
-
-/* RecastData.partitioning */
-#define RC_PARTITION_WATERSHED 0
-#define RC_PARTITION_MONOTONE 1
-#define RC_PARTITION_LAYERS 2
-
-typedef struct GameData {
-
-  /* standalone player */
-  struct GameFraming framing;
-  short playerflag, xplay, yplay, freqplay;
-  short depth, attrib, rt1, rt2;
-  short aasamples, samples_per_frame;
-
-  short profileSize;
-  short logLevel;
-
-  /* stereo */
-  short stereoflag, stereomode;
-  float eyeseparation;
-  RecastData recastData;
-
-  /* physics (it was in world)*/
-  float gravity; /*Gravitation constant for the game world*/
-
-  /*
-   * Radius of the activity bubble, in Manhattan length. Objects
-   * outside the box are activity-culled. */
-  float _pad11;
-
-  /*
-   * bit 3: (gameengine): Activity culling is enabled.
-   * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
-   */
-  int flag;
-  short mode;
-  short matmode DNA_DEPRECATED;
-  short occlusionRes; /* resolution of occlusion Z buffer in pixel */
-  short physicsEngine;
-  short solverType, _pad[3];
-  short exitkey;
-  short pythonkeys[4];
-  short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
-  short obstacleSimulation;
-  short raster_storage DNA_DEPRECATED;
-  short ticrate, maxlogicstep, physubstep, maxphystep;
-  float timeScale;
-  float levelHeight;
-  float deactivationtime, lineardeactthreshold, angulardeactthreshold;
-  float erp, erp2, cfm, _pad1;
-
-  /* Scene LoD */
-  short lodflag, _pad3;
-  int scehysteresis;
-  void *_pad10;
-} GameData;
-
-/* GameData.stereoflag */
-#define STEREO_NOSTEREO 1
-#define STEREO_ENABLED 2
-
-/* GameData.stereomode */
-//#define STEREO_NOSTEREO		 1
-#define STEREO_QUADBUFFERED 2
-#define STEREO_ABOVEBELOW 3
-#define STEREO_INTERLACED 4
-#define STEREO_ANAGLYPH 5
-#define STEREO_SIDEBYSIDE 6
-#define STEREO_VINTERLACE 7
-#define STEREO_3DTVTOPBOTTOM 9
-
-/* GameData.physicsEngine */
-#define WOPHY_NONE 0
-#define WOPHY_BULLET 5
-
-/* GameData.solverType */
-enum {
-  GAME_SOLVER_SEQUENTIAL = 0,
-  GAME_SOLVER_NNCG,
-};
-
-/* obstacleSimulation */
-#define OBSTSIMULATION_NONE 0
-#define OBSTSIMULATION_TOI_rays 1
-#define OBSTSIMULATION_TOI_cells 2
-
-/* GameData.vsync */
-#define VSYNC_ON 0
-#define VSYNC_OFF 1
-#define VSYNC_ADAPTIVE 2
-
-/* GameData.flag */
-#define GAME_RESTRICT_ANIM_UPDATES (1 << 0)
-#define GAME_ENABLE_ALL_FRAMES (1 << 1)
-#define GAME_SHOW_DEBUG_PROPS (1 << 2)
-#define GAME_SHOW_FRAMERATE (1 << 3)
-#define GAME_SHOW_PHYSICS (1 << 4)
-// #define GAME_DISPLAY_LISTS (1 << 5) /* deprecated */
-// #define GAME_GLSL_NO_LIGHTS (1 << 6) /* deprecated */
-// #define GAME_GLSL_NO_SHADERS (1 << 7) /* deprecated */
-// #define GAME_GLSL_NO_SHADOWS (1 << 8) /* deprecated */
-// #define GAME_GLSL_NO_RAMPS (1 << 9) /* deprecated */
-// #define GAME_GLSL_NO_NODES (1 << 10) /* deprecated */
-// #define GAME_GLSL_NO_EXTRA_TEX (1 << 11) /* deprecated */
-#define GAME_IGNORE_DEPRECATION_WARNINGS (1 << 12)
-#define GAME_ENABLE_ANIMATION_RECORD (1 << 13)
-#define GAME_SHOW_MOUSE (1 << 14)
-// #define GAME_GLSL_NO_COLOR_MANAGEMENT (1 << 15) /* deprecated */
-#define GAME_SHOW_OBSTACLE_SIMULATION (1 << 16)
-// #define GAME_NO_MATERIAL_CACHING (1 << 17) /* deprecated */
-// #define GAME_GLSL_NO_ENV_LIGHTING (1 << 18) /* deprecated */
-#define GAME_USE_UNDO (1 << 19)
-// #define GAME_USE_UI_ANTI_FLICKER (1 << 20) /* deprecated */
-#define GAME_USE_VIEWPORT_RENDER (1 << 21)
-#define GAME_PYTHON_CONSOLE (1 << 22)
-/* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
-
-/* GameData.playerflag */
-#define GAME_PLAYER_FULLSCREEN (1 << 0)
-#define GAME_PLAYER_DESKTOP_RESOLUTION (1 << 1)
-
-/* GameData.lodflag */
-#define SCE_LOD_USE_HYST (1 << 0)
-
-/* GameData.profileSize */
-#define GAME_PROFILE_SIZE_NORMAL 0
-#define GAME_PROFILE_SIZE_BIG    1
-#define GAME_PROFILE_SIZE_BIGGER 2
-
-/* GameData.logLevel */
-#define GAME_LOG_LEVEL_NOTSET 0
-#define GAME_LOG_LEVEL_DEBUG 10
-#define GAME_LOG_LEVEL_INFO 20
-#define GAME_LOG_LEVEL_WARNING 30
-#define GAME_LOG_LEVEL_ERROR 40
-#define GAME_LOG_LEVEL_CRITICAL 50
-
 /* UV Paint. */
 /** #ToolSettings.uv_sculpt_settings */
 #define UV_SCULPT_LOCK_BORDERS 1
@@ -2018,10 +1850,6 @@ typedef struct SceneEEVEE {
 
   float overscan;
   float light_threshold;
-
-  int gameflag, smaa_quality;           // UPBGE
-  float smaa_predication_scale, _pad50; // UPBGE
-
 } SceneEEVEE;
 
 typedef struct SceneGpencil {
@@ -2077,7 +1905,7 @@ typedef struct Scene {
   View3DCursor cursor;
 
   /** Bit-flags for layer visibility (deprecated). */
-  unsigned int lay;
+  unsigned int lay DNA_DEPRECATED;
   /** Active layer (deprecated). */
   int layact DNA_DEPRECATED;
   char _pad2[4];
@@ -2130,9 +1958,6 @@ typedef struct Scene {
   /** KeyingSets for this scene. */
   ListBase keyingsets;
 
-  /* Game Settings */
-  struct GameData gm;
-
   /* Units. */
   struct UnitSettings unit;
 
@@ -2178,8 +2003,6 @@ typedef struct Scene {
   struct SceneDisplay display;
   struct SceneEEVEE eevee;
   struct SceneGpencil grease_pencil_settings;
-
-  void *_pad10;
 } Scene;
 
 /** \} */
@@ -2574,10 +2397,6 @@ enum {
 #define SCE_FRAME_DROP (1 << 3)
 #define SCE_KEYS_NO_SELONLY (1 << 4)
 #define SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK (1 << 5)
-#define SCE_INTERACTIVE (1 << 6)
-#define SCE_IS_BLENDERPLAYER (1 << 7)
-#define SCE_IS_GAME_XR_SESSION (1 << 8)
-#define SCE_INTERACTIVE_VIEWPORT (1 << 9)
 
 /* Return flag BKE_scene_base_iter_next functions. */
 /* #define F_ERROR          -1 */ /* UNUSED */
@@ -2892,13 +2711,6 @@ enum {
   SCE_EEVEE_SHADOW_ENABLED = (1 << 24),
 };
 
-/** #SceneEEVEE.gameflag UPBGE */
-enum {
-  SCE_EEVEE_SMAA = (1 << 0),
-  SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 1),
-  SCE_EEVEE_WORLD_VOLUMES_ENABLED = (1 << 2),  // (only used to disable wo volumes in overlay pass)
-};
-
 /** #SceneEEVEE.shadow_method */
 enum {
   SHADOW_ESM = 1,
@@ -2911,14 +2723,6 @@ enum {
   SCE_EEVEE_MB_CENTER = 0,
   SCE_EEVEE_MB_START = 1,
   SCE_EEVEE_MB_END = 2,
-};
-
-/* SceneEEVEE->smaa_quality */ /* UPBGE */
-enum {
-  SCE_EEVEE_SMAA_PRESET_LOW = 0,
-  SCE_EEVEE_SMAA_PRESET_MEDIUM = 1,
-  SCE_EEVEE_SMAA_PRESET_HIGH = 2,
-  SCE_EEVEE_SMAA_PRESET_ULTRA = 3,
 };
 
 /** #SceneDisplay->render_aa and #SceneDisplay->viewport_aa */
