@@ -128,11 +128,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case SPACE_NODE:
           ts = &btheme->space_node;
           break;
-        case SPACE_LOGIC:
-          btheme->tlogic = btheme->space_node;
-          ts = &btheme->tlogic;
-          rgba_uchar_args_set(btheme->tlogic.back, 40, 40, 40, 255);
-          break;
         case SPACE_CLIP:
           ts = &btheme->space_clip;
           break;

@@ -35,7 +35,6 @@
 #include "ED_gizmo_library.h"
 #include "ED_gpencil_legacy.h"
 #include "ED_lattice.h"
-#include "ED_logic.h"
 #include "ED_markers.h"
 #include "ED_mask.h"
 #include "ED_mball.h"
@@ -77,7 +76,6 @@ void ED_spacetypes_init(void)
   ED_spacetype_script();
   ED_spacetype_text();
   ED_spacetype_sequencer();
-  ED_spacetype_logic();
   ED_spacetype_console();
   ED_spacetype_userpref();
   ED_spacetype_clip();
@@ -96,7 +94,6 @@ void ED_spacetypes_init(void)
   ED_operatortypes_gpencil();
   ED_operatortypes_object();
   ED_operatortypes_lattice();
-  ED_operatortypes_logic();
   ED_operatortypes_mesh();
   ED_operatortypes_geometry();
   ED_operatortypes_sculpt();

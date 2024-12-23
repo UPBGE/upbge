@@ -89,14 +89,6 @@ void OBJECT_OT_paths_clear(struct wmOperatorType *ot);
 void OBJECT_OT_paths_update_visible(struct wmOperatorType *ot);
 void OBJECT_OT_forcefield_toggle(struct wmOperatorType *ot);
 
-void OBJECT_OT_game_property_new(struct wmOperatorType *ot);
-void OBJECT_OT_game_property_remove(struct wmOperatorType *ot);
-void OBJECT_OT_game_property_copy(struct wmOperatorType *ot);
-void OBJECT_OT_game_property_clear(struct wmOperatorType *ot);
-void OBJECT_OT_game_property_move(struct wmOperatorType *ot);
-void OBJECT_OT_logic_bricks_copy(struct wmOperatorType *ot);
-void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot);
-
 void OBJECT_OT_move_to_collection(struct wmOperatorType *ot);
 void OBJECT_OT_link_to_collection(struct wmOperatorType *ot);
 
@@ -351,10 +343,6 @@ void OBJECT_OT_bake(wmOperatorType *ot);
 void OBJECT_OT_simulation_nodes_cache_calculate_to_frame(wmOperatorType *ot);
 void OBJECT_OT_simulation_nodes_cache_bake(wmOperatorType *ot);
 void OBJECT_OT_simulation_nodes_cache_delete(wmOperatorType *ot);
-
-/* object_lod.c */
-void OBJECT_OT_lod_add(struct wmOperatorType *ot);
-void OBJECT_OT_lod_remove(struct wmOperatorType *ot);
 
 /* object_random.c */
 

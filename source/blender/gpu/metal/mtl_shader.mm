@@ -1600,20 +1600,4 @@ bool MTLShader::has_transform_feedback_varying(std::string str)
           tf_output_name_list_.end());
 }
 
-/*****************UPBGE****************/
-char *MTLShader::shader_validate()
-{
-  return nullptr;
-}
-
-void MTLShader::shader_bind_attributes(int *locations, const char **names, int len)
-{
-}
-
-int MTLShader::shader_get_uniform_location_old(const char *name)
-{
-  return -1;
-}
-/**************End of UPBGE************/
-
 }  // namespace blender::gpu

@@ -779,29 +779,3 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \} */
 
 }  // namespace blender::gpu
-
-/********************UPBGE*****************************/
-void GPU_shader_force_unbind(void)
-{
-  Context *ctx = Context::get();
-  if (ctx->shader) {
-    ctx->shader->unbind();
-  }
-  ctx->shader = nullptr;
-}
-
-char *GPU_shader_validate(GPUShader *shader)
-{
-  return unwrap(shader)->shader_validate();
-}
-
-void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
-{
-  unwrap(shader)->shader_bind_attributes(locations, names, len);
-}
-
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
-{
-  return unwrap(shader)->shader_get_uniform_location_old(name);
-}
-/**********************End of UPBGE*******************************/

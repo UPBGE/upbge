@@ -1418,9 +1418,19 @@ bool BKE_image_memorypack(Image *ima)
     ima->views_format = R_IMF_VIEWS_INDIVIDUAL;
   }
 
-  if (ok && ima->source == IMA_SRC_GENERATED) {
-    ima->source = IMA_SRC_FILE;
-    ima->type = IMA_TYPE_IMAGE;
+  /* Images which were "generated" before packing should now be
+   * treated as if they were saved as real files. */
+  if (ok) {
+    if (ima->source == IMA_SRC_GENERATED) {
+      ima->source = IMA_SRC_FILE;
+      ima->type = IMA_TYPE_IMAGE;
+    }
+
+    /* Clear the per-tile generated flag if all tiles were ok.
+     * Mirrors similar processing inside #BKE_image_save. */
+    LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
+      tile->gen_flag &= ~IMA_GEN_TILE;
+    }
   }
 
   return ok;
@@ -1908,6 +1918,14 @@ static void stampdata_from_template(StampData *stamp_data,
   else {
     stamp_data->frame[0] = '\0';
   }
+  if (scene->r.stamp & R_STAMP_FRAME_RANGE) {
+    SNPRINTF(stamp_data->frame_range,
+             do_prefix ? "Frame Range %s" : "%s",
+             stamp_data_template->frame_range);
+  }
+  else {
+    stamp_data->frame_range[0] = '\0';
+  }
   if (scene->r.stamp & R_STAMP_CAMERA) {
     SNPRINTF(stamp_data->camera, do_prefix ? "Camera %s" : "%s", stamp_data_template->camera);
   }
@@ -2233,6 +2251,28 @@ void BKE_image_stamp_buf(Scene *scene,
     /* and pad the text. */
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.frame, sizeof(stamp_data.frame));
+
+    /* space width. */
+    x += w + pad;
+  }
+
+  if (TEXT_SIZE_CHECK(stamp_data.frame_range, w, h)) {
+
+    /* extra space for background. */
+    buf_rectfill_area(rect,
+                      rectf,
+                      width,
+                      height,
+                      scene->r.bg_stamp,
+                      display,
+                      x - BUFF_MARGIN_X,
+                      y - BUFF_MARGIN_Y,
+                      x + w + BUFF_MARGIN_X,
+                      y + h + BUFF_MARGIN_Y);
+
+    /* and pad the text. */
+    BLF_position(mono, x, y + y_ofs, 0.0);
+    BLF_draw_buffer(mono, stamp_data.frame_range, sizeof(stamp_data.frame_range));
 
     /* space width. */
     x += w + pad;

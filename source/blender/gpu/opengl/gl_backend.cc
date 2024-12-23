@@ -316,15 +316,8 @@ static void detect_workarounds()
    * polaris platform. Keeping legacy platforms around just in case.
    */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-#ifndef WITH_WINDOWS_7
     const Vector<std::string> matches = {
-        "RX550/550", "(TM) 520", "(TM) 530", "(TM) 535", "R5", "R7", "R9"};
-#else
-    const Vector<std::string> matches = {
-        "RX 460", "RX 470", "RX 480", "RX 490", "RX 560", "RX 560X", "RX 570",
-        "RX 580", "RX 580X", "RX 590", "RX550/550", "(TM) 520", "(TM) 530",
-        "(TM) 535", "R5", "R7", "R9"};
-#endif
+        "RX550/550", "(TM) 520", "(TM) 530", "(TM) 535", "R5", "R7", "R9", "HD"};
 
     if (match_renderer(renderer, matches)) {
       GCaps.use_hq_normals_workaround = true;

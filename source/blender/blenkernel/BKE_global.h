@@ -130,8 +130,6 @@ typedef struct Global {
    */
   int fileflags;
 
-  bool is_undo_at_exit; // UPBGE
-
   /**
    * Message to show when loading a `.blend` file attempts to execute
    * a Python script or driver-expression when doing so is disallowed.
@@ -219,13 +217,6 @@ enum {
 enum {
   G_FILE_AUTOPACK = (1 << 0),
   G_FILE_COMPRESS = (1 << 1),
-  G_FILE_AUTOPLAY = (1 << 2),
-  G_FILE_ENABLE_ALL_FRAMES = (1 << 3), /* deprecated */
-  G_FILE_SHOW_DEBUG_PROPS = (1 << 4),  /* deprecated */
-  G_FILE_SHOW_FRAMERATE = (1 << 5),    /* deprecated */
-  G_FILE_SHOW_PROFILE = (1 << 6),      /* deprecated */
-  G_FILE_LOCK = (1 << 7),              /* deprecated */
-  G_FILE_SIGN = (1 << 8),              /* deprecated */
 
   // G_FILE_DEPRECATED_9 = (1 << 9),
   G_FILE_NO_UI = (1 << 10),

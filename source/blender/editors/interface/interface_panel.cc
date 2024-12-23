@@ -756,7 +756,7 @@ void UI_panel_header_buttons_end(Panel *panel)
   /* Repurpose the first header button group if it is empty, in case the first button added to
    * the panel doesn't add a new group (if the button is created directly rather than through an
    * interface layout call). */
-  if (block->button_groups.size() > 0) {
+  if (block->button_groups.size() == 1 && button_group.buttons.is_empty()) {
     button_group.flag &= ~UI_BUTTON_GROUP_PANEL_HEADER;
   }
   else {
@@ -2505,6 +2505,8 @@ static void panel_handle_data_ensure(const bContext *C,
                                      Panel *panel,
                                      const uiHandlePanelState state)
 {
+  BLI_assert(ELEM(state, PANEL_STATE_DRAG, PANEL_STATE_ANIMATION));
+
   if (panel->activedata == nullptr) {
     panel->activedata = MEM_callocN(sizeof(uiHandlePanelData), __func__);
     WM_event_add_ui_handler(C,
@@ -2517,7 +2519,11 @@ static void panel_handle_data_ensure(const bContext *C,
 
   uiHandlePanelData *data = static_cast<uiHandlePanelData *>(panel->activedata);
 
-  data->animtimer = WM_event_add_timer(CTX_wm_manager(C), win, TIMER, ANIMATION_INTERVAL);
+  /* Only create a new timer if necessary. Reuse can occur when PANEL_STATE_ANIMATION follows
+   * PANEL_STATE_DRAG for example (i.e. panel->activedata was present already). */
+  if (!data->animtimer) {
+    data->animtimer = WM_event_add_timer(CTX_wm_manager(C), win, TIMER, ANIMATION_INTERVAL);
+  }
 
   data->state = state;
   data->startx = win->eventstate->xy[0];

@@ -20,25 +20,14 @@ extern "C" {
 
 /* Blender major and minor version. */
 #define BLENDER_VERSION 306
-
-#define UPBGE_VERSION 36
-
 /* Blender patch version for bugfix releases. */
-#define BLENDER_VERSION_PATCH 2
+#define BLENDER_VERSION_PATCH 18
 /** Blender release cycle stage: alpha/beta/rc/release. */
 #define BLENDER_VERSION_CYCLE release
 
-#define UPBGE_VERSION_PATCH 1
-/** alpha/beta/rc/release, docs use this. */
-#define UPBGE_VERSION_CYCLE release
-
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 11
-
-/* UPBGE file format version. */
-#define UPBGE_FILE_VERSION UPBGE_VERSION
-#define UPBGE_FILE_SUBVERSION 0
+#define BLENDER_FILE_SUBVERSION 14
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to
@@ -50,7 +39,6 @@ extern "C" {
 
 /** User readable version string. */
 const char *BKE_blender_version_string(void);
-const char *BKE_upbge_version_string(void);
 
 /* Returns true when version cycle is alpha, otherwise (beta, rc) returns false. */
 bool BKE_blender_version_is_alpha(void);

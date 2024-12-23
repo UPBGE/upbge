@@ -420,9 +420,9 @@ uint64_t BKE_library_id_can_use_filter_id(const ID *owner_id, const bool include
       /* Could be more specific, but simpler to just always say 'yes' here. */
       return FILTER_ID_ALL;
     case ID_ME:
-      return FILTER_ID_ME | FILTER_ID_MA | FILTER_ID_IM;
+      return FILTER_ID_ME | FILTER_ID_MA | FILTER_ID_IM | FILTER_ID_KE;
     case ID_CU_LEGACY:
-      return FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF;
+      return FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF | FILTER_ID_KE;
     case ID_MB:
       return FILTER_ID_MA;
     case ID_MA:
@@ -430,7 +430,7 @@ uint64_t BKE_library_id_can_use_filter_id(const ID *owner_id, const bool include
     case ID_TE:
       return FILTER_ID_IM | FILTER_ID_OB;
     case ID_LT:
-      return 0;
+      return FILTER_ID_KE;
     case ID_LA:
       return FILTER_ID_TE;
     case ID_CA:

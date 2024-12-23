@@ -468,7 +468,6 @@ static Collection *collection_add(Main *bmain,
 
   /* Create new collection. */
   Collection *collection = BKE_id_new(bmain, ID_GR, name);
-  collection->flag |= COLLECTION_IS_SPAWNED;
 
   /* We increase collection user count when linking to Collections. */
   id_us_min(&collection->id);
@@ -956,7 +955,6 @@ Collection *BKE_collection_master_add(Scene *scene)
   master_collection->id.flag |= LIB_EMBEDDED_DATA;
   master_collection->runtime.owner_id = &scene->id;
   master_collection->flag |= COLLECTION_IS_MASTER;
-  master_collection->flag |= COLLECTION_IS_SPAWNED;
   master_collection->color_tag = COLLECTION_COLOR_NONE;
 
   return master_collection;
@@ -1271,8 +1269,8 @@ static void collection_tag_update_parent_recursive(Main *bmain,
   }
 }
 
-static Collection *collection_parent_editable_find_recursive(const ViewLayer *view_layer,
-                                                             Collection *collection)
+Collection *BKE_collection_parent_editable_find_recursive(const ViewLayer *view_layer,
+                                                          Collection *collection)
 {
   if (!ID_IS_LINKED(collection) && !ID_IS_OVERRIDE_LIBRARY(collection) &&
       (view_layer == NULL || BKE_view_layer_has_collection(view_layer, collection)))
@@ -1297,7 +1295,7 @@ static Collection *collection_parent_editable_find_recursive(const ViewLayer *vi
       }
       return collection_parent->collection;
     }
-    Collection *editable_collection = collection_parent_editable_find_recursive(
+    Collection *editable_collection = BKE_collection_parent_editable_find_recursive(
         view_layer, collection_parent->collection);
     if (editable_collection != NULL) {
       return editable_collection;
@@ -1424,7 +1422,7 @@ bool BKE_collection_viewlayer_object_add(Main *bmain,
     return false;
   }
 
-  collection = collection_parent_editable_find_recursive(view_layer, collection);
+  collection = BKE_collection_parent_editable_find_recursive(view_layer, collection);
 
   if (collection == NULL) {
     return false;

@@ -29,7 +29,6 @@
 #define l_spot_blend spotdata_radius_shadow.y
 #define l_radius spotdata_radius_shadow.z
 #define l_shadowid spotdata_radius_shadow.w
-#define l_use_soft_shd usesoftshd.x
 
 /* convenience aliases */
 #define sh_near near_far_bias_id.x

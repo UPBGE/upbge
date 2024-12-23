@@ -17,13 +17,11 @@ set(INC
   vulkan
   ../blenkernel
   ../blenlib
-  ../blentranslation # UPBGE
   ../bmesh
   ../draw
   ../imbuf
   ../makesdna
   ../makesrna
-  ../render # UPBGE
 
   # For theme color access.
   ../editors/include
@@ -410,7 +408,6 @@ set(GLSL_SRC
   shaders/gpu_shader_icon_vert.glsl
   shaders/gpu_shader_image_frag.glsl
   shaders/gpu_shader_image_desaturate_frag.glsl
-  shaders/gpu_shader_image_linear_frag.glsl #UPBGE
   shaders/gpu_shader_image_overlays_merge_frag.glsl
   shaders/gpu_shader_image_overlays_stereo_merge_frag.glsl
   shaders/gpu_shader_image_shuffle_color_frag.glsl
@@ -521,7 +518,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
   shaders/material/gpu_shader_material_shader_to_rgba.glsl
-  shaders/material/gpu_shader_material_sprites_animation.glsl #UPBGE
   shaders/material/gpu_shader_material_squeeze.glsl
   shaders/material/gpu_shader_material_subsurface_scattering.glsl
   shaders/material/gpu_shader_material_tangent.glsl
@@ -692,7 +688,7 @@ set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/eevee/shaders/infos/eevee_legacy_volume_info.hh
 
   ../draw/engines/image/shaders/infos/engine_image_info.hh
-  ../draw/intern/shaders/draw_debug_info.hh
+  ../draw/intern/shaders/draw_debug_create_info.hh
   ../draw/intern/shaders/draw_fullscreen_info.hh
   ../draw/intern/shaders/draw_hair_refine_info.hh
   ../draw/intern/shaders/draw_object_infos_info.hh
@@ -704,7 +700,6 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_2D_diag_stripes_info.hh
   shaders/infos/gpu_shader_2D_image_desaturate_color_info.hh
   shaders/infos/gpu_shader_2D_image_info.hh
-  shaders/infos/gpu_shader_2D_image_linear_to_srgb_info.hh #UPBGE
   shaders/infos/gpu_shader_2D_image_overlays_merge_info.hh
   shaders/infos/gpu_shader_2D_image_overlays_stereo_merge_info.hh
   shaders/infos/gpu_shader_2D_image_rect_color_info.hh
@@ -759,14 +754,6 @@ endforeach()
 
 set(shader_create_info_list_file "${CMAKE_CURRENT_BINARY_DIR}/gpu_shader_create_info_list.hh")
 file(GENERATE OUTPUT ${shader_create_info_list_file} CONTENT "${SHADER_CREATE_INFOS_CONTENT}")
-
-if(WITH_GAMEENGINE)
-  add_definitions(-DWITH_GAMEENGINE)
-endif()
-
-if(WITH_WINDOWS_7)
-  add_definitions(-DWITH_WINDOWS_7)
-endif()
 
 if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)

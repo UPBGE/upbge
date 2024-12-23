@@ -117,11 +117,6 @@ typedef enum eGPUBuiltinShader {
    * \param pos: in vec3
    */
   GPU_SHADER_3D_IMAGE,
-
-  /* UPBGE */
-  GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB,
-  /*********/
-
   /**
    * Take a 3D position and color for each vertex with linear interpolation in window space.
    *

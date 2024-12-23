@@ -41,10 +41,6 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#ifdef WITH_GAMEENGINE_BPPLAYER
-#  include "SpindleEncryption.h"
-#endif
-
 /* local prototypes --------------------- */
 void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
@@ -433,15 +429,8 @@ BlendFileData *BLO_read_from_memory(const void *mem,
 
   fd = blo_filedata_from_memory(mem, memsize, &bf_reports);
   if (fd) {
-#ifdef WITH_GAMEENGINE_BPPLAYER
-    BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
-#endif
     fd->skip_flags = skip_flags;
-#ifdef WITH_GAMEENGINE_BPPLAYER
-    bfd = blo_read_file_internal(fd, SPINDLE_GetFilePath());
-#else
     bfd = blo_read_file_internal(fd, "");
-#endif
     blo_filedata_free(fd);
   }
 

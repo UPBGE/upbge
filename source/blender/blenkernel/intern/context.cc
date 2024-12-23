@@ -868,15 +868,6 @@ SpaceNode *CTX_wm_space_node(const bContext *C)
   return nullptr;
 }
 
-struct SpaceLogic *CTX_wm_space_logic(const bContext *C)
-{
-  ScrArea *area = CTX_wm_area(C);
-  if (area && area->spacetype == SPACE_LOGIC) {
-    return static_cast<SpaceLogic *>(area->spacedata.first);
-  }
-  return nullptr;
-}
-
 SpaceGraph *CTX_wm_space_graph(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);

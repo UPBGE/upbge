@@ -199,7 +199,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *UNUSE
   UI_but_func_set(but, wm_block_close, block, NULL);
 
   wm_block_splash_add_label(block,
-                            BKE_upbge_version_string(),
+                            BKE_blender_version_string(),
                             splash_width - 8.0 * UI_SCALE_FAC,
                             splash_height - 13.0 * UI_SCALE_FAC);
 
@@ -221,9 +221,12 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *UNUSE
   if (cfgdir) {
     BLI_path_join(userpref, sizeof(userpref), cfgdir, BLENDER_USERPREF_FILE);
   }
+  else {
+    userpref[0] = '\0';
+  }
 
   /* Draw setup screen if no preferences have been saved yet. */
-  if (!BLI_exists(userpref)) {
+  if (!(userpref[0] && BLI_exists(userpref))) {
     mt = WM_menutype_find("WM_MT_splash_quick_setup", true);
 
     /* The #UI_BLOCK_QUICK_SETUP flag prevents the button text from being left-aligned,
@@ -276,13 +279,13 @@ static uiBlock *wm_block_create_about(bContext *C, ARegion *region, void *UNUSED
 
   /* Blender logo. */
 #ifndef WITH_HEADLESS
-  extern char datatoc_upbge_logo_png[];
-  extern int datatoc_upbge_logo_png_size;
+  extern char datatoc_blender_logo_png[];
+  extern int datatoc_blender_logo_png_size;
 
-  const uchar *blender_logo_data = (const uchar *)datatoc_upbge_logo_png;
-  size_t blender_logo_data_size = datatoc_upbge_logo_png_size;
+  const uchar *blender_logo_data = (const uchar *)datatoc_blender_logo_png;
+  size_t blender_logo_data_size = datatoc_blender_logo_png_size;
   ImBuf *ibuf = IMB_ibImageFromMemory(
-      blender_logo_data, blender_logo_data_size, IB_rect, NULL, "upbge_logo");
+      blender_logo_data, blender_logo_data_size, IB_rect, NULL, "blender_logo");
 
   if (ibuf) {
     int width = 0.5 * dialog_width;
@@ -311,8 +314,7 @@ static uiBlock *wm_block_create_about(bContext *C, ARegion *region, void *UNUSED
 
   uiLayout *col = uiLayoutColumn(layout, true);
 
-  uiItemL_ex(col, BLI_strdupcat("UPBGE ", BKE_upbge_version_string()), ICON_NONE, true, false);
-  uiItemL_ex(col, BLI_strdupcat("Based on Blender ", BKE_blender_version_string()), ICON_NONE, true, false);
+  uiItemL_ex(col, IFACE_("Blender"), ICON_NONE, true, false);
 
   MenuType *mt = WM_menutype_find("WM_MT_splash_about", true);
   if (mt) {
@@ -333,9 +335,9 @@ static int wm_about_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *U
 
 void WM_OT_splash_about(wmOperatorType *ot)
 {
-  ot->name = "About UPBGE";
+  ot->name = "About Blender";
   ot->idname = "WM_OT_splash_about";
-  ot->description = "Open a window with information about UPBGE";
+  ot->description = "Open a window with information about Blender";
 
   ot->invoke = wm_about_invoke;
   ot->poll = WM_operator_winactive;

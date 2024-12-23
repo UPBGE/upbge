@@ -6,14 +6,6 @@
  * \ingroup pygen
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <Python.h>
 
 PyObject *BPyInit_blf(void);
-
-#ifdef __cplusplus
-}
-#endif

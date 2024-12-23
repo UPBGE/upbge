@@ -423,7 +423,7 @@ struct DRWShadingGroup {
 
 #define MAX_PASS_NAME 32
 
-typedef struct DRWPass {
+struct DRWPass {
   /* Linked list */
   struct {
     DRWShadingGroup *first;
@@ -440,7 +440,7 @@ typedef struct DRWPass {
   DRWResourceHandle handle;
   DRWState state;
   char name[MAX_PASS_NAME];
-} DRWPass;
+};
 
 #define MAX_CULLED_VIEWS 32
 
@@ -577,38 +577,6 @@ typedef struct DRWData {
 /** \name Draw Manager
  * \{ */
 
-/* ------------- DRAW DEBUG - UPBGE ------------ */
-
-typedef struct DRWDebugLine {
-  struct DRWDebugLine *next; /* linked list */
-  float pos[2][3];
-  float color[4];
-} DRWDebugLine;
-
-/* UPBGE */
-typedef struct DRWDebugText2D {
-  struct DRWDebugText2D *next; /* linked list */
-  char text[64];
-  float xco;
-  float yco;
-} DRWDebugText2D;
-
-typedef struct DRWDebugBox2D {
-  struct DRWDebugBox2D *next; /* linked list */
-  float xco;
-  float yco;
-  float xsize;
-  float ysize;
-} DRWDebugBox2D;
-
-typedef struct DRWDebugBge {
-  DRWDebugLine *lines;
-  DRWDebugBox2D *boxes;
-  DRWDebugText2D *texts;
-} DRWDebugBge;
-
-/* End of UPBGE */
-
 typedef struct DupliKey {
   struct Object *ob;
   struct ID *ob_data;
@@ -708,9 +676,6 @@ typedef struct DRWManager {
   GPUDrawList *draw_list;
 
   DRWDebugModule *debug;
-
-  DRWDebugBge debug_bge;
-
 } DRWManager;
 
 extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded rendering. */
@@ -782,10 +747,6 @@ void DRW_manager_begin_sync(void);
 void DRW_manager_end_sync(void);
 
 /** \} */
-
-/* UPBGE */
-bool is_eevee_next(const struct Scene *scene);
-/*********/
 
 #ifdef __cplusplus
 }

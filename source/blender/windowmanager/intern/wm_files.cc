@@ -1035,6 +1035,9 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
       ListBase wmbase;
       wm_window_match_init(C, &wmbase);
 
+      /* Close any user-loaded fonts. */
+      BLF_reset_fonts();
+
       /* This flag is initialized by the operator but overwritten on read.
        * need to re-enable it here else drivers and registered scripts won't work. */
       const int G_f_orig = G.f;
@@ -1453,9 +1456,6 @@ void wm_homefile_read_ex(bContext *C,
     WM_check(C); /* opens window(s), checks keymaps */
 
     bmain->filepath[0] = '\0';
-
-    /* disable auto-play in startup.blend... */
-    G.fileflags &= ~G_FILE_AUTOPLAY;
   }
 
   {
@@ -1993,7 +1993,6 @@ static bool wm_file_write(bContext *C,
     }
 
     SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_COMPRESS, G_FILE_COMPRESS);
-    SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_AUTOPLAY, G_FILE_AUTOPLAY);
 
     /* prevent background mode scripts from clobbering history */
     if (do_history_file_update) {
@@ -2086,8 +2085,7 @@ static void wm_autosave_write(Main *bmain, wmWindowManager *wm)
     }
 
     /* Save as regular blend file with recovery information. */
-    const int fileflags = (G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY)) |
-                          G_FILE_RECOVER_WRITE;
+    const int fileflags = (G.fileflags & ~G_FILE_COMPRESS) | G_FILE_RECOVER_WRITE;
 
     ED_editors_flush_edits(bmain);
 
@@ -2267,7 +2265,7 @@ static int wm_homefile_write_exec(bContext *C, wmOperator *op)
   ED_editors_flush_edits(bmain);
 
   /* Force save as regular blend file. */
-  fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY);
+  fileflags = G.fileflags & ~G_FILE_COMPRESS;
 
   BlendFileWriteParams blend_write_params{};
   /* Make all paths absolute when saving the startup file.
@@ -2437,6 +2435,11 @@ static int wm_userpref_read_exec(bContext *C, wmOperator *op)
     U.runtime.is_dirty = true;
   }
 
+  /* Ensure the correct icon textures are loaded. When the current theme didn't had an
+   * #icon_border_intensity, but the loaded theme has, the icon with border intensity needs to be
+   * loaded. */
+  UI_icons_reload_internal_textures();
+
   /* Needed to recalculate UI scaling values (eg, #UserDef.inv_dpi_fac). */
   wm_window_clear_drawable(static_cast<wmWindowManager *>(bmain->wm.first));
 
@@ -2544,6 +2547,9 @@ static int wm_homefile_read_exec(bContext *C, wmOperator *op)
       use_userdef = true;
     }
   }
+
+  /* Close any user-loaded fonts. */
+  BLF_reset_fonts();
 
   char app_template_buf[sizeof(U.app_template)];
   const char *app_template;
@@ -2818,6 +2824,9 @@ static int wm_open_mainfile__open(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "filepath", filepath);
   BLI_path_canonicalize_native(filepath, sizeof(filepath));
 
+  /* For file opening, also print in console for warnings, not only errors. */
+  BKE_report_print_level_set(op->reports, RPT_WARNING);
+
   /* re-use last loaded setting so we can reload a file without changing */
   wm_open_init_load_ui(op, false);
   wm_open_init_use_scripts(op, false);
@@ -2825,9 +2834,6 @@ static int wm_open_mainfile__open(bContext *C, wmOperator *op)
   SET_FLAG_FROM_TEST(G.fileflags, !RNA_boolean_get(op->ptr, "load_ui"), G_FILE_NO_UI);
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
   success = wm_file_read_opwrap(C, filepath, op->reports);
-
-  /* for file open also popup for warnings, not only errors */
-  BKE_report_print_level_set(op->reports, RPT_WARNING);
 
   if (success) {
     if (G.fileflags & G_FILE_NO_UI) {
@@ -3238,6 +3244,11 @@ static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent
 
   save_set_compress(op);
   save_set_filepath(C, op);
+
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "relative_remap");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RNA_property_boolean_set(op->ptr, prop, (U.flag & USER_RELPATHS));
+  }
 
   WM_event_add_fileselect(C, op);
 
@@ -3760,12 +3771,16 @@ static void save_file_forwardcompat_cancel_button(uiBlock *block, wmGenericCallb
 static void save_file_forwardcompat_overwrite(bContext *C, void *arg_block, void *arg_data)
 {
   wmWindow *win = CTX_wm_window(C);
-  UI_popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
 
   /* Re-use operator properties as defined for the initial 'save' operator, which triggered this
    * 'forward compat' popup. */
   wmGenericCallback *callback = WM_generic_callback_steal(
       static_cast<wmGenericCallback *>(arg_data));
+
+  /* Needs to be done after stealing the callback data above, otherwise it would cause a
+   * use-after-free. */
+  UI_popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
+
   PointerRNA operator_propptr = {};
   PointerRNA *operator_propptr_p = &operator_propptr;
   IDProperty *operator_idproperties = static_cast<IDProperty *>(callback->user_data);

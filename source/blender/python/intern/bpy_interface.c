@@ -548,9 +548,6 @@ void BPY_python_end(void)
   /* bpy.app modules that need cleanup */
   BPY_app_translations_end();
 
-  /* Release copy of clear sys modules dictionary */
-  BPy_end_modules();
-
 #ifndef WITH_PYTHON_MODULE
   BPY_atexit_unregister(); /* without this we get recursive calls to WM_exit */
 
@@ -965,16 +962,3 @@ int text_check_identifier_nodigit_unicode(const uint ch)
 {
   return (ch < 255 && text_check_identifier_nodigit((char)ch)) || Py_UNICODE_ISALPHA(ch);
 }
-
-/*************** UPBGE *****************/
-
-bool BPY_python_get_use_system_env(void)
-{
-  return py_use_system_env;
-}
-
-void BPY_python_rna_alloc_types(void)  // Just to call from blenderplayer
-{
-  pyrna_alloc_types();
-}
-/*********** End of UPBGE **************/

@@ -38,7 +38,7 @@ typedef struct wmSurface {
 
 /* Create/Free */
 void wm_surface_add(wmSurface *surface);
-void wm_surface_remove(wmSurface *surface, struct bContext *C);
+void wm_surface_remove(wmSurface *surface);
 void wm_surfaces_free(void);
 
 /* Utils */
@@ -48,10 +48,10 @@ void wm_surfaces_iter(struct bContext *C, void (*cb)(struct bContext *, wmSurfac
 void wm_surfaces_do_depsgraph(struct bContext *C);
 
 /* Drawing */
-void wm_surface_make_drawable(wmSurface *surface, struct bContext *C);
-void wm_surface_clear_drawable(struct bContext *C);
-void wm_surface_set_drawable(wmSurface *surface, struct bContext *C, bool activate);
-void wm_surface_reset_drawable(struct bContext *C);
+void wm_surface_make_drawable(wmSurface *surface);
+void wm_surface_clear_drawable(void);
+void wm_surface_set_drawable(wmSurface *surface, bool activate);
+void wm_surface_reset_drawable(void);
 
 #ifdef __cplusplus
 }

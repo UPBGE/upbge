@@ -1884,9 +1884,8 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh,
                                  ((mesh->flag & ME_AUTOSMOOTH) != 0);
   const float split_angle = (mesh->flag & ME_AUTOSMOOTH) != 0 ? mesh->smoothresh : float(M_PI);
 
-  /* may be nullptr */
-  blender::short2 *clnors = (blender::short2 *)CustomData_get_layer_for_write(
-      &mesh->ldata, CD_CUSTOMLOOPNORMAL, mesh->totloop);
+  const blender::short2 *clnors = static_cast<const blender::short2 *>(
+      CustomData_get_layer(&mesh->ldata, CD_CUSTOMLOOPNORMAL));
   const bool *sharp_edges = static_cast<const bool *>(
       CustomData_get_layer_named(&mesh->edata, CD_PROP_BOOL, "sharp_edge"));
   const bool *sharp_faces = static_cast<const bool *>(
@@ -1903,9 +1902,9 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh,
       mesh->poly_normals(),
       sharp_edges,
       sharp_faces,
+      clnors,
       use_split_normals,
       split_angle,
-      clnors,
       nullptr,
       {reinterpret_cast<float3 *>(r_corner_normals), mesh->totloop});
 }
@@ -1938,20 +1937,3 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
     }
   }
 }
-
-/****************UPBGE****************/
-void BKE_mesh_ensure_navmesh(Mesh *me)
-{
-  if (!CustomData_has_layer(&me->pdata, CD_RECAST)) {
-    int i;
-    int polys_len = me->totpoly;
-    int *recastData;
-    recastData = (int *)MEM_malloc_arrayN(polys_len, sizeof(int), __func__);
-    for (i = 0; i < polys_len; i++) {
-      recastData[i] = i + 1;
-    }
-    CustomData_add_layer_named_with_data(
-        &me->pdata, CD_RECAST, recastData, polys_len, "recastData", nullptr);
-  }
-}
-/************************************/

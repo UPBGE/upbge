@@ -6,10 +6,6 @@
  * \ingroup pymathutils
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern PyTypeObject euler_Type;
 #define EulerObject_Check(v) PyObject_TypeCheck((v), &euler_Type)
 #define EulerObject_CheckExact(v) (Py_TYPE(v) == &euler_Type)
@@ -40,7 +36,3 @@ PyObject *Euler_CreatePyObject_cb(PyObject *cb_user,
                                   unsigned char cb_subtype) ATTR_WARN_UNUSED_RESULT;
 
 short euler_order_from_string(const char *str, const char *error_prefix);
-
-#ifdef __cplusplus
-}
-#endif

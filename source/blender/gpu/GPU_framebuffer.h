@@ -581,13 +581,6 @@ void GPU_framebuffer_recursive_downsample(GPUFrameBuffer *framebuffer,
  * NOTE: They are still limited by the same single context limitation as #GPUFrameBuffer.
  * \{ */
 
-/********************UPBGE*******************/
-struct GPUTexture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb);
-struct GPUTexture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb);
-void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
-void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
-/****************End of UPBGE****************/
-
 typedef struct GPUOffScreen GPUOffScreen;
 
 /**

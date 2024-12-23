@@ -1477,10 +1477,3 @@ void BKE_sound_evaluate(Depsgraph *depsgraph, Main *bmain, bSound *sound)
   }
   BKE_sound_ensure_loaded(bmain, sound);
 }
-
-/* UPBGE */
-void BKE_sound_load_no_assert(Main *bmain, struct bSound *sound)
-{
-  sound_load_audio(bmain, sound, true);
-}
-/**************************/

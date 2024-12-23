@@ -674,11 +674,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     if (info[0]) {
       ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf(info + ofs,
-                        len - ofs,
-                        TIP_("UPBGE %s (based on Blender %s)"),
-                        BKE_upbge_version_string(),
-                        BKE_blender_version_string());
+    ofs += BLI_snprintf_rlen(info + ofs, len - ofs, TIP_("%s"), BKE_blender_version_string());
   }
 
   return info;

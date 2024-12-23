@@ -289,12 +289,6 @@ class MTLShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  /* UPBGE */
-  char *shader_validate() override;
-  void shader_bind_attributes(int *locations, const char **names, int len) override;
-  int shader_get_uniform_location_old(const char *name) override;
-  /*********/
-
   void transform_feedback_names_set(Span<const char *> name_list,
                                     const eGPUShaderTFBType geom_type) override;
   bool transform_feedback_enable(GPUVertBuf *buf) override;

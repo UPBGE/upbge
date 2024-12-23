@@ -71,7 +71,6 @@
 #include "BKE_object.h"
 #include "BKE_pointcloud.h"
 #include "BKE_report.h"
-#include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
 #include "BKE_texture.h"
@@ -174,11 +173,11 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
   }
   else if (ELEM(obedit->type, OB_SURF, OB_CURVES_LEGACY)) {
     ListBase *editnurb = object_editcurve_get(obedit);
-
+    int curr_index = 0;
     for (Nurb *nu = editnurb->first; nu != NULL; nu = nu->next) {
       if (nu->type == CU_BEZIER) {
         BezTriple *bezt = nu->bezt;
-        for (int curr_index = 0; curr_index < nu->pntsu; curr_index++, bezt++) {
+        for (int nurb_index = 0; nurb_index < nu->pntsu; nurb_index++, bezt++, curr_index++) {
           if (BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, bezt)) {
             if (par1 == INDEX_UNSET) {
               par1 = curr_index;
@@ -201,7 +200,7 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
       else {
         BPoint *bp = nu->bp;
         const int num_points = nu->pntsu * nu->pntsv;
-        for (int curr_index = 0; curr_index < num_points; curr_index++, bp++) {
+        for (int nurb_index = 0; nurb_index < num_points; nurb_index++, bp++, curr_index++) {
           if (bp->f1 & SELECT) {
             if (par1 == INDEX_UNSET) {
               par1 = curr_index;
@@ -388,7 +387,7 @@ void ED_object_parent_clear(Object *ob, const int type)
   if (ob->parent == NULL) {
     return;
   }
-
+  unsigned int flags = ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION;
   switch (type) {
     case CLEAR_PARENT_ALL: {
       /* for deformers, remove corresponding modifiers to prevent
@@ -406,6 +405,9 @@ void ED_object_parent_clear(Object *ob, const int type)
        * result as object's local transforms */
       ob->parent = NULL;
       BKE_object_apply_mat4(ob, ob->object_to_world, true, false);
+      /* Don't recalculate the animation because it would change the transform
+       * instead of keeping it. */
+      flags &= ~ID_RECALC_ANIMATION;
       break;
     }
     case CLEAR_PARENT_INVERSE: {
@@ -419,7 +421,7 @@ void ED_object_parent_clear(Object *ob, const int type)
   /* Always clear parentinv matrix for sake of consistency, see #41950. */
   unit_m4(ob->parentinv);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+  DEG_id_tag_update(&ob->id, flags);
 }
 
 /* NOTE: poll should check for editable scene. */
@@ -1401,6 +1403,7 @@ static int make_links_scene_exec(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
+  DEG_id_tag_update(&scene_to->id, ID_RECALC_BASE_FLAGS);
   DEG_relations_tag_update(bmain);
 
   /* redraw the 3D view because the object center points are colored differently */
@@ -1522,11 +1525,12 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
           case MAKE_LINKS_ANIMDATA:
             BKE_animdata_copy_id(bmain, (ID *)ob_dst, (ID *)ob_src, 0);
             if (ob_dst->data && ob_src->data) {
-              if (!BKE_id_is_editable(bmain, obdata_id)) {
-                is_lib = true;
-                break;
+              if (BKE_id_is_editable(bmain, obdata_id)) {
+                BKE_animdata_copy_id(bmain, (ID *)ob_dst->data, (ID *)ob_src->data, 0);
               }
-              BKE_animdata_copy_id(bmain, (ID *)ob_dst->data, (ID *)ob_src->data, 0);
+              else {
+                is_lib = true;
+              }
             }
             DEG_id_tag_update(&ob_dst->id,
                               ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
@@ -1788,8 +1792,6 @@ static Collection *single_object_users_collection(Main *bmain,
 static void single_object_users(
     Main *bmain, Scene *scene, View3D *v3d, const int flag, const bool copy_collections)
 {
-  BKE_sca_clear_new_points(); /* BGE logic */
-
   /* duplicate all the objects of the scene (and matching collections, if required). */
   Collection *master_collection = scene->master_collection;
   single_object_users_collection(bmain, scene, master_collection, flag, copy_collections, true);
@@ -1808,8 +1810,6 @@ static void single_object_users(
   /* Making single user may affect other scenes if they share
    * with current one some collections in their ViewLayer. */
   BKE_main_collection_sync_remap(bmain);
-
-  BKE_sca_set_new_points();
 }
 
 void ED_object_single_user(Main *bmain, Scene *scene, Object *ob)
@@ -2064,15 +2064,18 @@ static void tag_localizable_objects(bContext *C, const int mode)
 
   /* Also forbid making objects local if other library objects are using
    * them for modifiers or constraints.
+   *
+   * FIXME This is ignoring all other linked ID types potentially using the selected tagged
+   * objects! Probably works fine in most 'usual' cases though.
    */
   for (Object *object = bmain->objects.first; object; object = object->id.next) {
-    if ((object->id.tag & LIB_TAG_DOIT) == 0) {
+    if ((object->id.tag & LIB_TAG_DOIT) == 0 && ID_IS_LINKED(object)) {
       BKE_library_foreach_ID_link(
           NULL, &object->id, tag_localizable_looper, NULL, IDWALK_READONLY);
     }
     if (object->data) {
       ID *data_id = (ID *)object->data;
-      if ((data_id->tag & LIB_TAG_DOIT) == 0) {
+      if ((data_id->tag & LIB_TAG_DOIT) == 0 && ID_IS_LINKED(data_id)) {
         BKE_library_foreach_ID_link(NULL, data_id, tag_localizable_looper, NULL, IDWALK_READONLY);
       }
     }

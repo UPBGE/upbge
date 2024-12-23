@@ -332,13 +332,6 @@ void MESH_OT_customdata_crease_vertex_clear(struct wmOperatorType *ot);
 void MESH_OT_customdata_crease_edge_add(struct wmOperatorType *ot);
 void MESH_OT_customdata_crease_edge_clear(struct wmOperatorType *ot);
 
-/* *** mesh_navmesh.c *** */
-void MESH_OT_navmesh_make(struct wmOperatorType *ot);
-void MESH_OT_navmesh_face_copy(struct wmOperatorType *ot);
-void MESH_OT_navmesh_face_add(struct wmOperatorType *ot);
-void MESH_OT_navmesh_reset(struct wmOperatorType *ot);
-void MESH_OT_navmesh_clear(struct wmOperatorType *ot);
-
 #ifdef __cplusplus
 }
 #endif

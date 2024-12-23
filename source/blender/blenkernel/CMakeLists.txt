@@ -24,7 +24,6 @@ set(INC
   ../sequencer
   ../shader_fx
   ../simulation
-  ../windowmanager
   ../../../intern/eigen
   ../../../intern/ghost
   ../../../intern/guardedalloc
@@ -47,8 +46,6 @@ set(INC
 
 set(INC_SYS
   ${ZLIB_INCLUDE_DIRS}
-
-  ${PYTHON_INCLUDE_DIRS}
 
   # For `vfontdata_freetype.c`.
   ${FREETYPE_INCLUDE_DIRS}
@@ -90,7 +87,6 @@ set(SRC
   intern/boids.c
   intern/bpath.c
   intern/brush.cc
-  intern/bullet.c
   intern/bvhutils.cc
   intern/cachefile.c
   intern/callbacks.c
@@ -264,11 +260,8 @@ set(SRC
   intern/pointcloud.cc
   intern/pose_backup.cc
   intern/preferences.c
-  intern/property.c
-  intern/python_proxy.c
   intern/report.c
   intern/rigidbody.c
-  intern/sca.c
   intern/scene.cc
   intern/screen.c
   intern/shader_fx.c
@@ -347,7 +340,6 @@ set(SRC
   BKE_boids.h
   BKE_bpath.h
   BKE_brush.h
-  BKE_bullet.h
   BKE_bvhutils.h
   BKE_cachefile.h
   BKE_callbacks.h
@@ -470,11 +462,8 @@ set(SRC
   BKE_pointcloud.h
   BKE_pose_backup.h
   BKE_preferences.h
-  BKE_property.h
-  BKE_python_proxy.h
   BKE_report.h
   BKE_rigidbody.h
-  BKE_sca.h
   BKE_scene.h
   BKE_screen.h
   BKE_sequencer_offscreen.h
@@ -722,10 +711,6 @@ if(WITH_LZMA)
     extern_lzma
   )
   add_definitions(-DWITH_LZMA)
-endif()
-
-if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 if(WITH_LIBMV)

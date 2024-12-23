@@ -38,7 +38,6 @@ set(SRC
   intern/readblenentry.cc
   intern/readfile.cc
   intern/readfile_tempload.cc
-  intern/runtime.c
   intern/undofile.cc
   intern/versioning_250.c
   intern/versioning_260.c
@@ -52,7 +51,6 @@ set(SRC
   intern/versioning_defaults.cc
   intern/versioning_dna.c
   intern/versioning_legacy.c
-  intern/versioning_upbge.c
   intern/versioning_userdef.c
   intern/writefile.cc
 
@@ -60,7 +58,6 @@ set(SRC
   BLO_blend_validate.h
   BLO_read_write.h
   BLO_readfile.h
-  BLO_runtime.h
   BLO_undofile.h
   BLO_writefile.h
   intern/readfile.h
@@ -85,18 +82,6 @@ if(WITH_ALEMBIC)
     ../io/alembic
   )
   add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WITH_GAMEENGINE_BPPLAYER)
-  list(APPEND INC
-    ../../../intern/spindle
-  )
-
-  list(APPEND LIB
-    bf_intern_spindle
-  )
-
-  add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
 if(WITH_TBB)

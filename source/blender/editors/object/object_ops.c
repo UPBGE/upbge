@@ -234,14 +234,6 @@ void ED_operatortypes_object(void)
 
   WM_operatortype_append(TRANSFORM_OT_vertex_warp);
 
-  WM_operatortype_append(OBJECT_OT_game_property_new);
-  WM_operatortype_append(OBJECT_OT_game_property_remove);
-  WM_operatortype_append(OBJECT_OT_game_property_copy);
-  WM_operatortype_append(OBJECT_OT_game_property_clear);
-  WM_operatortype_append(OBJECT_OT_game_property_move);
-  WM_operatortype_append(OBJECT_OT_logic_bricks_copy);
-  WM_operatortype_append(OBJECT_OT_game_physics_copy);
-
   WM_operatortype_append(OBJECT_OT_move_to_collection);
   WM_operatortype_append(OBJECT_OT_link_to_collection);
 
@@ -275,9 +267,6 @@ void ED_operatortypes_object(void)
   WM_operatortype_append(OBJECT_OT_drop_geometry_nodes);
   WM_operatortype_append(OBJECT_OT_unlink_data);
   WM_operatortype_append(OBJECT_OT_laplaciandeform_bind);
-
-  WM_operatortype_append(OBJECT_OT_lod_add);
-  WM_operatortype_append(OBJECT_OT_lod_remove);
 
   WM_operatortype_append(TRANSFORM_OT_vertex_random);
 

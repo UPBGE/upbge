@@ -474,14 +474,14 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
     if (blendfile_path[0] != '\0') {
       char str[sizeof(((Main *)NULL)->filepath) + 24];
       SNPRINTF(str,
-               "UPBGE%s [%s%s]",
+               "Blender%s [%s%s]",
                wm->file_saved ? "" : "*",
                blendfile_path,
                G_MAIN->recovered ? " (Recovered)" : "");
       GHOST_SetTitle(win->ghostwin, str);
     }
     else {
-      GHOST_SetTitle(win->ghostwin, "UPBGE");
+      GHOST_SetTitle(win->ghostwin, "Blender");
     }
 
     /* Informs GHOST of unsaved changes, to set window modified visual indicator (macOS)
@@ -2664,117 +2664,4 @@ void WM_ghost_show_message_box(const char *title,
   GHOST_ShowMessageBox(g_system, title, message, help_label, continue_label, link, dialog_options);
 }
 
-/* UPBGE */
-
-#include "WM_message.h"
-
-void *WM_opengl_context_create_blenderplayer(void *ghost_system)
-{
-  /* On Windows there is a problem creating contexts that share lists
-   * from one context that is current in another thread.
-   * So we should call this function only on the main thread.
-   */
-  BLI_assert(BLI_thread_is_main());
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-
-  GHOST_GLSettings glSettings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  if (G.debug & G_DEBUG_GPU) {
-    glSettings.flags |= GHOST_glDebugContext;
-  }
-  g_system = ghost_system;
-  return GHOST_CreateOpenGLContext(g_system, glSettings);
-}
-
-/* Reuse wm->message_bus when we restart game or load a new .blend */
-static void *runtime_msgbus;
-
-void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
-                                                wmWindow *win,
-                                                void *ghostwin,
-                                                bool first_time_window)
-{
-  win->ghostwin = ghostwin;
-  GHOST_RectangleHandle bounds;
-
-  wm_window_clear_drawable(wm);
-
-  if (first_time_window) {
-    win->gpuctx = GPU_context_create(ghostwin, NULL);
-    wm->message_bus = WM_msgbus_create();
-    runtime_msgbus = wm->message_bus;
-  }
-  else {
-    win->gpuctx = GPU_context_active_get();
-    wm->message_bus = runtime_msgbus;
-  }
-  /* Set window as drawable upon creation. Note this has already been
-   * it has already been activated by GHOST_CreateWindow. */
-  wm_window_set_drawable(wm, win, false);
-  GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
-
-  /* We can't call the following function here in blenderplayer pipeline.
-   * We could do it after if we realize that there are issues without this.
-   */
-  // wm_window_ensure_eventstate(win);
-
-  /* store actual window size in blender window */
-  bounds = GHOST_GetClientBounds(win->ghostwin);
-  /* win32: gives undefined window size when minimized */
-  if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized) {
-    win->sizex = GHOST_GetWidthRectangle(bounds);
-    win->sizey = GHOST_GetHeightRectangle(bounds);
-  }
-  GHOST_DisposeRectangle(bounds);
-
-#ifndef __APPLE__
-  /* set the state here, so minimized state comes up correct on windows */
-  if (wm_init_state.window_focus) {
-    GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(win->ghostwin));
-  }
-#endif
-
-  /* until screens get drawn, make it black */
-  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-
-  /* needed here, because it's used before it reads userdef */
-  WM_window_set_dpi(win);
-
-  /* We avoid swap buffers when we aren't at first time
-   * to avoid transition when reload or load a new blend */
-  if (first_time_window) {
-    wm_window_swap_buffers(win);
-  }
-}
-
-void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
-{
-  wm_window_clear_drawable(wm);
-  wm_window_set_drawable(wm, win, false);
-
-  GHOST_RectangleHandle bounds;
-  /* store actual window size in blender window */
-  bounds = GHOST_GetClientBounds(win->ghostwin);
-  /* win32: gives undefined window size when minimized */
-  if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized) {
-    win->sizex = GHOST_GetWidthRectangle(bounds);
-    win->sizey = GHOST_GetHeightRectangle(bounds);
-  }
-  GHOST_DisposeRectangle(bounds);
-
-#ifndef __APPLE__
-  /* set the state here, so minimized state comes up correct on windows */
-  if (wm_init_state.window_focus) {
-    GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(win->ghostwin));
-  }
-#endif
-
-  /* until screens get drawn, make it black */
-  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-
-  /* needed here, because it's used before it reads userdef */
-  WM_window_set_dpi(win);
-}
-/* End of UPBGE */
 /** \} */

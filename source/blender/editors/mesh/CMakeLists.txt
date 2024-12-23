@@ -67,21 +67,6 @@ set(LIB
   bf_windowmanager
 )
 
-if(WITH_GAMEENGINE)
-  add_definitions(-DWITH_GAMEENGINE)
-  list(APPEND INC
-    ../../../../extern/recastnavigation
-  )
-
-  list(APPEND SRC
-    mesh_navmesh.cc
-  )
-
-  list(APPEND LIB
-    extern_recastnavigation
-  )
-endif()
-
 if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)
 endif()

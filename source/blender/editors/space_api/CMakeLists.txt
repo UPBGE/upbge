@@ -30,7 +30,6 @@ set(LIB
   bf_editor_space_graph
   bf_editor_space_image
   bf_editor_space_info
-  bf_editor_space_logic
   bf_editor_space_nla
   bf_editor_space_node
   bf_editor_space_outliner

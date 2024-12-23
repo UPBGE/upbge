@@ -191,10 +191,6 @@ struct Depsgraph;
 
 void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct bSound *sound);
 
-/* UPBGE */
-void BKE_sound_load_no_assert(struct Main *main, struct bSound *sound);
-/**************************/
-
 #ifdef __cplusplus
 }
 #endif

@@ -1303,6 +1303,12 @@ static int nlaedit_delete_exec(bContext *C, wmOperator *UNUSED(op))
 
       /* if selected, delete */
       if (strip->flag & NLASTRIP_FLAG_SELECT) {
+        /* Fix for #109430. Defensively exit tweak mode before deleting
+         * the active strip. */
+        if (ale->adt && ale->adt->actstrip == strip) {
+          BKE_nla_tweakmode_exit(ale->adt);
+        }
+
         /* if a strip either side of this was a transition, delete those too */
         if ((strip->prev) && (strip->prev->type == NLASTRIP_TYPE_TRANSITION)) {
           BKE_nlastrip_remove_and_free(&nlt->strips, strip->prev, true);
@@ -1703,7 +1709,7 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
 
       /* check if the track has room for the strips to be swapped */
       if (BKE_nlastrips_has_space(&nlt->strips, nsa[0], nsa[1]) &&
-          BKE_nlastrips_has_space(&nlt->strips, nsb[0], nsb[1]))
+          BKE_nlastrips_has_space(&nlt->strips, nsb[0], nsb[1]) && (nsb[1] <= nsa[0]))
       {
         /* set new extents for strips then */
         area->start = nsa[0];
@@ -1716,7 +1722,13 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
       }
       else {
         /* not enough room to swap, so show message */
-        if ((area->flag & NLASTRIP_FLAG_TEMP_META) || (sb->flag & NLASTRIP_FLAG_TEMP_META)) {
+        if (nsb[1] > nsa[0]) {
+          BKE_report(op->reports,
+                     RPT_WARNING,
+                     "Cannot swap selected strips because they will overlap each other in their "
+                     "new places");
+        }
+        else if ((area->flag & NLASTRIP_FLAG_TEMP_META) || (sb->flag & NLASTRIP_FLAG_TEMP_META)) {
           BKE_report(
               op->reports,
               RPT_WARNING,

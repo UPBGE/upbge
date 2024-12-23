@@ -15,7 +15,6 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
@@ -61,7 +60,6 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_sca.h"
 #include "BKE_screen.h"
 #include "BKE_sound.h"
 #include "BKE_texture.h"
@@ -522,13 +520,7 @@ static void do_version_constraints_radians_degrees_250(ListBase *lb)
   bConstraint *con;
 
   for (con = lb->first; con; con = con->next) {
-    if (con->type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
-      bRigidBodyJointConstraint *data = con->data;
-      data->axX *= (float)(M_PI / 180.0);
-      data->axY *= (float)(M_PI / 180.0);
-      data->axZ *= (float)(M_PI / 180.0);
-    }
-    else if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
+    if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
       bKinematicConstraint *data = con->data;
       data->poleangle *= (float)(M_PI / 180.0);
     }
@@ -697,39 +689,11 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 #endif
 
     bSound *sound;
-    bActuator *act;
 
     for (sound = bmain->sounds.first; sound; sound = sound->id.next) {
       if (sound->newpackedfile) {
         sound->packedfile = sound->newpackedfile;
         sound->newpackedfile = NULL;
-      }
-    }
-
-    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-      for (act = ob->actuators.first; act; act = act->next) {
-        if (act->type == ACT_SOUND) {
-          bSoundActuator *sAct = (bSoundActuator *)act->data;
-          if (sAct->sound) {
-            sound = blo_do_versions_newlibadr(fd, lib, sAct->sound);
-            sAct->flag = (sound->flags & SOUND_FLAGS_3D) ? ACT_SND_3D_SOUND : 0;
-            sAct->pitch = sound->pitch;
-            sAct->volume = sound->volume;
-            sAct->sound3D.reference_distance = sound->distance;
-            sAct->sound3D.max_gain = sound->max_gain;
-            sAct->sound3D.min_gain = sound->min_gain;
-            sAct->sound3D.rolloff_factor = sound->attenuation;
-          }
-          else {
-            sAct->sound3D.reference_distance = 1.0f;
-            sAct->volume = 1.0f;
-            sAct->sound3D.max_gain = 1.0f;
-            sAct->sound3D.rolloff_factor = 1.0f;
-          }
-          sAct->sound3D.cone_inner_angle = 360.0f;
-          sAct->sound3D.cone_outer_angle = 360.0f;
-          sAct->sound3D.max_distance = FLT_MAX;
-        }
       }
     }
 
@@ -901,20 +865,6 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       if (ob->flag & 8192) { /* OB_POSEMODE = 8192. */
         ob->mode |= OB_MODE_POSE;
       }
-    }
-    for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
-
-      /* Framing */
-      // sce->gm.framing = sce->framing;
-
-      /* Physic (previously stored in world) */
-      sce->gm.gravity = 9.8f;
-      sce->gm.physicsEngine = WOPHY_BULLET; /* Bullet by default */
-      sce->gm.occlusionRes = 128;
-      sce->gm.ticrate = 60;
-      sce->gm.maxlogicstep = 5;
-      sce->gm.physubstep = 1;
-      sce->gm.maxphystep = 5;
     }
   }
 

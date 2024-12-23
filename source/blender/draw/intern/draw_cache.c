@@ -925,14 +925,6 @@ int DRW_cache_object_material_count_get(struct Object *ob)
   short type = ob->type;
 
   Mesh *me = BKE_object_get_evaluated_mesh_no_subsurf(ob);
-
-  /* UPBGE */
-  if (ob->currentlod) {
-    // https:// github.com/UPBGE/upbge/issues/1512
-    me = NULL;  // We need ob_eval->data to evaluate materials number in case of LOD
-  }
-  /*********/
-
   if (me != NULL && type != OB_POINTCLOUD) {
     /* Some object types can have one data type in ob->data, but will be rendered as mesh.
      * For point clouds this never happens. Ideally this check would happen at another level

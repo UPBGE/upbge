@@ -129,10 +129,6 @@ struct MemFile *ED_undosys_stack_memfile_get_active(struct UndoStack *ustack);
  */
 void ED_undosys_stack_memfile_id_changed_tag(struct UndoStack *ustack, struct ID *id);
 
-/* UPBGE: Use old undo system as new undo is causing issues */
-void ED_undo_push_old(struct bContext *C, const char *str);
-/*********/
-
 #ifdef __cplusplus
 }
 #endif

@@ -16,7 +16,6 @@
 #endif
 
 #include "BLI_assert.h"
-#include "BLI_sys_types.h"  // UPBGE
 #include "BLI_utildefines.h"
 
 #include "GPU_state.h"
@@ -1129,10 +1128,6 @@ void GPU_texture_update_sub_from_pixel_buffer(GPUTexture *texture,
                                               int height,
                                               int depth);
 /** \} */
-
-/******************UPBGE************************/
-void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
-/**************End of UPBGE*********************/
 
 #ifdef __cplusplus
 }

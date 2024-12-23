@@ -76,10 +76,6 @@
 #  include "BPY_extern_run.h"
 #endif
 
-#ifdef WITH_GAMEENGINE
-#  include "LA_SystemCommandLine.h"
-#endif
-
 #include "GHOST_C-api.h"
 #include "GHOST_Path-api.hh"
 
@@ -250,7 +246,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   ED_node_init_butfuncs();
 
-  BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
+  BLF_init();
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,
@@ -417,96 +413,6 @@ void WM_init_splash(bContext *C)
   CTX_wm_window_set(C, prevwin);
 }
 
-bool WM_init_game(bContext *C)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win;
-
-  ScrArea *sa;
-  ARegion *ar = NULL;
-
-  Scene *scene = CTX_data_scene(C);
-
-  if (!scene) {
-    /* XXX, this should not be needed. */
-    Main *bmain = CTX_data_main(C);
-    scene = (Scene *)bmain->scenes.first;
-  }
-
-  win = (wmWindow *)wm->windows.first;
-
-  /* first to get a valid window */
-  if (win)
-    CTX_wm_window_set(C, win);
-
-  sa = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0);
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-
-  /* if we have a valid 3D view */
-  if (sa && ar) {
-    ARegion *arhide;
-
-    CTX_wm_area_set(C, sa);
-    CTX_wm_region_set(C, ar);
-
-    /* disable quad view */
-    if (ar->alignment == RGN_ALIGN_QSPLIT)
-      WM_operator_name_call(C, "SCREEN_OT_region_quadview", WM_OP_EXEC_DEFAULT, NULL, NULL);
-
-    /* toolbox, properties panel and header are hidden */
-    for (arhide = (ARegion *)sa->regionbase.first; arhide; arhide = arhide->next) {
-      if (arhide->regiontype != RGN_TYPE_WINDOW) {
-        if (!(arhide->flag & RGN_FLAG_HIDDEN)) {
-          ED_region_toggle_hidden(C, arhide);
-        }
-      }
-    }
-
-    /* full screen the area */
-    if (!sa->full) {
-      ED_screen_state_toggle(C, win, sa, SCREENMAXIMIZED);
-    }
-
-    /* Fullscreen */
-    if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
-      WM_operator_name_call(C, "WM_OT_window_fullscreen_toggle", WM_OP_EXEC_DEFAULT, NULL, NULL);
-      wm_get_screensize(&ar->winrct.xmax, &ar->winrct.ymax);
-      ar->winx = ar->winrct.xmax + 1;
-      ar->winy = ar->winrct.ymax + 1;
-    }
-    else {
-      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
-      ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
-      ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
-      ar->winx = ar->winrct.xmax + 1;
-      ar->winy = ar->winrct.ymax + 1;
-      GHOST_DisposeRectangle(rect);
-    }
-
-    WM_operator_name_call(C, "VIEW3D_OT_game_start", WM_OP_EXEC_DEFAULT, NULL, NULL);
-
-    BKE_sound_exit();
-
-    return true;
-  }
-  else {
-    ReportTimerInfo *rti;
-
-    BKE_report(&wm->reports, RPT_ERROR, "No valid 3D View found, game auto start is not possible");
-
-    /* After adding the report to the global list, reset the report timer. */
-    WM_event_remove_timer(wm, NULL, wm->reports.reporttimer);
-
-    /* Records time since last report was added */
-    wm->reports.reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.02);
-
-    rti = (ReportTimerInfo *)MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
-    wm->reports.reporttimer->customdata = rti;
-
-    return false;
-  }
-}
-
 /* free strings of open recent files */
 static void free_openrecent(void)
 {
@@ -588,7 +494,7 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
         Main *bmain = CTX_data_main(C);
         char filepath[FILE_MAX];
         bool has_edited;
-        const int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY);
+        const int fileflags = G.fileflags & ~G_FILE_COMPRESS;
 
         BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
@@ -763,9 +669,6 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
   wm_ghost_exit();
 
   CTX_free(C);
-#ifdef WITH_GAMEENGINE
-  SYS_DeleteSystem(SYS_GetSystem());
-#endif
 
   GHOST_DisposeSystemPaths();
 
@@ -813,22 +716,3 @@ void WM_script_tag_reload(void)
 {
   UI_interface_tag_script_reload();
 }
-
-/* UPBGE */
-void WM_init_opengl_blenderplayer(void *ghost_system)
-{
-  /* must be called only once */
-  BLI_assert(opengl_is_init == false);
-  /* Ghost is still not init elsewhere in background mode. */
-  ////////// wm_ghost_init(NULL);
-
-  /* NEEDS TO HAVE AN OGL CONTEXT BOUND FIRST!!!!!!!!!!!!!!!!!!! */
-  DRW_opengl_context_create_blenderplayer(ghost_system);
-  GPU_init();
-  GPU_pass_cache_init();
-#ifdef WITH_OPENSUBDIV
-  BKE_subsurf_osd_init();
-#endif
-  opengl_is_init = true;
-}
-/* End of UPBGE */

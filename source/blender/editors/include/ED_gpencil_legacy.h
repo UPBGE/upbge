@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include "BKE_undo_system.h" /* UPBGE linking error */
-
 #ifdef __cplusplus
 extern "C" {
 #endif

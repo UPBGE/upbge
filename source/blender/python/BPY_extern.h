@@ -37,7 +37,6 @@ void BPY_pyconstraint_update(struct Object *owner, struct bConstraint *con);
 bool BPY_is_pyconstraint(struct Text *text);
 //  void BPY_free_pyconstraint_links(struct Text *text);
 
-bool BPY_python_get_use_system_env(void); /* Game Engine Integration */
 /* global interpreter lock */
 
 typedef void *BPy_ThreadStatePtr;
@@ -136,10 +135,6 @@ void BPY_callback_wm_free(struct wmWindowManager *wm);
 #ifdef WITH_INTERNATIONAL
 const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid);
 #endif
-
-/********** UPBGE **********/
-void BPY_python_rna_alloc_types(void);
-/********************************************/
 
 #ifdef __cplusplus
 } /* extern "C" */

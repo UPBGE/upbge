@@ -74,8 +74,6 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"redo_post", "on loading a redo step (after)"},
     {"depsgraph_update_pre", "on depsgraph update (pre)"},
     {"depsgraph_update_post", "on depsgraph update (post)"},
-    {"game_pre", (char *)"on starting the game engine"},
-    {"game_post", (char *)"on ending the game engine"},
     {"version_update", "on ending the versioning code"},
     {"load_factory_preferences_post", "on loading factory preferences (after)"},
     {"load_factory_startup_post", "on loading factory startup (after)"},

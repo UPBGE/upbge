@@ -42,7 +42,6 @@ set(SRC
 )
 
 set(LIB
-  bf_gpu
 )
 
 

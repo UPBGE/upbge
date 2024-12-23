@@ -444,7 +444,6 @@ typedef struct EEVEE_Light {
   float upvec[3], sizey;
   float forwardvec[3], light_type;
   float diff, spec, volume, volume_radius;
-  float use_soft_shd, _pad3[3];  // Soft shadow per light -- UPBGE
 } EEVEE_Light;
 
 /* Special type for elliptic area lights, matches lamps_lib.glsl */
@@ -683,7 +682,6 @@ typedef enum EEVEE_EffectsFlag {
   EFFECT_VELOCITY_BUFFER = (1 << 12),     /* Not really an effect but a feature */
   EFFECT_TAA_REPROJECT = (1 << 13),       /* should be mutually exclusive with EFFECT_TAA */
   EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
-  //EFFECT_SMAA = (1 << 15),                /* UPBGE - Removed as it is in compositor */
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -1079,8 +1077,8 @@ EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_get(Object *ob);
 EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_ensure(Object *ob);
 EEVEE_LightEngineData *EEVEE_light_data_get(Object *ob);
 EEVEE_LightEngineData *EEVEE_light_data_ensure(Object *ob);
-EEVEE_WorldEngineData *EEVEE_world_data_get(struct World *wo);
-EEVEE_WorldEngineData *EEVEE_world_data_ensure(struct World *wo);
+EEVEE_WorldEngineData *EEVEE_world_data_get(World *wo);
+EEVEE_WorldEngineData *EEVEE_world_data_ensure(World *wo);
 
 void eevee_id_update(void *vedata, ID *id);
 
@@ -1656,10 +1654,6 @@ static const float cubefacemat[6][4][4] = {
      {0.0f, 0.0f, 1.0f, 0.0f},
      {0.0f, 0.0f, 0.0f, 1.0f}},
 };
-
-/* UPBGE */
-EEVEE_Data *EEVEE_engine_data_get(void);
-/* End of UPBGE */
 
 #ifdef __cplusplus
 }

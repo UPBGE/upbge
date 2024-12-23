@@ -33,6 +33,7 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
+#include "BKE_main.h"
 #include "BKE_mask.h"
 #include "BKE_nla.h"
 #include "BKE_scene.h"
@@ -2178,6 +2179,17 @@ static int animchannels_delete_exec(bContext *C, wmOperator *UNUSED(op))
         /* try to delete the layer's data and the layer itself */
         BKE_gpencil_layer_delete(gpd, gpl);
         ale->update = ANIM_UPDATE_DEPS;
+
+        /* Free Grease Pencil data block when last annotation layer is removed, see: #112683. */
+        if (gpd->flag & GP_DATA_ANNOTATIONS && gpd->layers.first == NULL) {
+          BKE_gpencil_free_data(gpd, true);
+
+          Scene *scene = CTX_data_scene(C);
+          scene->gpd = NULL;
+
+          Main *bmain = CTX_data_main(C);
+          BKE_id_free_us(bmain, gpd);
+        }
         break;
       }
       case ANIMTYPE_MASKLAYER: {
@@ -2919,8 +2931,12 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
   UI_view2d_region_to_view(v2d, rect->xmax, rect->ymax - 2, &rectf.xmax, &rectf.ymax);
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
-            ANIMFILTER_FCURVESONLY);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+
+  if (!ANIM_animdata_can_have_greasepencil(ac->datatype)) {
+    filter |= ANIMFILTER_FCURVESONLY;
+  }
+
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   float ymax;
@@ -3874,6 +3890,12 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
              channel_index);
     }
 
+    ANIM_animdata_freelist(&anim_data);
+    return false;
+  }
+
+  /* Only FCuves can have their keys selected. */
+  if (ale->datatype != ALE_FCURVE) {
     ANIM_animdata_freelist(&anim_data);
     return false;
   }

@@ -91,7 +91,6 @@ void BKE_blender_free(void)
  * \{ */
 
 static char blender_version_string[48] = "";
-static char upbge_version_string[48] = "";
 
 static void blender_version_init(void)
 {
@@ -123,41 +122,6 @@ static void blender_version_init(void)
 const char *BKE_blender_version_string(void)
 {
   return blender_version_string;
-}
-
-static void upbge_version_init(void)
-{
-  /* Version number. */
-  const char *version_cycle = NULL;
-
-  if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "alpha")) {
-    version_cycle = " Alpha";
-  }
-  else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "beta")) {
-    version_cycle = " Beta";
-  }
-  else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "rc")) {
-    version_cycle = " Release Candidate";
-  }
-  else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "release")) {
-    version_cycle = "";
-  }
-  else {
-    BLI_assert(!"Invalid UPBGE version cycle");
-  }
-
-  BLI_snprintf(upbge_version_string,
-               ARRAY_SIZE(upbge_version_string),
-               "%d.%d.%d%s",
-               UPBGE_VERSION / 100,
-               UPBGE_VERSION % 100,
-               UPBGE_VERSION_PATCH,
-               version_cycle);
-}
-
-const char *BKE_upbge_version_string()
-{
-  return upbge_version_string;
 }
 
 void BKE_blender_version_blendfile_string_from_values(char *str_buff,
@@ -195,7 +159,6 @@ bool BKE_blender_version_is_alpha(void)
 void BKE_blender_globals_init(void)
 {
   blender_version_init();
-  upbge_version_init();
 
   memset(&G, 0, sizeof(Global));
 

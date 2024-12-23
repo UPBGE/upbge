@@ -662,6 +662,34 @@ static void ntree_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   ntreeBlendWrite(writer, ntree);
 }
 
+/**
+ * Sockets with default_value data must be known built-in types, otherwise reading and writing data
+ * correctly cannot be guaranteed. Discard any socket with default_value data that has an unknown
+ * type.
+ */
+static bool is_node_socket_supported(const bNodeSocket *sock)
+{
+  switch (eNodeSocketDatatype(sock->type)) {
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_STRING:
+    case __SOCK_MESH:
+    case SOCK_CUSTOM:
+    case SOCK_SHADER:
+    case SOCK_GEOMETRY:
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+      return true;
+  }
+  return false;
+}
+
 static void direct_link_node_socket(BlendDataReader *reader, bNodeSocket *sock)
 {
   BLO_read_data_address(reader, &sock->prop);
@@ -673,6 +701,32 @@ static void direct_link_node_socket(BlendDataReader *reader, bNodeSocket *sock)
   BLO_read_data_address(reader, &sock->default_value);
   BLO_read_data_address(reader, &sock->default_attribute_name);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
+}
+
+static void remove_unsupported_sockets(ListBase *sockets, ListBase *links)
+{
+  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, sockets) {
+    if (is_node_socket_supported(sock)) {
+      continue;
+    }
+
+    /* First remove any link pointing to the socket. */
+    if (links) {
+      LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, links) {
+        if (link->fromsock == sock || link->tosock == sock) {
+          BLI_remlink(links, link);
+          if (link->tosock) {
+            link->tosock->link = nullptr;
+          }
+          MEM_freeN(link);
+        }
+      }
+    }
+
+    BLI_remlink(sockets, sock);
+    MEM_delete(sock->runtime);
+    MEM_freeN(sock);
+  }
 }
 
 void ntreeBlendReadData(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
@@ -830,10 +884,10 @@ void ntreeBlendReadData(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     BLO_read_data_address(reader, &node->parent);
 
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+    LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
       direct_link_node_socket(reader, sock);
     }
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+    LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->outputs) {
       direct_link_node_socket(reader, sock);
     }
 
@@ -850,10 +904,10 @@ void ntreeBlendReadData(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
   /* interface socket lists */
   BLO_read_list(reader, &ntree->inputs);
   BLO_read_list(reader, &ntree->outputs);
-  LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs) {
+  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &ntree->inputs) {
     direct_link_node_socket(reader, sock);
   }
-  LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs) {
+  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &ntree->outputs) {
     direct_link_node_socket(reader, sock);
   }
 
@@ -863,6 +917,13 @@ void ntreeBlendReadData(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
     BLO_read_data_address(reader, &link->fromsock);
     BLO_read_data_address(reader, &link->tosock);
   }
+
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    remove_unsupported_sockets(&node->inputs, &ntree->links);
+    remove_unsupported_sockets(&node->outputs, &ntree->links);
+  }
+  remove_unsupported_sockets(&ntree->inputs, nullptr);
+  remove_unsupported_sockets(&ntree->outputs, nullptr);
 
   /* TODO: should be dealt by new generic cache handling of IDs... */
   ntree->previews = nullptr;
@@ -4121,8 +4182,57 @@ void BKE_node_instance_hash_remove_untagged(bNodeInstanceHash *hash,
 
 namespace blender::bke {
 
+/* Build a set of built-in node types to check for known types. */
+static blender::Set<int> get_known_node_types_set()
+{
+  blender::Set<int> result;
+  NODE_TYPES_BEGIN (ntype) {
+    result.add(ntype->type);
+  }
+  NODE_TYPES_END;
+  return result;
+}
+
+static bool can_read_node_type(const int type)
+{
+  /* Can always read custom node types. */
+  if (ELEM(type, NODE_CUSTOM, NODE_CUSTOM_GROUP)) {
+    return true;
+  }
+
+  /* Check known built-in types. */
+  static blender::Set<int> known_types = get_known_node_types_set();
+  return known_types.contains(type);
+}
+
+static void node_replace_undefined_types(bNode *node)
+{
+  /* If the integer type is unknown then this node cannot be read. */
+  if (!can_read_node_type(node->type)) {
+    node->type = NODE_CUSTOM;
+    /* This type name is arbitrary, it just has to be unique enough to not match a future node
+     * idname. Includes the old type identifier for debugging purposes. */
+    const std::string old_idname = node->idname;
+    BLI_snprintf(node->idname, sizeof(node->idname), "Undefined[%s]", old_idname.c_str());
+    node->typeinfo = &NodeTypeUndefined;
+  }
+}
+
 void ntreeUpdateAllNew(Main *main)
 {
+  /* Replace unknown node types with "Undefined".
+   * This happens when loading files from newer Blender versions. Such nodes cannot be read
+   * reliably so replace the idname with an undefined type. This keeps links and socket names but
+   * discards storage and other type-specific data.
+   *
+   * Replacement has to happen after after-liblink-versioning, since some node types still get
+   * replaced in those late versioning steps. */
+  FOREACH_NODETREE_BEGIN (main, ntree, owner_id) {
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      node_replace_undefined_types(node);
+    }
+  }
+  FOREACH_NODETREE_END;
   /* Update all new node trees on file read or append, to add/remove sockets
    * in groups nodes if the group changed, and handle any update flags that
    * might have been set in file reading or versioning. */

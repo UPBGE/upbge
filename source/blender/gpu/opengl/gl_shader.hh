@@ -76,14 +76,6 @@ class GLShader : public Shader {
     return compute_shader_ != 0;
   }
 
-  /******************************************UPBGE*****************************************/
-  char *shader_validate() override;
-  void shader_bind_attributes(int *locations, const char **names, int len) override;
-  // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
-  // bgl_TextureCoordinateOffset[9];
-  int shader_get_uniform_location_old(const char *name) override;
-  /****************************************End of UPBGE************************************/
-
  private:
   char *glsl_patch_get(GLenum gl_stage);
 

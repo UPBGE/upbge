@@ -45,7 +45,6 @@ set(SRC
   object_facemap_ops.c
   object_gpencil_modifier.c
   object_hook.c
-  object_lod.c
   object_modes.cc
   object_modifier.cc
   object_ops.c
@@ -75,10 +74,6 @@ set(LIB
 
 if(WITH_PYTHON)
   add_definitions(-DWITH_PYTHON)
-endif()
-
-if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)

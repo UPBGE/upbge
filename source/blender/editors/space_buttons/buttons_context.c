@@ -606,7 +606,6 @@ static bool buttons_context_path(
     case BCONTEXT_OBJECT:
     case BCONTEXT_PHYSICS:
     case BCONTEXT_CONSTRAINT:
-    case BCONTEXT_GAME:
       found = buttons_context_path_object(path);
       break;
     case BCONTEXT_MODIFIER:

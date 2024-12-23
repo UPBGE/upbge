@@ -232,10 +232,6 @@ int ED_buttons_tabs_list(SpaceProperties *sbuts, short *context_tabs_array)
     context_tabs_array[length] = BCONTEXT_BONE_CONSTRAINT;
     length++;
   }
-  if (sbuts->pathflag & (1 << BCONTEXT_GAME)) {
-    context_tabs_array[length] = BCONTEXT_GAME;
-    length++;
-  }
   if (sbuts->pathflag & (1 << BCONTEXT_MATERIAL)) {
     context_tabs_array[length] = BCONTEXT_MATERIAL;
     length++;
@@ -291,8 +287,6 @@ static const char *buttons_main_region_context_string(const short mainb)
       return "bone_constraint";
     case BCONTEXT_TOOL:
       return "tool";
-    case BCONTEXT_GAME:
-      return "game";
   }
 
   /* All the cases should be handled. */
@@ -731,6 +725,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           buttons_area_redraw(area, BCONTEXT_PHYSICS);
           /* Needed to refresh context path when changing active particle system index. */
           buttons_area_redraw(area, BCONTEXT_PARTICLE);
+          buttons_area_redraw(area, BCONTEXT_TOOL);
           break;
         case ND_DRAW_ANIMVIZ:
           buttons_area_redraw(area, BCONTEXT_OBJECT);
@@ -740,9 +735,6 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           ED_area_tag_redraw(area);
           break;
       }
-      break;
-    case NC_LOGIC:
-      buttons_area_redraw(area, BCONTEXT_GAME);
       break;
     case NC_GEOM:
       switch (wmn->data) {

@@ -83,20 +83,6 @@ if(WITH_PYTHON)
   add_definitions(-DWITH_PYTHON)
 endif()
 
-if(WITH_GAMEENGINE)
-  list(APPEND LIB
-    ge_launcher
-    ge_blender_routines
-  )
-
-  list(APPEND INC
-    ../../../gameengine/Launcher
-    ../../../gameengine/BlenderRoutines
-  )
-
-  add_definitions(-DWITH_GAMEENGINE)
-endif()
-
 if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)
 endif()

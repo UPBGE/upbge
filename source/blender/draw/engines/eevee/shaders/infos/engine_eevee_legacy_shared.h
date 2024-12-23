@@ -155,7 +155,6 @@ struct LightData {
   vec4 upvec_sizey;            /* xyz: Normalized right vector, w: area size Y or spot scale Y */
   vec4 forwardvec_type;        /* xyz: Normalized forward vector, w: Light Type */
   vec4 diff_spec_volume;       /* xyz: Diffuse/Spec/Volume power, w: radius for volumetric. */
-  vec4 usesoftshd;             /* x : Use soft shadow (per light) -- UPBGE */
 };
 BLI_STATIC_ASSERT_ALIGN(LightData, 16)
 

@@ -144,7 +144,7 @@ static void eevee_shadow_cascade_setup(EEVEE_LightsInfo *linfo,
   eevee_light_matrix_get(evli, viewmat);
   /* At this point, viewmat == normalize_m4(obmat) */
 
-  if (linfo->soft_shadows && evli->use_soft_shd) {  // UPBGE
+  if (linfo->soft_shadows) {
     shadow_cascade_random_matrix_set(viewmat, evli->radius, sample_ofs);
   }
 
@@ -348,7 +348,7 @@ static void eevee_shadow_cascade_setup(EEVEE_LightsInfo *linfo,
                     sh_far);
 
     /* Anti-Aliasing */
-    if (linfo->soft_shadows && evli->use_soft_shd) {  // UPBGE
+    if (linfo->soft_shadows) {
       add_v2_v2(projmat[3], jitter_ofs);
     }
 

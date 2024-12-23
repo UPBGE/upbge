@@ -134,7 +134,6 @@ typedef struct Main {
    */
   char filepath[1024];               /* 1024 = FILE_MAX */
   short versionfile, subversionfile; /* see BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION */
-  short upbgeversionfile, upbgesubversionfile; /* see UPBGE_FILE_VERSION, UPBGE_FILE_SUBVERSION */
   short minversionfile, minsubversionfile;
   /** The currently opened .blend file was written from a newer version of Blender, and has forward
    * compatibility issues (data loss).
@@ -454,10 +453,6 @@ int set_listbasepointers(struct Main *main, struct ListBase *lb[]);
 #define MAIN_VERSION_ATLEAST(main, ver, subver) \
   ((main)->versionfile > (ver) || \
    ((main)->versionfile == (ver) && (main)->subversionfile >= (subver)))
-
-#define MAIN_VERSION_UPBGE_ATLEAST(main, ver, subver) \
-  ((main)->upbgeversionfile > (ver) || \
-   (main->upbgeversionfile == (ver) && (main)->upbgesubversionfile >= (subver)))
 
 #define MAIN_VERSION_OLDER(main, ver, subver) \
   ((main)->versionfile < (ver) || \

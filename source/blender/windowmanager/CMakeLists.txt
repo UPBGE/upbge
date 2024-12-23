@@ -22,7 +22,6 @@ set(INC
   ../nodes
   ../render
   ../sequencer
-  ../../gameengine/Launcher
   ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/guardedalloc
@@ -159,10 +158,6 @@ if(WITH_PYTHON)
   if(WITH_PYTHON_MODULE)
     add_definitions(-DWITH_PYTHON_MODULE)
   endif()
-endif()
-
-if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 if(WITH_BUILDINFO)

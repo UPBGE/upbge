@@ -21,7 +21,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_curve.h"
 
 #include "RNA_access.h"
 
@@ -3472,63 +3471,6 @@ static void widget_numbut_embossn(const uiBut * /*but*/,
   widget_numbut_draw(wcol, rect, zoom, state, roundboxalign, true);
 }
 
-bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
-{
-  float dist, vec[4][2];
-
-  vec[0][0] = rect->xmin;
-  vec[0][1] = rect->ymin;
-  vec[3][0] = rect->xmax;
-  vec[3][1] = rect->ymax;
-
-  dist = 0.5f * fabsf(vec[0][0] - vec[3][0]);
-
-  vec[1][0] = vec[0][0] + dist;
-  vec[1][1] = vec[0][1];
-
-  vec[2][0] = vec[3][0] - dist;
-  vec[2][1] = vec[3][1];
-
-  BKE_curve_forward_diff_bezier(
-      vec[0][0], vec[1][0], vec[2][0], vec[3][0], &coord_array[0][0], resol, sizeof(float[2]));
-  BKE_curve_forward_diff_bezier(
-      vec[0][1], vec[1][1], vec[2][1], vec[3][1], &coord_array[0][1], resol, sizeof(float[2]));
-
-  /* TODO: why return anything if always true? */
-  return true;
-}
-
-#define LINK_RESOL 24
-void ui_draw_link_bezier(const rcti *rect, const float color[4])
-{
-  float coord_array[LINK_RESOL + 1][2];
-
-  if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
-    unsigned int pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-#if 0 /* unused */
-    /* we can reuse the dist variable here to increment the GL curve eval amount*/
-    const float dist = 1.0f / (float)LINK_RESOL;
-#endif
-    GPU_blend(GPU_BLEND_ALPHA);
-    GPU_line_smooth(true);
-
-    immUniformColor4fv(color);
-
-    immBegin(GPU_PRIM_LINE_STRIP, LINK_RESOL + 1);
-    for (int i = 0; i <= LINK_RESOL; ++i)
-      immVertex2fv(pos, coord_array[i]);
-    immEnd();
-
-    GPU_blend(GPU_BLEND_NONE);
-    GPU_line_smooth(false);
-
-    immUnbindProgram();
-  }
-}
-
 void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *slider, int state)
 {
   uiWidgetBase wtb;
@@ -3695,28 +3637,6 @@ static void widget_progressbar(uiBut *but,
   /* "slider" bar color */
   copy_v3_v3_uchar(wcol->inner, wcol->item);
   widgetbase_draw(&wtb_bar, wcol);
-}
-
-static void widget_link(uiBut *but,
-                        uiWidgetColors */*wcol*/,
-                        rcti *rect,
-                        const uiWidgetStateInfo */*state*/,
-                        int /*roundboxalign*/,
-                        const float /*zoom*/)
-{
-  if (but->flag & UI_SELECT) {
-    rcti rectlink;
-    float color[4];
-
-    UI_GetThemeColor4fv(TH_TEXT_HI, color);
-
-    rectlink.xmin = BLI_rcti_cent_x(rect);
-    rectlink.ymin = BLI_rcti_cent_y(rect);
-    rectlink.xmax = but->linkto[0];
-    rectlink.ymax = but->linkto[1];
-
-    ui_draw_link_bezier(&rectlink, color);
-  }
 }
 
 static void widget_view_item(uiWidgetColors *wcol,
@@ -4913,12 +4833,6 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 
       case UI_BTYPE_PREVIEW_TILE:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
-        break;
-
-      case UI_BTYPE_LINK:
-      case UI_BTYPE_INLINK:
-        wt = widget_type(UI_WTYPE_ICON);
-        wt->custom = widget_link;
         break;
 
       case UI_BTYPE_EXTRA:

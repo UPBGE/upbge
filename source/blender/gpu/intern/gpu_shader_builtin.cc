@@ -86,8 +86,6 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
       return "gpu_shader_2D_nodelink_inst";
     case GPU_SHADER_GPENCIL_STROKE:
       return "gpu_shader_gpencil_stroke";
-    case GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB: /* UPBGE */
-      return "gpu_shader_2D_image_linear_to_srgb";
     default:
       BLI_assert_unreachable();
       return "";

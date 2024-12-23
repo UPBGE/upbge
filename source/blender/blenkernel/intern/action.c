@@ -1141,46 +1141,6 @@ void BKE_pose_free(bPose *pose)
   BKE_pose_free_ex(pose, true);
 }
 
-static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan)
-{
-  bConstraint *pcon, *con;
-
-  copy_v3_v3(pchan->loc, chan->loc);
-  copy_v3_v3(pchan->size, chan->size);
-  copy_v3_v3(pchan->eul, chan->eul);
-  copy_v3_v3(pchan->rotAxis, chan->rotAxis);
-  pchan->rotAngle = chan->rotAngle;
-  copy_qt_qt(pchan->quat, chan->quat);
-  pchan->rotmode = chan->rotmode;
-  copy_m4_m4(pchan->chan_mat, (float(*)[4])chan->chan_mat);
-  copy_m4_m4(pchan->pose_mat, (float(*)[4])chan->pose_mat);
-  pchan->flag = chan->flag;
-
-  pchan->roll1 = chan->roll1;
-  pchan->roll2 = chan->roll2;
-  pchan->curve_in_x = chan->curve_in_x;
-  pchan->curve_in_z = chan->curve_in_z;
-  pchan->curve_out_x = chan->curve_out_x;
-  pchan->curve_out_z = chan->curve_out_z;
-  pchan->ease1 = chan->ease1;
-  pchan->ease2 = chan->ease2;
-  copy_v3_v3(pchan->scale_in, chan->scale_in);
-  copy_v3_v3(pchan->scale_out, chan->scale_out);
-
-  con = chan->constraints.first;
-  for (pcon = pchan->constraints.first; pcon && con; pcon = pcon->next, con = con->next) {
-    pcon->enforce = con->enforce;
-    pcon->headtail = con->headtail;
-  }
-}
-
-/**
- * Copy the internal members of each pose channel including constraints
- * and ID-Props, used when duplicating bones in editmode.
- * (unlike copy_pose_channel_data which only does posing-related stuff).
- *
- * \note use when copying bones in editmode (on returned value from #BKE_pose_channel_ensure)
- */
 void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_from)
 {
   /* copy transform locks */
@@ -1669,29 +1629,6 @@ short action_get_item_transforms(bAction *act, Object *ob, bPoseChannel *pchan, 
 
 /* ************** Pose Management Tools ****************** */
 
-/* Copy the data from the action-pose (src) into the pose */
-/* both args are assumed to be valid */
-/* exported to game engine */
-/* Note! this assumes both poses are aligned, this isn't always true when dealing with user poses
- */
-void extract_pose_from_pose(bPose *pose, const bPose *src)
-{
-  const bPoseChannel *schan;
-  bPoseChannel *pchan = pose->chanbase.first;
-
-  if (pose == src) {
-    printf("extract_pose_from_pose source and target are the same\n");
-    return;
-  }
-
-  for (schan = src->chanbase.first; (schan && pchan); schan = schan->next, pchan = pchan->next) {
-    copy_pose_channel_data(pchan, schan);
-  }
-}
-
-/**
- * Zero the pose transforms for the entire pose or only for selected bones.
- */
 void BKE_pose_rest(bPose *pose, bool selected_bones_only)
 {
   bPoseChannel *pchan;

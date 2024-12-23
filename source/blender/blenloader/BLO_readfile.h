@@ -46,8 +46,8 @@ typedef struct WorkspaceConfigFileData {
 
 typedef enum eBlenFileType {
   BLENFILETYPE_BLEND = 1,
-  /* BLENFILETYPE_PUB = 2, */ /* UNUSED */
-  BLENFILETYPE_RUNTIME = 3,
+  /* BLENFILETYPE_PUB = 2, */     /* UNUSED */
+  /* BLENFILETYPE_RUNTIME = 3, */ /* UNUSED */
 } eBlenFileType;
 
 typedef struct BlendFileData {
@@ -446,11 +446,6 @@ void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx);
 /** \} */
 
 void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char *blockname);
-
-BlendFileData *blo_read_blendafterruntime(int file,
-                                          const char *name,
-                                          int datastart,
-                                          struct BlendFileReadReport *reports);
 
 /* internal function but we need to expose it */
 /**

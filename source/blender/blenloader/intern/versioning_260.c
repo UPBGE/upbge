@@ -9,7 +9,6 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
@@ -26,10 +25,8 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
-#include "DNA_property_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
-#include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
@@ -51,7 +48,6 @@
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h"  // for BKE_bproperty_object_get
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_text.h" /* for txt_extended_ascii_as_utf8 */
@@ -449,25 +445,6 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
 
     /* initialize custom node color */
     node->color[0] = node->color[1] = node->color[2] = 0.608f; /* default theme color */
-  }
-}
-
-static void do_version_logic_264(ListBase *regionbase)
-{
-  ARegion *ar;
-
-  /* view settings for logic changed */
-  for (ar = regionbase->first; ar; ar = ar->next) {
-    if (ar->regiontype == RGN_TYPE_WINDOW) {
-      if (ar->v2d.keeptot == 0) {
-        ar->v2d.maxzoom = 1.5f;
-
-        ar->v2d.keepzoom = V2D_KEEPZOOM | V2D_LIMITZOOM | V2D_KEEPASPECT;
-        ar->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
-        ar->v2d.align = V2D_ALIGN_NO_POS_Y | V2D_ALIGN_NO_NEG_X;
-        ar->v2d.keepofs = V2D_KEEPOFS_Y;
-      }
-    }
   }
 }
 

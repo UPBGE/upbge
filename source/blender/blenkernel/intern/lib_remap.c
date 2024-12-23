@@ -29,7 +29,6 @@
 #include "BKE_node.h"
 #include "BKE_node_tree_update.h"
 #include "BKE_object.h"
-#include "BKE_sca.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -601,8 +600,6 @@ static void libblock_remap_foreach_idpair_cb(ID *old_id, ID *new_id, void *user_
     case ID_OB:
       libblock_remap_data_postprocess_object_update(
           bmain, (Object *)old_id, (Object *)new_id, true);
-      BKE_sca_remap_data_postprocess_links_logicbricks_update(
-          bmain, (Object *)old_id, (Object *)new_id);
       break;
     case ID_GR:
       libblock_remap_data_postprocess_collection_update(

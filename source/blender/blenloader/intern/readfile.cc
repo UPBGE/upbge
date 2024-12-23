@@ -106,10 +106,6 @@
 
 #include "readfile.h"
 
-#ifdef WITH_GAMEENGINE_BPPLAYER
-#  include "SpindleEncryption.h"
-#endif  // WITH_GAMEENGINE_BPPLAYER
-
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))
 
@@ -464,8 +460,6 @@ static void read_file_version(FileData *fd, Main *main)
         main->subversionfile = fg->subversion;
         main->minversionfile = fg->minversion;
         main->minsubversionfile = fg->minsubversion;
-        main->upbgeversionfile = fg->upbgeversion;
-        main->upbgesubversionfile = fg->upbgesubversion;
         MEM_freeN(fg);
       }
       else if (bhead->code == BLO_CODE_ENDB) {
@@ -1165,7 +1159,7 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
       blo_filedata_free(fd);
       fd = nullptr;
     }
-    if (is_minversion_older_than_blender(fd, reports)) {
+    else if (is_minversion_older_than_blender(fd, reports)) {
       blo_filedata_free(fd);
       fd = nullptr;
     }
@@ -1187,11 +1181,6 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
   char header[7];
   FileReader *rawfile = BLI_filereader_new_file(filedes);
   FileReader *file = nullptr;
-
-#ifdef WITH_GAMEENGINE_BPPLAYER
-  const int typeencryption = SPINDLE_CheckEncryptionFromFile(filepath);
-  if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
-#endif
 
   errno = 0;
   /* If opening the file failed or we can't read the header, give up. */
@@ -1244,16 +1233,6 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
     BKE_reportf(reports->reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
     return nullptr;
   }
-
-#ifdef WITH_GAMEENGINE_BPPLAYER
-  }
-  else {
-    int filesize = 0;
-    const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
-    SPINDLE_SetFilePath(filepath);
-    return blo_filedata_from_memory(decrypteddata, filesize, reports);
-  }
-#endif
 
   FileData *fd = filedata_new(reports);
   fd->file = file;
@@ -1332,11 +1311,6 @@ FileData *blo_filedata_from_memory(const void *mem, int memsize, BlendFileReadRe
 
   FileData *fd = filedata_new(reports);
   fd->file = file;
-
-#ifdef WITH_GAMEENGINE_BPPLAYER
-  // Set local path before calling blo_decode_and_check.
-  BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
-#endif
 
   return blo_decode_and_check(fd, reports->reports);
 }
@@ -2684,16 +2658,11 @@ static void lib_link_workspace_layout_restore(IDNameLib_Map *id_map,
             lib_link_restore_viewer_path(id_map, &sspreadsheet->viewer_path);
             break;
           }
-          case SPACE_LOGIC: {
-            SpaceLogic *slogic = (SpaceLogic *)sl;
-
-            slogic->gpd = (bGPdata *)restore_pointer_by_name(id_map, (ID *)slogic->gpd, USER_REAL);
-            break;
-          }
           case SPACE_INFO:
           case SPACE_IMASEL:
           case SPACE_SOUND:
           case SPACE_TIME:
+          case SPACE_LOGIC:
           case SPACE_CONSOLE:
           case SPACE_USERPREF:
           case SPACE_TOPBAR:
@@ -3244,7 +3213,8 @@ static void read_libblock_undo_restore_at_old_address(FileData *fd, Main *main, 
                        id_old,
                        true,
                        (ID_REMAP_NO_ORIG_POINTERS_ACCESS | ID_REMAP_SKIP_NEVER_NULL_USAGE |
-                        ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_REFCOUNT));
+                        ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_REFCOUNT |
+                        ID_REMAP_SKIP_USER_CLEAR));
 
   /* Special temporary usage of this pointer, necessary for the `undo_preserve` call after
    * lib-linking to restore some data that should never be affected by undo, e.g. the 3D cursor of
@@ -3510,8 +3480,6 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
   /* NOTE: `bfd->main->versionfile` is supposed to have already been set from `fd->fileversion`
    * beforehand by calling code. */
   bfd->main->subversionfile = fg->subversion;
-  bfd->main->upbgeversionfile = fg->upbgeversion;
-  bfd->main->upbgesubversionfile = fg->upbgesubversion;
   bfd->main->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
       bfd->main, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
 
@@ -3642,9 +3610,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   }
   if (!main->is_read_invalid) {
     blo_do_versions_cycles(fd, lib, main);
-  }
-  if (!main->is_read_invalid) {
-    blo_do_versions_upbge(fd, lib, main);
   }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -5327,42 +5292,6 @@ BlendFileReadReport *BLO_read_lib_reports(BlendLibReader *reader)
 void BLO_expand_id(BlendExpander *expander, ID *id)
 {
   expand_doit(expander->fd, expander->main, id);
-}
-
-/* reading runtime */
-
-BlendFileData *blo_read_blendafterruntime(int file,
-                                          const char *name,
-                                          int datastart,
-                                          BlendFileReadReport *reports)
-{
-  BlendFileData *bfd = NULL;
-  FileData *fd = filedata_new(reports);
-  fd->file = BLI_filereader_new_file(file);
-  fd->file->seek(fd->file, datastart, SEEK_SET);
-  /*fd->filedes = file;
-  fd->buffersize = actualsize;
-  fd->read = fd_read_data_from_file;*/
-
-  /* needed for library_append and read_libraries */
-  BLI_strncpy(fd->relabase, name, sizeof(fd->relabase));
-
-  fd = blo_decode_and_check(fd, reports->reports);
-  if (!fd)
-    return NULL;
-
-  fd->reports = reports;
-  bfd = blo_read_file_internal(fd, "");
-  blo_filedata_free(fd);
-
-  return bfd;
-}
-
-/* UPBGE */
-/* direct datablocks with global linking */
-void *BLO_read_get_new_globaldata_address(BlendLibReader *reader, const void *adr)
-{
-  return oldnewmap_lookup_and_inc(reader->fd->globmap, adr, true);
 }
 
 /** \} */

@@ -10,7 +10,6 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
-#include "RNA_types.h" /* UPBGE */
 #include "UI_interface_icons.h"
 #include "WM_types.h"
 
@@ -251,12 +250,6 @@ enum {
   UI_BUT_DRAGPOIN_FREE = (1 << 1),
 };
 
-/** #uiBut.upbgeflag general state flags. */ /* UPBGE */
-enum {
-  /** used to flag if sca links shoud be gray out **/
-  UI_BUT_SCA_LINK_GREY = 1 << 0,
-};
-
 /* Default font size for normal text. */
 #define UI_DEFAULT_TEXT_POINTS 11.0f
 
@@ -381,8 +374,6 @@ typedef enum {
   UI_BTYPE_SCROLL = 18 << 9,
   UI_BTYPE_BLOCK = 19 << 9,
   UI_BTYPE_LABEL = 20 << 9,
-  UI_BTYPE_LINK = 22 << 9,
-  UI_BTYPE_INLINK = 23 << 9,
   UI_BTYPE_KEY_EVENT = 24 << 9,
   UI_BTYPE_HSVCUBE = 26 << 9,
   /** Menu (often used in headers), `*_MENU` with different draw-type. */
@@ -1642,16 +1633,6 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                      eButLabelAlign label_align,
                                      bool compact);
 
-/* Links
- *
- * UPBGE logic brick links. Non-functional currently in 2.5,
- * code to handle and draw these is disabled internally. */
-
-void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to);
-
-void UI_block_links_compose(uiBlock *block);
-uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
-
 /**
  * Callback to compare the identity of two buttons, used to identify buttons over redraws. If the
  * callback returns true, the given buttons are considered to be matching and relevant state is
@@ -2429,12 +2410,6 @@ void uiTemplateLayers(uiLayout *layout,
                       struct PointerRNA *used_ptr,
                       const char *used_propname,
                       int active_layer);
-void uiTemplateGameStates(uiLayout *layout,
-                          struct PointerRNA *ptr,
-                          const char *propname,
-                          PointerRNA *used_ptr,
-                          const char *used_propname,
-                          int active_state);
 void uiTemplateImage(uiLayout *layout,
                      struct bContext *C,
                      struct PointerRNA *ptr,

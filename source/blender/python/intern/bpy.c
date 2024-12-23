@@ -59,7 +59,6 @@
 #endif
 
 PyObject *bpy_package_py = NULL;
-PyObject *bpy_sys_module_backup = NULL;
 
 PyDoc_STRVAR(bpy_script_paths_doc,
              ".. function:: script_paths()\n"
@@ -694,10 +693,4 @@ void BPy_init_modules(struct bContext *C)
 
   /* add our own modules dir, this is a python package */
   bpy_package_py = bpy_import_test("bpy");
-  bpy_sys_module_backup = PyDict_Copy(PyImport_GetModuleDict());
-}
-
-void BPy_end_modules(void)
-{
-  Py_DECREF(bpy_sys_module_backup);
 }

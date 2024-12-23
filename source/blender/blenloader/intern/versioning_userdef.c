@@ -342,7 +342,7 @@ void blo_do_versions_userdef(UserDef *userdef)
         strcpy(km->idname, "Node Editor");
       }
       else if (STREQ(km->idname, "Logic Generic")) {
-        strcpy(km->idname, "Logic Bricks Editor");
+        strcpy(km->idname, "Logic Editor");
       }
       else if (STREQ(km->idname, "File")) {
         strcpy(km->idname, "File Browser");
@@ -822,12 +822,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     LISTBASE_FOREACH (bUserAssetLibrary *, asset_library, &userdef->asset_libraries) {
       asset_library->flag |= ASSET_LIBRARY_RELATIVE_PATH;
     }
-  }
-
-  if (!USER_VERSION_ATLEAST(400, 4)) {
-    /* obj and ply python addons were removed. */
-    BKE_addon_remove_safe(&userdef->addons, "io_mesh_ply");
-    BKE_addon_remove_safe(&userdef->addons, "io_scene_obj");
   }
 
   /**

@@ -388,7 +388,7 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
       if (area->v3->vec.x - area->v1->vec.x < tolerance &&
           (area->v1->vec.x == xmin || area->v3->vec.x == xmax))
       {
-        /* There is a narrow vertical area sharing an edge of the combined bounds. */
+        WM_report(RPT_ERROR, "A narrow vertical area interferes with this operation.");
         return false;
       }
     }
@@ -403,7 +403,7 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
       if (area->v3->vec.y - area->v1->vec.y < tolerance &&
           (area->v1->vec.y == ymin || area->v3->vec.y == ymax))
       {
-        /* There is a narrow horizontal area sharing an edge of the combined bounds. */
+        WM_report(RPT_ERROR, "A narrow horizontal area interferes with this operation.");
         return false;
       }
     }
@@ -879,7 +879,10 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
   ScrArea *area = NULL;
 
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
-    if ((az = ED_area_actionzone_find_xy(area_iter, xy))) {
+    az = ED_area_actionzone_find_xy(area_iter, xy);
+    /* Scrollers use default cursor and their zones extend outside of their
+     * areas. Ignore here so we can always detect screen edges - #110085. */
+    if (az && az->type != AZONE_REGION_SCROLL) {
       area = area_iter;
       break;
     }
@@ -1936,25 +1939,3 @@ wmWindow *ED_screen_window_find(const bScreen *screen, const wmWindowManager *wm
   }
   return NULL;
 }
-
-/* UPBGE: Simplified version of ED_screen_refresh.
- * It is used to set some SCREEN CONTEXT variables which are needed to run some
- * scripts using bpy operators from blenderplayer.
- */
-void ED_screen_refresh_blenderplayer(wmWindow *win)
-{
-  bScreen *screen = WM_window_get_active_screen(win);
-
-  WM_window_set_dpi(win);
-
-  ED_screen_global_areas_refresh(win);
-
-  screen_geom_vertices_scale(win, screen);
-
-  screen->do_refresh = false;
-  /* prevent multiwin errors */
-  screen->winid = win->winid;
-
-  screen->context = ed_screen_context;
-}
-/******************************************************************************/

@@ -426,30 +426,6 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
   }
 }
 
-/* UPBGE */
-static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
-{
-  float color[4], tmp[4][4];
-  UI_GetThemeColor4fv(theme_id, color);
-
-  for (bConstraint *con = static_cast<bConstraint *>(ob->constraints.first); con; con = con->next) {
-    bRigidBodyJointConstraint *rcon = static_cast<bRigidBodyJointConstraint *>(con->data);
-    if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
-      float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
-      float axis[3] = {rcon->axX, rcon->axY, rcon->axZ};
-      float scale[3];
-      float rotmat[3][3];
-      copy_v3_v3(scale, ob->scale);
-      mul_v3_fl(scale, 0.2f);
-      axis_angle_to_mat3(rotmat, axis, len_v3(axis));
-      loc_rot_size_to_mat4(tmp, xyz, rotmat, scale);
-      mul_m4_m4m4(tmp, ob->object_to_world, tmp);
-      DRW_buffer_add_entry(cb->origin_xform, color, tmp);
-    }
-  }
-}
-/* End of UPBGE */
-
 static void OVERLAY_collision(OVERLAY_ExtraCallBuffers *cb, Object *ob, const float *color)
 {
   switch (ob->rigidbody_object->shape) {
@@ -1658,9 +1634,6 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
     }
     if (ob->rigidbody_object != nullptr) {
       OVERLAY_collision(cb, ob, color);
-    }
-    if (ob->constraints.first) { /* UPBGE */
-      OVERLAY_pivot(cb, ob, theme_id);
     }
     if (ob->dtx & OB_AXIS) {
       DRW_buffer_add_entry(cb->empty_axes, color, ob->object_to_world);

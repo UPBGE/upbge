@@ -6,10 +6,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 PyObject *BPyInit_bgl(void);
 
 /**
@@ -49,7 +45,3 @@ typedef struct _Buffer {
 
 /** The type object. */
 extern PyTypeObject BGL_bufferType;
-
-#ifdef __cplusplus
-}
-#endif

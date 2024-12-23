@@ -1548,9 +1548,15 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
     BKE_lib_override_library_get(bmain, id, nullptr, &id_owner);
     return lib_override_root_find(bmain, id_owner, curr_level + 1, &best_level_placeholder);
   }
-  /* This way we won't process again that ID, should we encounter it again through another
-   * relationship hierarchy. */
-  entry->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
+
+  if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS) {
+    /* Re-processing an entry already being processed higher in the callgraph (re-entry caused by a
+     * dependency loops). Just do nothing, there is no more usefull info to provide here. */
+    return nullptr;
+  }
+  /* Flag this entry to avoid re-processing it in case some dependency loop leads to it again
+   * downwards in the callstack. */
+  entry->tags |= MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS;
 
   int best_level_candidate = curr_level;
   ID *best_root_id_candidate = id;
@@ -1592,6 +1598,11 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
 
   BLI_assert(best_root_id_candidate != nullptr);
   BLI_assert((best_root_id_candidate->flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE) == 0);
+
+  /* This way this ID won't be processed again, should it be encountered again through another
+   * relationship hierarchy. */
+  entry->tags &= ~MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS;
+  entry->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
 
   *r_best_level = best_level_candidate;
   return best_root_id_candidate;
@@ -1638,7 +1649,10 @@ static void lib_override_root_hierarchy_set(
           bmain->relations->relations_from_pointers, id->override_library->reference));
       BLI_assert(entry != nullptr);
 
-      bool do_replace_root = false;
+      /* Enforce replacing hierarchy root if the current one is invalid. */
+      bool do_replace_root = (!id->override_library->hierarchy_root ||
+                              !ID_IS_OVERRIDE_LIBRARY_REAL(id->override_library->hierarchy_root) ||
+                              id->override_library->hierarchy_root->lib != id->lib);
       for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
            from_id_entry = from_id_entry->next)
       {
@@ -1745,20 +1759,25 @@ void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
     }
 
     BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
+    BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS, false);
 
     int best_level = 0;
     ID *id_root = lib_override_root_find(bmain, id, best_level, &best_level);
 
-    if (!ELEM(id_root->override_library->hierarchy_root, id_root, nullptr)) {
+    if (!ELEM(id->override_library->hierarchy_root, id_root, nullptr)) {
       /* FIXME This is probably never actually reached with current code? Check above for non-null
        * hierarchy root pointer either skip the rest of the loop, or reset it to nullptr. */
       CLOG_WARN(&LOG,
                 "Potential inconsistency in library override hierarchy of ID '%s' (current root "
                 "%s), detected as part of the hierarchy of '%s' (current root '%s')",
                 id->name,
-                id->override_library->hierarchy_root->name,
+                id->override_library->hierarchy_root != nullptr ?
+                    id->override_library->hierarchy_root->name :
+                    "<NONE>",
                 id_root->name,
-                id_root->override_library->hierarchy_root->name);
+                id_root->override_library->hierarchy_root != nullptr ?
+                    id_root->override_library->hierarchy_root->name :
+                    "<NONE>");
       processed_ids.add(id);
       continue;
     }
@@ -1916,8 +1935,15 @@ static bool lib_override_library_resync(Main *bmain,
 
   ID *id_root_reference = id_root->override_library->reference;
   ID *id;
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  const Object *old_active_object = BKE_view_layer_active_object_get(view_layer);
+
+  const Object *old_active_object = nullptr;
+  if (view_layer) {
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    old_active_object = BKE_view_layer_active_object_get(view_layer);
+  }
+  else {
+    BKE_scene_view_layers_synced_ensure(scene);
+  }
 
   if (id_root_reference->tag & LIB_TAG_MISSING) {
     BKE_reportf(reports != nullptr ? reports->reports : nullptr,
@@ -3533,7 +3559,7 @@ void BKE_lib_override_library_delete(Main *bmain, ID *id_root)
   BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
 }
 
-void BKE_lib_override_library_make_local(ID *id)
+void BKE_lib_override_library_make_local(Main *bmain, ID *id)
 {
   if (!ID_IS_OVERRIDE_LIBRARY(id)) {
     return;
@@ -3562,6 +3588,13 @@ void BKE_lib_override_library_make_local(ID *id)
   bNodeTree *node_tree = ntreeFromID(id);
   if (node_tree != nullptr) {
     node_tree->id.flag &= ~LIB_EMBEDDED_DATA_LIB_OVERRIDE;
+  }
+
+  /* In case a liboverride hierarchy root is 'made local', i.e. is not a liboverride anymore, all
+   * hierarchy roots of all liboverrides need to be validated/re-generated again.
+   * Only in case `bmain` is given, otherwise caller is responsible to do this. */
+  if (bmain) {
+    BKE_lib_override_library_main_hierarchy_root_ensure(bmain);
   }
 }
 
@@ -3905,35 +3938,62 @@ bool BKE_lib_override_library_property_operation_operands_validate(
   return true;
 }
 
-void BKE_lib_override_library_validate(Main * /*bmain*/, ID *id, ReportList *reports)
+void BKE_lib_override_library_validate(Main *bmain, ID *id, ReportList *reports)
 {
-  if (id->override_library == nullptr) {
+  if (!ID_IS_OVERRIDE_LIBRARY(id)) {
     return;
   }
-  if (id->override_library->reference == nullptr) {
-    /* This is a template ID, could be linked or local, not an override. */
+
+  ID *liboverride_id = id;
+  IDOverrideLibrary *liboverride = id->override_library;
+  if (ID_IS_OVERRIDE_LIBRARY_VIRTUAL(id)) {
+    liboverride = BKE_lib_override_library_get(bmain, id, nullptr, &liboverride_id);
+    if (!liboverride) {
+      /* Happens in case the given ID is a liboverride-embedded one (actual embedded ID like
+       * NodeTree or master collection, or shapekeys), used by a totally not-liboverride owner ID.
+       * Just clear the relevant ID flag.
+       */
+      id->flag &= ~LIB_EMBEDDED_DATA_LIB_OVERRIDE;
+      return;
+    }
+  }
+  BLI_assert(liboverride);
+
+  /* NOTE: In code deleting liboverride data below, #BKE_lib_override_library_make_local is used
+   * instead of directly calling #BKE_lib_override_library_free, because the former also handles
+   * properly 'liboverride embedded' IDs, like root nodetrees, or shapekeys. */
+
+  if (liboverride->reference == nullptr) {
+    /* This (probably) used to be a template ID, could be linked or local, not an override. */
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Library override templates have been removed: removing all override data from "
+                "the data-block '%s'",
+                liboverride_id->name);
+    BKE_lib_override_library_make_local(nullptr, liboverride_id);
     return;
   }
-  if (id->override_library->reference == id) {
-    /* Very serious data corruption, cannot do much about it besides removing the reference
-     * (therefore making the id a local override template one only). */
+  if (liboverride->reference == liboverride_id) {
+    /* Very serious data corruption, cannot do much about it besides removing the liboverride data.
+     */
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Data corruption: data-block '%s' is using itself as library override reference",
-                id->name);
-    id->override_library->reference = nullptr;
+                "Data corruption: data-block '%s' is using itself as library override reference, "
+                "removing all override data",
+                liboverride_id->name);
+    BKE_lib_override_library_make_local(nullptr, liboverride_id);
     return;
   }
-  if (!ID_IS_LINKED(id->override_library->reference)) {
-    /* Very serious data corruption, cannot do much about it besides removing the reference
-     * (therefore making the id a local override template one only). */
+  if (!ID_IS_LINKED(liboverride->reference)) {
+    /* Very serious data corruption, cannot do much about it besides removing the liboverride data.
+     */
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Data corruption: data-block '%s' is using another local data-block ('%s') as "
-                "library override reference",
-                id->name,
-                id->override_library->reference->name);
-    id->override_library->reference = nullptr;
+                "library override reference, removing all override data",
+                liboverride_id->name,
+                liboverride->reference->name);
+    BKE_lib_override_library_make_local(nullptr, liboverride_id);
     return;
   }
 }
@@ -3943,7 +4003,7 @@ void BKE_lib_override_library_main_validate(Main *bmain, ReportList *reports)
   ID *id;
 
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    if (id->override_library != nullptr) {
+    if (ID_IS_OVERRIDE_LIBRARY(id)) {
       BKE_lib_override_library_validate(bmain, id, reports);
     }
   }

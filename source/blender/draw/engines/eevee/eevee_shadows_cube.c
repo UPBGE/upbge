@@ -92,7 +92,7 @@ bool EEVEE_shadows_cube_setup(EEVEE_LightsInfo *linfo, const EEVEE_Light *evli, 
 
   bool update = false;
 
-  if (linfo->soft_shadows && evli->use_soft_shd) {  // UPBGE
+  if (linfo->soft_shadows) {
     shadow_cube_random_position_set(evli, sample_ofs, cube_data->shadowmat[3]);
     /* Update if position changes (avoid infinite update if soft shadows does not move).
      * Other changes are caught by depsgraph tagging. This one is for update between samples. */

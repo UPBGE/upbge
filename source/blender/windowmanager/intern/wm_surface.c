@@ -11,8 +11,6 @@
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
 
-#include "DNA_scene_types.h"
-
 #include "GHOST_C-api.h"
 
 #include "GPU_batch_presets.h"
@@ -51,44 +49,27 @@ void wm_surfaces_do_depsgraph(bContext *C)
   wm_surfaces_iter(C, wm_surface_do_depsgraph_fn);
 }
 
-void wm_surface_clear_drawable(bContext *C)
+void wm_surface_clear_drawable(void)
 {
   if (g_drawable) {
-    bool is_game_xr_session = false;
-    if (C != NULL) {
-      Scene *scene = CTX_data_scene(C);
-      if (scene->flag & SCE_IS_GAME_XR_SESSION) {
-        is_game_xr_session = true;
-      }
-    }
-    if (!is_game_xr_session) {
-      WM_opengl_context_release(g_drawable->ghost_ctx);
-      GPU_context_active_set(NULL);
+    WM_opengl_context_release(g_drawable->ghost_ctx);
+    GPU_context_active_set(NULL);
 
-      if (g_drawable->deactivate) {
-        g_drawable->deactivate();
-      }
+    if (g_drawable->deactivate) {
+      g_drawable->deactivate();
     }
 
     g_drawable = NULL;
   }
 }
 
-void wm_surface_set_drawable(wmSurface *surface, bContext *C, bool activate)
+void wm_surface_set_drawable(wmSurface *surface, bool activate)
 {
   BLI_assert(ELEM(g_drawable, NULL, surface));
 
-  bool is_game_xr_session = false;
-  if (C != NULL) {
-    Scene *scene = CTX_data_scene(C);
-    if (scene->flag & SCE_IS_GAME_XR_SESSION) {
-      is_game_xr_session = true;
-    }
-  }
-
   g_drawable = surface;
   if (activate) {
-    if (surface->activate && !is_game_xr_session) {
+    if (surface->activate) {
       surface->activate();
     }
     WM_opengl_context_activate(surface->ghost_ctx);
@@ -97,24 +78,24 @@ void wm_surface_set_drawable(wmSurface *surface, bContext *C, bool activate)
   GPU_context_active_set(surface->gpu_ctx);
 }
 
-void wm_surface_make_drawable(wmSurface *surface, bContext *C)
+void wm_surface_make_drawable(wmSurface *surface)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   if (surface != g_drawable) {
-    wm_surface_clear_drawable(C);
-    wm_surface_set_drawable(surface, C, true);
+    wm_surface_clear_drawable();
+    wm_surface_set_drawable(surface, true);
   }
 }
 
-void wm_surface_reset_drawable(bContext *C)
+void wm_surface_reset_drawable(void)
 {
   BLI_assert(BLI_thread_is_main());
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   if (g_drawable) {
-    wm_surface_clear_drawable(C);
-    wm_surface_set_drawable(g_drawable, C, true);
+    wm_surface_clear_drawable();
+    wm_surface_set_drawable(g_drawable, true);
   }
 }
 
@@ -123,10 +104,10 @@ void wm_surface_add(wmSurface *surface)
   BLI_addtail(&global_surface_list, surface);
 }
 
-void wm_surface_remove(wmSurface *surface, bContext *C)
+void wm_surface_remove(wmSurface *surface)
 {
   if (surface == g_drawable) {
-    wm_surface_clear_drawable(C);
+    wm_surface_clear_drawable();
   }
   BLI_remlink(&global_surface_list, surface);
   surface->free_data(surface);
@@ -135,10 +116,10 @@ void wm_surface_remove(wmSurface *surface, bContext *C)
 
 void wm_surfaces_free(void)
 {
-  wm_surface_clear_drawable(NULL);
+  wm_surface_clear_drawable();
 
   LISTBASE_FOREACH_MUTABLE (wmSurface *, surf, &global_surface_list) {
-    wm_surface_remove(surf, NULL);
+    wm_surface_remove(surf);
   }
 
   BLI_assert(BLI_listbase_is_empty(&global_surface_list));

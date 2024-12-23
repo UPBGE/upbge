@@ -142,23 +142,6 @@ enum {
 /** The maximum number of items a radial menu (pie menu) can contain. */
 #define PIE_MAX_ITEMS 8
 
-typedef struct uiLinkLine { /* only for draw/edit */
-  struct uiLinkLine *next, *prev;
-  struct uiBut *from, *to;
-  short flag, deactive;
-} uiLinkLine;
-
-typedef struct {
-  void **poin;    /* pointer to original pointer */
-  void ***ppoin;  /* pointer to original pointer-array */
-  short *totlink; /* if pointer-array, here is the total */
-
-  short maxlink, pad;
-  short fromcode, tocode;
-
-  ListBase lines;
-} uiLink;
-
 struct uiBut {
   uiBut *next = nullptr, *prev = nullptr;
 
@@ -166,7 +149,6 @@ struct uiBut {
   uiLayout *layout = nullptr;
   int flag = 0;
   int drawflag = 0;
-  int upbgeflag = 0;
   eButType type = eButType(0);
   eButPointerType pointype = UI_BUT_POIN_NONE;
   short bit = 0, bitnr = 0, retval = 0, strwidth = 0, alignnr = 0;
@@ -224,9 +206,6 @@ struct uiBut {
   /** Run an action when holding the button down. */
   uiButHandleHoldFunc hold_func = nullptr;
   void *hold_argN = nullptr;
-
-  uiLink *link = nullptr;
-  int linkto[2]; /* region relative coords */
 
   const char *tip = nullptr;
   uiButToolTipFunc tip_func = nullptr;
@@ -611,8 +590,6 @@ struct uiSafetyRct {
 };
 
 /* interface.c */
-
-extern void ui_linkline_remove(uiLinkLine *line, uiBut *but);
 
 void ui_fontscale(float *points, float aspect);
 
@@ -1150,10 +1127,6 @@ const uiWidgetColors *ui_tooltip_get_theme();
 void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
 void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow);
 void ui_draw_tooltip_background(const uiStyle *style, uiBlock *block, rcti *rect);
-
-void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
-bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol);
-void ui_draw_link_bezier(const rcti *rect, const float color[4]);
 
 /**
  * Conversion from old to new buttons, so still messy.

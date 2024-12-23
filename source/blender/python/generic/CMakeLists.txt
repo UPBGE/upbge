@@ -21,7 +21,6 @@ set(SRC
   bl_math_py_api.c
   blf_py_api.c
   bpy_threads.c
-  bpy_internal_import.c
   idprop_py_api.c
   idprop_py_ui_api.c
   imbuf_py_api.c
@@ -31,7 +30,6 @@ set(SRC
   bgl.h
   bl_math_py_api.h
   blf_py_api.h
-  bpy_internal_import.h
   idprop_py_api.h
   idprop_py_ui_api.h
   imbuf_py_api.h

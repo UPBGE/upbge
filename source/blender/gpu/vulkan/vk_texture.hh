@@ -46,10 +46,6 @@ class VKTexture : public Texture {
                   eGPUDataFormat format,
                   GPUPixelBuffer *pixbuf) override;
 
-  /* UPBGE */
-  void gl_bindcode_set(int bindcode) override;
-  /*********/
-
   /* TODO(fclem): Legacy. Should be removed at some point. */
   uint gl_bindcode_get() const override;
 

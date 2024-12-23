@@ -25,8 +25,6 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph_query.h"  // UPBGE
-
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -1943,9 +1941,7 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
    * An idea to improve this is to separate the Object mode from the edit mode draw caches. And
    * based on the mode the correct one will be updated. Other option is to look into using
    * drw_batch_cache_generate_requested_delayed. */
-  //BLI_task_graph_work_and_wait(task_graph);
-  GPU_finish();
-
+  BLI_task_graph_work_and_wait(task_graph);
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);
 #endif

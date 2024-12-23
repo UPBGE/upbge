@@ -28,7 +28,6 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -36,7 +35,6 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_world_types.h"  // UPBGE
 
 #include "BKE_appdir.h"
 #include "BKE_attribute.hh"
@@ -379,85 +377,6 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 {
-  /*********************UPBGE*********************/
-  // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
-  for (Scene *sce = static_cast<Scene *>(bmain->scenes.first); sce; sce = static_cast<Scene *>(sce->id.next)) {
-    /* game data */
-    sce->gm.stereoflag = STEREO_NOSTEREO;
-    sce->gm.stereomode = STEREO_ANAGLYPH;
-    sce->gm.eyeseparation = 0.10;
-    sce->gm.xplay = 1280;
-    sce->gm.yplay = 720;
-    sce->gm.samples_per_frame = 1;
-    sce->gm.freqplay = 60;
-    sce->gm.depth = 32;
-    sce->gm.gravity = 9.8f;
-    sce->gm.physicsEngine = WOPHY_BULLET;
-    sce->gm.mode = WO_ACTIVITY_CULLING;
-    sce->gm.occlusionRes = 128;
-    sce->gm.ticrate = 60;
-    sce->gm.maxlogicstep = 5;
-    sce->gm.physubstep = 1;
-    sce->gm.maxphystep = 5;
-    sce->gm.lineardeactthreshold = 0.8f;
-    sce->gm.angulardeactthreshold = 1.0f;
-    sce->gm.deactivationtime = 2.0f;
-
-    sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
-    sce->gm.levelHeight = 2.f;
-
-    sce->gm.recastData.cellsize = 0.3f;
-    sce->gm.recastData.cellheight = 0.2f;
-    sce->gm.recastData.agentmaxslope = M_PI_4;
-    sce->gm.recastData.agentmaxclimb = 0.9f;
-    sce->gm.recastData.agentheight = 2.0f;
-    sce->gm.recastData.agentradius = 0.6f;
-    sce->gm.recastData.edgemaxlen = 12.0f;
-    sce->gm.recastData.edgemaxerror = 1.3f;
-    sce->gm.recastData.regionminsize = 8.f;
-    sce->gm.recastData.regionmergesize = 20.f;
-    sce->gm.recastData.vertsperpoly = 6;
-    sce->gm.recastData.detailsampledist = 6.0f;
-    sce->gm.recastData.detailsamplemaxerror = 1.0f;
-    sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
-
-    sce->gm.exitkey = 218;  // Blender key code for ESC
-
-    sce->gm.flag |= GAME_USE_UNDO;
-
-    sce->gm.lodflag = SCE_LOD_USE_HYST;
-    sce->gm.scehysteresis = 10;
-  }
-  for (Object *ob = static_cast<Object *>(bmain->objects.first); ob; ob = static_cast<Object *>(ob->id.next)) {
-    /* UPBGE defaults*/
-    ob->mass = ob->inertia = 1.0f;
-    ob->formfactor = 0.4f;
-    ob->damping = 0.04f;
-    ob->rdamping = 0.1f;
-    ob->anisotropicFriction[0] = 1.0f;
-    ob->anisotropicFriction[1] = 1.0f;
-    ob->anisotropicFriction[2] = 1.0f;
-    ob->gameflag = OB_PROP | OB_COLLISION;
-    ob->gameflag2 = 0;
-    ob->margin = 0.04f;
-    ob->friction = 0.5f;
-    ob->init_state = 1;
-    ob->state = 1;
-    ob->obstacleRad = 1.0f;
-    ob->step_height = 0.15f;
-    ob->jump_speed = 10.0f;
-    ob->fall_speed = 55.0f;
-    ob->max_jumps = 1;
-    ob->max_slope = M_PI_2;
-    ob->col_group = 0x01;
-    ob->col_mask = 0xffff;
-    if (ob->type == OB_CAMERA) {
-      Camera *cam = static_cast<Camera *>(ob->data);
-      cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
-    }
-  }
-  /***********************End of UPBGE**********************/
-
   /* For all app templates. */
   LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
     BLO_update_defaults_workspace(workspace, app_template);
@@ -551,23 +470,37 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
 
     /* Reset all grease pencil brushes. */
-    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
-    BKE_brush_gpencil_paint_presets(bmain, scene->toolsettings, true);
-    BKE_brush_gpencil_sculpt_presets(bmain, scene->toolsettings, true);
-    BKE_brush_gpencil_vertex_presets(bmain, scene->toolsettings, true);
-    BKE_brush_gpencil_weight_presets(bmain, scene->toolsettings, true);
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ToolSettings *ts = scene->toolsettings;
 
-    /* Ensure new Paint modes. */
-    BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_VERTEX_GPENCIL);
-    BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_SCULPT_GPENCIL);
-    BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_WEIGHT_GPENCIL);
+      if (ts->gp_paint) {
+        BKE_brush_gpencil_paint_presets(bmain, ts, true);
+      }
+      if (ts->gp_sculptpaint) {
+        BKE_brush_gpencil_sculpt_presets(bmain, ts, true);
+      }
+      if (ts->gp_vertexpaint) {
+        BKE_brush_gpencil_vertex_presets(bmain, ts, true);
+      }
+      if (ts->gp_weightpaint) {
+        BKE_brush_gpencil_weight_presets(bmain, ts, true);
+      }
 
-    /* Enable cursor. */
-    GpPaint *gp_paint = scene->toolsettings->gp_paint;
-    gp_paint->paint.flags |= PAINT_SHOW_BRUSH;
+      /* Ensure new Paint modes. */
+      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_VERTEX_GPENCIL);
+      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_SCULPT_GPENCIL);
+      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_WEIGHT_GPENCIL);
 
-    /* Ensure Palette by default. */
-    BKE_gpencil_palette_ensure(bmain, scene);
+      /* Enable cursor. */
+      if (ts->gp_paint) {
+        ts->gp_paint->paint.flags |= PAINT_SHOW_BRUSH;
+      }
+
+      /* Ensure Palette by default. */
+      if (ts->gp_paint) {
+        BKE_gpencil_palette_ensure(bmain, scene);
+      }
+    }
   }
 
   /* For builtin templates only. */

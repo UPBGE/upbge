@@ -126,8 +126,6 @@ void WM_exit(struct bContext *C, int exit_code) ATTR_NORETURN;
 
 void WM_main(struct bContext *C) ATTR_NORETURN;
 
-bool WM_init_game(struct bContext *C);
-
 /**
  * Show the splash screen as needed on startup.
  *
@@ -2006,11 +2004,6 @@ XrActionMapBinding *WM_xr_actionmap_binding_add_copy(XrActionMapItem *ami,
 bool WM_xr_actionmap_binding_remove(XrActionMapItem *ami, XrActionMapBinding *amb);
 XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const char *name);
 #endif /* WITH_XR_OPENXR */
-
-/* UPBGE */
-void WM_init_opengl_blenderplayer(void *ghost_system);
-void *WM_opengl_context_create_blenderplayer(void *ghost_system);
-/* End of UPBGE */
 
 #ifdef __cplusplus
 }

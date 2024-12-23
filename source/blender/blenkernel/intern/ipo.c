@@ -21,7 +21,6 @@
 /* since we have versioning code here */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"

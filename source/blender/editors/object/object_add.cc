@@ -12,7 +12,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
@@ -81,7 +80,6 @@
 #include "BKE_particle.h"
 #include "BKE_pointcloud.h"
 #include "BKE_report.h"
-#include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
 #include "BKE_vfont.h"
@@ -648,13 +646,6 @@ Object *ED_object_add_type_with_obdata(bContext *C,
 
   /* more editor stuff */
   ED_object_base_init_transform_on_add(ob, loc, rot);
-
-  /* Ignore collisions by default for non-mesh objects */
-  if (type != OB_MESH) {
-    ob->body_type = OB_BODY_TYPE_NO_COLLISION;
-    ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER |
-                      OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
-  }
 
   /* TODO(sergey): This is weird to manually tag objects for update, better to
    * use DEG_id_tag_update here perhaps.
@@ -2412,8 +2403,6 @@ static void copy_object_set_idnew(bContext *C)
   FOREACH_MAIN_ID_END;
 #endif
 
-  BKE_sca_set_new_points();
-
   BKE_main_id_newptr_and_tag_clear(bmain);
 }
 
@@ -2627,8 +2616,6 @@ static void make_object_duplilist_real(bContext *C,
     /* Remap new object to itself, and clear again newid pointer of orig object. */
     BKE_libblock_relink_to_newid(bmain, &ob_dst->id, 0);
 
-    BKE_sca_set_new_points_ob(ob_dst);
-
     DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
 
     if (use_hierarchy) {
@@ -2826,13 +2813,6 @@ static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph,
   }
 
   BKE_object_free_modifiers(ob, 0);
-
-  if (ob->type == OB_MESH) {
-    /* UPBGE defaults for mesh objects */
-    ob->body_type = OB_BODY_TYPE_STATIC;
-    ob->gameflag = OB_PROP | OB_COLLISION;
-  }
-
   /* Replace curve used by the object itself. */
   ob->data = mesh;
   ob->type = OB_MESH;
@@ -3746,8 +3726,6 @@ Base *ED_object_add_duplicate(
   Base *basen;
   Object *ob;
 
-  BKE_sca_clear_new_points(); /* BGE logic */
-
   basen = object_add_duplicate_internal(bmain,
                                         scene,
                                         view_layer,
@@ -3767,8 +3745,6 @@ Base *ED_object_add_duplicate(
    * enforce remapping obdata (by default this is forbidden in edit mode). */
   const int remap_flag = BKE_object_is_in_editmode(ob) ? ID_REMAP_FORCE_OBDATA_IN_EDITMODE : 0;
   BKE_libblock_relink_to_newid(bmain, &ob->id, remap_flag);
-
-  BKE_sca_set_new_points_ob(ob);
 
   /* Correct but the caller must do this. */
   // DAG_relations_tag_update(bmain);
@@ -3794,8 +3770,6 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   /* We need to handle that here ourselves, because we may duplicate several objects, in which case
    * we also want to remap pointers between those... */
   BKE_main_id_newptr_and_tag_clear(bmain);
-
-  BKE_sca_clear_new_points(); /* BGE logic */
 
   /* Duplicate the selected objects, remember data needed to process
    * after the sync. */
@@ -3929,8 +3903,6 @@ static int object_add_named_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "Object not found");
     return OPERATOR_CANCELLED;
   }
-
-  BKE_sca_clear_new_points(); /* BGE logic */
 
   /* prepare dupli */
   Base *basen = object_add_duplicate_internal(

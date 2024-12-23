@@ -59,14 +59,6 @@ class VKShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  /* UPBGE */
-  char *shader_validate() override;
-  void shader_bind_attributes(int *locations, const char **names, int len) override;
-  /* GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
-     bgl_TextureCoordinateOffset[9]; */
-  int shader_get_uniform_location_old(const char *name) override;
-  /*********/
-
   /* DEPRECATED: Kept only because of BGL API. */
   int program_handle_get() const override;
 

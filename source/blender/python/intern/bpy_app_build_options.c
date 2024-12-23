@@ -20,7 +20,6 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"codec_sndfile", NULL},
     {"compositor_cpu", NULL},
     {"cycles", NULL},
-    {"gameengine", NULL},
     {"cycles_osl", NULL},
     {"freestyle", NULL},
     {"image_cineon", NULL},
@@ -43,7 +42,6 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"libmv", NULL},
     {"mod_oceansim", NULL},
     {"mod_remesh", NULL},
-    {"player", NULL},
     {"collada", NULL},
     {"io_wavefront_obj", NULL},
     {"io_ply", NULL},
@@ -126,12 +124,6 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_FREESTYLE
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
-#ifdef WITH_GAMEENGINE
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -279,12 +271,6 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_OCIO
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
-#ifdef WITH_PLAYER
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

@@ -13,7 +13,6 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
@@ -912,16 +911,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
           if ((psys->pointcache->flag & PTCACHE_BAKED) == 0) {
             psys->recalc |= ID_RECALC_PSYS_RESET;
           }
-        }
-      }
-    }
-    /* hysteresis set to 10% but not activated */
-    if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
-      Object *ob;
-      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        LodLevel *level;
-        for (level = ob->lodlevels.first; level; level = level->next) {
-          level->obhysteresis = 10;
         }
       }
     }

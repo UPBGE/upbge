@@ -414,7 +414,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
   }
   /* Logic Editor */
   else if (STRPREFIX(opname, "LOGIC_OT")) {
-    km = WM_keymap_find_all(wm, "Logic Bricks Editor", sl->spacetype, 0);
+    km = WM_keymap_find_all(wm, "Logic Editor", sl->spacetype, 0);
   }
   /* Outliner */
   else if (STRPREFIX(opname, "OUTLINER_OT")) {

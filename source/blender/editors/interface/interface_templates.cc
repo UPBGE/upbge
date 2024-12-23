@@ -61,7 +61,6 @@
 #include "BKE_packedFile.h"
 #include "BKE_particle.h"
 #include "BKE_report.h"
-#include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_shader_fx.h"
@@ -1025,7 +1024,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           template_id_liboverride_hierarchy_make(C, bmain, template_ui, &idptr, &undo_push_label);
         }
         else {
-          BKE_lib_override_library_make_local(id);
+          BKE_lib_override_library_make_local(bmain, id);
           /* Reassign to get proper updates/notifiers. */
           idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
           RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
@@ -2085,6 +2084,11 @@ static void template_search_add_button_name(uiBlock *block,
                                             PointerRNA *active_ptr,
                                             const StructRNA *type)
 {
+  /* Skip text button without an active item. */
+  if (active_ptr->data == nullptr) {
+    return;
+  }
+
   PropertyRNA *name_prop = RNA_struct_name_property(type);
   const int width = template_search_textbut_width(active_ptr, name_prop);
   const int height = template_search_textbut_height();
@@ -2996,6 +3000,8 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
   uiLayoutSetUnitsX(layout, 4.0f);
+
+  UI_block_flag_enable(uiLayoutGetBlock(layout), UI_BLOCK_IS_FLIP);
 
   /* Apply. */
   uiItemO(layout,
@@ -6052,96 +6058,6 @@ void uiTemplateLayers(uiLayout *layout,
         uiBut *but = uiDefAutoButR(
             block, ptr, prop, layer, "", icon, 0, 0, UI_UNIT_X / 2, UI_UNIT_Y / 2);
         UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(layer));
-        but->type = UI_BTYPE_TOGGLE;
-      }
-    }
-  }
-}
-
-void uiTemplateGameStates(uiLayout *layout,
-                          PointerRNA *ptr,
-                          const char *propname,
-                          PointerRNA *used_ptr,
-                          const char *used_propname,
-                          int active_state)
-{
-  uiLayout *uRow, *uCol;
-  PropertyRNA *prop, *used_prop = NULL;
-  int groups, cols, states;
-  int group, col, state, row;
-  int cols_per_group = 5;
-  Object *ob = (Object *)ptr->owner_id;
-
-  prop = RNA_struct_find_property(ptr, propname);
-  if (!prop) {
-    RNA_warning("states property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
-    return;
-  }
-
-  /* the number of states determines the way we group them
-   *	- we want 2 rows only (for now)
-   *	- the number of columns (cols) is the total number of buttons per row
-   *	  the 'remainder' is added to this, as it will be ok to have first row slightly wider if need
-   *be
-   *	- for now, only split into groups if group will have at least 5 items
-   */
-  states = RNA_property_array_length(ptr, prop);
-  cols = (states / 2) + (states % 2);
-  groups = ((cols / 2) < cols_per_group) ? (1) : (cols / cols_per_group);
-
-  if (used_ptr && used_propname) {
-    used_prop = RNA_struct_find_property(used_ptr, used_propname);
-    if (!used_prop) {
-      RNA_warning("used layers property not found: %s.%s",
-                  RNA_struct_identifier(ptr->type),
-                  used_propname);
-      return;
-    }
-
-    if (RNA_property_array_length(used_ptr, used_prop) < states)
-      used_prop = NULL;
-  }
-
-  /* layers are laid out going across rows, with the columns being divided into groups */
-
-  for (group = 0; group < groups; group++) {
-    uCol = uiLayoutColumn(layout, true);
-
-    for (row = 0; row < 2; row++) {
-      uiBlock *block;
-      uiBut *but;
-
-      uRow = uiLayoutRow(uCol, true);
-      block = uiLayoutGetBlock(uRow);
-      state = groups * cols_per_group * row + cols_per_group * group;
-
-      /* add layers as toggle buts */
-      for (col = 0; (col < cols_per_group) && (state < states); col++, state++) {
-        int icon = 0;
-        int butlay = 1 << state;
-
-        if (active_state & butlay)
-          icon = ICON_LAYER_ACTIVE;
-        else if (used_prop && RNA_property_boolean_get_index(used_ptr, used_prop, state))
-          icon = ICON_LAYER_USED;
-
-        but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_ICON_TOGGLE,
-                                 0,
-                                 icon,
-                                 0,
-                                 0,
-                                 UI_UNIT_X / 2,
-                                 UI_UNIT_Y / 2,
-                                 ptr,
-                                 prop,
-                                 state,
-                                 0,
-                                 0,
-                                 -1,
-                                 -1,
-                                 BKE_sca_get_name_state(ob, state));
-        UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
         but->type = UI_BTYPE_TOGGLE;
       }
     }

@@ -164,11 +164,6 @@ class Texture {
 
   /* TODO(fclem): Legacy. Should be removed at some point. */
   virtual uint gl_bindcode_get() const = 0;
-
-  /* UPBGE */
-  virtual void gl_bindcode_set(int bindcode) = 0;
-  /*********/
-
   int width_get() const
   {
     return w_;

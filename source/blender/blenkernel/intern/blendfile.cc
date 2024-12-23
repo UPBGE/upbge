@@ -548,15 +548,14 @@ static void setup_app_blend_file_data(bContext *C,
 
 static void handle_subversion_warning(Main *main, BlendFileReadReport *reports)
 {
-  if (main->minversionfile > BLENDER_FILE_VERSION ||
-      (main->minversionfile == BLENDER_FILE_VERSION &&
-       main->minsubversionfile > BLENDER_FILE_SUBVERSION))
+  if (main->versionfile > BLENDER_FILE_VERSION || (main->versionfile == BLENDER_FILE_VERSION &&
+                                                   main->subversionfile > BLENDER_FILE_SUBVERSION))
   {
     BKE_reportf(reports->reports,
                 RPT_WARNING,
                 "File written by newer Blender binary (%d.%d), expect loss of data!",
-                main->minversionfile,
-                main->minsubversionfile);
+                main->versionfile,
+                main->subversionfile);
   }
 }
 
@@ -761,10 +760,12 @@ UserDef *BKE_blendfile_userdef_from_defaults(void)
     const char *addons[] = {
         "io_anim_bvh",
         "io_curve_svg",
+        "io_mesh_ply",
         "io_mesh_stl",
         "io_mesh_uv_layout",
         "io_scene_fbx",
         "io_scene_gltf2",
+        "io_scene_obj",
         "io_scene_x3d",
         "cycles",
         "pose_library",
@@ -947,7 +948,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
 
 bool BKE_blendfile_workspace_config_write(Main *bmain, const char *filepath, ReportList *reports)
 {
-  const int fileflags = G.fileflags & ~(G_FILE_NO_UI | G_FILE_AUTOPLAY);
+  const int fileflags = G.fileflags & ~G_FILE_NO_UI;
   bool retval = false;
 
   BKE_blendfile_write_partial_begin(bmain);

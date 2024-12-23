@@ -1494,7 +1494,7 @@ void *wm_xr_session_gpu_binding_context_create(void)
 void wm_xr_session_gpu_binding_context_destroy(GHOST_ContextHandle UNUSED(context))
 {
   if (g_xr_surface) { /* Might have been freed already */
-    wm_surface_remove(g_xr_surface, NULL);
+    wm_surface_remove(g_xr_surface);
   }
 
   wm_window_reset_drawable();

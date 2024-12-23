@@ -999,7 +999,7 @@ static void id_local_fn(bContext *C,
     }
   }
   else if (ID_IS_OVERRIDE_LIBRARY_REAL(tselem->id)) {
-    BKE_lib_override_library_make_local(tselem->id);
+    BKE_lib_override_library_make_local(CTX_data_main(C), tselem->id);
   }
 }
 
@@ -3218,6 +3218,7 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
+  DEG_id_tag_update(te->store_elem->id, ID_RECALC_ANIMATION);
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   ED_undo_push(C, "Set action");
 

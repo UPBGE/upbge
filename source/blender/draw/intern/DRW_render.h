@@ -82,8 +82,6 @@ typedef struct DRWShaderLibrary DRWShaderLibrary;
 typedef struct DRWShadingGroup DRWShadingGroup;
 typedef struct DRWUniform DRWUniform;
 typedef struct DRWView DRWView;
-typedef struct DRWShaderLibrary DRWShaderLibrary;
-typedef struct GPUViewport GPUViewport;
 
 /* TODO: Put it somewhere else? */
 typedef struct BoundSphere {
@@ -1013,35 +1011,6 @@ void DRW_mesh_batch_cache_get_attributes(struct Object *object,
 
 void DRW_sculpt_debug_cb(
     PBVHNode *node, void *user_data, const float bmin[3], const float bmax[3], PBVHNodeFlags flag);
-
-/*****************************GAME ENGINE***********************************/
-void DRW_game_render_loop(struct bContext *C,
-                          struct GPUViewport *viewport,
-                          struct Depsgraph *depsgraph,
-                          const struct rcti *window,
-                          bool is_overlay_pass,
-                          bool called_from_constructor);
-
-void DRW_game_render_loop_end(void);
-void DRW_game_python_loop_end(struct ViewLayer *view_layer);
-void DRW_game_viewport_render_loop_end(void);
-void DRW_transform_to_display(struct GPUTexture *tex,
-                              struct View3D *v3d,
-                              struct Scene *scene,
-                              bool do_dithering);
-void DRW_transform_to_display_image_render(struct GPUTexture *tex);
-void DRW_game_gpu_viewport_set(struct GPUViewport *viewport);
-struct GPUViewport *DRW_game_gpu_viewport_get(void);
-
-
-/* Viewport render debug  */
-void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4]);
-void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize);
-void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str);
-void drw_debug_draw_bge(void);
-/*********/
-
-/**************************END OF GAME ENGINE*******************************/
 
 #ifdef __cplusplus
 }

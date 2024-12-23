@@ -14,13 +14,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_actuator_types.h"
 #include "DNA_brush_types.h"
-#include "DNA_controller_types.h"
 #include "DNA_curveprofile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sensor_types.h"
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.h"
@@ -155,9 +152,6 @@
 /** \name Local Prototypes
  * \{ */
 
-static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to);
-static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to);
-
 struct uiBlockInteraction_Handle;
 
 static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event);
@@ -283,12 +277,12 @@ static void ui_selectcontext_apply(bContext *C,
                                    const double value_orig);
 
 /**
- * Only respond to events which are expected to be used for multi button editing,
- * e.g. ALT is also used for button array pasting, see #108096.
- */
-#  define IS_ALLSELECT_EVENT(event) \
-    (((event)->modifier & KM_ALT) != 0 && \
-     (ISMOUSE((event)->type) || ELEM((event)->type, EVT_RETKEY, EVT_PADENTER)))
+ * Ideally we would only respond to events which are expected to be used for multi button editing
+ * (additionally checking if this is a mouse[wheel] or returnkey event to avoid the ALT conflict
+ * with button array pasting, see #108096, but unfortunately wheel events are not part of
+ * win->eventstate with modifiers held down. Instead, the conflict is avoided by specifically
+ * filtering out CTRL ALT V in ui_apply_but(). */
+#  define IS_ALLSELECT_EVENT(event) (((event)->modifier & KM_ALT) != 0)
 
 /** just show a tinted color so users know its activated */
 #  define UI_BUT_IS_SELECT_CONTEXT UI_BUT_NODE_ACTIVE
@@ -924,10 +918,7 @@ static void ui_apply_but_undo(uiBut *but)
   bool skip_undo = false;
 
   /* define which string to use for undo */
-  if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
-    str = "Add button link";
-  }
-  else if (but->type == UI_BTYPE_MENU) {
+  if (but->type == UI_BTYPE_MENU) {
     str = but->drawstr;
     str_len_clip = ui_but_drawstr_len_without_sep_char(but);
   }
@@ -2192,236 +2183,6 @@ static bool ui_but_drag_init(bContext *C,
 /** \name Button Apply
  * \{ */
 
-static void ui_linkline_remove_active(uiBlock *block)
-{
-  uiBut *but;
-  uiLink *link;
-  uiLinkLine *line, *nline;
-  int a, b;
-
-  for (but = static_cast<uiBut *>(block->buttons.first); but; but = but->next) {
-    if (but->type == UI_BTYPE_LINK && but->link) {
-      for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
-        nline = line->next;
-
-        if (line->flag & UI_SELECT) {
-          BLI_remlink(&but->link->lines, line);
-
-          link = line->from->link;
-
-          /* are there more pointers allowed? */
-          if (link->ppoin) {
-
-            if (*(link->totlink) == 1) {
-              *(link->totlink) = 0;
-              MEM_freeN(*(link->ppoin));
-              *(link->ppoin) = NULL;
-            }
-            else {
-              b = 0;
-              for (a = 0; a < (*(link->totlink)); a++) {
-
-                if ((*(link->ppoin))[a] != line->to->poin) {
-                  (*(link->ppoin))[b] = (*(link->ppoin))[a];
-                  b++;
-                }
-              }
-              (*(link->totlink))--;
-            }
-          }
-          else {
-            *(link->poin) = NULL;
-          }
-
-          MEM_freeN(line);
-        }
-      }
-    }
-  }
-}
-
-static uiLinkLine *ui_but_find_link(uiBut *from, uiBut *to)
-{
-  uiLinkLine *line;
-  uiLink *link;
-
-  link = from->link;
-  if (link) {
-    for (line = static_cast<uiLinkLine *>(link->lines.first); line; line = line->next) {
-      if (line->from == from && line->to == to) {
-        return line;
-      }
-    }
-  }
-  return NULL;
-}
-
-#include "DNA_object_types.h"  // UPBGE
-/* XXX BAD BAD HACK, fixme later **************** */
-/* Try to add an AND Controller between the sensor and the actuator logic bricks and to connect
- * them all */
-static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
-{
-  Object *ob = NULL;
-  bSensor *sens_iter;
-  bActuator *act_to, *act_iter;
-  bController *cont;
-  bController ***sens_from_links;
-  uiBut *tmp_but;
-
-  uiLink *link = from->link;
-
-  PointerRNA props_ptr, object_ptr;
-
-  if (link->ppoin)
-    sens_from_links = (bController ***)(link->ppoin);
-  else
-    return;
-
-  act_to = (bActuator *)(to->poin);
-
-  /* (1) get the object */
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
-    for (sens_iter = static_cast<bSensor *>(ob_iter->sensors.first); sens_iter; sens_iter = sens_iter->next) {
-      if (&(sens_iter->links) == sens_from_links) {
-        ob = ob_iter;
-        break;
-      }
-    }
-    if (ob)
-      break;
-  }
-  CTX_DATA_END;
-
-  if (!ob)
-    return;
-
-  /* (2) check if the sensor and the actuator are from the same object */
-  for (act_iter = static_cast<bActuator *>(ob->actuators.first); act_iter; act_iter = (bActuator *)act_iter->next) {
-    if (act_iter == act_to)
-      break;
-  }
-
-  /* only works if the sensor and the actuator are from the same object */
-  if (!act_iter)
-    return;
-
-  /* in case the linked controller is not the active one */
-  RNA_pointer_create((ID *)ob, &RNA_Object, ob, &object_ptr);
-
-  WM_operator_properties_create(&props_ptr, "LOGIC_OT_controller_add");
-  RNA_string_set(&props_ptr, "object", ob->id.name + 2);
-
-  /* (3) add a new controller */
-  if (WM_operator_name_call(C, "LOGIC_OT_controller_add", WM_OP_EXEC_DEFAULT, &props_ptr, NULL) &
-      OPERATOR_FINISHED) {
-    cont = (bController *)ob->controllers.last;
-    /* Quick fix to make sure we always have an AND controller.
-     * It might be nicer to make sure the operator gives us the right one though... */
-    cont->type = CONT_LOGIC_AND;
-
-    /* (4) link the sensor->controller->actuator */
-    tmp_but = static_cast<uiBut *>(MEM_callocN(sizeof(uiBut), "uiBut"));
-    UI_but_link_set(tmp_but,
-                    (void **)&cont,
-                    (void ***)&(cont->links),
-                    &cont->totlinks,
-                    from->link->tocode,
-                    (int)to->hardmin);
-    tmp_but->hardmin = from->link->tocode;
-    tmp_but->poin = (char *)cont;
-
-    tmp_but->type = UI_BTYPE_INLINK;
-    ui_but_link_add(C, from, tmp_but);
-
-    tmp_but->type = UI_BTYPE_LINK;
-    ui_but_link_add(C, tmp_but, to);
-
-    /* (5) garbage collection */
-    MEM_freeN(tmp_but->link);
-    MEM_freeN(tmp_but);
-  }
-  WM_operator_properties_free(&props_ptr);
-}
-
-static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
-{
-  /* in 'from' we have to add a link to 'to' */
-  uiLink *link;
-  uiLinkLine *line;
-  void **oldppoin;
-  int a;
-
-  if ((line = ui_but_find_link(from, to))) {
-    line->flag |= UI_SELECT;
-    ui_linkline_remove_active(from->block);
-    return;
-  }
-
-  if (from->type == UI_BTYPE_INLINK && to->type == UI_BTYPE_INLINK) {
-    return;
-  }
-  else if (from->type == UI_BTYPE_LINK && to->type == UI_BTYPE_INLINK) {
-    if (from->link->tocode != (int)to->hardmin) {
-      ui_but_smart_controller_add(C, from, to);
-      return;
-    }
-  }
-  else if (from->type == UI_BTYPE_INLINK && to->type == UI_BTYPE_LINK) {
-    if (to->link->tocode == (int)from->hardmin) {
-      return;
-    }
-  }
-
-  link = from->link;
-
-  /* are there more pointers allowed? */
-  if (link->ppoin) {
-    oldppoin = *(link->ppoin);
-
-    (*(link->totlink))++;
-    *(link->ppoin) = (void **)MEM_callocN(*(link->totlink) * sizeof(void *), "new link");
-
-    for (a = 0; a < (*(link->totlink)) - 1; a++) {
-      (*(link->ppoin))[a] = oldppoin[a];
-    }
-    (*(link->ppoin))[a] = to->poin;
-
-    if (oldppoin)
-      MEM_freeN(oldppoin);
-  }
-  else {
-    *(link->poin) = to->poin;
-  }
-}
-
-static void ui_apply_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data)
-{
-  ARegion *ar = CTX_wm_region(C);
-  uiBut *bt;
-
-  for (bt = static_cast<uiBut *>(but->block->buttons.first); bt; bt = bt->next) {
-    const int ptxy[2] = {(int)(but->linkto[0] + ar->winrct.xmin), (int)(but->linkto[1] + ar->winrct.ymin)};
-    if (ui_but_contains_point_px(
-            bt, ar, ptxy))
-      break;
-  }
-  if (bt && bt != but) {
-    if (!ELEM(bt->type, UI_BTYPE_LINK, UI_BTYPE_INLINK) ||
-        !ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK))
-      return;
-
-    if (but->type == UI_BTYPE_LINK)
-      ui_but_link_add(C, but, bt);
-    else
-      ui_but_link_add(C, bt, but);
-
-    ui_apply_but_func(C, but);
-    data->retval = but->retval;
-  }
-  data->applied = true;
-}
-
 static void ui_apply_but_IMAGE(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
   ui_apply_but_func(C, but);
@@ -2493,10 +2254,17 @@ static void ui_apply_but(
         if (data->select_others.elems_len == 0)
     {
       wmWindow *win = CTX_wm_window(C);
-      /* may have been enabled before activating */
-      if (data->select_others.is_enabled || IS_ALLSELECT_EVENT(win->eventstate)) {
-        ui_selectcontext_begin(C, but, &data->select_others);
-        data->select_others.is_enabled = true;
+      wmEvent *event = win->eventstate;
+      /* May have been enabled before activating, dont do for array pasting. */
+      if (data->select_others.is_enabled || IS_ALLSELECT_EVENT(event)) {
+        /* See comment for IS_ALLSELECT_EVENT why this needs to be filtered here. */
+        const bool is_array_paste = (event->val == KM_PRESS) &&
+                                    (event->modifier & (KM_CTRL | KM_OSKEY)) &&
+                                    (event->modifier & KM_SHIFT) == 0 && (event->type == EVT_VKEY);
+        if (!is_array_paste) {
+          ui_selectcontext_begin(C, but, &data->select_others);
+          data->select_others.is_enabled = true;
+        }
       }
     }
     if (data->select_others.elems_len == 0) {
@@ -2611,10 +2379,6 @@ static void ui_apply_but(
     case UI_BTYPE_KEY_EVENT:
     case UI_BTYPE_HOTKEY_EVENT:
       ui_apply_but_BUT(C, but, data);
-      break;
-    case UI_BTYPE_LINK:
-    case UI_BTYPE_INLINK:
-      ui_apply_but_LINK(C, but, data);
       break;
     case UI_BTYPE_IMAGE:
       ui_apply_but_IMAGE(C, but, data);
@@ -4589,7 +4353,7 @@ static uiBut *ui_but_list_row_text_activate(bContext *C,
                                             const wmEvent *event,
                                             uiButtonActivateType activate_type)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = data->region;
   uiBut *labelbut = ui_but_find_mouse_over_ex(region, event->xy, true, false, nullptr, nullptr);
 
   if (labelbut && labelbut->type == UI_BTYPE_TEXT && !(labelbut->flag & UI_BUT_DISABLED)) {
@@ -5109,9 +4873,9 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, con
 
     if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY) && event->val == KM_PRESS) {
       int ret = WM_UI_HANDLER_BREAK;
-      /* XXX: (a bit ugly) Special case handling for file-browser drag button. */
-      if (ui_but_drag_is_draggable(but) && but->imb &&
-          ui_but_contains_point_px_icon(but, data->region, event))
+      /* XXX: (a bit ugly) Special case handling for file-browser drag buttons (icon and filename
+       * label). */
+      if (ui_but_drag_is_draggable(but) && ui_but_contains_point_px_icon(but, data->region, event))
       {
         ret = WM_UI_HANDLER_CONTINUE;
       }
@@ -6186,6 +5950,10 @@ static int ui_do_but_SCROLL(
       const bool is_motion = (event->type == MOUSEMOVE);
       if (ui_numedit_but_SLI(
               but, data, (horizontal) ? mx : my, horizontal, is_motion, false, false)) {
+        /* Scrollbars in popups need UI layout refresh to update the right items to show. */
+        if (ui_block_is_popup_any(but->block)) {
+          ED_region_tag_refresh_ui(data->region);
+        }
         ui_numedit_apply(C, block, but, data);
       }
     }
@@ -6549,42 +6317,43 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
         if ((event->modifier & KM_CTRL) == 0) {
           float color[3];
           Paint *paint = BKE_paint_get_active_from_context(C);
-          Brush *brush = BKE_paint_brush(paint);
+          if (paint != nullptr) {
+            Brush *brush = BKE_paint_brush(paint);
 
-          if (brush->flag & BRUSH_USE_GRADIENT) {
-            float *target = &brush->gradient->data[brush->gradient->cur].r;
+            if (brush->flag & BRUSH_USE_GRADIENT) {
+              float *target = &brush->gradient->data[brush->gradient->cur].r;
 
-            if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-              RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
-              IMB_colormanagement_srgb_to_scene_linear_v3(target, target);
+              if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+                IMB_colormanagement_srgb_to_scene_linear_v3(target, target);
+              }
+              else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+              }
             }
-            else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-              RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
-            }
-          }
-          else {
-            Scene *scene = CTX_data_scene(C);
-            bool updated = false;
+            else {
+              Scene *scene = CTX_data_scene(C);
+              bool updated = false;
 
-            if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-              RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-              BKE_brush_color_set(scene, brush, color);
-              updated = true;
-            }
-            else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-              RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-              IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
-              BKE_brush_color_set(scene, brush, color);
-              updated = true;
-            }
+              if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+                BKE_brush_color_set(scene, brush, color);
+                updated = true;
+              }
+              else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+                IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
+                BKE_brush_color_set(scene, brush, color);
+                updated = true;
+              }
+              if (updated) {
+                PointerRNA brush_ptr;
+                PropertyRNA *brush_color_prop;
 
-            if (updated) {
-              PointerRNA brush_ptr;
-              PropertyRNA *brush_color_prop;
-
-              RNA_id_pointer_create(&brush->id, &brush_ptr);
-              brush_color_prop = RNA_struct_find_property(&brush_ptr, "color");
-              RNA_property_update(C, &brush_ptr, brush_color_prop);
+                RNA_id_pointer_create(&brush->id, &brush_ptr);
+                brush_color_prop = RNA_struct_find_property(&brush_ptr, "color");
+                RNA_property_update(C, &brush_ptr, brush_color_prop);
+              }
             }
           }
 
@@ -8097,33 +7866,6 @@ static int ui_do_but_WAVEFORM(
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static int ui_do_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
-{
-  copy_v2_v2_int(but->linkto, event->mval);
-
-  if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      button_activate_state(C, but, BUTTON_STATE_WAIT_RELEASE);
-      return WM_UI_HANDLER_BREAK;
-    }
-    else if (event->type == LEFTMOUSE && but->block->handle) {
-      button_activate_state(C, but, BUTTON_STATE_EXIT);
-      return WM_UI_HANDLER_BREAK;
-    }
-  }
-  else if (data->state == BUTTON_STATE_WAIT_RELEASE) {
-
-    if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
-      if (!(but->flag & UI_SELECT))
-        data->cancel = true;
-      button_activate_state(C, but, BUTTON_STATE_EXIT);
-      return WM_UI_HANDLER_BREAK;
-    }
-  }
-
-  return WM_UI_HANDLER_CONTINUE;
-}
-
 static bool ui_numedit_but_TRACKPREVIEW(
     bContext *C, uiBut *but, uiHandleButtonData *data, int mx, int my, const bool shift)
 {
@@ -8407,10 +8149,6 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
       break;
     case UI_BTYPE_HSVCIRCLE:
       retval = ui_do_but_HSVCIRCLE(C, block, but, data, event);
-      break;
-    case UI_BTYPE_LINK:
-    case UI_BTYPE_INLINK:
-      retval = ui_do_but_LINK(C, but, data, event);
       break;
     case UI_BTYPE_TRACK_PREVIEW:
       retval = ui_do_but_TRACKPREVIEW(C, block, but, data, event);
@@ -9580,14 +9318,10 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
         break;
       }
       case MOUSEMOVE: {
-        if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
-          but->flag |= UI_SELECT;
-          ui_do_button(C, block, but, event);
-          ED_region_tag_redraw(data->region);
-        }
         /* deselect the button when moving the mouse away */
         /* also de-activate for buttons that only show highlights */
-        else if (ui_but_contains_point_px(but, region, event->xy)) {
+        if (ui_but_contains_point_px(but, region, event->xy)) {
+
           /* Drag on a hold button (used in the toolbar) now opens it immediately. */
           if (data->hold_action_timer) {
             if (but->flag & UI_SELECT) {
@@ -9945,7 +9679,8 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *regi
 
         for (int i = 0; i < len; i++) {
           if (!dyn_data->items_filter_flags ||
-              ((dyn_data->items_filter_flags[i] & UILST_FLT_ITEM) ^ filter_exclude))
+              (((dyn_data->items_filter_flags[i] & UILST_FLT_ITEM_NEVER_SHOW) == 0) &&
+               (dyn_data->items_filter_flags[i] & UILST_FLT_ITEM) ^ filter_exclude))
           {
             org_order[new_order ? new_order[++org_idx] : ++org_idx] = i;
             if (i == value) {
@@ -11255,7 +10990,8 @@ static int ui_but_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandl
   uiBut *active_but = ui_region_find_active_but(menu->region);
 
   if (active_but) {
-    button_activate_exit(C, active_but, active_but->active, false, false);
+    /* Use onfree to not execute the hovered active_but. */
+    button_activate_exit(C, active_but, active_but->active, false, true);
   }
 
   button_activate_init(C, menu->region, but, BUTTON_ACTIVATE_OVER);

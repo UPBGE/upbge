@@ -293,9 +293,6 @@ void BKE_pose_check_uuids_unique_and_report(const struct bPose *pose);
 bool BKE_pose_channels_is_valid(const struct bPose *pose);
 #endif
 
-/* Copy the data from the action-pose (src) into the pose */
-void extract_pose_from_pose(struct bPose *pose, const struct bPose *src);
-
 /**
  * Checks for IK constraint, Spline IK, and also for Follow-Path constraint.
  * can do more constraints flags later. pose should be entirely OK.

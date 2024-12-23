@@ -23,9 +23,7 @@
 
 #include "BLT_translation.h"
 
-#include "DNA_actuator_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_controller_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"

@@ -315,10 +315,6 @@ void BLO_reportf_wrap(struct BlendFileReadReport *reports,
 
 /** \} */
 
-/* UPBGE */
-void *BLO_read_get_new_globaldata_address(BlendLibReader *reader, const void *adr);
-/**************************/
-
 #ifdef __cplusplus
 }
 #endif

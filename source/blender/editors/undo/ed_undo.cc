@@ -966,13 +966,4 @@ Base **ED_undo_editmode_bases_from_view_layer(const Scene *scene,
   return base_array;
 }
 
-/* UPBGE */
-void ED_undo_push_old(bContext *C, const char *str)
-{
-  ED_undo_push(C, str);
-  UndoStep *last_step = (UndoStep *)CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
-}
-/*********/
-
 /** \} */

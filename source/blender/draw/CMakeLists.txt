@@ -378,8 +378,6 @@ set(GLSL_SRC
   engines/eevee/shaders/effect_minmaxz_frag.glsl
   engines/eevee/shaders/effect_mist_frag.glsl
   engines/eevee/shaders/effect_motion_blur_frag.glsl
-  engines/eevee/shaders/effect_smaa_frag.glsl
-  engines/eevee/shaders/effect_smaa_vert.glsl
   engines/eevee/shaders/effect_subsurface_frag.glsl
   engines/eevee/shaders/effect_translucency_frag.glsl
   engines/eevee/shaders/effect_temporal_aa.glsl
@@ -574,7 +572,6 @@ set(GLSL_SRC
   intern/shaders/draw_command_generate_comp.glsl
   intern/shaders/draw_debug_draw_display_frag.glsl
   intern/shaders/draw_debug_draw_display_vert.glsl
-  intern/shaders/draw_debug_info.hh
   intern/shaders/draw_debug_print_display_frag.glsl
   intern/shaders/draw_debug_print_display_vert.glsl
   intern/shaders/draw_resource_finalize_comp.glsl
