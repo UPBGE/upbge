@@ -133,7 +133,6 @@ def load_modules():
         os.sep + "presets" + os.sep,
         os.sep + "templates_osl" + os.sep,
         os.sep + "templates_py" + os.sep,
-        os.sep + "templates_py_components" + os.sep,
         os.sep + "bl_app_templates_system" + os.sep,
     ] + ([(os.sep + f + os.sep) for f in BLACKLIST] +
          [(os.sep + f + ".py") for f in BLACKLIST])
