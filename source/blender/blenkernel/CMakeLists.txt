@@ -3,21 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
-  ../asset_system
-  ../blenloader
-  ../blentranslation
-  ../bmesh
+  PUBLIC .
   ../draw
-  ../functions
-  ../gpu
   ../ikplugin
-  ../imbuf
   ../makesrna
   ../modifiers
-  ../nodes
   ../nodes/geometry/include
-  ../render
   ../sequencer
   ../shader_fx
   ../simulation
@@ -568,20 +559,20 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_asset_system
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
-  bf_blenloader
-  bf_blentranslation
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_draw
   PRIVATE bf::extern::curve_fit_nd
-  bf_functions
-  bf_gpu
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
   bf_ikplugin
-  bf_imbuf
+  PRIVATE bf::imbuf
   bf::imbuf_movie
   PRIVATE bf::intern::clog
   bf_intern_ghost
@@ -590,7 +581,8 @@ set(LIB
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
   bf_modifiers
-  bf_nodes
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   bf_rna
   bf_shader_fx
   bf_simulation
@@ -821,6 +813,7 @@ endif()
 # endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blenkernel ALIAS bf_blenkernel)
 
 # RNA_prototypes.hh
 add_dependencies(bf_blenkernel bf_rna)

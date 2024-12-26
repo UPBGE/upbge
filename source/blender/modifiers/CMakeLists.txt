@@ -6,17 +6,9 @@ set(INC
   .
   intern
   intern/lineart
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../bmesh
   ../editors/include
-  ../functions
   ../geometry
   ../makesrna
-  ../nodes
-  ../render
-  ../windowmanager
   ../../../intern/eigen
 
   # RNA_prototypes.hh
@@ -141,12 +133,19 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PUBLIC bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_ALEMBIC)

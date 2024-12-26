@@ -5,7 +5,6 @@
 set(INC
   PUBLIC .
   ..
-  ../../blenkernel
 )
 
 set(INC_SYS
@@ -25,10 +24,13 @@ set(SRC
   intern/movie_util.cc
   intern/movie_util.hh
   intern/movie_write.cc
+  intern/movie_write.hh
+  intern/movie_write_audio.cc
 )
 
 set(LIB
   PRIVATE bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf_imbuf
   PRIVATE bf::intern::guardedalloc

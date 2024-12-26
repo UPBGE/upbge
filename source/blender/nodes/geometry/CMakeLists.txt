@@ -8,19 +8,10 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../functions
   ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../imbuf/movie
   ../../makesrna
   ../../modifiers
-  ../../render
-  ../../windowmanager
   ../../io/common
   ../../io/ply
   ../../io/stl
@@ -248,17 +239,24 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
   bf_geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_IO_STL)

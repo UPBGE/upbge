@@ -6,14 +6,8 @@ set(INC
   .
   intern
   ../animrig
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../imbuf
   ../imbuf/movie
   ../makesrna
-  ../render
-  ../windowmanager
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -85,13 +79,18 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_AUDASPACE)

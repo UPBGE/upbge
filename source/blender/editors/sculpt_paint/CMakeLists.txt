@@ -8,21 +8,10 @@ set(INC
   ../asset
   ../include
   ../uvedit
-  ../../asset_system
-  ../../blenkernel
   ../../blenlib
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
   ../../draw
-  ../../functions
   ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../windowmanager
   ../../../../intern/eigen
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -180,15 +169,25 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_POTRACE)

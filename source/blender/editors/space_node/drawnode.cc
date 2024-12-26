@@ -1103,7 +1103,7 @@ void ED_node_init_butfuncs()
   NodeSocketTypeUndefined.interface_draw = node_socket_undefined_interface_draw;
 
   /* node type ui functions */
-  NODE_TYPES_BEGIN (ntype) {
+  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
     node_common_set_butfunc(ntype);
 
     node_composit_set_butfunc(ntype);
@@ -1113,7 +1113,6 @@ void ED_node_init_butfuncs()
     /* define update callbacks for socket properties */
     node_template_properties_update(ntype);
   }
-  NODE_TYPES_END;
 }
 
 void ED_init_custom_node_type(blender::bke::bNodeType * /*ntype*/) {}
@@ -1332,8 +1331,7 @@ static void std_node_socket_draw(
     }
   }
 
-  if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_HIDE_VALUE) ||
-      (sock->is_directly_linked() && !all_links_muted(*sock)))
+  if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_HIDE_VALUE) || sock->is_logically_linked())
   {
     draw_node_socket_without_value(layout, sock, text);
     return;

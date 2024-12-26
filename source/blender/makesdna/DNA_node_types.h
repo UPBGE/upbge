@@ -16,8 +16,9 @@
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
-#  include <BLI_vector.hh>
 #  include <string>
+
+#  include "BLI_vector.hh"
 
 namespace blender {
 template<typename T> class Span;
@@ -475,9 +476,11 @@ typedef struct bNode {
   /** A span containing all input sockets of the node (including unavailable sockets). */
   blender::Span<bNodeSocket *> input_sockets();
   blender::Span<const bNodeSocket *> input_sockets() const;
+  blender::IndexRange input_socket_indices_in_tree() const;
   /** A span containing all output sockets of the node (including unavailable sockets). */
   blender::Span<bNodeSocket *> output_sockets();
   blender::Span<const bNodeSocket *> output_sockets() const;
+  blender::IndexRange output_socket_indices_in_tree() const;
   /** Utility to get an input socket by its index. */
   bNodeSocket &input_socket(int index);
   const bNodeSocket &input_socket(int index) const;
@@ -847,6 +850,10 @@ typedef struct bNodeTree {
   blender::Span<const bNodeTreeInterfaceSocket *> interface_outputs() const;
   blender::Span<bNodeTreeInterfaceItem *> interface_items();
   blender::Span<const bNodeTreeInterfaceItem *> interface_items() const;
+
+  int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
+  int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
+  int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
 #endif
 } bNodeTree;
 
