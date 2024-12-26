@@ -33,15 +33,10 @@ set(INC
   ../SceneGraph
   ../GameLogic
   ../../blender/blenkernel
-  ../../blender/blentranslation
-  ../../blender/bmesh
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee/
-  ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/makesrna
-  ../../blender/render
   ../../blender/render/intern
   ../../../intern/termcolor
 )
@@ -110,9 +105,14 @@ set(SRC
 set(LIB
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
   bf_intern_moto
   ge_rasterizer_opengl
 )

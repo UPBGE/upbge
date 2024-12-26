@@ -40,22 +40,13 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
-  ../../blender/asset_system
-  ../../blender/blenkernel
-  ../../blender/blenloader
-  ../../blender/blentranslation
-  ../../blender/bmesh
   ../../blender/draw
   ../../blender/draw/engines/eevee/
   ../../blender/editors/include
-  ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/imbuf/movie
   ../../blender/makesrna
   ../../blender/python
-  ../../blender/render
   ../../blender/sequencer
-  ../../blender/windowmanager
   ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
   ../../../intern/memutil
@@ -78,13 +69,22 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_ghost
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 add_definitions(${GL_DEFINITIONS})

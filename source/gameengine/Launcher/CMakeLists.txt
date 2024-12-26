@@ -37,14 +37,9 @@ set(INC
   ../Rasterizer
   ../SceneGraph
   ../VideoTexture
-  ../../blender/blenkernel
-  ../../blender/blentranslation
   ../../blender/draw/engines/eevee/
   ../../blender/draw/intern
-  ../../blender/gpu
   ../../blender/makesrna
-  ../../blender/render
-  ../../blender/windowmanager
   ../../../intern/ghost
   ../../../intern/termcolor
 )
@@ -70,9 +65,14 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
   bf_intern_moto
   ge_expressions
   ge_logic_bricks

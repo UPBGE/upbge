@@ -41,17 +41,10 @@ set(INC
   ../SceneGraph
   ../VideoTexture
   ../../blender
-  ../../blender/blenkernel
-  ../../blender/blenloader
-  ../../blender/blentranslation
   ../../blender/draw/engines/eevee
   ../../blender/draw/intern
-  ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/ikplugin
   ../../blender/makesrna
-  ../../blender/render
-  ../../blender/windowmanager
   ../../../intern/termcolor
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -98,10 +91,17 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
   ge_physics_dummy
   ge_physics_bullet
   ge_ketsji

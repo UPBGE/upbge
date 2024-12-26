@@ -34,14 +34,9 @@ set(INC
   ../../Physics/Common
   # >>>
   ../../SceneGraph
-  ../../../blender/blenkernel
-  ../../../blender/blentranslation
-  ../../../blender/bmesh
   ../../../blender/draw
   ../../../blender/draw/intern
-  ../../../blender/gpu
   ../../../blender/makesrna
-  ../../../blender/render
   ../../../blender/render/intern
 )
 
@@ -61,10 +56,15 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
 )
 
 add_definitions(${GL_DEFINITIONS})

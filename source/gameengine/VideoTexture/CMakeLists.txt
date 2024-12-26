@@ -12,20 +12,14 @@ set(INC
   ../Rasterizer
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
-  ../../blender/blenkernel
-  ../../blender/blentranslation
-  ../../blender/bmesh
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee
   ../../blender/editors/include
-  ../../blender/gpu
-  ../../blender/imbuf
   ../../blender/imbuf/movie/intern
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
-  ../../blender/render
   ../../../intern/decklink
   ../../../intern/gpudirect
   ../../../intern/atomic
@@ -80,10 +74,16 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
   ge_scenegraph
 )
 
