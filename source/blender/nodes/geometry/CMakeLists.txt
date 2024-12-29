@@ -8,8 +8,6 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../geometry
-  ../../imbuf/movie
   ../../makesrna
   ../../modifiers
   ../../io/common
@@ -247,9 +245,10 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::functions
-  bf_geometry
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic

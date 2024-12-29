@@ -4,12 +4,10 @@
 
 set(INC
   PUBLIC .
-  ../draw
   ../ikplugin
   ../makesrna
   ../modifiers
   ../nodes/geometry/include
-  ../sequencer
   ../shader_fx
   ../simulation
   ../windowmanager
@@ -567,13 +565,13 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_draw
+  PRIVATE bf::draw
   PRIVATE bf::extern::curve_fit_nd
   PRIVATE bf::functions
   PRIVATE bf::gpu
   bf_ikplugin
   PRIVATE bf::imbuf
-  bf::imbuf_movie
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
@@ -584,6 +582,7 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::render
   bf_rna
+  PRIVATE bf::sequencer
   bf_shader_fx
   bf_simulation
   PRIVATE bf::extern::fmtlib

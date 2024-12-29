@@ -6,8 +6,6 @@ set(INC
   ../include
   ../io
   ../../compositor
-  ../../draw
-  ../../geometry
   ../../makesrna
 
   # RNA_prototypes.hh
@@ -50,8 +48,10 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   bf_editor_screen
   PRIVATE bf::functions
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc

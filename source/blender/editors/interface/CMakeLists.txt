@@ -6,8 +6,6 @@ set(INC
   .
   ../asset
   ../include
-  ../../draw
-  ../../imbuf/movie
   ../../makesrna
   ../../python
   ../../../../intern/ghost
@@ -99,12 +97,14 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   bf_editor_datafiles
   bf_editor_id_management
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   PRIVATE bf::nodes

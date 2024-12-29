@@ -5,10 +5,8 @@
 set(INC
   PUBLIC .
   ../animrig
-  ../draw
   ../makesrna
   ../modifiers
-  ../sequencer
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -152,9 +150,11 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::functions
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 
