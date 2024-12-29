@@ -40,14 +40,10 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
-  ../../blender/draw
-  ../../blender/draw/engines/eevee/
   ../../blender/editors/include
-  ../../blender/imbuf/movie
   ../../blender/makesrna
   ../../blender/python
   ../../blender/sequencer
-  ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
   ../../../intern/memutil
   # RNA_prototypes.h
@@ -77,9 +73,11 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
+  PRIVATE bf::draw
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_ghost

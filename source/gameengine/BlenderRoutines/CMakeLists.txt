@@ -15,7 +15,6 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
-  ../../blender/draw/engines/eevee/
   ../../blender/editors/include
   ../../blender/makesrna
   ../../../intern/termcolor

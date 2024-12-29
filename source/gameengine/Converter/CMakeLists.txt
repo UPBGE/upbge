@@ -41,8 +41,6 @@ set(INC
   ../SceneGraph
   ../VideoTexture
   ../../blender
-  ../../blender/draw/engines/eevee
-  ../../blender/draw/intern
   ../../blender/ikplugin
   ../../blender/makesrna
   ../../../intern/termcolor
@@ -96,6 +94,7 @@ set(LIB
   PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
+  PRIVATE bf::draw
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::imbuf

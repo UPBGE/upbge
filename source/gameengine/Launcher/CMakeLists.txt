@@ -37,8 +37,6 @@ set(INC
   ../Rasterizer
   ../SceneGraph
   ../VideoTexture
-  ../../blender/draw/engines/eevee/
-  ../../blender/draw/intern
   ../../blender/makesrna
   ../../../intern/ghost
   ../../../intern/termcolor
@@ -69,6 +67,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render

@@ -33,11 +33,8 @@ set(INC
   ../SceneGraph
   ../GameLogic
   ../../blender/blenkernel
-  ../../blender/draw
   ../../blender/draw/intern
-  ../../blender/draw/engines/eevee/
   ../../blender/makesrna
-  ../../blender/render/intern
   ../../../intern/termcolor
 )
 

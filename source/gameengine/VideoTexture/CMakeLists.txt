@@ -12,9 +12,6 @@ set(INC
   ../Rasterizer
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
-  ../../blender/draw
-  ../../blender/draw/intern
-  ../../blender/draw/engines/eevee
   ../../blender/editors/include
   ../../blender/imbuf/movie/intern
   ../../blender/makesrna
@@ -80,6 +77,7 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc

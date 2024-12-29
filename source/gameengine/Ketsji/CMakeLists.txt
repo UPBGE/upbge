@@ -38,16 +38,13 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender
-  ../../blender/draw
   ../../blender/draw/intern
-  ../../blender/draw/engines/eevee
   ../../blender/editors/include
   ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
   ../../blender/python/mathutils
   ../../blender/python/intern
-  ../../blender/render/intern/
   ../../../intern/ghost
 )
 
@@ -180,6 +177,7 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog

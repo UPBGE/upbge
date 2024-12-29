@@ -34,10 +34,8 @@ set(INC
   ../../Physics/Common
   # >>>
   ../../SceneGraph
-  ../../../blender/draw
   ../../../blender/draw/intern
   ../../../blender/makesrna
-  ../../../blender/render/intern
 )
 
 set(INC_SYS
@@ -62,6 +60,7 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
