@@ -34,7 +34,6 @@ set(INC
   ../GameLogic
   ../../blender/blenkernel
   ../../blender/draw/intern
-  ../../blender/makesrna
   ../../../intern/termcolor
 )
 
@@ -110,6 +109,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
+  PRIVATE bf::rna
   bf_intern_moto
   ge_rasterizer_opengl
 )

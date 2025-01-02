@@ -14,7 +14,6 @@ set(INC
   ../SceneGraph
   ../../blender/editors/include
   ../../blender/imbuf/movie/intern
-  ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
   ../../../intern/decklink
@@ -82,6 +81,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
+  PRIVATE bf::rna
   ge_scenegraph
 )
 

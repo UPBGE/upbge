@@ -41,13 +41,10 @@ set(INC
   ../SceneGraph
   ../../blender
   ../../blender/editors/include
-  ../../blender/makesrna
   ../../blender/python
   ../../blender/sequencer
   ../../blender/windowmanager/message_bus
   ../../../intern/memutil
-  # RNA_prototypes.h
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -82,6 +79,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   bf_intern_ghost
   PRIVATE bf::render
+  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
