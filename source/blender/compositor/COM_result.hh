@@ -300,23 +300,6 @@ class Result {
    * for more information. */
   RealizationOptions &get_realization_options();
 
-  /* Returns the single value of the result. */
-  float get_float_value() const;
-  float4 get_vector_value() const;
-  float4 get_color_value() const;
-  float2 get_float2_value() const;
-  float3 get_float3_value() const;
-  int2 get_int2_value() const;
-
-  /* Returns the single value of the result, but returns a default value if the result is not a
-   * single value result. */
-  float get_float_value_default(float default_value) const;
-  float4 get_vector_value_default(const float4 &default_value) const;
-  float4 get_color_value_default(const float4 &default_value) const;
-  float2 get_float2_value_default(const float2 &default_value) const;
-  float3 get_float3_value_default(const float3 &default_value) const;
-  int2 get_int2_value_default(const int2 &default_value) const;
-
   /* Set the single value of the result to the given value, which also involves setting the single
    * pixel in the texture to that value. See the class description for more information. */
   void set_float_value(float value);
@@ -392,6 +375,11 @@ class Result {
   /* Gets the single value stored in the result. Assumes the result stores a value of the given
    * template type. */
   template<typename T> T get_single_value() const;
+
+  /* Gets the single value stored in the result, if the result is not a single value, the given
+   * default value is returned. Assumes the result stores a value of the same type as the template
+   * type. */
+  template<typename T> T get_single_value_default(const T &default_value) const;
 
   /* Loads the pixel at the given texel coordinates. Assumes the result stores a value of the given
    * template type. If the CouldBeSingleValue template argument is true and the result is a single
@@ -564,6 +552,14 @@ template<typename T> inline T Result::get_single_value() const
   else {
     return T(0);
   }
+}
+
+template<typename T> inline T Result::get_single_value_default(const T &default_value) const
+{
+  if (this->is_single_value()) {
+    return this->get_single_value<T>();
+  }
+  return default_value;
 }
 
 template<typename T, bool CouldBeSingleValue> inline T Result::load_pixel(const int2 &texel) const

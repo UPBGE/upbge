@@ -9,8 +9,6 @@ set(INC
   metal
   opengl
   vulkan
-  ../makesrna
-  ../render # UPBGE
 
   # For theme color access.
   ../editors/include
@@ -387,6 +385,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
+  PRIVATE bf::rna
 )
 
 # Select Backend source based on availability

@@ -857,8 +857,6 @@ class CompositorDenoisePerformanceButtonsPanel:
         layout.use_property_decorate = False
 
         col = layout.column()
-        row = col.row()
-
         col.prop(rd, "compositor_denoise_preview_quality", text="Preview Quality")
         col.prop(rd, "compositor_denoise_final_quality", text="Final Quality")
 
