@@ -16,6 +16,7 @@ set(INC
   ../SceneGraph
   ../../blender
   ../../blender/editors/include
+  ../../blender/makesrna
   ../../../intern/termcolor
   ../../../intern/ghost
 )
@@ -39,7 +40,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   ge_ketsji
   ge_common

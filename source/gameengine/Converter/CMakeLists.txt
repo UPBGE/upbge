@@ -42,7 +42,10 @@ set(INC
   ../VideoTexture
   ../../blender
   ../../blender/ikplugin
+  ../../blender/makesrna
   ../../../intern/termcolor
+  # RNA_prototypes.h
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -97,7 +100,6 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   ge_physics_dummy
   ge_physics_bullet

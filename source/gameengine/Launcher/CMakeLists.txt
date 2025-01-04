@@ -37,6 +37,7 @@ set(INC
   ../Rasterizer
   ../SceneGraph
   ../VideoTexture
+  ../../blender/makesrna
   ../../../intern/ghost
   ../../../intern/termcolor
 )
@@ -70,7 +71,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   bf_intern_moto
   ge_expressions

@@ -40,6 +40,7 @@ set(INC
   ../../blender
   ../../blender/draw/intern
   ../../blender/editors/include
+  ../../blender/makesrna
   ../../blender/python
   ../../blender/python/generic
   ../../blender/python/mathutils
@@ -182,7 +183,6 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   ge_converter
   ge_logic_bricks

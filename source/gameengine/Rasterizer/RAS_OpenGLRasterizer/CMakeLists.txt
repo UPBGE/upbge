@@ -35,6 +35,7 @@ set(INC
   # >>>
   ../../SceneGraph
   ../../../blender/draw/intern
+  ../../../blender/makesrna
 )
 
 set(INC_SYS
@@ -63,7 +64,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
 )
 
 add_definitions(${GL_DEFINITIONS})
