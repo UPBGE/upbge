@@ -21,7 +21,6 @@
 #include "usd_reader_xform.hh"
 #include "usd_utils.hh"
 
-#include <pxr/pxr.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
 #include <pxr/usd/usdGeom/capsule.h>
@@ -180,13 +179,17 @@ static void find_prefix_to_skip(pxr::UsdStageRefPtr stage, ImportSettings &setti
 
 USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
                                const USDImportParams &params,
-                               std::function<CacheFile *()> get_cache_file_fn)
+                               const std::function<CacheFile *()> &get_cache_file_fn)
     : stage_(stage), params_(params)
 {
   convert_to_z_up(stage_, settings_);
   find_prefix_to_skip(stage_, settings_);
   settings_.get_cache_file = get_cache_file_fn;
   settings_.stage_meters_per_unit = pxr::UsdGeomGetStageMetersPerUnit(stage);
+  settings_.scene_scale = params.scale;
+  if (params.apply_unit_conversion_scale) {
+    settings_.scene_scale *= settings_.stage_meters_per_unit;
+  }
 }
 
 USDStageReader::~USDStageReader()

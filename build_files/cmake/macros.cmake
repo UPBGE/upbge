@@ -1486,8 +1486,8 @@ macro(windows_process_platform_bundled_libraries library_deps)
         set(next_library_mode "${library_upper}")
       else()
         windows_install_shared_manifest(
-            FILES ${library}
-            ${next_library_mode}
+          FILES ${library}
+          ${next_library_mode}
         )
         set(next_library_mode "ALL")
       endif()

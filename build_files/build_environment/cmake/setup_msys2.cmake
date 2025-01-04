@@ -22,13 +22,13 @@ macro(download_package package_name)
   set(_final_filename "${DOWNLOAD_DIR}/${_file_name}")
   set(MSYS2_${package_name}_FILE ${_final_filename})
   if(NOT EXISTS "${_final_filename}")
-	if(MSYS2_USE_UPSTREAM_PACKAGES)
-		set(_final_url ${URI})
-	else()
-		set(_final_url "https://projects.blender.org/blender/lib-windows_x64/media/branch/build_environment/${_file_name}")
-	endif()
-	message("Downloading ${_final_filename} from ${_final_url}")
-	file(
+    if(MSYS2_USE_UPSTREAM_PACKAGES)
+      set(_final_url ${URI})
+    else()
+      set(_final_url "https://projects.blender.org/blender/lib-windows_x64/media/branch/build_environment/${_file_name}")
+    endif()
+    message("Downloading ${_final_filename} from ${_final_url}")
+    file(
       DOWNLOAD ${_final_url} ${_final_filename}
       TIMEOUT 1800  # seconds
       EXPECTED_HASH SHA1=${HASH}

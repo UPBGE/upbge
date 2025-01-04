@@ -907,7 +907,7 @@ mark_as_advanced(WITH_SYSTEM_PYTHON_TESTS)
 # which may differ from the OS default python version.
 # And it would set that global 'python3 exec path' CMake value for all CMake scripts, which could have
 # unexpected and dangerous side effects.
-# So this has to be set explicitely for all builders.
+# So this has to be set explicitly for all builders.
 set(TEST_SYSTEM_PYTHON_EXE "" CACHE PATH "Python executable used to run 'system python' tests")
 mark_as_advanced(TEST_SYSTEM_PYTHON_EXE)
 
@@ -936,7 +936,7 @@ if(POLICY CMP0119)
   option(WITH_GPU_SHADER_CPP_COMPILATION "\
   Compiler shaders using C++. \
   Allows testing Metal compilation on other platform and enable C++ IDE support for shader code"
-  OFF
+    OFF
   )
   mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
 else()
@@ -1024,7 +1024,7 @@ set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
 Build and link with code coverage support (only for Debug targets)."
-OFF
+  OFF
 )
 mark_as_advanced(WITH_COMPILER_CODE_COVERAGE)
 
@@ -2284,8 +2284,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       C_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
     )
 
-  add_check_cxx_compiler_flags(
-    CXX_WARNINGS
+    add_check_cxx_compiler_flags(
+      CXX_WARNINGS
       CXX_WARN_CLANG_CL_W3 /W3
       CXX_WARN_CLANG_CL_C++98_COMPAT -Wno-c++98-compat # 352692
       CXX_WARN_CLANG_CL_OLD_STYLE_CAST -Wno-old-style-cast # 178608
@@ -2604,8 +2604,8 @@ if(WITH_COMPILER_SHORT_FILE_MACRO)
   if(C_MACRO_PREFIX_MAP AND CXX_MACRO_PREFIX_MAP)
     if(APPLE)
       if(XCODE AND ${XCODE_VERSION} VERSION_LESS 12.0)
-      # Developers may have say LLVM Clang-10.0.1 toolchain (which supports the flag)
-      # with Xcode-11 (the Clang of which doesn't support the flag).
+        # Developers may have say LLVM Clang-10.0.1 toolchain (which supports the flag)
+        # with Xcode-11 (the Clang of which doesn't support the flag).
         message(
           WARNING
           "-fmacro-prefix-map flag is NOT supported by Clang shipped with Xcode-${XCODE_VERSION}."

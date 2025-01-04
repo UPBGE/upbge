@@ -9,6 +9,7 @@ set(INC
   metal
   opengl
   vulkan
+  ../makesrna
 
   # For theme color access.
   ../editors/include
@@ -385,7 +386,6 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
-  PRIVATE bf::rna
 )
 
 # Select Backend source based on availability
@@ -761,7 +761,7 @@ target_link_libraries(bf_gpu PUBLIC
 )
 
 if(WITH_OPENGL_BACKEND AND UNIX)
-target_link_libraries(bf_gpu PUBLIC rt)
+  target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
 if(WITH_OPENCOLORIO)

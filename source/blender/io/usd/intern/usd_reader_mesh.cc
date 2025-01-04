@@ -9,7 +9,6 @@
 #include "usd.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
-#include "usd_hook.hh"
 #include "usd_mesh_utils.hh"
 #include "usd_reader_material.hh"
 #include "usd_skel_convert.hh"
@@ -59,8 +58,10 @@ static const pxr::TfToken UVMap("UVMap", pxr::TfToken::Immortal);
 static const pxr::TfToken normalsPrimvar("normals", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
+namespace blender::io::usd {
+
 namespace utils {
-using namespace blender::io::usd;
+
 static pxr::UsdShadeMaterial compute_bound_material(const pxr::UsdPrim &prim,
                                                     eUSDMtlPurpose mtl_purpose)
 {
@@ -93,11 +94,10 @@ static pxr::UsdShadeMaterial compute_bound_material(const pxr::UsdPrim &prim,
 static void assign_materials(Main *bmain,
                              Object *ob,
                              const blender::Map<pxr::SdfPath, int> &mat_index_map,
-                             const blender::io::usd::USDImportParams &params,
+                             const USDImportParams &params,
                              pxr::UsdStageRefPtr stage,
-                             const blender::io::usd::ImportSettings &settings)
+                             const ImportSettings &settings)
 {
-  using namespace blender::io::usd;
   if (!(stage && bmain && ob)) {
     return;
   }
@@ -109,7 +109,7 @@ static void assign_materials(Main *bmain,
   USDMaterialReader mat_reader(params, bmain);
 
   for (const auto item : mat_index_map.items()) {
-    Material *assigned_mat = blender::io::usd::find_existing_material(
+    Material *assigned_mat = find_existing_material(
         item.key, params, settings.mat_name_to_mat, settings.usd_path_to_mat_name);
     if (!assigned_mat) {
       /* Blender material doesn't exist, so create it now. */
@@ -170,8 +170,6 @@ static void assign_materials(Main *bmain,
 
 }  // namespace utils
 
-namespace blender::io::usd {
-
 void USDMeshReader::create_object(Main *bmain, const double /*motionSampleTime*/)
 {
   Mesh *mesh = BKE_mesh_add(bmain, name_.c_str());
@@ -222,7 +220,7 @@ void USDMeshReader::read_object_data(Main *bmain, const double motionSampleTime)
   }
 
   if (import_params_.import_skeletons) {
-    import_mesh_skel_bindings(bmain, object_, prim_, reports());
+    import_mesh_skel_bindings(object_, prim_, reports());
   }
 
   USDXformReader::read_object_data(bmain, motionSampleTime);
@@ -540,7 +538,8 @@ void USDMeshReader::process_normals_vertex_varying(Mesh *mesh)
   }
 
   BLI_STATIC_ASSERT(sizeof(normals_[0]) == sizeof(float3), "Expected float3 normals size");
-  BKE_mesh_set_custom_normals_from_verts(mesh, reinterpret_cast<float(*)[3]>(normals_.data()));
+  bke::mesh_set_custom_normals_from_verts(
+      *mesh, {reinterpret_cast<float3 *>(normals_.data()), int64_t(normals_.size())});
 }
 
 void USDMeshReader::process_normals_face_varying(Mesh *mesh) const
@@ -575,7 +574,7 @@ void USDMeshReader::process_normals_face_varying(Mesh *mesh) const
     }
   }
 
-  BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(corner_normals.data()));
+  bke::mesh_set_custom_normals(*mesh, corner_normals);
 }
 
 void USDMeshReader::process_normals_uniform(Mesh *mesh) const
@@ -599,7 +598,7 @@ void USDMeshReader::process_normals_uniform(Mesh *mesh) const
     }
   }
 
-  BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(corner_normals.data()));
+  bke::mesh_set_custom_normals(*mesh, corner_normals);
 }
 
 void USDMeshReader::read_mesh_sample(ImportSettings *settings,

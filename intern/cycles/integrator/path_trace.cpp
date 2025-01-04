@@ -6,16 +6,18 @@
 
 #include "device/cpu/device.h"
 #include "device/device.h"
+
 #include "integrator/pass_accessor.h"
 #include "integrator/path_trace_display.h"
 #include "integrator/path_trace_tile.h"
 #include "integrator/render_scheduler.h"
+
 #include "scene/pass.h"
 #include "scene/scene.h"
+
 #include "session/tile.h"
-#include "util/algorithm.h"
+
 #include "util/log.h"
-#include "util/math.h"
 #include "util/progress.h"
 #include "util/tbb.h"
 #include "util/time.h"
@@ -41,8 +43,8 @@ PathTrace::PathTrace(Device *device,
     vector<DeviceInfo> cpu_devices;
     device_cpu_info(cpu_devices);
 
-    cpu_device_.reset(
-        device_cpu_create(cpu_devices[0], device->stats, device->profiler, device_->headless));
+    cpu_device_ = device_cpu_create(
+        cpu_devices[0], device->stats, device->profiler, device_->headless);
   }
 
   /* Create path tracing work in advance, so that it can be reused by incremental sampling as much
@@ -159,7 +161,7 @@ void PathTrace::render(const RenderWork &render_work)
 {
   /* Indicate that rendering has started and that it can be requested to cancel. */
   {
-    thread_scoped_lock lock(render_cancel_.mutex);
+    const thread_scoped_lock lock(render_cancel_.mutex);
     if (render_cancel_.is_requested) {
       return;
     }
@@ -171,7 +173,7 @@ void PathTrace::render(const RenderWork &render_work)
   /* Indicate that rendering has finished, making it so thread which requested `cancel()` can carry
    * on. */
   {
-    thread_scoped_lock lock(render_cancel_.mutex);
+    const thread_scoped_lock lock(render_cancel_.mutex);
     render_cancel_.is_rendering = false;
     render_cancel_.condition.notify_one();
   }
@@ -302,7 +304,7 @@ void PathTrace::update_allocated_work_buffer_params()
                                });
 }
 
-static BufferParams scale_buffer_params(const BufferParams &params, int resolution_divider)
+static BufferParams scale_buffer_params(const BufferParams &params, const int resolution_divider)
 {
   BufferParams scaled_params = params;
 
@@ -496,7 +498,7 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
 
   Device *effective_denoise_device;
   Device *cpu_fallback_device = cpu_device_.get();
-  DenoiseParams effective_denoise_params = get_effective_denoise_params(
+  const DenoiseParams effective_denoise_params = get_effective_denoise_params(
       denoise_device_, cpu_fallback_device, params, effective_denoise_device);
 
   bool need_to_recreate_denoiser = false;
@@ -692,7 +694,7 @@ void PathTrace::update_display(const RenderWork &render_work)
   if (output_driver_) {
     VLOG_WORK << "Invoke buffer update callback.";
 
-    PathTraceTile tile(*this);
+    const PathTraceTile tile(*this);
     output_driver_->update_render_tile(tile);
   }
 
@@ -874,7 +876,7 @@ void PathTrace::tile_buffer_write()
     return;
   }
 
-  PathTraceTile tile(*this);
+  const PathTraceTile tile(*this);
   output_driver_->write_render_tile(tile);
 }
 
@@ -894,7 +896,7 @@ void PathTrace::tile_buffer_read()
   });
 
   /* Read (subset of) passes from output driver. */
-  PathTraceTile tile(*this);
+  const PathTraceTile tile(*this);
   if (output_driver_->read_render_tile(tile)) {
     /* Copy buffers to device again. */
     parallel_for_each(path_trace_works_, [](unique_ptr<PathTraceWork> &path_trace_work) {
@@ -1006,11 +1008,11 @@ static string get_layer_view_name(const RenderBuffers &buffers)
 {
   string result;
 
-  if (buffers.params.layer.size()) {
+  if (!buffers.params.layer.empty()) {
     result += string(buffers.params.layer);
   }
 
-  if (buffers.params.view.size()) {
+  if (!buffers.params.view.empty()) {
     if (!result.empty()) {
       result += ", ";
     }

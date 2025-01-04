@@ -5,6 +5,7 @@
 set(INC
   ../blender/editors/include
   ../blender/io/usd
+  ../blender/makesrna
 )
 
 set(LIB
@@ -19,7 +20,6 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -290,7 +290,7 @@ if(WITH_BUILDINFO)
       -DBUILD_DATE=${BUILDINFO_OVERRIDE_DATE}
       -DBUILD_TIME=${BUILDINFO_OVERRIDE_TIME}
       -P ${CMAKE_SOURCE_DIR}/build_files/cmake/buildinfo.cmake
-    )
+  )
 
   # `buildinfo.h` is a generated file.
   set_source_files_properties(
@@ -566,17 +566,19 @@ endif()
 if(WIN32)
   if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/osl/bin/oslquery.dll
-            ${LIBDIR}/osl/bin/oslcomp.dll
-            ${LIBDIR}/osl/bin/oslexec.dll
-            ${LIBDIR}/osl/bin/oslnoise.dll
+      FILES
+        ${LIBDIR}/osl/bin/oslquery.dll
+        ${LIBDIR}/osl/bin/oslcomp.dll
+        ${LIBDIR}/osl/bin/oslexec.dll
+        ${LIBDIR}/osl/bin/oslnoise.dll
       RELEASE
     )
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/osl/bin/oslquery_d.dll
-            ${LIBDIR}/osl/bin/oslcomp_d.dll
-            ${LIBDIR}/osl/bin/oslexec_d.dll
-            ${LIBDIR}/osl/bin/oslnoise_d.dll
+      FILES
+        ${LIBDIR}/osl/bin/oslquery_d.dll
+        ${LIBDIR}/osl/bin/oslcomp_d.dll
+        ${LIBDIR}/osl/bin/oslexec_d.dll
+        ${LIBDIR}/osl/bin/oslnoise_d.dll
       DEBUG
     )
   endif()
@@ -1738,7 +1740,7 @@ if(DEFINED TARGETDIR_TEXT)
   install(
     DIRECTORY ${CMAKE_SOURCE_DIR}/release/license
     DESTINATION "${TARGETDIR_TEXT}"
-)
+  )
 endif()
 
 # Create a system extensions directory (users or administrators may populate this).
