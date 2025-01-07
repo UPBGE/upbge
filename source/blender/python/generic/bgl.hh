@@ -13,7 +13,7 @@ PyObject *BPyInit_bgl();
 /* This API is deprecated, currently these are only used in `bgl.cc`
  * and there should be no reason to make use of them in the future.
  * Use a define to indicate they are part of the public API which is being phased out. */
-#ifdef USE_BGL_DEPRECATED_API
+//#ifdef USE_BGL_DEPRECATED_API
 
 /**
  * Buffer Object
@@ -56,4 +56,4 @@ struct Buffer *BGL_MakeBuffer(int type,
 
 int BGL_typeSize(int type);
 
-#endif /* USE_BGL_DEPRECATED_API */
+//#endif /* USE_BGL_DEPRECATED_API */

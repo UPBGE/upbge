@@ -11,7 +11,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "bgl.h"
+#include "bgl.hh"
 
 #include "Exception.h"
 #include "FilterSource.h"

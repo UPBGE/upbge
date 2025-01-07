@@ -58,7 +58,6 @@
 #  include "DNA_ID.h"
 #  include "DNA_scene_types.h"
 #  include "MEM_guardedalloc.h"
-#  include "bgl.h"
 #  include "bl_math_py_api.hh"
 #  include "blf_py_api.hh"
 #  include "bmesh/bmesh_py_api.hh"

@@ -9,7 +9,7 @@
 
 #include <epoxy/gl.h>
 #include "MEM_guardedalloc.h"
-#include "bgl.h"
+#include "bgl.hh"
 
 #include "Exception.h"
 
