@@ -624,7 +624,7 @@ static void do_versions_socket_default_value_259(bNodeSocket *sock)
   }
 }
 
-static bool seq_sound_proxy_update_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_sound_proxy_update_cb(Strip *seq, void * /*user_data*/)
 {
 #define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
 #define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
@@ -637,13 +637,13 @@ static bool seq_sound_proxy_update_cb(Sequence *seq, void * /*user_data*/)
   return true;
 }
 
-static bool seq_set_volume_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_set_volume_cb(Strip *seq, void * /*user_data*/)
 {
   seq->volume = 1.0f;
   return true;
 }
 
-static bool seq_set_sat_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_set_sat_cb(Strip *seq, void * /*user_data*/)
 {
   if (seq->sat == 0.0f) {
     seq->sat = 1.0f;
@@ -651,7 +651,7 @@ static bool seq_set_sat_cb(Sequence *seq, void * /*user_data*/)
   return true;
 }
 
-static bool seq_set_pitch_cb(Sequence *seq, void * /*user_data*/)
+static bool seq_set_pitch_cb(Strip *seq, void * /*user_data*/)
 {
   seq->pitch = 1.0f;
   return true;

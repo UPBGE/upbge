@@ -138,9 +138,7 @@ void ShadingView::render()
                                   rt_buffer_opaque_,
                                   rt_buffer_refract_);
 
-  if (DRW_state_draw_background()) { //UPBGE: for overlay pass
-    inst_.pipelines.background.render(render_view_);
-  }
+  inst_.pipelines.background.render(render_view_, combined_fb_);
 
   inst_.gbuffer.release();
 

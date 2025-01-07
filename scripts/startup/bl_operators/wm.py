@@ -2716,7 +2716,7 @@ class BatchRenameAction(bpy.types.PropertyGroup):
 
     # We could split these into sub-properties, however it's not so important.
 
-    # type: 'SET'.
+    # Used when `type == 'SET'`.
     set_name: StringProperty(name="Name")
     set_method: EnumProperty(
         name="Method",
@@ -2728,7 +2728,7 @@ class BatchRenameAction(bpy.types.PropertyGroup):
         default='SUFFIX',
     )
 
-    # type: 'STRIP'.
+    # Used when `type == 'STRIP'`.
     strip_chars: EnumProperty(
         name="Strip Characters",
         options={'ENUM_FLAG'},
@@ -2739,7 +2739,7 @@ class BatchRenameAction(bpy.types.PropertyGroup):
         ),
     )
 
-    # type: 'STRIP'.
+    # Used when `type == 'STRIP'`.
     strip_part: EnumProperty(
         name="Strip Part",
         options={'ENUM_FLAG'},
@@ -2749,7 +2749,7 @@ class BatchRenameAction(bpy.types.PropertyGroup):
         ),
     )
 
-    # type: 'REPLACE'.
+    # Used when `type == 'REPLACE'`.
     replace_src: StringProperty(name="Find")
     replace_dst: StringProperty(name="Replace")
     replace_match_case: BoolProperty(name="Case Sensitive")
@@ -2762,7 +2762,7 @@ class BatchRenameAction(bpy.types.PropertyGroup):
         description="Use regular expression for the replacement text (supporting groups)",
     )
 
-    # type: 'CASE'.
+    # Used when `type == 'CASE'`.
     case_method: EnumProperty(
         name="Case",
         items=(

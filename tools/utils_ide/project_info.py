@@ -168,9 +168,11 @@ def cmake_advanced_info() -> (
     from xml.dom.minidom import parse
     tree = parse(project_path)
 
-    # to check on nicer xml
-    # f = open(".cproject_pretty", 'w')
-    # f.write(tree.toprettyxml(indent="    ", newl=""))
+    # Enable to check on nicer XML.
+    use_pretty_xml = False
+    if use_pretty_xml:
+        with open(".cproject_pretty", 'w', encoding="utf-8") as fh:
+            fh.write(tree.toprettyxml(indent="    ", newl=""))
 
     ELEMENT_NODE = tree.ELEMENT_NODE
 
@@ -187,12 +189,6 @@ def cmake_advanced_info() -> (
 
                 moduleId = substorage.attributes["moduleId"].value
 
-                # org.eclipse.cdt.core.settings
-                # org.eclipse.cdt.core.language.mapping
-                # org.eclipse.cdt.core.externalSettings
-                # org.eclipse.cdt.core.pathentry
-                # org.eclipse.cdt.make.core.buildtargets
-
                 if moduleId == "org.eclipse.cdt.core.pathentry":
                     for path in substorage.childNodes:
                         if path.nodeType != ELEMENT_NODE:
@@ -200,10 +196,10 @@ def cmake_advanced_info() -> (
                         kind = path.attributes["kind"].value
 
                         if kind == "mac":
-                            # <pathentry kind="mac" name="PREFIX" path="" value="&quot;/opt/blender25&quot;"/>
+                            # `<pathentry kind="mac" name="PREFIX" path="" value="&quot;/opt/blender25&quot;"/>`
                             defines.append((path.attributes["name"].value, path.attributes["value"].value))
                         elif kind == "inc":
-                            # <pathentry include="/data/src/blender/blender/source/blender/editors/include" kind="inc" path="" system="true"/>
+                            # `<pathentry include="/path/to/include" kind="inc" path="" system="true"/>`
                             includes.append(path.attributes["include"].value)
                         else:
                             pass
@@ -214,14 +210,14 @@ def cmake_advanced_info() -> (
 def cmake_cache_var(var: str) -> str | None:
     with open(os.path.join(CMAKE_DIR, "CMakeCache.txt"), encoding='utf-8') as cache_file:
         lines = [
-            l_strip for l in cache_file
-            if (l_strip := l.strip())
-            if not l_strip.startswith(("//", "#"))
+            line_strip for line in cache_file
+            if (line_strip := line.strip())
+            if not line_strip.startswith(("//", "#"))
         ]
 
-    for l in lines:
-        if l.split(":")[0] == var:
-            return l.split("=", 1)[-1]
+    for line in lines:
+        if line.split(":")[0] == var:
+            return line.split("=", 1)[-1]
     return None
 
 
@@ -238,9 +234,8 @@ def cmake_compiler_defines() -> list[str] | None:
 
     os.system("%s -dM -E %s > %s" % (compiler, temp_c, temp_def))
 
-    temp_def_file = open(temp_def)
-    lines = [l.strip() for l in temp_def_file if l.strip()]
-    temp_def_file.close()
+    with open(temp_def, "r", encoding="utf-8") as temp_def_fh:
+        lines = [line.strip() for line in temp_def_fh if line.strip()]
 
     os.remove(temp_c)
     os.remove(temp_def)

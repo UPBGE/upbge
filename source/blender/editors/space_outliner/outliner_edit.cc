@@ -341,8 +341,8 @@ static void do_item_rename(ARegion *region,
   {
     BKE_report(reports, RPT_INFO, "Not an editable name");
   }
-  else if (ELEM(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP)) {
-    BKE_report(reports, RPT_INFO, "Sequence names are not editable from the Outliner");
+  else if (ELEM(tselem->type, TSE_STRIP, TSE_STRIP_DATA, TSE_STRIP_DUP)) {
+    BKE_report(reports, RPT_INFO, "Strip names are not editable from the Outliner");
   }
   else if (TSE_IS_REAL_ID(tselem) && !ID_IS_EDITABLE(tselem->id)) {
     BKE_report(reports, RPT_INFO, "External library data is not editable");
@@ -806,10 +806,10 @@ static int outliner_id_copy_tag(SpaceOutliner *space_outliner,
     /* Add selected item and all of its dependencies to the copy buffer. */
     if (tselem->flag & TSE_SELECTED && ELEM(tselem->type, TSE_SOME_ID, TSE_LAYER_COLLECTION)) {
       copybuffer.id_add(tselem->id,
-                        PartialWriteContext::IDAddOptions{PartialWriteContext::IDAddOperations(
-                            PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-                            PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
-                            PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+                        PartialWriteContext::IDAddOptions{
+                            (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                             PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+                             PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
                         nullptr);
       num_ids++;
     }

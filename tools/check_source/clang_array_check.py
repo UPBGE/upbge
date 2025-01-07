@@ -13,6 +13,11 @@ Invocation:
 ... defines and includes are optional
 
 """
+__all__ = (
+    "main",
+)
+
+import sys
 
 # delay parsing functions until we need them
 USE_LAZY_INIT = True
@@ -104,7 +109,7 @@ defs_precalc = {
 import sys
 
 if 0:
-    # Examples with LLVM as the root dir: `/dsk/src/llvm`.
+    # Examples with LLVM as the root directory: `/dsk/src/llvm`.
 
     # Path containing `clang/__init__.py`.
     CLANG_BIND_DIR = "/dsk/src/llvm/tools/clang/bindings/python"
@@ -380,9 +385,15 @@ def recursive_arg_sizes(node, ):
         recursive_arg_sizes(c)
 
 
-# cache function sizes
-recursive_arg_sizes(tu.cursor)
-_defs.update(defs_precalc)
+def main() -> int:
+    # cache function sizes
+    recursive_arg_sizes(tu.cursor)
+    _defs.update(defs_precalc)
 
-# --- second pass, check against def's
-file_check_arg_sizes(tu)
+    # --- second pass, check against def's
+    file_check_arg_sizes(tu)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main)
