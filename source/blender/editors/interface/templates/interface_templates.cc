@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include "BKE_sca.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_string_ref.hh"
@@ -312,3 +313,114 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
 }
 
 /** \} */
+
+static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
+{
+  uiBut *but = static_cast<uiBut *>(arg1);
+  const int cur = POINTER_AS_INT(arg2);
+  wmWindow *win = CTX_wm_window(C);
+  const bool shift = win->eventstate->modifier & KM_SHIFT;
+
+  if (!shift) {
+    const int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
+
+    /* Normally clicking only selects one layer */
+    RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, cur, true);
+    for (int i = 0; i < tot; i++) {
+      if (i != cur) {
+        RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, i, false);
+      }
+    }
+  }
+
+  /* view3d layer change should update depsgraph (invisible object changed maybe) */
+  /* see `view3d_header.cc` */
+}
+
+void uiTemplateGameStates(uiLayout *layout,
+                          PointerRNA *ptr,
+                          const char *propname,
+                          PointerRNA *used_ptr,
+                          const char *used_propname,
+                          int active_state)
+{
+  uiLayout *uRow, *uCol;
+  PropertyRNA *prop, *used_prop = NULL;
+  int groups, cols, states;
+  int group, col, state, row;
+  int cols_per_group = 5;
+  Object *ob = (Object *)ptr->owner_id;
+
+  prop = RNA_struct_find_property(ptr, propname);
+  if (!prop) {
+    RNA_warning("states property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    return;
+  }
+
+  /* the number of states determines the way we group them
+   *	- we want 2 rows only (for now)
+   *	- the number of columns (cols) is the total number of buttons per row
+   *	  the 'remainder' is added to this, as it will be ok to have first row slightly wider if need
+   *be
+   *	- for now, only split into groups if group will have at least 5 items
+   */
+  states = RNA_property_array_length(ptr, prop);
+  cols = (states / 2) + (states % 2);
+  groups = ((cols / 2) < cols_per_group) ? (1) : (cols / cols_per_group);
+
+  if (used_ptr && used_propname) {
+    used_prop = RNA_struct_find_property(used_ptr, used_propname);
+    if (!used_prop) {
+      RNA_warning("used layers property not found: %s.%s",
+                  RNA_struct_identifier(ptr->type),
+                  used_propname);
+      return;
+    }
+
+    if (RNA_property_array_length(used_ptr, used_prop) < states)
+      used_prop = NULL;
+  }
+
+  /* layers are laid out going across rows, with the columns being divided into groups */
+
+  for (group = 0; group < groups; group++) {
+    uCol = uiLayoutColumn(layout, true);
+
+    for (row = 0; row < 2; row++) {
+      uiBlock *block;
+      uiBut *but;
+
+      uRow = uiLayoutRow(uCol, true);
+      block = uiLayoutGetBlock(uRow);
+      state = groups * cols_per_group * row + cols_per_group * group;
+
+      /* add layers as toggle buts */
+      for (col = 0; (col < cols_per_group) && (state < states); col++, state++) {
+        int icon = 0;
+        int butlay = 1 << state;
+
+        if (active_state & butlay)
+          icon = ICON_LAYER_ACTIVE;
+        else if (used_prop && RNA_property_boolean_get_index(used_ptr, used_prop, state))
+          icon = ICON_LAYER_USED;
+
+        but = uiDefIconButR_prop(block,
+                                 UI_BTYPE_ICON_TOGGLE,
+                                 0,
+                                 icon,
+                                 0,
+                                 0,
+                                 UI_UNIT_X / 2,
+                                 UI_UNIT_Y / 2,
+                                 ptr,
+                                 prop,
+                                 state,
+                                 0,
+                                 0,
+                                 BKE_sca_get_name_state(ob, state));
+        UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
+        but->type = UI_BTYPE_TOGGLE;
+      }
+    }
+  }
+}

@@ -3271,10 +3271,8 @@ void DRW_gpu_context_activate(bool drw_state)
 /****************UPBGE**************************/
 
 #include "BKE_colortools.hh"
-#include "BLF_api.hh"
 #include "BLI_link_utils.h"
-#include "GPU_immediate.hh"
-#include "GPU_matrix.hh"
+#include "BLI_linklist.h"
 #include "IMB_colormanagement.hh"
 
 /*--UPBGE Viewport Debug Drawing --*/

@@ -128,7 +128,7 @@ DefNode(ShaderNode,     SH_NODE_WAVELENGTH,         0,                      Wave
 DefNode(ShaderNode,     SH_NODE_WIREFRAME,          def_sh_tex_wireframe,   Wireframe)
 
 /* UPBGE*/
-DefNode(ShaderNode,     SH_NODE_SPRITES_ANIMATION,  0,                      SpritesAnimation, "Sprites Animation", "")
+DefNode(ShaderNode,     SH_NODE_SPRITES_ANIMATION,  0,                      SpritesAnimation)
 
 /* NOTE: #OutputFile node has special RNA setup function called in `rna_nodetree.cc`. */
 DefNode(CompositorNode, CMP_NODE_ALPHAOVER,         def_cmp_alpha_over,     AlphaOver)

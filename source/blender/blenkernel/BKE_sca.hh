@@ -27,13 +27,11 @@
 
 #pragma once
 
+#include "BKE_lib_query.hh"
+
 /** \file
  *  \ingroup bke
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct Main;
 struct Object;
@@ -108,7 +106,3 @@ void BKE_sca_controllers_id_loop(struct ListBase *contlist,
                                  SCAControllerIDFunc func,
                                  void *userdata);
 void BKE_sca_actuators_id_loop(struct ListBase *atclist, SCAActuatorIDFunc func, void *userdata);
-
-#ifdef __cplusplus
-}
-#endif
