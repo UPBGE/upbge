@@ -18,7 +18,6 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 
-#include "BLI_math_vector.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -54,14 +53,20 @@ class Slot;
  *
  * \note This wrapper class for the `bAction` DNA struct only has functionality
  * for the layered animation data. The legacy F-Curves (in `bAction::curves`)
- * and their groups (in `bAction::groups`) are not managed here. To see whether
- * an Action uses this legacy data, or has been converted to the current layered
- * structure, use `Action::is_action_legacy()` and
- * `Action::is_action_layered()`. Note that an empty Action is considered valid
- * for both.
+ * and their groups (in `bAction::groups`) are not managed here.
+ *
+ * To continue supporting legacy actions at runtime, there are
+ * `Action::is_action_legacy()` and `Action::is_action_layered()` that report
+ * whether an Action uses that legacy F-Curve data or is instead a layered
+ * Action. These methods will eventually be removed when runtime support for
+ * legacy actions is fully removed. For code in blend file loading and
+ * versioning, which will stick around for the long-term, use
+ * `animrig::versioning::action_is_layered()` instead. (Note that an empty
+ * Action is considered both a valid legacy *and* layered action.)
  *
  * \see #AnimData::action
  * \see #AnimData::slot_handle
+ * \see #animrig::versioning::action_is_layered()
  */
 class Action : public ::bAction {
  public:
@@ -89,6 +94,13 @@ class Action : public ::bAction {
    *
    * \note An empty Action is valid as both a legacy and layered Action. Code that only supports
    * layered Actions should assert on `is_action_layered()`.
+   *
+   * \note This method will be removed when runtime support for legacy Actions
+   * is removed, so only use it in such runtime code. See
+   * `BKE_action_is_layered()` for uses that should stick around for the long
+   * term, such as blend file loading and versioning.
+   *
+   * \see #BKE_action_is_layered
    */
   bool is_action_legacy() const;
   /**
@@ -98,6 +110,13 @@ class Action : public ::bAction {
    * - Evaluated for data-blocks based on their slot handle.
    *
    * \note An empty Action is valid as both a legacy and layered Action.
+   *
+   * \note This method will be removed when runtime support for legacy Actions
+   * is removed, so only use it in such runtime code. See
+   * `BKE_action_is_layered()` for uses that should stick around for the long
+   * term, such as blend file loading and versioning.
+   *
+   * \see #BKE_action_is_layered
    */
   bool is_action_layered() const;
 
@@ -856,7 +875,7 @@ class Channelbag : public ::ActionChannelbag {
   /**
    * Create an F-Curve, but only if it doesn't exist yet in this Channelbag.
    *
-   * \return the F-Curve it it was created, or nullptr if it already existed.
+   * \return the F-Curve was created, or nullptr if it already existed.
    *
    * \param bmain: Used to tag the dependency graph(s) for relationship
    * rebuilding. This is necessary when adding a new F-Curve, as a
@@ -1026,7 +1045,7 @@ class Channelbag : public ::ActionChannelbag {
   bool fcurve_assign_to_channel_group(FCurve &fcurve, bActionGroup &to_group);
 
   /**
-   * Removes the the given FCurve from the channel group it's in, if any.
+   * Removes the given FCurve from the channel group it's in, if any.
    *
    * As part of removing `fcurve` from its group, `fcurve` is moved to the end
    * of the fcurve array. However, if `fcurve` is already ungrouped then this

@@ -16,13 +16,11 @@
 
 #include <cfloat> /* FLT_MIN/MAX */
 #include <cstddef>
-#include <new>
 #include <optional>
 
 #include "RNA_path.hh"
 #include "RNA_types.hh"
 
-#include "BLI_bitmap.h"
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
@@ -9718,13 +9716,13 @@ PyDoc_STRVAR(
     "\n"
     "   Register a subclass of a Blender type class.\n"
     "\n"
-    "   :arg cls: Blender type class in:\n"
-    "      :class:`bpy.types.Panel`, :class:`bpy.types.UIList`,\n"
-    "      :class:`bpy.types.Menu`, :class:`bpy.types.Header`,\n"
-    "      :class:`bpy.types.Operator`, :class:`bpy.types.KeyingSetInfo`,\n"
-    "      :class:`bpy.types.RenderEngine`, :class:`bpy.types.AssetShelf`,\n"
-    "      :class:`bpy.types.FileHandler`\n"
-    "   :type cls: type\n"
+    "   :arg cls: Registerable Blender class type.\n"
+    "   :type cls: type[\n"
+    "      :class:`bpy.types.Panel` | :class:`bpy.types.UIList` | \n"
+    "      :class:`bpy.types.Menu` | :class:`bpy.types.Header` | \n"
+    "      :class:`bpy.types.Operator` | :class:`bpy.types.KeyingSetInfo` | \n"
+    "      :class:`bpy.types.RenderEngine` | :class:`bpy.types.AssetShelf` | \n"
+    "      :class:`bpy.types.FileHandler`]\n"
     "   :raises ValueError:\n"
     "      if the class is not a subclass of a registerable blender class.\n"
     "\n"
@@ -9906,7 +9904,12 @@ PyDoc_STRVAR(
     "   :arg cls: Blender type class, \n"
     "      see :mod:`bpy.utils.register_class` for classes which can \n"
     "      be registered.\n"
-    "   :type cls: type\n"
+    "   :type cls: type[\n"
+    "      :class:`bpy.types.Panel` | :class:`bpy.types.UIList` | \n"
+    "      :class:`bpy.types.Menu` | :class:`bpy.types.Header` | \n"
+    "      :class:`bpy.types.Operator` | :class:`bpy.types.KeyingSetInfo` | \n"
+    "      :class:`bpy.types.RenderEngine` | :class:`bpy.types.AssetShelf` | \n"
+    "      :class:`bpy.types.FileHandler`]\n"
     "\n"
     "   .. note::\n"
     "\n"

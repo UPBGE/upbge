@@ -2185,16 +2185,12 @@ static void readfile_id_runtime_data_ensure(ID &id)
   id.runtime.readfile_data = MEM_cnew<ID_Readfile_Data>(__func__);
 }
 
-/**
- * Return `id.runtime.readfile_data->tags` if the `readfile_data` is allocated,
- * otherwise return an all-zero set of tags.
- */
-static ID_Readfile_Data::Tags readfile_id_runtime_tags(ID *id)
+ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
 {
-  if (!id->runtime.readfile_data) {
+  if (!id.runtime.readfile_data) {
     return ID_Readfile_Data::Tags{};
   }
-  return id->runtime.readfile_data->tags;
+  return id.runtime.readfile_data->tags;
 }
 
 void BLO_readfile_id_runtime_data_free(ID &id)
@@ -2279,7 +2275,7 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->runtime.readfile_data->tags = id_read_tags;
   }
 
-  if (readfile_id_runtime_tags(id).is_id_link_placeholder) {
+  if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder) {
     /* For placeholder we only need to set the tag and properly initialize generic ID fields above,
      * no further data to read. */
     return;
@@ -2591,7 +2587,7 @@ static bool direct_link_id(FileData *fd,
   /* Read part of datablock that is common between real and embedded datablocks. */
   direct_link_id_common(&reader, main->curlib, id, id_old, tag, id_read_tags);
 
-  if (readfile_id_runtime_tags(id).is_id_link_placeholder) {
+  if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder) {
     /* For placeholder we only need to set the tag, no further data to read. */
     id->tag = tag;
     return true;
@@ -4255,7 +4251,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
     else {
       /* Convert any previously read weak link to regular link
        * to signal that we want to read this data-block. */
-      if (readfile_id_runtime_tags(id).is_id_link_placeholder) {
+      if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder) {
         id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       }
 
@@ -4295,7 +4291,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
       /* Convert any previously read weak link to regular link to signal that we want to read this
        * data-block. Note that this function also visits already-loaded data-blocks, and thus their
        * `readfile_data` field might already have been freed. */
-      if (readfile_id_runtime_tags(id).is_id_link_placeholder) {
+      if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder) {
         id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       }
 
@@ -4711,7 +4707,7 @@ static int has_linked_ids_to_read(Main *mainvar)
 
   while (a--) {
     LISTBASE_FOREACH (ID *, id, lbarray[a]) {
-      if (readfile_id_runtime_tags(id).is_id_link_placeholder &&
+      if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder &&
           !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
       {
         return true;
@@ -4789,7 +4785,7 @@ static void read_library_linked_ids(FileData *basefd,
 
     while (id) {
       ID *id_next = static_cast<ID *>(id->next);
-      if (readfile_id_runtime_tags(id).is_id_link_placeholder &&
+      if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder &&
           !(id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
       {
         BLI_remlink(lbarray[a], id);
@@ -4853,7 +4849,7 @@ static void read_library_clear_weak_links(FileData *basefd, ListBase *mainlist, 
 
       /* This function also visits already-loaded data-blocks, and thus their
        * `readfile_data` field might already have been freed. */
-      if (readfile_id_runtime_tags(id).is_id_link_placeholder &&
+      if (BLO_readfile_id_runtime_tags(*id).is_id_link_placeholder &&
           (id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
       {
         CLOG_INFO(&LOG, 3, "Dropping weak link to '%s'", id->name);

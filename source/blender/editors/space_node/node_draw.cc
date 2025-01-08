@@ -2381,7 +2381,7 @@ static void node_panel_toggle_button_cb(bContext *C, void *panel_state_argv, voi
 
   panel_state->flag ^= NODE_PANEL_COLLAPSED;
 
-  ED_node_tree_propagate_change(C, bmain, ntree);
+  ED_node_tree_propagate_change(bmain, ntree);
 }
 
 /* Draw panel backgrounds first, so other node elements can be rendered on top. */
@@ -3458,7 +3458,7 @@ static void node_draw_basis(const bContext &C,
                         nullptr,
                         0,
                         0,
-                        TIP_(node.typeinfo->ui_description));
+                        TIP_(node.typeinfo->ui_description.c_str()));
   UI_but_func_tooltip_set(
       but,
       [](bContext * /*C*/, void *arg, const char *tip) -> std::string {
@@ -3710,7 +3710,7 @@ static void node_draw_hidden(const bContext &C,
                         nullptr,
                         0,
                         0,
-                        TIP_(node.typeinfo->ui_description));
+                        TIP_(node.typeinfo->ui_description.c_str()));
 
   /* Outline. */
   {

@@ -2150,26 +2150,26 @@ static void ebone_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
 static void sequence_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, void *scene_ptr)
 {
   TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
-  Strip *seq = &te_strip->get_strip();
+  Strip *strip = &te_strip->get_strip();
   Scene *scene = (Scene *)scene_ptr;
   Editing *ed = SEQ_editing_get(scene);
-  if (BLI_findindex(ed->seqbasep, seq) != -1) {
+  if (BLI_findindex(ed->seqbasep, strip) != -1) {
     if (event == OL_DOP_SELECT) {
-      ED_sequencer_select_sequence_single(scene, seq, true);
+      ED_sequencer_select_sequence_single(scene, strip, true);
     }
     else if (event == OL_DOP_DESELECT) {
-      seq->flag &= ~SELECT;
+      strip->flag &= ~SELECT;
     }
     else if (event == OL_DOP_HIDE) {
-      if (!(seq->flag & SEQ_MUTE)) {
-        seq->flag |= SEQ_MUTE;
-        SEQ_relations_invalidate_dependent(scene, seq);
+      if (!(strip->flag & SEQ_MUTE)) {
+        strip->flag |= SEQ_MUTE;
+        SEQ_relations_invalidate_dependent(scene, strip);
       }
     }
     else if (event == OL_DOP_UNHIDE) {
-      if (seq->flag & SEQ_MUTE) {
-        seq->flag &= ~SEQ_MUTE;
-        SEQ_relations_invalidate_dependent(scene, seq);
+      if (strip->flag & SEQ_MUTE) {
+        strip->flag &= ~SEQ_MUTE;
+        SEQ_relations_invalidate_dependent(scene, strip);
       }
     }
   }
@@ -2722,7 +2722,7 @@ static int outliner_delete_exec(bContext *C, wmOperator *op)
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
 
-  ED_node_tree_propagate_change(C, bmain, nullptr);
+  ED_node_tree_propagate_change(bmain, nullptr);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
@@ -3021,7 +3021,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
       break;
   }
 
-  ED_node_tree_propagate_change(C, bmain, nullptr);
+  ED_node_tree_propagate_change(bmain, nullptr);
 
   /* wrong notifier still... */
   WM_event_add_notifier(C, NC_ID | NA_EDITED, nullptr);
@@ -3112,7 +3112,7 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
       break;
   }
 
-  ED_node_tree_propagate_change(C, bmain, nullptr);
+  ED_node_tree_propagate_change(bmain, nullptr);
 
   /* wrong notifier still... */
   WM_event_add_notifier(C, NC_ID | NA_EDITED, nullptr);

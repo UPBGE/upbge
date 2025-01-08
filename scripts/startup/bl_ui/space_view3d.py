@@ -1406,7 +1406,7 @@ class VIEW3D_MT_uv_map(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.menu("IMAGE_MT_uvs_unwrap")
+        layout.menu_contents("IMAGE_MT_uvs_unwrap")
 
         layout.separator()
 
@@ -3254,7 +3254,16 @@ class VIEW3D_MT_object_modifiers(Menu):
 
     def draw(self, _context):
         active_object = bpy.context.active_object
-        supported_types = {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'FONT', 'VOLUME', 'GREASEPENCIL'}
+        supported_types = {
+            'MESH',
+            'CURVE',
+            'CURVES',
+            'SURFACE',
+            'FONT',
+            'VOLUME',
+            'GREASEPENCIL',
+            'LATTICE',
+            'POINTCLOUD'}
 
         layout = self.layout
 

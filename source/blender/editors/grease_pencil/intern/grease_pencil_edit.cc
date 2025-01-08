@@ -389,7 +389,7 @@ static void GREASE_PENCIL_OT_stroke_simplify(wmOperatorType *ot)
   ot->description = "Simplify selected strokes";
 
   ot->exec = grease_pencil_stroke_simplify_exec;
-  ot->poll = editable_grease_pencil_point_selection_poll;
+  ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -2894,19 +2894,15 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
   selection.span.copy_from(dst_selected.as_span());
   selection.finish();
 
-  /* Cyclic attribute : newly created curves cannot be cyclic.
-   * NOTE: if the cyclic attribute is single and false, it can be kept this way.
-   */
-  if (src_cyclic.get_if_single().value_or(true)) {
-    dst.cyclic_for_write().drop_front(old_curves_num).fill(false);
-  }
-
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         {},
                          dst_to_src_curves,
                          dst_attributes);
+
+  /* Cyclic attribute : newly created curves cannot be cyclic. */
+  dst.cyclic_for_write().drop_front(old_curves_num).fill(false);
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Point,

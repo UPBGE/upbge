@@ -1316,7 +1316,7 @@ static const EnumPropertyItem *select_similar_type_itemf(bContext *C,
 #ifdef WITH_FREESTYLE
       const int a_end = SIMFACE_FREESTYLE;
 #else
-      const int a_end = SIMFACE_MATERIAL;
+      const int a_end = SIMFACE_SMOOTH;
 #endif
       for (a = SIMFACE_MATERIAL; a <= a_end; a++) {
         RNA_enum_items_add_value(&item, &totitem, prop_similar_types, a);
@@ -1391,7 +1391,7 @@ void MESH_OT_select_similar(wmOperatorType *ot)
 
   RNA_def_enum(ot->srna, "compare", prop_similar_compare_types, SIM_CMP_EQ, "Compare", "");
 
-  prop = RNA_def_float(ot->srna, "threshold", 0.0f, 0.0f, 1.0f, "Threshold", "", 0.0f, 1.0f);
+  prop = RNA_def_float(ot->srna, "threshold", 0.0f, 0.0f, 100000.0f, "Threshold", "", 0.0f, 1.0f);
   /* Very small values are needed sometimes, similar area of small faces for e.g: see #87823 */
   RNA_def_property_ui_range(prop, 0.0, 1.0, 0.01, 5);
 }
