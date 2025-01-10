@@ -12164,6 +12164,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeWavelength");
   define("ShaderNode", "ShaderNodeWireframe", def_sh_tex_wireframe);
 
+  define("ShaderNode", "ShaderNodeSpritesAnimation"); //UPBGE
+
   define("CompositorNode", "CompositorNodeAlphaOver", def_cmp_alpha_over);
   define("CompositorNode", "CompositorNodeAntiAliasing", def_cmp_antialiasing);
   define("CompositorNode", "CompositorNodeBilateralblur", def_cmp_bilateral_blur);

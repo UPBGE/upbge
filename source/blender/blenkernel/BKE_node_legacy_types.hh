@@ -128,6 +128,8 @@
 #define SH_NODE_TEX_GABOR 715
 #define SH_NODE_BSDF_METALLIC 716
 
+#define SH_NODE_SPRITES_ANIMATION 800 //UPBGE
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -11,6 +11,7 @@
 
 #include "BKE_image.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_material_types.h"
@@ -301,7 +302,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
         bNodeTree *ntree = bl_mat->nodetree;
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->id) {
-            if (node->type == SH_NODE_TEX_IMAGE) {
+            if (node->type_legacy == SH_NODE_TEX_IMAGE) {
               Image *ima = (Image *)node->id;
               if (ima == tex->m_imgTexture) {
                 NodeTexImage *ntex = (NodeTexImage *)node->storage;

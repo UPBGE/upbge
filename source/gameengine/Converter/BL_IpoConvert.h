@@ -40,7 +40,6 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "BKE_material.h" /* give_current_material */
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
