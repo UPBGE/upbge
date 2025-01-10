@@ -14,6 +14,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
 #include "NOD_multi_function.hh"
 #include "NOD_register.hh"
@@ -25,4 +26,4 @@
 
 #include "RNA_access.hh"
 
-void fn_node_type_base(blender::bke::bNodeType *ntype, int type, short nclass);
+void fn_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type, short nclass);

@@ -7,7 +7,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 
 #include "GEO_randomize.hh"
@@ -285,7 +285,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_CONVEX_HULL, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeConvexHull", GEO_NODE_CONVEX_HULL, NODE_CLASS_GEOMETRY);
   ntype.ui_name = "Convex Hull";
   ntype.ui_description =
       "Create a mesh that encloses all points in the input geometry with the smallest number of "

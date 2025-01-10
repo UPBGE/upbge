@@ -11,8 +11,9 @@
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_report.hh"
 
@@ -542,7 +543,7 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
 
   blender::bke::node_set_active(ntree, output);
 
-  BKE_ntree_update_main_tree(bmain_, ntree, nullptr);
+  BKE_ntree_update_after_single_tree_change(*bmain_, *ntree);
 
   /* Optionally, set the material blend mode. */
   if (params_.set_material_blend) {
@@ -1261,7 +1262,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
                                        bNode *tex_image,
                                        const ExtraLinkInfo &extra) const
 {
-  if (!(usd_shader && tex_image && tex_image->type == SH_NODE_TEX_IMAGE)) {
+  if (!(usd_shader && tex_image && tex_image->type_legacy == SH_NODE_TEX_IMAGE)) {
     return;
   }
 

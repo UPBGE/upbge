@@ -40,9 +40,9 @@ bool tex_node_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void tex_node_type_base(blender::bke::bNodeType *ntype, int type, short nclass)
+void tex_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type, short nclass)
 {
-  blender::bke::node_type_base(ntype, type, nclass);
+  blender::bke::node_type_base(ntype, idname, type, nclass);
 
   ntype->poll = tex_node_poll_default;
   ntype->insert_link = node_insert_link_default;
@@ -143,7 +143,7 @@ void ntreeTexCheckCyclics(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
 
-    if (node->type == TEX_NODE_TEXTURE && node->id) {
+    if (node->type_legacy == TEX_NODE_TEXTURE && node->id) {
       /* custom2 stops the node from rendering */
       if (node->custom1) {
         node->custom2 = 1;

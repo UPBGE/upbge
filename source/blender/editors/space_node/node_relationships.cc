@@ -16,6 +16,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_screen.hh"
@@ -37,11 +38,8 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "BLT_translation.hh"
-
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_declarations_geometry.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -219,7 +217,7 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
 
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
-  if (node->type == NODE_REROUTE) {
+  if (node->type_legacy == NODE_REROUTE) {
     return (bNodeSocket *)node->outputs.first;
   }
 
@@ -429,7 +427,7 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
                                                 bNode &viewer_node,
                                                 bNodeSocket &src_socket)
 {
-  if (viewer_node.type != GEO_NODE_VIEWER) {
+  if (viewer_node.type_legacy != GEO_NODE_VIEWER) {
     /* In viewer nodes in the compositor, only the first input should be linked to. */
     return (bNodeSocket *)viewer_node.inputs.first;
   }
@@ -456,14 +454,14 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
 
 static bool is_viewer_node(const bNode &node)
 {
-  return ELEM(node.type, CMP_NODE_VIEWER, GEO_NODE_VIEWER);
+  return ELEM(node.type_legacy, CMP_NODE_VIEWER, GEO_NODE_VIEWER);
 }
 
 static bool is_viewer_socket_in_viewer(const bNodeSocket &socket)
 {
   const bNode &node = socket.owner_node();
   BLI_assert(is_viewer_node(node));
-  if (node.typeinfo->type == GEO_NODE_VIEWER) {
+  if (node.typeinfo->type_legacy == GEO_NODE_VIEWER) {
     return true;
   }
   return socket.index() == 0;
@@ -584,7 +582,7 @@ static void finalize_viewer_link(const bContext &C,
   if (snode.edittree->type == NTREE_GEOMETRY) {
     viewer_path::activate_geometry_node(*bmain, snode, viewer_node);
   }
-  ED_node_tree_propagate_change(bmain, snode.edittree);
+  ED_node_tree_propagate_change(*bmain, snode.edittree);
 }
 
 static const bNode *find_overlapping_node(const bNodeTree &tree,
@@ -849,7 +847,7 @@ static int node_active_link_viewer_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ED_node_tree_propagate_change(CTX_data_main(C), snode.edittree);
+  ED_node_tree_propagate_change(*CTX_data_main(C), snode.edittree);
 
   return OPERATOR_FINISHED;
 }
@@ -1231,7 +1229,7 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
     BKE_ntree_update_tag_link_added(&ntree, new_link);
   }
 
-  ED_node_tree_propagate_change(bmain, &ntree);
+  ED_node_tree_propagate_change(*bmain, &ntree);
 
   /* Ensure drag-link tool-tip is disabled. */
   draw_draglink_tooltip_deactivate(region, nldrag);
@@ -1252,7 +1250,7 @@ static void node_link_cancel(bContext *C, wmOperator *op)
   snode->runtime->linkdrag.reset();
   clear_picking_highlight(&snode->edittree->links);
   BKE_ntree_update_tag_link_removed(snode->edittree);
-  ED_node_tree_propagate_change(CTX_data_main(C), snode->edittree);
+  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
 }
 
 static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cursor)
@@ -1619,7 +1617,7 @@ static int node_make_link_exec(bContext *C, wmOperator *op)
   node_deselect_all_input_sockets(node_tree, false);
   node_deselect_all_output_sockets(node_tree, false);
 
-  ED_node_tree_propagate_change(&bmain, &node_tree);
+  ED_node_tree_propagate_change(bmain, &node_tree);
 
   return OPERATOR_FINISHED;
 }
@@ -1708,7 +1706,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*node);
   }
 
-  ED_node_tree_propagate_change(CTX_data_main(C), snode.edittree);
+  ED_node_tree_propagate_change(*CTX_data_main(C), snode.edittree);
   if (found) {
     return OPERATOR_FINISHED;
   }
@@ -1735,7 +1733,7 @@ void NODE_OT_links_cut(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_KNIFE, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
@@ -1838,7 +1836,7 @@ static int mute_links_exec(bContext *C, wmOperator *op)
     }
   }
 
-  ED_node_tree_propagate_change(CTX_data_main(C), &ntree);
+  ED_node_tree_propagate_change(*CTX_data_main(C), &ntree);
   return OPERATOR_FINISHED;
 }
 
@@ -1861,7 +1859,7 @@ void NODE_OT_links_mute(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_MUTE, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
@@ -1886,7 +1884,7 @@ static int detach_links_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(CTX_data_main(C), &ntree);
+  ED_node_tree_propagate_change(*CTX_data_main(C), &ntree);
   return OPERATOR_FINISHED;
 }
 
@@ -1915,7 +1913,7 @@ static int node_parent_set_exec(bContext *C, wmOperator * /*op*/)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
   bNode *frame = bke::node_get_active(&ntree);
-  if (!frame || frame->type != NODE_FRAME) {
+  if (!frame || frame->type_legacy != NODE_FRAME) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2057,7 +2055,7 @@ static int node_join_exec(bContext *C, wmOperator * /*op*/)
   }
 
   tree_draw_order_update(ntree);
-  ED_node_tree_propagate_change(&bmain, snode.edittree);
+  ED_node_tree_propagate_change(bmain, snode.edittree);
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2438,7 +2436,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);
   }
 
-  if (node_to_insert->type != NODE_REROUTE) {
+  if (node_to_insert->type_legacy != NODE_REROUTE) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(static_cast<eNodeSocketDatatype>(old_link->fromsock->type),
@@ -2490,7 +2488,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     snode.runtime->iofsd = iofsd;
   }
 
-  ED_node_tree_propagate_change(&bmain, &ntree);
+  ED_node_tree_propagate_change(bmain, &ntree);
 }
 
 /** \} */
@@ -2720,7 +2718,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* check nodes front to back */
     for (bNode *frame : tree_draw_order_calc_nodes_reversed(*ntree)) {
       /* skip selected, those are the nodes we want to attach */
-      if ((frame->type != NODE_FRAME) || (frame->flag & NODE_SELECT)) {
+      if ((frame->type_legacy != NODE_FRAME) || (frame->flag & NODE_SELECT)) {
         continue;
       }
 

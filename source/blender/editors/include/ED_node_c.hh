@@ -65,13 +65,6 @@ void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype);
 void ED_node_sample_set(const float col[4]);
 void ED_node_type_draw_color(const char *idname, float *r_color);
 
-/* `node_draw.cc` */
-
-void ED_node_tree_update(const bContext *C);
-void ED_node_tag_update_id(ID *id);
-
-float ED_node_grid_size();
-
 /* `node_edit.cc` */
 
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo);
@@ -115,7 +108,7 @@ void ED_node_set_active(
  *   for other things that have to be changed. It may still scan #bmain if the interface of the
  *   node tree has changed.
  */
-void ED_node_tree_propagate_change(Main *bmain, bNodeTree *ntree);
+void ED_node_tree_propagate_change(Main &bmain, bNodeTree *ntree = nullptr);
 
 /**
  * \param scene_owner: is the owner of the job,

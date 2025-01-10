@@ -12,6 +12,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "BLT_translation.hh"
@@ -87,7 +88,7 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob)
   bNode *group_output = bke::node_add_static_node(&C, ntree, NODE_GROUP_OUTPUT);
   bNode *deform_node = bke::node_add_static_node(&C, ntree, GEO_NODE_DEFORM_CURVES_ON_SURFACE);
 
-  ED_node_tree_propagate_change(bmain, nmd.node_group);
+  ED_node_tree_propagate_change(*bmain, nmd.node_group);
 
   bke::node_add_link(ntree,
                      group_input,
@@ -104,7 +105,7 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob)
   group_output->location[0] = 200;
   deform_node->location[0] = 0;
 
-  ED_node_tree_propagate_change(bmain, nmd.node_group);
+  ED_node_tree_propagate_change(*bmain, nmd.node_group);
 }
 
 bke::CurvesGeometry primitive_random_sphere(const int curves_size, const int points_per_curve)

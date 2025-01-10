@@ -8,6 +8,7 @@
 
 #include "BKE_image.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "BLI_math_vector.h"
@@ -121,7 +122,7 @@ static const bNode *get_node_of_type(Span<const bNodeSocket *> sockets_list, con
 {
   for (const bNodeSocket *socket : sockets_list) {
     const bNode &parent_node = socket->owner_node();
-    if (parent_node.typeinfo->type == node_type) {
+    if (parent_node.typeinfo->type_legacy == node_type) {
       return &parent_node;
     }
   }
@@ -181,7 +182,7 @@ static const bNode *find_bsdf_node(const bNodeTree *nodetree)
     const bNodeSocket &node_input_socket0 = node->input_socket(0);
     for (const bNodeSocket *out_sock : node_input_socket0.directly_linked_sockets()) {
       const bNode &in_node = out_sock->owner_node();
-      if (in_node.typeinfo->type == SH_NODE_BSDF_PRINCIPLED) {
+      if (in_node.typeinfo->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
         return &in_node;
       }
     }

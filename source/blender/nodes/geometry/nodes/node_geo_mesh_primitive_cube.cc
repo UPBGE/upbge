@@ -4,7 +4,7 @@
 
 #include "BLI_math_euler.hh"
 
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 
 #include "GEO_mesh_primitive_cuboid.hh"
@@ -115,7 +115,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_CUBE, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeMeshCube", GEO_NODE_MESH_PRIMITIVE_CUBE, NODE_CLASS_GEOMETRY);
   ntype.ui_name = "Cube";
   ntype.ui_description = "Generate a cuboid mesh with variable side lengths and subdivisions";
   ntype.enum_name_legacy = "MESH_PRIMITIVE_CUBE";

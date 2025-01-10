@@ -246,7 +246,7 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SWITCH, NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeSwitch", GEO_NODE_SWITCH, NODE_CLASS_CONVERTER);
   ntype.ui_name = "Switch";
   ntype.ui_description = "Switch between two inputs";
   ntype.enum_name_legacy = "SWITCH";
@@ -269,7 +269,7 @@ namespace blender::nodes {
 std::unique_ptr<LazyFunction> get_switch_node_lazy_function(const bNode &node)
 {
   using namespace node_geo_switch_cc;
-  BLI_assert(node.type == GEO_NODE_SWITCH);
+  BLI_assert(node.type_legacy == GEO_NODE_SWITCH);
   return std::make_unique<LazyFunctionForSwitchNode>(node);
 }
 

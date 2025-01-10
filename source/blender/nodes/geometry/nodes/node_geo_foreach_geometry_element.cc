@@ -42,7 +42,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone->output_node) {
     return;
   }
-  const bool is_zone_input_node = current_node->type == GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
+  const bool is_zone_input_node = current_node->type_legacy ==
+                                  GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
   bNode &output_node = const_cast<bNode &>(*zone->output_node);
   PointerRNA output_node_ptr = RNA_pointer_create(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
@@ -199,7 +200,10 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT, NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype,
+                     "GeometryNodeForeachGeometryElementInput",
+                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
+                     NODE_CLASS_INTERFACE);
   ntype.ui_name = "For Each Geometry Element Input";
   ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
   ntype.initfunc = node_init;
@@ -370,7 +374,10 @@ static void node_extra_info(NodeExtraInfoParams &params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT, NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype,
+                     "GeometryNodeForeachGeometryElementOutput",
+                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
+                     NODE_CLASS_INTERFACE);
   ntype.ui_name = "For Each Geometry Element Output";
   ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
   ntype.initfunc = node_init;

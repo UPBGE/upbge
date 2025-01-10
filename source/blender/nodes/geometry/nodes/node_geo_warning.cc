@@ -102,7 +102,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_WARNING, NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeWarning", GEO_NODE_WARNING, NODE_CLASS_INTERFACE);
   ntype.ui_name = "Warning";
   ntype.ui_description = "Create custom warnings in node groups";
   ntype.enum_name_legacy = "WARNING";
@@ -122,7 +122,7 @@ namespace blender::nodes {
 std::unique_ptr<LazyFunction> get_warning_node_lazy_function(const bNode &node)
 {
   using namespace node_geo_warning_cc;
-  BLI_assert(node.type == GEO_NODE_WARNING);
+  BLI_assert(node.type_legacy == GEO_NODE_WARNING);
   return std::make_unique<LazyFunctionForWarningNode>(node);
 }
 

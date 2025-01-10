@@ -54,6 +54,7 @@
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
@@ -358,7 +359,7 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
     for (const bNestedNodeRef &ref : nmd.node_group->nested_node_refs_span()) {
       const bNode *node = nmd.node_group->find_nested_node(ref.id);
       if (node) {
-        if (ELEM(node->type, GEO_NODE_SIMULATION_OUTPUT, GEO_NODE_BAKE)) {
+        if (ELEM(node->type_legacy, GEO_NODE_SIMULATION_OUTPUT, GEO_NODE_BAKE)) {
           new_bake_ids.append(ref.id);
         }
       }
@@ -378,8 +379,11 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
     NodesModifierBake &new_bake = new_bake_data[i];
     if (old_bake) {
       new_bake = *old_bake;
-      /* The ownership of the string was moved to `new_bake`. */
+      /* The ownership of this data was moved to `new_bake`. */
       old_bake->directory = nullptr;
+      old_bake->data_blocks = nullptr;
+      old_bake->data_blocks_num = 0;
+      old_bake->packed = nullptr;
     }
     else {
       new_bake.id = id;
@@ -390,7 +394,7 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
   }
 
   for (NodesModifierBake &old_bake : MutableSpan(nmd.bakes, nmd.bakes_num)) {
-    MEM_SAFE_FREE(old_bake.directory);
+    nodes_modifier_bake_destruct(&old_bake, true);
   }
   MEM_SAFE_FREE(nmd.bakes);
 
@@ -2751,6 +2755,21 @@ void nodes_modifier_packed_bake_free(NodesModifierPackedBake *packed_bake)
   MEM_SAFE_FREE(packed_bake);
 }
 
+void nodes_modifier_bake_destruct(NodesModifierBake *bake, const bool do_id_user)
+{
+  MEM_SAFE_FREE(bake->directory);
+
+  for (NodesModifierDataBlock &data_block : MutableSpan(bake->data_blocks, bake->data_blocks_num))
+  {
+    nodes_modifier_data_block_destruct(&data_block, do_id_user);
+  }
+  MEM_SAFE_FREE(bake->data_blocks);
+
+  if (bake->packed) {
+    nodes_modifier_packed_bake_free(bake->packed);
+  }
+}
+
 static void free_data(ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
@@ -2760,18 +2779,7 @@ static void free_data(ModifierData *md)
   }
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
-    MEM_SAFE_FREE(bake.directory);
-
-    for (NodesModifierDataBlock &data_block : MutableSpan(bake.data_blocks, bake.data_blocks_num))
-    {
-      MEM_SAFE_FREE(data_block.id_name);
-      MEM_SAFE_FREE(data_block.lib_name);
-    }
-    MEM_SAFE_FREE(bake.data_blocks);
-
-    if (bake.packed) {
-      nodes_modifier_packed_bake_free(bake.packed);
-    }
+    nodes_modifier_bake_destruct(&bake, false);
   }
   MEM_SAFE_FREE(nmd->bakes);
 

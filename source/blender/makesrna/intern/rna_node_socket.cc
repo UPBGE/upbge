@@ -266,7 +266,7 @@ static void rna_NodeSocket_type_set(PointerRNA *ptr, int value)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
   bNode &node = blender::bke::node_find_node(*ntree, *sock);
-  if (node.type != NODE_CUSTOM) {
+  if (node.type_legacy != NODE_CUSTOM) {
     /* Can't change the socket type on built-in nodes like this. */
     return;
   }
@@ -350,7 +350,7 @@ static void rna_NodeSocket_update(Main *bmain, Scene * /*scene*/, PointerRNA *pt
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
 
   BKE_ntree_update_tag_socket_property(ntree, sock);
-  ED_node_tree_propagate_change(bmain, ntree);
+  ED_node_tree_propagate_change(*bmain, ntree);
 }
 
 static void rna_NodeSocket_enabled_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -359,7 +359,7 @@ static void rna_NodeSocket_enabled_update(Main *bmain, Scene * /*scene*/, Pointe
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
 
   BKE_ntree_update_tag_socket_availability(ntree, sock);
-  ED_node_tree_propagate_change(bmain, ntree);
+  ED_node_tree_propagate_change(*bmain, ntree);
 }
 
 static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)

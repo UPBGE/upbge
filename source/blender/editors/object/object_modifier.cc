@@ -58,7 +58,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -2385,13 +2385,13 @@ void OBJECT_OT_modifier_apply(wmOperatorType *ot)
                          false,
                          "Make Data Single User",
                          "Make the object's data single user if needed");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna,
                          "all_keyframes",
                          false,
                          "Apply to all keyframes",
                          "For Grease Pencil objects, apply the modifier to all the keyframes");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   modifier_register_use_selected_objects_prop(ot);
 }
 
@@ -3802,7 +3802,7 @@ static int geometry_node_tree_copy_assign_exec(bContext *C, wmOperator * /*op*/)
   nmd->node_group = new_tree;
   id_us_min(&tree->id);
 
-  ED_node_tree_propagate_change(bmain, new_tree);
+  ED_node_tree_propagate_change(*bmain, new_tree);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);

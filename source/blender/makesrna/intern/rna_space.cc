@@ -2673,7 +2673,7 @@ static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA
 
 static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA * /*ptr*/)
 {
-  ED_node_tree_update(C);
+  blender::ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_geometry_nodes_type_update(Main * /*main*/,
@@ -2749,13 +2749,13 @@ static int rna_SpaceNodeEditor_path_length(PointerRNA *ptr)
 static void rna_SpaceNodeEditor_path_clear(SpaceNode *snode, bContext *C)
 {
   ED_node_tree_start(snode, nullptr, nullptr, nullptr);
-  ED_node_tree_update(C);
+  blender::ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_path_start(SpaceNode *snode, bContext *C, PointerRNA *node_tree)
 {
   ED_node_tree_start(snode, (bNodeTree *)node_tree->data, nullptr, nullptr);
-  ED_node_tree_update(C);
+  blender::ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
@@ -2765,13 +2765,13 @@ static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
 {
   ED_node_tree_push(
       snode, static_cast<bNodeTree *>(node_tree->data), static_cast<bNode *>(node->data));
-  ED_node_tree_update(C);
+  blender::ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 {
   ED_node_tree_pop(snode);
-  ED_node_tree_update(C);
+  blender::ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,

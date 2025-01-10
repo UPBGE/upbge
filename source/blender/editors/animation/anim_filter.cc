@@ -78,7 +78,7 @@
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 
@@ -2518,7 +2518,7 @@ static size_t animdata_filter_ds_nodetree(bAnimContext *ac,
   items += animdata_filter_ds_nodetree_group(ac, anim_data, owner_id, ntree, filter_mode);
 
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == NODE_GROUP) {
+    if (node->type_legacy == NODE_GROUP) {
       if (node->id) {
         if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) && (node->flag & NODE_SELECT) == 0) {
           continue;

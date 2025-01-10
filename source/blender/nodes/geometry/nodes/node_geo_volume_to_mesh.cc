@@ -9,7 +9,7 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -244,7 +244,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_VOLUME_TO_MESH, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeVolumeToMesh", GEO_NODE_VOLUME_TO_MESH, NODE_CLASS_GEOMETRY);
   ntype.ui_name = "Volume to Mesh";
   ntype.ui_description = "Generate a mesh on the \"surface\" of a volume";
   ntype.enum_name_legacy = "VOLUME_TO_MESH";

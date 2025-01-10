@@ -48,7 +48,7 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const int node_type
       active_node = const_cast<bNode *>(zone->output_node);
     }
   }
-  if (active_node->type != node_type) {
+  if (active_node->type_legacy != node_type) {
     return PointerRNA_NULL;
   }
   return RNA_pointer_create(&snode->edittree->id, &RNA_Node, active_node);
@@ -60,7 +60,7 @@ inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(CTX_data_main(C), ntree);
+  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 

@@ -79,6 +79,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -520,7 +521,7 @@ static bool do_versions_sequencer_color_balance_sop(Strip *strip, void * /*user_
 static void version_geometry_nodes_add_realize_instance_nodes(bNodeTree *ntree)
 {
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-    if (ELEM(node->type,
+    if (ELEM(node->type_legacy,
              GEO_NODE_CAPTURE_ATTRIBUTE,
              GEO_NODE_SEPARATE_COMPONENTS,
              GEO_NODE_CONVEX_HULL,
@@ -538,7 +539,7 @@ static void version_geometry_nodes_add_realize_instance_nodes(bNodeTree *ntree)
       add_realize_instances_before_socket(ntree, node, geometry_socket);
     }
     /* Also realize instances for the profile input of the curve to mesh node. */
-    if (node->type == GEO_NODE_CURVE_TO_MESH) {
+    if (node->type_legacy == GEO_NODE_CURVE_TO_MESH) {
       bNodeSocket *profile_socket = (bNodeSocket *)BLI_findlink(&node->inputs, 1);
       add_realize_instances_before_socket(ntree, node, profile_socket);
     }
@@ -685,7 +686,7 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
   /* Otherwise `ntree->typeInfo` is null. */
   blender::bke::node_tree_set_type(nullptr, ntree);
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-    if (node->type != GEO_NODE_TRANSFER_ATTRIBUTE_DEPRECATED) {
+    if (node->type_legacy != GEO_NODE_TRANSFER_ATTRIBUTE_DEPRECATED) {
       continue;
     }
     bNodeSocket *old_geometry_socket = blender::bke::node_find_socket(node, SOCK_IN, "Source");
@@ -839,7 +840,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
 {
   blender::Vector<bNode *> new_nodes;
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree.nodes) {
-    if (!ELEM(node->type,
+    if (!ELEM(node->type_legacy,
               GEO_NODE_MESH_PRIMITIVE_CONE,
               GEO_NODE_MESH_PRIMITIVE_CUBE,
               GEO_NODE_MESH_PRIMITIVE_CYLINDER,
@@ -895,8 +896,8 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
 
     bNodeSocketValueString *name_value = static_cast<bNodeSocketValueString *>(
         store_attribute_name_input.default_value);
-    const char *uv_map_name = node->type == GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE ? "UVMap" :
-                                                                                 "uv_map";
+    const char *uv_map_name = node->type_legacy == GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE ? "UVMap" :
+                                                                                        "uv_map";
     STRNCPY(name_value->value, uv_map_name);
 
     version_node_add_link(ntree,
@@ -1171,7 +1172,7 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
       }
 
       LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-        if (link->tonode->type == GEO_NODE_SWITCH) {
+        if (link->tonode->type_legacy == GEO_NODE_SWITCH) {
           if (STREQ(link->tosock->identifier, "Switch")) {
             bNode *to_node = link->tonode;
 
@@ -1239,7 +1240,7 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-          if (node->type == GEO_NODE_BOUNDING_BOX) {
+          if (node->type_legacy == GEO_NODE_BOUNDING_BOX) {
             bNodeSocket *geometry_socket = static_cast<bNodeSocket *>(node->inputs.first);
             add_realize_instances_before_socket(ntree, node, geometry_socket);
           }
@@ -1380,7 +1381,7 @@ static void version_switch_node_input_prefix(Main *bmain)
   FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
     if (ntree->type == NTREE_GEOMETRY) {
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type == GEO_NODE_SWITCH) {
+        if (node->type_legacy == GEO_NODE_SWITCH) {
           LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
             /* Skip the "switch" socket. */
             if (socket == node->inputs.first) {
@@ -1531,12 +1532,12 @@ static bool strip_meta_channels_ensure(Strip *strip, void * /*user_data*/)
 
 static void do_version_subsurface_methods(bNode *node)
 {
-  if (node->type == SH_NODE_SUBSURFACE_SCATTERING) {
+  if (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING) {
     if (!ELEM(node->custom1, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK_SKIN)) {
       node->custom1 = SHD_SUBSURFACE_RANDOM_WALK;
     }
   }
-  else if (node->type == SH_NODE_BSDF_PRINCIPLED) {
+  else if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
     if (!ELEM(node->custom2, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK_SKIN)) {
       node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
     }
@@ -1690,7 +1691,7 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
 {
   /* Add the new Offset socket. */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != GEO_NODE_SET_POSITION) {
+    if (node->type_legacy != GEO_NODE_SET_POSITION) {
       continue;
     }
     if (BLI_listbase_count(&node->inputs) < 4) {
@@ -1710,7 +1711,7 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
 
   /* Relink links that were connected to Position while Offset was enabled. */
   LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-    if (link->tonode->type != GEO_NODE_SET_POSITION) {
+    if (link->tonode->type_legacy != GEO_NODE_SET_POSITION) {
       continue;
     }
     if (!STREQ(link->tosock->identifier, "Position")) {
@@ -1730,7 +1731,7 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
 
   /* Remove old Offset socket. */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != GEO_NODE_SET_POSITION) {
+    if (node->type_legacy != GEO_NODE_SET_POSITION) {
       continue;
     }
     bNodeSocket *old_offset_socket = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 3));
@@ -1959,9 +1960,9 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
     version_node_input_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "Image", "Color");
 
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type) {
+      switch (node->type_legacy) {
         case SH_NODE_COMBRGB_LEGACY: {
-          node->type = FN_NODE_COMBINE_COLOR;
+          node->type_legacy = FN_NODE_COMBINE_COLOR;
           NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
                                                                       __func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
@@ -1970,7 +1971,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case SH_NODE_SEPRGB_LEGACY: {
-          node->type = FN_NODE_SEPARATE_COLOR;
+          node->type_legacy = FN_NODE_SEPARATE_COLOR;
           NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
                                                                       __func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
@@ -2026,9 +2027,9 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
     version_node_output_socket_name(ntree, CMP_NODE_SEPYUVA_LEGACY, "A", "Alpha");
 
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type) {
+      switch (node->type_legacy) {
         case CMP_NODE_COMBRGBA_LEGACY: {
-          node->type = CMP_NODE_COMBINE_COLOR;
+          node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
@@ -2037,7 +2038,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_COMBHSVA_LEGACY: {
-          node->type = CMP_NODE_COMBINE_COLOR;
+          node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
@@ -2046,7 +2047,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_COMBYCCA_LEGACY: {
-          node->type = CMP_NODE_COMBINE_COLOR;
+          node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
@@ -2056,7 +2057,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_COMBYUVA_LEGACY: {
-          node->type = CMP_NODE_COMBINE_COLOR;
+          node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
@@ -2065,7 +2066,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_SEPRGBA_LEGACY: {
-          node->type = CMP_NODE_SEPARATE_COLOR;
+          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
@@ -2074,7 +2075,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_SEPHSVA_LEGACY: {
-          node->type = CMP_NODE_SEPARATE_COLOR;
+          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
@@ -2083,7 +2084,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_SEPYCCA_LEGACY: {
-          node->type = CMP_NODE_SEPARATE_COLOR;
+          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
@@ -2093,7 +2094,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case CMP_NODE_SEPYUVA_LEGACY: {
-          node->type = CMP_NODE_SEPARATE_COLOR;
+          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
               sizeof(NodeCMPCombSepColor), __func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
@@ -2108,15 +2109,15 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
   /* In texture nodes, replace combine/separate RGBA with combine/separate color */
   if (ntree->type == NTREE_TEXTURE) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type) {
+      switch (node->type_legacy) {
         case TEX_NODE_COMPOSE_LEGACY: {
-          node->type = TEX_NODE_COMBINE_COLOR;
+          node->type_legacy = TEX_NODE_COMBINE_COLOR;
           node->custom1 = NODE_COMBSEP_COLOR_RGB;
           STRNCPY(node->idname, "TextureNodeCombineColor");
           break;
         }
         case TEX_NODE_DECOMPOSE_LEGACY: {
-          node->type = TEX_NODE_SEPARATE_COLOR;
+          node->type_legacy = TEX_NODE_SEPARATE_COLOR;
           node->custom1 = NODE_COMBSEP_COLOR_RGB;
           STRNCPY(node->idname, "TextureNodeSeparateColor");
           break;
@@ -2146,9 +2147,9 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
     version_node_output_socket_name(ntree, SH_NODE_SEPHSV_LEGACY, "V", "Blue");
 
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type) {
+      switch (node->type_legacy) {
         case SH_NODE_COMBRGB_LEGACY: {
-          node->type = SH_NODE_COMBINE_COLOR;
+          node->type_legacy = SH_NODE_COMBINE_COLOR;
           NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
                                                                       __func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
@@ -2157,7 +2158,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case SH_NODE_COMBHSV_LEGACY: {
-          node->type = SH_NODE_COMBINE_COLOR;
+          node->type_legacy = SH_NODE_COMBINE_COLOR;
           NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
                                                                       __func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
@@ -2166,7 +2167,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case SH_NODE_SEPRGB_LEGACY: {
-          node->type = SH_NODE_SEPARATE_COLOR;
+          node->type_legacy = SH_NODE_SEPARATE_COLOR;
           NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
                                                                       __func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
@@ -2175,7 +2176,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           break;
         }
         case SH_NODE_SEPHSV_LEGACY: {
-          node->type = SH_NODE_SEPARATE_COLOR;
+          node->type_legacy = SH_NODE_SEPARATE_COLOR;
           NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
                                                                       __func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
@@ -2195,9 +2196,9 @@ static void versioning_replace_legacy_mix_rgb_node(bNodeTree *ntree)
   version_node_input_socket_name(ntree, SH_NODE_MIX_RGB_LEGACY, "Color2", "B_Color");
   version_node_output_socket_name(ntree, SH_NODE_MIX_RGB_LEGACY, "Color", "Result_Color");
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == SH_NODE_MIX_RGB_LEGACY) {
+    if (node->type_legacy == SH_NODE_MIX_RGB_LEGACY) {
       STRNCPY(node->idname, "ShaderNodeMix");
-      node->type = SH_NODE_MIX;
+      node->type_legacy = SH_NODE_MIX;
       NodeShaderMix *data = (NodeShaderMix *)MEM_callocN(sizeof(NodeShaderMix), __func__);
       data->blend_type = node->custom1;
       data->clamp_result = (node->custom2 & SHD_MIXRGB_CLAMP) ? 1 : 0;
@@ -2600,7 +2601,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == GEO_NODE_SUBDIVIDE_MESH) {
+          if (node->type_legacy == GEO_NODE_SUBDIVIDE_MESH) {
             STRNCPY(node->idname, "GeometryNodeMeshSubdivide");
           }
         }
@@ -2847,7 +2848,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-        if (link->tonode->type == GEO_NODE_MESH_PRIMITIVE_CUBE) {
+        if (link->tonode->type_legacy == GEO_NODE_MESH_PRIMITIVE_CUBE) {
           bNode *node = link->tonode;
           if (STREQ(link->tosock->identifier, "Size") && link->tosock->type == SOCK_FLOAT) {
             bNode *link_fromnode = link->fromnode;
@@ -2863,7 +2864,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type != GEO_NODE_MESH_PRIMITIVE_CUBE) {
+        if (node->type_legacy != GEO_NODE_MESH_PRIMITIVE_CUBE) {
           continue;
         }
         LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
@@ -3226,7 +3227,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type == GEO_NODE_VIEWER) {
+        if (node->type_legacy == GEO_NODE_VIEWER) {
           if (node->storage == nullptr) {
             NodeGeometryViewer *data = (NodeGeometryViewer *)MEM_callocN(
                 sizeof(NodeGeometryViewer), __func__);
@@ -3345,13 +3346,13 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
       version_node_id(ntree, GEO_NODE_CURVE_SPLINE_PARAMETER, "GeometryNodeSplineParameter");
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type == GEO_NODE_CURVE_SPLINE_PARAMETER) {
+        if (node->type_legacy == GEO_NODE_CURVE_SPLINE_PARAMETER) {
           version_node_add_socket_if_not_exist(
               ntree, node, SOCK_OUT, SOCK_INT, PROP_NONE, "Index", "Index");
         }
 
         /* Convert float compare into a more general compare node. */
-        if (node->type == FN_NODE_COMPARE) {
+        if (node->type_legacy == FN_NODE_COMPARE) {
           if (node->storage == nullptr) {
             NodeFunctionCompare *data = (NodeFunctionCompare *)MEM_callocN(
                 sizeof(NodeFunctionCompare), __func__);
@@ -3381,7 +3382,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Add node storage for map range node. */
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type == SH_NODE_MAP_RANGE) {
+        if (node->type_legacy == SH_NODE_MAP_RANGE) {
           if (node->storage == nullptr) {
             NodeMapRange *data = MEM_cnew<NodeMapRange>(__func__);
             data->clamp = node->custom1;
@@ -3797,7 +3798,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == GEO_NODE_MERGE_BY_DISTANCE) {
+          if (node->type_legacy == GEO_NODE_MERGE_BY_DISTANCE) {
             if (node->storage == nullptr) {
               NodeGeometryMergeByDistance *data = MEM_cnew<NodeGeometryMergeByDistance>(__func__);
               data->mode = GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL;
@@ -3895,7 +3896,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == GEO_NODE_CURVE_SPLINE_TYPE) {
+          if (node->type_legacy == GEO_NODE_CURVE_SPLINE_TYPE) {
             NodeGeometryCurveSplineType *storage = (NodeGeometryCurveSplineType *)node->storage;
             switch (storage->spline_type) {
               case 0: /* GEO_NODE_SPLINE_TYPE_BEZIER */
@@ -3968,7 +3969,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == CMP_NODE_OUTPUT_FILE) {
+          if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
             LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
               if (sock->storage) {
                 NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
@@ -4153,7 +4154,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type != GEO_NODE_SAMPLE_CURVE) {
+        if (node->type_legacy != GEO_NODE_SAMPLE_CURVE) {
           continue;
         }
         static_cast<NodeGeometryCurveSample *>(node->storage)->use_all_curves = true;
@@ -4290,7 +4291,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type != GEO_NODE_DISTRIBUTE_POINTS_ON_FACES) {
+        if (node->type_legacy != GEO_NODE_DISTRIBUTE_POINTS_ON_FACES) {
           continue;
         }
         node->custom2 = true;

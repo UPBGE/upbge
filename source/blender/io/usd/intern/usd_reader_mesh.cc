@@ -18,7 +18,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -662,22 +662,12 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
   pxr::TfToken active_uv_set_name;
 
   /* Convert primvars to custom layer data. */
-  for (pxr::UsdGeomPrimvar &pv : primvars) {
-    if (!pv.HasValue()) {
-      BKE_reportf(reports(),
-                  RPT_WARNING,
-                  "Skipping primvar %s, mesh %s -- no value",
-                  pv.GetName().GetText(),
-                  &mesh->id.name[2]);
-      continue;
-    }
-
-    if (!pv.GetAttr().GetTypeName().IsArray()) {
-      /* Non-array attributes are technically improper USD. */
-      continue;
-    }
-
+  for (const pxr::UsdGeomPrimvar &pv : primvars) {
     const pxr::SdfValueTypeName type = pv.GetTypeName();
+    if (!type.IsArray()) {
+      continue; /* Skip non-array primvar attributes. */
+    }
+
     const pxr::TfToken varying_type = pv.GetInterpolation();
     const pxr::TfToken name = pxr::UsdGeomPrimvar::StripPrimvarsName(pv.GetPrimvarName());
 

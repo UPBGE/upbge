@@ -9,6 +9,7 @@
 #include "NOD_socket.hh"
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -61,7 +62,7 @@ class SimulationZoneType : public blender::bke::bNodeZoneType {
 
   const int &get_corresponding_output_id(const bNode &input_bnode) const override
   {
-    BLI_assert(input_bnode.type == this->input_type);
+    BLI_assert(input_bnode.type_legacy == this->input_type);
     return static_cast<NodeGeometrySimulationInput *>(input_bnode.storage)->output_node_id;
   }
 };
@@ -79,7 +80,7 @@ class RepeatZoneType : public blender::bke::bNodeZoneType {
 
   const int &get_corresponding_output_id(const bNode &input_bnode) const override
   {
-    BLI_assert(input_bnode.type == this->input_type);
+    BLI_assert(input_bnode.type_legacy == this->input_type);
     return static_cast<NodeGeometryRepeatInput *>(input_bnode.storage)->output_node_id;
   }
 };
@@ -97,7 +98,7 @@ class ForeachGeometryElementZoneType : public blender::bke::bNodeZoneType {
 
   const int &get_corresponding_output_id(const bNode &input_bnode) const override
   {
-    BLI_assert(input_bnode.type == this->input_type);
+    BLI_assert(input_bnode.type_legacy == this->input_type);
     return static_cast<NodeGeometryForeachGeometryElementInput *>(input_bnode.storage)
         ->output_node_id;
   }

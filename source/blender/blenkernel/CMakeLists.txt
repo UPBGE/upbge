@@ -441,7 +441,7 @@ set(SRC
   BKE_main_idmap.hh
   BKE_main_namemap.hh
   BKE_mask.h
-  BKE_material.h
+  BKE_material.hh
   BKE_mball.hh
   BKE_mball_tessellate.hh
   BKE_mesh.h
@@ -464,6 +464,7 @@ set(SRC
   BKE_multires.hh
   BKE_nla.hh
   BKE_node.hh
+  BKE_node_legacy_types.hh
   BKE_node_enum.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh

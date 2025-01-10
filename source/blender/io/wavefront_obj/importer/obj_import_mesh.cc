@@ -13,7 +13,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_deform.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
@@ -373,7 +373,7 @@ static Material *get_or_create_material(Main *bmain,
 
   mat->use_nodes = true;
   mat->nodetree = create_mtl_node_tree(bmain, mtl, mat, relative_paths);
-  BKE_ntree_update_main_tree(bmain, mat->nodetree, nullptr);
+  BKE_ntree_update_after_single_tree_change(*bmain, *mat->nodetree);
 
   created_materials.add_new(name, mat);
   return mat;

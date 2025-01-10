@@ -7,6 +7,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 #include "BKE_node_socket_value.hh"
 
 #include "NOD_geometry_exec.hh"
@@ -26,7 +27,10 @@ class GatherLinkSearchOpParams;
 }  // namespace nodes
 }  // namespace blender
 
-void geo_node_type_base(blender::bke::bNodeType *ntype, int type, short nclass);
+void geo_node_type_base(blender::bke::bNodeType *ntype,
+                        std::string idname,
+                        int type,
+                        short nclass);
 bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);

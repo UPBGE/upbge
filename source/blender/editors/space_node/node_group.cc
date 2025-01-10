@@ -13,9 +13,9 @@
 #include "DNA_anim_types.h"
 #include "DNA_node_types.h"
 
-#include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
@@ -37,7 +37,6 @@
 
 #include "DEG_depsgraph_build.hh"
 
-#include "ED_node.hh" /* own include */
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
 #include "ED_render.hh"
@@ -148,8 +147,8 @@ static void remap_pairing(bNodeTree &dst_tree,
                           const Map<int32_t, int32_t> &identifier_map)
 {
   for (bNode *dst_node : nodes) {
-    if (bke::all_zone_input_node_types().contains(dst_node->type)) {
-      const bke::bNodeZoneType &zone_type = *bke::zone_type_by_node_type(dst_node->type);
+    if (bke::all_zone_input_node_types().contains(dst_node->type_legacy)) {
+      const bke::bNodeZoneType &zone_type = *bke::zone_type_by_node_type(dst_node->type_legacy);
       int &output_node_id = zone_type.get_corresponding_output_id(*dst_node);
       if (output_node_id == 0) {
         continue;
@@ -290,7 +289,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     /* Remove interface nodes.
      * This also removes remaining links to and from interface nodes.
      */
-    if (ELEM(node->type, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
+    if (ELEM(node->type_legacy, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
       /* We must delay removal since sockets will reference this node. see: #52092 */
       nodes_delayed_free.append(node);
     }
@@ -377,7 +376,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
   /* input links */
   if (glinks_first != nullptr) {
     for (bNodeLink *link = glinks_first->next; link != glinks_last->next; link = link->next) {
-      if (link->fromnode->type == NODE_GROUP_INPUT) {
+      if (link->fromnode->type_legacy == NODE_GROUP_INPUT) {
         const char *identifier = link->fromsock->identifier;
         int num_external_links = 0;
 
@@ -423,7 +422,9 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
              tlink = tlink->next)
         {
           /* only use active output node */
-          if (tlink->tonode->type == NODE_GROUP_OUTPUT && (tlink->tonode->flag & NODE_DO_OUTPUT)) {
+          if (tlink->tonode->type_legacy == NODE_GROUP_OUTPUT &&
+              (tlink->tonode->flag & NODE_DO_OUTPUT))
+          {
             if (STREQ(tlink->tosock->identifier, identifier)) {
               bke::node_add_link(
                   ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
@@ -481,7 +482,7 @@ static int node_group_ungroup_exec(bContext *C, wmOperator * /*op*/)
   for (bNode *node : nodes_to_ungroup) {
     node_group_ungroup(bmain, snode->edittree, node);
   }
-  ED_node_tree_propagate_change(CTX_data_main(C), nullptr);
+  ED_node_tree_propagate_change(*CTX_data_main(C));
   return OPERATOR_FINISHED;
 }
 
@@ -666,7 +667,7 @@ static int node_group_separate_exec(bContext *C, wmOperator *op)
   /* switch to parent tree */
   ED_node_tree_pop(snode);
 
-  ED_node_tree_propagate_change(CTX_data_main(C), nullptr);
+  ED_node_tree_propagate_change(*CTX_data_main(C));
 
   return OPERATOR_FINISHED;
 }
@@ -1202,7 +1203,7 @@ static void node_group_make_insert_selected(const bContext &C,
 
   update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
 
-  ED_node_tree_propagate_change(bmain, nullptr);
+  ED_node_tree_propagate_change(*bmain);
 }
 
 static bNode *node_group_make_from_nodes(const bContext &C,
