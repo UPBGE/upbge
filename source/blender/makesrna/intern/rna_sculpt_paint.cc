@@ -10,6 +10,8 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -935,6 +937,7 @@ static void rna_def_uv_sculpt(BlenderRNA *brna)
   prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Strength", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   prop = RNA_def_property(srna, "strength_curve", PROP_POINTER, PROP_NONE);
@@ -946,6 +949,7 @@ static void rna_def_uv_sculpt(BlenderRNA *brna)
   prop = RNA_def_property(srna, "curve_preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_brush_curve_preset_items);
   RNA_def_property_ui_text(prop, "Strength Curve Preset", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE_LEGACY);
   RNA_def_property_enum_funcs(prop, nullptr, "rna_UvSculpt_curve_preset_set", nullptr);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 }
@@ -1257,6 +1261,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_particle_edit_hair_brush_items);
   RNA_def_property_enum_funcs(
       prop, nullptr, "rna_ParticleEdit_tool_set", "rna_ParticleEdit_tool_itemf");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_ui_text(prop, "Tool", "");
 
   prop = RNA_def_property(srna, "select_mode", PROP_ENUM, PROP_NONE);
@@ -1373,6 +1378,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
   prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.001, 1.0);
   RNA_def_property_ui_text(prop, "Strength", "Brush strength");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
 
   prop = RNA_def_property(srna, "count", PROP_INT, PROP_NONE);
   RNA_def_property_range(prop, 1, 1000);

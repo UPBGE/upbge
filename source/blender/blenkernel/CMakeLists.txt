@@ -183,6 +183,7 @@ set(SRC
   intern/linestyle.cc
   intern/main.cc
   intern/main_idmap.cc
+  intern/main_invariants.cc
   intern/main_namemap.cc
   intern/mask.cc
   intern/mask_evaluate.cc
@@ -439,6 +440,7 @@ set(SRC
   BKE_linestyle.h
   BKE_main.hh
   BKE_main_idmap.hh
+  BKE_main_invariants.hh
   BKE_main_namemap.hh
   BKE_mask.h
   BKE_material.hh
@@ -464,8 +466,8 @@ set(SRC
   BKE_multires.hh
   BKE_nla.hh
   BKE_node.hh
-  BKE_node_legacy_types.hh
   BKE_node_enum.hh
+  BKE_node_legacy_types.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
   BKE_node_tree_dot_export.hh
