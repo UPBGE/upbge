@@ -2993,15 +2993,13 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   /* Collision Masks */
   prop = RNA_def_property(srna, "collision_group", PROP_BOOLEAN, PROP_LAYER_MEMBER);
-  RNA_def_property_boolean_sdna(prop, nullptr, "col_group", 1);
-  RNA_def_property_array(prop, OB_MAX_COL_MASKS);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "col_group", 1 << 0, OB_MAX_COL_MASKS);
   RNA_def_property_ui_text(prop, "Collision Group", "The collision group of the object");
   RNA_def_property_boolean_funcs(
       prop, "rna_GameObjectSettings_col_group_get", "rna_GameObjectSettings_col_group_set");
 
   prop = RNA_def_property(srna, "collision_mask", PROP_BOOLEAN, PROP_LAYER_MEMBER);
-  RNA_def_property_boolean_sdna(prop, nullptr, "col_mask", 1);
-  RNA_def_property_array(prop, OB_MAX_COL_MASKS);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "col_mask", 1 << 0, OB_MAX_COL_MASKS);
   RNA_def_property_ui_text(prop, "Collision Mask", "The groups this object can collide with");
   RNA_def_property_boolean_funcs(
       prop, "rna_GameObjectSettings_col_mask_get", "rna_GameObjectSettings_col_mask_set");
@@ -3163,8 +3161,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   /* state */
 
   prop = RNA_def_property(srna, "states_visible", PROP_BOOLEAN, PROP_LAYER_MEMBER);
-  RNA_def_property_boolean_sdna(prop, nullptr, "state", 1);
-  RNA_def_property_array(prop, OB_MAX_STATES);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "state", 1 << 0, OB_MAX_STATES);
   RNA_def_property_ui_text(prop, "State", "State determining which controllers are displayed");
   RNA_def_property_boolean_funcs(
       prop, "rna_GameObjectSettings_state_get", "rna_GameObjectSettings_state_set");
@@ -3176,8 +3173,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_GameObjectSettings_used_state_get", nullptr);
 
   prop = RNA_def_property(srna, "states_initial", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "init_state", 1);
-  RNA_def_property_array(prop, OB_MAX_STATES);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "init_state", 1 << 0, OB_MAX_STATES);
   RNA_def_property_ui_text(prop, "Initial State", "Initial state when the game starts");
 
   prop = RNA_def_property(srna, "show_debug_state", PROP_BOOLEAN, PROP_NONE);

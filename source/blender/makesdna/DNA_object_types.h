@@ -329,7 +329,8 @@ typedef struct Object {
   unsigned short base_local_view_bits;
 
   /** Collision mask settings */
-  unsigned short col_group, col_mask;
+  int col_group, col_mask;
+  int _pad55;
 
   /** Rotation mode - uses defines set out in DNA_action_types.h for PoseChannel rotations.... */
   short rotmode;
