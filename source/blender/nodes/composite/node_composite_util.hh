@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "DNA_ID.h"
 #include "DNA_node_types.h"
 
@@ -28,5 +30,4 @@ bool cmp_node_poll_default(const blender::bke::bNodeType *ntype,
 void cmp_node_update_default(bNodeTree *ntree, bNode *node);
 void cmp_node_type_base(blender::bke::bNodeType *ntype,
                         std::string idname,
-                        int type,
-                        short nclass);
+                        std::optional<int16_t> legacy_type = std::nullopt);

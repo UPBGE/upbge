@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "MEM_guardedalloc.h"
 
 #include "BKE_node.hh"
@@ -29,8 +31,7 @@ class GatherLinkSearchOpParams;
 
 void geo_node_type_base(blender::bke::bNodeType *ntype,
                         std::string idname,
-                        int type,
-                        short nclass);
+                        std::optional<int16_t> legacy_type = std::nullopt);
 bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);

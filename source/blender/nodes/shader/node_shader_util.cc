@@ -6,6 +6,8 @@
  * \ingroup nodes
  */
 
+#include <optional>
+
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 
@@ -47,9 +49,11 @@ static bool sh_fn_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void sh_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type, short nclass)
+void sh_node_type_base(blender::bke::bNodeType *ntype,
+                       std::string idname,
+                       const std::optional<int16_t> legacy_type)
 {
-  blender::bke::node_type_base(ntype, idname, type, nclass);
+  blender::bke::node_type_base(ntype, idname, legacy_type);
 
   ntype->poll = sh_node_poll_default;
   ntype->insert_link = node_insert_link_default;
@@ -58,10 +62,9 @@ void sh_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int t
 
 void sh_fn_node_type_base(blender::bke::bNodeType *ntype,
                           std::string idname,
-                          int type,
-                          short nclass)
+                          const std::optional<int16_t> legacy_type)
 {
-  sh_node_type_base(ntype, idname, type, nclass);
+  sh_node_type_base(ntype, idname, legacy_type);
   ntype->poll = sh_fn_poll_default;
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
