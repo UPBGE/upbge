@@ -170,7 +170,11 @@ class VIEW3D_HT_tool_header(Header):
             sub.prop(ob.data, "use_mirror_y", text="Y", toggle=True)
             sub.prop(ob.data, "use_mirror_z", text="Z", toggle=True)
 
-            layout.prop(ob.data, "use_sculpt_collision", icon='MOD_PHYSICS', icon_only=True, toggle=True)
+            row = layout.row(align=True)
+            row.prop(ob.data, "use_sculpt_collision", icon='MOD_PHYSICS', icon_only=True, toggle=True)
+            sub = row.row(align=True)
+            sub.active = ob.data.use_sculpt_collision
+            sub.prop(ob.data, "surface_collision_distance")
 
         # Expand panels from the side-bar as popovers.
         popover_kw = {"space_type": 'VIEW_3D', "region_type": 'UI', "category": "Tool"}
@@ -7127,9 +7131,8 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         row.prop(overlay, "show_edge_bevel_weight", text="Bevel", toggle=True)
         row.prop(overlay, "show_edge_seams", text="Seams", toggle=True)
 
-        if context.preferences.view.show_developer_ui:
-            col.label(text="Developer")
-            col.prop(overlay, "show_extra_indices", text="Indices")
+        col.separator()
+        col.prop(overlay, "show_extra_indices", text="Indices")
 
 
 class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
