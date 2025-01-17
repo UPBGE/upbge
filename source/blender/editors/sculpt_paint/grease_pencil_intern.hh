@@ -6,20 +6,13 @@
 
 #include <functional>
 
-#include "BLI_color.hh"
 #include "BLI_task.hh"
 
 #include "DNA_scene_types.h"
 
 #include "ED_grease_pencil.hh"
 
-#include "IMB_imbuf_types.hh"
-
 #include "paint_intern.hh"
-
-#ifdef WITH_POTRACE
-#  include "potracelib.h"
-#endif
 
 namespace blender::bke::greasepencil {
 class Drawing;
@@ -153,8 +146,8 @@ DeltaProjectionFunc get_screen_projection_fn(const GreasePencilStrokeParams &par
 /**
  * Compute position offset for a point in the original geometry
  * from a screen offset and crazyspace deformation info.
- * \param projection_fn Projection from screen space to the evaluated object.
- * \param deformation Converts evaluated position delta to original geometry.
+ * \param projection_fn: Projection from screen space to the evaluated object.
+ * \param deformation: Converts evaluated position delta to original geometry.
  */
 float3 compute_orig_delta(const DeltaProjectionFunc &projection_fn,
                           const bke::crazyspace::GeometryDeformation &deformation,
