@@ -1431,7 +1431,7 @@ int main(int argc,
                 MEM_freeN(bfd->user);
               }
 
-              MEM_freeN(bfd);
+              MEM_delete(bfd);
             }
 
             char basedpath[FILE_MAX];
@@ -1923,7 +1923,7 @@ int main(int argc,
     MEM_freeN(bfd->user);
   }
 
-  MEM_freeN(bfd);
+  MEM_delete(bfd);
   /* G_MAIN == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer
    */
   G_MAIN = nullptr;
