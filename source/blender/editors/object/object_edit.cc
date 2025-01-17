@@ -17,6 +17,7 @@
 
 #include "BLI_math_vector.h"  /* UPBGE */
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh" /* UPBGE */
 #include "BLI_utildefines.h"
 
