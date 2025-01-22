@@ -536,7 +536,8 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
     win_title.append(fmt::format(" [{}]", filepath));
   }
 
-  win_title.append(fmt::format(" - UPBGE {}", BKE_upbge_version_string()));
+  win_title.append(fmt::format(" - UPBGE {}", BKE_upbge_version_string_compact()));
+  win_title.append(fmt::format(" based on Blender {}", BKE_blender_version_string_compact()));
 
   GHOST_SetTitle(handle, win_title.c_str());
 
