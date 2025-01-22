@@ -1415,7 +1415,7 @@ static int bake(const BakeAPIRender *bkr,
   Object *ob_low_eval = nullptr;
 
   BakeHighPolyData *highpoly = nullptr;
-  int tot_highpoly = 0;
+  int highpoly_num = 0;
 
   Mesh *me_low_eval = nullptr;
   Mesh *me_cage_eval = nullptr;
@@ -1450,7 +1450,7 @@ static int bake(const BakeAPIRender *bkr,
   }
 
   if (bkr->is_selected_to_active) {
-    tot_highpoly = 0;
+    highpoly_num = 0;
 
     for (const PointerRNA &ptr : selected_objects) {
       Object *ob_iter = static_cast<Object *>(ptr.data);
@@ -1459,7 +1459,7 @@ static int bake(const BakeAPIRender *bkr,
         continue;
       }
 
-      tot_highpoly++;
+      highpoly_num++;
     }
 
     if (bkr->is_cage && bkr->custom_cage[0] != '\0') {
@@ -1563,7 +1563,7 @@ static int bake(const BakeAPIRender *bkr,
     }
 
     highpoly = static_cast<BakeHighPolyData *>(
-        MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects"));
+        MEM_callocN(sizeof(BakeHighPolyData) * highpoly_num, "bake high poly objects"));
 
     /* populate highpoly array */
     for (const PointerRNA &ptr : selected_objects) {
@@ -1581,6 +1581,24 @@ static int bake(const BakeAPIRender *bkr,
                                          BASE_ENABLED_RENDER);
       highpoly[i].mesh = BKE_mesh_new_from_object(nullptr, highpoly[i].ob_eval, false, false);
 
+      /* NOTE(@ideasman42): While ideally this should never happen,
+       * it's possible the `visibility_flag` assignment in this function
+       * is overridden by animated visibility, see: #107426.
+       *
+       * There is also the potential that scripts called from depsgraph callbacks
+       * change this value too, so we can't guarantee the mesh will be available.
+       * Use an error here instead of a warning so users don't accidentally perform
+       * a bake which seems to succeed with invalid results.
+       * If visibility could be forced/overridden - it would help avoid the problem. */
+      if (UNLIKELY(highpoly[i].mesh == nullptr)) {
+        BKE_reportf(
+            reports,
+            RPT_ERROR,
+            "Failed to access mesh from object \"%s\", ensure it's visible while rendering",
+            ob_iter->id.name + 2);
+        goto cleanup;
+      }
+
       /* Low-poly to high-poly transformation matrix. */
       copy_m4_m4(highpoly[i].obmat, highpoly[i].ob->object_to_world().ptr());
       invert_m4_m4(highpoly[i].imat, highpoly[i].obmat);
@@ -1590,7 +1608,7 @@ static int bake(const BakeAPIRender *bkr,
       i++;
     }
 
-    BLI_assert(i == tot_highpoly);
+    BLI_assert(i == highpoly_num);
 
     if (ob_cage != nullptr) {
       ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
@@ -1609,7 +1627,7 @@ static int bake(const BakeAPIRender *bkr,
             pixel_array_low,
             pixel_array_high,
             highpoly,
-            tot_highpoly,
+            highpoly_num,
             targets.pixels_num,
             ob_cage != nullptr,
             bkr->cage_extrusion,
@@ -1623,7 +1641,7 @@ static int bake(const BakeAPIRender *bkr,
     }
 
     /* the baking itself */
-    for (i = 0; i < tot_highpoly; i++) {
+    for (i = 0; i < highpoly_num; i++) {
       ok = RE_bake_engine(re,
                           depsgraph,
                           highpoly[i].ob_eval,
@@ -1757,7 +1775,7 @@ static int bake(const BakeAPIRender *bkr,
 cleanup:
 
   if (highpoly) {
-    for (int i = 0; i < tot_highpoly; i++) {
+    for (int i = 0; i < highpoly_num; i++) {
       if (highpoly[i].mesh != nullptr) {
         BKE_id_free(nullptr, &highpoly[i].mesh->id);
       }
