@@ -59,6 +59,7 @@
 
 #include "GPU_capabilities.hh"
 #include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_platform.hh"
 #include "GPU_shader_shared.hh"

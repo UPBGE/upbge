@@ -39,7 +39,8 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_Polygon.h"
 
-#include "DRW_render.hh"
+#include "BLI_math_matrix.h"
+#include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 

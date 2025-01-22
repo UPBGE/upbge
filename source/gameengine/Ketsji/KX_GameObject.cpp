@@ -38,13 +38,17 @@
 
 #include "KX_GameObject.h"
 
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
-#include "DRW_render.hh"
+#include "DNA_scene_types.h"
 #include "WM_api.hh"
 
 #include "BL_Action.h"

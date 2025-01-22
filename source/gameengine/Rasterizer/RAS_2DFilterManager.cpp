@@ -26,7 +26,7 @@
 
 #include "RAS_2DFilterManager.h"
 
-#include "DRW_render.hh"
+#include "GPU_framebuffer.hh"
 
 #include "CM_Message.h"
 #include "RAS_2DFilter.h"

@@ -38,6 +38,7 @@
 
 #include <boost/format.hpp>
 
+#include "BKE_context.hh"
 #include "BLI_rect.h"
 #include "../draw/intern/draw_command.hh"
 #include "DRW_render.hh"
