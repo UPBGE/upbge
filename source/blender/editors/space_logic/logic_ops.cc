@@ -331,7 +331,7 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->sensors), sens);
 
   /* set the sensor name based on rna type enum */
-  PointerRNA sens_ptr = RNA_pointer_create((ID *)ob, &RNA_Sensor, sens);
+  PointerRNA sens_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Sensor, sens);
   prop = RNA_struct_find_property(&sens_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -444,7 +444,7 @@ static int controller_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->controllers), cont);
 
   /* set the controller name based on rna type enum */
-  PointerRNA cont_ptr = RNA_pointer_create((ID *)ob, &RNA_Controller, cont);
+  PointerRNA cont_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Controller, cont);
   prop = RNA_struct_find_property(&cont_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -577,7 +577,7 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->actuators), act);
 
   /* set the actuator name based on rna type enum */
-  PointerRNA act_ptr = RNA_pointer_create((ID *)ob, &RNA_Actuator, act);
+  PointerRNA act_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Actuator, act);
   prop = RNA_struct_find_property(&act_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);

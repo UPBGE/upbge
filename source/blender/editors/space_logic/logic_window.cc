@@ -1160,7 +1160,7 @@ static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
 
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
   uiItemPointerR(layout,
                  ptr,
                  "actuator",
@@ -1186,7 +1186,7 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
     PointerRNA pchan_ptr;
     PropertyRNA *bones_prop;
 
-    PointerRNA pose_ptr = RNA_pointer_create((ID *)ob, &RNA_Pose, ob->pose);
+    PointerRNA pose_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Pose, ob->pose);
     bones_prop = RNA_struct_find_property(&pose_ptr, "bones");
 
     uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
@@ -1325,7 +1325,7 @@ static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
   uiItemL(row, IFACE_("Second Modifier:"), ICON_NONE);
   uiItemR(row, ptr, "modifier_key_2", UI_ITEM_R_EVENT, "", ICON_NONE);
 
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
   uiItemPointerR(layout, ptr, "log", &settings_ptr, "properties", std::nullopt, ICON_NONE);
   uiItemPointerR(layout, ptr, "target", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 }
@@ -1381,7 +1381,7 @@ static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
   uiLayout *row;
   uiItemR(layout, ptr, "evaluation_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
   uiItemPointerR(layout, ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 
   switch (RNA_enum_get(ptr, "evaluation_type")) {
@@ -1676,7 +1676,7 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
   Object *ob = (Object *)ptr->owner_id;
   uiLayout *row, *sub;
 
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
   row = uiLayoutRow(layout, false);
   uiItemR(row, ptr, "play_mode", UI_ITEM_NONE, "", ICON_NONE);
@@ -1736,7 +1736,7 @@ static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
   }
 
   if (ob->pose) {
-    pose_ptr = RNA_pointer_create((ID *)ob, &RNA_Pose, ob->pose);
+    pose_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Pose, ob->pose);
     bones_prop = RNA_struct_find_property(&pose_ptr, "bones");
   }
 
@@ -2024,7 +2024,7 @@ static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C
   PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
 
   ob = (Object *)ptr->owner_id;
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
   uiItemPointerR(layout, ptr, "to_property", &main_ptr, "objects", std::nullopt, ICON_OBJECT_DATA);
   uiItemR(layout, ptr, "subject", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2046,7 +2046,7 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
   bool angular;
 
   ob = (Object *)ptr->owner_id;
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
   physics_type = RNA_enum_get(&settings_ptr, "physics_type");
 
   angular = (RNA_enum_get(ptr, "servo_mode") == ACT_SERVO_ANGULAR);
@@ -2187,7 +2187,7 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
 
   uiLayout *row, *sub;
 
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
   uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemPointerR(layout, ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
@@ -2206,7 +2206,8 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
       row = uiLayoutRow(layout, false);
       uiItemR(row, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       if (ob_from) {
-        PointerRNA obj_settings_ptr = RNA_pointer_create((ID *)ob_from, &RNA_GameObjectSettings, ob_from);
+        PointerRNA obj_settings_ptr = RNA_pointer_create_discrete(
+            (ID *)ob_from, &RNA_GameObjectSettings, ob_from);
         uiItemPointerR(
             row, ptr, "object_property", &obj_settings_ptr, "properties", std::nullopt, ICON_NONE);
       }
@@ -2225,7 +2226,7 @@ static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
   uiLayout *row;
 
   ob = (Object *)ptr->owner_id;
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
   row = uiLayoutRow(layout, false);
 
@@ -2378,7 +2379,7 @@ static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 {
   uiLayout *split;
   Object *ob = (Object *)ptr->owner_id;
-  PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+  PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
   split = uiLayoutSplit(layout, 0.35, false);
   uiItemR(split, ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2593,7 +2594,7 @@ void logic_buttons(bContext *C, ARegion *region)
   if (ob == nullptr)
     return;
 
-  PointerRNA logic_ptr = RNA_pointer_create(nullptr, &RNA_SpaceLogicEditor, slogic);
+  PointerRNA logic_ptr = RNA_pointer_create_discrete(nullptr, &RNA_SpaceLogicEditor, slogic);
   idar = get_selected_and_linked_obs(C, &count, slogic->scaflag);
 
   BLI_snprintf(uiblockstr, sizeof(uiblockstr), "buttonswin %p", (void *)region);
@@ -2679,7 +2680,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     /* Drawing the Controller Header common to all Selected Objects */
 
-    PointerRNA settings_ptr = RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob);
+    PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
     split = uiLayoutSplit(layout, 0.05f, false);
     uiItemR(
@@ -2700,7 +2701,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  31,
                  TIP_("Object name, click to show/hide controllers"));
 
-    PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);
+    PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     uiLayoutSetContextPointer(row, "object", &object_ptr);
     uiItemMenuEnumO(
         row, C, "LOGIC_OT_controller_add", "type", IFACE_("Add Controller"), ICON_NONE);
@@ -2735,7 +2736,7 @@ void logic_buttons(bContext *C, ARegion *region)
     uiItemS(layout);
 
     for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
-      PointerRNA ptr = RNA_pointer_create((ID *)ob, &RNA_Controller, cont);
+      PointerRNA ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Controller, cont);
 
       if (!(ob->scaflag & OB_ALLSTATE) && !(ob->state & cont->state_mask))
         continue;
@@ -2851,7 +2852,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  31,
                  TIP_("Object name, click to show/hide sensors"));
 
-    PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);
+    PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     uiLayoutSetContextPointer(row, "object", &object_ptr);
     uiItemMenuEnumO(row, C, "LOGIC_OT_sensor_add", "type", IFACE_("Add Sensor"), ICON_NONE);
 
@@ -2861,7 +2862,7 @@ void logic_buttons(bContext *C, ARegion *region)
     uiItemS(layout);
 
     for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
-      PointerRNA ptr = RNA_pointer_create((ID *)ob, &RNA_Sensor, sens);
+      PointerRNA ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Sensor, sens);
 
       if ((ob->scaflag & OB_ALLSTATE) || !(slogic->scaflag & BUTS_SENS_STATE) ||
           (sens->totlinks ==
@@ -2962,7 +2963,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  31,
                  TIP_("Object name, click to show/hide actuators"));
 
-    PointerRNA object_ptr = RNA_pointer_create((ID *)ob, &RNA_Object, ob);
+    PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     uiLayoutSetContextPointer(row, "object", &object_ptr);
     uiItemMenuEnumO(row, C, "LOGIC_OT_actuator_add", "type", IFACE_("Add Actuator"), ICON_NONE);
 
@@ -2973,7 +2974,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
 
-      PointerRNA ptr = RNA_pointer_create((ID *)ob, &RNA_Actuator, act);
+      PointerRNA ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Actuator, act);
 
       if ((ob->scaflag & OB_ALLSTATE) || !(slogic->scaflag & BUTS_ACT_STATE) ||
           !(act->flag &
