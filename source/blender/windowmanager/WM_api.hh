@@ -1465,6 +1465,7 @@ wmDrag *WM_drag_data_create(
  */
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
+void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
 void WM_drag_free_list(ListBase *lb);
@@ -1785,7 +1786,7 @@ ImBuf *WM_clipboard_image_get();
  *
  * \param ibuf: the image to set the clipboard to.
  */
-bool WM_clipboard_image_set(ImBuf *ibuf) ATTR_NONNULL(1);
+bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf) ATTR_NONNULL(1);
 
 /* Progress. */
 

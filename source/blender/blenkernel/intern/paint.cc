@@ -421,7 +421,7 @@ const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(const PaintMode m
     case PaintMode::WeightGPencil:
       return rna_enum_brush_gpencil_weight_types_items;
     case PaintMode::SculptCurves:
-      return rna_enum_brush_gpencil_sculpt_types_items;
+      return rna_enum_brush_curves_sculpt_brush_type_items;
     case PaintMode::Invalid:
       break;
   }
@@ -2095,6 +2095,10 @@ void BKE_sculptsession_free_pbvh(Object &object)
   ss->vertex_info.boundary.clear_and_shrink();
   ss->fake_neighbors.fake_neighbor_index = {};
   ss->topology_island_cache.reset();
+
+  ss->sculpt_persistent_co = {};
+  ss->sculpt_persistent_no = {};
+  ss->sculpt_persistent_disp = {};
 
   ss->clear_active_vert(false);
 }

@@ -344,6 +344,9 @@ if(WITH_PYTHON_MODULE)
 
   if(APPLE)
     set_target_properties(blender PROPERTIES MACOSX_BUNDLE TRUE)
+    if(WITH_BLENDER_THUMBNAILER)
+      set_target_properties(blender-thumbnailer PROPERTIES MACOSX_BUNDLE TRUE)
+    endif()
   endif()
 
   if(WIN32)
@@ -457,6 +460,9 @@ elseif(APPLE)
   set(TARGETDIR_SITE_PACKAGES "${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages")
   # Skip re-linking on CPACK / install.
   set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)
+  if(WITH_BLENDER_THUMBNAILER)
+    set_target_properties(blender-thumbnailer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
+  endif()
 endif()
 
 
@@ -484,6 +490,11 @@ if(WITH_PYTHON)
     PATTERN "__pycache__" EXCLUDE
     PATTERN "site" EXCLUDE
     PATTERN "${FREESTYLE_EXCLUDE_CONDITIONAL}" EXCLUDE
+
+    # Exclude extensions development files.
+    PATTERN "addons_core/bl_pkg/Makefile" EXCLUDE
+    PATTERN "addons_core/bl_pkg/tests" EXCLUDE
+    PATTERN "addons_core/bl_pkg/example_extension" EXCLUDE
   )
 
   if(WITH_PYTHON_MODULE)
@@ -1622,6 +1633,16 @@ elseif(APPLE)
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
   )
 
+  if(WITH_BLENDER_THUMBNAILER)
+    set(OSX_THUMBNAILER_SOURCEDIR ${OSX_APP_SOURCEDIR}/Contents/PlugIns/blender-thumbnailer.appex)
+    set_target_properties(blender-thumbnailer PROPERTIES
+      BUNDLE_EXTENSION appex
+      MACOSX_BUNDLE_INFO_PLIST ${OSX_THUMBNAILER_SOURCEDIR}/Contents/Info.plist
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
+      MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
+    )
+  endif()
+
   # Gather the date in finder-style.
   execute_process(
     COMMAND date "+%m/%d/%Y/%H:%M"
@@ -1658,7 +1679,7 @@ elseif(APPLE)
   if(WITH_BLENDER_THUMBNAILER)
     install(
       TARGETS blender-thumbnailer
-      DESTINATION "Blender.app/Contents/MacOS"
+      DESTINATION "./Blender.app/Contents/PlugIns"
     )
   endif()
 

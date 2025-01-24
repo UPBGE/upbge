@@ -24,6 +24,10 @@ SAMPLER(0, DEPTH_2D, depthTex)
 DEFINE("LINE_OUTPUT")
 FRAGMENT_OUT(0, VEC4, fragColor)
 FRAGMENT_OUT(1, VEC4, lineOutput)
+/* Per view factor. */
+PUSH_CONSTANT(FLOAT, ndc_offset_factor)
+/* Per pass factor. */
+PUSH_CONSTANT(FLOAT, ndc_offset)
 PUSH_CONSTANT(BOOL, wireShading)
 PUSH_CONSTANT(BOOL, selectFace)
 PUSH_CONSTANT(BOOL, selectEdge)
@@ -82,7 +86,6 @@ GPU_SHADER_NAMED_INTERFACE_INFO(overlay_edit_mesh_edge_geom_noperspective_iface,
 NO_PERSPECTIVE(FLOAT, edgeCoord)
 GPU_SHADER_NAMED_INTERFACE_END(geometry_noperspective_out)
 
-/* TODO(pragma37): This one is not selectable? */
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
 DO_STATIC_COMPILATION()
 DEFINE("EDGE")
@@ -105,6 +108,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(overlay_edit_mesh_common)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_edge)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_face)
 DO_STATIC_COMPILATION()
@@ -138,6 +143,8 @@ ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(overlay_edit_mesh_common)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_facedot)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_normal)
 PUSH_CONSTANT(IVEC2, gpu_attr_0)
@@ -535,6 +542,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_normals)
 
 /** \} */
 

@@ -216,20 +216,18 @@ Build \"BlendThumb.dll\" helper for Windows explorer integration to support extr
 thumbnails from `.blend` files."
     ON
   )
-else()
-  set(_option_default ON)
-  if(APPLE)
-    # In future, can be used with `quicklookthumbnailing/qlthumbnailreply`
-    # to create file thumbnails for say Finder.
-    # Turn it off for now, even though it can build on APPLE, it's not likely to be useful.
-    set(_option_default OFF)
-  endif()
+elseif(UNIX AND NOT APPLE)
   option(WITH_BLENDER_THUMBNAILER "\
 Build stand-alone \"blender-thumbnailer\" command-line thumbnail extraction utility, \
 intended for use by file-managers to extract PNG images from `.blend` files."
-    ${_option_default}
+    ON
   )
-  unset(_option_default)
+elseif(APPLE)
+  option(WITH_BLENDER_THUMBNAILER "\
+Build \"blender-thumbnailer.appex\" extension for macOS Finder/ QuickLook to support viewing \
+thumbnails from `.blend` files."
+    ON
+  )
 endif()
 
 option(WITH_INTERNATIONAL "Enable I18N (International fonts and text)" ON)
@@ -1130,11 +1128,26 @@ if(WIN32)
   option(WITH_WINDOWS_FIND_MODULES "Use find_package to locate libraries" OFF)
   mark_as_advanced(WITH_WINDOWS_FIND_MODULES)
 
-  option(WINDOWS_PYTHON_DEBUG "\
-Include the files needed for debugging python scripts with visual studio 2017+."
-    OFF
-  )
-  mark_as_advanced(WINDOWS_PYTHON_DEBUG)
+# The python debugger in Visual Studio for has been broken for years 
+# but the upstream project over at https://github.com/microsoft/PTVS 
+# show hopeful signs of life once in a while, so there is hope that 
+# at one point this will start working again. That being said people
+# do keep turning this option on and end up disappointed it isn't 
+# working and they spend a whole bunch of time on trying to get it to 
+# work. So for now rather than removing this functionality 
+# completely, just disable it.
+
+  if(WINDOWS_PYTHON_DEBUG)
+    # No need for a python version check here, anything over python 3.6 isn't working.
+    message(WARNING "Unsupported python version for VS debugger, disabling WINDOWS_PYTHON_DEBUG")
+    set(WINDOWS_PYTHON_DEBUG OFF)
+  endif()
+
+#  option(WINDOWS_PYTHON_DEBUG "\
+#Include the files needed for debugging python scripts with visual studio 2017+."
+#    OFF
+#  )
+#  mark_as_advanced(WINDOWS_PYTHON_DEBUG)
 
   option(WITH_WINDOWS_BUNDLE_CRT "Bundle the C runtime for install free distribution." ON)
   mark_as_advanced(WITH_WINDOWS_BUNDLE_CRT)

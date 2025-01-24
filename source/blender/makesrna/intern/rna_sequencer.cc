@@ -300,7 +300,7 @@ static bool rna_SequenceEditor_strips_all_lookup_string(PointerRNA *ptr,
 
   Strip *strip = SEQ_lookup_strip_by_name(scene, key);
   if (strip) {
-    *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Strip, strip);
+    *r_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Strip, strip);
     return true;
   }
   return false;
@@ -885,7 +885,7 @@ static PointerRNA rna_MovieStrip_metadata_get(ID *scene_id, Strip *strip)
     return PointerRNA_NULL;
   }
 
-  PointerRNA ptr = RNA_pointer_create(scene_id, &RNA_IDPropertyWrapPtr, metadata);
+  PointerRNA ptr = RNA_pointer_create_discrete(scene_id, &RNA_IDPropertyWrapPtr, metadata);
   return ptr;
 }
 
@@ -2070,7 +2070,7 @@ static void rna_def_sequence_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Remove all modifiers from the sequence");
 }
 
-static void rna_def_sequence(BlenderRNA *brna)
+static void rna_def_strip(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -4009,7 +4009,7 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_strip_crop(brna);
   rna_def_strip_transform(brna);
 
-  rna_def_sequence(brna);
+  rna_def_strip(brna);
   rna_def_editor(brna);
   rna_def_channel(brna);
 

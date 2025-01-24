@@ -9,6 +9,7 @@
 /* global includes */
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -1726,6 +1727,12 @@ class PreviewLoadJob {
     PreviewImage *preview;
     /** Requested size. */
     eIconSizes icon_size;
+    std::atomic<bool> done = false;
+
+    RequestedPreview(PreviewImage *preview, eIconSizes icon_size)
+        : preview(preview), icon_size(icon_size)
+    {
+    }
   };
 
   /** The previews that are still to be loaded. */
@@ -1793,15 +1800,12 @@ void PreviewLoadJob::load_jobless(PreviewImage *preview, const eIconSizes icon_s
 void PreviewLoadJob::push_load_request(PreviewImage *preview, const eIconSizes icon_size)
 {
   BLI_assert(preview->runtime->deferred_loading_data);
-  RequestedPreview requested_preview{};
-  requested_preview.preview = preview;
-  requested_preview.icon_size = icon_size;
 
   preview->flag[icon_size] |= PRV_RENDERING;
   /* Warn main thread code that this preview is being rendered and cannot be freed. */
   preview->runtime->tag |= PRV_TAG_DEFFERED_RENDERING;
 
-  requested_previews_.push_back(requested_preview);
+  requested_previews_.emplace_back(preview, icon_size);
   BLI_thread_queue_push(todo_queue_, &requested_previews_.back());
 }
 
@@ -1834,16 +1838,25 @@ void PreviewLoadJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
     IMB_thumb_path_unlock(filepath);
 
     if (thumb) {
-      /* PreviewImage assumes premultiplied alpha... */
+      /* PreviewImage assumes premultiplied alpha. */
       IMB_premultiply_alpha(thumb);
 
-      icon_copy_rect(thumb,
-                     preview->w[request->icon_size],
-                     preview->h[request->icon_size],
-                     preview->rect[request->icon_size]);
+      if (ED_preview_use_image_size(preview, request->icon_size)) {
+        preview->w[request->icon_size] = thumb->x;
+        preview->h[request->icon_size] = thumb->y;
+        BLI_assert(preview->rect[request->icon_size] == nullptr);
+        preview->rect[request->icon_size] = (uint *)MEM_dupallocN(thumb->byte_buffer.data);
+      }
+      else {
+        icon_copy_rect(thumb,
+                       preview->w[request->icon_size],
+                       preview->h[request->icon_size],
+                       preview->rect[request->icon_size]);
+      }
       IMB_freeImBuf(thumb);
     }
 
+    request->done = true;
     worker_status->do_update = true;
   }
 
@@ -1875,7 +1888,7 @@ void PreviewLoadJob::update_fn(void *customdata)
   {
     RequestedPreview &requested = *request_it;
     /* Skip items that are not done loading yet. */
-    if (requested.preview->runtime->tag & PRV_TAG_DEFFERED_RENDERING) {
+    if (!requested.done) {
       ++request_it;
       continue;
     }
@@ -1913,6 +1926,11 @@ static void icon_preview_free(void *customdata)
 
   BLI_freelistN(&ip->sizes);
   MEM_freeN(ip);
+}
+
+bool ED_preview_use_image_size(const PreviewImage *preview, eIconSizes size)
+{
+  return size == ICON_SIZE_PREVIEW && preview->runtime->deferred_loading_data;
 }
 
 bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
