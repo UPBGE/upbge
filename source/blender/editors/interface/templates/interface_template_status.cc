@@ -224,14 +224,57 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
     }
   }
 
-  if (!region) {
+  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, win->eventstate->xy);
+  if (!area) {
+    /* Are we in a global area? */
+    LISTBASE_FOREACH (ScrArea *, global_area, &win->global_areas.areabase) {
+      if (BLI_rcti_isect_pt_v(&global_area->totrct, win->eventstate->xy)) {
+        area = global_area;
+        break;
+      }
+    }
+  }
+
+  if (!area) {
+    /* Outside of all areas. */
+    return;
+  }
+
+  if (!region && win) {
     /* On a gap between editors. */
-    uiItemL(row, nullptr, ICON_MOUSE_LMB_DRAG);
-    uiItemL(row, IFACE_("Resize"), ICON_NONE);
+
+    rcti win_rect;
+    const int pad = int((3.0f * UI_SCALE_FAC) + U.pixelsize);
+    WM_window_screen_rect_calc(win, &win_rect);
+    BLI_rcti_pad(&win_rect, pad * -2, pad);
+    if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
+      /* Show options but not along left and right edges. */
+      BLI_rcti_pad(&win_rect, 0, pad * -3);
+      if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
+        /* No resize at top and bottom. */
+        uiItemL(row, nullptr, ICON_MOUSE_LMB_DRAG);
+        uiItemL(row, IFACE_("Resize"), ICON_NONE);
+        uiItemS_ex(row, 0.7f);
+      }
+      uiItemL(row, nullptr, ICON_MOUSE_RMB);
+      uiItemS_ex(row, -0.5f);
+      uiItemL(row, IFACE_("Options"), ICON_NONE);
+      return;
+    }
+  }
+
+  if (region && region->regiontype == RGN_TYPE_HEADER) {
+    uiItemL(row, nullptr, ICON_MOUSE_MMB_DRAG);
+    uiItemL(row, IFACE_("Pan"), ICON_NONE);
     uiItemS_ex(row, 0.7f);
     uiItemL(row, nullptr, ICON_MOUSE_RMB);
     uiItemS_ex(row, -0.5f);
     uiItemL(row, IFACE_("Options"), ICON_NONE);
+    return;
+  }
+
+  if (!area || !region) {
+    /* Keymap status only if over a region in an area. */
     return;
   }
 

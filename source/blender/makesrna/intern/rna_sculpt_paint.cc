@@ -151,9 +151,9 @@ static PointerRNA rna_ParticleEdit_brush_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_ParticleBrush, brush);
 }
 
-static PointerRNA rna_ParticleBrush_curve_get(PointerRNA *ptr)
+static PointerRNA rna_ParticleBrush_curve_get(PointerRNA * /*ptr*/)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_CurveMapping, nullptr);
+  return PointerRNA_NULL;
 }
 
 static void rna_ParticleEdit_redo(bContext *C, PointerRNA * /*ptr*/)
@@ -924,7 +924,7 @@ static void rna_def_uv_sculpt(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "UvSculpt", "Paint");
+  srna = RNA_def_struct(brna, "UvSculpt", nullptr);
   RNA_def_struct_path_func(srna, "rna_UvSculpt_path");
   RNA_def_struct_ui_text(srna, "UV Sculpting", "");
 

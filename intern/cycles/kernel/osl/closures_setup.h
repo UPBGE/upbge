@@ -138,7 +138,7 @@ ccl_device void osl_closure_oren_nayar_diffuse_bsdf_setup(
   }
 
   ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)bsdf_alloc(
-      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight));
+      sd, sizeof(OrenNayarBsdf), rgb_to_spectrum(weight * closure->albedo));
   if (!bsdf) {
     return;
   }
@@ -799,6 +799,25 @@ ccl_device void osl_closure_background_setup(KernelGlobals kg,
                                              float3 *layer_albedo)
 {
   background_setup(sd, rgb_to_spectrum(weight));
+}
+
+/* Uniform EDF
+ *
+ * This is a duplicate of emission above except an emittance value can be passed to the weight.
+ * This is for MaterialX closure compatibility found in stdosl.h.
+ */
+ccl_device void osl_closure_uniform_edf_setup(KernelGlobals kg,
+                                              ccl_private ShaderData *sd,
+                                              uint32_t /*path_flag*/,
+                                              float3 weight,
+                                              const ccl_private UniformEDFClosure *closure,
+                                              float3 *layer_albedo)
+{
+  weight *= closure->emittance;
+  if (sd->flag & SD_IS_VOLUME_SHADER_EVAL) {
+    weight *= object_volume_density(kg, sd->object);
+  }
+  emission_setup(sd, rgb_to_spectrum(weight));
 }
 
 /* Holdout closure
