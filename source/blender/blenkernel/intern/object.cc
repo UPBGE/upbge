@@ -38,7 +38,6 @@
 #include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_nla_types.h"
@@ -49,22 +48,17 @@
 #include "DNA_python_proxy_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
-#include "DNA_sequence_types.h"
 #include "DNA_shader_fx_types.h"
-#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_bounds.hh"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -92,7 +86,6 @@
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve.hh"
-#include "BKE_fcurve_driver.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_global.hh"
@@ -116,7 +109,6 @@
 #include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
@@ -157,9 +149,6 @@
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
-
-#include "CCGSubSurf.h"
-#include "atomic_ops.h"
 
 using blender::Bounds;
 using blender::float3;

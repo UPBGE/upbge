@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <iostream>
 #include <string>
 
 #include "DNA_ID.h"
@@ -25,7 +24,6 @@
 
 #include "BLI_ghash.h"
 #include "BLI_string.h"
-#include "BLI_string_ref.hh"
 #ifndef NDEBUG
 #  include "BLI_threads.h"
 #endif
@@ -460,6 +458,11 @@ void BKE_previewimg_finish(PreviewImage *prv, const int size)
 bool BKE_previewimg_is_finished(const PreviewImage *prv, const int size)
 {
   return (prv->flag[size] & PRV_RENDERING) == 0;
+}
+
+bool BKE_previewimg_is_invalid(const PreviewImage *prv)
+{
+  return (prv->runtime->tag & PRV_TAG_DEFFERED_INVALID) != 0;
 }
 
 void BKE_previewimg_blend_write(BlendWriter *writer, const PreviewImage *prv)

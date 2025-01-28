@@ -27,7 +27,6 @@
 
 #include "DNA_actuator_types.h"
 #include "DNA_controller_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_text_types.h"
 #include "DNA_userdef_types.h"
 
