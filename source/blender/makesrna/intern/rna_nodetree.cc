@@ -554,9 +554,21 @@ const EnumPropertyItem rna_enum_node_geometry_curve_handle_side_items[] = {
     {0, nullptr, 0, nullptr, nullptr}};
 
 const EnumPropertyItem rna_enum_node_combsep_color_items[] = {
-    {NODE_COMBSEP_COLOR_RGB, "RGB", ICON_NONE, "RGB", "Use RGB color processing"},
-    {NODE_COMBSEP_COLOR_HSV, "HSV", ICON_NONE, "HSV", "Use HSV color processing"},
-    {NODE_COMBSEP_COLOR_HSL, "HSL", ICON_NONE, "HSL", "Use HSL color processing"},
+    {NODE_COMBSEP_COLOR_RGB,
+     "RGB",
+     ICON_NONE,
+     "RGB",
+     "Use RGB (Red, Green, Blue) color processing"},
+    {NODE_COMBSEP_COLOR_HSV,
+     "HSV",
+     ICON_NONE,
+     "HSV",
+     "Use HSV (Hue, Saturation, Value) color processing"},
+    {NODE_COMBSEP_COLOR_HSL,
+     "HSL",
+     ICON_NONE,
+     "HSL",
+     "Use HSL (Hue, Saturation, Lightness) color processing"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -839,7 +851,7 @@ static void rna_Node_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
   const blender::bke::bNodeType *ntype = node->typeinfo;
-  blender::StringRef(ntype->idname).unsafe_copy(value);
+  blender::StringRef(ntype->idname).copy_unsafe(value);
 }
 
 static int rna_Node_bl_idname_length(PointerRNA *ptr)
@@ -860,7 +872,7 @@ static void rna_Node_bl_label_get(PointerRNA *ptr, char *value)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
   const blender::bke::bNodeType *ntype = node->typeinfo;
-  blender::StringRef(ntype->ui_name).unsafe_copy(value);
+  blender::StringRef(ntype->ui_name).copy_unsafe(value);
 }
 
 static int rna_Node_bl_label_length(PointerRNA *ptr)
@@ -881,7 +893,7 @@ static void rna_Node_bl_description_get(PointerRNA *ptr, char *value)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
   const blender::bke::bNodeType *ntype = node->typeinfo;
-  blender::StringRef(ntype->ui_description).unsafe_copy(value);
+  blender::StringRef(ntype->ui_description).copy_unsafe(value);
 }
 
 static int rna_Node_bl_description_length(PointerRNA *ptr)
@@ -1356,6 +1368,20 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
   }
 }
 
+static void rna_Node_shortcut_node_set(PointerRNA *ptr, int value)
+{
+  bNode *curr_node = static_cast<bNode *>(ptr->data);
+  bNodeTree &ntree = curr_node->owner_tree();
+
+  /* Avoid having two nodes with the same shortcut. */
+  for (bNode *node : ntree.all_nodes()) {
+    if (node->is_type("CompositorNodeViewer") && node->custom1 == value) {
+      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
+    }
+  }
+  curr_node->custom1 = value;
+}
+
 static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
                                         Main *bmain,
                                         ReportList *reports,
@@ -1495,7 +1521,7 @@ static void rna_NodeTree_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
   const blender::bke::bNodeTreeType *ntype = node->typeinfo;
-  blender::StringRef(ntype->idname).unsafe_copy(value);
+  blender::StringRef(ntype->idname).copy_unsafe(value);
 }
 
 static int rna_NodeTree_bl_idname_length(PointerRNA *ptr)
@@ -1516,7 +1542,7 @@ static void rna_NodeTree_bl_label_get(PointerRNA *ptr, char *value)
 {
   const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
   const blender::bke::bNodeTreeType *ntype = node->typeinfo;
-  blender::StringRef(ntype->ui_name).unsafe_copy(value);
+  blender::StringRef(ntype->ui_name).copy_unsafe(value);
 }
 
 static int rna_NodeTree_bl_label_length(PointerRNA *ptr)
@@ -1537,7 +1563,7 @@ static void rna_NodeTree_bl_description_get(PointerRNA *ptr, char *value)
 {
   const bNodeTree *node = static_cast<const bNodeTree *>(ptr->data);
   const blender::bke::bNodeTreeType *ntype = node->typeinfo;
-  blender::StringRef(ntype->ui_description).unsafe_copy(value);
+  blender::StringRef(ntype->ui_description).copy_unsafe(value);
 }
 
 static int rna_NodeTree_bl_description_length(PointerRNA *ptr)
@@ -6695,9 +6721,21 @@ static void def_sh_output_aov(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_sh_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem type_items[] = {
-      {NODE_COMBSEP_COLOR_RGB, "RGB", ICON_NONE, "RGB", "Use RGB color processing"},
-      {NODE_COMBSEP_COLOR_HSV, "HSV", ICON_NONE, "HSV", "Use HSV color processing"},
-      {NODE_COMBSEP_COLOR_HSL, "HSL", ICON_NONE, "HSL", "Use HSL color processing"},
+      {NODE_COMBSEP_COLOR_RGB,
+       "RGB",
+       ICON_NONE,
+       "RGB",
+       "Use RGB (Red, Green, Blue) color processing"},
+      {NODE_COMBSEP_COLOR_HSV,
+       "HSV",
+       ICON_NONE,
+       "HSV",
+       "Use HSV (Hue, Saturation, Value) color processing"},
+      {NODE_COMBSEP_COLOR_HSL,
+       "HSL",
+       ICON_NONE,
+       "HSL",
+       "Use HSL (Hue, Saturation, Lightness) color processing"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7742,12 +7780,15 @@ static void def_cmp_chroma_matte(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_cmp_channel_matte(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
-
   static const EnumPropertyItem color_space_items[] = {
-      {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, "RGB", "RGB color space"},
-      {CMP_NODE_CHANNEL_MATTE_CS_HSV, "HSV", 0, "HSV", "HSV color space"},
-      {CMP_NODE_CHANNEL_MATTE_CS_YUV, "YUV", 0, "YUV", "YUV color space"},
-      {CMP_NODE_CHANNEL_MATTE_CS_YCC, "YCC", 0, "YCbCr", "YCbCr color space"},
+      {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, "RGB", "RGB (Red, Green, Blue) color space"},
+      {CMP_NODE_CHANNEL_MATTE_CS_HSV, "HSV", 0, "HSV", "HSV (Hue, Saturation, Value) color space"},
+      {CMP_NODE_CHANNEL_MATTE_CS_YUV, "YUV", 0, "YUV", "YUV (Y - luma, U V - chroma) color space"},
+      {CMP_NODE_CHANNEL_MATTE_CS_YCC,
+       "YCC",
+       0,
+       "YCbCr",
+       "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -8576,11 +8617,32 @@ static void def_cmp_ycc(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_cmp_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
-      {CMP_NODE_COMBSEP_COLOR_RGB, "RGB", ICON_NONE, "RGB", "Use RGB color processing"},
-      {CMP_NODE_COMBSEP_COLOR_HSV, "HSV", ICON_NONE, "HSV", "Use HSV color processing"},
-      {CMP_NODE_COMBSEP_COLOR_HSL, "HSL", ICON_NONE, "HSL", "Use HSL color processing"},
-      {CMP_NODE_COMBSEP_COLOR_YCC, "YCC", ICON_NONE, "YCbCr", "Use YCbCr color processing"},
-      {CMP_NODE_COMBSEP_COLOR_YUV, "YUV", ICON_NONE, "YUV", "Use YUV color processing"},
+      {CMP_NODE_COMBSEP_COLOR_RGB,
+       "RGB",
+       ICON_NONE,
+       "RGB",
+       "Use RGB (Red, Green, Blue) color processing"},
+      {CMP_NODE_COMBSEP_COLOR_HSV,
+       "HSV",
+       ICON_NONE,
+       "HSV",
+       "Use HSV (Hue, Saturation, Value) color processing"},
+      {CMP_NODE_COMBSEP_COLOR_HSL,
+       "HSL",
+       ICON_NONE,
+       "HSL",
+       "Use HSL (Hue, Saturation, Lightness) color processing"},
+      {CMP_NODE_COMBSEP_COLOR_YCC,
+       "YCC",
+       ICON_NONE,
+       "YCbCr",
+       "Use YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color "
+       "processing"},
+      {CMP_NODE_COMBSEP_COLOR_YUV,
+       "YUV",
+       ICON_NONE,
+       "YUV",
+       "Use YUV (Y - luma, U V - chroma) color processing"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -9125,6 +9187,14 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
       "Use Alpha",
       "Colors are treated alpha premultiplied, or colors output straight (alpha gets set to 1)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_Node_shortcut_node_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 }
 
 static void def_cmp_composite(BlenderRNA * /*brna*/, StructRNA *srna)

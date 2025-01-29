@@ -112,7 +112,6 @@ OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profi
 
   max_memory_on_device_ = get_memcapacity();
   init_host_memory();
-  move_texture_to_host = false;
   can_map_host = true;
 
   const char *headroom_str = getenv("CYCLES_ONEAPI_MEMORY_HEADROOM");
@@ -344,11 +343,11 @@ void OneapiDevice::free_host(void *shared_pointer)
   usm_free(device_queue_, shared_pointer);
 }
 
-void OneapiDevice::transform_host_pointer(void *&device_pointer, void *&shared_pointer)
+void *OneapiDevice::transform_host_to_device_pointer(const void *shared_pointer)
 {
   /* Device and host pointer are in the same address space
    * as we're using Unified Shared Memory. */
-  device_pointer = shared_pointer;
+  return const_cast<void *>(shared_pointer);
 }
 
 void OneapiDevice::copy_host_to_device(void *device_pointer, void *host_pointer, const size_t size)
@@ -418,6 +417,34 @@ void OneapiDevice::mem_copy_to(device_memory &mem)
   }
 
   if (mem.type == MEM_GLOBAL) {
+    global_copy_to(mem);
+  }
+  else if (mem.type == MEM_TEXTURE) {
+    tex_copy_to((device_texture &)mem);
+  }
+  else {
+    if (!mem.device_pointer) {
+      generic_alloc(mem);
+    }
+    generic_copy_to(mem);
+  }
+}
+
+void OneapiDevice::mem_move_to_host(device_memory &mem)
+{
+  if (mem.name) {
+    VLOG_DEBUG << "OneapiDevice::mem_move_to_host: \"" << mem.name << "\", "
+               << string_human_readable_number(mem.memory_size()) << " bytes. ("
+               << string_human_readable_size(mem.memory_size()) << ")";
+  }
+
+  /* After getting runtime errors we need to avoid performing oneAPI runtime operations
+   * because the associated GPU context may be in an invalid state at this point. */
+  if (have_error()) {
+    return;
+  }
+
+  if (mem.type == MEM_GLOBAL) {
     global_free(mem);
     global_alloc(mem);
   }
@@ -426,11 +453,7 @@ void OneapiDevice::mem_copy_to(device_memory &mem)
     tex_alloc((device_texture &)mem);
   }
   else {
-    if (!mem.device_pointer) {
-      generic_alloc(mem);
-    }
-
-    generic_copy_to(mem);
+    assert(0);
   }
 }
 
@@ -596,6 +619,16 @@ void OneapiDevice::global_alloc(device_memory &mem)
   usm_memcpy(device_queue_, kg_memory_device_, kg_memory_, kg_memory_size_);
 }
 
+void OneapiDevice::global_copy_to(device_memory &mem)
+{
+  if (!mem.device_pointer) {
+    global_alloc(mem);
+  }
+  else {
+    generic_copy_to(mem);
+  }
+}
+
 void OneapiDevice::global_free(device_memory &mem)
 {
   if (mem.device_pointer) {
@@ -608,16 +641,24 @@ void OneapiDevice::tex_alloc(device_texture &mem)
   generic_alloc(mem);
   generic_copy_to(mem);
 
-  /* Resize if needed. Also, in case of resize - allocate in advance for future allocations. */
-  const uint slot = mem.slot;
-  if (slot >= texture_info.size()) {
-    texture_info.resize(slot + 128);
+  {
+    /* Update texture info. */
+    thread_scoped_lock lock(texture_info_mutex);
+    const uint slot = mem.slot;
+    if (slot >= texture_info.size()) {
+      /* Allocate some slots in advance, to reduce amount of re-allocations. */
+      texture_info.resize(slot + 128);
+    }
+    TextureInfo tex_info = mem.info;
+    tex_info.data = (uint64_t)mem.device_pointer;
+    texture_info[slot] = tex_info;
+    need_texture_info = true;
   }
+}
 
-  texture_info[slot] = mem.info;
-  need_texture_info = true;
-
-  texture_info[slot].data = (uint64_t)mem.device_pointer;
+void OneapiDevice::tex_copy_to(device_texture &mem)
+{
+  generic_copy_to(mem);
 }
 
 void OneapiDevice::tex_free(device_texture &mem)

@@ -486,15 +486,15 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 
   bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
-  StringRef(stype->idname).copy(sock->idname);
+  StringRef(stype->idname).copy_utf8_truncated(sock->idname);
   sock->in_out = int(in_out);
   sock->type = int(SOCK_CUSTOM); /* int type undefined by default */
   node_socket_set_typeinfo(ntree, sock, stype);
 
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  identifier.copy(sock->identifier);
-  name.copy(sock->name);
+  identifier.copy_utf8_truncated(sock->identifier);
+  name.copy_utf8_truncated(sock->name);
   sock->storage = nullptr;
   sock->flag |= SOCK_COLLAPSED;
 
@@ -1950,11 +1950,11 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 
   if (identifier[0] != '\0') {
     /* use explicit identifier */
-    identifier.copy(auto_identifier);
+    identifier.copy_utf8_truncated(auto_identifier);
   }
   else {
     /* if no explicit identifier is given, assign a unique identifier based on the name */
-    name.copy(auto_identifier);
+    name.copy_utf8_truncated(auto_identifier);
   }
   /* Make the identifier unique. */
   BLI_uniquename_cb(
@@ -1967,12 +1967,12 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   STRNCPY(sock->identifier, auto_identifier);
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  name.copy(sock->name);
+  name.copy_utf8_truncated(sock->name);
   sock->storage = nullptr;
   sock->flag |= SOCK_COLLAPSED;
   sock->type = SOCK_CUSTOM; /* int type undefined by default */
 
-  idname.copy(sock->idname);
+  idname.copy_utf8_truncated(sock->idname);
   node_socket_set_typeinfo(ntree, sock, node_socket_type_find(idname));
 
   return sock;
@@ -2132,7 +2132,7 @@ void node_modify_socket_type(bNodeTree *ntree,
     }
   }
 
-  idname.copy(sock->idname);
+  idname.copy_utf8_truncated(sock->idname);
   node_socket_set_typeinfo(ntree, sock, socktype);
 }
 
@@ -2681,7 +2681,7 @@ bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRef idname
   node_unique_id(ntree, node);
   node->ui_order = ntree->all_nodes().size();
 
-  idname.copy(node->idname);
+  idname.copy_utf8_truncated(node->idname);
   node_set_typeinfo(C, ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(ntree, node);
@@ -3237,7 +3237,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
     BLI_assert(owner_id == nullptr);
   }
 
-  idname.copy(ntree->idname);
+  idname.copy_utf8_truncated(ntree->idname);
   ntree_set_typeinfo(ntree, node_tree_type_find(idname));
 
   return ntree;
@@ -3674,6 +3674,9 @@ void node_tree_set_output(bNodeTree *ntree)
         /* same type, exception for viewer */
         const bool tnode_is_output = tnode->type_legacy == CMP_NODE_VIEWER;
         const bool compositor_case = is_compositor && tnode_is_output && node_is_output;
+        const bool has_same_shortcut = compositor_case && node != tnode &&
+                                       tnode->custom1 == node->custom1 &&
+                                       tnode->custom1 != NODE_VIEWER_SHORTCUT_NONE;
         if (tnode->type_legacy == node->type_legacy || compositor_case) {
           if (tnode->flag & NODE_DO_OUTPUT) {
             output++;
@@ -3681,6 +3684,9 @@ void node_tree_set_output(bNodeTree *ntree)
               tnode->flag &= ~NODE_DO_OUTPUT;
             }
           }
+        }
+        if (has_same_shortcut) {
+          tnode->custom1 = NODE_VIEWER_SHORTCUT_NONE;
         }
       }
 

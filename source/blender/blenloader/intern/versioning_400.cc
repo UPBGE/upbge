@@ -992,9 +992,17 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
     return 1.0f - blender::math::clamp(-mix, 0.0f, 1.0f);
   };
 
-  /* Function to remap the Size property to its new range. See function description. */
+  /* Find the render size to guess the Size value. The node tree might not belong to a scene, so we
+   * just assume an arbitrary HDTV 1080p render size. */
   blender::int2 render_size;
-  BKE_render_resolution(&scene->r, true, &render_size.x, &render_size.y);
+  if (scene) {
+    BKE_render_resolution(&scene->r, true, &render_size.x, &render_size.y);
+  }
+  else {
+    render_size = blender::int2(1920, 1080);
+  }
+
+  /* Function to remap the Size property to its new range. See function description. */
   const int max_render_size = blender::math::reduce_max(render_size);
   auto size_to_linear = [&](const int size) {
     if (storage->type == CMP_NODE_GLARE_BLOOM) {
@@ -1272,6 +1280,17 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
 
     /* Remove the old link. */
     blender::bke::node_remove_link(node_tree, link);
+  }
+}
+
+static void do_version_viewer_shortcut(bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy != CMP_NODE_VIEWER) {
+      continue;
+    }
+    /* custom1 was previously used for Tile Order for the Tiled Compositor. */
+    node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
   }
 }
 
@@ -5797,6 +5816,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         brush->mask_stencil_pos[1] = default_brush->mask_stencil_pos[1];
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_viewer_shortcut(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
