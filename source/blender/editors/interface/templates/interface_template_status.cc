@@ -11,11 +11,13 @@
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -175,6 +177,78 @@ static bool uiTemplateInputStatusAzone(uiLayout *layout, const AZone *az, const 
   return false;
 }
 
+static bool uiTemplateInputStatusBorder(wmWindow *win, uiLayout *row)
+{
+  /* On a gap between editors. */
+  rcti win_rect;
+  const int pad = int((3.0f * UI_SCALE_FAC) + U.pixelsize);
+  WM_window_screen_rect_calc(win, &win_rect);
+  BLI_rcti_pad(&win_rect, pad * -2, pad);
+  if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
+    /* Show options but not along left and right edges. */
+    BLI_rcti_pad(&win_rect, 0, pad * -3);
+    if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
+      /* No resize at top and bottom. */
+      uiItemL(row, nullptr, ICON_MOUSE_LMB_DRAG);
+      uiItemL(row, IFACE_("Resize"), ICON_NONE);
+      uiItemS_ex(row, 0.7f);
+    }
+    uiItemL(row, nullptr, ICON_MOUSE_RMB);
+    uiItemS_ex(row, -0.5f);
+    uiItemL(row, IFACE_("Options"), ICON_NONE);
+    return true;
+  }
+  return false;
+}
+
+static bool uiTemplateInputStatusHeader(ARegion *region, uiLayout *row)
+{
+  if (region->regiontype != RGN_TYPE_HEADER) {
+    return false;
+  }
+  /* Over a header region. */
+  uiItemL(row, nullptr, ICON_MOUSE_MMB_DRAG);
+  uiItemL(row, IFACE_("Pan"), ICON_NONE);
+  uiItemS_ex(row, 0.7f);
+  uiItemL(row, nullptr, ICON_MOUSE_RMB);
+  uiItemS_ex(row, -0.5f);
+  uiItemL(row, IFACE_("Options"), ICON_NONE);
+  return true;
+}
+
+static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
+{
+  const Object *ob = CTX_data_active_object(C);
+  if (!ob) {
+    return false;
+  }
+
+  if (is_negative_m4(ob->object_to_world().ptr())) {
+    uiItemS_ex(row, 1.0f);
+    uiItemL(row, "", ICON_ERROR);
+    uiItemS_ex(row, -0.2f);
+    uiItemL(row, IFACE_("Active object has negative scale"), ICON_NONE);
+    uiItemS_ex(row, 0.5f, LayoutSeparatorType::Line);
+    uiItemS_ex(row, 0.8f);
+    /* Return false to allow other items to be added after. */
+    return false;
+  }
+
+  if (!(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f && fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
+  {
+    uiItemS_ex(row, 1.0f);
+    uiItemL(row, "", ICON_ERROR);
+    uiItemS_ex(row, -0.2f);
+    uiItemL(row, IFACE_("Active object has non-uniform scale"), ICON_NONE);
+    uiItemS_ex(row, 0.5f, LayoutSeparatorType::Line);
+    uiItemS_ex(row, 0.8f);
+    /* Return false to allow other items to be added after. */
+    return false;
+  }
+
+  return false;
+}
+
 void uiTemplateInputStatus(uiLayout *layout, bContext *C)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -240,36 +314,18 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
     return;
   }
 
-  if (!region && win) {
+  if (!region && win && uiTemplateInputStatusBorder(win, row)) {
     /* On a gap between editors. */
-
-    rcti win_rect;
-    const int pad = int((3.0f * UI_SCALE_FAC) + U.pixelsize);
-    WM_window_screen_rect_calc(win, &win_rect);
-    BLI_rcti_pad(&win_rect, pad * -2, pad);
-    if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
-      /* Show options but not along left and right edges. */
-      BLI_rcti_pad(&win_rect, 0, pad * -3);
-      if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
-        /* No resize at top and bottom. */
-        uiItemL(row, nullptr, ICON_MOUSE_LMB_DRAG);
-        uiItemL(row, IFACE_("Resize"), ICON_NONE);
-        uiItemS_ex(row, 0.7f);
-      }
-      uiItemL(row, nullptr, ICON_MOUSE_RMB);
-      uiItemS_ex(row, -0.5f);
-      uiItemL(row, IFACE_("Options"), ICON_NONE);
-      return;
-    }
+    return;
   }
 
-  if (region && region->regiontype == RGN_TYPE_HEADER) {
-    uiItemL(row, nullptr, ICON_MOUSE_MMB_DRAG);
-    uiItemL(row, IFACE_("Pan"), ICON_NONE);
-    uiItemS_ex(row, 0.7f);
-    uiItemL(row, nullptr, ICON_MOUSE_RMB);
-    uiItemS_ex(row, -0.5f);
-    uiItemL(row, IFACE_("Options"), ICON_NONE);
+  if (region && uiTemplateInputStatusHeader(region, row)) {
+    /* Over a header region. */
+    return;
+  }
+
+  if (area && area->spacetype == SPACE_VIEW3D && uiTemplateInputStatus3DView(C, row)) {
+    /* Specific to 3DView. */
     return;
   }
 

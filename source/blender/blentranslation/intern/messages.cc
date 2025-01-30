@@ -229,7 +229,7 @@ class Info {
     if (end >= input.size()) {
       return true;
     }
-    if (input[end] == '-' || input[end] == '_') {
+    if (ELEM(input[end], '-', '_')) {
       return parse_from_country(input.substr(end + 1));
     }
     if (input[end] == '.') {
@@ -251,14 +251,14 @@ class Info {
         return false;
       }
     }
-    if (tmp != "c" && tmp != "posix") { /* Keep default if C or POSIX. */
+    if (!ELEM(tmp, "c", "posix")) { /* Keep default if C or POSIX. */
       language = tmp;
     }
 
     if (end >= input.size()) {
       return true;
     }
-    if (input[end] == '-' || input[end] == '_') {
+    if (ELEM(input[end], '-', '_')) {
       return parse_from_script(input.substr(end + 1));
     }
     if (input[end] == '.') {
@@ -389,34 +389,34 @@ class MOFile {
 /* Message lookup key. */
 
 struct MessageKeyRef {
-  StringRef context_;
-  StringRef str_;
+  StringRef context;
+  StringRef str;
 
   uint64_t hash() const
   {
-    return get_default_hash(context_, str_);
+    return get_default_hash(this->context, this->str);
   }
 };
 
 struct MessageKey {
-  std::string context_;
-  std::string str_;
+  std::string context;
+  std::string str;
 
   MessageKey(const StringRef c)
   {
     const size_t pos = c.find(char(4));
     if (pos == StringRef::not_found) {
-      str_ = c;
+      this->str = c;
     }
     else {
-      context_ = c.substr(0, pos);
-      str_ = c.substr(pos + 1);
+      this->context = c.substr(0, pos);
+      this->str = c.substr(pos + 1);
     }
   }
 
   uint64_t hash() const
   {
-    return get_default_hash(context_, str_);
+    return get_default_hash(this->context, this->str);
   }
 
   static uint64_t hash_as(const MessageKeyRef &key)
@@ -427,12 +427,12 @@ struct MessageKey {
 
 inline bool operator==(const MessageKey &a, const MessageKey &b)
 {
-  return a.context_ == b.context_ && a.str_ == b.str_;
+  return a.context == b.context && a.str == b.str;
 }
 
 inline bool operator==(const MessageKeyRef &a, const MessageKey &b)
 {
-  return a.context_ == b.context_ && a.str_ == b.str_;
+  return a.context == b.context && a.str == b.str;
 }
 
 /* Messages translation based on .mo files. */
