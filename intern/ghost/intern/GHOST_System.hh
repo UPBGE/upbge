@@ -113,8 +113,7 @@ class GHOST_System : public GHOST_ISystem {
    */
   GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                  GHOST_IWindow **window,
-                                 const GHOST_GPUSettings &gpu_settings,
-                                 const bool stereoVisual) override;
+                                 const GHOST_GPUSettings &gpu_settings) override;
 
   /**
    * Updates the resolution while in full-screen mode.
