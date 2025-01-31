@@ -27,6 +27,7 @@
 #include "BL_Texture.h"
 
 #include "GPU_material.hh"
+#include "GPU_state.hh"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
     : EXP_Value(),

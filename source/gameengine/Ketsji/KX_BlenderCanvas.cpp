@@ -34,6 +34,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "DNA_scene_types.h"

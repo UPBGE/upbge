@@ -13,6 +13,7 @@
 #include "DNA_layer_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 #include "DNA_python_proxy_types.h"

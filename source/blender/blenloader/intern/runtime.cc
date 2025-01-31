@@ -45,7 +45,7 @@
 #  include <unistd.h>  // read
 #endif
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_utildefines.h"
 
 #include "BLO_readfile.hh"

@@ -15,6 +15,7 @@
 #include "BLI_math_matrix.h"
 #include "DEG_depsgraph_query.hh"
 #include "GPU_framebuffer.hh"
+#include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
 #include "CM_Message.h"

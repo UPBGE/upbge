@@ -15,7 +15,6 @@
 
 #  include <pthread.h>
 
-#  include "BLI_blenlib.h"
 #  include "BLI_threads.h"
 #  include "DNA_listBase.h"
 

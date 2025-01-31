@@ -41,12 +41,13 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BKE_property.hh"
+
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
-
-#include "BLI_blenlib.h"
-
-#include "BKE_property.hh"
 
 void BKE_bproperty_free(bProperty *prop)
 {

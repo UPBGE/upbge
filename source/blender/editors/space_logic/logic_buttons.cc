@@ -28,7 +28,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "BLI_blenlib.h"
 #include "BLI_math_geom.h"
 #include "BLI_utildefines.h"
 

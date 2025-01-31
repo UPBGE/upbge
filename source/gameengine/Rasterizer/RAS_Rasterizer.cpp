@@ -39,10 +39,12 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_Polygon.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)
 {

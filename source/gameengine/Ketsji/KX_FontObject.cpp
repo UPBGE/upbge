@@ -31,7 +31,7 @@
 
 #include "KX_FontObject.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_string_utf8.h"
 #include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 

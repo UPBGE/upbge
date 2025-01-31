@@ -41,8 +41,8 @@
 #include "DNA_sensor_types.h"
 #include "DNA_text_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 
 #include "BKE_global.hh"

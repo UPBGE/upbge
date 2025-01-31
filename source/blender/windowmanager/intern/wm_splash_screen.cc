@@ -21,6 +21,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"

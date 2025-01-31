@@ -17,7 +17,6 @@
 #  include <set>
 
 
-#  include "BLI_blenlib.h"
 #  include "BLI_threads.h"
 #  include "DNA_listBase.h"
 #  include <pthread.h>

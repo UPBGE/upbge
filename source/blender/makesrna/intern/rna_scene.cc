@@ -13,6 +13,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_world_types.h"
 
 #include "IMB_colormanagement.hh"
 

@@ -40,7 +40,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_undo_system.hh"
-#include "BLI_blenlib.h"
+#include "BLI_string.h"
 #include "BLO_readfile.hh"
 #include "ED_screen.hh"
 #include "GPU_context.hh"
