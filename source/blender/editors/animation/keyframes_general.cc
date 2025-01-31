@@ -6,16 +6,17 @@
  * \ingroup edanimation
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -472,7 +473,7 @@ static double butterworth_filter_value(
 }
 
 static float butterworth_calculate_blend_value(float *samples,
-                                               float *filtered_values,
+                                               const float *filtered_values,
                                                const int start_index,
                                                const int end_index,
                                                const int sample_index,
@@ -639,7 +640,7 @@ void smooth_fcurve_segment(FCurve *fcu,
                            float *samples,
                            const float factor,
                            const int kernel_size,
-                           double *kernel)
+                           const double *kernel)
 {
   const int segment_end_index = segment->start_index + segment->length;
   const float segment_start_x = fcu->bezt[segment->start_index].vec[1][0];
@@ -1266,27 +1267,30 @@ void KeyframeCopyBuffer::debug_print() const
 {
   using namespace blender::animrig;
 
-  printf("KeyframeCopyBuffer contents:\n");
-  printf("  frame range: %f - %f\n", this->first_frame, this->last_frame);
-  printf("  scene frame: %f\n", this->current_frame);
+  std::cout << "KeyframeCopyBuffer contents:" << std::endl;
+  std::cout << "  frame range: " << this->first_frame << "-" << this->last_frame << std::endl;
+  std::cout << "  scene frame: " << this->current_frame << std::endl;
 
   if (is_empty()) {
-    printf("  buffer is empty\n");
+    std::cout << "  buffer is empty" << std::endl;
   }
 
   if (is_single_fcurve()) {
-    printf("  buffer has single F-Curve\n");
+    std::cout << "  buffer has single F-Curve" << std::endl;
   }
 
   const StripKeyframeData &keyframe_data = this->keyframe_data;
-  printf("  channelbags: %ld\n", keyframe_data.channelbags().size());
+  std::cout << "  channelbags: " << keyframe_data.channelbags().size() << std::endl;
   for (const Channelbag *channelbag : keyframe_data.channelbags()) {
 
-    printf("  - Channelbag for slot \"%s\":\n",
-           this->slot_identifiers.lookup(channelbag->slot_handle).c_str());
+    std::cout << "  - Channelbag for slot \""
+              << this->slot_identifiers.lookup(channelbag->slot_handle) << "\":" << std::endl;
     for (const FCurve *fcurve : channelbag->fcurves()) {
-      const bool is_bone = this->is_bone(*fcurve);
-      printf("      %s[%d] %s\n", fcurve->rna_path, fcurve->array_index, is_bone ? "bone" : "");
+      std::cout << "      " << fcurve->rna_path << "[" << fcurve->array_index << "]";
+      if (this->is_bone(*fcurve)) {
+        std::cout << " (bone)";
+      }
+      std::cout << std::endl;
     }
   }
 }

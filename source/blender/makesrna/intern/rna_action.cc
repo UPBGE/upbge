@@ -84,8 +84,12 @@ const EnumPropertyItem default_ActionSlot_target_id_type_items[] = {
 #  include <algorithm>
 
 #  include "BLI_math_base.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BKE_fcurve.hh"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -96,8 +100,6 @@ const EnumPropertyItem default_ActionSlot_target_id_type_items[] = {
 #  include "WM_api.hh"
 
 #  include "UI_interface_icons.hh"
-
-#  include "DEG_depsgraph.hh"
 
 #  include "ANIM_action_legacy.hh"
 #  include "ANIM_keyframing.hh"
@@ -125,7 +127,7 @@ static animrig::Strip &rna_data_strip(const PointerRNA *ptr)
   return reinterpret_cast<ActionStrip *>(ptr->data)->wrap();
 }
 
-static void rna_Action_tag_animupdate(Main *, Scene *, PointerRNA *ptr)
+static void rna_Action_tag_animupdate(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
@@ -721,10 +723,15 @@ static void rna_Channelbag_group_remove(ActionChannelbag *dna_channelbag,
 
 static ActionChannelbag *rna_ActionStrip_channels(ID *dna_action_id,
                                                   ActionStrip *self,
-                                                  const animrig::slot_handle_t slot_handle)
+                                                  const animrig::slot_handle_t slot_handle,
+                                                  const bool ensure)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(dna_action_id)->wrap();
   animrig::StripKeyframeData &strip_data = self->wrap().data<animrig::StripKeyframeData>(action);
+
+  if (ensure) {
+    return &strip_data.channelbag_for_slot_ensure(slot_handle);
+  }
   return strip_data.channelbag_for_slot(slot_handle);
 }
 
@@ -1366,7 +1373,7 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
     if (action.idroot == 0) {
       return true;
     }
-    else if (srcId) {
+    if (srcId) {
       return GS(srcId->name) == action.idroot;
     }
   }
@@ -2233,6 +2240,11 @@ static void rna_def_action_keyframe_strip(BlenderRNA *brna)
                        0,
                        INT_MAX);
     RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+    RNA_def_boolean(func,
+                    "ensure",
+                    false,
+                    "Create if necessary",
+                    "Ensure the channelbag exists for this slot handle, creating it if necessary");
     parm = RNA_def_pointer(func, "channels", "ActionChannelbag", "Channels", "");
     RNA_def_function_return(func, parm);
 

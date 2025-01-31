@@ -32,12 +32,12 @@ const Schedule &CompileState::get_schedule()
 
 void CompileState::map_node_to_node_operation(DNode node, NodeOperation *operations)
 {
-  return node_operations_.add_new(node, operations);
+  node_operations_.add_new(node, operations);
 }
 
 void CompileState::map_node_to_pixel_operation(DNode node, PixelOperation *operations)
 {
-  return pixel_operations_.add_new(node, operations);
+  pixel_operations_.add_new(node, operations);
 }
 
 Result &CompileState::get_result_from_output_socket(DOutputSocket output)
@@ -221,7 +221,7 @@ Domain CompileState::compute_pixel_node_domain(DNode node)
     }
 
     /* An input that skips operation domain realization can't be a domain input. */
-    if (!input_descriptor.realization_options.realize_on_operation_domain) {
+    if (input_descriptor.realization_mode != InputRealizationMode::OperationDomain) {
       continue;
     }
 

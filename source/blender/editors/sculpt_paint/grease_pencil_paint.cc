@@ -46,6 +46,7 @@
 
 #include "grease_pencil_intern.hh"
 
+#include <numeric>
 #include <optional>
 
 namespace blender::ed::sculpt_paint::greasepencil {
@@ -133,94 +134,6 @@ static void morph_points_to_curve(Span<float2> src, Span<float2> target, Mutable
   length_parameterize::interpolate<float2>(
       target, segment_indices, segment_factors, dst.drop_back(1));
   dst.last() = src.last();
-}
-
-/**
- * Creates a new curve with one point at the beginning or end.
- * \note Does not initialize the new curve or points.
- */
-static void create_blank_curve(bke::CurvesGeometry &curves, const bool on_back)
-{
-  if (!on_back) {
-    const int num_old_points = curves.points_num();
-    curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
-    curves.offsets_for_write().last(1) = num_old_points;
-    return;
-  }
-
-  curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
-  MutableSpan<int> offsets = curves.offsets_for_write();
-  offsets.first() = 0;
-
-  /* Loop through backwards to not overwrite the data. */
-  for (int i = curves.curves_num() - 2; i >= 0; i--) {
-    offsets[i + 1] = offsets[i] + 1;
-  }
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      /* Loop through backwards to not overwrite the data. */
-      for (int i = span_data.size() - 2; i >= 0; i--) {
-        span_data[i + 1] = span_data[i];
-      }
-    });
-    dst.finish();
-  });
-}
-
-/**
- * Extends the first or last curve by `new_points_num` number of points.
- * \note Does not initialize the new points.
- */
-static void extend_curve(bke::CurvesGeometry &curves, const bool on_back, const int new_points_num)
-{
-  if (!on_back) {
-    curves.resize(curves.points_num() + new_points_num, curves.curves_num());
-    curves.offsets_for_write().last() = curves.points_num();
-    return;
-  }
-
-  const int last_active_point = curves.points_by_curve()[0].last();
-
-  curves.resize(curves.points_num() + new_points_num, curves.curves_num());
-  MutableSpan<int> offsets = curves.offsets_for_write();
-
-  for (const int src_curve : curves.curves_range().drop_front(1)) {
-    offsets[src_curve] = offsets[src_curve] + new_points_num;
-  }
-  offsets.last() = curves.points_num();
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Point) {
-      return;
-    }
-
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      /* Loop through backwards to not overwrite the data. */
-      for (int i = (span_data.size() - 1) - new_points_num; i >= last_active_point; i--) {
-        span_data[i + new_points_num] = span_data[i];
-      }
-    });
-    dst.finish();
-  });
-
-  curves.tag_topology_changed();
 }
 
 class PaintOperation : public GreasePencilStrokeOperation {
@@ -553,7 +466,7 @@ struct PaintOperationExecutor {
 
     /* Resize the curves geometry so there is one more curve with a single point. */
     bke::CurvesGeometry &curves = drawing_->strokes_for_write();
-    create_blank_curve(curves, on_back);
+    ed::greasepencil::add_single_curve(curves, on_back == false);
 
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
@@ -638,7 +551,7 @@ struct PaintOperationExecutor {
     bke::SpanAttributeWriter<float> init_times = attributes.lookup_or_add_for_write_span<float>(
         "init_time", bke::AttrDomain::Curve);
     /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
-    init_times.span[active_curve] = float(uint64_t(self.start_time_ * double(1e3))) / float(1e3);
+    init_times.span[active_curve] = float(uint64_t(self.start_time_ * 1e3)) / float(1e3);
     curve_attributes_to_skip.add("init_time");
     init_times.finish();
 
@@ -920,7 +833,8 @@ struct PaintOperationExecutor {
                                    int(math::floor(distance_px / max_spacing_px)) :
                                    1;
     /* Resize the curves geometry. */
-    extend_curve(curves, on_back, new_points_num);
+    ed::greasepencil::resize_single_curve(
+        curves, on_back == false, curve_points.size() + new_points_num);
 
     Set<std::string> point_attributes_to_skip;
     /* Subdivide new segment. */
@@ -1796,7 +1710,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
       process_stroke_weights(*scene, *object, drawing, active_curve);
     }
     if ((settings->flag & GP_BRUSH_OUTLINE_STROKE) != 0) {
-      const float outline_radius = float(brush->unprojected_radius) * settings->outline_fac * 0.5f;
+      const float outline_radius = brush->unprojected_radius * settings->outline_fac * 0.5f;
       const int material_index = [&]() {
         Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
             CTX_data_main(&C), object, brush);

@@ -13,10 +13,6 @@
 
 #include "BKE_context.hh"
 
-#include "DNA_scene_types.h"
-
-#include "GHOST_C-api.h"
-
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 

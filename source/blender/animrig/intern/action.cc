@@ -6,7 +6,6 @@
  * \ingroup animrig
  */
 
-#include "DNA_action_defaults.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_array_utils.hh"
@@ -14,7 +13,6 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
@@ -28,7 +26,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
-#include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 
 #include "RNA_access.hh"
@@ -46,11 +43,8 @@
 #include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
-#include "ANIM_nla.hh"
 
 #include "action_runtime.hh"
-
-#include "atomic_ops.h"
 
 #include <cstdio>
 #include <cstring>
@@ -1774,11 +1768,16 @@ Channelbag &StripKeyframeData::channelbag_for_slot_add(const slot_handle_t slot_
 
 Channelbag &StripKeyframeData::channelbag_for_slot_ensure(const Slot &slot)
 {
-  Channelbag *channelbag = this->channelbag_for_slot(slot);
+  return this->channelbag_for_slot_ensure(slot.handle);
+}
+
+Channelbag &StripKeyframeData::channelbag_for_slot_ensure(const slot_handle_t slot_handle)
+{
+  Channelbag *channelbag = this->channelbag_for_slot(slot_handle);
   if (channelbag != nullptr) {
     return *channelbag;
   }
-  return this->channelbag_for_slot_add(slot);
+  return this->channelbag_for_slot_add(slot_handle);
 }
 
 static void channelbag_ptr_destructor(ActionChannelbag **dna_channelbag_ptr)

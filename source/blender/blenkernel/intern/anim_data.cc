@@ -46,7 +46,6 @@
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 
-#include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 #include "ANIM_action_legacy.hh"
 
@@ -1254,7 +1253,8 @@ static void nlastrips_apply_all_curves_cb(ID *id,
   }
 }
 
-/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves */
+/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves. Muted NLA Tracks
+ * are ignored. */
 static void adt_apply_all_fcurves_cb(ID *id,
                                      AnimData *adt,
                                      const FunctionRef<void(ID *, FCurve *)> func)
@@ -1272,6 +1272,9 @@ static void adt_apply_all_fcurves_cb(ID *id,
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
+    if (nlt->flag & NLATRACK_MUTED) {
+      continue;
+    }
     nlastrips_apply_all_curves_cb(id, &nlt->strips, func);
   }
 }

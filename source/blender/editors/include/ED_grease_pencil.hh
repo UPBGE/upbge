@@ -39,14 +39,13 @@ struct ViewContext;
 struct BVHTree;
 struct GreasePencilLineartModifierData;
 struct RV3DMatrixStore;
-namespace blender {
-namespace bke {
+
+namespace blender::bke {
 enum class AttrDomain : int8_t;
 class CurvesGeometry;
 namespace crazyspace {
 }
-}  // namespace bke
-}  // namespace blender
+}  // namespace blender::bke
 
 enum {
   LAYER_REORDER_ABOVE,
@@ -86,7 +85,7 @@ void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot);
 
-void ED_undosys_type_grease_pencil(UndoType *undo_type);
+void ED_undosys_type_grease_pencil(UndoType *ut);
 
 /**
  * Get the selection mode for Grease Pencil selection operators: point, stroke, segment.
@@ -161,7 +160,6 @@ class DrawingPlacement {
   DrawingPlacement &operator=(DrawingPlacement &&other);
   ~DrawingPlacement();
 
- public:
   bool use_project_to_surface() const;
   bool use_project_to_stroke() const;
 
@@ -929,5 +927,17 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
 
 /* Make sure selection domain is updated to match the current selection mode. */
 bool ensure_selection_domain(ToolSettings *ts, Object *object);
+
+/**
+ * Creates a new curve with one point at the beginning or end.
+ * \note Does not initialize the new curve or points.
+ */
+void add_single_curve(bke::CurvesGeometry &curves, bool at_end);
+
+/**
+ * Resize the first or last curve to `new_points_num` number of points.
+ * \note Does not initialize the new points.
+ */
+void resize_single_curve(bke::CurvesGeometry &curves, bool at_end, int new_points_num);
 
 }  // namespace blender::ed::greasepencil

@@ -37,7 +37,7 @@ bool BPY_is_pyconstraint(Text *text);
 bool BPY_python_get_use_system_env(); /* UPBGE */
 /* global interpreter lock */
 
-typedef void *BPy_ThreadStatePtr;
+using BPy_ThreadStatePtr = void *;
 
 /**
  * Analogue of #PyEval_SaveThread()

@@ -18,8 +18,6 @@
 #include "BLI_sys_types.h"  // UPBGE
 #include "BLI_utildefines.h"
 
-#include "GPU_state.hh"
-
 namespace blender::gpu {
 class VertBuf;
 }

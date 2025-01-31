@@ -971,6 +971,7 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
    * Find the channelbag for the given slot, or if none exists, create it.
    */
   Channelbag &channelbag_for_slot_ensure(const Slot &slot);
+  Channelbag &channelbag_for_slot_ensure(slot_handle_t slot_handle);
 
   /**
    * Remove the given channelbag from this strip data.
@@ -1096,7 +1097,7 @@ class Channelbag : public ::ActionChannelbag {
    *
    * \see fcurve_remove
    */
-  void fcurve_remove_by_index(int64_t fcurve_array_index);
+  void fcurve_remove_by_index(int64_t fcurve_index);
 
   /**
    * Detach an F-Curve from the Channelbag.

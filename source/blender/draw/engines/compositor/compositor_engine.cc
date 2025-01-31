@@ -12,8 +12,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
-#include "DNA_camera_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -32,6 +30,7 @@
 #include "COM_texture_pool.hh"
 
 #include "GPU_context.hh"
+#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "draw_view_data.hh"
@@ -93,12 +92,11 @@ class Context : public compositor::Context {
     return false;
   }
 
-  /* The viewport compositor doesn't really support the composite output, it only displays the
-   * viewer output in the viewport. Settings this to false will make the compositor use the
-   * composite output as fallback viewer if no other viewer exists. */
-  bool use_composite_output() const override
+  /* The viewport compositor does not support viewer outputs, so treat viewers as composite
+   * outputs. */
+  bool treat_viewer_as_composite_output() const override
   {
-    return false;
+    return true;
   }
 
   const RenderData &get_render_data() const override

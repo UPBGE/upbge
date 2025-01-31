@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_bounds.hh"
 #include "BLI_color.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
@@ -34,6 +35,8 @@
 #include "UI_view2d.hh"
 
 #include "grease_pencil_io_intern.hh"
+
+#include <numeric>
 #include <optional>
 
 /** \file
