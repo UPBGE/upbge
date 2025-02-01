@@ -32,3 +32,15 @@
 	path = tests/data
 	url = https://projects.blender.org/blender/blender-test-data.git
 	branch = main
+[submodule "scripts/addons_core/bge_netlogic"]
+	path = scripts/addons_core/bge_netlogic
+	url = https://github.com/UPBGE/UPBGE-logicnodes.git
+[submodule "scripts/addons_core/bge_bricknodes"]
+	path = scripts/addons_core/bge_bricknodes
+	url = https://github.com/IzaZed/bricky-nodes.git
+[submodule "scripts/addons_core/bge_easyonline"]
+	path = scripts/addons_core/bge_easyonline
+	url = https://github.com/lordloki/EasyOnline.git
+[submodule "scripts/addons_core/bge_thelightmapper"]
+	path = scripts/addons_core/bge_thelightmapper
+	url = https://github.com/lordloki/The_Lightmapper.git
