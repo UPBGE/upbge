@@ -191,6 +191,60 @@ class ActionSlotAssignmentTest(unittest.TestCase):
             "After assignment, the ID type should remain UNSPECIFIED when the Action is linked.")
         self.assertEqual("XXLegacy Slot", slot.identifier)
 
+    def test_untyped_slot_target_id_writing(self):
+        """Test writing to the target id type of an untyped slot."""
+
+        action = self._load_legacy_action(link=False)
+
+        slot = action.slots[0]
+        self.assertEqual('UNSPECIFIED', slot.target_id_type)
+        self.assertEqual("XXLegacy Slot", slot.identifier)
+
+        slot.target_id_type = 'OBJECT'
+
+        self.assertEqual(
+            'OBJECT',
+            slot.target_id_type,
+            "Should be able to write to target_id_type of a slot when not yet specified.")
+        self.assertEqual("OBLegacy Slot", slot.identifier)
+
+        slot.target_id_type = 'MATERIAL'
+
+        self.assertEqual(
+            'OBJECT',
+            slot.target_id_type,
+            "Should NOT be able to write to target_id_type of a slot when already specified.")
+        self.assertEqual("OBLegacy Slot", slot.identifier)
+
+    def test_untyped_slot_target_id_writing_with_duplicate_identifier(self):
+        """Test that writing to the target id type a slot appropriately renames
+        it when that would otherwise cause its identifier to collide with an
+        already existing slot."""
+
+        action = self._load_legacy_action(link=False)
+
+        slot = action.slots[0]
+
+        # Create soon-to-collide slot.
+        other_slot = action.slots.new('OBJECT', "Legacy Slot")
+
+        # Ensure the setup is correct.
+        self.assertEqual('UNSPECIFIED', slot.target_id_type)
+        self.assertEqual("XXLegacy Slot", slot.identifier)
+        self.assertEqual('OBJECT', other_slot.target_id_type)
+        self.assertEqual("OBLegacy Slot", other_slot.identifier)
+
+        # Assign the colliding target id type.
+        slot.target_id_type = 'OBJECT'
+
+        self.assertEqual('OBJECT', slot.target_id_type)
+        self.assertEqual(
+            "OBLegacy Slot.001",
+            slot.identifier,
+            "Should get renamed to not conflict with existing slots.")
+        self.assertEqual('OBJECT', other_slot.target_id_type)
+        self.assertEqual("OBLegacy Slot", other_slot.identifier)
+
     @staticmethod
     def _load_legacy_action(*, link: bool) -> bpy.types.Action:
         # At the moment of writing, the only way to create an untyped slot is to
@@ -334,6 +388,9 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         slot = self.action.slots[0]
         layer = self.action.layers[0]
 
+        self.assertEqual("Legacy Slot", slot.name_display)
+        self.assertEqual("Legacy Layer", layer.name)
+
         self.assertEqual(1, len(layer.strips))
         strip = layer.strips[0]
         self.assertEqual('KEYFRAME', strip.type)
@@ -371,6 +428,28 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         self.assertNotIn(group, self.action.groups[:], "A group should be removable via the legacy API")
         self.assertNotIn(group, channelbag.groups[:], "A group should be removable via the legacy API")
 
+    def test_groups_new_on_empty_action(self) -> None:
+        # Create new group via legacy API, this should create a layer+strip+Channelbag.
+        group = self.action.groups.new("foo")
+
+        self.assertEqual(1, len(self.action.slots))
+        self.assertEqual(1, len(self.action.layers))
+
+        slot = self.action.slots[0]
+        layer = self.action.layers[0]
+
+        self.assertEqual("Legacy Slot", slot.name_display)
+        self.assertEqual("Legacy Layer", layer.name)
+
+        self.assertEqual(1, len(layer.strips))
+        strip = layer.strips[0]
+        self.assertEqual('KEYFRAME', strip.type)
+        self.assertEqual(1, len(strip.channelbags))
+        channelbag = strip.channelbags[0]
+        self.assertEqual(channelbag.slot_handle, slot.handle)
+
+        self.assertEqual([group], channelbag.groups[:])
+
 
 class ChannelbagsTest(unittest.TestCase):
     def setUp(self):
@@ -396,7 +475,11 @@ class ChannelbagsTest(unittest.TestCase):
         self.assertEqual([], list(self.strip.channelbags))
 
     def test_ensure_channelbag(self):
-        channelbag = self.strip.channels(self.slot.handle, ensure=True)
+        channelbag = self.strip.channelbag(self.slot, ensure=False)
+        self.assertIsNone(channelbag)
+        self.assertEqual([], list(self.strip.channelbags))
+
+        channelbag = self.strip.channelbag(self.slot, ensure=True)
         self.assertEqual([channelbag], list(self.strip.channelbags))
 
     def test_create_remove_fcurves(self):

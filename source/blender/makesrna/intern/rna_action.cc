@@ -326,9 +326,7 @@ static void rna_ActionSlot_name_display_set(PointerRNA *ptr, const char *name)
     return;
   }
 
-  /* Construct the new internal name, from the slot's type and the given name. */
-  const std::string internal_name = slot.identifier_prefix_for_idtype() + name_ref;
-  action.slot_identifier_define(slot, internal_name);
+  action.slot_display_name_define(slot, name);
 }
 
 static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifier)
@@ -721,18 +719,19 @@ static void rna_Channelbag_group_remove(ActionChannelbag *dna_channelbag,
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static ActionChannelbag *rna_ActionStrip_channels(ID *dna_action_id,
-                                                  ActionStrip *self,
-                                                  const animrig::slot_handle_t slot_handle,
-                                                  const bool ensure)
+static ActionChannelbag *rna_ActionStrip_channelbag(ID *dna_action_id,
+                                                    ActionStrip *self,
+                                                    const ActionSlot *dna_slot,
+                                                    const bool ensure)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(dna_action_id)->wrap();
   animrig::StripKeyframeData &strip_data = self->wrap().data<animrig::StripKeyframeData>(action);
+  const animrig::Slot &slot = dna_slot->wrap();
 
   if (ensure) {
-    return &strip_data.channelbag_for_slot_ensure(slot_handle);
+    return &strip_data.channelbag_for_slot_ensure(slot);
   }
-  return strip_data.channelbag_for_slot(slot_handle);
+  return strip_data.channelbag_for_slot(slot);
 }
 
 /**
@@ -1554,6 +1553,24 @@ static const EnumPropertyItem *rna_ActionSlot_target_id_type_itemf(bContext * /*
   return items;
 }
 
+static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
+{
+  animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
+  animrig::Slot &slot = reinterpret_cast<ActionSlot *>(ptr->data)->wrap();
+
+  if (slot.idtype != 0) {
+    /* Ignore the assignment. */
+    printf(
+        "WARNING: ignoring assignment to target_id_type of Slot '%s' in Action '%s'. A Slot's "
+        "target_id_type can only be changed when currently 'UNSPECIFIED'.\n",
+        slot.identifier,
+        action.id.name);
+    return;
+  }
+
+  action.slot_idtype_define(slot, ID_Type(value));
+}
+
 #else
 
 static void rna_def_dopesheet(BlenderRNA *brna)
@@ -2007,11 +2024,14 @@ static void rna_def_action_slot(BlenderRNA *brna)
   prop = RNA_def_property(srna, "target_id_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "idtype");
   RNA_def_property_enum_items(prop, default_ActionSlot_target_id_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ActionSlot_target_id_type_itemf");
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_ActionSlot_target_id_type_set", "rna_ActionSlot_target_id_type_itemf");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_ActionSlot_identifier_update");
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(
-      prop, "Target ID Type", "Type of data-block that this slot is intended to animate");
+  RNA_def_property_ui_text(prop,
+                           "Target ID Type",
+                           "Type of data-block that this slot is intended to animate; can be set "
+                           "when 'UNSPECIFIED' but is otherwise read-only");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
 
   prop = RNA_def_property(srna, "target_id_type_icon", PROP_INT, PROP_NONE);
@@ -2226,25 +2246,18 @@ static void rna_def_action_keyframe_strip(BlenderRNA *brna)
     FunctionRNA *func;
     PropertyRNA *parm;
 
-    /* Strip.channels(...). */
-    func = RNA_def_function(srna, "channels", "rna_ActionStrip_channels");
+    /* Strip.channelbag(...). */
+    func = RNA_def_function(srna, "channelbag", "rna_ActionStrip_channelbag");
     RNA_def_function_flag(func, FUNC_USE_SELF_ID);
     RNA_def_function_ui_description(func, "Find the ActionChannelbag for a specific Slot");
-    parm = RNA_def_int(func,
-                       "slot_handle",
-                       0,
-                       0,
-                       INT_MAX,
-                       "Slot Handle",
-                       "Number that identifies a specific action slot",
-                       0,
-                       INT_MAX);
+    parm = RNA_def_pointer(
+        func, "slot", "ActionSlot", "Slot", "The slot for which to find the channelbag");
     RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
     RNA_def_boolean(func,
                     "ensure",
                     false,
                     "Create if necessary",
-                    "Ensure the channelbag exists for this slot handle, creating it if necessary");
+                    "Ensure the channelbag exists for this slot, creating it if necessary");
     parm = RNA_def_pointer(func, "channels", "ActionChannelbag", "Channels", "");
     RNA_def_function_return(func, parm);
 

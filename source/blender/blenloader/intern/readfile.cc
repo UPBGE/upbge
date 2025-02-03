@@ -2225,6 +2225,14 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->tag = id_tag;
   }
 
+  if (!BLO_read_data_is_undo(reader)) {
+    /* Reset the runtime data, as there were versions of Blender that did not do
+     * this before writing to disk. */
+    memset(&id->runtime, 0, sizeof(id->runtime));
+  }
+  readfile_id_runtime_data_ensure(*id);
+  id->runtime.readfile_data->tags = id_read_tags;
+
   if ((id_tag & ID_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uid_ensure(id);
   }
@@ -2234,17 +2242,6 @@ static void direct_link_id_common(BlendDataReader *reader,
   }
   else {
     BLO_read_struct(reader, LibraryWeakReference, &id->library_weak_reference);
-  }
-
-  if (!BLO_read_data_is_undo(reader)) {
-    /* Reset the runtime data, as there were versions of Blender that did not do
-     * this before writing to disk. */
-    memset(&id->runtime, 0, sizeof(id->runtime));
-
-    /* Only track the readfile tags when loading from disk. During 'undo' there is no versioning,
-     * no linking, etc. so there is no need for these flags. */
-    readfile_id_runtime_data_ensure(*id);
-    id->runtime.readfile_data->tags = id_read_tags;
   }
 
   if (BLO_readfile_id_runtime_tags(*id).is_link_placeholder) {
