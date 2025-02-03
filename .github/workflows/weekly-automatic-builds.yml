@@ -1,0 +1,174 @@
+name: weekly-automatic-compilations
+
+on:
+  schedule:
+    - cron: "0 1 * * 0" # Execute Sundays at 1 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write  # Necessary to publish on GitHub Releases
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  build:
+    name: Build UPBGE (${{ matrix.os }} - ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-24.04
+
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+
+          #- os: windows
+          #  arch: arm64
+          #  runner: windows-latest
+
+          #- os: macos
+          #  arch: x86_64
+          #  runner: macos-13
+
+          #- os: macos
+          #  arch: arm64
+          #  runner: macos-14
+      
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          repository: "UPBGE/upbge"
+          ref: "master"
+          path: "upbge"
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with: 
+          python-version: '${{env.PYTHON_VERSION}}'
+
+      - name: Install Python Dependencies (Linux/macOS)
+        if: matrix.os != 'windows'
+        run: |
+          curl https://bootstrap.pypa.io/get-pip.py | python
+          python -m pip install numpy requests cython idna charset-normalizer urllib3 certifi zstandard pybind11
+
+      - name: Install Python Dependencies (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "get-pip.py"
+          python get-pip.py
+          python -m pip install numpy requests cython idna charset-normalizer urllib3 certifi zstandard pybind11
+
+      - name: Install Dependencies (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt update && \
+          sudo apt dist-upgrade && \
+          sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
+            cmake-curses-gui cmake-gui patch libx11-dev \
+            libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
+            libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
+
+      - name: Install Dependencies (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          choco install ninja cmake git
+
+      - name: Install Dependencies (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          brew install ninja cmake
+
+      - name: Download Precompiled Libs (Linux)
+        if: matrix.os == 'linux'
+        run: cd upbge && ./build_files/utils/make_update.py --use-linux-libraries
+
+      - name: Download Precompiled Libs (macOS)
+        if: matrix.os == 'macos'
+        run: cd upbge && make update
+
+      - name: Download Precompiled Libs (Windows)
+        if: matrix.os == 'windows'
+        run: cd upbge && echo y | ./make.bat update
+
+      - name: Configure CMake (Linux)
+        if: matrix.os == 'linux'
+        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DWITH_INSTALL_PORTABLE=ON -DWITH_VULKAN_BACKEND=ON -DWITH_GHOST_WAYLAND=ON -DPYTHON_VERSION="3.11"
+
+      - name: Configure CMake (Windows)
+        if: matrix.os == 'windows'
+        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DWITH_WINDOWS_RELEASE_PDB=OFF -DCMAKE_BUILD_TYPE=Release -DWITH_VULKAN_BACKEND=ON -DPYTHON_VERSION="3.11"
+
+      - name: Configure CMake (macOS)
+        if: matrix.os == 'macos'
+        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_VERSION="3.11"
+
+      - name: Build UPBGE (Linux)
+        if: matrix.os == 'linux'
+        run: make -C build -j `nproc`
+
+      - name: Build UPBGE (macOS)
+        if: matrix.os == 'macOS'
+        run: make -C build
+        
+      - name: Build UPBGE (Windows)
+        if: matrix.os == 'windows'
+        run: cmake --build build --target install --config Release
+
+      - name: Copy Release Scripts (Linux / macOS)
+        if: matrix.os != 'windows'
+        run: make -C build install
+
+      - name: Archive Build (Linux/macOS)
+        if: matrix.os != 'windows'
+        run: |
+          DATE=$(date +"%Y-%m-%d")
+          tar zcvf upbge-${{ matrix.os }}-${{ matrix.arch }}-$DATE.tar.gz build/bin
+
+      - name: Archive Build (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          $DATE = Get-Date -Format "yyyy-MM-dd"
+          Compress-Archive -Path build\bin -DestinationPath upbge-${{ matrix.os }}-${{ matrix.arch }}-$DATE.zip
+
+      - name: Upload Build as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upbge-${{ matrix.os }}-${{ matrix.arch }}
+          path: upbge-${{ matrix.os }}-${{ matrix.arch }}-*.*
+          retention-days: 7
+
+  release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: weekly-build-${{ github.run_number }}
+          name: Weekly UPBGE Build # Title in the Release webpage
+          body: |
+            **Automated Weekly Build of UPBGE**
+            - Linux (x86_64)
+            - Windows (x86_64, ARM64)
+            - macOS (Intel, ARM64)
+
+            Download the corresponding file for your OS below.
+          draft: false
+          prerelease: false
+          files: artifacts/**/*
