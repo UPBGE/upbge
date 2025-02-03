@@ -57,15 +57,12 @@ jobs:
         ref: "master"
         path: "upbge"
 
-    - name: Checkout addons and addons_contrib
+    - name: Checkout Submodules
       run: |
         cd upbge/scripts && \
-        git clone https://github.com/UPBGE/blender-addons.git addons && \
         git submodule sync && \
         git submodule update --init --recursive --remote && \
-        git submodule foreach git checkout main && \
-        git submodule foreach git pull --rebase origin main && \
-        git clone https://projects.blender.org/blender/blender-addons-contrib.git addons_contrib
+        git submodule foreach git pull --rebase
         
     - name: Download Precompiled Libs
       run: |
