@@ -62,7 +62,7 @@ jobs:
         cd upbge/scripts && \
         git submodule sync && \
         git submodule update --init --recursive --remote && \
-        git submodule foreach git pull --rebase
+        git submodule foreach 'branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed "s|origin/||"); git checkout $branch && git pull --rebase origin $branch'
         
     - name: Download Precompiled Libs
       run: |
