@@ -44,9 +44,15 @@ void operatortypes_asset();
  * The PointerRNA is expected to have an enum called "asset_library_reference".
  */
 const bUserAssetLibrary *get_asset_library_from_opptr(PointerRNA &ptr);
+/**
+ * The PointerRNA is expected to have an enum called "asset_library_reference".
+ */
+AssetLibraryReference get_asset_library_ref_from_opptr(PointerRNA &ptr);
 
 /**
  * For each catalog of the given bUserAssetLibrary call `visit_fn`.
+ * \param edit_text If that text is not empty, and not matching an existing catalog path `visit_fn`
+ * will be called with that text and the icon ICON_ADD.
  */
 void visit_library_catalogs_catalog_for_search(
     const Main &bmain,

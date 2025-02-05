@@ -28,7 +28,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          StringRef name,
                                          const int id_type,
                                          std::unique_ptr<AssetMetaData> metadata,
-                                         const AssetLibrary &owner_asset_library)
+                                         AssetLibrary &owner_asset_library)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
       asset_(AssetRepresentation::ExternalAsset{name, id_type, std::move(metadata), nullptr})
@@ -37,7 +37,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
 
 AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          ID &id,
-                                         const AssetLibrary &owner_asset_library)
+                                         AssetLibrary &owner_asset_library)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
       asset_(&id)
@@ -64,14 +64,16 @@ AssetWeakReference AssetRepresentation::make_weak_reference() const
 void AssetRepresentation::ensure_previewable()
 {
   if (ID *id = this->local_id()) {
-    BKE_previewimg_id_ensure(id);
+    PreviewImage *preview = BKE_previewimg_id_ensure(id);
+    BKE_icon_preview_ensure(id, preview);
+    return;
   }
 
   ExternalAsset &extern_asset = std::get<ExternalAsset>(asset_);
 
   /* Use the full path as preview name, it's the only unique identifier we have. */
   const std::string full_path = this->full_path();
-  /* Doesn't do the actual reading, just allocates and attaches the derrived load info. */
+  /* Doesn't do the actual reading, just allocates and attaches the derived load info. */
   extern_asset.preview_ = BKE_previewimg_cached_thumbnail_read(
       full_path.c_str(), full_path.c_str(), THB_SOURCE_BLEND, false);
 
@@ -166,7 +168,7 @@ bool AssetRepresentation::is_local_id() const
   return std::holds_alternative<ID *>(asset_);
 }
 
-const AssetLibrary &AssetRepresentation::owner_asset_library() const
+AssetLibrary &AssetRepresentation::owner_asset_library() const
 {
   return owner_asset_library_;
 }

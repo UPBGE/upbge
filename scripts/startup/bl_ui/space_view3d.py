@@ -4176,6 +4176,9 @@ class VIEW3D_MT_pose(Menu):
         layout.menu("VIEW3D_MT_pose_showhide")
         layout.menu("VIEW3D_MT_bone_options_toggle", text="Bone Settings")
 
+        layout.separator()
+        layout.operator("POSELIB.create_pose_asset")
+
 
 class VIEW3D_MT_pose_transform(Menu):
     bl_label = "Clear Transform"
@@ -8829,7 +8832,7 @@ class View3DAssetShelf(BrushAssetShelf):
     bl_space_type = "VIEW_3D"
 
 
-class AssetShelfHiddenByDefault():
+class AssetShelfHiddenByDefault:
     # Take #BrushAssetShelf.bl_options but remove the 'DEFAULT_VISIBLE' flag.
     bl_options = {option for option in BrushAssetShelf.bl_options if option != 'DEFAULT_VISIBLE'}
 

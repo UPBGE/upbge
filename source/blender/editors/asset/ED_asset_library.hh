@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_function_ref.hh"
+#include "BLI_string_ref.hh"
 #include "DNA_asset_types.h"
 
 struct bUserAssetLibrary;
@@ -19,6 +21,7 @@ struct StringPropertySearchVisitParams;
 namespace blender::asset_system {
 class AssetCatalog;
 class AssetCatalogPath;
+class AssetRepresentation;
 }  // namespace blender::asset_system
 
 namespace blender::ed::asset {
@@ -59,10 +62,6 @@ blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
     blender::asset_system::AssetLibrary &library,
     const blender::asset_system::AssetCatalogPath &path);
 
-/**
- * May return a nullptr if the given AssetLibraryReference is not a user library.
- */
-const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference &library_ref);
 AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
 
 /**
@@ -70,5 +69,7 @@ AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_
  */
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
+void refresh_asset_library_from_asset(const bContext *C,
+                                      const blender::asset_system::AssetRepresentation &asset);
 
 }  // namespace blender::ed::asset

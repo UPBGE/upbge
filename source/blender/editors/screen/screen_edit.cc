@@ -660,10 +660,16 @@ void ED_screen_do_listen(bContext *C, const wmNotifier *note)
       }
       break;
     case NC_WINDOW:
+      if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
+        WM_window_decoration_style_apply(win, screen);
+      }
       screen->do_draw = true;
       break;
     case NC_SCREEN:
       if (note->action == NA_EDITED) {
+        if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
+          WM_window_decoration_style_apply(win, screen);
+        }
         screen->do_draw = screen->do_refresh = true;
       }
       break;
@@ -1312,7 +1318,7 @@ void ED_screen_global_areas_refresh(wmWindow *win)
 {
   /* Don't create global area for child and temporary windows. */
   bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
-  if ((win->parent != nullptr) || screen->temp) {
+  if (!WM_window_is_main_top_level(win)) {
     if (win->global_areas.areabase.first) {
       screen->do_refresh = true;
       BKE_screen_area_map_free(&win->global_areas);
@@ -1904,6 +1910,27 @@ void ED_screen_animation_timer_update(bScreen *screen, int redraws)
       sad->region = time_top_left_3dwindow(screen);
     }
   }
+}
+
+void ED_screen_animation_timer_reset(bScreen *screen, wmWindowManager *wm)
+{
+  BLI_assert(screen);
+  BLI_assert(screen->animtimer);
+  wmTimer *old_timer = screen->animtimer;
+  /* Simply recreate the timer as we will otherwise run into race condition issues as other
+   * timer functions will write to most of the timer variables.
+   */
+  wmWindow *win = old_timer->win;
+  const double time_step = old_timer->time_step;
+  const int event_type = old_timer->event_type;
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(
+      MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData"));
+  memcpy(sad, old_timer->customdata, sizeof(ScreenAnimData));
+
+  WM_event_timer_remove(wm, win, old_timer);
+
+  screen->animtimer = WM_event_timer_add(wm, win, event_type, time_step);
+  screen->animtimer->customdata = sad;
 }
 
 void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
