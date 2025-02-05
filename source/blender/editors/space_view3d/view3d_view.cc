@@ -1576,7 +1576,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
   /* sa = CTX_wm_area(C); */ /* UNUSED */
   ar = CTX_wm_region(C);
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   game_set_commmandline_options(&startscene->gm);
 
