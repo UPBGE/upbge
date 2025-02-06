@@ -143,7 +143,7 @@ static void rna_Controller_state_number_set(struct PointerRNA *ptr, const int va
 static void rna_Controller_actuators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   bController *cont = (bController *)ptr->data;
-  rna_iterator_array_begin(iter, cont->links, sizeof(bActuator *), (int)cont->totlinks, 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, cont->links, sizeof(bActuator *), (int)cont->totlinks, 0, nullptr);
 }
 
 static int rna_Controller_actuators_length(PointerRNA *ptr)

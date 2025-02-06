@@ -131,7 +131,7 @@ static void rna_Sensor_type_set(struct PointerRNA *ptr, int value)
 static void rna_Sensor_controllers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   bSensor *sens = (bSensor *)ptr->data;
-  rna_iterator_array_begin(iter, sens->links, sizeof(bController *), (int)sens->totlinks, 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, sens->links, sizeof(bController *), (int)sens->totlinks, 0, nullptr);
 }
 
 static int rna_Sensor_controllers_length(PointerRNA *ptr)

@@ -1707,7 +1707,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 
 static PointerRNA rna_Object_game_settings_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_GameObjectSettings, ptr->owner_id);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_GameObjectSettings, ptr->owner_id);
 }
 
 static void rna_GameObjectSettings_state_get(PointerRNA *ptr, bool *values)
