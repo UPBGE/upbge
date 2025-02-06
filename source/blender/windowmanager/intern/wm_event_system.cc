@@ -86,6 +86,8 @@
 
 #include "RE_pipeline.h"
 
+using blender::StringRef;
+
 /**
  * When a gizmo is highlighted and uses click/drag events,
  * this prevents mouse button press events from being passed through to other key-maps
@@ -108,7 +110,7 @@ BLI_STATIC_ASSERT(sizeof(GHOST_TEventImeData) == sizeof(wmIMEData),
 /**
  * Return value of handler-operator call.
  */
-using eHandlerActionFlag = enum eHandlerActionFlag {
+enum eHandlerActionFlag {
   WM_HANDLER_BREAK = 1 << 0,
   WM_HANDLER_HANDLED = 1 << 1,
   /** `WM_HANDLER_MODAL | WM_HANDLER_BREAK` means unhandled. */
@@ -1030,8 +1032,11 @@ void WM_reportf(eReportType type, const char *format, ...)
   va_list args;
 
   format = RPT_(format);
+
   va_start(args, format);
   char *str = BLI_vsprintfN(format, args);
+  va_end(args);
+
   WM_report(type, str);
   MEM_freeN(str);
 }
@@ -2044,7 +2049,7 @@ void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
                                                       wmOperatorCallContext opcontext,
                                                       PointerRNA *properties,
                                                       const wmEvent *event,
-                                                      const char *drawstr)
+                                                      const StringRef drawstr)
 {
   bool depends_on_cursor = WM_operator_depends_on_cursor(*C, *ot, properties);
 
@@ -2068,16 +2073,15 @@ void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
   ScrArea *area = WM_OP_CONTEXT_HAS_AREA(opcontext) ? CTX_wm_area(C) : nullptr;
 
   {
-    char header_text[UI_MAX_DRAW_STR];
-    SNPRINTF(header_text,
-             "%s %s",
-             IFACE_("Input pending "),
-             (drawstr && drawstr[0]) ? drawstr : CTX_IFACE_(ot->translation_context, ot->name));
+    std::string header_text = fmt::format(
+        "{} {}",
+        IFACE_("Input pending "),
+        drawstr.is_empty() ? CTX_IFACE_(ot->translation_context, ot->name) : drawstr);
     if (area != nullptr) {
-      ED_area_status_text(area, header_text);
+      ED_area_status_text(area, header_text.c_str());
     }
     else {
-      ED_workspace_status_text(C, header_text);
+      ED_workspace_status_text(C, header_text.c_str());
     }
   }
 

@@ -50,6 +50,8 @@
 #include "view3d_intern.hh" /* own include */
 #include "view3d_navigate.hh"
 
+#include "DNA_camera_types.h"
+
 #ifdef WITH_GAMEENGINE
 #  include "BKE_callbacks.hh"
 #  include "BKE_image.hh"
@@ -912,8 +914,9 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
         negate_v3_v3(ofs_new, mid);
 
         if (rv3d->persp == RV3D_CAMOB) {
-          rv3d->persp = RV3D_PERSP;
           camera_old = v3d->camera;
+          const Camera &camera = *static_cast<Camera *>(camera_old->data);
+          rv3d->persp = (camera.type == CAM_ORTHO) ? RV3D_ORTHO : RV3D_PERSP;
         }
 
         if (rv3d->persp == RV3D_ORTHO) {

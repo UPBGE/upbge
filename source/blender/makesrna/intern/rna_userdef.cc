@@ -834,42 +834,42 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
 
 static PointerRNA rna_UserDef_view_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesView, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesView, ptr->data);
 }
 
 static PointerRNA rna_UserDef_edit_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesEdit, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesEdit, ptr->data);
 }
 
 static PointerRNA rna_UserDef_input_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesInput, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesInput, ptr->data);
 }
 
 static PointerRNA rna_UserDef_keymap_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesKeymap, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesKeymap, ptr->data);
 }
 
 static PointerRNA rna_UserDef_filepaths_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesFilePaths, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesFilePaths, ptr->data);
 }
 
 static PointerRNA rna_UserDef_extensions_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesExtensions, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesExtensions, ptr->data);
 }
 
 static PointerRNA rna_UserDef_system_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesSystem, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesSystem, ptr->data);
 }
 
 static PointerRNA rna_UserDef_apps_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesApps, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesApps, ptr->data);
 }
 
 /* Reevaluate objects with a subsurf modifier as the last in their modifiers stacks. */
@@ -1031,22 +1031,22 @@ static void rna_userdef_text_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
 
 static PointerRNA rna_Theme_space_generic_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGeneric, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceGeneric, ptr->data);
 }
 
 static PointerRNA rna_Theme_gradient_colors_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeGradientColors, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeGradientColors, ptr->data);
 }
 
 static PointerRNA rna_Theme_space_gradient_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGradient, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceGradient, ptr->data);
 }
 
 static PointerRNA rna_Theme_space_list_generic_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceListGeneric, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceListGeneric, ptr->data);
 }
 
 static const EnumPropertyItem *rna_userdef_audio_device_itemf(bContext * /*C*/,
@@ -1166,7 +1166,7 @@ static PointerRNA rna_Addon_preferences_get(PointerRNA *ptr)
       addon->prop =
           blender::bke::idprop::create_group(addon->module, IDP_FLAG_STATIC_TYPE).release();
     }
-    return rna_pointer_inherit_refine(ptr, apt->rna_ext.srna, addon->prop);
+    return RNA_pointer_create_with_parent(*ptr, apt->rna_ext.srna, addon->prop);
   }
   else {
     return PointerRNA_NULL;
@@ -1287,9 +1287,9 @@ static void rna_ThemeUI_roundness_set(PointerRNA *ptr, float value)
 }
 
 /* Studio Light */
-static void rna_UserDef_studiolight_begin(CollectionPropertyIterator *iter, PointerRNA * /*ptr*/)
+static void rna_UserDef_studiolight_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  rna_iterator_listbase_begin(iter, BKE_studiolight_listbase(), nullptr);
+  rna_iterator_listbase_begin(iter, ptr, BKE_studiolight_listbase(), nullptr);
 }
 
 static void rna_StudioLights_refresh(UserDef * /*userdef*/)
@@ -1374,7 +1374,8 @@ static void rna_UserDef_studiolight_solid_lights_begin(CollectionPropertyIterato
                                                        PointerRNA *ptr)
 {
   StudioLight *sl = (StudioLight *)ptr->data;
-  rna_iterator_array_begin(iter, sl->light, sizeof(*sl->light), ARRAY_SIZE(sl->light), 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, sl->light, sizeof(*sl->light), ARRAY_SIZE(sl->light), 0, nullptr);
 }
 
 static int rna_UserDef_studiolight_solid_lights_length(PointerRNA * /*ptr*/)
@@ -6785,13 +6786,18 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Invert Zoom", "Zoom using opposite direction");
 
   /* 3D view */
-  prop = RNA_def_property(srna, "ndof_show_guide", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_SHOW_GUIDE);
+  prop = RNA_def_property(srna, "ndof_show_guide_orbit_axis", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_SHOW_GUIDE_ORBIT_AXIS);
 
   /* TODO: update description when fly-mode visuals are in place
    * ("projected position in fly mode"). */
   RNA_def_property_ui_text(
-      prop, "Show Navigation Guide", "Display the center and axis during rotation");
+      prop, "Show Orbit Axis Guide", "Display the center and axis during rotation");
+
+  prop = RNA_def_property(srna, "ndof_show_guide_orbit_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_SHOW_GUIDE_ORBIT_CENTER);
+  RNA_def_property_ui_text(
+      prop, "Show Orbit Center Guide", "Display the orbit center during rotation");
 
   /* 3D view */
   prop = RNA_def_property(srna, "ndof_view_navigate_method", PROP_ENUM, PROP_NONE);
@@ -6803,6 +6809,23 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
   RNA_def_property_enum_items(prop, ndof_view_rotation_items);
   RNA_def_property_ui_text(prop, "NDOF View Rotation", "Rotation style in the viewport");
+
+  prop = RNA_def_property(srna, "ndof_orbit_center_auto", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_AUTO);
+  RNA_def_property_ui_text(prop,
+                           "Auto",
+                           "Auto sets the orbit center dynamically. "
+                           "When the complete model is in view, the center of "
+                           "volume of the whole model is used as the rotation point. "
+                           "When you move closer, the orbit center will be set "
+                           "on an object close to your center of the view.");
+
+  prop = RNA_def_property(srna, "ndof_orbit_center_selected", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_SELECTED);
+  RNA_def_property_ui_text(prop,
+                           "Use Selected Items",
+                           "Use selected item forces the orbit center "
+                           "to only take the currently selected objects into account.");
 
   /* 3D view: yaw */
   prop = RNA_def_property(srna, "ndof_rotx_invert_axis", PROP_BOOLEAN, PROP_NONE);

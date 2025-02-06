@@ -1027,8 +1027,10 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
 }
 
 #ifdef WITH_INPUT_NDOF
-/* draw center and axis of rotation for ongoing 3D mouse navigation */
-static void draw_rotation_guide(const RegionView3D *rv3d)
+/**
+ * Draw center and axis of rotation for ongoing 3D mouse navigation.
+ */
+static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
 {
   float o[3];   /* center of rotation */
   float end[3]; /* endpoints for drawing */
@@ -1131,6 +1133,32 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
   GPU_blend(GPU_BLEND_NONE);
   GPU_depth_mask(true);
 }
+
+static void draw_ndof_guide_orbit_center(const RegionView3D *rv3d)
+{
+  uchar color[4] = {0, 108, 255, 255}; /* bright blue so it matches device LEDs */
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_depth_mask(false); /* Don't overwrite the Z-buffer. */
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
+  immUniform1f("size", 7.0f);
+  immUniform4fv("color", float4(color));
+  immBegin(GPU_PRIM_POINTS, 1);
+  immAttr4ubv(col, color);
+  float center[3];
+  negate_v3_v3(center, rv3d->ndof_ofs);
+  immVertex3fv(pos, center);
+  immEnd();
+  immUnbindProgram();
+
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_depth_mask(true);
+}
+
 #endif /* WITH_INPUT_NDOF */
 
 /**
@@ -1351,6 +1379,14 @@ static void draw_selected_name(
     info_array[i++] = msg_space;
     info_array[i++] = ob->id.name + 2;
 
+    /* Show object data name when not in object mode. */
+    if (ob->mode != OB_MODE_OBJECT) {
+      if (const ID *data_id = static_cast<const ID *>(ob->data)) {
+        info_array[i++] = " | ";
+        info_array[i++] = data_id->name + 2;
+      }
+    }
+
     /* name(s) to display depends on type of object */
     if (ob->type == OB_ARMATURE) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -1461,11 +1497,29 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
 #ifdef WITH_INPUT_NDOF
-  if ((U.ndof_flag & NDOF_SHOW_GUIDE) && ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) == 0) &&
-      (rv3d->persp != RV3D_CAMOB))
-  {
-    /* TODO: draw something else (but not this) during fly mode */
-    draw_rotation_guide(rv3d);
+  if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_AXIS) {
+    if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) == 0) {
+      /* It only makes sense to show when orbiting. */
+      if (rv3d->ndof_rot_angle != 0.0f) {
+        /* TODO: draw something else (but not this) during fly mode. */
+        draw_ndof_guide_orbit_axis(rv3d);
+      }
+    }
+  }
+
+  if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_CENTER) {
+    /* Draw this only when orbiting and auto orbit-center is enabled */
+    if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO)) {
+      if (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID) {
+        /* When the center is locked, the auto-center is not used. */
+        if (!(v3d->ob_center_cursor || v3d->ob_center)) {
+          /* It only makes sense to show when orbiting. */
+          if (rv3d->ndof_rot_angle != 0.0f) {
+            draw_ndof_guide_orbit_center(rv3d);
+          }
+        }
+      }
+    }
   }
 #endif
 
@@ -1677,6 +1731,8 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 
     /* #View3D */
     eDrawType v3d_shading_type;
+    Object *v3d_camera;
+    float v3d_lens;
 
     /* #Region */
     int region_winx, region_winy;
@@ -1688,11 +1744,15 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
      * Without this the #wmPaintCursor can't use the pixel size & view matrices for drawing.
      */
     RV3DMatrixStore *rv3d_mats;
+    char rv3d_persp;
   } orig{};
   orig.v3d_shading_type = eDrawType(v3d->shading.type);
+  orig.v3d_camera = v3d->camera;
+  orig.v3d_lens = v3d->lens;
   orig.region_winx = region->winx;
   orig.region_winy = region->winy;
   orig.region_winrct = region->winrct;
+  orig.rv3d_persp = rv3d->persp;
   orig.rv3d_mats = ED_view3d_mats_rv3d_backup(static_cast<RegionView3D *>(region->regiondata));
 
   UI_Theme_Store(&orig.theme_state);
@@ -1717,6 +1777,16 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     /* Free images which can have changed on frame-change.
      * WARNING(@ideasman42): can be slow so only free animated images. */
     BKE_image_free_anim_gputextures(G.main);
+  }
+
+  if (viewmat) {
+    /* WORKAROUND: Disable camera view to avoid EEVEE being confused and try to
+     * get the projection matrix from the camera.
+     * Set the `lens` parameter to 0 to make EEVEE prefer the `winmat` from the rv3d instead of
+     * trying to rederive it. Note that this produces incorrect result with over-scan. */
+    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
+    v3d->camera = nullptr;
+    v3d->lens = 0.0f;
   }
 
   GPU_matrix_push_projection();
@@ -1762,10 +1832,13 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     ED_view3d_mats_rv3d_restore(static_cast<RegionView3D *>(region->regiondata), orig.rv3d_mats);
   }
   MEM_freeN(orig.rv3d_mats);
+  rv3d->persp = orig.rv3d_persp;
 
   UI_Theme_Restore(&orig.theme_state);
 
   v3d->shading.type = orig.v3d_shading_type;
+  v3d->camera = orig.v3d_camera;
+  v3d->lens = orig.v3d_lens;
 
   G.f &= ~G_FLAG_RENDER_VIEWPORT;
 }
@@ -2635,6 +2708,8 @@ void ED_view3d_mats_rv3d_restore(RegionView3D *rv3d, RV3DMatrixStore *rv3dmat_pt
 
 void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
 {
+  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+
   SceneFPS_State state;
   if (!ED_scene_fps_average_calc(scene, &state)) {
     return;
@@ -2661,8 +2736,6 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   else {
     SNPRINTF(printable, IFACE_("fps: %i"), int(state.fps_average + 0.5f));
   }
-
-  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
 
   BLF_draw_default(xoffset, *yoffset, 0.0f, printable, sizeof(printable));
 }
