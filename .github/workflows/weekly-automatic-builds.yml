@@ -141,8 +141,8 @@ jobs:
       - name: Upload Build as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: upbge-${{ matrix.os }}-${{ matrix.arch }}
-          path: upbge-${{ matrix.os }}-${{ matrix.arch }}-*.*
+          name: upbge-0.45-alpha-${{ matrix.os }}-${{ matrix.arch }}
+          path: upbge-0.45-alpha-${{ matrix.os }}-${{ matrix.arch }}-*.*
           retention-days: 7
 
   release:
@@ -163,7 +163,7 @@ jobs:
           tag_name: weekly-build-${{ github.run_number }}
           name: Weekly UPBGE Build # Title in the Release webpage
           body: |
-            **Automated Weekly Build of UPBGE**
+            **Automated Weekly Build of UPBGE 0.45 Alpha**
             - Linux (x86_64)
             - Windows (x86_64, ARM64)
             - macOS (Intel, ARM64)
