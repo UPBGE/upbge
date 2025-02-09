@@ -130,13 +130,13 @@ jobs:
         if: matrix.os != 'windows'
         run: |
           DATE=$(date +"%Y-%m-%d")
-          tar zcvf upbge-${{ matrix.os }}-${{ matrix.arch }}-$DATE.tar.gz build/bin
+          tar zcvf upbge-0.45-alpha-${{ matrix.os }}-${{ matrix.arch }}-$DATE.tar.gz build/bin
 
       - name: Archive Build (Windows)
         if: matrix.os == 'windows'
         run: |
           $DATE = Get-Date -Format "yyyy-MM-dd"
-          Compress-Archive -Path build\bin -DestinationPath upbge-${{ matrix.os }}-${{ matrix.arch }}-$DATE.zip
+          Compress-Archive -Path build\bin -DestinationPath upbge-0.45-alpha-${{ matrix.os }}-${{ matrix.arch }}-$DATE.zip
 
       - name: Upload Build as Artifact
         uses: actions/upload-artifact@v4
