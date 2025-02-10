@@ -39,6 +39,7 @@
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_library.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
@@ -2796,7 +2797,7 @@ struct GeometryNodesLazyFunctionBuilder {
           this->build_multi_function_node(bnode, fn_item, graph_params);
           break;
         }
-        if (node_type == &bke::NodeTypeUndefined) {
+        if (bnode.is_undefined()) {
           this->build_undefined_node(bnode, graph_params);
           break;
         }

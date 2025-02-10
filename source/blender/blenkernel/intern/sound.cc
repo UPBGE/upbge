@@ -45,14 +45,13 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_sound.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#include "ED_screen.hh"
 
 #include "BLO_read_write.hh"
 
@@ -1030,12 +1029,6 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
      * seek time in sync.
      */
     AUD_seekSynchronizer(scene->playback_handle, cur_time);
-  }
-
-  if (animation_playing) {
-    /* Make sure that our animation timer updates are in sync with the sound. */
-    wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-    ED_screen_animation_timer_reset(screen, wm);
   }
 
   AUD_Device_unlock(sound_device);

@@ -7,6 +7,7 @@
  */
 
 #include "BKE_sca.hh"
+#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_string_ref.hh"
