@@ -31,6 +31,8 @@
 
 #include "DNA_text_types.h"
 
+#include "BKE_library.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
