@@ -165,6 +165,12 @@ void Camera::sync()
     if (inst_.scene->flag & SCE_INTERACTIVE) { // tmp fix for game render loop view UPBGE (no support for overscan)
       data.winmat = inst_.drw_view->winmat();
     }
+
+    if (isnan(data.winmat.w.x)) {
+      /* Can happen in weird corner case (see #134320).
+       * Simply fallback to something that we can render with. */
+      data.winmat = math::projection::orthographic(0.01f, 0.01f, 0.01f, 0.01f, -1000.0f, +1000.0f);
+    }
   }
   else if (inst_.render) {
     const Render *re = inst_.render->re;

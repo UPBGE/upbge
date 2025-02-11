@@ -502,6 +502,9 @@ option(WITH_IO_PLY "Enable PLY 3D file format support (*.ply)" ON)
 option(WITH_IO_STL "Enable STL 3D file format support (*.stl)" ON)
 option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)" ON)
 
+# Csv support
+option(WITH_IO_CSV "Enable CSV file format support (*.csv)" ON)
+
 # Sound output/Joysticks
 option(WITH_SDL "Enable SDL for sound/joysticks" ON)
 option(WITH_OPENAL "Enable OpenAL Support (http://www.openal.org)" ON)
@@ -667,7 +670,7 @@ Build Cycles kernels with address sanitizer when WITH_COMPILER_ASAN is on, even 
   OFF
 )
 set(CYCLES_TEST_DEVICES CPU CACHE STRING "\
-Run regression tests on the specified device types (CPU CUDA OPTIX HIP)"
+Run regression tests on the specified device types (CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)"
 )
 option(WITH_CYCLES_TEST_OSL "\
 Run additional Cycles test with OSL enabled"
@@ -689,7 +692,7 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
 
   option(WITH_CYCLES_CUDA_BINARIES "Build Cycles NVIDIA CUDA binaries" OFF)
   set(CYCLES_CUDA_BINARIES_ARCH
-    sm_30 sm_35 sm_37 sm_50 sm_52 sm_60 sm_61 sm_70 sm_75 sm_86 sm_89 compute_75
+    sm_30 sm_35 sm_37 sm_50 sm_52 sm_60 sm_61 sm_70 sm_75 sm_86 sm_89 sm_120 compute_75
     CACHE STRING "CUDA architectures to build binaries for"
   )
   option(WITH_CYCLES_CUDA_BUILD_SERIAL "\
@@ -1123,14 +1126,14 @@ if(WIN32)
   option(WITH_WINDOWS_FIND_MODULES "Use find_package to locate libraries" OFF)
   mark_as_advanced(WITH_WINDOWS_FIND_MODULES)
 
-# The python debugger in Visual Studio for has been broken for years
-# but the upstream project over at https://github.com/microsoft/PTVS
-# show hopeful signs of life once in a while, so there is hope that
-# at one point this will start working again. That being said people
-# do keep turning this option on and end up disappointed it isn't
-# working and they spend a whole bunch of time on trying to get it to
-# work. So for now rather than removing this functionality
-# completely, just disable it.
+  # The python debugger in Visual Studio for has been broken for years
+  # but the upstream project over at https://github.com/microsoft/PTVS
+  # show hopeful signs of life once in a while, so there is hope that
+  # at one point this will start working again. That being said people
+  # do keep turning this option on and end up disappointed it isn't
+  # working and they spend a whole bunch of time on trying to get it to
+  # work. So for now rather than removing this functionality
+  # completely, just disable it.
 
   if(WINDOWS_PYTHON_DEBUG)
     # No need for a python version check here, anything over python 3.6 isn't working.
@@ -1138,11 +1141,11 @@ if(WIN32)
     set(WINDOWS_PYTHON_DEBUG OFF)
   endif()
 
-#  option(WINDOWS_PYTHON_DEBUG "\
-#Include the files needed for debugging python scripts with visual studio 2017+."
-#    OFF
-#  )
-#  mark_as_advanced(WINDOWS_PYTHON_DEBUG)
+  # option(WINDOWS_PYTHON_DEBUG "\
+  # Include the files needed for debugging python scripts with visual studio 2017+."
+  #   OFF
+  # )
+  # mark_as_advanced(WINDOWS_PYTHON_DEBUG)
 
   option(WITH_WINDOWS_BUNDLE_CRT "Bundle the C runtime for install free distribution." ON)
   mark_as_advanced(WITH_WINDOWS_BUNDLE_CRT)

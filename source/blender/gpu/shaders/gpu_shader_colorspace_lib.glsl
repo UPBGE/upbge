@@ -11,13 +11,22 @@ SHADER_LIBRARY_CREATE_INFO(gpu_srgb_to_framebuffer_space)
 /* Undefine the macro that avoids compilation errors. */
 #undef blender_srgb_to_framebuffer_space
 
+/* Raw python shaders don't have create infos and thus don't generate the needed `srgbTarget`
+ * uniform automatically. For API compatibility, we sill define this loose uniform, but it will
+ * not be parsed by the Metal or Vulkan backend. */
+#ifdef GPU_RAW_PYTHON_SHADER
+uniform bool srgbTarget = false;
+#endif
+
 vec4 blender_srgb_to_framebuffer_space(vec4 in_color)
 {
+#ifndef USE_GPU_SHADER_CREATE_INFO
   if (srgbTarget) {
     vec3 c = max(in_color.rgb, vec3(0.0));
     vec3 c1 = c * (1.0 / 12.92);
     vec3 c2 = pow((c + 0.055) * (1.0 / 1.055), vec3(2.4));
     in_color.rgb = mix(c1, c2, step(vec3(0.04045), c));
   }
+#endif
   return in_color;
 }
