@@ -302,9 +302,6 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
                                   std::nullopt,
                                   std::nullopt,
                                   std::nullopt,
-                                  GPU_SHADER_TFB_NONE,
-                                  NULL,
-                                  0,
                                   blender::StringRefNull(shname));
   if (!m_shader) {
     goto program_error;
