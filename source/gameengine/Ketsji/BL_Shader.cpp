@@ -24,7 +24,7 @@
 
 #include "BL_Shader.h"
 
-#include <boost/format.hpp>
+#include <fmt/format.h>
 
 #include "CM_Message.h"
 #include "KX_GameObject.h"
@@ -59,9 +59,9 @@ std::string BL_Shader::GetName()
 
 std::string BL_Shader::GetText()
 {
-  return (boost::format("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n") %
-          m_progs[VERTEX_PROGRAM] % m_progs[FRAGMENT_PROGRAM])
-      .str();
+  return fmt::format("BL_Shader\n\tvertex shader:{}\n\n\tfragment shader{}\n\n",
+                     m_progs[VERTEX_PROGRAM],
+                     m_progs[FRAGMENT_PROGRAM]);
 }
 
 #ifdef WITH_PYTHON

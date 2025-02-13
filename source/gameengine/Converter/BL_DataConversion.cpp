@@ -51,6 +51,8 @@
 
 #include "BL_DataConversion.h"
 
+#include <fmt/format.h>
+
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -103,8 +105,6 @@
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif
-
-#include <boost/format.hpp>
 
 using namespace blender;
 using namespace blender::bke;
@@ -738,7 +738,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
   bool valid = false;
 
   if (mod == NULL) {
-    std::string msg = (boost::format("Failed to import the module '%s'") % pp->module).str();
+    std::string msg = fmt::format("Failed to import the module {}", pp->module);
     kxscene->LogError(msg);
   }
   else {
@@ -746,15 +746,11 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
     cls = PyObject_GetAttrString(mod, pp->name);
 
     if (cls == NULL) {
-      std::string msg = (boost::format("Python module found, but failed to find the object '%s'") %
-                         pp->name)
-                            .str();
+      std::string msg = fmt::format("Python module found, but failed to find the object {}", pp->name);
       kxscene->LogError(msg);
     }
     else if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)type)) {
-      std::string msg = (boost::format("%s.%s is not a subclass of %s") % pp->name % pp->name %
-                         type->tp_name)
-                            .str();
+      std::string msg = fmt::format("{}.{} is not a subclass of {}", pp->name, pp->name, type->tp_name);
       kxscene->LogError(msg);
     }
     else {
@@ -770,7 +766,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
 
     if (PyErr_Occurred()) {
       // The component is invalid, drop it
-      std::string msg = (boost::format("Failed to instantiate the class '%s'") % pp->name).str();
+      std::string msg = fmt::format("Failed to instantiate the class {}", pp->name);
       kxscene->LogError(msg);
     }
     else {
@@ -1034,7 +1030,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     mod = PyImport_ImportModule(pp->module);
 
     if (mod == NULL) {
-      std::string msg = (boost::format("Failed to import the module '%s'") % pp->module).str();
+      std::string msg = fmt::format("Failed to import the module {}", pp->module);
       gameobj->LogError(msg);
 
       pp = pp->next;
@@ -1045,8 +1041,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     cls = PyObject_GetAttrString(mod, pp->name);
     if (cls == NULL) {
       std::string msg =
-          (boost::format("Python module found, but failed to find the component '%s'") % pp->name)
-              .str();
+          fmt::format("Python module found, but failed to find the component {}", pp->name);
       gameobj->LogError(msg);
 
       pp = pp->next;
@@ -1055,9 +1050,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
     // Lastly make sure we have a class and it's an appropriate sub type
     if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)&KX_PythonComponent::Type)) {
-      std::string msg = (boost::format("%s.%s is not a KX_PythonComponent subclass") % pp->module %
-                         pp->name)
-                            .str();
+      std::string msg = fmt::format("{}.{} is not a KX_PythonComponent subclass", pp->module, pp->name);
 
       gameobj->LogError(msg);
 
@@ -1071,7 +1064,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     pycomp = PyObject_Call(cls, args, NULL);
 
     if (PyErr_Occurred()) {
-      std::string msg = (boost::format("Failed to instantiate the class '%s'") % pp->name).str();
+      std::string msg = fmt::format("Failed to instantiate the class {}", pp->name);
       gameobj->LogError(msg);
     }
     else {

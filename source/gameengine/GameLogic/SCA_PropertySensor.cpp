@@ -34,8 +34,6 @@
 
 #include "SCA_PropertySensor.h"
 
-#include <boost/algorithm/string.hpp>
-
 #include "CM_Format.h"
 #include "EXP_FloatValue.h"
 
@@ -127,7 +125,8 @@ bool SCA_PropertySensor::CheckPropertyCondition()
         // on the way here...
         if ((testprop == EXP_BoolValue::sTrueString) ||
             (testprop == EXP_BoolValue::sFalseString)) {
-          boost::to_upper(m_checkpropval);
+          std::transform(
+              m_checkpropval.begin(), m_checkpropval.end(), m_checkpropval.begin(), ::toupper);
         }
         result = (testprop == m_checkpropval);
 

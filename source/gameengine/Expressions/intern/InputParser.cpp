@@ -17,8 +17,7 @@
 
 #include "EXP_InputParser.h"
 
-#include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <fmt/format.h>
 
 #include "CM_Message.h"
 #include "EXP_BoolValue.h"
@@ -318,33 +317,34 @@ void EXP_Parser::NextSym()
         start = chcount;
         CharRep();
         GrabString(start);
-        if (boost::iequals(const_as_string, "SUM")) {
+        if (strcasecmp(const_as_string.c_str(), "SUM") == 0)
+        {
           sym = sumsym;
         }
-        else if (boost::iequals(const_as_string, "NOT")) {
+        else if (strcasecmp(const_as_string.c_str(), "NOT") == 0) {
           sym = opsym;
           opkind = OPnot;
         }
-        else if (boost::iequals(const_as_string, "AND")) {
+        else if (strcasecmp(const_as_string.c_str(), "AND") == 0) {
           sym = opsym;
           opkind = OPand;
         }
-        else if (boost::iequals(const_as_string, "OR")) {
+        else if (strcasecmp(const_as_string.c_str(), "OR") == 0) {
           sym = opsym;
           opkind = OPor;
         }
-        else if (boost::iequals(const_as_string, "IF")) {
+        else if (strcasecmp(const_as_string.c_str(), "IF") == 0) {
           sym = ifsym;
         }
-        else if (boost::iequals(const_as_string, "WHOMADE")) {
+        else if (strcasecmp(const_as_string.c_str(), "WHOMADE") == 0) {
           sym = whocodedsym;
         }
-        else if (boost::iequals(const_as_string, "FALSE")) {
+        else if (strcasecmp(const_as_string.c_str(), "FALSE") == 0) {
           sym = constsym;
           constkind = booltype;
           boolvalue = false;
         }
-        else if (boost::iequals(const_as_string, "TRUE")) {
+        else if (strcasecmp(const_as_string.c_str(), "TRUE") == 0) {
           sym = constsym;
           constkind = booltype;
           boolvalue = true;
@@ -354,7 +354,7 @@ void EXP_Parser::NextSym()
         }
       }
       else {
-        std::string str = (boost::format("Unexpected character '%c'") % ch).str();
+        std::string str = fmt::format("Unexpected character {}", ch);
         NextCh();
         ScanError(str);
         return;

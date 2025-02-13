@@ -22,11 +22,11 @@
 
 #include "KX_PythonProxy.h"
 
+#include <fmt/format.h>
+
 #include "BKE_python_proxy.hh"
 #include "CM_Message.h"
 #include "DNA_python_proxy_types.h"
-
-#include <boost/format.hpp>
 
 KX_PythonProxy::KX_PythonProxy()
     : EXP_Value(),
@@ -236,7 +236,7 @@ PyObject *KX_PythonProxy::pyattr_get_logger_name(EXP_PyObjectPlus *self_v,
 {
   KX_PythonProxy *self = static_cast<KX_PythonProxy *>(self_v);
 
-  std::string repr = (boost::format("%s[%s]") % self->GetType()->tp_name % self->GetText()).str();
+  std::string repr = fmt::format("{}[{}]", self->GetType()->tp_name, self->GetText());
 
   return PyUnicode_FromStdString(repr);
 }

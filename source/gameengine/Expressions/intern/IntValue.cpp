@@ -17,7 +17,7 @@
 
 #include "EXP_IntValue.h"
 
-#include <boost/format.hpp>
+#include <fmt/format.h>
 
 #include "CM_Message.h"
 #include "EXP_BoolValue.h"
@@ -270,7 +270,7 @@ int EXP_IntValue::GetValueType()
 
 std::string EXP_IntValue::GetText()
 {
-  return (boost::format("%lld") % m_int).str();
+  return fmt::format("{}", m_int);
 }
 
 EXP_Value *EXP_IntValue::GetReplica()

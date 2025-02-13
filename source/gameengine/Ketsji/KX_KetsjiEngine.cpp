@@ -36,7 +36,7 @@
 
 #include "KX_KetsjiEngine.h"
 
-#include <boost/format.hpp>
+#include <fmt/format.h>
 
 #include "BKE_context.hh"
 #include "BLI_rect.h"
@@ -1285,7 +1285,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
   if (m_flags & SHOW_FRAMERATE) {
     debugDraw.RenderText2D("Frametime:", MT_Vector2(xcoord + const_xindent, ycoord), white);
 
-    debugtxt = (boost::format("%5.2fms (%.1ffps)") % (tottime * 1000.0f) % (1.0f / tottime)).str();
+    debugtxt = fmt::format("{:>5.2f}ms ({:.1f}fps)", (tottime * 1000.0f), (1.0f / tottime));
     debugDraw.RenderText2D(
         debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
     // Increase the indent by default increase
@@ -1300,9 +1300,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
       double time = m_logger.GetAverage((KX_TimeCategory)j);
 
-      debugtxt = (boost::format("%5.2fms | %d%%") % (time * 1000.f) %
-                  (int)(time / tottime * 100.f))
-                     .str();
+      debugtxt = fmt::format("{:>5.2f}ms | {}%", (time * 1000.f), (int)(time / tottime * 100.f));
       debugDraw.RenderText2D(
           debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
 
