@@ -33,7 +33,7 @@
 
 #  include "KX_VertexProxy.h"
 
-#  include <boost/format.hpp>
+#include <fmt/format.h>
 
 #  include "EXP_ListWrapper.h"
 #  include "KX_MeshProxy.h"
@@ -542,7 +542,7 @@ int KX_VertexProxy::pyattr_set_uvs(EXP_PyObjectPlus *self_v,
       }
       else {
         PyErr_SetString(PyExc_AttributeError,
-                        ((boost::format("list[%d] was not a vector") % i).str().c_str()));
+                        (fmt::format("list[{}] was not a vector", i).c_str()));
         return PY_SET_ATTR_FAIL;
       }
     }
@@ -582,7 +582,7 @@ int KX_VertexProxy::pyattr_set_colors(EXP_PyObjectPlus *self_v,
       }
       else {
         PyErr_SetString(PyExc_AttributeError,
-                        ((boost::format("list[%d] was not a vector") % i).str().c_str()));
+                        (fmt::format("list[{}] was not a vector", i).c_str()));
         return PY_SET_ATTR_FAIL;
       }
     }

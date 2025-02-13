@@ -76,6 +76,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::guardedalloc
 )
 
