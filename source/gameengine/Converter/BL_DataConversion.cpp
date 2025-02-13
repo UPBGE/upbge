@@ -70,6 +70,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
+#include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
 #include "DNA_meshdata_types.h"

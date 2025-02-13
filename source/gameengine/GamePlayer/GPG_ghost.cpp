@@ -72,6 +72,7 @@
 #include "BKE_workspace.hh"
 #include "BLF_api.hh"
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_system.h"

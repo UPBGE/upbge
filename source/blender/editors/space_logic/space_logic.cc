@@ -33,7 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 
 #include "BLO_read_write.hh"
 
