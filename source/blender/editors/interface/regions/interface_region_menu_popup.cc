@@ -478,7 +478,7 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
   ui_popup_menu_create_block(C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
-  pup->block->handle = MEM_cnew<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
 
   if (title[0]) {
     create_title_button(pup->layout, title, icon);
@@ -530,7 +530,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
     return true;
   }
   UI_block_layout_resolve(pup->block, nullptr, nullptr);
-  MEM_freeN(pup->block->handle);
+  MEM_delete(pup->block->handle);
   UI_block_free(C, pup->block);
   MEM_delete(pup);
   return false;

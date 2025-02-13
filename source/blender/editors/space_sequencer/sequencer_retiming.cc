@@ -6,6 +6,7 @@
  * \ingroup spseq
  */
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_set.hh"
@@ -453,7 +454,7 @@ static bool transition_add_new_for_seq(const bContext *C,
     return false;
   }
 
-  SeqRetimingKey *transition = SEQ_retiming_add_transition(strip, key, duration);
+  SeqRetimingKey *transition = SEQ_retiming_add_transition(scene, strip, key, duration);
 
   if (transition == nullptr) {
     BKE_report(op->reports, RPT_WARNING, "Cannot create transition");

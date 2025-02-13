@@ -14,8 +14,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_vector.h"  /* UPBGE */
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"  /* UPBGE */
 #include "BLI_string.h"
 #include "BLI_string_utils.hh" /* UPBGE */
 #include "BLI_utildefines.h"
@@ -1830,7 +1831,7 @@ static int shade_auto_smooth_exec(bContext *C, wmOperator *op)
         break;
       }
       /* Remove the weak library reference, since the already loaded group is not valid anymore. */
-      MEM_SAFE_FREE((node_group_id->library_weak_reference));
+      MEM_SAFE_FREE(node_group_id->library_weak_reference);
       /* Stay in the loop and load the asset again. */
       node_group = nullptr;
     }

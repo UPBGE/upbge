@@ -358,6 +358,11 @@ add_blender_test(
   --run-all-tests
 )
 
+add_blender_test(
+  object_api
+  --python ${TEST_PYTHON_DIR}/bl_object.py
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -559,6 +564,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     message(WARNING "Disabling render tests because WITH_OPENCOLORIO is disabled")
   else()
     set(render_tests
+      attributes
       camera
       bsdf
       hair

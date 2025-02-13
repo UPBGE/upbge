@@ -404,7 +404,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   }
 
   if (ts->sculpt) {
-    ts->sculpt->flags = (DNA_struct_default_get(Sculpt))->flags;
+    ts->sculpt->flags = DNA_struct_default_get(Sculpt)->flags;
   }
 
   /* Correct default startup UVs. */

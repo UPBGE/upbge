@@ -582,19 +582,6 @@ static void rna_GreasePencil_active_layer_set(PointerRNA *ptr,
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED | NA_SELECTED, grease_pencil);
 }
 
-static PointerRNA rna_GreasePencilLayerGroup_parent_group_get(PointerRNA *ptr)
-{
-  blender::bke::greasepencil::LayerGroup &layer_group =
-      static_cast<GreasePencilLayerTreeGroup *>(ptr->data)->wrap();
-  blender::bke::greasepencil::LayerGroup *parent_group = layer_group.as_node().parent_group();
-  /* Return None when group is in the root group. */
-  if (!parent_group || parent_group == rna_grease_pencil(ptr)->root_group_ptr) {
-    return PointerRNA_NULL;
-  }
-  return RNA_pointer_create_with_parent(
-      *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(parent_group));
-}
-
 static PointerRNA rna_GreasePencil_active_group_get(PointerRNA *ptr)
 {
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
@@ -926,6 +913,21 @@ static void rna_def_grease_pencil_tree_node(BlenderRNA *brna)
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Channel Color", "Color of the channel in the dope sheet");
   RNA_def_property_update(prop, NC_GPENCIL | NA_EDITED, nullptr);
+
+  /* Next tree node. */
+  prop = RNA_def_property(srna, "next_node", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "next");
+  RNA_def_property_struct_type(prop, "GreasePencilTreeNode");
+  RNA_def_property_ui_text(prop, "Next Node", "The layer tree node after (i.e. above) this one");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+
+  /* Previous tree node. */
+  prop = RNA_def_property(srna, "prev_node", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "prev");
+  RNA_def_property_struct_type(prop, "GreasePencilTreeNode");
+  RNA_def_property_ui_text(
+      prop, "Previous Node", "The layer tree node before (i.e. below) this one");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
 
   /* Parent group. */
   prop = RNA_def_property(srna, "parent_group", PROP_POINTER, PROP_NONE);

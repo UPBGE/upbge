@@ -26,6 +26,7 @@
 
 #include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -884,7 +885,7 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
 {
   const blender::animrig::BoneColor &bone_color = color->wrap();
 
-  grp->customCol = (int)bone_color.palette_index;
+  grp->customCol = int(bone_color.palette_index);
 
   const ThemeWireColor *effective_color = bone_color.effective_color();
   if (effective_color) {

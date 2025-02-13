@@ -27,7 +27,6 @@
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
 #include "COM_result.hh"
-#include "COM_texture_pool.hh"
 
 #include "GPU_context.hh"
 #include "GPU_state.hh"
@@ -39,16 +38,6 @@
 
 namespace blender::draw::compositor_engine {
 
-class TexturePool : public compositor::TexturePool {
- public:
-  GPUTexture *allocate_texture(int2 size, eGPUTextureFormat format) override
-  {
-    DrawEngineType *owner = (DrawEngineType *)this;
-    return DRW_texture_pool_query(
-        DST.vmempool->texture_pool, size.x, size.y, format, GPU_TEXTURE_USAGE_GENERAL, owner);
-  }
-};
-
 class Context : public compositor::Context {
  private:
   /* A pointer to the info message of the compositor engine. This is a char array of size
@@ -56,10 +45,7 @@ class Context : public compositor::Context {
   char *info_message_;
 
  public:
-  Context(compositor::TexturePool &texture_pool, char *info_message)
-      : compositor::Context(texture_pool), info_message_(info_message)
-  {
-  }
+  Context(char *info_message) : compositor::Context(), info_message_(info_message) {}
 
   const Scene &get_scene() const override
   {
@@ -223,7 +209,6 @@ class Context : public compositor::Context {
 
 class Engine {
  private:
-  TexturePool texture_pool_;
   Context context_;
   compositor::Evaluator evaluator_;
   /* Stores the compositing region size at the time the last compositor evaluation happened. See
@@ -232,7 +217,7 @@ class Engine {
 
  public:
   Engine(char *info_message)
-      : context_(texture_pool_, info_message),
+      : context_(info_message),
         evaluator_(context_),
         last_compositing_region_size_(context_.get_compositing_region_size())
   {
@@ -242,6 +227,10 @@ class Engine {
   void draw()
   {
     update_compositing_region_size();
+    /* We temporally disable caching of node tree compilation by always resting the evaluator for
+     * now. See pull request #134394 for more information. TODO: This should be cleaned up in the
+     * future. */
+    evaluator_.reset();
     evaluator_.evaluate();
   }
 
@@ -275,10 +264,6 @@ using namespace blender::draw::compositor_engine;
 
 struct COMPOSITOR_Data {
   DrawEngineType *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   Engine *instance_data;
   char info[GPU_INFO_SIZE];
 };
@@ -343,13 +328,10 @@ static void compositor_engine_update(void *data)
 
 extern "C" {
 
-static const DrawEngineDataSize compositor_data_size = DRW_VIEWPORT_DATA_SIZE(COMPOSITOR_Data);
-
 DrawEngineType draw_engine_compositor_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Compositor"),
-    /*vedata_size*/ &compositor_data_size,
     /*engine_init*/ &compositor_engine_init,
     /*engine_free*/ nullptr,
     /*instance_free*/ &compositor_engine_free,
