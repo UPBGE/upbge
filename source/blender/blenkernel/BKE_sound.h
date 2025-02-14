@@ -7,10 +7,6 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define SOUND_WAVE_SAMPLES_PER_SECOND 250
 
 #if defined(WITH_AUDASPACE)
@@ -28,16 +24,16 @@ typedef struct SoundWaveform {
   float *data;
 } SoundWaveform;
 
-void BKE_sound_init_once(void);
-void BKE_sound_exit_once(void);
+void BKE_sound_init_once();
+void BKE_sound_exit_once();
 
-void *BKE_sound_get_device(void);
+void *BKE_sound_get_device();
 
 void BKE_sound_init(struct Main *bmain);
 
 void BKE_sound_init_main(struct Main *bmain);
 
-void BKE_sound_exit(void);
+void BKE_sound_exit();
 
 void BKE_sound_force_device(const char *device);
 
@@ -114,8 +110,8 @@ void BKE_sound_ensure_scene(struct Scene *scene);
 
 void BKE_sound_destroy_scene(struct Scene *scene);
 
-void BKE_sound_lock(void);
-void BKE_sound_unlock(void);
+void BKE_sound_lock();
+void BKE_sound_unlock();
 
 void BKE_sound_reset_scene_specs(struct Scene *scene);
 
@@ -190,7 +186,7 @@ void *BKE_sound_get_factory(void *sound);
 
 float BKE_sound_get_length(struct Main *bmain, struct bSound *sound);
 
-char **BKE_sound_get_device_names(void);
+char **BKE_sound_get_device_names();
 
 typedef void (*SoundJackSyncCallback)(struct Main *bmain, int mode, double time);
 
@@ -207,6 +203,3 @@ void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct 
 void BKE_sound_load_no_assert(struct Main *main, struct bSound *sound);
 /**************************/
 
-#ifdef __cplusplus
-}
-#endif

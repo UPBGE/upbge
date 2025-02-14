@@ -499,8 +499,10 @@ typedef struct SpaceGraph {
 
   /** Mode for the Graph editor (eGraphEdit_Mode). */
   short mode;
+  short mode_prev;
   /* Snapping now lives on the Scene. */
   short autosnap DNA_DEPRECATED;
+  char _pad[2];
   /** Settings for Graph editor (eGraphEdit_Flag). */
   int flag;
 
@@ -510,7 +512,6 @@ typedef struct SpaceGraph {
   float cursorVal;
   /** Pivot point for transforms. */
   int around;
-  char _pad[4];
 
   SpaceGraph_Runtime runtime;
 } SpaceGraph;
@@ -929,7 +930,7 @@ typedef struct SpaceFile {
 
   /** Is this a File Browser or an Asset Browser? */
   char browse_mode; /* eFileBrowse_Mode */
-  char _pad1[1];
+  char browse_mode_prev;
 
   short tags;
 
@@ -1624,6 +1625,7 @@ typedef struct SpaceNode {
 
   /* tree type for the current node tree */
   char tree_idname[64];
+  char tree_idname_prev[64];
   /** Same as #bNodeTree::type (deprecated). */
   int treetype DNA_DEPRECATED;
 
