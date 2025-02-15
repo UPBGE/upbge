@@ -118,10 +118,11 @@ static int cut_links_exec(bContext *C, wmOperator *op)
   if (i > 1) {
     uiBlock *block;
     uiLinkLine *line, *nline;
-    uiBut *but;
+    uiBut *but = nullptr;
     for (block = static_cast<uiBlock *>(region->runtime->uiblocks.first); block; block = block->next) {
-      but = static_cast<uiBut *>(block->buttons.first);
-      while (but) {
+      int i = 0;
+      while (i < block->buttons.size()) {
+        but = block->buttons[i].get();
         if (but->type == UI_BTYPE_LINK && but->link) {
           for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
             nline = line->next;
@@ -131,7 +132,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
             }
           }
         }
-        but = but->next;
+        i++;
       }
     }
 

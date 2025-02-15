@@ -2242,12 +2242,11 @@ static bool ui_but_drag_init(bContext *C,
 
 static void ui_linkline_remove_active(uiBlock *block)
 {
-  uiBut *but;
   uiLink *link;
   uiLinkLine *line, *nline;
   int a, b;
 
-  for (but = static_cast<uiBut *>(block->buttons.first); but; but = but->next) {
+  for (const std::unique_ptr<uiBut> &but : block->buttons) {
     if (but->type == UI_BTYPE_LINK && but->link) {
       for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
         nline = line->next;
@@ -2446,13 +2445,14 @@ static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
 static void ui_apply_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
   ARegion *ar = CTX_wm_region(C);
-  uiBut *bt;
+  uiBut *bt = nullptr;
 
-  for (bt = static_cast<uiBut *>(but->block->buttons.first); bt; bt = bt->next) {
+  for (int i = 0; i < but->block->buttons.size(); i++) {
+    bt = but->block->buttons[i].get();
     const int ptxy[2] = {(int)(but->linkto[0] + ar->winrct.xmin), (int)(but->linkto[1] + ar->winrct.ymin)};
-    if (ui_but_contains_point_px(
-            bt, ar, ptxy))
+    if (ui_but_contains_point_px(bt, ar, ptxy)) {
       break;
+    }
   }
   if (bt && bt != but) {
     if (!ELEM(bt->type, UI_BTYPE_LINK, UI_BTYPE_INLINK) ||
