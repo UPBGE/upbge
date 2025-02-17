@@ -2768,9 +2768,7 @@ static void ui_but_set_float_array(
 {
   button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
-  for (int i = 0; i < values_len; i++) {
-    RNA_property_float_set_index(&but->rnapoin, but->rnaprop, i, values[i]);
-  }
+  RNA_property_float_set_array_at_most(&but->rnapoin, but->rnaprop, values, values_len);
   if (data) {
     if (but->type == UI_BTYPE_UNITVEC) {
       BLI_assert(values_len == 3);
@@ -2890,7 +2888,7 @@ static void ui_but_copy_color(uiBut *but, char *output, int output_maxncpy)
 {
   float rgba[4];
 
-  if (but->rnaprop && get_but_property_array_length(but) == 4) {
+  if (but->rnaprop && get_but_property_array_length(but) >= 4) {
     rgba[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
   }
   else {

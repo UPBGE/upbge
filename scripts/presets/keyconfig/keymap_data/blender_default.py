@@ -5818,6 +5818,28 @@ def km_edit_curves(params):
     return keymap
 
 
+# Point cloud edit mode.
+def km_edit_point_cloud(params):
+    items = []
+    keymap = (
+        "Point Cloud",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        # Transform Actions.
+        *_template_items_transform_actions(params, use_bend=True, use_mirror=True),
+
+        ("point_cloud.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        *_template_items_select_actions(params, "point_cloud.select_all"),
+        ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
+         {"properties": [("mode", 'CURVE_SHRINKFATTEN')]}),
+    ])
+
+    return keymap
+
+
 # ------------------------------------------------------------------------------
 # Modal Maps and Gizmos
 
@@ -8374,6 +8396,7 @@ def generate_keymaps(params=None):
         km_edit_font(params),
         km_edit_curve_legacy(params),
         km_edit_curves(params),
+        km_edit_point_cloud(params),
 
         # Modal maps.
         km_eyedropper_modal_map(params),

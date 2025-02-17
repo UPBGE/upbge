@@ -17,6 +17,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_tracking_types.h"
 
@@ -78,6 +79,7 @@
 #include "ED_object.hh"
 #include "ED_outliner.hh"
 #include "ED_particle.hh"
+#include "ED_point_cloud.hh"
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_select_utils.hh"
@@ -1428,6 +1430,19 @@ static bool view3d_lasso_select(bContext *C,
                                              selection_domain,
                                              mcoords,
                                              sel_op);
+          if (changed) {
+            /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
+             * generic attribute for now. */
+            DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_GEOMETRY);
+            WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc->obedit->data);
+          }
+          break;
+        }
+        case OB_POINTCLOUD: {
+          PointCloud &point_cloud = *static_cast<PointCloud *>(vc->obedit->data);
+          const float4x4 projection = ED_view3d_ob_project_mat_get(vc->rv3d, vc->obedit);
+          changed = ed::point_cloud::select_lasso(
+              point_cloud, *vc->region, projection, mcoords, sel_op);
           if (changed) {
             /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
              * generic attribute for now. */
@@ -3058,6 +3073,97 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
   return changed || found;
 }
 
+struct ClosestPointCloud {
+  PointCloud *pointcloud = nullptr;
+  blender::ed::point_cloud::FindClosestData elem;
+};
+
+/**
+ * Cursor selection for all point cloud objects in edit mode.
+ *
+ * \returns true if the selection changed.
+ */
+static bool point_cloud_select_pick(bContext &C, const int2 mval, const SelectPick_Params &params)
+{
+  using namespace blender;
+  using namespace blender::ed;
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
+  /* Setup view context for argument to callbacks. */
+  const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+
+  const Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+      vc.scene, vc.view_layer, vc.v3d);
+
+  const ClosestPointCloud closest = threading::parallel_reduce(
+      bases.index_range(),
+      1L,
+      ClosestPointCloud(),
+      [&](const IndexRange range, const ClosestPointCloud &init) {
+        ClosestPointCloud new_closest = init;
+        for (Base *base : bases.as_span().slice(range)) {
+          Object &object = *base->object;
+          PointCloud &pointcloud = *static_cast<PointCloud *>(object.data);
+          const float4x4 projection = ED_view3d_ob_project_mat_get(vc.rv3d, &object);
+
+          std::optional<point_cloud::FindClosestData> new_closest_elem =
+              point_cloud::find_closest_point_to_screen_co(*vc.region,
+                                                           pointcloud.positions(),
+                                                           projection,
+                                                           IndexMask(pointcloud.totpoint),
+                                                           float2(mval),
+                                                           ED_view3d_select_dist_px(),
+                                                           new_closest.elem);
+          if (new_closest_elem) {
+            new_closest.elem = *new_closest_elem;
+            new_closest.pointcloud = &pointcloud;
+          }
+        }
+        return new_closest;
+      },
+      [](const ClosestPointCloud &a, const ClosestPointCloud &b) {
+        return (a.elem.distance_sq < b.elem.distance_sq) ? a : b;
+      });
+
+  std::atomic<bool> deselected = false;
+  if (params.deselect_all || params.sel_op == SEL_OP_SET) {
+    threading::parallel_for(bases.index_range(), 1L, [&](const IndexRange range) {
+      for (Base *base : bases.as_span().slice(range)) {
+        PointCloud &pointcloud = *static_cast<PointCloud *>(base->object->data);
+        if (!point_cloud::has_anything_selected(pointcloud)) {
+          continue;
+        }
+
+        bke::GSpanAttributeWriter selection = point_cloud::ensure_selection_attribute(
+            pointcloud, CD_PROP_BOOL);
+        point_cloud::fill_selection_false(selection.span, IndexMask(pointcloud.totpoint));
+        selection.finish();
+
+        deselected = true;
+        /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
+         * generic attribute for now. */
+        DEG_id_tag_update(&pointcloud.id, ID_RECALC_GEOMETRY);
+        WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &pointcloud);
+      }
+    });
+  }
+
+  if (!closest.pointcloud) {
+    return deselected;
+  }
+
+  bke::GSpanAttributeWriter selection = point_cloud::ensure_selection_attribute(
+      *closest.pointcloud, CD_PROP_BOOL);
+  curves::apply_selection_operation_at_index(selection.span, closest.elem.index, params.sel_op);
+  selection.finish();
+
+  /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
+   * generic attribute for now. */
+  DEG_id_tag_update(&closest.pointcloud->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, closest.pointcloud);
+
+  return true;
+}
+
 struct ClosestCurveDataBlock {
   blender::StringRef selection_attribute_name;
   Curves *curves_id = nullptr;
@@ -3440,6 +3546,9 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
     }
     else if (obedit->type == OB_FONT) {
       changed = ED_curve_editfont_select_pick(C, mval, &params);
+    }
+    else if (obedit->type == OB_POINTCLOUD) {
+      changed = point_cloud_select_pick(*C, mval, params);
     }
     else if (obedit->type == OB_CURVES) {
       changed = ed_curves_select_pick(*C, mval, params);
@@ -4400,6 +4509,18 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
           }
           break;
         }
+        case OB_POINTCLOUD: {
+          PointCloud &point_cloud = *static_cast<PointCloud *>(vc.obedit->data);
+          const float4x4 projection = ED_view3d_ob_project_mat_get(vc.rv3d, vc.obedit);
+          changed = ed::point_cloud::select_box(point_cloud, *vc.region, projection, rect, sel_op);
+          if (changed) {
+            /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
+             * generic attribute for now. */
+            DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_GEOMETRY);
+            WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc.obedit->data);
+          }
+          break;
+        }
         case OB_GREASE_PENCIL: {
           changed = do_grease_pencil_box_select(&vc, &rect, sel_op);
           break;
@@ -5229,6 +5350,19 @@ static bool obedit_circle_select(bContext *C,
                                           mval,
                                           rad,
                                           sel_op);
+      if (changed) {
+        /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
+         * generic attribute for now. */
+        DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_GEOMETRY);
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc->obedit->data);
+      }
+      break;
+    }
+    case OB_POINTCLOUD: {
+      PointCloud &point_cloud = *static_cast<PointCloud *>(vc->obedit->data);
+      const float4x4 projection = ED_view3d_ob_project_mat_get(vc->rv3d, vc->obedit);
+      changed = ed::point_cloud::select_circle(
+          point_cloud, *vc->region, projection, mval, rad, sel_op);
       if (changed) {
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */

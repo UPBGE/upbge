@@ -233,15 +233,13 @@ void extract_tangents(const MeshRenderData &mr,
     }
   }
 
-  CustomData_free(&corner_data, mr.corners_num);
+  CustomData_free(&corner_data);
 }
 
 static const GPUVertFormat &get_coarse_tan_format()
 {
-  static GPUVertFormat format = {0};
-  if (format.attr_len == 0) {
-    GPU_vertformat_attr_add(&format, "tan", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  }
+  static GPUVertFormat format = GPU_vertformat_from_attribute(
+      "tan", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
   return format;
 }
 
@@ -313,7 +311,7 @@ void extract_tangents_subdiv(const MeshRenderData &mr,
     draw_subdiv_interp_custom_data(subdiv_cache, *coarse_vbo, vbo, GPU_COMP_F32, 4, dst_offset);
   }
 
-  CustomData_free(&corner_data, mr.corners_num);
+  CustomData_free(&corner_data);
   GPU_vertbuf_discard(coarse_vbo);
 }
 

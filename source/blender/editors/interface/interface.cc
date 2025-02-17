@@ -2709,17 +2709,8 @@ void ui_but_v3_get(uiBut *but, float vec[3])
     zero_v3(vec);
 
     if (RNA_property_type(prop) == PROP_FLOAT) {
-      int tot = RNA_property_array_length(&but->rnapoin, prop);
-      BLI_assert(tot > 0);
-      if (tot == 3) {
-        RNA_property_float_get_array(&but->rnapoin, prop, vec);
-      }
-      else {
-        tot = min_ii(tot, 3);
-        for (int a = 0; a < tot; a++) {
-          vec[a] = RNA_property_float_get_index(&but->rnapoin, prop, a);
-        }
-      }
+      BLI_assert(RNA_property_array_length(&but->rnapoin, prop) > 0);
+      RNA_property_float_get_array_at_most(&but->rnapoin, prop, vec, 3);
     }
   }
   else if (but->pointype == UI_BUT_POIN_CHAR) {
@@ -2754,18 +2745,8 @@ void ui_but_v3_set(uiBut *but, const float vec[3])
     PropertyRNA *prop = but->rnaprop;
 
     if (RNA_property_type(prop) == PROP_FLOAT) {
-      int tot = RNA_property_array_length(&but->rnapoin, prop);
-
-      BLI_assert(tot > 0);
-      if (tot == 3) {
-        RNA_property_float_set_array(&but->rnapoin, prop, vec);
-      }
-      else {
-        tot = min_ii(tot, 3);
-        for (int a = 0; a < tot; a++) {
-          RNA_property_float_set_index(&but->rnapoin, prop, a, vec[a]);
-        }
-      }
+      BLI_assert(RNA_property_array_length(&but->rnapoin, prop) > 0);
+      RNA_property_float_set_array_at_most(&but->rnapoin, prop, vec, 3);
     }
   }
   else if (but->pointype == UI_BUT_POIN_CHAR) {
@@ -2792,17 +2773,8 @@ void ui_but_v4_get(uiBut *but, float vec[4])
     zero_v4(vec);
 
     if (RNA_property_type(prop) == PROP_FLOAT) {
-      int tot = RNA_property_array_length(&but->rnapoin, prop);
-      BLI_assert(tot > 0);
-      if (tot == 4) {
-        RNA_property_float_get_array(&but->rnapoin, prop, vec);
-      }
-      else {
-        tot = min_ii(tot, 4);
-        for (int a = 0; a < tot; a++) {
-          vec[a] = RNA_property_float_get_index(&but->rnapoin, prop, a);
-        }
-      }
+      BLI_assert(RNA_property_array_length(&but->rnapoin, prop) > 0);
+      RNA_property_float_get_array_at_most(&but->rnapoin, prop, vec, 4);
     }
   }
   else if (but->pointype == UI_BUT_POIN_CHAR) {
@@ -2834,18 +2806,8 @@ void ui_but_v4_set(uiBut *but, const float vec[4])
     PropertyRNA *prop = but->rnaprop;
 
     if (RNA_property_type(prop) == PROP_FLOAT) {
-      int tot = RNA_property_array_length(&but->rnapoin, prop);
-
-      BLI_assert(tot > 0);
-      if (tot == 4) {
-        RNA_property_float_set_array(&but->rnapoin, prop, vec);
-      }
-      else {
-        tot = min_ii(tot, 4);
-        for (int a = 0; a < tot; a++) {
-          RNA_property_float_set_index(&but->rnapoin, prop, a, vec[a]);
-        }
-      }
+      BLI_assert(RNA_property_array_length(&but->rnapoin, prop) > 0);
+      RNA_property_float_set_array_at_most(&but->rnapoin, prop, vec, 4);
     }
   }
   else if (but->pointype == UI_BUT_POIN_CHAR) {
@@ -4129,6 +4091,11 @@ uiBlock *UI_block_begin(const bContext *C,
 
   if (region) {
     UI_block_region_set(block, region);
+  }
+
+  /* Prevent reallocations on redraw, most of the time blocks layout will be the same. */
+  if (block->oldblock) {
+    block->buttons.reserve(block->oldblock->buttons.size());
   }
 
   /* Set window matrix and aspect for region and OpenGL state. */
