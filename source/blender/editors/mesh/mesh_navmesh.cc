@@ -694,7 +694,7 @@ static int navmesh_reset_exec(bContext *C, wmOperator */*op*/)
   Object *ob = blender::ed::object::context_active_object(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->face_data, CD_RECAST, me->faces_num);
+  CustomData_free_layers(&me->face_data, CD_RECAST);
 
   BKE_mesh_ensure_navmesh(me);
 
@@ -724,7 +724,7 @@ static int navmesh_clear_exec(bContext *C, wmOperator */*op*/)
   Object *ob = blender::ed::object::context_active_object(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->face_data, CD_RECAST, me->faces_num);
+  CustomData_free_layers(&me->face_data, CD_RECAST);
   ob->gameflag &= ~OB_NAVMESH;
 
   DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
