@@ -3413,10 +3413,7 @@ void DRW_game_render_loop(bContext *C,
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
-  /* Update UBO's */
-  DRW_globals_update();
-
-  DRW_pointcloud_init();
+  DRW_point_cloud_init(DST.vmempool);
   DRW_curves_init(DST.vmempool);
   DRW_volume_init(DST.vmempool);
   DRW_smoke_init(DST.vmempool);

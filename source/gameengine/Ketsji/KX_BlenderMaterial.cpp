@@ -27,7 +27,7 @@
 #include "GPU_context.hh"
 #include "GPU_material.hh"
 #include "DNA_material_types.h"
-#include "draw_manager.hh"
+#include "draw_manager_c.hh"
 
 #include "BL_Shader.h"
 #include "EXP_ListWrapper.h"

@@ -27,6 +27,7 @@
 #include "RAS_DebugDraw.h"
 
 #include "BLF_api.hh"
+#include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
 #include "DRW_render.hh"
 #include "GPU_immediate.hh"

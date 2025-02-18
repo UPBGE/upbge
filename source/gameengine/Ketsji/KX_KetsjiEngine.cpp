@@ -40,6 +40,7 @@
 
 #include "BKE_context.hh"
 #include "BLI_rect.h"
+#include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
 #include "DRW_render.hh"
 #include "GPU_context.hh"
