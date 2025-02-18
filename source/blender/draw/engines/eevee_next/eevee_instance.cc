@@ -22,6 +22,7 @@
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
 
+#include "GPU_context.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "RE_pipeline.h"
@@ -349,17 +350,13 @@ void Instance::render_sync()
 
   manager->begin_sync();
 
-  draw::hair_init();
-  draw::curves_init();
+  DRW_curves_init();
 
   begin_sync();
 
   DRW_render_object_iter(this, render, depsgraph, object_sync_render);
 
-  draw::hair_update(*manager);
-  draw::curves_update(*manager);
-  draw::hair_free();
-  draw::curves_free();
+  DRW_curves_update(*manager);
 
   velocity.geometry_steps_fill();
 

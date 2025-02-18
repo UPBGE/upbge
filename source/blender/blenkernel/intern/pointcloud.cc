@@ -311,6 +311,8 @@ void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud 
   const int totpoint = pointcloud_dst->totpoint = pointcloud_src->totpoint;
   CustomData_init_from(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
 
+  pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
+  pointcloud_dst->runtime->bvh_cache = pointcloud_src->runtime->bvh_cache;
   BKE_id_free(nullptr, pointcloud_src);
 }
 
@@ -367,6 +369,15 @@ bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/,
                                        const blender::StringRef name)
 {
   return name == POINTCLOUD_ATTR_POSITION;
+}
+
+void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
+{
+  dst.flag = src.flag;
+  MEM_SAFE_FREE(dst.mat);
+  dst.mat = static_cast<Material **>(MEM_malloc_arrayN(src.totcol, sizeof(Material *), __func__));
+  dst.totcol = src.totcol;
+  MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
 
 /* Dependency Graph */

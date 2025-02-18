@@ -1640,7 +1640,7 @@ static void rna_RenderView_remove(
     return;
   }
 
-  RNA_POINTER_INVALIDATE(srv_ptr);
+  srv_ptr->invalidate();
 
   WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
@@ -2367,7 +2367,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, PointerRNA *m
   }
 
   MEM_freeN(marker);
-  RNA_POINTER_INVALIDATE(marker_ptr);
+  marker_ptr->invalidate();
 
   WM_main_add_notifier(NC_SCENE | ND_MARKERS, nullptr);
   WM_main_add_notifier(NC_ANIMATION | ND_MARKERS, nullptr);
@@ -2563,7 +2563,7 @@ void rna_FreestyleSettings_lineset_remove(ID *id,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(lineset_ptr);
+  lineset_ptr->invalidate();
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, nullptr);
@@ -2629,7 +2629,7 @@ void rna_FreestyleSettings_module_remove(ID *id,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(module_ptr);
+  module_ptr->invalidate();
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, nullptr);
@@ -2676,7 +2676,7 @@ static void rna_ViewLayer_remove(
   ViewLayer *view_layer = static_cast<ViewLayer *>(sl_ptr->data);
 
   if (ED_scene_view_layer_delete(bmain, scene, view_layer, reports)) {
-    RNA_POINTER_INVALIDATE(sl_ptr);
+    sl_ptr->invalidate();
   }
 }
 

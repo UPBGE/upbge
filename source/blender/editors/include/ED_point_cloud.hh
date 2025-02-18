@@ -22,6 +22,7 @@ struct ARegion;
 struct bContext;
 struct PointCloud;
 struct rcti;
+struct UndoType;
 struct wmKeyConfig;
 struct wmOperatorType;
 namespace blender::bke {
@@ -37,6 +38,7 @@ namespace blender::ed::point_cloud {
 void operatortypes_point_cloud();
 void operatormacros_point_cloud();
 void keymap_point_cloud(wmKeyConfig *keyconf);
+void undosys_type_register(UndoType *ut);
 
 VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C);
 
@@ -113,6 +115,19 @@ IndexMask retrieve_selected_points(const PointCloud &pointcloud, IndexMaskMemory
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Editing
+ * \{ */
+
+/**
+ * Remove selected points based on the ".selection" attribute.
+ * \returns true if any point was removed.
+ */
+bool remove_selection(PointCloud &point_cloud);
+PointCloud *copy_selection(const PointCloud &src, const IndexMask &mask);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Poll Functions
  * \{ */
 
@@ -126,6 +141,7 @@ bool editable_point_cloud_in_edit_mode_poll(bContext *C);
 
 void POINT_CLOUD_OT_attribute_set(wmOperatorType *ot);
 void POINT_CLOUD_OT_duplicate(wmOperatorType *ot);
+void POINT_CLOUD_OT_separate(wmOperatorType *ot);
 
 /** \} */
 

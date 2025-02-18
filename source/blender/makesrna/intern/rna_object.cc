@@ -1975,7 +1975,7 @@ static void rna_Object_constraints_remove(Object *object,
   }
 
   BKE_constraint_remove(&object->constraints, con);
-  RNA_POINTER_INVALIDATE(con_ptr);
+  con_ptr->invalidate();
 
   blender::ed::object::constraint_update(bmain, object);
   blender::ed::object::constraint_active_set(object, nullptr);
@@ -2091,7 +2091,7 @@ static void rna_Object_modifier_remove(Object *object,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(md_ptr);
+  md_ptr->invalidate();
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, object);
 }
@@ -2245,7 +2245,7 @@ static void rna_Object_shaderfx_remove(Object *object,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(gmd_ptr);
+  gmd_ptr->invalidate();
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, object);
 }
@@ -2322,7 +2322,7 @@ static void rna_Object_vgroup_remove(Object *ob,
   }
 
   BKE_object_defgroup_remove(ob, defgroup);
-  RNA_POINTER_INVALIDATE(defgroup_ptr);
+  defgroup_ptr->invalidate();
 
   DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);

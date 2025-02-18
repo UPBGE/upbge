@@ -59,9 +59,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "draw_manager_c.hh"
-#include "draw_texture_pool.hh"
-
 #include "BKE_global.hh"
 
 #include "BLI_math_vector_types.hh"
@@ -929,6 +926,11 @@ class Texture : NonCopyable {
    */
   void debug_clear()
   {
+    if (GPU_texture_dimensions(this->tx_) == 1) {
+      /* Clearing of 1D texture is currently unsupported. */
+      return;
+    }
+
     if (GPU_texture_has_float_format(this->tx_) || GPU_texture_has_normalized_format(this->tx_)) {
       this->clear(float4(NAN_FLT));
     }

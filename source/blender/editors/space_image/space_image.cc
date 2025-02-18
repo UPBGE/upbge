@@ -461,7 +461,7 @@ static void IMAGE_GGT_gizmo2d(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_IMAGE;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
 
-  ED_widgetgroup_gizmo2d_xform_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_xform_callbacks_set(gzgt);
 }
 
 static void IMAGE_GGT_gizmo2d_translate(wmGizmoGroupType *gzgt)
@@ -475,7 +475,7 @@ static void IMAGE_GGT_gizmo2d_translate(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_IMAGE;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
 
-  ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(gzgt);
 }
 
 static void IMAGE_GGT_gizmo2d_resize(wmGizmoGroupType *gzgt)
@@ -489,7 +489,7 @@ static void IMAGE_GGT_gizmo2d_resize(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_IMAGE;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
 
-  ED_widgetgroup_gizmo2d_resize_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_resize_callbacks_set(gzgt);
 }
 
 static void IMAGE_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
@@ -503,7 +503,7 @@ static void IMAGE_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_IMAGE;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
 
-  ED_widgetgroup_gizmo2d_rotate_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_rotate_callbacks_set(gzgt);
 }
 
 static void IMAGE_GGT_navigate(wmGizmoGroupType *gzgt)
@@ -1063,8 +1063,15 @@ static int image_space_subtype_get(ScrArea *area)
 static void image_space_subtype_set(ScrArea *area, int value)
 {
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
-  sima->mode_prev = sima->mode;
-  sima->mode = value;
+  if (value == SI_MODE_UV) {
+    if (sima->mode != SI_MODE_UV) {
+      sima->mode_prev = sima->mode;
+    }
+    sima->mode = value;
+  }
+  else {
+    sima->mode = sima->mode_prev;
+  }
 }
 
 static void image_space_subtype_item_extend(bContext * /*C*/,
@@ -1072,12 +1079,6 @@ static void image_space_subtype_item_extend(bContext * /*C*/,
                                             int *totitem)
 {
   RNA_enum_items_add(item, totitem, rna_enum_space_image_mode_items);
-}
-
-static int image_space_subtype_prev_get(ScrArea *area)
-{
-  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
-  return sima->mode_prev;
 }
 
 static blender::StringRefNull image_space_name_get(const ScrArea *area)
@@ -1157,7 +1158,6 @@ void ED_spacetype_image()
   st->space_subtype_item_extend = image_space_subtype_item_extend;
   st->space_subtype_get = image_space_subtype_get;
   st->space_subtype_set = image_space_subtype_set;
-  st->space_subtype_prev_get = image_space_subtype_prev_get;
   st->space_name_get = image_space_name_get;
   st->space_icon_get = image_space_icon_get;
   st->blend_read_data = image_space_blend_read_data;
