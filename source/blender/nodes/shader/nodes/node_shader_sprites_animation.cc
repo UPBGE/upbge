@@ -78,5 +78,5 @@ void register_node_type_sh_sprites_animation()
   ntype.add_ui_poll = object_eevee_shader_nodes_poll;
   ntype.gpu_fn = file_ns::gpu_shader_sprites_animation;
 
-  node_register_type(&ntype);
+  node_register_type(ntype);
 }
