@@ -26,6 +26,7 @@ struct ViewContext;
 struct rcti;
 struct TransVertStore;
 struct wmKeyConfig;
+struct wmOperator;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
@@ -174,26 +175,6 @@ IndexMask end_points(const bke::CurvesGeometry &curves,
                      int amount_end,
                      bool inverted,
                      IndexMaskMemory &memory);
-
-/**
- * Return a mask of random points or curves.
- *
- * \param mask: (optional) The elements that should be used in the resulting mask. This mask should
- * be in the same domain as the \a selection_domain. \param random_seed: The seed for the \a
- * RandomNumberGenerator. \param probability: Determines how likely a point/curve will be chosen.
- * If set to 0.0, nothing will be in the mask, if set to 1.0 everything will be in the mask.
- */
-IndexMask random_mask(const bke::CurvesGeometry &curves,
-                      bke::AttrDomain selection_domain,
-                      uint32_t random_seed,
-                      float probability,
-                      IndexMaskMemory &memory);
-IndexMask random_mask(const bke::CurvesGeometry &curves,
-                      const IndexMask &mask,
-                      bke::AttrDomain selection_domain,
-                      uint32_t random_seed,
-                      float probability,
-                      IndexMaskMemory &memory);
 
 /** \} */
 
@@ -460,6 +441,8 @@ void resize_curves(bke::CurvesGeometry &curves,
  * reorder curves.
  */
 void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_map);
+
+int join_objects(bContext *C, wmOperator *op);
 
 /** \} */
 

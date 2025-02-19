@@ -318,7 +318,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_attributes_curves_lib.glsl
   engines/eevee_next/shaders/eevee_attributes_gpencil_lib.glsl
   engines/eevee_next/shaders/eevee_attributes_mesh_lib.glsl
-  engines/eevee_next/shaders/eevee_attributes_point_cloud_lib.glsl
+  engines/eevee_next/shaders/eevee_attributes_pointcloud_lib.glsl
   engines/eevee_next/shaders/eevee_attributes_volume_lib.glsl
   engines/eevee_next/shaders/eevee_attributes_world_lib.glsl
   engines/eevee_next/shaders/eevee_bxdf_lib.glsl
@@ -375,7 +375,7 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_geom_curves_vert.glsl
   engines/eevee_next/shaders/eevee_geom_gpencil_vert.glsl
   engines/eevee_next/shaders/eevee_geom_mesh_vert.glsl
-  engines/eevee_next/shaders/eevee_geom_point_cloud_vert.glsl
+  engines/eevee_next/shaders/eevee_geom_pointcloud_vert.glsl
   engines/eevee_next/shaders/eevee_geom_volume_vert.glsl
   engines/eevee_next/shaders/eevee_geom_world_vert.glsl
   engines/eevee_next/shaders/eevee_hiz_debug_frag.glsl
@@ -563,7 +563,6 @@ set(GLSL_SRC
   intern/shaders/subdiv_vbo_edituv_strech_area_comp.glsl
   intern/shaders/subdiv_vbo_lnor_comp.glsl
   intern/shaders/subdiv_vbo_sculpt_data_comp.glsl
-  intern/shaders/common_view_clipping_lib.glsl
   intern/shaders/draw_command_generate_comp.glsl
   intern/shaders/draw_debug_draw_display_frag.glsl
   intern/shaders/draw_debug_draw_display_vert.glsl

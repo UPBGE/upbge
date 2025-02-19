@@ -2517,7 +2517,7 @@ static ID *create_placeholder(Main *mainvar,
                               const bool was_liboverride)
 {
   ListBase *lb = which_libbase(mainvar, idcode);
-  ID *ph_id = static_cast<ID *>(BKE_libblock_alloc_notest(idcode));
+  ID *ph_id = BKE_libblock_alloc_notest(idcode);
 
   *((short *)ph_id->name) = idcode;
   BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);
@@ -3932,7 +3932,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     /* After all data has been read and versioned, uses ID_TAG_NEW. Theoretically this should
      * not be calculated in the undo case, but it is currently needed even on undo to recalculate
      * a cache. */
-    blender::bke::node_tree_update_all_new(bfd->main);
+    blender::bke::node_tree_update_all_new(*bfd->main);
 
     placeholders_ensure_valid(bfd->main);
 
@@ -4584,7 +4584,7 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   BKE_main_id_refcount_recompute(mainvar, false);
 
   /* After all data has been read and versioned, uses ID_TAG_NEW. */
-  blender::bke::node_tree_update_all_new(mainvar);
+  blender::bke::node_tree_update_all_new(*mainvar);
 
   placeholders_ensure_valid(mainvar);
 

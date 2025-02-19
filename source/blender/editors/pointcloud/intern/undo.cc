@@ -19,15 +19,15 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "ED_point_cloud.hh"
+#include "ED_pointcloud.hh"
 #include "ED_undo.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-static CLG_LogRef LOG = {"ed.undo.point_cloud"};
+static CLG_LogRef LOG = {"ed.undo.pointcloud"};
 
-namespace blender::ed::point_cloud {
+namespace blender::ed::pointcloud {
 namespace undo {
 
 /* -------------------------------------------------------------------- */
@@ -40,6 +40,8 @@ struct StepObject {
   UndoRefID_Object obedit_ref = {};
   CustomData custom_data = {};
   int totpoint = 0;
+  /* Store the bounds cache because it's small. */
+  SharedCache<Bounds<float3>> bounds_cache;
 };
 
 struct PointCloudUndoStep {
@@ -64,11 +66,12 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     for (const int i : range) {
       Object *ob = objects[i];
       StepObject &object = us->objects[i];
-      PointCloud &point_cloud = *static_cast<PointCloud *>(ob->data);
+      PointCloud &pointcloud = *static_cast<PointCloud *>(ob->data);
       object.obedit_ref.ptr = ob;
       CustomData_init_from(
-          &point_cloud.pdata, &object.custom_data, CD_MASK_ALL, point_cloud.totpoint);
-      object.totpoint = point_cloud.totpoint;
+          &pointcloud.pdata, &object.custom_data, CD_MASK_ALL, pointcloud.totpoint);
+      object.bounds_cache = pointcloud.runtime->bounds_cache;
+      object.totpoint = pointcloud.totpoint;
     }
   });
 
@@ -95,11 +98,19 @@ static void step_decode(
   BLI_assert(BKE_object_is_in_editmode(us->objects.first().obedit_ref.ptr));
 
   for (const StepObject &object : us->objects) {
-    PointCloud &point_cloud = *static_cast<PointCloud *>(object.obedit_ref.ptr->data);
-    CustomData_free(&point_cloud.pdata);
-    CustomData_init_from(&object.custom_data, &point_cloud.pdata, CD_MASK_ALL, object.totpoint);
-    point_cloud.totpoint = object.totpoint;
-    DEG_id_tag_update(&point_cloud.id, ID_RECALC_GEOMETRY);
+    PointCloud &pointcloud = *static_cast<PointCloud *>(object.obedit_ref.ptr->data);
+    const bool positions_changed =
+        CustomData_get_layer_named(&pointcloud.pdata, CD_PROP_FLOAT3, "position") !=
+        CustomData_get_layer_named(&object.custom_data, CD_PROP_FLOAT3, "position");
+
+    CustomData_free(&pointcloud.pdata);
+    CustomData_init_from(&object.custom_data, &pointcloud.pdata, CD_MASK_ALL, object.totpoint);
+    pointcloud.totpoint = object.totpoint;
+    pointcloud.runtime->bounds_cache = object.bounds_cache;
+    if (positions_changed) {
+      pointcloud.runtime->bvh_cache.tag_dirty();
+    }
+    DEG_id_tag_update(&pointcloud.id, ID_RECALC_GEOMETRY);
   }
 
   ED_undo_object_set_active_or_warn(
@@ -138,7 +149,7 @@ static void foreach_ID_ref(UndoStep *us_p,
 void undosys_type_register(UndoType *ut)
 {
   ut->name = "Edit Point Cloud";
-  ut->poll = editable_point_cloud_in_edit_mode_poll;
+  ut->poll = editable_pointcloud_in_edit_mode_poll;
   ut->step_encode = undo::step_encode;
   ut->step_decode = undo::step_decode;
   ut->step_free = undo::step_free;
@@ -150,4 +161,4 @@ void undosys_type_register(UndoType *ut)
   ut->step_size = sizeof(undo::PointCloudUndoStep);
 }
 
-}  // namespace blender::ed::point_cloud
+}  // namespace blender::ed::pointcloud

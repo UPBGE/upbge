@@ -554,7 +554,7 @@ class ShaderModule {
   ShaderPtr depth_grease_pencil = shader_selectable("overlay_depth_gpencil");
   ShaderPtr depth_mesh = shader_selectable("overlay_depth_mesh");
   ShaderPtr depth_mesh_conservative = shader_selectable("overlay_depth_mesh_conservative");
-  ShaderPtr depth_point_cloud = shader_selectable("overlay_depth_pointcloud");
+  ShaderPtr depth_pointcloud = shader_selectable("overlay_depth_pointcloud");
   ShaderPtr extra_shape = shader_selectable("overlay_extra");
   ShaderPtr extra_point = shader_selectable("overlay_extra_point");
   ShaderPtr extra_wire = shader_selectable("overlay_extra_wire");
@@ -662,6 +662,7 @@ struct Resources : public select::SelectMap {
 
   draw::UniformBuffer<GlobalsUboStorage> globals_buf;
   GlobalsUboStorage &theme_settings = globals_buf;
+  draw::UniformArrayBuffer<float4, 6> clip_planes_buf;
   /* Wrappers around #DefaultTextureList members. */
   TextureRef depth_in_front_tx;
   TextureRef color_overlay_tx;
@@ -703,6 +704,7 @@ struct Resources : public select::SelectMap {
   }
 
   void update_theme_settings(const State &state);
+  void update_clip_planes(const State &state);
 
   void begin_sync()
   {

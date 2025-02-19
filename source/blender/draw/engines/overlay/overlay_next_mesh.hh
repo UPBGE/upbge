@@ -141,6 +141,7 @@ class Meshes : Overlay {
       pass.shader_set(res.shaders.mesh_edit_depth.get());
       pass.push_constant("retopologyOffset", retopology_offset);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     }
     {
       /* Normals */
@@ -157,6 +158,7 @@ class Meshes : Overlay {
       auto &pass = edit_mesh_normals_ps_;
       pass.init();
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(pass_state, state.clipping_plane_count);
 
       auto shader_pass = [&](GPUShader *shader, const char *name) {
@@ -199,6 +201,7 @@ class Meshes : Overlay {
       pass.shader_set(shadeless ? res.shaders.paint_weight.get() :
                                   res.shaders.paint_weight_fake_shading.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.bind_texture("colorramp", &res.weight_ramp_tx);
       pass.push_constant("drawContours", false);
       pass.push_constant("opacity", state.overlay.weight_paint_mode_opacity);
@@ -228,6 +231,7 @@ class Meshes : Overlay {
       pass.push_constant("ndc_offset", ndc_offset);
       pass.push_constant("dataMask", int4(data_mask));
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     };
 
     {
@@ -286,6 +290,7 @@ class Meshes : Overlay {
       pass.shader_set(res.shaders.mesh_edit_skin_root.get());
       pass.push_constant("retopologyOffset", retopology_offset);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     }
   }
 
@@ -620,10 +625,11 @@ class MeshUVs : Overlay {
     }
     {
       /* Brush Stencil Overlay. */
-      const Brush *brush = BKE_paint_brush_for_read(&tool_setting->imapaint.paint);
+      const ImagePaintSettings &image_paint_settings = tool_setting->imapaint;
+      const Brush *brush = BKE_paint_brush_for_read(&image_paint_settings.paint);
       show_stencil_ = space_mode_is_paint && brush &&
                       (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) &&
-                      brush->clone.image;
+                      image_paint_settings.clone;
     }
     {
       /* UDIM Overlay. */
@@ -643,6 +649,7 @@ class MeshUVs : Overlay {
                      DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_wireframe.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("alpha", space_image->uv_opacity);
       pass.push_constant("doSmoothWire", do_smooth_wire);
     }
@@ -657,6 +664,7 @@ class MeshUVs : Overlay {
       pass.specialize_constant(sh, "use_edge_select", !show_vert_);
       pass.shader_set(sh);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("lineStyle", int(edit_uv_line_style_from_space_image(space_image)));
       pass.push_constant("alpha", space_image->uv_opacity);
       pass.push_constant("dashLength", dash_length);
@@ -675,6 +683,7 @@ class MeshUVs : Overlay {
                      DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_edit_vert.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("pointSize", (point_size + 1.5f) * float(M_SQRT2));
       pass.push_constant("outlineWidth", 0.75f);
       pass.push_constant("color", theme_color);
@@ -689,6 +698,7 @@ class MeshUVs : Overlay {
                      DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_edit_facedot.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("pointSize", point_size);
     }
 
@@ -698,6 +708,7 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS | DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_edit_face.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("uvOpacity", space_image->uv_opacity);
     }
 
@@ -709,6 +720,7 @@ class MeshUVs : Overlay {
                           res.shaders.uv_analysis_stretch_angle.get() :
                           res.shaders.uv_analysis_stretch_area.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("aspect", state.image_uv_aspect);
       pass.push_constant("stretch_opacity", space_image->stretch_opacity);
       pass.push_constant("totalAreaRatio", &total_area_ratio_);
@@ -865,8 +877,8 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS |
                      DRW_STATE_BLEND_ALPHA_PREMUL);
 
-      const Brush *brush = BKE_paint_brush_for_read(&tool_setting->imapaint.paint);
-      ::Image *stencil_image = brush->clone.image;
+      const ImagePaintSettings &image_paint_settings = tool_setting->imapaint;
+      ::Image *stencil_image = image_paint_settings.clone;
       TextureRef stencil_texture;
       stencil_texture.wrap(BKE_image_get_gpu_texture(stencil_image, nullptr));
 
@@ -878,8 +890,8 @@ class MeshUVs : Overlay {
         pass.bind_texture("imgTexture", stencil_texture);
         pass.push_constant("imgPremultiplied", true);
         pass.push_constant("imgAlphaBlend", true);
-        pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, brush->clone.alpha));
-        pass.push_constant("brush_offset", float2(brush->clone.offset));
+        pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, image_paint_settings.clone_alpha));
+        pass.push_constant("brush_offset", float2(image_paint_settings.clone_offset));
         pass.push_constant("brush_scale", float2(stencil_texture.size().xy()) / size_image);
         pass.draw(res.shapes.quad_solid.get());
       }
