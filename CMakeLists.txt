@@ -503,7 +503,7 @@ option(WITH_HARFBUZZ "Enable features relying on harfbuzz" OFF)
 
 # 3D format support
 # Disable opencollada when we don't have precompiled libs
-option(WITH_OPENCOLLADA "Enable OpenCollada Support (http://www.opencollada.org)" ON)
+option(WITH_OPENCOLLADA "Enable OpenCollada Support (http://www.opencollada.org)" OFF)
 option(WITH_IO_WAVEFRONT_OBJ "Enable Wavefront-OBJ 3D file format support (*.obj)" ON)
 option(WITH_IO_PLY "Enable PLY 3D file format support (*.ply)" ON)
 option(WITH_IO_STL "Enable STL 3D file format support (*.stl)" ON)

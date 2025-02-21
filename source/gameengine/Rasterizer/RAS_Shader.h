@@ -117,7 +117,7 @@ class RAS_Shader {
   std::string GetParsedProgram(ProgramType type) const;
 
   // Compiles and links the shader
-  virtual bool LinkProgram(bool isCustomShader);
+  virtual bool LinkProgram();
   void ValidateProgram();
 
   // search by location

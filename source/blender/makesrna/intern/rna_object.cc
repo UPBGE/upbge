@@ -1823,7 +1823,7 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const bool *val
 }
 
 static bool rna_GameObjectSettings_components_override_apply(
-    Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx)
+    Main * /*bmain*/, RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
   PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
   PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;

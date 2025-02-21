@@ -603,7 +603,7 @@ static bool load_class(PythonProxy *pp,
 
 }
 
-PythonProxy *BKE_python_class_new(char *import,
+static PythonProxy *BKE_python_class_new(char *import,
                                   int (*verifier)(PyObject *),
                                   ReportList *reports,
                                   bContext *context)
@@ -677,7 +677,7 @@ return nullptr;
 }
 
 #ifdef WITH_PYTHON
-PythonProxy *BKE_python_class_create_file(char *import,
+static PythonProxy *BKE_python_class_create_file(char *import,
                                           const char *template_dir,
                                           const char *template_name,
                                           int (*verifier)(PyObject *),

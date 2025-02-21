@@ -2404,7 +2404,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
 
     /* (5) garbage collection */
     MEM_freeN(tmp_but->link);
-    MEM_freeN(tmp_but);
+    MEM_delete(tmp_but);
   }
   WM_operator_properties_free(&props_ptr);
 }

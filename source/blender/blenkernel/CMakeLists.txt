@@ -738,7 +738,7 @@ if(WITH_LZMA)
 endif()
 
 if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
+  add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 if(WITH_LIBMV)

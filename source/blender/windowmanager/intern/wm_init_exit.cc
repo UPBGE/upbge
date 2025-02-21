@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 #include "MEM_guardedalloc.h"
 
@@ -461,11 +462,16 @@ bool WM_init_game(bContext *C)
     if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
       WM_operator_name_call(C, "WM_OT_window_fullscreen_toggle", WM_OP_EXEC_DEFAULT, NULL, NULL);
       blender::int2 scr_size;
-      wm_get_screensize(scr_size);
-      ar->winrct.xmax = scr_size[0];
-      ar->winrct.ymax = scr_size[1];
-      ar->winx = ar->winrct.xmax + 1;
-      ar->winy = ar->winrct.ymax + 1;
+      if (wm_get_screensize(scr_size)) {
+        ar->winrct.xmax = scr_size[0];
+        ar->winrct.ymax = scr_size[1];
+        ar->winx = ar->winrct.xmax + 1;
+        ar->winy = ar->winrct.ymax + 1;
+      }
+      else {
+        std::cout << __func__ << std::endl;
+        return false;
+      }
     }
     else {
       GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));

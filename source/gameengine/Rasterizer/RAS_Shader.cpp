@@ -276,7 +276,7 @@ static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *
   return blender::StringRefNull(str);
 }
 
-bool RAS_Shader::LinkProgram(bool isCustomShader)
+bool RAS_Shader::LinkProgram()
 {
   std::string vert;
   std::string frag;

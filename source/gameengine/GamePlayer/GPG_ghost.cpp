@@ -1447,7 +1447,7 @@ int main(int argc,
                * understand why when we start blenderplayer from blender (not when we start
                * blenderplayer from Visual Studio), the exitstring can be corrupted.
                */
-              BLI_strncpy(basedpath, filename[0] ? filename : NULL, sizeof(basedpath));
+              BLI_strncpy(basedpath, filename[0] ? filename : "", sizeof(basedpath));
             }
             else {
               BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
@@ -1706,7 +1706,7 @@ int main(int argc,
 #  ifdef WITH_PYTHON
               BPY_python_start(C, argc, (const char **)argv);
               CTX_py_init_set(C, true);
-#  endif WITH_PYTHON
+#  endif /*WITH_PYTHON*/
 
               /* We need to have first an ogl context bound and it's done
                * in wm_window_ghostwindow_blenderplayer_ensure.

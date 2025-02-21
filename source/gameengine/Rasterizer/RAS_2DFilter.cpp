@@ -171,7 +171,7 @@ void RAS_2DFilter::End()
 
 bool RAS_2DFilter::LinkProgram()
 {
-  if (!RAS_Shader::LinkProgram(false)) {
+  if (!RAS_Shader::LinkProgram()) {
     return false;
   }
 
