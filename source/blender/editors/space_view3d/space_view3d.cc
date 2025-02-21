@@ -50,6 +50,7 @@
 
 #include "ED_asset_shelf.hh"
 #include "ED_geometry.hh"
+#include "ED_info.hh"
 #include "ED_object.hh"
 #include "ED_outliner.hh"
 #include "ED_render.hh"
@@ -277,7 +278,7 @@ static void view3d_free(SpaceLink *sl)
     MEM_freeN(vd->localvd);
   }
 
-  MEM_SAFE_FREE(vd->runtime.local_stats);
+  ED_view3d_local_stats_free(vd);
 
   if (vd->runtime.properties_storage_free) {
     vd->runtime.properties_storage_free(vd->runtime.properties_storage);
@@ -299,7 +300,7 @@ static void view3d_exit(wmWindowManager * /*wm*/, ScrArea *area)
 {
   BLI_assert(area->spacetype == SPACE_VIEW3D);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-  MEM_SAFE_FREE(v3d->runtime.local_stats);
+  ED_view3d_local_stats_free(v3d);
 }
 
 static SpaceLink *view3d_duplicate(SpaceLink *sl)
@@ -1048,7 +1049,7 @@ static void view3d_main_region_free(ARegion *region)
     }
 
     if (rv3d->sms) {
-      MEM_freeN(rv3d->sms);
+      MEM_freeN(static_cast<void *>(rv3d->sms));
     }
 
     MEM_freeN(rv3d);
@@ -2006,7 +2007,7 @@ static void space_view3d_listener(const wmSpaceTypeListenerParams *params)
 static void space_view3d_refresh(const bContext *C, ScrArea *area)
 {
   View3D *v3d = (View3D *)area->spacedata.first;
-  MEM_SAFE_FREE(v3d->runtime.local_stats);
+  ED_view3d_local_stats_free(v3d);
 
   if (v3d->localvd && v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY) {
     ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(C),

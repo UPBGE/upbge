@@ -140,11 +140,11 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   const P3fArraySamplePtr &positions = sample.getPositions();
 
   const IFloatGeomParam widths_param = m_schema.getWidthsParam();
-  FloatArraySamplePtr radii;
+  FloatArraySamplePtr widths;
 
   if (widths_param.valid()) {
     IFloatGeomParam::Sample wsample = widths_param.getExpandedValue(sample_sel);
-    radii = wsample.getVals();
+    widths = wsample.getVals();
   }
 
   if (pointcloud->totpoint != positions->size()) {
@@ -153,25 +153,18 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
 
   bke::MutableAttributeAccessor attribute_accessor = pointcloud->attributes_for_write();
 
-  bke::SpanAttributeWriter<float3> positions_writer =
-      attribute_accessor.lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
-  MutableSpan<float3> point_positions = positions_writer.span;
+  MutableSpan<float3> point_positions = pointcloud->positions_for_write();
   N3fArraySamplePtr normals = read_points_sample(m_schema, sample_sel, point_positions);
-  positions_writer.finish();
+  MutableSpan<float> point_radii = pointcloud->radius_for_write();
 
-  bke::SpanAttributeWriter<float> point_radii_writer =
-      attribute_accessor.lookup_or_add_for_write_span<float>("radius", bke::AttrDomain::Point);
-  MutableSpan<float> point_radii = point_radii_writer.span;
-
-  if (radii) {
-    for (size_t i = 0; i < radii->size(); i++) {
-      point_radii[i] = (*radii)[i];
+  if (widths) {
+    for (size_t i = 0; i < widths->size(); i++) {
+      point_radii[i] = (*widths)[i] / 2.0f;
     }
   }
   else {
     point_radii.fill(0.01f);
   }
-  point_radii_writer.finish();
 
   if (normals) {
     bke::SpanAttributeWriter<float3> normals_writer =

@@ -1021,8 +1021,8 @@ static void ui_apply_but_undo(uiBut *but)
     }
     else {
       ID *id = but->rnapoin.owner_id;
-      if (!ED_undo_is_legacy_compatible_for_property(static_cast<bContext *>(but->block->evil_C),
-                                                     id))
+      if (!ED_undo_is_legacy_compatible_for_property(
+              static_cast<bContext *>(but->block->evil_C), id, but->rnapoin))
       {
         skip_undo = true;
       }
@@ -3364,6 +3364,13 @@ static bool ui_textedit_delete_selection(uiBut *but, uiTextEdit &text_edit)
   if (but->selsta != but->selend && len) {
     memmove(str + but->selsta, str + but->selend, (len - but->selend) + 1);
     changed = true;
+  }
+
+  if (but->ofs > but->selsta) {
+    /* Decrease the ofset by the amount of the selection that is hidden. Without
+     * this adjustment, pasting text that doesn't fit in the text field would leave
+     * the pasted text scrolled out of the view (to the left), see: #134491. */
+    but->ofs -= (but->ofs - but->selsta);
   }
 
   but->pos = but->selend = but->selsta;

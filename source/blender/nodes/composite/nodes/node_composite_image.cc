@@ -13,6 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -128,6 +129,29 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
   BLI_linklist_append(available_sockets, sock);
 }
 
+static eNodeSocketDatatype socket_type_from_pass(const RenderPass *pass)
+{
+  switch (pass->channels) {
+    case 1:
+      return SOCK_FLOAT;
+    case 2:
+    case 3:
+      return SOCK_VECTOR;
+    case 4:
+      if (blender::StringRef(pass->chan_id) == "XYZW") {
+        return SOCK_VECTOR;
+      }
+      else {
+        return SOCK_RGBA;
+      }
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return SOCK_FLOAT;
+}
+
 static void cmp_node_image_create_outputs(bNodeTree *ntree,
                                           bNode *node,
                                           LinkNodePair *available_sockets)
@@ -157,14 +181,7 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree,
 
       if (rl) {
         LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
-          eNodeSocketDatatype type;
-          if (rpass->channels == 1) {
-            type = SOCK_FLOAT;
-          }
-          else {
-            type = SOCK_RGBA;
-          }
-
+          const eNodeSocketDatatype type = socket_type_from_pass(rpass);
           cmp_node_image_add_pass_output(ntree,
                                          node,
                                          rpass->name,
@@ -472,6 +489,7 @@ class ImageOperation : public NodeOperation {
       extract_alpha(context(), cached_image, result);
     }
     else {
+      result.set_type(cached_image.type());
       result.set_precision(cached_image.precision());
       result.wrap_external(cached_image);
     }
@@ -719,6 +737,13 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
+    /* Vector sockets are 3D by default, so we need to overwrite the type if the pass turned out to
+     * be 4D. */
+    if (result.type() == ResultType::Float3 && pass.type() == ResultType::Float4) {
+      result.set_type(pass.type());
+    }
+    result.set_precision(pass.precision());
+
     if (this->context().use_gpu()) {
       this->execute_pass_gpu(pass, result);
     }
@@ -729,8 +754,6 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute_pass_gpu(const Result &pass, Result &result)
   {
-    result.set_precision(pass.precision());
-
     GPUShader *shader = this->context().get_shader(this->get_shader_name(pass, result),
                                                    result.precision());
     GPU_shader_bind(shader);
@@ -763,14 +786,14 @@ class RenderLayerOperation : public NodeOperation {
     switch (pass.type()) {
       case ResultType::Float:
         return "compositor_read_input_float";
-      case ResultType::Vector:
-        return "compositor_read_input_vector";
-      case ResultType::Color:
-        return "compositor_read_input_color";
       case ResultType::Float3:
-        return "compositor_read_input_vector";
-      default:
-        /* Other types are internal and needn't be handled by operations. */
+      case ResultType::Color:
+      case ResultType::Float4:
+        return "compositor_read_input_float4";
+      case ResultType::Int:
+      case ResultType::Int2:
+      case ResultType::Float2:
+        /* Not supported. */
         break;
     }
 

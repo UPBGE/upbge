@@ -3905,7 +3905,9 @@ namespace blender::ed::sculpt_paint {
 
 StrokeCache::~StrokeCache()
 {
-  MEM_SAFE_FREE(this->dial);
+  if (this->dial) {
+    BLI_dial_free(this->dial);
+  }
 }
 
 }  // namespace blender::ed::sculpt_paint

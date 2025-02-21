@@ -426,10 +426,17 @@ option(WITH_OPENMP "Enable OpenMP (has to be supported by the compiler)" ON)
 if(UNIX AND NOT APPLE)
   option(WITH_OPENMP_STATIC "Link OpenMP statically (only used by the release environment)" OFF)
   mark_as_advanced(WITH_OPENMP_STATIC)
-elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
-  # At time of testing (LLVM 18.1.6) OMP is not included in public LLVM builds for Windows ARM64
-  set(WITH_OPENMP OFF)
-  set(WITH_OPENMP_STATIC OFF)
+elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.1)
+  # Prior to LLVM 19.1, OpenMP was not included in public LLVM builds for Windows ARM64
+  if(WITH_OPENMP)
+    if(WITH_STRICT_BUILD_OPTIONS)
+      message(SEND_ERROR "OpenMP enabled, but LLVM ${CMAKE_CXX_COMPILER_VERSION} detected, minimum of 19.1 required for OpenMP functionality")
+    else()
+      message(STATUS "Disabling OpenMP, LLVM ${CMAKE_CXX_COMPILER_VERSION} detected, minimum of 19.1 required for OpenMP functionality")
+    endif()
+    set(WITH_OPENMP OFF)
+    set(WITH_OPENMP_STATIC OFF)
+  endif()
 endif()
 
 if(WITH_GHOST_X11)
@@ -727,7 +734,8 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   set(CYCLES_HIP_BINARIES_ARCH
     gfx1010 gfx1011 gfx1012
     gfx1030 gfx1031 gfx1032 gfx1034 gfx1035 gfx1036
-    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151
+    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151 gfx1152
+    gfx1200 gfx1201
     CACHE STRING "AMD HIP architectures to build binaries for"
   )
   mark_as_advanced(WITH_CYCLES_DEVICE_HIP)
@@ -839,6 +847,13 @@ Run GPU render tests silently (finished tests will pass). \
 Generated report will show failing tests"
   ON
 )
+option(WITH_GPU_RENDER_TESTS_HEADED "\
+Enable GPU render related unit testing that doesn't work in background mode. \
+These tests require an environment with a display server to run. \
+Requires WITH_GPU_RENDER_TESTS "
+  OFF
+)
+mark_as_advanced(WITH_GPU_RENDER_TESTS_HEADED)
 option(WITH_GPU_BACKEND_TESTS "\
 Enable GPU backend related unit testing"
   OFF
@@ -2269,6 +2284,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       # And some additional ones that came up when using LLVM 18.1.8 on Windows ARM64
       C_WARN_CLANG_CL_SWITCH_DEFAULT -Wno-switch-default
       C_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
+      # And another from 19.1.5
+      C_WARN_CLANG_CL_PRE_C11_COMPAT -Wno-pre-c11-compat
     )
 
     add_check_cxx_compiler_flags(
@@ -2403,6 +2420,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       # And some additional ones that came up when using LLVM 18.1.8 on Windows ARM64
       CXX_WARN_CLANG_CL_SWITCH_DEFAULT -Wno-switch-default
       CXX_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
+      # And another from 19.1.5
+      CXX_WARN_CLANG_CL_PRE_C11_COMPAT -Wno-pre-c11-compat
     )
   endif()
 
