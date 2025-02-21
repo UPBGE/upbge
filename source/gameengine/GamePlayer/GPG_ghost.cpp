@@ -1930,7 +1930,7 @@ int main(int argc,
    */
   G_MAIN = nullptr;
 
-  blender::draw::DRW_subdiv_free();
+  blender::draw::DRW_cache_free_old_subdiv();
 
   ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();
