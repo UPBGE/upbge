@@ -2245,7 +2245,10 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
       rigidbody_update_external_forces(depsgraph, scene, rbw);
       rigidbody_update_kinematic_obj_substep(&kinematic_substep_targets, cur_interp_val);
       RB_dworld_step_simulation(
-          static_cast<rbDynamicsWorld *>(rbw->shared->physics_world), substep, 0, substep);
+          static_cast<rbDynamicsWorld *>(rbw->shared->runtime->physics_world),
+          substep,
+          0,
+          substep);
       cur_interp_val += interp_step;
     }
     rigidbody_free_substep_data(&kinematic_substep_targets);
