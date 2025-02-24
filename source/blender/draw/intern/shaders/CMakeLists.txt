@@ -31,7 +31,12 @@ set(SRC_GLSL_COMP
   draw_view_finalize_comp.glsl
   draw_visibility_comp.glsl
   
+  subdiv_ibo_lines_comp.glsl
+  subdiv_ibo_tris_comp.glsl
+  subdiv_vbo_edge_fac_comp.glsl
+  subdiv_normals_accumulate_comp.glsl
   subdiv_normals_finalize_comp.glsl
+  subdiv_vbo_lnor_comp.glsl
 )
 
 # Compile shaders with shader code.

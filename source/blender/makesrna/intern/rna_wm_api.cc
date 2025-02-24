@@ -446,6 +446,16 @@ static void rna_KeyMap_item_remove(wmKeyMap *km, ReportList *reports, PointerRNA
   kmi_ptr->invalidate();
 }
 
+static PointerRNA rna_KeyMap_item_find_match(
+    ID *id, wmKeyMap *km_base, ReportList *reports, wmKeyMap *km_match, wmKeyMapItem *kmi_match)
+{
+  wmKeyMapItem *kmi_base = WM_keymap_item_find_match(km_base, km_match, kmi_match, reports);
+  if (kmi_base) {
+    return RNA_pointer_create_discrete(id, &RNA_KeyMapItem, kmi_base);
+  }
+  return PointerRNA_NULL;
+}
+
 static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
                                                      wmKeyMap *km,
                                                      const char *idname,
@@ -512,6 +522,12 @@ static wmKeyMap *rna_KeyMaps_find(wmKeyConfig *keyconf,
                                   int regionid)
 {
   return WM_keymap_list_find(&keyconf->keymaps, idname, spaceid, regionid);
+}
+
+static wmKeyMap *rna_KeyMaps_find_match(wmKeyConfig *keyconf, wmKeyMap *km_match)
+{
+  return WM_keymap_list_find(
+      &keyconf->keymaps, km_match->idname, km_match->spaceid, km_match->regionid);
 }
 
 static wmKeyMap *rna_KeyMaps_find_modal(wmKeyConfig * /*keyconf*/, const char *idname)
@@ -1348,6 +1364,21 @@ void RNA_api_keymapitems(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
+  func = RNA_def_function(srna, "find_match", "rna_KeyMap_item_find_match");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "keymap", "KeyMap", "", "The matching keymap");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "item", "KeyMapItem", "", "The matching keymap item");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func,
+                         "result",
+                         "KeyMapItem",
+                         "",
+                         "The keymap item from this keymap which matches the keymap item from the "
+                         "arguments passed in");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
+  RNA_def_function_return(func, parm);
+
   func = RNA_def_function(srna, "match_event", "rna_KeyMap_item_match_event");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "event", "Event", "", "");
@@ -1395,6 +1426,12 @@ void RNA_api_keymaps(StructRNA *srna)
   RNA_def_enum(
       func, "region_type", rna_enum_region_type_items, RGN_TYPE_WINDOW, "Region Type", "");
   parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Corresponding key map");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "find_match", "rna_KeyMaps_find_match");
+  parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "The key map for comparison");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "result", "KeyMap", "Key Map", "Corresponding key map");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "find_modal", "rna_KeyMaps_find_modal");

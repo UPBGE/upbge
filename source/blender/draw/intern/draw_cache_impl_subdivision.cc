@@ -1343,14 +1343,12 @@ void draw_subdiv_accumulate_normals(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_NORMALS_ACCUMULATE);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
-
-  GPU_vertbuf_bind_as_ssbo(pos_nor, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(face_adjacency_offsets, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(face_adjacency_lists, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(vertex_loop_map, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(vert_normals, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(pos_nor, NORMALS_ACCUMULATE_POS_NOR_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(face_adjacency_offsets,
+                           NORMALS_ACCUMULATE_FACE_ADJACENCY_OFFSETS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(face_adjacency_lists, NORMALS_ACCUMULATE_FACE_ADJACENCY_LISTS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(vertex_loop_map, NORMALS_ACCUMULATE_VERTEX_LOOP_MAP_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(vert_normals, NORMALS_ACCUMULATE_NORMALS_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_verts);
 
@@ -1428,20 +1426,15 @@ void draw_subdiv_build_tris_buffer(const DRWSubdivCache &cache,
                                                 SubdivShaderType::BUFFER_TRIS_MULTIPLE_MATERIALS);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
-
   /* subdiv_face_offset is always at binding point 0 for each shader using it. */
-  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data, binding_point++);
-
-  /* Outputs */
-  GPU_indexbuf_bind_as_ssbo(subdiv_tris, binding_point++);
-
+  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data, TRIS_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
   if (!do_single_material) {
-    GPU_vertbuf_bind_as_ssbo(cache.face_mat_offset, binding_point++);
+    GPU_vertbuf_bind_as_ssbo(cache.face_mat_offset, TRIS_FACE_MAT_OFFSET);
   }
 
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  /* Outputs */
+  GPU_indexbuf_bind_as_ssbo(subdiv_tris, TRIS_OUTPUT_TRIS_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 
@@ -1534,12 +1527,10 @@ void draw_subdiv_build_lines_buffer(const DRWSubdivCache &cache, gpu::IndexBuf *
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_LINES);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
-  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(cache.edges_draw_flag, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data, binding_point++);
-  GPU_indexbuf_bind_as_ssbo(lines_indices, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.edges_draw_flag, LINES_INPUT_EDGE_DRAW_FLAG_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data, LINES_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
+  GPU_indexbuf_bind_as_ssbo(lines_indices, LINES_OUTPUT_LINES_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 
@@ -1559,8 +1550,8 @@ void draw_subdiv_build_lines_loose_buffer(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_LINES_LOOSE);
   GPU_shader_bind(shader);
 
-  GPU_indexbuf_bind_as_ssbo(lines_indices, 3);
-  GPU_vertbuf_bind_as_ssbo(lines_flags, 4);
+  GPU_indexbuf_bind_as_ssbo(lines_indices, LINES_OUTPUT_LINES_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(lines_flags, LINES_LINES_LOOSE_FLAGS);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, num_loose_edges, false, edge_loose_offset);
 
@@ -1580,12 +1571,10 @@ void draw_subdiv_build_edge_fac_buffer(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_EDGE_FAC);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
-  GPU_vertbuf_bind_as_ssbo(pos_nor, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(edge_draw_flag, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(poly_other_map, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(edge_fac, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(pos_nor, EDGE_FAC_POS_NOR_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(edge_draw_flag, EDGE_FAC_EDGE_DRAW_FLAG_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(poly_other_map, EDGE_FAC_POLY_OTHER_MAP_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(edge_fac, EDGE_FAC_EDGE_FAC_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 
@@ -1608,17 +1597,15 @@ void draw_subdiv_build_lnor_buffer(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_LNOR);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
   /* Inputs */
-  /* subdiv_face_offset is always at binding point 0 for each shader using it. */
-  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(pos_nor, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index, binding_point++);
+  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(pos_nor, LOOP_NORMALS_POS_NOR_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data,
+                           LOOP_NORMALS_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index, LOOP_NORMALS_INPUT_VERT_ORIG_INDEX_BUF_SLOT);
 
   /* Outputs */
-  GPU_vertbuf_bind_as_ssbo(lnor, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(lnor, LOOP_NORMALS_OUTPUT_LNOR_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 
@@ -1998,8 +1985,8 @@ void DRW_subdiv_module_free(SubdivModule *subdiv_module)
  * The `bke::subdiv::Subdiv` data is being owned the modifier.
  * Since the modifier can be freed from any thread (e.g. from depsgraph multithreaded update)
  * which may not have a valid GPUContext active, we move the data to discard to this free list
- * until a codepath with a active GPUContext is hit.
- * This is kindof garbage collection.
+ * until a code-path with a active GPUContext is hit.
+ * This is kind of garbage collection.
  */
 static LinkNode *gpu_subdiv_free_queue = nullptr;
 static ThreadMutex gpu_subdiv_queue_mutex = BLI_MUTEX_INITIALIZER;
