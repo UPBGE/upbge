@@ -2661,7 +2661,7 @@ class VIEW3D_MT_add(Menu):
         layout.menu("VIEW3D_MT_surface_add", icon='OUTLINER_OB_SURFACE')
         layout.menu("VIEW3D_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
-        if context.preferences.experimental.use_new_point_cloud_type:
+        if context.preferences.experimental.use_new_pointcloud_type:
             layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", text_ctxt=i18n_contexts.id_id, icon='OUTLINER_OB_VOLUME')
         layout.menu("VIEW3D_MT_grease_pencil_add", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
@@ -3068,7 +3068,8 @@ class VIEW3D_MT_object_context_menu(Menu):
                 if selected_objects_len > 1:
                     layout.operator("object.join")
 
-            if obj.type in {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'POINTCLOUD', 'META', 'FONT'}:
+            if obj.type in {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'POINTCLOUD',
+                            'META', 'FONT', 'GREASEPENCIL'}:
                 layout.operator_menu_enum("object.convert", "target")
 
             if (obj.type in {'MESH',
@@ -5925,6 +5926,10 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
         layout.separator()
 
         layout.operator_menu_enum("curves.handle_type_set", "type")
+
+        layout.separator()
+
+        layout.operator("curves.split")
 
 
 class VIEW3D_MT_edit_pointcloud(Menu):

@@ -27,6 +27,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_vfont.hh"
 
+#include "GPU_attribute_convert.hh"
 #include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
 #include "GPU_texture.hh"
@@ -551,7 +552,7 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
     attr_id.nor = GPU_vertformat_attr_add(
         &format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     attr_id.tan = GPU_vertformat_attr_add(
-        &format, "tan", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format, "tangent", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     return format;
   }();
 
@@ -562,7 +563,7 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
     attr_id.nor_hq = GPU_vertformat_attr_add(
         &format, "nor", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     attr_id.tan_hq = GPU_vertformat_attr_add(
-        &format, "tan", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format, "tangent", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     return format;
   }();
 
@@ -595,15 +596,21 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
       float nor[3] = {1.0f, 0.0f, 0.0f};
       mul_qt_v3(bevp->quat, nor);
 
-      GPUNormal pnor;
-      GPUNormal ptan;
-      GPU_normal_convert_v3(&pnor, nor, do_hq_normals);
-      GPU_normal_convert_v3(&ptan, bevp->dir, do_hq_normals);
       /* Only set attributes for one vertex. */
       GPU_vertbuf_attr_set(&vbo_curves_nor, pos_id, vbo_len_used, bevp->vec);
       GPU_vertbuf_attr_set(&vbo_curves_nor, rad_id, vbo_len_used, &bevp->radius);
-      GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
-      GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
+      if (do_hq_normals) {
+        const short4 pnor = gpu::convert_normal<short4>(nor);
+        const short4 ptan = gpu::convert_normal<short4>(bevp->dir);
+        GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
+        GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
+      }
+      else {
+        const gpu::PackedNormal pnor = gpu::convert_normal<gpu::PackedNormal>(nor);
+        const gpu::PackedNormal ptan = gpu::convert_normal<gpu::PackedNormal>(bevp->dir);
+        GPU_vertbuf_attr_set(&vbo_curves_nor, nor_id, vbo_len_used, &pnor);
+        GPU_vertbuf_attr_set(&vbo_curves_nor, tan_id, vbo_len_used, &ptan);
+      }
       vbo_len_used++;
 
       /* Skip the other vertex (it does not need to be offsetted). */

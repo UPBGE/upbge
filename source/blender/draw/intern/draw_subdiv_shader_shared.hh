@@ -55,6 +55,11 @@ struct DRWSubdivUboStorage {
 };
 BLI_STATIC_ASSERT_ALIGN(DRWSubdivUboStorage, 16)
 
+struct SculptData {
+  uint face_set_color;
+  float mask;
+};
+
 /* Duplicate of #PosNorLoop from the mesh extract CPU code.
  * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
  * the format. */
@@ -62,6 +67,14 @@ struct PosNorLoop {
   float x, y, z;
   float nx, ny, nz;
   float flag;
+};
+
+/* Mirror of #UVStretchAngle in the C++ code, but using floats until proper data compression
+ * is implemented for all subdivision data. */
+struct UVStretchAngle {
+  float angle;
+  float uv_angle0;
+  float uv_angle1;
 };
 
 struct LoopNormal {

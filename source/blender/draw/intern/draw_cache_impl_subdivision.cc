@@ -1316,13 +1316,10 @@ void draw_subdiv_build_sculpt_data_buffer(const DRWSubdivCache &cache,
 
   /* Mask VBO is always at binding point 0. */
   if (mask_vbo) {
-    GPU_vertbuf_bind_as_ssbo(mask_vbo, 0);
+    GPU_vertbuf_bind_as_ssbo(mask_vbo, SCULPT_DATA_SCULPT_MASK_BUF_SLOT);
   }
-
-  int binding_point = 1;
-  GPU_vertbuf_bind_as_ssbo(face_set_vbo, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(sculpt_data, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(face_set_vbo, SCULPT_DATA_SCULPT_FACE_SET_COLOR_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(sculpt_data, SCULPT_DATA_SCULPT_DATA_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads, mask_vbo != nullptr);
 
@@ -1623,15 +1620,12 @@ void draw_subdiv_build_edituv_stretch_area_buffer(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_UV_STRETCH_AREA);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
   /* Inputs */
   /* subdiv_face_offset is always at binding point 0 for each shader using it. */
-  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(coarse_data, binding_point++);
-
+  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(coarse_data, STRETCH_AREA_COARSE_STRETCH_AREA_BUF_SLOT);
   /* Outputs */
-  GPU_vertbuf_bind_as_ssbo(subdiv_data, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(subdiv_data, STRETCH_AREA_SUBDIV_STRETCH_AREA_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 
@@ -1651,14 +1645,11 @@ void draw_subdiv_build_edituv_stretch_angle_buffer(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_UV_STRETCH_ANGLE);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
   /* Inputs */
-  GPU_vertbuf_bind_as_ssbo(pos_nor, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(uvs, binding_point++);
-
+  GPU_vertbuf_bind_as_ssbo(pos_nor, STRETCH_ANGLE_POS_NOR_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(uvs, STRETCH_ANGLE_UVS_BUF_SLOT);
   /* Outputs */
-  GPU_vertbuf_bind_as_ssbo(stretch_angles, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(stretch_angles, STRETCH_ANGLE_UV_STRETCHES_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, uvs_offset, 0, cache.num_subdiv_quads);
 
@@ -1771,6 +1762,16 @@ static void draw_subdiv_cache_ensure_mat_offsets(DRWSubdivCache &cache,
   MEM_freeN(per_face_mat_offset);
 }
 
+/**
+ * The evaluators are owned by the `OpenSubdiv_EvaluatorCache` which is being referenced by
+ * `bke::subdiv::Subdiv->evaluator`. So the evaluator cache cannot be freed until all references
+ * are gone. The user counting allows to free the evaluator when there is no more subdiv.
+ */
+static OpenSubdiv_EvaluatorCache *g_subdiv_evaluator_cache = nullptr;
+static uint64_t g_subdiv_evaluator_users = 0;
+/* The evaluator cache is global, so we cannot allow concurent usage and need synchronization. */
+static std::mutex g_subdiv_eval_mutex;
+
 static bool draw_subdiv_create_requested_buffers(Object &ob,
                                                  Mesh &mesh,
                                                  MeshBatchCache &batch_cache,
@@ -1782,8 +1783,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
                                                  const bool do_uvedit,
                                                  const bool do_cage,
                                                  const ToolSettings *ts,
-                                                 const bool use_hide,
-                                                 OpenSubdiv_EvaluatorCache *evaluator_cache)
+                                                 const bool use_hide)
 {
   SubsurfRuntimeData *runtime_data = mesh.runtime->subsurf_runtime_data;
   BLI_assert(runtime_data && runtime_data->has_gpu_subdiv);
@@ -1809,8 +1809,24 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
     return false;
   }
 
+  /* Lock the entire evaluation to avoid concurent usage of shader objects in evaluator cache. */
+  std::scoped_lock lock(g_subdiv_eval_mutex);
+
+  if (g_subdiv_evaluator_cache == nullptr) {
+    g_subdiv_evaluator_cache = openSubdiv_createEvaluatorCache(OPENSUBDIV_EVALUATOR_GPU);
+  }
+
+  /* Increment evaluator cache reference if an evaluator has been assigned to it. */
+  bool evaluator_might_be_assigned = subdiv->evaluator == nullptr;
+  auto maybe_increment_cache_ref = [evaluator_might_be_assigned](bke::subdiv::Subdiv *subdiv) {
+    if (evaluator_might_be_assigned && subdiv->evaluator != nullptr) {
+      /* An evaluator was assigned. */
+      g_subdiv_evaluator_users++;
+    }
+  };
+
   if (!bke::subdiv::eval_begin_from_mesh(
-          subdiv, mesh_eval, {}, bke::subdiv::SUBDIV_EVALUATOR_TYPE_GPU, evaluator_cache))
+          subdiv, mesh_eval, {}, bke::subdiv::SUBDIV_EVALUATOR_TYPE_GPU, g_subdiv_evaluator_cache))
   {
     /* This could happen in two situations:
      * - OpenSubdiv is disabled.
@@ -1819,6 +1835,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
      * In either way, we can't safely continue. However, we still have to handle potential loose
      * geometry, which is done separately. */
     if (mesh_eval->faces_num) {
+      maybe_increment_cache_ref(subdiv);
       return false;
     }
   }
@@ -1834,6 +1851,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
 
 #ifdef WITH_OPENSUBDIV
   if (!draw_subdiv_build_cache(draw_cache, subdiv, mesh_eval, runtime_data)) {
+    maybe_increment_cache_ref(subdiv);
     return false;
   }
 #endif
@@ -1866,6 +1884,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
 
   mesh_buffer_cache_create_requested_subdiv(batch_cache, mbc, draw_cache, *mr);
 
+  maybe_increment_cache_ref(subdiv);
   return true;
 }
 
@@ -1916,17 +1935,14 @@ void DRW_subdivide_loose_geom(DRWSubdivCache &subdiv_cache, const MeshBufferCach
 }
 
 /**
- * OpenSubdiv GPU evaluation module.
+ * The `bke::subdiv::Subdiv` data is being owned the modifier.
+ * Since the modifier can be freed from any thread (e.g. from depsgraph multithreaded update)
+ * which may not have a valid GPUContext active, we move the data to discard to this free list
+ * until a code-path with a active GPUContext is hit.
+ * This is kindof garbage collection.
  */
-struct SubdivModule {
-  OpenSubdiv_EvaluatorCache *evaluator_cache = openSubdiv_createEvaluatorCache(
-      OPENSUBDIV_EVALUATOR_GPU);
-
-  ~SubdivModule()
-  {
-    openSubdiv_deleteEvaluatorCache(evaluator_cache);
-  }
-};
+static LinkNode *gpu_subdiv_free_queue = nullptr;
+static ThreadMutex gpu_subdiv_queue_mutex = BLI_MUTEX_INITIALIZER;
 
 void DRW_create_subdivision(Object &ob,
                             Mesh &mesh,
@@ -1941,10 +1957,6 @@ void DRW_create_subdivision(Object &ob,
                             const ToolSettings *ts,
                             const bool use_hide)
 {
-  DRWData &drw_data = *DST.vmempool;
-  if (drw_data.subdiv_module == nullptr) {
-    drw_data.subdiv_module = MEM_new<SubdivModule>("SubdivModule");
-  }
 
 #undef TIME_SUBDIV
 
@@ -1963,9 +1975,9 @@ void DRW_create_subdivision(Object &ob,
                                             do_uvedit,
                                             do_cage,
                                             ts,
-                                            use_hide,
-                                            drw_data.subdiv_module->evaluator_cache))
+                                            use_hide))
   {
+    /* Did not run*/
     return;
   }
 
@@ -1975,21 +1987,6 @@ void DRW_create_subdivision(Object &ob,
   fprintf(stderr, "Maximum FPS: %f\n", 1.0 / (end_time - begin_time));
 #endif
 }
-
-void DRW_subdiv_module_free(SubdivModule *subdiv_module)
-{
-  MEM_delete(subdiv_module);
-}
-
-/**
- * The `bke::subdiv::Subdiv` data is being owned the modifier.
- * Since the modifier can be freed from any thread (e.g. from depsgraph multithreaded update)
- * which may not have a valid GPUContext active, we move the data to discard to this free list
- * until a code-path with a active GPUContext is hit.
- * This is kind of garbage collection.
- */
-static LinkNode *gpu_subdiv_free_queue = nullptr;
-static ThreadMutex gpu_subdiv_queue_mutex = BLI_MUTEX_INITIALIZER;
 
 void DRW_subdiv_cache_free(bke::subdiv::Subdiv *subdiv)
 {
@@ -2009,6 +2006,13 @@ void DRW_cache_free_old_subdiv()
   while (gpu_subdiv_free_queue != nullptr) {
     bke::subdiv::Subdiv *subdiv = static_cast<bke::subdiv::Subdiv *>(
         BLI_linklist_pop(&gpu_subdiv_free_queue));
+
+    {
+      std::scoped_lock lock(g_subdiv_eval_mutex);
+      if (subdiv->evaluator != nullptr) {
+        g_subdiv_evaluator_users--;
+      }
+    }
 #ifdef WITH_OPENSUBDIV
     /* Set the type to CPU so that we do actually free the cache. */
     subdiv->evaluator->type = OPENSUBDIV_EVALUATOR_CPU;
@@ -2017,6 +2021,15 @@ void DRW_cache_free_old_subdiv()
   }
 
   BLI_mutex_unlock(&gpu_subdiv_queue_mutex);
+
+  {
+    std::scoped_lock lock(g_subdiv_eval_mutex);
+    /* Free evaluator cache if there is no more reference to it.. */
+    if (g_subdiv_evaluator_users == 0) {
+      openSubdiv_deleteEvaluatorCache(g_subdiv_evaluator_cache);
+      g_subdiv_evaluator_cache = nullptr;
+    }
+  }
 }
 
 }  // namespace blender::draw

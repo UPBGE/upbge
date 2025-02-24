@@ -12,6 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -356,7 +357,6 @@ void DRW_viewport_data_free(DRWData *drw_data)
   DRW_volume_module_free(drw_data->volume_module);
   DRW_pointcloud_module_free(drw_data->pointcloud_module);
   DRW_curves_module_free(drw_data->curves_module);
-  DRW_subdiv_module_free(drw_data->subdiv_module);
   delete drw_data->default_view;
   MEM_freeN(drw_data);
 }
