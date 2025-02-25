@@ -147,6 +147,8 @@
 
 #include "ANIM_action_legacy.hh"
 
+#include "RNA_prototypes.hh"
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
@@ -2963,7 +2965,7 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
         }
         break;
       }
-      case OB_GPENCIL_LEGACY: {
+      case OB_GREASE_PENCIL: {
         if ((ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
           return nullptr;
         }
@@ -5044,6 +5046,8 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   if (key == nullptr) {
     return false;
   }
+
+  BKE_animdata_drivers_remove_for_rna_struct(key->id, RNA_ShapeKey, kb);
 
   kb_index = BLI_findindex(&key->block, kb);
   BLI_assert(kb_index != -1);

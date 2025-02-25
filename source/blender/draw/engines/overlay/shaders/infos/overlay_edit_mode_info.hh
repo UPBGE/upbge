@@ -731,6 +731,27 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_point)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Edit PointCloud
+ * \{ */
+
+GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud_base)
+VERTEX_IN(0, VEC4, pos_rad)
+VERTEX_OUT(overlay_edit_flat_color_iface)
+DEFINE("LINE_OUTPUT")
+FRAGMENT_OUT(0, VEC4, fragColor)
+FRAGMENT_OUT(1, VEC4, lineOutput)
+VERTEX_SOURCE("overlay_edit_pointcloud_vert.glsl")
+FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_resource_handle_new)
+ADDITIONAL_INFO(draw_globals)
+GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_pointcloud, overlay_edit_pointcloud_base)
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Depth Only Shader
  *
  * Used to occlude edit geometry which might not be rendered by the render engine.
@@ -783,8 +804,8 @@ PUSH_CONSTANT(VEC4, gpDepthPlane)    /* TODO(fclem): Move to a GPencil object UB
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-ADDITIONAL_INFO(draw_gpencil_new)
-ADDITIONAL_INFO(draw_object_infos_new)
+ADDITIONAL_INFO(draw_gpencil)
+ADDITIONAL_INFO(draw_object_infos)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_gpencil, overlay_depth_gpencil_base)
@@ -792,7 +813,7 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_gpencil, overlay_depth_gpencil_ba
 GPU_SHADER_CREATE_INFO(overlay_depth_pointcloud_base)
 VERTEX_SOURCE("overlay_depth_only_pointcloud_vert.glsl")
 FRAGMENT_SOURCE("overlay_depth_only_frag.glsl")
-ADDITIONAL_INFO(draw_pointcloud_new)
+ADDITIONAL_INFO(draw_pointcloud)
 ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_resource_handle_new)
@@ -803,7 +824,7 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_pointcloud, overlay_depth_pointcl
 GPU_SHADER_CREATE_INFO(overlay_depth_curves_base)
 VERTEX_SOURCE("overlay_depth_only_curves_vert.glsl")
 FRAGMENT_SOURCE("overlay_depth_only_frag.glsl")
-ADDITIONAL_INFO(draw_hair_new)
+ADDITIONAL_INFO(draw_hair)
 ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_resource_handle_new)

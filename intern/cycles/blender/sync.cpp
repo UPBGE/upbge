@@ -155,6 +155,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
     else if (b_id.is_a(&RNA_Light)) {
       const BL::Light b_light(b_id);
       shader_map.set_recalc(b_light);
+      geometry_map.set_recalc(b_light);
     }
     /* Object */
     else if (b_id.is_a(&RNA_Object)) {
@@ -826,7 +827,7 @@ void BlenderSync::free_data_after_sync(BL::Depsgraph &b_depsgraph)
   for (BL::Object &b_ob : b_depsgraph.objects) {
     /* Grease pencil render requires all evaluated objects available as-is after Cycles is done
      * with its part. */
-    if (b_ob.type() == BL::Object::type_GREASEPENCIL || b_ob.type() == BL::Object::type_GPENCIL) {
+    if (b_ob.type() == BL::Object::type_GREASEPENCIL) {
       continue;
     }
     b_ob.cache_release();
