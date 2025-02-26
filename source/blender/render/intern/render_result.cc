@@ -728,13 +728,13 @@ RenderResult *render_result_new_from_exr(
       rpass->recty = recty;
 
       if (RE_RenderPassIsColor(rpass)) {
-        IMB_colormanagement_transform(rpass->ibuf->float_buffer.data,
-                                      rpass->rectx,
-                                      rpass->recty,
-                                      rpass->channels,
-                                      colorspace,
-                                      to_colorspace,
-                                      predivide);
+        IMB_colormanagement_transform_float(rpass->ibuf->float_buffer.data,
+                                            rpass->rectx,
+                                            rpass->recty,
+                                            rpass->channels,
+                                            colorspace,
+                                            to_colorspace,
+                                            predivide);
       }
       else {
         IMB_colormanagement_assign_float_colorspace(rpass->ibuf, data_colorspace);
@@ -1149,7 +1149,8 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
     rr->have_combined = true;
 
     if (!rv_ibuf->float_buffer.data) {
-      float *data = MEM_cnew_array<float>(4 * rr->rectx * rr->recty, "render_seq rectf");
+      float *data = static_cast<float *>(
+          MEM_malloc_arrayN(rr->rectx * rr->recty, sizeof(float[4]), "render_seq float"));
       IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
@@ -1165,7 +1166,8 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
     rr->have_combined = true;
 
     if (!rv_ibuf->byte_buffer.data) {
-      uint8_t *data = MEM_cnew_array<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
+      uint8_t *data = static_cast<uint8_t *>(
+          MEM_malloc_arrayN(rr->rectx * rr->recty, sizeof(uint8_t[4]), "render_seq byte"));
       IMB_assign_byte_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 

@@ -72,7 +72,6 @@ set(SRC
   intern/draw_debug.cc
   intern/draw_fluid.cc
   intern/draw_hair.cc
-  intern/draw_instance_data.cc
   intern/draw_manager.cc
   intern/draw_manager_c.cc
   intern/draw_manager_shader.cc
@@ -171,7 +170,6 @@ set(SRC
   intern/draw_debug_c.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
-  intern/draw_instance_data.hh
   intern/draw_manager.hh
   intern/draw_manager_c.hh
   intern/draw_manager_testing.hh
@@ -539,17 +537,14 @@ set(GLSL_SRC
   engines/workbench/workbench_shader_shared.h
 
   intern/shaders/common_aabb_lib.glsl
-  intern/shaders/common_attribute_lib.glsl
   intern/shaders/common_colormanagement_lib.glsl
   intern/shaders/common_debug_draw_lib.glsl
   intern/shaders/common_debug_shape_lib.glsl
   intern/shaders/common_fullscreen_vert.glsl
   intern/shaders/common_fxaa_lib.glsl
-  intern/shaders/common_gpencil_lib.glsl
   intern/shaders/common_hair_lib.glsl
   intern/shaders/common_hair_refine_comp.glsl
   intern/shaders/common_intersect_lib.glsl
-  intern/shaders/common_pointcloud_lib.glsl
   intern/shaders/common_shape_lib.glsl
   intern/shaders/subdiv_custom_data_interp_comp.glsl
   intern/shaders/subdiv_ibo_lines_comp.glsl
