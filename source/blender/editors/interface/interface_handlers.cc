@@ -2332,7 +2332,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
   bActuator *act_to, *act_iter;
   bController *cont;
   bController ***sens_from_links;
-  uiBut *tmp_but;
+  uiBut *tmp_but = nullptr;
 
   PointerRNA props_ptr;
 
@@ -2386,7 +2386,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     cont->type = CONT_LOGIC_AND;
 
     /* (4) link the sensor->controller->actuator */
-    tmp_but = static_cast<uiBut *>(MEM_callocN(sizeof(uiBut), "uiBut"));
+    tmp_but = MEM_new<uiBut>("tmp_but");
     UI_but_link_set(tmp_but,
                     (void **)&cont,
                     (void ***)&(cont->links),
