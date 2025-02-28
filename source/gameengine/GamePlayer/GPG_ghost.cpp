@@ -1708,10 +1708,8 @@ int main(int argc,
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
 
-              /* We need to have first an ogl context bound and it's done
-               * in wm_window_ghostwindow_blenderplayer_ensure.
-               */
-              WM_init_gpu_blenderplayer(system);
+              WM_set_g_system_blenderplayer(system);
+              WM_init_gpu();
 
               UI_theme_init_default();
               UI_init();

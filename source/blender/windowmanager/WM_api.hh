@@ -2187,6 +2187,5 @@ XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const cha
 #endif /* WITH_XR_OPENXR */
 
 /* UPBGE */
-void WM_init_gpu_blenderplayer(void *ghost_system);
-void *WM_system_gpu_context_create_blenderplayer(void *ghost_system);
+void WM_set_g_system_blenderplayer(void *g_system);
 /* End of UPBGE */

@@ -3211,23 +3211,9 @@ void WM_ghost_show_message_box(const char *title,
 
 #include "WM_message.hh"
 
-void *WM_system_gpu_context_create_blenderplayer(void *ghost_system)
+void WM_set_g_system_blenderplayer(void* ghost_system)
 {
-  /* On Windows there is a problem creating contexts that share lists
-   * from one context that is current in another thread.
-   * So we should call this function only on the main thread.
-   */
-  BLI_assert(BLI_thread_is_main());
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-
-  GHOST_GPUSettings glSettings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  if (G.debug & G_DEBUG_GPU) {
-    glSettings.flags |= GHOST_gpuDebugContext;
-  }
   g_system = GHOST_SystemHandle(ghost_system);
-  return GHOST_CreateGPUContext(g_system, glSettings);
 }
 
 /* Reuse wm->message_bus when we restart game or load a new .blend */

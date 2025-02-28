@@ -819,22 +819,3 @@ void WM_script_tag_reload()
    * for the sake of simplicity, see #126852. */
   WM_gizmoconfig_update_tag_reinit_all();
 }
-
-/* UPBGE */
-void WM_init_gpu_blenderplayer(void *ghost_system)
-{
-  /* must be called only once */
-  BLI_assert(gpu_is_init == false);
-  /* Ghost is still not init elsewhere in background mode. */
-  ////////// wm_ghost_init(NULL);
-
-  /* NEEDS TO HAVE AN OGL CONTEXT BOUND FIRST!!!!!!!!!!!!!!!!!!! */
-  DRW_gpu_context_create_blenderplayer(ghost_system);
-  GPU_init();
-  GPU_pass_cache_init();
-#ifdef WITH_OPENSUBDIV
-  BKE_subsurf_osd_init();
-#endif
-  gpu_is_init = true;
-}
-/* End of UPBGE */

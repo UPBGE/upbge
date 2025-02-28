@@ -170,10 +170,8 @@ struct DRWManager {
   GSet *delayed_extraction;
 
   /* ---------- Nothing after this point is cleared after use ----------- */
-
-  DRWDebugModule *debug;
-
   DRWDebugBge debug_bge;
+  DRWDebugModule *debug;
 };
 
 extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded rendering. */
