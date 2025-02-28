@@ -8,6 +8,7 @@
 #include <functional>
 #include <type_traits>
 
+#include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -26,7 +27,7 @@ namespace blender::nodes {
 
 class NodeDeclarationBuilder;
 
-enum class InputSocketFieldType {
+enum class InputSocketFieldType : int8_t {
   /** The input is required to be a single value. */
   None,
   /** The input can be a field. */
@@ -35,7 +36,7 @@ enum class InputSocketFieldType {
   Implicit,
 };
 
-enum class OutputSocketFieldType {
+enum class OutputSocketFieldType : int8_t {
   /** The output is always a single value. */
   None,
   /** The output is always a field, independent of the inputs. */
@@ -50,7 +51,7 @@ enum class OutputSocketFieldType {
 /**
  * An enum that maps to the #compositor::InputRealizationMode.
  */
-enum class CompositorInputRealizationMode : uint8_t {
+enum class CompositorInputRealizationMode : int8_t {
   None,
   Transforms,
   OperationDomain,
@@ -80,8 +81,8 @@ class OutputFieldDependency {
  * Information about how a node interacts with fields.
  */
 struct FieldInferencingInterface {
-  Vector<InputSocketFieldType> inputs;
-  Vector<OutputFieldDependency> outputs;
+  Array<InputSocketFieldType> inputs;
+  Array<OutputFieldDependency> outputs;
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };

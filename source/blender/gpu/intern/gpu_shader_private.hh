@@ -199,8 +199,7 @@ class ShaderCompiler {
   };
 };
 
-/* Generic (fully synchronous) implementation for backends that don't implement their own
- * ShaderCompiler. Used by Vulkan and Metal. */
+/* Generic (fully synchronous) implementation used as fallback. */
 class ShaderCompilerGeneric : public ShaderCompiler {
  private:
   struct Batch {
@@ -210,6 +209,7 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   };
   BatchHandle next_batch_handle = 1;
   Map<BatchHandle, Batch> batches;
+  std::mutex mutex_;
 
  public:
   ~ShaderCompilerGeneric() override;

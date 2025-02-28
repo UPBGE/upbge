@@ -38,6 +38,7 @@ set(INC
 
   ../../../intern/ghost
   ../../../intern/mantaflow/extern
+  ../../../intern/opensubdiv
 )
 
 if(WITH_BUILDINFO)
@@ -747,6 +748,10 @@ endif()
 
 if(WITH_OPENCOLORIO)
   add_definitions(-DWITH_OCIO)
+endif()
+
+if(WITH_OPENSUBDIV)
+  add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
 if(WITH_GPU_BACKEND_TESTS)
