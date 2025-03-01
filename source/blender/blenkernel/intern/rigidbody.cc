@@ -2070,7 +2070,7 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Scene *scene, Object *ob
 
   /* use rigid body transform after cache start frame if objects is not being transformed */
   if ((BKE_rigidbody_check_sim_running(rbw, ctime) &&
-      (!(ob->base_flag & BASE_SELECTED && G.moving & G_TRANSFORM_OBJ)) || use_interactive_rb))
+      (!(ob->base_flag & BASE_SELECTED && G.moving & G_TRANSFORM_OBJ))) || use_interactive_rb)
   {
     float mat[4][4], size_mat[4][4], size[3];
 
