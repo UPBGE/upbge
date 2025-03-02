@@ -34,7 +34,6 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 
@@ -1542,7 +1541,7 @@ bool IMB_colormanagement_set_whitepoint(const float whitepoint[3], float &temper
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Threaded Display Buffer Transform Routines
+/** \name Display Buffer Transform Routines
  * \{ */
 
 struct DisplayBufferThread {
@@ -1582,13 +1581,11 @@ struct DisplayBufferInitData {
   const char *float_colorspace;
 };
 
-static void display_buffer_init_handle(void *handle_v,
+static void display_buffer_init_handle(DisplayBufferThread *handle,
                                        int start_line,
                                        int tot_line,
-                                       void *init_data_v)
+                                       DisplayBufferInitData *init_data)
 {
-  DisplayBufferThread *handle = (DisplayBufferThread *)handle_v;
-  DisplayBufferInitData *init_data = (DisplayBufferInitData *)init_data_v;
   ImBuf *ibuf = init_data->ibuf;
 
   int channels = ibuf->channels;
@@ -1771,9 +1768,8 @@ static void do_display_buffer_apply_no_processor(DisplayBufferThread *handle)
   }
 }
 
-static void do_display_buffer_apply_thread(void *handle_v)
+static void do_display_buffer_apply_thread(DisplayBufferThread *handle)
 {
-  DisplayBufferThread *handle = (DisplayBufferThread *)handle_v;
   ColormanageProcessor *cm_processor = handle->cm_processor;
   if (cm_processor == nullptr) {
     do_display_buffer_apply_no_processor(handle);
@@ -1840,6 +1836,7 @@ static void display_buffer_apply_threaded(ImBuf *ibuf,
                                           uchar *display_buffer_byte,
                                           ColormanageProcessor *cm_processor)
 {
+  using namespace blender;
   DisplayBufferInitData init_data;
 
   init_data.ibuf = ibuf;
@@ -1867,11 +1864,11 @@ static void display_buffer_apply_threaded(ImBuf *ibuf,
     init_data.float_colorspace = nullptr;
   }
 
-  IMB_processor_apply_threaded(ibuf->y,
-                               sizeof(DisplayBufferThread),
-                               &init_data,
-                               display_buffer_init_handle,
-                               do_display_buffer_apply_thread);
+  threading::parallel_for(IndexRange(ibuf->y), 64, [&](const IndexRange y_range) {
+    DisplayBufferThread handle;
+    display_buffer_init_handle(&handle, y_range.first(), y_range.size(), &init_data);
+    do_display_buffer_apply_thread(&handle);
+  });
 }
 
 /* Checks if given colorspace can be used for display as-is:
@@ -1974,14 +1971,11 @@ struct ProcessorTransformInitData {
   bool float_from_byte;
 };
 
-static void processor_transform_init_handle(void *handle_v,
+static void processor_transform_init_handle(ProcessorTransformThread *handle,
                                             int start_line,
                                             int tot_line,
-                                            void *init_data_v)
+                                            ProcessorTransformInitData *init_data)
 {
-  ProcessorTransformThread *handle = (ProcessorTransformThread *)handle_v;
-  ProcessorTransformInitData *init_data = (ProcessorTransformInitData *)init_data_v;
-
   const int channels = init_data->channels;
   const int width = init_data->width;
   const bool predivide = init_data->predivide;
@@ -2011,9 +2005,8 @@ static void processor_transform_init_handle(void *handle_v,
   handle->float_from_byte = float_from_byte;
 }
 
-static void do_processor_transform_thread(void *handle_v)
+static void do_processor_transform_thread(ProcessorTransformThread *handle)
 {
-  ProcessorTransformThread *handle = (ProcessorTransformThread *)handle_v;
   uchar *byte_buffer = handle->byte_buffer;
   float *float_buffer = handle->float_buffer;
   const int channels = handle->channels;
@@ -2057,6 +2050,7 @@ static void processor_transform_apply_threaded(uchar *byte_buffer,
                                                const bool predivide,
                                                const bool float_from_byte)
 {
+  using namespace blender;
   ProcessorTransformInitData init_data;
 
   init_data.cm_processor = cm_processor;
@@ -2068,11 +2062,11 @@ static void processor_transform_apply_threaded(uchar *byte_buffer,
   init_data.predivide = predivide;
   init_data.float_from_byte = float_from_byte;
 
-  IMB_processor_apply_threaded(height,
-                               sizeof(ProcessorTransformThread),
-                               &init_data,
-                               processor_transform_init_handle,
-                               do_processor_transform_thread);
+  threading::parallel_for(IndexRange(height), 64, [&](const IndexRange y_range) {
+    ProcessorTransformThread handle;
+    processor_transform_init_handle(&handle, y_range.first(), y_range.size(), &init_data);
+    do_processor_transform_thread(&handle);
+  });
 }
 
 /** \} */
@@ -2346,43 +2340,6 @@ void IMB_colormanagement_imbuf_to_byte_texture(uchar *out_buffer,
   }
 }
 
-struct ImbufByteToFloatData {
-  OCIO_ConstCPUProcessorRcPtr *processor;
-  int width;
-  int offset, stride;
-  const uchar *in_buffer;
-  float *out_buffer;
-  bool use_premultiply;
-};
-
-static void imbuf_byte_to_float_cb(void *__restrict userdata,
-                                   const int y,
-                                   const TaskParallelTLS *__restrict /*tls*/)
-{
-  ImbufByteToFloatData *data = static_cast<ImbufByteToFloatData *>(userdata);
-
-  const size_t in_offset = data->offset + y * data->stride;
-  const size_t out_offset = y * data->width;
-  const uchar *in = data->in_buffer + in_offset * 4;
-  float *out = data->out_buffer + out_offset * 4;
-
-  /* Convert to scene linear, to sRGB and premultiply. */
-  for (int x = 0; x < data->width; x++, in += 4, out += 4) {
-    float pixel[4];
-    rgba_uchar_to_float(pixel, in);
-    if (data->processor) {
-      OCIO_cpuProcessorApplyRGB(data->processor, pixel);
-    }
-    else {
-      srgb_to_linearrgb_v3_v3(pixel, pixel);
-    }
-    if (data->use_premultiply) {
-      mul_v3_fl(pixel, pixel[3]);
-    }
-    copy_v4_v4(out, pixel);
-  }
-}
-
 void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
                                                 const int offset_x,
                                                 const int offset_y,
@@ -2391,6 +2348,8 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
                                                 const ImBuf *ibuf,
                                                 const bool store_premultiplied)
 {
+  using namespace blender;
+
   /* Float texture are stored in scene linear color space, with premultiplied
    * alpha depending on the image alpha mode. */
   if (ibuf->float_buffer.data) {
@@ -2446,19 +2405,29 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
                                                      ibuf->byte_buffer.colorspace) :
                                                  nullptr;
 
-    ImbufByteToFloatData data = {};
-    data.processor = processor;
-    data.width = width;
-    data.offset = offset_y * ibuf->x + offset_x;
-    data.stride = ibuf->x;
-    data.in_buffer = in_buffer;
-    data.out_buffer = out_buffer;
-    data.use_premultiply = use_premultiply;
-
-    TaskParallelSettings settings;
-    BLI_parallel_range_settings_defaults(&settings);
-    settings.use_threading = (height > 128);
-    BLI_task_parallel_range(0, height, &data, imbuf_byte_to_float_cb, &settings);
+    threading::parallel_for(IndexRange(height), 128, [&](const IndexRange y_range) {
+      for (const int y : y_range) {
+        const size_t in_offset = (offset_y + y) * ibuf->x + offset_x;
+        const size_t out_offset = y * width;
+        const uchar *in = in_buffer + in_offset * 4;
+        float *out = out_buffer + out_offset * 4;
+        for (int x = 0; x < width; x++, in += 4, out += 4) {
+          /* Convert to scene linear and premultiply. */
+          float pixel[4];
+          rgba_uchar_to_float(pixel, in);
+          if (processor) {
+            OCIO_cpuProcessorApplyRGB(processor, pixel);
+          }
+          else {
+            srgb_to_linearrgb_v3_v3(pixel, pixel);
+          }
+          if (use_premultiply) {
+            mul_v3_fl(pixel, pixel[3]);
+          }
+          copy_v4_v4(out, pixel);
+        }
+      }
+    });
   }
 }
 
@@ -2852,7 +2821,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   }
 
   buffer_size = DISPLAY_BUFFER_CHANNELS * size_t(ibuf->x) * ibuf->y * sizeof(char);
-  display_buffer = static_cast<uchar *>(MEM_callocN(buffer_size, "imbuf display buffer"));
+  display_buffer = static_cast<uchar *>(MEM_mallocN(buffer_size, "imbuf display buffer"));
 
   colormanage_display_buffer_process(
       ibuf, display_buffer, applied_view_settings, display_settings);
@@ -3612,7 +3581,7 @@ static void partial_buffer_update_rect(ImBuf *ibuf,
       channels = 4;
     }
 
-    display_buffer_float = static_cast<float *>(MEM_callocN(
+    display_buffer_float = static_cast<float *>(MEM_mallocN(
         size_t(channels) * width * height * sizeof(float), "display buffer for dither"));
   }
 
@@ -3728,38 +3697,6 @@ static void partial_buffer_update_rect(ImBuf *ibuf,
   }
 }
 
-struct PartialThreadData {
-  ImBuf *ibuf;
-  uchar *display_buffer;
-  const float *linear_buffer;
-  const uchar *byte_buffer;
-  int display_stride;
-  int linear_stride;
-  int linear_offset_x, linear_offset_y;
-  ColormanageProcessor *cm_processor;
-  int xmin, ymin, xmax;
-};
-
-static void partial_buffer_update_rect_thread_do(void *data_v, int scanline)
-{
-  PartialThreadData *data = (PartialThreadData *)data_v;
-  int ymin = data->ymin + scanline;
-  const int num_scanlines = 1;
-  partial_buffer_update_rect(data->ibuf,
-                             data->display_buffer,
-                             data->linear_buffer,
-                             data->byte_buffer,
-                             data->display_stride,
-                             data->linear_stride,
-                             data->linear_offset_x,
-                             data->linear_offset_y,
-                             data->cm_processor,
-                             data->xmin,
-                             ymin,
-                             data->xmax,
-                             ymin + num_scanlines);
-}
-
 static void imb_partial_display_buffer_update_ex(
     ImBuf *ibuf,
     const float *linear_buffer,
@@ -3775,6 +3712,7 @@ static void imb_partial_display_buffer_update_ex(
     int ymax,
     bool do_threads)
 {
+  using namespace blender;
   ColormanageCacheViewSettings cache_view_settings;
   ColormanageCacheDisplaySettings cache_display_settings;
   void *cache_handle = nullptr;
@@ -3832,38 +3770,23 @@ static void imb_partial_display_buffer_update_ex(
       cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
     }
 
-    if (do_threads) {
-      PartialThreadData data;
-      data.ibuf = ibuf;
-      data.display_buffer = display_buffer;
-      data.linear_buffer = linear_buffer;
-      data.byte_buffer = byte_buffer;
-      data.display_stride = buffer_width;
-      data.linear_stride = stride;
-      data.linear_offset_x = offset_x;
-      data.linear_offset_y = offset_y;
-      data.cm_processor = cm_processor;
-      data.xmin = xmin;
-      data.ymin = ymin;
-      data.xmax = xmax;
-      IMB_processor_apply_threaded_scanlines(
-          ymax - ymin, partial_buffer_update_rect_thread_do, &data);
-    }
-    else {
-      partial_buffer_update_rect(ibuf,
-                                 display_buffer,
-                                 linear_buffer,
-                                 byte_buffer,
-                                 buffer_width,
-                                 stride,
-                                 offset_x,
-                                 offset_y,
-                                 cm_processor,
-                                 xmin,
-                                 ymin,
-                                 xmax,
-                                 ymax);
-    }
+    threading::parallel_for(IndexRange(ymin, ymax - ymin),
+                            do_threads ? 64 : ymax - ymin,
+                            [&](const IndexRange y_range) {
+                              partial_buffer_update_rect(ibuf,
+                                                         display_buffer,
+                                                         linear_buffer,
+                                                         byte_buffer,
+                                                         buffer_width,
+                                                         stride,
+                                                         offset_x,
+                                                         offset_y,
+                                                         cm_processor,
+                                                         xmin,
+                                                         y_range.first(),
+                                                         xmax,
+                                                         y_range.one_after_last());
+                            });
 
     if (cm_processor) {
       IMB_colormanagement_processor_free(cm_processor);

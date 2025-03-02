@@ -2427,6 +2427,13 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
                               uiLayout *layout,
                               PointerRNA *open_prop_owner,
                               const char *open_prop_name);
+PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                            uiLayout *layout,
+                                            PointerRNA *open_prop_owner,
+                                            const blender::StringRefNull open_prop_name,
+                                            PointerRNA *bool_prop_owner,
+                                            const blender::StringRefNull bool_prop_name,
+                                            const std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically creates the header row with the
@@ -2442,13 +2449,6 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
                             PointerRNA *open_prop_owner,
                             const char *open_prop_name,
                             const char *label);
-
-uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                          uiLayout *layout,
-                                          PointerRNA *open_prop_owner,
-                                          blender::StringRefNull open_prop_name,
-                                          blender::StringRefNull bool_prop_name,
-                                          const std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root

@@ -11,7 +11,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
-#include "BLI_bitmap.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -1773,16 +1772,15 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
   BM_mesh_elem_index_ensure(em->bm, BM_VERT);
 
   /* Only use `verts_group` or `verts_mask`. */
-  int *verts_group = nullptr;
+  Array<int> verts_group;
   int verts_group_count = 0; /* Number of non-zero elements in `verts_group`. */
 
-  BLI_bitmap *verts_mask = nullptr;
+  blender::BitVector<> verts_mask;
   int verts_mask_count = 0; /* Number of elements enabled in `verts_mask`. */
 
   if ((partial_type == PARTIAL_TYPE_GROUP) && ((t->flag & T_PROP_EDIT) || tc->use_mirror_axis_any))
   {
-    verts_group = static_cast<int *>(
-        MEM_callocN(sizeof(*verts_group) * em->bm->totvert, __func__));
+    verts_group = Array<int>(em->bm->totvert, 0);
     int i;
     TransData *td;
     for (i = 0, td = tc->data; i < tc->data_len; i++, td++) {
@@ -1838,7 +1836,7 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
   }
   else {
     /* See the body of the comments in the previous block for details. */
-    verts_mask = BLI_BITMAP_NEW(em->bm->totvert, __func__);
+    verts_mask.resize(em->bm->totvert);
     int i;
     TransData *td;
     for (i = 0, td = tc->data; i < tc->data_len; i++, td++) {
@@ -1847,24 +1845,22 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
       }
       const BMVert *v = (BMVert *)td->extra;
       const int v_index = BM_elem_index_get(v);
-      BLI_assert(!BLI_BITMAP_TEST(verts_mask, v_index));
-      BLI_BITMAP_ENABLE(verts_mask, v_index);
+      BLI_assert(!verts_mask[v_index]);
+      verts_mask[v_index].set();
       verts_mask_count += 1;
     }
 
     TransDataMirror *td_mirror = tc->data_mirror;
     for (i = 0; i < tc->data_mirror_len; i++, td_mirror++) {
       BMVert *v_mirr = (BMVert *)POINTER_OFFSET(td_mirror->loc_src, -offsetof(BMVert, co));
-      if (!BLI_BITMAP_TEST(verts_mask, BM_elem_index_get(v_mirr)) &&
-          equals_v3v3(td_mirror->loc, td_mirror->iloc))
-      {
+      if (!verts_mask[BM_elem_index_get(v_mirr)] && equals_v3v3(td_mirror->loc, td_mirror->iloc)) {
         continue;
       }
 
       BMVert *v_mirr_other = (BMVert *)td_mirror->extra;
-      BLI_assert(!BLI_BITMAP_TEST(verts_mask, BM_elem_index_get(v_mirr_other)));
+      BLI_assert(!verts_mask[BM_elem_index_get(v_mirr_other)]);
       const int v_mirr_other_index = BM_elem_index_get(v_mirr_other);
-      BLI_BITMAP_ENABLE(verts_mask, v_mirr_other_index);
+      verts_mask[v_mirr_other_index].set();
       verts_mask_count += 1;
     }
   }
@@ -1875,29 +1871,23 @@ static BMPartialUpdate *mesh_partial_ensure(TransInfo *t,
       params.do_tessellate = true;
       params.do_normals = true;
       pupdate->cache = BM_mesh_partial_create_from_verts(
-          em->bm, &params, verts_mask, verts_mask_count);
+          *em->bm, params, verts_mask, verts_mask_count);
       break;
     }
     case PARTIAL_TYPE_GROUP: {
       BMPartialUpdate_Params params{};
       params.do_tessellate = true;
       params.do_normals = true;
-      pupdate->cache = (verts_group ? BM_mesh_partial_create_from_verts_group_multi(
-                                          em->bm, &params, verts_group, verts_group_count) :
-                                      BM_mesh_partial_create_from_verts_group_single(
-                                          em->bm, &params, verts_mask, verts_mask_count));
+      pupdate->cache = (!verts_group.is_empty() ?
+                            BM_mesh_partial_create_from_verts_group_multi(
+                                *em->bm, params, verts_group, verts_group_count) :
+                            BM_mesh_partial_create_from_verts_group_single(
+                                *em->bm, params, verts_mask, verts_mask_count));
       break;
     }
     case PARTIAL_NONE: {
       BLI_assert_unreachable();
     }
-  }
-
-  if (verts_group) {
-    MEM_freeN(verts_group);
-  }
-  else {
-    MEM_freeN(verts_mask);
   }
 
   pupdate->prop_size_prev = t->prop_size;
