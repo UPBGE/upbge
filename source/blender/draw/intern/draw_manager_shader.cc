@@ -260,7 +260,7 @@ static void drw_deferred_shader_add(GPUMaterial *mat, bool deferred)
   if (ELEM(GPU_material_status(mat), GPU_MAT_SUCCESS, GPU_MAT_FAILED)) {
     return;
   }
-  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+  Scene *scene = (Scene *)DEG_get_original_id(&drw_get().draw_ctx.scene->id);
   if (GPU_use_main_context_workaround() || scene->flag & SCE_INTERACTIVE || scene->flag & SCE_IS_BLENDERPLAYER) {
     deferred = false;
   }

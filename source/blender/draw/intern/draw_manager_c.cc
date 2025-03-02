@@ -3387,7 +3387,7 @@ void DRW_game_render_loop(bContext *C,
 {
   using namespace blender::draw;
   /* Reset before using it. */
-  drw_state_prepare_clean_for_draw(&DST);
+  DST.prepare_clean_for_draw();
 
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
@@ -3439,10 +3439,10 @@ void DRW_game_render_loop(bContext *C,
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
-  DRW_pointcloud_init(DST.vmempool);
-  DRW_curves_init(DST.vmempool);
-  DRW_volume_init(DST.vmempool);
-  DRW_smoke_init(DST.vmempool);
+  DRW_pointcloud_init(drw_get().data);
+  DRW_curves_init(drw_get().data);
+  DRW_volume_init(drw_get().data);
+  DRW_smoke_init(drw_get().data);
 
   /* Init engines */
   drw_engines_init();
@@ -3506,8 +3506,8 @@ void DRW_game_render_loop(bContext *C,
 
   drw_task_graph_deinit();
 
-  GPU_framebuffer_bind(DST.default_framebuffer);
-  GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
+  GPU_framebuffer_bind(drw_get().default_framebuffer());
+  GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
 
   blender::draw::command::StateSet::set();
 
@@ -3515,15 +3515,15 @@ void DRW_game_render_loop(bContext *C,
 
   drw_engines_draw_scene();
 
-  GPU_framebuffer_bind(DST.default_framebuffer);
-  GPU_framebuffer_clear_stencil(DST.default_framebuffer, 0xFF);
+  GPU_framebuffer_bind(drw_get().default_framebuffer());
+  GPU_framebuffer_clear_stencil(drw_get().default_framebuffer(), 0xFF);
 
   /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
   if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
     GPU_flush();
   }
 
-  DRW_smoke_exit(DST.vmempool);
+  DRW_smoke_exit(drw_get().data);
 
   blender::draw::command::StateSet::set();
 
@@ -3555,7 +3555,7 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
    */
   // GPU_viewport_free(DST.viewport);
 
-  drw_state_prepare_clean_for_draw(&DST);
+  DST.prepare_clean_for_draw();
 
   /*use_drw_engine(&draw_engine_eevee_type);
 
@@ -3564,7 +3564,7 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
   EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());*/
   DRW_engines_free();
 
-  memset(&DST, 0xff, offsetof(DRWManager, debug));
+  drw_get().state_ensure_not_reused();
 }
 
 /* Called instead of DRW_transform_to_display in eevee_engine
