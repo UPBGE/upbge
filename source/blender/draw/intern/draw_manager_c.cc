@@ -3419,17 +3419,18 @@ void DRW_game_render_loop(bContext *C,
   /* Resize viewport if needed and set active view */
   GPU_viewport_bind(viewport, 0, window);
 
-  DST.draw_ctx.region = ar;
-  DST.draw_ctx.v3d = v3d;
-  DST.draw_ctx.rv3d = rv3d;
+  drw_get().draw_ctx = {};
+  drw_get().draw_ctx.region = ar;
+  drw_get().draw_ctx.rv3d = rv3d;
+  drw_get().draw_ctx.v3d = v3d;
+  drw_get().draw_ctx.scene = scene;
+  drw_get().draw_ctx.view_layer = view_layer;
+  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
+  //drw_get().draw_ctx.engine_type = engine_type;
+  drw_get().draw_ctx.depsgraph = depsgraph;
 
-  DST.draw_ctx.evil_C = C;
-
-  DST.draw_ctx.scene = scene;
-  DST.draw_ctx.view_layer = view_layer;
-  DST.draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-
-  DST.draw_ctx.depsgraph = depsgraph;
+  /* reuse if caller sets */
+  drw_get().draw_ctx.evil_C = C;
 
   DST.options.draw_background = ((scene->r.alphamode == R_ADDSKY) ||
                                  (v3d->shading.type != OB_RENDER)) &&
@@ -3455,10 +3456,7 @@ void DRW_game_render_loop(bContext *C,
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
-  DRW_pointcloud_init(drw_get().data);
-  DRW_curves_init(drw_get().data);
-  DRW_volume_init(drw_get().data);
-  DRW_smoke_init(drw_get().data);
+  drw_get().data->modules_init();
 
   /* Init engines */
   drw_engines_init();
@@ -3466,8 +3464,7 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
 
-  DST.dupli_origin = NULL;
-  DST.dupli_origin_data = NULL;
+  DupliCacheManager dupli_handler;
 
   if (is_overlay_pass) {
     DEGObjectIterSettings deg_iter_settings = {0};
@@ -3480,14 +3477,12 @@ void DRW_game_render_loop(bContext *C,
       if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
         continue;
       }
-
       Object *orig_ob = DEG_get_original_object(ob);
 
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
-        DST.dupli_parent = data_.dupli_parent;
-        DST.dupli_source = data_.dupli_object_current;
-        drw_duplidata_load(ob);
-        drw_engines_cache_populate(ob);
+        blender::draw::ObjectRef ob_ref(data_, ob);
+        dupli_handler.try_add(ob_ref);
+        drw_engines_cache_populate(ob_ref);
       }
     }
     DEG_OBJECT_ITER_END;
@@ -3509,23 +3504,23 @@ void DRW_game_render_loop(bContext *C,
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
         continue;
       }
-      DST.dupli_parent = data_.dupli_parent;
-      DST.dupli_source = data_.dupli_object_current;
-      drw_duplidata_load(ob);
-      drw_engines_cache_populate(ob);
+      blender::draw::ObjectRef ob_ref(data_, ob);
+      dupli_handler.try_add(ob_ref);
+      drw_engines_cache_populate(ob_ref);
     }
     DEG_OBJECT_ITER_END;
   }
 
-  drw_duplidata_free();
   drw_engines_cache_finish();
 
+  dupli_handler.extract_all();
   drw_task_graph_deinit();
+
+  /* Start Drawing */
+  blender::draw::command::StateSet::set();
 
   GPU_framebuffer_bind(drw_get().default_framebuffer());
   GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
-
-  blender::draw::command::StateSet::set();
 
   DRW_curves_update(*DRW_manager_get());
 
@@ -3539,7 +3534,7 @@ void DRW_game_render_loop(bContext *C,
     GPU_flush();
   }
 
-  DRW_smoke_exit(drw_get().data);
+  drw_get().data->modules_exit();
 
   blender::draw::command::StateSet::set();
 
