@@ -278,14 +278,14 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
        * it actually makes sense to keep float buffer instead.
        */
       if (ibuf_result->float_buffer.data != nullptr) {
-        IMB_rect_from_float(ibuf_result);
-        imb_freerectfloatImBuf(ibuf_result);
+        IMB_byte_from_float(ibuf_result);
+        IMB_free_float_pixels(ibuf_result);
       }
       BLI_assert((sizex == ibuf->x) && (sizey == ibuf->y));
     }
     else if (gpd) {
       /* If there are no strips, Grease Pencil still needs a buffer to draw on */
-      ibuf_result = IMB_allocImBuf(sizex, sizey, 32, IB_rect);
+      ibuf_result = IMB_allocImBuf(sizex, sizey, 32, IB_byte_data);
     }
 
     if (gpd) {
@@ -341,7 +341,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
                                                  region,
                                                  sizex,
                                                  sizey,
-                                                 IB_rectfloat,
+                                                 IB_float_data,
                                                  alpha_mode,
                                                  viewname,
                                                  true,
@@ -362,7 +362,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
                                                         scene->camera,
                                                         sizex,
                                                         sizey,
-                                                        IB_rectfloat,
+                                                        IB_float_data,
                                                         V3D_OFSDRAW_SHOW_ANNOTATION,
                                                         alpha_mode,
                                                         viewname,
@@ -915,6 +915,9 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     oglrender->scene->r.cfra = oglrender->cfrao;
     BKE_scene_graph_update_for_newframe(depsgraph);
   }
+  else if (oglrender->win) {
+    WM_cursor_modal_restore(oglrender->win);
+  }
 
   WM_main_add_notifier(NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
   G.is_rendering = false;
@@ -1133,6 +1136,12 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
       ok = true;
       goto finally;
     }
+  }
+
+  if (!oglrender->wm_job && oglrender->win) {
+    /* When doing blocking animation render without a job from a Python script, show time cursor so
+     * Blender doesn't appear frozen. */
+    WM_cursor_time(oglrender->win, scene->r.cfra);
   }
 
   BKE_scene_graph_update_for_newframe(depsgraph);

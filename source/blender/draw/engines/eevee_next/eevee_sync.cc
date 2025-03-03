@@ -31,7 +31,7 @@ namespace blender::eevee {
 
 ObjectHandle &SyncModule::sync_object(const ObjectRef &ob_ref)
 {
-  ObjectKey key(ob_ref.object);
+  ObjectKey key(ob_ref);
 
   ObjectHandle &handle = ob_handles.lookup_or_add_cb(key, [&]() {
     ObjectHandle new_handle;
@@ -419,7 +419,7 @@ void SyncModule::sync_curves(Object *ob,
     if (particle_sys != nullptr) {
       PassMain::Sub &sub_pass = matpass.sub_pass->sub("Hair SubPass");
       gpu::Batch *geometry = hair_sub_pass_setup(
-          sub_pass, inst_.scene, ob, particle_sys, modifier_data, matpass.gpumat);
+          sub_pass, inst_.scene, ob_ref, particle_sys, modifier_data, matpass.gpumat);
       sub_pass.draw(geometry, res_handle);
     }
     else {
