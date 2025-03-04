@@ -96,6 +96,7 @@ void GLVertBuf::bind()
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
     vbo_size_ = this->size_used_get();
 
+    /* This is fine on some systems but will crash on others. */
     BLI_assert(vbo_size_ != 0);
     /* Orphan the vbo to avoid sync then upload data. */
     // using dynamic copy sounds to work on windows to avoid sync and not only on linux (youle) /*UPBGE*/

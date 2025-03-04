@@ -34,7 +34,6 @@ set(SRC
   COM_pixel_operation.hh
   COM_profiler.hh
   COM_realize_on_domain_operation.hh
-  COM_reduce_to_single_value_operation.hh
   COM_render_context.hh
   COM_result.hh
   COM_scheduler.hh
@@ -58,7 +57,6 @@ set(SRC
   intern/pixel_operation.cc
   intern/profiler.cc
   intern/realize_on_domain_operation.cc
-  intern/reduce_to_single_value_operation.cc
   intern/render_context.cc
   intern/result.cc
   intern/scheduler.cc
@@ -256,8 +254,10 @@ set(GLSL_SRC
   shaders/compositor_van_vliet_gaussian_blur_sum.glsl
   shaders/compositor_write_output.glsl
   shaders/compositor_z_combine_compute_mask.glsl
-  shaders/compositor_z_combine_from_mask.glsl
-  shaders/compositor_z_combine_simple.glsl
+  shaders/compositor_z_combine_from_mask_depth.glsl
+  shaders/compositor_z_combine_from_mask_image.glsl
+  shaders/compositor_z_combine_simple_depth.glsl
+  shaders/compositor_z_combine_simple_image.glsl
 
   shaders/library/gpu_shader_compositor_alpha_over.glsl
   shaders/library/gpu_shader_compositor_bright_contrast.glsl

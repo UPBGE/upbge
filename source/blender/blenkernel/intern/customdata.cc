@@ -138,10 +138,9 @@ struct LayerTypeInfo {
   cd_copy copy;
 
   /**
-   * a function to free any dynamically allocated components of this
-   * layer's data (note the data pointer itself should not be freed)
-   * size should be the size of one element of this layer's data (e.g.
-   * LayerTypeInfo.size)
+   * a function to destruct this layer's data.
+   *
+   * \note implementations should make sure that the data pointer itself is not freed.
    */
   cd_free free;
 
@@ -3968,7 +3967,7 @@ BMCustomDataCopyMap CustomData_bmesh_copy_map_calc(const CustomData &src,
       }
       else {
         /* NOTE: A way to improve performance of copies (by reducing the number of `memcpy`
-         * calls) would be combining contiguous in the source and result format. */
+         * calls) would be combining contiguous chunks in the source and result format. */
         map.trivial_copies.append({type_info.size, src_offset, dst_offset});
       }
     }
