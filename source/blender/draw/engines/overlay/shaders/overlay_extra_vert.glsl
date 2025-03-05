@@ -188,14 +188,14 @@ void main()
   vec3 world_pos;
   if ((vclass & VCLASS_SCREENSPACE) != 0) {
     /* Relative to DPI scaling. Have constant screen size. */
-    vec3 screen_pos = ViewMatrixInverse[0].xyz * vpos.x + ViewMatrixInverse[1].xyz * vpos.y;
+    vec3 screen_pos = drw_view().viewinv[0].xyz * vpos.x + drw_view().viewinv[1].xyz * vpos.y;
     vec3 p = (obmat * vec4(vofs, 1.0)).xyz;
     float screen_size = mul_project_m4_v3_zfac(globalsBlock.pixel_fac, p) * sizePixel;
     world_pos = p + screen_pos * screen_size;
   }
   else if ((vclass & VCLASS_SCREENALIGNED) != 0) {
     /* World sized, camera facing geometry. */
-    vec3 screen_pos = ViewMatrixInverse[0].xyz * vpos.x + ViewMatrixInverse[1].xyz * vpos.y;
+    vec3 screen_pos = drw_view().viewinv[0].xyz * vpos.x + drw_view().viewinv[1].xyz * vpos.y;
     world_pos = (obmat * vec4(vofs, 1.0)).xyz + screen_pos;
   }
   else {
@@ -215,8 +215,9 @@ void main()
     vec3 edge = obmat[3].xyz - world_pos;
     vec3 n0 = normalize(cross(edge, p0 - world_pos));
     vec3 n1 = normalize(cross(edge, world_pos - p1));
-    bool persp = (drw_view.winmat[3][3] == 0.0);
-    vec3 V = (persp) ? normalize(drw_view.viewinv[3].xyz - world_pos) : drw_view.viewinv[2].xyz;
+    bool persp = (drw_view().winmat[3][3] == 0.0);
+    vec3 V = (persp) ? normalize(drw_view().viewinv[3].xyz - world_pos) :
+                       drw_view().viewinv[2].xyz;
     /* Discard non-silhouette edges. */
     bool facing0 = dot(n0, V) > 0.0;
     bool facing1 = dot(n1, V) > 0.0;

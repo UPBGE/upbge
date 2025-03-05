@@ -2168,7 +2168,7 @@ static void readfile_id_runtime_data_ensure(ID &id)
   if (id.runtime.readfile_data) {
     return;
   }
-  id.runtime.readfile_data = MEM_cnew<ID_Readfile_Data>(__func__);
+  id.runtime.readfile_data = MEM_callocN<ID_Readfile_Data>(__func__);
 }
 
 ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
@@ -4037,8 +4037,7 @@ static void sort_bhead_old_map(FileData *fd)
     return;
   }
 
-  bhs = fd->bheadmap = static_cast<BHeadSort *>(
-      MEM_malloc_arrayN(tot, sizeof(BHeadSort), "BHeadSort"));
+  bhs = fd->bheadmap = MEM_malloc_arrayN<BHeadSort>(tot, "BHeadSort");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead), bhs++) {
     bhs->bhead = bhead;

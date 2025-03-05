@@ -213,7 +213,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
 
   if (ntree_src->geometry_node_asset_traits) {
-    ntree_dst->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(
+    ntree_dst->geometry_node_asset_traits = MEM_dupallocN<GeometryNodeAssetTraits>(
         __func__, *ntree_src->geometry_node_asset_traits);
   }
 
@@ -462,7 +462,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
     return nullptr;
   }
 
-  bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
+  bNodeSocket *sock = MEM_callocN<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
   StringRef(stype->idname).copy_utf8_truncated(sock->idname);
   sock->in_out = int(in_out);
@@ -1946,7 +1946,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   BLI_uniquename_cb(
       unique_identifier_check, lb, "socket", '_', auto_identifier, sizeof(auto_identifier));
 
-  bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
+  bNodeSocket *sock = MEM_callocN<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
   sock->in_out = in_out;
 
@@ -2661,7 +2661,7 @@ void node_unique_id(bNodeTree &ntree, bNode &node)
 
 bNode *node_add_node(const bContext *C, bNodeTree &ntree, const StringRef idname)
 {
-  bNode *node = MEM_cnew<bNode>(__func__);
+  bNode *node = MEM_callocN<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   node_unique_id(ntree, *node);
@@ -2954,7 +2954,7 @@ bNodeLink &node_add_link(
   bNodeLink *link = nullptr;
   if (eNodeSocketInOut(fromsock.in_out) == SOCK_OUT && eNodeSocketInOut(tosock.in_out) == SOCK_IN)
   {
-    link = MEM_cnew<bNodeLink>(__func__);
+    link = MEM_callocN<bNodeLink>(__func__);
     BLI_addtail(&ntree.links, link);
     link->fromnode = &fromnode;
     link->fromsock = &fromsock;
@@ -2965,7 +2965,7 @@ bNodeLink &node_add_link(
            eNodeSocketInOut(tosock.in_out) == SOCK_OUT)
   {
     /* OK but flip */
-    link = MEM_cnew<bNodeLink>(__func__);
+    link = MEM_callocN<bNodeLink>(__func__);
     BLI_addtail(&ntree.links, link);
     link->fromnode = &tonode;
     link->fromsock = &tosock;
@@ -4087,25 +4087,22 @@ void node_tree_update_all_users(Main *main, ID *id)
 
 /* ************* node type access ********** */
 
-void nodeLabel(const bNodeTree &ntree, const bNode &node, char *label, const int label_maxncpy)
+std::string node_label(const bNodeTree &ntree, const bNode &node)
 {
-  label[0] = '\0';
-
   if (node.label[0] != '\0') {
-    BLI_strncpy(label, node.label, label_maxncpy);
-  }
-  else if (node.typeinfo->labelfunc) {
-    node.typeinfo->labelfunc(&ntree, &node, label, label_maxncpy);
-  }
-  if (label[0] != '\0') {
-    /* The previous methods (labelfunc) could not provide an adequate label for the node. */
-    return;
+    return node.label;
   }
 
-  BLI_strncpy(label, IFACE_(node.typeinfo->ui_name.c_str()), label_maxncpy);
+  if (node.typeinfo->labelfunc) {
+    char label_buffer[MAX_NAME];
+    node.typeinfo->labelfunc(&ntree, &node, label_buffer, MAX_NAME);
+    return label_buffer;
+  }
+
+  return node.typeinfo->ui_name;
 }
 
-std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket &sock)
+std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 {
   if (sock.runtime->declaration != nullptr) {
     StringRefNull short_label = sock.runtime->declaration->short_label;
@@ -4116,7 +4113,7 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket &sock)
   return std::nullopt;
 }
 
-StringRefNull nodeSocketLabel(const bNodeSocket &sock)
+StringRefNull node_socket_label(const bNodeSocket &sock)
 {
   return (sock.label[0] != '\0') ? sock.label : sock.name;
 }

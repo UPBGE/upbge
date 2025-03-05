@@ -31,6 +31,9 @@
 
 #include "eigen_capi.h"
 
+/* Prevent naming collision. */
+namespace {
+
 struct LaplacianSystem {
   float *eweights = nullptr;      /* Length weights per Edge */
   float (*fweights)[3] = nullptr; /* Cotangent weights per face */
@@ -53,6 +56,8 @@ struct LaplacianSystem {
   float min_area = 0.0f;
   float vert_centroid[3] = {};
 };
+
+};  // namespace
 
 static void delete_laplacian_system(LaplacianSystem *sys)
 {
@@ -90,14 +95,14 @@ static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numLoops, in
   sys = MEM_new<LaplacianSystem>(__func__);
   sys->verts_num = a_numVerts;
 
-  sys->eweights = MEM_cnew_array<float>(a_numEdges, __func__);
-  sys->fweights = MEM_cnew_array<float[3]>(a_numLoops, __func__);
-  sys->ne_ed_num = MEM_cnew_array<short>(sys->verts_num, __func__);
-  sys->ne_fa_num = MEM_cnew_array<short>(sys->verts_num, __func__);
-  sys->ring_areas = MEM_cnew_array<float>(sys->verts_num, __func__);
-  sys->vlengths = MEM_cnew_array<float>(sys->verts_num, __func__);
-  sys->vweights = MEM_cnew_array<float>(sys->verts_num, __func__);
-  sys->zerola = MEM_cnew_array<bool>(sys->verts_num, __func__);
+  sys->eweights = MEM_calloc_arrayN<float>(a_numEdges, __func__);
+  sys->fweights = MEM_calloc_arrayN<float[3]>(a_numLoops, __func__);
+  sys->ne_ed_num = MEM_calloc_arrayN<short>(sys->verts_num, __func__);
+  sys->ne_fa_num = MEM_calloc_arrayN<short>(sys->verts_num, __func__);
+  sys->ring_areas = MEM_calloc_arrayN<float>(sys->verts_num, __func__);
+  sys->vlengths = MEM_calloc_arrayN<float>(sys->verts_num, __func__);
+  sys->vweights = MEM_calloc_arrayN<float>(sys->verts_num, __func__);
+  sys->zerola = MEM_calloc_arrayN<bool>(sys->verts_num, __func__);
 
   return sys;
 }

@@ -24,7 +24,7 @@ bool is_edge_sharpness_visible(float wire_data)
 void wire_color_get(out vec3 rim_col, out vec3 wire_col)
 {
 #ifdef OBINFO_NEW
-  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[resource_id].infos.w));
+  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[drw_resource_id()].infos.w));
   bool is_selected = flag_test(ob_flag, OBJECT_SELECTED);
   bool is_from_set = flag_test(ob_flag, OBJECT_FROM_SET);
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
@@ -67,7 +67,7 @@ vec3 hsv_to_rgb(vec3 hsv)
 void wire_object_color_get(out vec3 rim_col, out vec3 wire_col)
 {
 #ifdef OBINFO_NEW
-  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[resource_id].infos.w));
+  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[drw_resource_id()].infos.w));
   bool is_selected = flag_test(ob_flag, OBJECT_SELECTED);
 #else
   int flag = int(abs(ObjectInfo.w));
@@ -98,7 +98,7 @@ void wire_object_color_get(out vec3 rim_col, out vec3 wire_col)
 
 void main()
 {
-  select_id_set(drw_CustomID);
+  select_id_set(drw_custom_id());
 
   /* If no attribute is available, use a fixed facing value depending on the coloring mode.
    * This allow to keep most of the contrast between unselected and selected color
@@ -119,8 +119,8 @@ void main()
     wnor = -normalize(to_float3x3(obmat) * nor);
   }
 
-  bool is_persp = (drw_view.winmat[3][3] == 0.0);
-  vec3 V = (is_persp) ? normalize(drw_view.viewinv[3].xyz - wpos) : drw_view.viewinv[2].xyz;
+  bool is_persp = (drw_view().winmat[3][3] == 0.0);
+  vec3 V = (is_persp) ? normalize(drw_view().viewinv[3].xyz - wpos) : drw_view().viewinv[2].xyz;
 
   bool no_attr = all(equal(nor, vec3(0)));
   float facing = no_attr ? no_nor_facing : dot(wnor, V);
