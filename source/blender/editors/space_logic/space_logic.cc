@@ -75,7 +75,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
   if (region == nullptr)
     return nullptr;
 
-  regionnew = MEM_cnew<ARegion>("buttons for image");
+  regionnew = MEM_callocN<ARegion>("buttons for image");
 
   BLI_insertlinkafter(&sa->regionbase, region, regionnew);
   regionnew->regiontype = RGN_TYPE_UI;
@@ -93,7 +93,7 @@ static SpaceLink *logic_new(const ScrArea *sa, const Scene */*scene*/)
   ARegion *region;
   SpaceLogic *slogic;
 
-  slogic = MEM_cnew<SpaceLogic>("initlogic");
+  slogic = MEM_callocN<SpaceLogic>("initlogic");
   slogic->spacetype = SPACE_LOGIC;
 
   /* default options */
@@ -347,7 +347,7 @@ void ED_spacetype_logic()
   st->blend_write = logic_blend_write;
 
   /* regions: main window */
-  art = MEM_cnew<ARegionType>("spacetype logic region");
+  art = MEM_callocN<ARegionType>("spacetype logic region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES | ED_KEYMAP_VIEW2D;
   art->init = logic_main_region_init;
@@ -357,7 +357,7 @@ void ED_spacetype_logic()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: listview/buttons */
-  art = MEM_cnew<ARegionType>("spacetype logic region");
+  art = MEM_callocN<ARegionType>("spacetype logic region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = 220;  // XXX
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -367,7 +367,7 @@ void ED_spacetype_logic()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_cnew<ARegionType>("spacetype logic region");
+  art = MEM_callocN<ARegionType>("spacetype logic region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
