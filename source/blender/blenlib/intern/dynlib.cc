@@ -95,7 +95,7 @@ DynamicLibrary *BLI_dynlib_open(const char *name)
     return nullptr;
   }
 
-  lib = MEM_cnew<DynamicLibrary>("Dynamic Library");
+  lib = MEM_callocN<DynamicLibrary>("Dynamic Library");
   lib->handle = handle;
 
   return lib;
