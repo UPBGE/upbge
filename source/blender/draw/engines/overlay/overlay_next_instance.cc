@@ -67,6 +67,10 @@ void Instance::init()
                                       (BKE_scene_uses_blender_eevee(state.scene) &&
                                        BKE_render_preview_pixel_size(&state.scene->r) == 1);
 
+    /* For depth only drawing, no other render engine is expected. Except for Grease Pencil which
+     * outputs valid depth. Otherwise depth is cleared and is valid. */
+    state.is_render_depth_available |= state.is_depth_only_drawing;
+
     if (!state.hide_overlays) {
       state.overlay = state.v3d->overlay;
       state.v3d_flag = state.v3d->flag;
@@ -647,8 +651,12 @@ void Instance::draw(Manager &manager)
 
   static gpu::DebugScope select_scope = {"Selection"};
   static gpu::DebugScope draw_scope = {"Overlay"};
+  static gpu::DebugScope depth_scope = {"DepthOnly"};
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.begin_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.begin_capture();
   }
   else {
@@ -709,7 +717,10 @@ void Instance::draw(Manager &manager)
 
   resources.read_result();
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.end_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.end_capture();
   }
   else {
