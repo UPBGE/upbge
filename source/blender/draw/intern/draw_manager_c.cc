@@ -3379,6 +3379,9 @@ void DRW_game_viewport_render_loop_end()
     MEM_freeN(debug_bge->texts);
     debug_bge->texts = (DRWDebugText2D *)next;
   }
+
+  MEM_delete(debug_bge);
+  debug_bge = nullptr;
 }
 
 void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
