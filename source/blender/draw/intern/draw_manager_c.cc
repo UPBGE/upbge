@@ -3063,7 +3063,50 @@ void DRW_gpu_context_activate(bool drw_state)
 
 /*--UPBGE Viewport Debug Drawing --*/
 
+/* ------------- DRAW DEBUG - UPBGE ------------ */
+
+typedef struct DRWDebugLine {
+  struct DRWDebugLine *next; /* linked list */
+  float pos[2][3];
+  float color[4];
+} DRWDebugLine;
+
+typedef struct DRWDebugText2D {
+  struct DRWDebugText2D *next; /* linked list */
+  char text[64];
+  float xco;
+  float yco;
+} DRWDebugText2D;
+
+typedef struct DRWDebugBox2D {
+  struct DRWDebugBox2D *next; /* linked list */
+  float xco;
+  float yco;
+  float xsize;
+  float ysize;
+} DRWDebugBox2D;
+
+typedef struct DRWDebugBge {
+  DRWDebugLine *lines;
+  DRWDebugBox2D *boxes;
+  DRWDebugText2D *texts;
+} DRWDebugBge;
+
+/* End of UPBGE */
+
 static float g_modelmat[4][4];
+thread_local DRWDebugBge *debug_bge = nullptr;
+
+void DRW_start_debug_bge_viewport()
+{
+  debug_bge = MEM_new<DRWDebugBge>("debug_bge");
+}
+
+void DRW_end_debug_bge_viewport()
+{
+  MEM_delete(debug_bge);
+  debug_bge = nullptr;
+}
 
 void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4])
 {
@@ -3072,7 +3115,7 @@ void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[
   mul_v3_m4v3(line->pos[0], g_modelmat, v1);
   mul_v3_m4v3(line->pos[1], g_modelmat, v2);
   copy_v4_v4(line->color, color);
-  BLI_LINKS_PREPEND(drw_get().debug_bge.lines, line);
+  BLI_LINKS_PREPEND(debug_bge->lines, line);
 }
 
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize)
@@ -3082,7 +3125,7 @@ void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, c
   box->yco = yco;
   box->xsize = xsize;
   box->ysize = ysize;
-  BLI_LINKS_PREPEND(drw_get().debug_bge.boxes, box);
+  BLI_LINKS_PREPEND(debug_bge->boxes, box);
 }
 
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
@@ -3091,12 +3134,15 @@ void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
   text->xco = xco;
   text->yco = yco;
   strncpy(text->text, str, 64);
-  BLI_LINKS_PREPEND(drw_get().debug_bge.texts, text);
+  BLI_LINKS_PREPEND(debug_bge->texts, text);
 }
 
 static void drw_debug_draw_lines_bge(void)
 {
-  int count = BLI_linklist_count((LinkNode *)drw_get().debug_bge.lines);
+  if (!debug_bge) {
+    return;
+  }
+  int count = BLI_linklist_count((LinkNode *)debug_bge->lines);
 
   if (count == 0) {
     return;
@@ -3113,17 +3159,17 @@ static void drw_debug_draw_lines_bge(void)
 
   immBegin(GPU_PRIM_LINES, count * 2);
 
-  while (drw_get().debug_bge.lines) {
-    void *next = drw_get().debug_bge.lines->next;
+  while (debug_bge->lines) {
+    void *next = debug_bge->lines->next;
 
-    immAttr4fv(col, drw_get().debug_bge.lines->color);
-    immVertex3fv(pos, drw_get().debug_bge.lines->pos[0]);
+    immAttr4fv(col, debug_bge->lines->color);
+    immVertex3fv(pos, debug_bge->lines->pos[0]);
 
-    immAttr4fv(col, drw_get().debug_bge.lines->color);
-    immVertex3fv(pos, drw_get().debug_bge.lines->pos[1]);
+    immAttr4fv(col, debug_bge->lines->color);
+    immVertex3fv(pos, debug_bge->lines->pos[1]);
 
-    MEM_freeN(drw_get().debug_bge.lines);
-    drw_get().debug_bge.lines = (DRWDebugLine *)next;
+    MEM_freeN(debug_bge->lines);
+    debug_bge->lines = (DRWDebugLine *)next;
   }
   immEnd();
 
@@ -3134,7 +3180,10 @@ static void drw_debug_draw_lines_bge(void)
 
 static void drw_debug_draw_boxes_bge(void)
 {
-  int count = BLI_linklist_count((LinkNode *)drw_get().debug_bge.boxes);
+  if (!debug_bge) {
+    return;
+  }
+  int count = BLI_linklist_count((LinkNode *)debug_bge->boxes);
 
   if (count == 0) {
     return;
@@ -3152,20 +3201,23 @@ static void drw_debug_draw_boxes_bge(void)
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  while (drw_get().debug_bge.boxes) {
-    void *next = drw_get().debug_bge.boxes->next;
-    DRWDebugBox2D *b = drw_get().debug_bge.boxes;
+  while (debug_bge->boxes) {
+    void *next = debug_bge->boxes->next;
+    DRWDebugBox2D *b = debug_bge->boxes;
     immUniformColor4fv(white);
     immRectf(pos, b->xco + 1 + b->xsize, b->yco + b->ysize, b->xco, b->yco);
-    MEM_freeN(drw_get().debug_bge.boxes);
-    drw_get().debug_bge.boxes = (DRWDebugBox2D *)next;
+    MEM_freeN(debug_bge->boxes);
+    debug_bge->boxes = (DRWDebugBox2D *)next;
   }
   immUnbindProgram();
 }
 
 static void drw_debug_draw_text_bge(Scene *scene)
 {
-  int count = BLI_linklist_count((LinkNode *)drw_get().debug_bge.texts);
+  if (!debug_bge) {
+    return;
+  }
+  int count = BLI_linklist_count((LinkNode *)debug_bge->texts);
 
   if (count == 0) {
     return;
@@ -3207,14 +3259,14 @@ static void drw_debug_draw_text_bge(Scene *scene)
   BLF_shadow(blf_mono_font, FontShadowType::Blur3x3, black);
   BLF_shadow_offset(blf_mono_font, 1, 1);
 
-  while (drw_get().debug_bge.texts) {
-    void *next = drw_get().debug_bge.texts->next;
-    DRWDebugText2D *t = drw_get().debug_bge.texts;
+  while (debug_bge->texts) {
+    void *next = debug_bge->texts->next;
+    DRWDebugText2D *t = debug_bge->texts;
     BLF_color4fv(blf_mono_font, white);
     BLF_position(blf_mono_font, t->xco, t->yco, 0.0f);
     BLF_draw(blf_mono_font, t->text, BLF_DRAW_STR_DUMMY_MAX);
-    MEM_freeN(drw_get().debug_bge.texts);
-    drw_get().debug_bge.texts = (DRWDebugText2D *)next;
+    MEM_freeN(debug_bge->texts);
+    debug_bge->texts = (DRWDebugText2D *)next;
   }
   BLF_disable(blf_mono_font, BLF_SHADOW);
 }
@@ -3222,9 +3274,12 @@ static void drw_debug_draw_text_bge(Scene *scene)
 void drw_debug_draw_bge(Scene *scene)
 {
   blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
+
   drw_debug_draw_lines_bge();
   drw_debug_draw_boxes_bge();
   drw_debug_draw_text_bge(scene);
+
+  DRW_end_debug_bge_viewport();
 }
 
 /*--End of UPBGE Viewport Debug Drawing--*/
@@ -3381,9 +3436,26 @@ void DRW_game_render_loop(bContext *C,
   GPU_viewport_unbind(viewport);
 }
 
-void DRW_game_viewport_render_loop_end(Scene *scene)
+void DRW_game_viewport_render_loop_end()
 {
-  drw_debug_draw_bge(scene);
+  while (debug_bge->lines) {
+    void *next = debug_bge->lines->next;
+
+    MEM_freeN(debug_bge->lines);
+    debug_bge->lines = (DRWDebugLine *)next;
+  }
+  while (debug_bge->boxes) {
+    void *next = debug_bge->boxes->next;
+
+    MEM_freeN(debug_bge->boxes);
+    debug_bge->boxes = (DRWDebugBox2D *)next;
+  }
+  while (debug_bge->texts) {
+    void *next = debug_bge->texts->next;
+
+    MEM_freeN(debug_bge->texts);
+    debug_bge->texts = (DRWDebugText2D *)next;
+  }
 }
 
 void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)

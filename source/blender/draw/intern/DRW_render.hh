@@ -291,7 +291,7 @@ void DRW_game_render_loop(struct bContext *C,
                           bool is_overlay_pass);
 
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
-void DRW_game_viewport_render_loop_end(Scene *scene);
+void DRW_game_viewport_render_loop_end();
 void DRW_transform_to_display(struct GPUViewport *viewport,
                               struct GPUTexture *tex,
                               struct View3D *v3d,
@@ -301,6 +301,8 @@ void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 
 
 /* Viewport render debug  */
+void DRW_start_debug_bge_viewport();
+void DRW_end_debug_bge_viewport();
 void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4]);
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize);
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str);

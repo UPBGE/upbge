@@ -60,6 +60,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
                                 RAS_DebugDraw *debugDraw)
 {
   if (KX_GetActiveEngine()->UseViewportRender()) {
+    DRW_start_debug_bge_viewport();
+
     /* Draw Debug lines */
     if (!debugDraw->m_lines.empty()) {
       for (int i = 0; i < debugDraw->m_lines.size(); i++) {

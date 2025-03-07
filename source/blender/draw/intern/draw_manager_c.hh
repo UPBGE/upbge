@@ -65,38 +65,6 @@ struct DRWData {
   void modules_exit();
 };
 
-/* ------------- DRAW DEBUG - UPBGE ------------ */
-
-typedef struct DRWDebugLine {
-  struct DRWDebugLine *next; /* linked list */
-  float pos[2][3];
-  float color[4];
-} DRWDebugLine;
-
-/* UPBGE */
-typedef struct DRWDebugText2D {
-  struct DRWDebugText2D *next; /* linked list */
-  char text[64];
-  float xco;
-  float yco;
-} DRWDebugText2D;
-
-typedef struct DRWDebugBox2D {
-  struct DRWDebugBox2D *next; /* linked list */
-  float xco;
-  float yco;
-  float xsize;
-  float ysize;
-} DRWDebugBox2D;
-
-typedef struct DRWDebugBge {
-  DRWDebugLine *lines;
-  DRWDebugBox2D *boxes;
-  DRWDebugText2D *texts;
-} DRWDebugBge;
-
-/* End of UPBGE */
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -141,9 +109,6 @@ struct DRWContext {
   TaskGraph *task_graph = nullptr;
   /* Contains list of objects that needs to be extracted from other objects. */
   GSet *delayed_extraction = nullptr;
-
-  DRWDebugBge debug_bge;
-
 
   /* Reset all members before drawing in order to avoid undefined state. */
   void prepare_clean_for_draw();
