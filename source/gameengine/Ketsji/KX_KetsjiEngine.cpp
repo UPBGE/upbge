@@ -841,7 +841,7 @@ void KX_KetsjiEngine::Render()
     GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
     GPU_matrix_identity_set();
 
-    DRW_transform_to_display(DRW_game_gpu_viewport_get(),
+    DRW_transform_to_display(m_scenes->GetFront()->GetCurrentGPUViewport(),
                              GPU_framebuffer_color_texture(background_fb->GetFrameBuffer()),
                              CTX_wm_view3d(m_context),
                              CTX_data_scene(m_context),

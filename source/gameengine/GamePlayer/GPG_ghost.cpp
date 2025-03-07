@@ -1737,6 +1737,9 @@ int main(int argc,
             if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
               ED_screens_init(C, G_MAIN, wm);
               wm->init_flag |= WM_INIT_FLAG_WINDOW;
+              /* ED_screen_init can change bContext then we need to restore it again
+               * after... b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
+              InitBlenderContextVariables(C, wm, bfd->curscene);
             }
 
             WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);

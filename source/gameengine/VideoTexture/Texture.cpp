@@ -441,7 +441,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
       }
 
       /* Add a depsgraph notifier to trigger
-       * DRW_notify_view_update on next draw loop
+       * an update on next draw loop (depsgraph_last_update_ != DEG_get_update_count(depsgraph))
        * for some VideoTexture types (types which have a
        * "refresh" method), because the depsgraph has not been warned yet. */
       bool needs_notifier = m_source && (

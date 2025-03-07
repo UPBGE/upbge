@@ -283,6 +283,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
          */
         RefreshContextAndScreen(C, wm, win, bfd->curscene);
 
+        /* ED_screen_init can change bContext then we need to restore it again after...
+         * b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
+        InitBlenderContextVariables(C, wm, bfd->curscene);
+
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->filepath, sizeof(pathname));
           // Change G_MAIN path to ensure loading of data using relative paths.
@@ -396,20 +400,20 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     G_MAIN = G.main = maggie1;
     CTX_data_main_set(C, maggie1);
     CTX_wm_manager_set(C, wm_backup);
-    CTX_wm_window_set(C, win_backup);
     win_backup->ghostwin = ghostwin_backup;
     win_backup->gpuctx = gpuctx_backup;
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
   }
-  else {
-    CTX_wm_window_set(C,
-                      win_backup);  // Fix for crash at exit when we have preferences window open
-  }
+  CTX_wm_window_set(C, win_backup);  // Fix for crash at exit when we have preferences window open
 
   RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
 
   /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
   ED_screens_init(C,maggie1, wm_backup);
+
+  /* ED_screen_init can change bContext then we need to restore it again after...
+   * b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
+  InitBlenderContextVariables(C, wm_backup, startscene);
 
   /* Restore shading type we had before game start */
   CTX_wm_view3d(C)->shading.type = shadingTypeBackup;

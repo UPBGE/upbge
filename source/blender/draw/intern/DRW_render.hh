@@ -288,10 +288,8 @@ void DRW_game_render_loop(struct bContext *C,
                           struct GPUViewport *viewport,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
-                          bool is_overlay_pass,
-                          bool called_from_constructor);
+                          bool is_overlay_pass);
 
-void DRW_game_render_loop_end(void);
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
 void DRW_game_viewport_render_loop_end(Scene *scene);
 void DRW_transform_to_display(struct GPUViewport *viewport,
@@ -300,8 +298,6 @@ void DRW_transform_to_display(struct GPUViewport *viewport,
                               struct Scene *scene,
                               struct rcti *rect);
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
-void DRW_game_gpu_viewport_set(struct GPUViewport *viewport);
-struct GPUViewport *DRW_game_gpu_viewport_get(void);
 
 
 /* Viewport render debug  */

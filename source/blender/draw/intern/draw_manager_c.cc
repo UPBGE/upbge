@@ -1200,15 +1200,6 @@ static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 
 /* -------------------------------------------------------------------- */
 
-  /* UPBGE */
-  if (scene->flag & SCE_INTERACTIVE) {
-    /* Hack to allow bge to use depsgraph to detect
-     * all scene changes and notify drw_engine for redraw. */
-    viewport = DRW_game_gpu_viewport_get();
-  }
-  /* End of UPBGE */
-
-
 /** \name Callbacks
  * \{ */
 
@@ -1259,7 +1250,7 @@ void DRW_draw_callbacks_post_scene()
     drw_debug_draw();
 
     /* UPBGE */
-    drw_debug_draw_bge(DST.draw_ctx.scene);
+    drw_debug_draw_bge(drw_get().draw_ctx.scene);
     GPU_matrix_projection_set(rv3d->winmat);
     GPU_matrix_set(rv3d->viewmat);
     /**************************/
@@ -1486,7 +1477,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
         }
 
         /* UPBGE */
-        update_lods(depsgraph, ob, DST.draw_ctx.rv3d->viewinv[3]);
+        update_lods(depsgraph, ob, drw_get().draw_ctx.rv3d->viewinv[3]);
         /* End of UPBGE */
 
         blender::draw::ObjectRef ob_ref(data_, ob);
@@ -3081,7 +3072,7 @@ void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[
   mul_v3_m4v3(line->pos[0], g_modelmat, v1);
   mul_v3_m4v3(line->pos[1], g_modelmat, v2);
   copy_v4_v4(line->color, color);
-  BLI_LINKS_PREPEND(DST.debug_bge.lines, line);
+  BLI_LINKS_PREPEND(drw_get().debug_bge.lines, line);
 }
 
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize)
@@ -3091,7 +3082,7 @@ void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, c
   box->yco = yco;
   box->xsize = xsize;
   box->ysize = ysize;
-  BLI_LINKS_PREPEND(DST.debug_bge.boxes, box);
+  BLI_LINKS_PREPEND(drw_get().debug_bge.boxes, box);
 }
 
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
@@ -3100,12 +3091,12 @@ void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
   text->xco = xco;
   text->yco = yco;
   strncpy(text->text, str, 64);
-  BLI_LINKS_PREPEND(DST.debug_bge.texts, text);
+  BLI_LINKS_PREPEND(drw_get().debug_bge.texts, text);
 }
 
 static void drw_debug_draw_lines_bge(void)
 {
-  int count = BLI_linklist_count((LinkNode *)DST.debug_bge.lines);
+  int count = BLI_linklist_count((LinkNode *)drw_get().debug_bge.lines);
 
   if (count == 0) {
     return;
@@ -3122,17 +3113,17 @@ static void drw_debug_draw_lines_bge(void)
 
   immBegin(GPU_PRIM_LINES, count * 2);
 
-  while (DST.debug_bge.lines) {
-    void *next = DST.debug_bge.lines->next;
+  while (drw_get().debug_bge.lines) {
+    void *next = drw_get().debug_bge.lines->next;
 
-    immAttr4fv(col, DST.debug_bge.lines->color);
-    immVertex3fv(pos, DST.debug_bge.lines->pos[0]);
+    immAttr4fv(col, drw_get().debug_bge.lines->color);
+    immVertex3fv(pos, drw_get().debug_bge.lines->pos[0]);
 
-    immAttr4fv(col, DST.debug_bge.lines->color);
-    immVertex3fv(pos, DST.debug_bge.lines->pos[1]);
+    immAttr4fv(col, drw_get().debug_bge.lines->color);
+    immVertex3fv(pos, drw_get().debug_bge.lines->pos[1]);
 
-    MEM_freeN(DST.debug_bge.lines);
-    DST.debug_bge.lines = (DRWDebugLine *)next;
+    MEM_freeN(drw_get().debug_bge.lines);
+    drw_get().debug_bge.lines = (DRWDebugLine *)next;
   }
   immEnd();
 
@@ -3143,7 +3134,7 @@ static void drw_debug_draw_lines_bge(void)
 
 static void drw_debug_draw_boxes_bge(void)
 {
-  int count = BLI_linklist_count((LinkNode *)DST.debug_bge.boxes);
+  int count = BLI_linklist_count((LinkNode *)drw_get().debug_bge.boxes);
 
   if (count == 0) {
     return;
@@ -3161,20 +3152,20 @@ static void drw_debug_draw_boxes_bge(void)
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  while (DST.debug_bge.boxes) {
-    void *next = DST.debug_bge.boxes->next;
-    DRWDebugBox2D *b = DST.debug_bge.boxes;
+  while (drw_get().debug_bge.boxes) {
+    void *next = drw_get().debug_bge.boxes->next;
+    DRWDebugBox2D *b = drw_get().debug_bge.boxes;
     immUniformColor4fv(white);
     immRectf(pos, b->xco + 1 + b->xsize, b->yco + b->ysize, b->xco, b->yco);
-    MEM_freeN(DST.debug_bge.boxes);
-    DST.debug_bge.boxes = (DRWDebugBox2D *)next;
+    MEM_freeN(drw_get().debug_bge.boxes);
+    drw_get().debug_bge.boxes = (DRWDebugBox2D *)next;
   }
   immUnbindProgram();
 }
 
 static void drw_debug_draw_text_bge(Scene *scene)
 {
-  int count = BLI_linklist_count((LinkNode *)DST.debug_bge.texts);
+  int count = BLI_linklist_count((LinkNode *)drw_get().debug_bge.texts);
 
   if (count == 0) {
     return;
@@ -3216,14 +3207,14 @@ static void drw_debug_draw_text_bge(Scene *scene)
   BLF_shadow(blf_mono_font, FontShadowType::Blur3x3, black);
   BLF_shadow_offset(blf_mono_font, 1, 1);
 
-  while (DST.debug_bge.texts) {
-    void *next = DST.debug_bge.texts->next;
-    DRWDebugText2D *t = DST.debug_bge.texts;
+  while (drw_get().debug_bge.texts) {
+    void *next = drw_get().debug_bge.texts->next;
+    DRWDebugText2D *t = drw_get().debug_bge.texts;
     BLF_color4fv(blf_mono_font, white);
     BLF_position(blf_mono_font, t->xco, t->yco, 0.0f);
     BLF_draw(blf_mono_font, t->text, BLF_DRAW_STR_DUMMY_MAX);
-    MEM_freeN(DST.debug_bge.texts);
-    DST.debug_bge.texts = (DRWDebugText2D *)next;
+    MEM_freeN(drw_get().debug_bge.texts);
+    drw_get().debug_bge.texts = (DRWDebugText2D *)next;
   }
   BLF_disable(blf_mono_font, BLF_SHADOW);
 }
@@ -3242,12 +3233,9 @@ void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Depsgraph *depsgraph,
                           const rcti *window,
-                          bool is_overlay_pass,
-                          bool called_from_constructor)
+                          bool is_overlay_pass)
 {
   using namespace blender::draw;
-  /* Reset before using it. */
-  DST.prepare_clean_for_draw();
 
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
@@ -3263,6 +3251,10 @@ void DRW_game_render_loop(bContext *C,
   /* Resize viewport if needed and set active view */
   GPU_viewport_bind(viewport, 0, window);
 
+  g_context->state_ensure_not_reused();
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
+
   drw_get().draw_ctx = {};
   drw_get().draw_ctx.region = ar;
   drw_get().draw_ctx.rv3d = rv3d;
@@ -3276,7 +3268,7 @@ void DRW_game_render_loop(bContext *C,
   /* reuse if caller sets */
   drw_get().draw_ctx.evil_C = C;
 
-  DST.options.draw_background = ((scene->r.alphamode == R_ADDSKY) ||
+  drw_get().options.draw_background = ((scene->r.alphamode == R_ADDSKY) ||
                                  (v3d->shading.type != OB_RENDER)) &&
                                 !is_overlay_pass;
 
@@ -3284,7 +3276,7 @@ void DRW_game_render_loop(bContext *C,
   drw_context_state_init();
 
   /* No need to pass size as argument since it is set in GPU_viewport_bind above */
-  drw_manager_init(&DST, viewport, NULL);
+  drw_manager_init(g_context, viewport, nullptr);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
@@ -3306,7 +3298,7 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_init();
 
   drw_engines_cache_init();
-  drw_engines_world_update(DST.draw_ctx.scene);
+  drw_engines_world_update(scene);
 
   DupliCacheManager dupli_handler;
 
@@ -3384,16 +3376,9 @@ void DRW_game_render_loop(bContext *C,
 
   drw_engines_disable();
 
-  if (!called_from_constructor) {
-    drw_manager_exit(&DST);
-  }
+  drw_manager_exit(&draw_ctx);
 
-  GPU_viewport_unbind(DST.viewport);
-}
-
-void DRW_game_render_loop_end()
-{
-  GPU_viewport_free(DRW_game_gpu_viewport_get());
+  GPU_viewport_unbind(viewport);
 }
 
 void DRW_game_viewport_render_loop_end(Scene *scene)
@@ -3410,7 +3395,7 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
    */
   // GPU_viewport_free(DST.viewport);
 
-  DST.prepare_clean_for_draw();
+  drw_get().prepare_clean_for_draw();
 
   /*use_drw_engine(&draw_engine_eevee_type);
 
@@ -3563,18 +3548,6 @@ void DRW_transform_to_display(GPUViewport *viewport,
   if (use_ocio) {
     IMB_colormanagement_finish_glsl_draw();
   }
-}
-
-static GPUViewport *current_game_viewport = NULL;
-
-void DRW_game_gpu_viewport_set(GPUViewport *viewport)
-{
-  current_game_viewport = viewport;
-}
-
-GPUViewport *DRW_game_gpu_viewport_get()
-{
-  return current_game_viewport;
 }
 
 bool is_eevee_next(const Scene *scene)

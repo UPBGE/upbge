@@ -337,13 +337,13 @@ KX_Scene::~KX_Scene()
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
-      /* This will free m_gpuViewport and m_gpuOffScreen */
-      DRW_game_render_loop_end();
+      /* This will free m_currentGPUViewport */
+      GPU_viewport_free(m_currentGPUViewport);
     }
     else {
       /* If we are in python loop and we called render code */
       if (!m_initMaterialsGPUViewport) {
-        DRW_game_render_loop_end();
+        GPU_viewport_free(m_currentGPUViewport);
       }
       else {
         /* It has not been freed before because the main Render loop
@@ -353,7 +353,6 @@ KX_Scene::~KX_Scene()
         //DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
-    DRW_game_gpu_viewport_set(nullptr);
   }
   else {
     // Free the allocated profile a last time
@@ -627,13 +626,6 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
-
-  /* We set a GPUViewport as soon as possible
-   * to be able to call DRW_notify_view_update.
-   * The GPUViewport set doesn't really matter
-   * (as far I understood) but we need to have
-   * one set when we use custom bge render loop. */
-  DRW_game_gpu_viewport_set(viewport);
 }
 
 GPUViewport *KX_Scene::GetCurrentGPUViewport()
@@ -713,7 +705,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     bool calledFromConstructor = cam == nullptr;
     if (calledFromConstructor) {
       m_currentGPUViewport = GPU_viewport_create();
-      DRW_game_gpu_viewport_set(m_currentGPUViewport);
       SetInitMaterialsGPUViewport(m_currentGPUViewport);
     }
     else {
@@ -867,7 +858,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     }
     /* Draw custom viewport render loop into its own GPUViewport */
     DRW_game_render_loop(
-        C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
+        C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -931,7 +922,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const rcti *win
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_SceneConverter *sc_converter)
