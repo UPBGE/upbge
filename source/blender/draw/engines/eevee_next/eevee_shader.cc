@@ -100,7 +100,7 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
     return true;
   }
 
-  std::lock_guard lock = get_static_cache().lock_guard();
+  std::lock_guard lock(mutex_);
 
   if (compilation_handle_) {
     if (GPU_shader_batch_is_ready(compilation_handle_) || block_until_ready) {
@@ -125,7 +125,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 
   BLI_assert(static_shaders_are_ready(false));
 
-  std::lock_guard lock = get_static_cache().lock_guard();
+  std::lock_guard lock(mutex_);
 
   SpecializationBatchHandle specialization_handle = specialization_handles_.lookup_or_add_cb(
       {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
@@ -789,7 +789,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         frag_gen << "ob_scale.x = length(drw_modelmat()[0].xyz);\n";
         frag_gen << "ob_scale.y = length(drw_modelmat()[1].xyz);\n";
         frag_gen << "ob_scale.z = length(drw_modelmat()[2].xyz);\n";
-        frag_gen << "vec3 ls_dimensions = safe_rcp(abs(OrcoTexCoFactors[1].xyz));\n";
+        frag_gen << "vec3 ls_dimensions = safe_rcp(abs(drw_object_infos().orco_mul.xyz));\n";
         frag_gen << "vec3 ws_dimensions = ob_scale * ls_dimensions;\n";
         /* Choose the minimum axis so that cuboids are better represented. */
         frag_gen << "return reduce_min(ws_dimensions);\n";

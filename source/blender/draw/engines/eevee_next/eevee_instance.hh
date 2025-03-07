@@ -193,8 +193,6 @@ class Instance {
             const View3D *v3d = nullptr,
             const RegionView3D *rv3d = nullptr);
 
-  void view_update();
-
   void begin_sync();
   void object_sync(ObjectRef &ob_ref);
   void end_sync();
@@ -265,12 +263,14 @@ class Instance {
 
   bool is_image_render() const
   {
-    return DRW_state_is_image_render();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_image_render();
   }
 
   bool is_viewport_image_render() const
   {
-    return DRW_state_is_viewport_image_render();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_viewport_image_render();
   }
 
   bool is_baking() const
@@ -291,7 +291,8 @@ class Instance {
 
   bool is_playback() const
   {
-    return DRW_state_is_playback();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_playback();
   }
 
   bool is_transforming() const
@@ -302,12 +303,20 @@ class Instance {
 
   bool is_navigating() const
   {
-    return DRW_state_is_navigating();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_navigating();
   }
 
   bool is_painting() const
   {
-    return DRW_state_is_painting();
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_is_painting();
+  }
+
+  bool do_display_support() const
+  {
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
+    return !is_light_bake && DRW_state_draw_support();
   }
 
   bool use_scene_lights() const

@@ -41,22 +41,6 @@ struct GPUMaterial;
 struct GSet;
 
 /* -------------------------------------------------------------------- */
-/** \name Data Structure
- *
- * Data structure to for registered draw engines that can store draw manager
- * specific data.
- * \{ */
-
-typedef struct DRWRegisteredDrawEngine {
-  void /*DRWRegisteredDrawEngine*/ *next, *prev;
-  DrawEngineType *draw_engine;
-  /** Index of the type in the lists. Index is used for dupli data. */
-  int index;
-} DRWRegisteredDrawEngine;
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Memory Pools
  * \{ */
 
@@ -160,8 +144,6 @@ struct DRWContext {
 
   DRWDebugBge debug_bge;
 
-  /* Contains debug drawcall infos. Persistent across usage. */
-  DRWDebugModule *debug = nullptr;
 
   /* Reset all members before drawing in order to avoid undefined state. */
   void prepare_clean_for_draw();

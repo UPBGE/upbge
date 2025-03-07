@@ -415,6 +415,12 @@ static bool ed_object_hidden(const Object *ob)
   return ((ob->visibility_flag & OB_HIDE_VIEWPORT) && !(ob->mode & OB_MODE_EDIT));
 }
 
+bool ED_operator_object_active_only(bContext *C)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+  return (ob != nullptr);
+}
+
 bool ED_operator_object_active(bContext *C)
 {
   Object *ob = blender::ed::object::context_active_object(C);
@@ -5392,7 +5398,7 @@ static void screen_animation_region_tag_redraw(
 
     if (area->spacetype == SPACE_SEQ) {
       const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
-      if (!ED_space_sequencer_has_playback_animation(sseq, scene)) {
+      if (!blender::ed::vse::has_playback_animation(sseq, scene)) {
         return;
       }
     }

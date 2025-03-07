@@ -28,7 +28,6 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
-#include "BKE_sequencer_offscreen.h"
 
 #include "GPU_state.hh"
 
@@ -44,6 +43,7 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
+#include "SEQ_offscreen.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -61,6 +61,8 @@
 /* Own include. */
 #include "sequencer_intern.hh"
 
+namespace blender::ed::vse {
+
 /**************************** common state *****************************/
 
 static void sequencer_scopes_tag_refresh(ScrArea *area)
@@ -69,7 +71,7 @@ static void sequencer_scopes_tag_refresh(ScrArea *area)
   sseq->runtime->scopes.reference_ibuf = nullptr;
 }
 
-blender::ed::seq::SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
+SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
 /* ******************** manage regions ********************* */
 
@@ -184,7 +186,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region->v2d.min[1] = 1.0f;
 
   region->v2d.max[0] = MAXFRAMEF;
-  region->v2d.max[1] = SEQ_MAX_CHANNELS;
+  region->v2d.max[1] = seq::MAX_CHANNELS;
 
   region->v2d.minzoom = 0.01f;
   region->v2d.maxzoom = 100.0f;
@@ -335,7 +337,7 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "edit_mask")) {
-    Mask *mask = SEQ_active_mask_get(scene);
+    Mask *mask = seq::active_mask_get(scene);
     if (mask) {
       CTX_data_id_pointer_set(result, &mask->id);
     }
@@ -484,10 +486,10 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
 
   rctf strip_boundbox;
   /* Initialize default view with 7 channels, that are visible even if empty. */
-  SEQ_timeline_init_boundbox(scene, &strip_boundbox);
-  Editing *ed = SEQ_editing_get(scene);
+  seq::timeline_init_boundbox(scene, &strip_boundbox);
+  Editing *ed = seq::editing_get(scene);
   if (ed != nullptr) {
-    SEQ_timeline_expand_boundbox(scene, ed->seqbasep, &strip_boundbox);
+    seq::timeline_expand_boundbox(scene, ed->seqbasep, &strip_boundbox);
   }
   /* We need to calculate how much the current view is padded and add this padding to our
    * strip bounding box. Without this, the scrub-bar or other overlays would occlude the
@@ -647,7 +649,7 @@ static bool is_mouse_over_retiming_key(const Scene *scene,
 {
   const SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
 
-  if (!SEQ_retiming_data_is_editable(strip) || !retiming_keys_can_be_displayed(sseq)) {
+  if (!seq::retiming_data_is_editable(strip) || !retiming_keys_can_be_displayed(sseq)) {
     return false;
   }
 
@@ -690,15 +692,14 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
 
   const Scene *scene = win->scene;
-  const Editing *ed = SEQ_editing_get(scene);
+  const Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
-  StripSelection selection = ED_sequencer_pick_strip_and_handle(
-      scene, &region->v2d, mouse_co_view);
+  StripSelection selection = pick_strip_and_handle(scene, &region->v2d, mouse_co_view);
 
   if (selection.seq1 == nullptr) {
     WM_cursor_set(win, wmcursor);
@@ -710,7 +711,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  if (!ED_sequencer_can_select_handle(scene, selection.seq1, v2d)) {
+  if (!can_select_handle(scene, selection.seq1, v2d)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -963,7 +964,7 @@ static void sequencer_preview_region_draw(const bContext *C, ARegion *region)
     GPU_depth_mask(false);
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    const blender::float2 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+    const blender::float2 cursor_pixel = seq::image_preview_unit_to_px(scene, sseq->cursor);
     draw_cursor_2d(region, cursor_pixel);
   }
 
@@ -1284,7 +1285,8 @@ void ED_spacetype_sequencer()
 
   /* Set the sequencer callback when not in background mode. */
   if (G.background == 0) {
-    sequencer_view3d_fn = reinterpret_cast<SequencerDrawView>(
-        ED_view3d_draw_offscreen_imbuf_simple);
+    seq::view3d_fn = reinterpret_cast<seq::DrawViewFn>(ED_view3d_draw_offscreen_imbuf_simple);
   }
 }
+
+}  // namespace blender::ed::vse

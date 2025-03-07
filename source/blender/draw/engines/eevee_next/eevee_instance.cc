@@ -33,6 +33,7 @@
 #include "DNA_particle_types.h"
 
 #include "draw_common.hh"
+#include "draw_manager_c.hh"
 #include "draw_view_data.hh"
 
 namespace blender::eevee {
@@ -81,6 +82,10 @@ void Instance::init(const int2 &output_res,
   }
 
   if (is_viewport()) {
+    /* Note: Do not update the value here as we use it during sync for checking ID updates. */
+    if (depsgraph_last_update_ != DEG_get_update_count(depsgraph)) {
+      sampling.reset();
+    }
     if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
       sampling.reset();
     }
@@ -188,13 +193,6 @@ void Instance::update_eval_members()
   camera_eval_object = (camera_orig_object) ?
                            DEG_get_evaluated_object(depsgraph, camera_orig_object) :
                            nullptr;
-}
-
-void Instance::view_update()
-{
-  if (is_viewport()) {
-    sampling.reset();
-  }
 }
 
 /** \} */
@@ -710,11 +708,13 @@ void Instance::light_bake_irradiance(
 {
   BLI_assert(is_baking());
 
+  DRWContext draw_ctx;
+
   auto custom_pipeline_wrapper = [&](FunctionRef<void()> callback) {
     context_enable();
-    DRW_custom_pipeline_begin(&draw_engine_eevee_next_type, depsgraph);
+    DRW_custom_pipeline_begin(draw_ctx, &draw_engine_eevee_next_type, depsgraph);
     callback();
-    DRW_custom_pipeline_end();
+    DRW_custom_pipeline_end(draw_ctx);
     context_disable();
   };
 

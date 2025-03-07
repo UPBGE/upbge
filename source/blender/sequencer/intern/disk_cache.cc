@@ -54,6 +54,8 @@
  * is used as UID. Blend file can still be copied manually which may cause conflict.
  */
 
+namespace blender::seq {
+
 /* Format string:
  * `<cache type>-<resolution X>x<resolution Y>-<rendersize>%(<view_id>)-<frame no>.dcf`. */
 #define DCACHE_FNAME_FORMAT "%d-%dx%d-%d%%(%d)-%d.dcf"
@@ -406,8 +408,8 @@ void seq_disk_cache_invalidate(SeqDiskCache *disk_cache,
 
   BLI_mutex_lock(&disk_cache->read_write_mutex);
 
-  start = SEQ_time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
-  end = SEQ_time_right_handle_frame_get(scene, strip_changed);
+  start = time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
+  end = time_right_handle_frame_get(scene, strip_changed);
 
   seq_disk_cache_delete_invalid_files(disk_cache, scene, strip, invalidate_types, start, end);
 
@@ -684,3 +686,5 @@ void seq_disk_cache_free(SeqDiskCache *disk_cache)
   BLI_mutex_end(&disk_cache->read_write_mutex);
   MEM_freeN(disk_cache);
 }
+
+}  // namespace blender::seq

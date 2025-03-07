@@ -2705,15 +2705,19 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       }
     }
 
+    /* NOTE: redundant calculation could be avoided if the EDBM API could skip calculation. */
+    bool calc_normals = false;
+
     /* apply mirror */
     if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
       EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
       EDBM_verts_mirror_cache_end(em);
+      calc_normals = true;
     }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
-    params.calc_normals = false;
+    params.calc_normals = calc_normals;
     params.is_destructive = false;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
@@ -2823,15 +2827,19 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    /* NOTE: redundant calculation could be avoided if the EDBM API could skip calculation. */
+    bool calc_normals = false;
+
     /* Apply mirror. */
     if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
       EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
       EDBM_verts_mirror_cache_end(em);
+      calc_normals = true;
     }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
-    params.calc_normals = false;
+    params.calc_normals = calc_normals;
     params.is_destructive = false;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
@@ -4866,7 +4874,7 @@ static void edbm_fill_grid_split_join_finish(BMEditMesh *em,
   }
   BMO_op_finish(em->bm, &split_join->delete_op);
 
-  /* If fill_grid created geometry from faces after those faces had been been split
+  /* If fill_grid created geometry from faces after those faces had been split
    * from the rest of the mesh, the geometry it generated will be inward-facing.
    * (using the fill_grid on an island instead of a hole is 'inside out'.) Fix it.
    * This is the same as #edbm_flip_normals_face_winding without the #EDBM_update

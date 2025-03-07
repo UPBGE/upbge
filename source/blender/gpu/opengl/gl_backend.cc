@@ -501,16 +501,14 @@ static void detect_workarounds()
     GLContext::multi_bind_image_support = false;
   }
 
-  /* #134509 Intel ARC GPU have a driver bug that break the display of batched nodelinks.
+  /* #134509 Intel ARC GPU have a driver bug that break the display of batched node-links.
    * Disabling batching fixes the issue. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    if (strstr(renderer, "Arc")) {
-      GCaps.node_link_instancing_workaround = true;
-    }
+    GCaps.node_link_instancing_workaround = true;
   }
 
-  /* Multi viewport creates small triangle discard on RDNA2 GPUs with official drivers.
-   * Using geometry shader workaround fixes the issue. */
+  /* Fix #123787: Multi viewport creates small triangle discard on RDNA2 GPUs with official
+   * drivers. Using geometry shader workaround fixes the issue. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
     if (strstr(renderer, "RX 6300") || strstr(renderer, "RX 6400") ||
         strstr(renderer, "RX 6450") || strstr(renderer, "RX 6500") ||

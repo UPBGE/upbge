@@ -167,7 +167,6 @@ set(SRC
   intern/draw_common_shader_shared.hh
   intern/draw_curves_private.hh
   intern/draw_debug.hh
-  intern/draw_debug_c.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
   intern/draw_manager.hh
@@ -180,12 +179,12 @@ set(SRC
   intern/draw_shader.hh
   intern/draw_shader_shared.hh
   intern/draw_state.hh
+  intern/draw_subdiv_defines.hh
+  intern/draw_subdiv_shader_shared.hh
   intern/draw_subdivision.hh
   intern/draw_view.hh
   intern/draw_view_c.hh
   intern/draw_view_data.hh
-  intern/draw_subdiv_defines.hh
-  intern/draw_subdiv_shader_shared.hh
   intern/mesh_extractors/extract_mesh.hh
   engines/compositor/compositor_engine.h
   engines/eevee_next/eevee_ambient_occlusion.hh
@@ -564,6 +563,7 @@ set(GLSL_SRC
   intern/shaders/draw_intersect_lib.glsl
   intern/shaders/draw_math_geom_lib.glsl
   intern/shaders/draw_model_lib.glsl
+  intern/shaders/draw_object_infos_lib.glsl
   intern/shaders/draw_pointcloud_lib.glsl
   intern/shaders/draw_resource_finalize_comp.glsl
   intern/shaders/draw_view_clipping_lib.glsl
