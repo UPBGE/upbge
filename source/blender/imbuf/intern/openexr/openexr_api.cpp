@@ -125,6 +125,19 @@ class IMemStream : public Imf::IStream {
       return true;
     }
 
+    /* OpenEXR requests chunks of 4096 bytes even if the file is smaller than that. Return
+     * zeros when reading up to 2x that amount past the end of the file.
+     * This was fixed after the OpenEXR 3.3.2 release, but not in an official release yet. */
+    if (n + _exrpos < _exrsize + 8192) {
+      const size_t remainder = _exrsize - _exrpos;
+      if (remainder > 0) {
+        memcpy(c, (void *)(&_exrbuf[_exrpos]), remainder);
+        memset(c + remainder, 0, n - remainder);
+        _exrpos += n;
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -503,8 +516,8 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
     OutputFile file(*file_stream, header);
 
     /* we store first everything in half array */
-    std::vector<RGBAZ> pixels(height * width);
-    RGBAZ *to = pixels.data();
+    std::unique_ptr<RGBAZ[]> pixels = std::unique_ptr<RGBAZ[]>(new RGBAZ[int64_t(height) * width]);
+    RGBAZ *to = pixels.get();
     int xstride = sizeof(RGBAZ);
     int ystride = xstride * width;
 
@@ -519,7 +532,7 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
       float *from;
 
       for (int i = ibuf->y - 1; i >= 0; i--) {
-        from = ibuf->float_buffer.data + channels * i * width;
+        from = ibuf->float_buffer.data + int64_t(channels) * i * width;
 
         for (int j = ibuf->x; j > 0; j--) {
           to->r = float_to_half_safe(from[0]);
@@ -535,7 +548,7 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
       uchar *from;
 
       for (int i = ibuf->y - 1; i >= 0; i--) {
-        from = ibuf->byte_buffer.data + 4 * i * width;
+        from = ibuf->byte_buffer.data + int64_t(4) * i * width;
 
         for (int j = ibuf->x; j > 0; j--) {
           to->r = srgb_to_linearrgb(float(from[0]) / 255.0f);
@@ -609,7 +622,7 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int 
 
     /* Last scan-line, stride negative. */
     float *rect[4] = {nullptr, nullptr, nullptr, nullptr};
-    rect[0] = ibuf->float_buffer.data + channels * (height - 1) * width;
+    rect[0] = ibuf->float_buffer.data + int64_t(channels) * (height - 1) * width;
     rect[1] = (channels >= 2) ? rect[0] + 1 : rect[0];
     rect[2] = (channels >= 3) ? rect[0] + 2 : rect[0];
     rect[3] = (channels >= 4) ?

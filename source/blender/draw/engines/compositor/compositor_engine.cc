@@ -250,6 +250,8 @@ static void compositor_engine_draw(void *data)
 {
   COMPOSITOR_Data *compositor_data = static_cast<COMPOSITOR_Data *>(data);
 
+  DRW_submission_start();
+
 #if defined(__APPLE__)
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
     /* NOTE(Metal): Isolate Compositor compute work in individual command buffer to improve
@@ -275,6 +277,7 @@ static void compositor_engine_draw(void *data)
     GPU_finish();
   }
 #endif
+  DRW_submission_end();
 }
 
 DrawEngineType draw_engine_compositor_type = {

@@ -176,7 +176,6 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->ime_data_is_composing = false;
 #endif
 
-    BLI_listbase_clear(&win->event_queue);
     BLI_listbase_clear(&win->handlers);
     BLI_listbase_clear(&win->modalhandlers);
     BLI_listbase_clear(&win->gesture);
@@ -200,6 +199,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     if (win->stereo3d_format) {
       win->stereo3d_format->display_mode = S3D_DISPLAY_ANAGLYPH;
     }
+    win->runtime = MEM_new<blender::bke::WindowRuntime>(__func__);
   }
 
   direct_link_wm_xr_data(reader, &wm->xr);
@@ -207,9 +207,6 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   BLI_listbase_clear(&wm->timers);
   BLI_listbase_clear(&wm->operators);
   BLI_listbase_clear(&wm->paintcursors);
-  BLI_listbase_clear(&wm->notifier_queue);
-  wm->notifier_queue_set = nullptr;
-  wm->notifier_current = nullptr;
 
   BLI_listbase_clear(&wm->keyconfigs);
   wm->defaultconf = nullptr;
@@ -585,14 +582,6 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
   while (wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(BLI_pophead(&wm->keyconfigs))) {
     WM_keyconfig_free(keyconf);
   }
-
-  BLI_freelistN(&wm->notifier_queue);
-  if (wm->notifier_queue_set) {
-    BLI_gset_free(wm->notifier_queue_set, nullptr);
-    wm->notifier_queue_set = nullptr;
-  }
-  BLI_assert(wm->notifier_current == nullptr);
-  wm->notifier_current = nullptr;
 
   if (wm->message_bus != nullptr) {
     WM_msgbus_destroy(wm->message_bus);

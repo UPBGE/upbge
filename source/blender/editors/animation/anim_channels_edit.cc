@@ -3430,7 +3430,7 @@ static int animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
     ID *id = ale->id;
     AnimData *adt = static_cast<AnimData *>(ale->data);
 
-    bool action_empty = false;
+    bool action_empty;
     bool nla_empty = false;
     bool drivers_empty = false;
 
@@ -3440,12 +3440,17 @@ static int animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
     /* check if this is "empty" and can be deleted */
     /* (For now, there are only these 3 criteria) */
 
-    /* 1) Active Action is missing or empty */
-    if (ELEM(nullptr, adt->action, adt->action->curves.first)) {
-      action_empty = true;
+    /* 1) Assigned Action is empty, at least when it comes to this data-block. */
+    if (adt->action) {
+      using namespace blender::animrig;
+      const Action &action = adt->action->wrap();
+      /* This should not be using action.is_empty(), as this operator is not about cleaning up the
+       * Action itself, but rather disassociating it from the animated ID when that ID is not being
+       * animated by it. */
+      action_empty = fcurves_for_action_slot(action, adt->slot_handle).is_empty();
     }
     else {
-      /* TODO: check for keyframe + F-modifier data on these too. */
+      action_empty = true;
     }
 
     /* 2) No NLA Tracks and/or NLA Strips */
@@ -4994,7 +4999,7 @@ static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    WM_report(RPT_WARNING, "No channels to operate on");
+    WM_global_report(RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5023,7 +5028,7 @@ static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
 
   if (!valid_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    WM_report(RPT_WARNING, "No keyframes to focus on");
+    WM_global_report(RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5112,7 +5117,7 @@ static int graphkeys_channel_view_pick_invoke(bContext *C, wmOperator *op, const
 
   if (!found_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    WM_report(RPT_WARNING, "No keyframes to focus on");
+    WM_global_report(RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5181,7 +5186,7 @@ static int channels_bake_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    WM_report(RPT_WARNING, "No channels to operate on");
+    WM_global_report(RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5340,7 +5345,7 @@ static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op
   size_t anim_data_length = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   if (anim_data_length == 0) {
-    WM_report(RPT_WARNING, "No channels to operate on");
+    WM_global_report(RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5356,7 +5361,7 @@ static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op
   ANIM_animdata_freelist(&anim_data);
 
   if (slots.size() == 0) {
-    WM_report(RPT_WARNING, "None of the selected channels is an Action Slot");
+    WM_global_report(RPT_WARNING, "None of the selected channels is an Action Slot");
     return OPERATOR_CANCELLED;
   }
 
@@ -5708,7 +5713,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
   if (!context_find_graph_editor(
           C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
   {
-    WM_report(RPT_WARNING, "No open Graph Editor window found");
+    WM_global_report(RPT_WARNING, "No open Graph Editor window found");
     retval = OPERATOR_CANCELLED;
   }
   else {
@@ -5723,7 +5728,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
     bAnimContext ac;
     if (!ANIM_animdata_get_context(C, &ac)) {
       /* This might never be called since we are manually setting the Graph Editor just before. */
-      WM_report(RPT_ERROR, "Cannot create the Animation Context");
+      WM_global_report(RPT_ERROR, "Cannot create the Animation Context");
       retval = OPERATOR_CANCELLED;
     }
     else {
@@ -5763,11 +5768,12 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
       }
 
       if (filtered_fcurve_count > 0) {
-        WM_report(RPT_WARNING, "One or more F-Curves are not visible due to filter settings");
+        WM_global_report(RPT_WARNING,
+                         "One or more F-Curves are not visible due to filter settings");
       }
 
       if (!BLI_rctf_is_valid(&bounds)) {
-        WM_report(RPT_ERROR, "F-Curves have no valid size");
+        WM_global_report(RPT_ERROR, "F-Curves have no valid size");
         retval = OPERATOR_CANCELLED;
       }
       else {

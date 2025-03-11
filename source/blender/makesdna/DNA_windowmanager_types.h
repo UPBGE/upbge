@@ -24,11 +24,14 @@ using std_mutex_type = std::mutex;
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 namespace blender::bke {
-class WindowManagerRuntime;
-}
+struct WindowManagerRuntime;
+struct WindowRuntime;
+}  // namespace blender::bke
 using WindowManagerRuntimeHandle = blender::bke::WindowManagerRuntime;
+using WindowRuntimeHandle = blender::bke::WindowRuntime;
 #else   // __cplusplus
 typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
+typedef struct WindowRuntimeHandle WindowRuntimeHandle;
 #endif  // __cplusplus
 
 /* Defined here: */
@@ -170,22 +173,6 @@ typedef struct wmWindowManager {
 
   /** Operator registry. */
   ListBase operators;
-
-  /**
-   * Refresh/redraw #wmNotifier structs.
-   * \note Once in the queue, notifiers should be considered read-only.
-   * With the exception of clearing notifiers for data which has been removed,
-   * see: #NOTE_CATEGORY_TAG_CLEARED.
-   */
-  ListBase notifier_queue;
-  /**
-   * For duplicate detection.
-   * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
-   */
-  struct GSet *notifier_queue_set;
-
-  /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
-  const struct wmNotifier *notifier_current;
 
   /** Available/pending extensions updates. */
   int extensions_updates;
@@ -395,8 +382,6 @@ typedef struct wmWindow {
   char ime_data_is_composing;
   char _pad1[7];
 
-  /** All events #wmEvent (ghost level events were handled). */
-  ListBase event_queue;
   /** Window+screen handlers, handled last. */
   ListBase handlers;
   /** Priority handlers, handled first. */
@@ -420,6 +405,8 @@ typedef struct wmWindow {
    */
   uint64_t eventstate_prev_press_time_ms;
 
+  void *_pad2;
+  WindowRuntimeHandle *runtime;
 } wmWindow;
 
 #ifdef ime_data
