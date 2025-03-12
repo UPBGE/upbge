@@ -10,6 +10,7 @@
  * ARB_tessellation_shader OpenGL extension, Section 2.X.2. */
 
 #include "util/transform.h"
+#include "util/types.h"
 
 #include "subd/subpatch.h"
 
@@ -20,27 +21,17 @@ class Mesh;
 class Patch;
 
 struct SubdParams {
-  Mesh *mesh;
-  bool ptex;
+  Mesh *mesh = nullptr;
+  bool ptex = false;
 
-  int test_steps;
-  int split_threshold;
-  float dicing_rate;
-  int max_level;
-  Camera *camera;
-  Transform objecttoworld;
+  int test_steps = 3;
+  int split_threshold = 1;
+  float dicing_rate = 1.0f;
+  int max_level = 12;
+  Camera *camera = nullptr;
+  Transform objecttoworld = transform_identity();
 
-  SubdParams(Mesh *mesh_, bool ptex_ = false)
-  {
-    mesh = mesh_;
-    ptex = ptex_;
-
-    test_steps = 3;
-    split_threshold = 1;
-    dicing_rate = 1.0f;
-    max_level = 12;
-    camera = nullptr;
-  }
+  SubdParams(Mesh *mesh_, bool ptex_ = false) : mesh(mesh_), ptex(ptex_) {}
 };
 
 /* EdgeDice Base */
@@ -48,19 +39,27 @@ struct SubdParams {
 class EdgeDice {
  public:
   SubdParams params;
-  float3 *mesh_P;
-  float3 *mesh_N;
-  size_t vert_offset;
-  size_t tri_offset;
+  float3 *mesh_P = nullptr;
+  float3 *mesh_N = nullptr;
+  float *mesh_ptex_face_id = nullptr;
+  float2 *mesh_ptex_uv = nullptr;
 
   explicit EdgeDice(const SubdParams &params);
 
   void reserve(const int num_verts, const int num_triangles);
 
-  void set_vert(Patch *patch, const int index, const float2 uv);
-  void add_triangle(Patch *patch, const int v0, const int v1, const int v2);
+ protected:
+  void set_vert(const Patch *patch, const int index, const float2 uv);
+  void add_triangle(const Patch *patch,
+                    const int v0,
+                    const int v1,
+                    const int v2,
+                    const float2 uv0,
+                    const float2 uv1,
+                    const float2 uv2);
 
-  void stitch_triangles(Subpatch &sub, const int edge);
+  void stitch_triangles_to_inner_grid(SubPatch &sub, const int edge, const int Mu, const int Mv);
+  void stitch_triangles_across(SubPatch &sub, const int left_edge, const int right_edge);
 };
 
 /* Quad EdgeDice */
@@ -69,19 +68,19 @@ class QuadDice : public EdgeDice {
  public:
   explicit QuadDice(const SubdParams &params);
 
-  float3 eval_projected(Subpatch &sub, const float u, float v);
+  void dice(SubPatch &sub);
 
-  float2 map_uv(Subpatch &sub, const float u, float v);
-  void set_vert(Subpatch &sub, const int index, const float u, float v);
+ protected:
+  float3 eval_projected(SubPatch &sub, const float2 uv);
 
-  void add_grid(Subpatch &sub, const int Mu, const int Mv, const int offset);
+  void set_vert(SubPatch &sub, const int index, const float2 uv);
 
-  void set_side(Subpatch &sub, const int edge);
+  void add_grid(SubPatch &sub, const int Mu, const int Mv, const int offset);
+
+  void set_side(SubPatch &sub, const int edge);
 
   float quad_area(const float3 &a, const float3 &b, const float3 &c, const float3 &d);
-  float scale_factor(Subpatch &sub, const int Mu, const int Mv);
-
-  void dice(Subpatch &sub);
+  float scale_factor(SubPatch &sub, const int Mu, const int Mv);
 };
 
 CCL_NAMESPACE_END

@@ -245,12 +245,16 @@ static void attr_create_motion_from_velocity(Mesh *mesh,
   /* Override motion steps to fixed number. */
   mesh->set_motion_steps(3);
 
+  AttributeSet &attributes = mesh->get_subdivision_type() == Mesh::SUBDIVISION_NONE ?
+                                 mesh->attributes :
+                                 mesh->subd_attributes;
+
   /* Find or add attribute */
   float3 *P = mesh->get_verts().data();
-  Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+  Attribute *attr_mP = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 
   if (!attr_mP) {
-    attr_mP = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+    attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
   }
 
   /* Only export previous and next frame, we don't have any in between data. */
@@ -504,7 +508,6 @@ static void attr_create_uv_map(Scene *scene,
 static void attr_create_subd_uv_map(Scene *scene,
                                     Mesh *mesh,
                                     const ::Mesh &b_mesh,
-                                    bool subdivide_uvs,
                                     const set<ustring> &blender_uv_names)
 {
   const blender::OffsetIndices faces = b_mesh.faces();
@@ -540,9 +543,7 @@ static void attr_create_subd_uv_map(Scene *scene,
           uv_attr = mesh->subd_attributes.add(uv_name, TypeFloat2, ATTR_ELEMENT_CORNER);
         }
 
-        if (subdivide_uvs) {
-          uv_attr->flags |= ATTR_SUBDIVIDED;
-        }
+        uv_attr->flags |= ATTR_SUBDIVIDE_SMOOTH_FVAR;
 
         const blender::VArraySpan b_uv_map = *b_attributes.lookup<blender::float2>(
             uv_name.c_str(), blender::bke::AttrDomain::Corner);
@@ -813,8 +814,7 @@ static void create_mesh(Scene *scene,
                         const array<Node *> &used_shaders,
                         const bool need_motion,
                         const float motion_scale,
-                        const bool subdivision = false,
-                        const bool subdivide_uvs = true)
+                        const bool subdivision = false)
 {
   const blender::Span<blender::float3> positions = b_mesh.vert_positions();
   const blender::OffsetIndices faces = b_mesh.faces();
@@ -841,21 +841,13 @@ static void create_mesh(Scene *scene,
     corner_normals = b_mesh.corner_normals();
   }
 
-  int numngons = 0;
   int numtris = 0;
   if (!subdivision) {
     numtris = numfaces;
   }
-  else {
-    const blender::OffsetIndices faces = b_mesh.faces();
-    for (const int i : faces.index_range()) {
-      numngons += (faces[i].size() == 4) ? 0 : 1;
-    }
-  }
-
   /* allocate memory */
   if (subdivision) {
-    mesh->resize_subd_faces(numfaces, numngons, corner_verts.size());
+    mesh->resize_subd_faces(numfaces, corner_verts.size());
   }
   mesh->resize_mesh(positions.size(), numtris);
 
@@ -884,7 +876,6 @@ static void create_mesh(Scene *scene,
     const float(*orco)[3] = static_cast<const float(*)[3]>(
         CustomData_get_layer(&b_mesh.vert_data, CD_ORCO));
     Attribute *attr = attributes.add(ATTR_STD_GENERATED);
-    attr->flags |= ATTR_SUBDIVIDED;
 
     float3 loc;
     float3 size;
@@ -1023,7 +1014,7 @@ static void create_mesh(Scene *scene,
   attr_create_generic(scene, mesh, b_mesh, subdivision, need_motion, motion_scale);
 
   if (subdivision) {
-    attr_create_subd_uv_map(scene, mesh, b_mesh, subdivide_uvs, blender_uv_names);
+    attr_create_subd_uv_map(scene, mesh, b_mesh, blender_uv_names);
   }
   else {
     attr_create_uv_map(scene, mesh, b_mesh, blender_uv_names);
@@ -1057,38 +1048,40 @@ static void create_subd_mesh(Scene *scene,
   BL::Object b_ob = b_ob_info.real_object;
 
   BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
-  const bool subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
+  const bool use_creases = subsurf_mod.use_creases();
 
-  create_mesh(scene, mesh, b_mesh, used_shaders, need_motion, motion_scale, true, subdivide_uvs);
+  create_mesh(scene, mesh, b_mesh, used_shaders, need_motion, motion_scale, true);
 
-  const blender::VArraySpan creases = *b_mesh.attributes().lookup<float>(
-      "crease_edge", blender::bke::AttrDomain::Edge);
-  if (!creases.is_empty()) {
-    size_t num_creases = 0;
-    for (const int i : creases.index_range()) {
-      if (creases[i] != 0.0f) {
-        num_creases++;
+  if (use_creases) {
+    const blender::VArraySpan creases = *b_mesh.attributes().lookup<float>(
+        "crease_edge", blender::bke::AttrDomain::Edge);
+    if (!creases.is_empty()) {
+      size_t num_creases = 0;
+      for (const int i : creases.index_range()) {
+        if (creases[i] != 0.0f) {
+          num_creases++;
+        }
+      }
+
+      mesh->reserve_subd_creases(num_creases);
+
+      const blender::Span<blender::int2> edges = b_mesh.edges();
+      for (const int i : edges.index_range()) {
+        const float crease = creases[i];
+        if (crease != 0.0f) {
+          const blender::int2 &b_edge = edges[i];
+          mesh->add_edge_crease(b_edge[0], b_edge[1], crease);
+        }
       }
     }
 
-    mesh->reserve_subd_creases(num_creases);
-
-    const blender::Span<blender::int2> edges = b_mesh.edges();
-    for (const int i : edges.index_range()) {
-      const float crease = creases[i];
-      if (crease != 0.0f) {
-        const blender::int2 &b_edge = edges[i];
-        mesh->add_edge_crease(b_edge[0], b_edge[1], crease);
-      }
-    }
-  }
-
-  const blender::VArraySpan vert_creases = *b_mesh.attributes().lookup<float>(
-      "crease_vert", blender::bke::AttrDomain::Point);
-  if (!vert_creases.is_empty()) {
-    for (const int i : vert_creases.index_range()) {
-      if (vert_creases[i] != 0.0f) {
-        mesh->add_vertex_crease(i, vert_creases[i]);
+    const blender::VArraySpan vert_creases = *b_mesh.attributes().lookup<float>(
+        "crease_vert", blender::bke::AttrDomain::Point);
+    if (!vert_creases.is_empty()) {
+      for (const int i : vert_creases.index_range()) {
+        if (vert_creases[i] != 0.0f) {
+          mesh->add_vertex_crease(i, vert_creases[i]);
+        }
       }
     }
   }
@@ -1116,12 +1109,9 @@ void BlenderSync::sync_mesh(BL::Depsgraph b_depsgraph, BObjectInfo &b_ob_info, M
   if (view_layer.use_surfaces) {
     /* Adaptive subdivision setup. Not for baking since that requires
      * exact mapping to the Blender mesh. */
-    Mesh::SubdivisionType subdivision_type = (b_ob_info.real_object != b_bake_target) ?
-                                                 object_subdivision_type(b_ob_info.real_object,
-                                                                         preview,
-                                                                         experimental) :
-                                                 Mesh::SUBDIVISION_NONE;
-    new_mesh.set_subdivision_type(subdivision_type);
+    if (b_ob_info.real_object != b_bake_target) {
+      object_subdivision_to_mesh(b_ob_info.real_object, new_mesh, preview, experimental);
+    }
 
     /* For some reason, meshes do not need this... */
     const bool need_undeformed = new_mesh.need_attribute(scene, ATTR_STD_GENERATED);
@@ -1205,7 +1195,8 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph b_depsgraph,
   BL::Mesh b_mesh_rna(PointerRNA_NULL);
   if (ccl::BKE_object_is_deform_modified(b_ob_info, b_scene, preview)) {
     /* get derived mesh */
-    b_mesh_rna = object_to_mesh(b_data, b_ob_info, b_depsgraph, false, Mesh::SUBDIVISION_NONE);
+    b_mesh_rna = object_to_mesh(
+        b_data, b_ob_info, b_depsgraph, false, mesh->get_subdivision_type());
   }
 
   const std::string ob_name = b_ob_info.real_object.name();
@@ -1220,17 +1211,21 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph b_depsgraph,
       return;
     }
 
+    AttributeSet &attributes = mesh->get_subdivision_type() == Mesh::SUBDIVISION_NONE ?
+                                   mesh->attributes :
+                                   mesh->subd_attributes;
+
     /* Export deformed coordinates. */
     /* Find attributes. */
-    Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-    Attribute *attr_mN = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_NORMAL);
-    Attribute *attr_N = mesh->attributes.find(ATTR_STD_VERTEX_NORMAL);
+    Attribute *attr_mP = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+    Attribute *attr_mN = attributes.find(ATTR_STD_MOTION_VERTEX_NORMAL);
+    Attribute *attr_N = attributes.find(ATTR_STD_VERTEX_NORMAL);
     bool new_attribute = false;
     /* Add new attributes if they don't exist already. */
     if (!attr_mP) {
-      attr_mP = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+      attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
       if (attr_N) {
-        attr_mN = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_NORMAL);
+        attr_mN = attributes.add(ATTR_STD_MOTION_VERTEX_NORMAL);
       }
 
       new_attribute = true;
@@ -1263,9 +1258,9 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph b_depsgraph,
         else {
           VLOG_DEBUG << "No actual deformation motion for object " << ob_name;
         }
-        mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
+        attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
         if (attr_mN) {
-          mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_NORMAL);
+          attributes.remove(ATTR_STD_MOTION_VERTEX_NORMAL);
         }
       }
       else if (motion_step > 0) {
