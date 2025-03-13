@@ -246,7 +246,7 @@ class Relations : Overlay {
       sub_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
                              DRW_STATE_DEPTH_LESS_EQUAL,
                    state.clipping_plane_count);
-      sub_pass.shader_set(res.shaders.extra_shape.get());
+      sub_pass.shader_set(res.shaders->extra_shape.get());
       sub_pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       arrows_buf.end_sync(sub_pass, res.shapes.arrows.get());
     }

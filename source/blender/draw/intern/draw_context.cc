@@ -2575,145 +2575,92 @@ void DRW_game_render_loop(bContext *C,
   using namespace blender::draw;
 
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
 
   ARegion *ar = CTX_wm_region(C);
 
   View3D *v3d = CTX_wm_view3d(C);
 
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
   /* Resize viewport if needed and set active view */
   GPU_viewport_bind(viewport, 0, window);
 
-  g_context->state_ensure_not_reused();
-  DRWContext draw_ctx;
-  drw_set(draw_ctx);
+  DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C, ar, v3d);
 
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = ar;
-  drw_get().draw_ctx.rv3d = rv3d;
-  drw_get().draw_ctx.v3d = v3d;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  //drw_get().draw_ctx.engine_type = engine_type;
-  drw_get().draw_ctx.depsgraph = depsgraph;
+  draw_ctx.options.draw_background = ((scene->r.alphamode == R_ADDSKY) ||
+                                      (v3d->shading.type != OB_RENDER)) &&
+                                     !is_overlay_pass;
 
-  /* reuse if caller sets */
-  drw_get().draw_ctx.evil_C = C;
-
-  drw_get().options.draw_background = ((scene->r.alphamode == R_ADDSKY) ||
-                                 (v3d->shading.type != OB_RENDER)) &&
-                                !is_overlay_pass;
-
-  drw_task_graph_init();
-  drw_context_state_init();
-
-  /* No need to pass size as argument since it is set in GPU_viewport_bind above */
-  drw_manager_init(g_context, viewport, nullptr);
+  draw_ctx.acquire_data();
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
-  use_drw_engine(&draw_engine_eevee_next_type);
+  DRWViewData &view_data = *draw_ctx.view_data_active;
+
+  view_data.eevee.used = true;
 
   if (gpencil_engine_needed) {
-    use_drw_engine(&draw_engine_gpencil_type);
+    view_data.grease_pencil.used = true;
   }
-  /* Add realtime compositor for test in custom bge loop (not tested) */
-  if (DRW_is_viewport_compositor_enabled()) {
-    use_drw_engine(&draw_engine_compositor_type);
+  if (DRW_state_viewport_compositor_enabled()) {
+    view_data.compositor.used = true;
   }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
-  drw_get().data->modules_init();
+  draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
+    if (is_overlay_pass) {
+      DEGObjectIterSettings deg_iter_settings = {nullptr};
+      deg_iter_settings.depsgraph = depsgraph;
+      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
+      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+          continue;
+        }
+        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+          continue;
+        }
+        Object *orig_ob = DEG_get_original_object(ob);
 
-  /* Init engines */
-  drw_engines_init();
-
-  drw_engines_cache_init();
-  drw_engines_world_update(scene);
-
-  DupliCacheManager dupli_handler;
-
-  if (is_overlay_pass) {
-    DEGObjectIterSettings deg_iter_settings = {0};
-    deg_iter_settings.depsgraph = depsgraph;
-    deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-    DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-        continue;
+        if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+          blender::draw::ObjectRef ob_ref(data_, ob);
+          duplis.try_add(ob_ref);
+          drw_engines_cache_populate(ob_ref, extraction);
+        }
       }
-      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-        continue;
-      }
-      Object *orig_ob = DEG_get_original_object(ob);
+      DEG_OBJECT_ITER_END;
+    }
+    else {
+      DEGObjectIterSettings deg_iter_settings = {0};
+      deg_iter_settings.depsgraph = depsgraph;
+      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
+      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+          continue;
+        }
+        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+          continue;
+        }
 
-      if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+        Object *orig_ob = DEG_get_original_object(ob);
+        /* Don't render objects in overlay collections in main pass */
+        if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+          continue;
+        }
         blender::draw::ObjectRef ob_ref(data_, ob);
-        dupli_handler.try_add(ob_ref);
-        drw_engines_cache_populate(ob_ref);
+        duplis.try_add(ob_ref);
+        drw_engines_cache_populate(ob_ref, extraction);
       }
+      DEG_OBJECT_ITER_END;
     }
-    DEG_OBJECT_ITER_END;
-  }
-  else {
-    DEGObjectIterSettings deg_iter_settings = {0};
-    deg_iter_settings.depsgraph = depsgraph;
-    deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-    DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-        continue;
-      }
-      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-        continue;
-      }
+  });
 
-      Object *orig_ob = DEG_get_original_object(ob);
-      /* Don't render objects in overlay collections in main pass */
-      if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
-        continue;
-      }
-      blender::draw::ObjectRef ob_ref(data_, ob);
-      dupli_handler.try_add(ob_ref);
-      drw_engines_cache_populate(ob_ref);
-    }
-    DEG_OBJECT_ITER_END;
-  }
+  /* No frame-buffer allowed before drawing. */
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
+  GPU_framebuffer_bind(draw_ctx.default_framebuffer());
+  GPU_framebuffer_clear_depth_stencil(draw_ctx.default_framebuffer(), 1.0f, 0xFF);
 
-  drw_engines_cache_finish();
+  draw_ctx.engines_draw_scene();
 
-  dupli_handler.extract_all();
-  drw_task_graph_deinit();
-
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
-  GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
-
-  DRW_curves_update(*DRW_manager_get());
-
-  drw_engines_draw_scene();
-
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
-  GPU_framebuffer_clear_stencil(drw_get().default_framebuffer(), 0xFF);
-
-  /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    GPU_flush();
-  }
-
-  drw_get().data->modules_exit();
-
-  blender::draw::command::StateSet::set();
-
-  drw_engines_disable();
-
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 
   GPU_viewport_unbind(viewport);
 }
@@ -2752,16 +2699,16 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
    */
   // GPU_viewport_free(DST.viewport);
 
-  drw_get().prepare_clean_for_draw();
+  //drw_get().prepare_clean_for_draw();
 
   /*use_drw_engine(&draw_engine_eevee_type);
 
   DST.draw_ctx.view_layer = view_layer;
 
   EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());*/
-  DRW_engines_free();
+  //DRW_engines_free();
 
-  drw_get().state_ensure_not_reused();
+  //drw_get().state_ensure_not_reused();
 }
 
 /* Called instead of DRW_transform_to_display in eevee_engine
