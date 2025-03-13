@@ -20,9 +20,13 @@ namespace blender::draw::overlay {
 void Instance::init()
 {
   /* TODO(fclem): Remove DRW global usage. */
-  const DRWContextState *ctx = DRW_context_state_get();
+  const DRWContext *ctx = DRW_context_get();
   /* Was needed by `object_wire_theme_id()` when doing the port. Not sure if needed nowadays. */
   BKE_view_layer_synced_ensure(ctx->scene, ctx->view_layer);
+
+  clipping_enabled_ = RV3D_CLIPPING_ENABLED(ctx->v3d, ctx->rv3d);
+
+  resources.init(clipping_enabled_);
 
   state.depsgraph = ctx->depsgraph;
   state.view_layer = ctx->view_layer;
@@ -382,6 +386,15 @@ void Resources::update_theme_settings(const State &state)
       srgb_to_linearrgb_v4(color, color);
       color += 4;
     } while (color <= gb->UBO_LAST_COLOR);
+  }
+
+  if (state.v3d) {
+    const View3DShading &shading = state.v3d->shading;
+    gb->backface_culling = (shading.type == OB_SOLID) &&
+                           (shading.flag & V3D_SHADING_BACKFACE_CULLING);
+  }
+  else {
+    gb->backface_culling = false;
   }
 
   globals_buf.push_update();

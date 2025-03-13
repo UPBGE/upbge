@@ -11,6 +11,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_interp.hh"
 #include "BLI_math_matrix_types.hh"
@@ -187,6 +188,9 @@ class Result {
   /* Returns the CPP type corresponding to the given result type. */
   static const CPPType &cpp_type(const ResultType type);
 
+  /* Returns a string representation of the given result type. */
+  static const char *type_name(const ResultType type);
+
   /* Implicit conversion to the internal GPU texture. */
   operator GPUTexture *() const;
 
@@ -335,12 +339,15 @@ class Result {
 
   GPUTexture *gpu_texture() const;
 
-  GMutableSpan cpu_data() const;
+  GSpan cpu_data() const;
+  GMutableSpan cpu_data();
+
+  GPointer single_value() const;
+  GMutablePointer single_value();
 
   /* Gets the single value stored in the result. Assumes the result stores a value of the given
    * template type. */
   template<typename T> const T &get_single_value() const;
-  template<typename T> T &get_single_value();
 
   /* Gets the single value stored in the result, if the result is not a single value, the given
    * default value is returned. Assumes the result stores a value of the same type as the template
@@ -459,7 +466,13 @@ BLI_INLINE_METHOD GPUTexture *Result::gpu_texture() const
   return gpu_texture_;
 }
 
-BLI_INLINE_METHOD GMutableSpan Result::cpu_data() const
+BLI_INLINE_METHOD GSpan Result::cpu_data() const
+{
+  BLI_assert(storage_type_ == ResultStorageType::CPU);
+  return cpu_data_;
+}
+
+BLI_INLINE_METHOD GMutableSpan Result::cpu_data()
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   return cpu_data_;
@@ -470,11 +483,6 @@ template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const
   BLI_assert(this->is_single_value());
 
   return std::get<T>(single_value_);
-}
-
-template<typename T> BLI_INLINE_METHOD T &Result::get_single_value()
-{
-  return const_cast<T &>(std::as_const(*this).get_single_value<T>());
 }
 
 template<typename T>

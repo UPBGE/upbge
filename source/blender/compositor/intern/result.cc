@@ -9,6 +9,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -242,6 +243,29 @@ const CPPType &Result::cpp_type(const ResultType type)
 
   BLI_assert_unreachable();
   return CPPType::get<float>();
+}
+
+const char *Result::type_name(const ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+      return "float";
+    case ResultType::Float2:
+      return "float2";
+    case ResultType::Float3:
+      return "float3";
+    case ResultType::Float4:
+      return "float4";
+    case ResultType::Color:
+      return "color";
+    case ResultType::Int2:
+      return "int2";
+    case ResultType::Int:
+      return "int";
+  }
+
+  BLI_assert_unreachable();
+  return "";
 }
 
 Result::operator GPUTexture *() const
@@ -577,6 +601,16 @@ bool Result::is_allocated() const
 int Result::reference_count() const
 {
   return reference_count_;
+}
+
+GPointer Result::single_value() const
+{
+  return std::visit([](const auto &value) { return GPointer(&value); }, single_value_);
+}
+
+GMutablePointer Result::single_value()
+{
+  return std::visit([](auto &value) { return GMutablePointer(&value); }, single_value_);
 }
 
 void Result::allocate_data(int2 size, bool from_pool)
