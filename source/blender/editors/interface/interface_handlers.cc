@@ -9873,10 +9873,20 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           data->cancel = true;
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
-        else if (event->xy[0] != event->prev_xy[0] || event->xy[1] != event->prev_xy[1]) {
+        else {
           /* Re-enable tool-tip on mouse move. */
-          ui_blocks_set_tooltips(region, true);
-          button_tooltip_timer_reset(C, but);
+          bool reenable_tooltip = true;
+          bScreen *screen = CTX_wm_screen(C);
+          if (screen && screen->tool_tip) {
+            /* Allow some movement once the tooltip timer has started. */
+            const int threshold = WM_event_drag_threshold(event);
+            const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
+            reenable_tooltip = (movement > threshold);
+          }
+          if (reenable_tooltip) {
+            ui_blocks_set_tooltips(region, true);
+            button_tooltip_timer_reset(C, but);
+          }
         }
 
         /* Update extra icons states. */
@@ -9949,9 +9959,9 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           /* Drag on a hold button (used in the toolbar) now opens it immediately. */
           if (data->hold_action_timer) {
             if (but->flag & UI_SELECT) {
-              if (len_manhattan_v2v2_int(event->xy, event->prev_xy) <=
-                  WM_EVENT_CURSOR_MOTION_THRESHOLD)
-              {
+              const int threshold = WM_event_drag_threshold(event);
+              const int movement = len_manhattan_v2v2_int(event->xy, event->prev_press_xy);
+              if (movement <= threshold) {
                 /* pass */
               }
               else {
