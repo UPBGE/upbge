@@ -1964,6 +1964,11 @@ bool DRWContext::is_transforming() const
   return (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) != 0;
 }
 
+bool DRWContext::is_background_drawing() const //UPBGE
+{
+  return this->options.draw_background;
+}
+
 bool DRWContext::is_viewport_compositor_enabled() const
 {
   if (!this->v3d) {
@@ -2215,7 +2220,7 @@ static void drw_debug_draw_boxes_bge(void)
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  const float *size = DRW_viewport_size_get();
+  const float *size = DRW_context_get()->viewport_size_get();
   const unsigned int width = size[0];
   const unsigned int height = size[1];
   GPU_matrix_reset();
@@ -2247,7 +2252,7 @@ static void drw_debug_draw_text_bge(Scene *scene)
 
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  const float *size = DRW_viewport_size_get();
+  const float *size = DRW_context_get()->viewport_size_get();
   const unsigned int width = size[0];
   const unsigned int height = size[1];
   GPU_matrix_reset();
@@ -2335,14 +2340,12 @@ void DRW_game_render_loop(bContext *C,
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
-  view_data.eevee.used = true;
+  view_data.eevee.set_used(true);
 
   if (gpencil_engine_needed) {
-    view_data.grease_pencil.used = true;
+    view_data.grease_pencil.set_used(true);
   }
-  if (DRW_state_viewport_compositor_enabled()) {
-    view_data.compositor.used = true;
-  }
+  view_data.compositor.set_used(draw_ctx.is_viewport_compositor_enabled());
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
@@ -2592,11 +2595,6 @@ void DRW_transform_to_display(GPUViewport *viewport,
   if (use_ocio) {
     IMB_colormanagement_finish_glsl_draw();
   }
-}
-
-bool is_eevee_next(const Scene *scene)
-{
-  return RE_engines_find(scene->r.engine) == &DRW_engine_viewport_eevee_next_type;
 }
 
 /***************************End of UPBGE***************************/

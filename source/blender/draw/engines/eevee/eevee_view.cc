@@ -118,7 +118,7 @@ void ShadingView::render()
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
   GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, 1.0f);
-  if (DRW_state_draw_background()) { //UPBGE: for overlay pass
+  if (DRW_context_get()->is_background_drawing()) { //UPBGE: for overlay pass
     inst_.pipelines.background.clear(render_view_);
   }
 
@@ -139,7 +139,7 @@ void ShadingView::render()
                                   rt_buffer_opaque_,
                                   rt_buffer_refract_);
 
-  if (DRW_state_draw_background()) {  // UPBGE: for overlay pass
+  if (DRW_context_get()->is_background_drawing()) {  //UPBGE: for overlay pass
     inst_.pipelines.background.render(render_view_, combined_fb_);
   }
 

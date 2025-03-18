@@ -416,6 +416,8 @@ struct DRWContext {
   bool is_transforming() const;
   /** True if viewport compositor is enabled when drawing with this context. */
   bool is_viewport_compositor_enabled() const;
+
+  bool is_background_drawing() const; //UPBGE
 };
 
 /** \} */

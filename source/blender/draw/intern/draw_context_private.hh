@@ -102,8 +102,3 @@ void DRW_manager_begin_sync();
 void DRW_manager_end_sync();
 
 /** \} */
-
-/* UPBGE */
-bool is_eevee_next(const struct Scene *scene);
-/*********/
-
