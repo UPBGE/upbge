@@ -12,8 +12,6 @@ struct ARegion;
 struct DRWData;
 struct DRWInstanceDataList;
 struct Depsgraph;
-struct DrawDataList;
-struct DrawEngineType;
 struct GPUMaterial;
 struct GPUOffScreen;
 struct GPUVertFormat;
@@ -109,10 +107,8 @@ bool DRW_draw_in_progress();
  */
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph);
 /**
- * Render grease pencil on top of other render engine output (but only for non-draw-engine).
+ * Render grease pencil on top of other render engine output.
  * This function creates a DRWContext.
- * `DRW_render_to_image()` applies grease pencil using `DRW_render_gpencil_to_image` as it
- * already has a DRWContext setup.
  */
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 
@@ -169,13 +165,6 @@ void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
 
 void DRW_deferred_shader_remove(GPUMaterial *mat);
 void DRW_deferred_shader_optimize_remove(GPUMaterial *mat);
-
-/**
- * Get DrawData from the given ID-block. In order for this to work, we assume that
- * the DrawData pointer is stored in the  in the same fashion as in #IdDdtTemplate.
- */
-DrawDataList *DRW_drawdatalist_from_id(ID *id);
-void DRW_drawdata_free(ID *id);
 
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);

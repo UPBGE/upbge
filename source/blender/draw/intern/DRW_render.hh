@@ -54,38 +54,71 @@ struct GPUViewport;
 namespace blender::draw {
 class TextureFromPool;
 struct ObjectRef;
+class Manager;
 }  // namespace blender::draw
-
-typedef struct DRWPass DRWPass;
-typedef struct DRWShadingGroup DRWShadingGroup;
-typedef struct DRWUniform DRWUniform;
 
 /* TODO: Put it somewhere else? */
 struct BoundSphere {
   float center[3], radius;
 };
 
-struct DrawEngineType {
-  DrawEngineType *next, *prev;
+struct DrawEngine {
+  static constexpr int GPU_INFO_SIZE = 512; /* IMA_MAX_RENDER_TEXT_SIZE */
 
-  char idname[32];
+  char info[GPU_INFO_SIZE] = {'\0'};
+  DRWTextStore *text_draw_cache = nullptr;
 
-  void (*engine_init)(void *vedata);
-  void (*engine_free)();
+  bool used = false;
 
-  void (*instance_free)(void *instance_data);
+  virtual ~DrawEngine() = default;
 
-  void (*cache_init)(void *vedata);
-  void (*cache_populate)(void *vedata, blender::draw::ObjectRef &ob_ref);
-  void (*cache_finish)(void *vedata);
+  virtual blender::StringRefNull name_get() = 0;
 
-  void (*draw_scene)(void *vedata);
+  /* Functions called for viewport. */
 
-  void (*render_to_image)(void *vedata,
-                          RenderEngine *engine,
-                          RenderLayer *layer,
-                          const rcti *rect);
-  void (*store_metadata)(void *vedata, RenderResult *render_result);
+  /* Init engine. Run first and for every redraw. */
+  virtual void init() = 0;
+  /* Scene synchronization. Command buffers building. */
+  virtual void begin_sync() = 0;
+  virtual void object_sync(blender::draw::ObjectRef &ob_ref, blender::draw::Manager &manager) = 0;
+  virtual void end_sync() = 0;
+  /* Command Submission. */
+  virtual void draw(blender::draw::Manager &manager) = 0;
+
+  /* Called when closing blender.
+   * Cleanup all lazily initialized static members that have GPU resources.
+   * Implemented on a case by case basis and called directly. */
+  //  static void exit(){};
+
+  struct Pointer {
+    DrawEngine *instance = nullptr;
+
+    ~Pointer()
+    {
+      free_instance();
+    }
+
+    void free_instance()
+    {
+      delete instance;
+      instance = nullptr;
+    }
+
+    void set_used(bool used)
+    {
+      if (used) {
+        if (instance == nullptr) {
+          instance = create_instance();
+        }
+        instance->used = true;
+      }
+      else if (instance) {
+        instance->used = false;
+      }
+    }
+
+    virtual DrawEngine *create_instance() = 0;
+  };
 };
 
 /* Shaders */
@@ -120,23 +153,25 @@ blender::float2 DRW_viewport_size_get();
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
 DefaultTextureList *DRW_viewport_texture_list_get();
 
-/* See DRW_viewport_pass_texture_get. */
+/* Returns a TextureFromPool stored in the given view data for the pass identified by the given
+ * pass name. Engines should call this function for each of the passes needed by the viewport
+ * compositor in every redraw, then it should allocate the texture and write the pass data to it.
+ * The texture should cover the entire viewport. */
 blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name);
 
 void DRW_viewport_request_redraw();
 
-void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph);
-void DRW_render_object_iter(void *vedata,
-                            RenderEngine *engine,
-                            Depsgraph *depsgraph,
-                            void (*callback)(void *vedata,
-                                             blender::draw::ObjectRef &ob_ref,
-                                             RenderEngine *engine,
-                                             Depsgraph *depsgraph));
+void DRW_render_to_image(
+    RenderEngine *engine,
+    Depsgraph *depsgraph,
+    std::function<void(RenderEngine *, RenderLayer *, const rcti)> render_view_cb,
+    std::function<void(RenderResult *)> store_metadata_cb);
 
-/**
- * \warning Changing frame might free the #ViewLayerEngineData.
- */
+void DRW_render_object_iter(
+    RenderEngine *engine,
+    Depsgraph *depsgraph,
+    std::function<void(blender::draw::ObjectRef &, RenderEngine *, Depsgraph *)>);
+
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe);
 
 /**
@@ -144,9 +179,7 @@ void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, 
  * This function only setup DST and execute the given function.
  * \warning similar to DRW_render_to_image you cannot use default lists (`dfbl` & `dtxl`).
  */
-void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
-                               DrawEngineType *draw_engine_type,
-                               Depsgraph *depsgraph);
+void DRW_custom_pipeline_begin(DRWContext &draw_ctx, Depsgraph *depsgraph);
 void DRW_custom_pipeline_end(DRWContext &draw_ctx);
 
 /**
@@ -154,24 +187,6 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx);
  * Assumes it is called between `DRW_custom_pipeline_begin/end()`.
  */
 void DRW_cache_restart();
-
-/* ViewLayers */
-
-void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type);
-void **DRW_view_layer_engine_data_ensure_ex(ViewLayer *view_layer,
-                                            DrawEngineType *engine_type,
-                                            void (*callback)(void *storage));
-void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type,
-                                         void (*callback)(void *storage));
-
-/* DrawData */
-
-DrawData *DRW_drawdata_get(ID *id, DrawEngineType *engine_type);
-DrawData *DRW_drawdata_ensure(ID *id,
-                              DrawEngineType *engine_type,
-                              size_t size,
-                              DrawDataInitCb init_cb,
-                              DrawDataFreeCb free_cb);
 
 /* Settings. */
 
@@ -193,9 +208,6 @@ bool DRW_object_use_hide_faces(const Object *ob);
 
 bool DRW_object_is_visible_psys_in_active_context(const Object *object,
                                                   const ParticleSystem *psys);
-
-Object *DRW_object_get_dupli_parent(const Object *ob);
-DupliObject *DRW_object_get_dupli(const Object *ob);
 
 /* Draw State. */
 
@@ -358,6 +370,11 @@ struct DRWContext {
     return *g_context;
   }
 
+  blender::float2 viewport_size_get() const
+  {
+    return size;
+  }
+
   /* Return true if any DRWContext is active on this thread. */
   static bool is_active()
   {
@@ -388,6 +405,17 @@ struct DRWContext {
   {
     return ELEM(mode, VIEWPORT_RENDER);
   }
+
+  /** True if current viewport is drawn during playback. */
+  bool is_playback() const;
+  /** True if current viewport is drawn during navigation operator. */
+  bool is_navigating() const;
+  /** True if current viewport is drawn during painting operator. */
+  bool is_painting() const;
+  /** True if current viewport is drawn during transforming operator. */
+  bool is_transforming() const;
+  /** True if viewport compositor is enabled when drawing with this context. */
+  bool is_viewport_compositor_enabled() const;
 };
 
 /** \} */
@@ -395,36 +423,11 @@ struct DRWContext {
 const DRWContext *DRW_context_get();
 
 /**
- * For when engines need to know if this is drawing for selection or not.
- */
-static inline bool DRW_state_is_select()
-{
-  return DRWContext::get_active().is_select();
-}
-
-/**
- * For when engines need to know if this is drawing for selection or not.
- */
-static inline bool DRW_state_is_material_select()
-{
-  return DRWContext::get_active().is_material_select();
-}
-
-/**
- * For when engines need to know if this is drawing for depth picking.
- */
-static inline bool DRW_state_is_depth()
-{
-  return DRWContext::get_active().is_depth();
-}
-
-/**
  * Whether we are rendering for an image
  */
 static inline bool DRW_state_is_image_render()
 {
   return DRWContext::get_active().is_image_render();
-  ;
 }
 
 /**
@@ -443,31 +446,6 @@ static inline bool DRW_state_is_viewport_image_render()
 {
   return DRWContext::get_active().is_viewport_image_render();
 }
-
-bool DRW_state_is_playback();
-/**
- * Is the user navigating or painting the region.
- */
-bool DRW_state_is_navigating();
-/**
- * Is the user painting?
- */
-bool DRW_state_is_painting();
-/**
- * Should text draw in this mode?
- */
-bool DRW_state_show_text();
-/**
- * Should draw support elements
- * Objects center, selection outline, probe data, ...
- */
-bool DRW_state_draw_support();
-/**
- * Whether we should render the background
- */
-bool DRW_state_draw_background();
-
-bool DRW_state_viewport_compositor_enabled();
 
 /*****************************UPBGE***********************************/
 void DRW_game_render_loop(struct bContext *C,

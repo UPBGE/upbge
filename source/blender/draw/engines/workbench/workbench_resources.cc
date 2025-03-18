@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "../eevee_next/eevee_lut.hh" /* TODO: find somewhere to share blue noise Table. */
+#include "../eevee/eevee_lut.hh" /* TODO: find somewhere to share blue noise Table. */
 
 #include "BKE_studiolight.h"
 
@@ -109,7 +109,7 @@ void SceneResources::init(const SceneState &scene_state)
 {
   const View3DShading &shading = scene_state.shading;
 
-  world_buf.viewport_size = DRW_viewport_size_get();
+  world_buf.viewport_size = DRW_context_get()->viewport_size_get();
   world_buf.viewport_size_inv = 1.0f / world_buf.viewport_size;
   world_buf.xray_alpha = shading.xray_alpha;
   world_buf.background_color = scene_state.background_color;
