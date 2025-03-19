@@ -201,6 +201,16 @@ GPUFrameBuffer *DRWContext::default_framebuffer()
   return view_data_active->dfbl.default_fb;
 }
 
+DefaultFramebufferList *DRWContext::viewport_framebuffer_list_get() const
+{
+  return const_cast<DefaultFramebufferList *>(&view_data_active->dfbl);
+}
+
+DefaultTextureList *DRWContext::viewport_texture_list_get() const
+{
+  return const_cast<DefaultTextureList *>(&view_data_active->dtxl);
+}
+
 static bool draw_show_annotation()
 {
   DRWContext &draw_ctx = drw_get();
@@ -309,7 +319,8 @@ bool DRW_object_is_in_edit_mode(const Object *ob)
 
 int DRW_object_visibility_in_active_context(const Object *ob)
 {
-  const eEvaluationMode mode = DRW_state_is_scene_render() ? DAG_EVAL_RENDER : DAG_EVAL_VIEWPORT;
+  const eEvaluationMode mode = DRW_context_get()->is_scene_render() ? DAG_EVAL_RENDER :
+                                                                      DAG_EVAL_VIEWPORT;
   return BKE_object_visibility(ob, mode);
 }
 
@@ -330,7 +341,7 @@ bool DRW_object_use_hide_faces(const Object *ob)
 
 bool DRW_object_is_visible_psys_in_active_context(const Object *object, const ParticleSystem *psys)
 {
-  const bool for_render = DRW_state_is_image_render();
+  const bool for_render = DRW_context_get()->is_image_render();
   /* NOTE: psys_check_enabled is using object and particle system for only
    * reading, but is using some other functions which are more generic and
    * which are hard to make const-pointer. */
@@ -487,16 +498,6 @@ void DRWContext::release_data()
   }
   this->data = nullptr;
   this->viewport = nullptr;
-}
-
-DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
-{
-  return &drw_get().view_data_active->dfbl;
-}
-
-DefaultTextureList *DRW_viewport_texture_list_get()
-{
-  return &drw_get().view_data_active->dtxl;
 }
 
 blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name)
@@ -816,7 +817,7 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
 
   SpaceLink *space_data = this->space_data;
   if (space_data && space_data->spacetype == SPACE_IMAGE) {
-    if (DRW_engine_external_acquire_for_image_editor()) {
+    if (DRW_engine_external_acquire_for_image_editor(this)) {
       view_data.external.set_used(true);
     }
     else {
@@ -949,7 +950,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 
   DRW_submission_start();
   if (draw_ctx.evil_C) {
-    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+    DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
 
     GPU_framebuffer_bind(dfbl->overlay_fb);
 
@@ -1007,13 +1008,13 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
     /* Needed so gizmo isn't occluded. */
     if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
       GPU_depth_test(GPU_DEPTH_NONE);
-      DRW_draw_gizmo_3d();
+      DRW_draw_gizmo_3d(draw_ctx.evil_C, region);
     }
 
     GPU_depth_test(GPU_DEPTH_NONE);
     drw_engines_draw_text();
 
-    DRW_draw_region_info();
+    DRW_draw_region_info(draw_ctx.evil_C, region);
 
     /* Annotations - temporary drawing buffer (screen-space). */
     /* XXX: Or should we use a proper draw/overlay engine for this case? */
@@ -1027,7 +1028,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
       /* Draw 2D after region info so we can draw on top of the camera passepartout overlay.
        * 'DRW_draw_region_info' sets the projection in pixel-space. */
       GPU_depth_test(GPU_DEPTH_NONE);
-      DRW_draw_gizmo_2d();
+      DRW_draw_gizmo_2d(draw_ctx.evil_C, region);
     }
 
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
@@ -1042,7 +1043,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 
 #ifdef WITH_XR_OPENXR
     if ((v3d->flag & V3D_XR_SESSION_SURFACE) != 0) {
-      DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+      DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
 
       blender::draw::command::StateSet::set();
 
@@ -1107,7 +1108,7 @@ static void drw_callbacks_post_scene_2D(DRWContext &draw_ctx, View2D &v2d)
 
   DRW_submission_start();
   if (draw_ctx.evil_C) {
-    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+    DefaultFramebufferList *dfbl = DRW_context_get()->viewport_framebuffer_list_get();
 
     GPU_framebuffer_bind(dfbl->overlay_fb);
 
@@ -1142,7 +1143,7 @@ static void drw_callbacks_post_scene_2D(DRWContext &draw_ctx, View2D &v2d)
 
   if (do_draw_gizmos) {
     GPU_depth_test(GPU_DEPTH_NONE);
-    DRW_draw_gizmo_2d();
+    DRW_draw_gizmo_2d(draw_ctx.evil_C, draw_ctx.region);
   }
 
   DRW_submission_end();
@@ -1779,8 +1780,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   /* WORKAROUND: Needed for Select-Next for keeping the same code-flow as Overlay-Next. */
   /* TODO(pragma37): Some engines retrieve the depth texture before this point (See #132922).
    * Check with @fclem. */
-  BLI_assert(DRW_viewport_texture_list_get()->depth == nullptr);
-  DRW_viewport_texture_list_get()->depth = g_select_buffer.texture_depth;
+  BLI_assert(DRW_context_get()->viewport_texture_list_get()->depth == nullptr);
+  DRW_context_get()->viewport_texture_list_get()->depth = g_select_buffer.texture_depth;
 
   drw_callbacks_pre_scene(draw_ctx);
   /* Only 1-2 passes. */
@@ -1795,7 +1796,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   }
 
   /* WORKAROUND: Do not leave ownership to the viewport list. */
-  DRW_viewport_texture_list_get()->depth = nullptr;
+  DRW_context_get()->viewport_texture_list_get()->depth = nullptr;
 
   draw_ctx.release_data();
 
