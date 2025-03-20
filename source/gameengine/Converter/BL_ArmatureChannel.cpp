@@ -132,7 +132,7 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
     EXP_PYATTRIBUTE_FLAG_RO("ik_rot_control", bPoseChannel, ikflag, BONE_IK_ROTCTL),
     EXP_PYATTRIBUTE_FLAG_RO("ik_lin_control", bPoseChannel, ikflag, BONE_IK_LINCTL),
     EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("location", -FLT_MAX, FLT_MAX, bPoseChannel, loc, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("scale", -FLT_MAX, FLT_MAX, bPoseChannel, size, 3),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("scale", -FLT_MAX, FLT_MAX, bPoseChannel, scale, 3),
     EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_quaternion", -1.0f, 1.0f, bPoseChannel, quat, 4),
     EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler", -10.f, 10.f, bPoseChannel, eul, 3),
     EXP_PYATTRIBUTE_SHORT_RW(

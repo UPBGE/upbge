@@ -1637,7 +1637,7 @@ static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan
   bConstraint *pcon, *con;
 
   copy_v3_v3(pchan->loc, chan->loc);
-  copy_v3_v3(pchan->size, chan->size);
+  copy_v3_v3(pchan->scale, chan->scale);
   copy_v3_v3(pchan->eul, chan->eul);
   copy_v3_v3(pchan->rotAxis, chan->rotAxis);
   pchan->rotAngle = chan->rotAngle;

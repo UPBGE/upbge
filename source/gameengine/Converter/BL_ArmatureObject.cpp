@@ -166,8 +166,8 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
     for (unsigned short i = 0; i < 3; i++) {
       /* blending for loc and scale are pretty self-explanatory... */
       dchan->loc[i] = (dchan->loc[i] * dstweight) + (schan->loc[i] * srcweight);
-      dchan->size[i] = 1.0f + ((dchan->size[i] - 1.0f) * dstweight) +
-                       ((schan->size[i] - 1.0f) * srcweight);
+      dchan->scale[i] = 1.0f + ((dchan->scale[i] - 1.0f) * dstweight) +
+                       ((schan->scale[i] - 1.0f) * srcweight);
 
       /* euler-rotation interpolation done here instead... */
       // FIXME: are these results decent?
