@@ -142,20 +142,22 @@ int ED_markers_post_apply_transform(
 
 /* --------------------------------- */
 
-TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float x)
+TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, const float frame)
 {
-  TimeMarker *nearest = nullptr;
+  if (markers == nullptr || BLI_listbase_is_empty(markers)) {
+    return nullptr;
+  }
 
-  if (markers) {
-    /* Don't initialize with a large/infinite value since a non-finite `x` could
-     * fail to return a marker which can crash in some cases, see: #136059. */
-    float min_dist;
-    LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      const float dist = fabsf(float(marker->frame) - x);
-      if (!nearest || (dist < min_dist)) {
-        min_dist = dist;
-        nearest = marker;
-      }
+  /* Always initialize the first so it's guaranteed to return a marker
+   * even if `frame` is NAN or the deltas are not finite. see: #136059. */
+  TimeMarker *marker = static_cast<TimeMarker *>(markers->first);
+  TimeMarker *nearest = marker;
+  float min_dist = fabsf(float(marker->frame) - frame);
+  for (marker = marker->next; marker; marker = marker->next) {
+    const float dist = fabsf(float(marker->frame) - frame);
+    if (dist < min_dist) {
+      min_dist = dist;
+      nearest = marker;
     }
   }
 
@@ -1501,7 +1503,7 @@ static int ed_marker_box_select_exec(bContext *C, wmOperator *op)
   UI_view2d_region_to_view_rctf(v2d, &rect, &rect);
 
   if (markers == nullptr) {
-    return 0;
+    return OPERATOR_CANCELLED;
   }
 
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
@@ -1519,7 +1521,7 @@ static int ed_marker_box_select_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
-  return 1;
+  return OPERATOR_FINISHED;
 }
 
 static void MARKER_OT_select_box(wmOperatorType *ot)

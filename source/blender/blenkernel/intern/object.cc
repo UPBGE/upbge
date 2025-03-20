@@ -2895,7 +2895,7 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
   BKE_pose_copy_data_ex(&obn->pose, ob->pose, flag, true); /* true = copy constraints */
 
   LISTBASE_FOREACH (bPoseChannel *, chan, &obn->pose->chanbase) {
-    chan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE);
+    chan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE);
 
     /* XXX Remapping object pointing onto itself should be handled by generic
      *     BKE_library_remap stuff, but...
@@ -5905,7 +5905,7 @@ Mesh *BKE_object_to_mesh(Depsgraph *depsgraph, Object *object, bool preserve_all
 {
   BKE_object_to_mesh_clear(object);
 
-  Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, preserve_all_data_layers, false);
+  Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, preserve_all_data_layers, false, true);
   object->runtime->object_as_temp_mesh = mesh;
   return mesh;
 }

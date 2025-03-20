@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "RNA_access.hh"
+#include "RNA_blender_cpp.hh"
+
 #include "scene/mesh.h"
 #include "scene/scene.h"
 
@@ -14,15 +17,29 @@
 #include "util/transform.h"
 #include "util/types.h"
 
-#include "RNA_blender_cpp.hh"
-
 #include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_image.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
 #include "BKE_mesh_types.hh"
+#include "BKE_mesh_wrapper.hh"
 
 CCL_NAMESPACE_BEGIN
+
+static inline BL::ID object_get_data(const BL::Object &b_ob, const bool use_adaptive_subdivision)
+{
+  ::Object *object = reinterpret_cast<::Object *>(b_ob.ptr.data);
+
+  if (!use_adaptive_subdivision && object->type == OB_MESH) {
+    ::Mesh *mesh = static_cast<::Mesh *>(object->data);
+    mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
+    return BL::ID(RNA_id_pointer_create(&mesh->id));
+  }
+
+  return BL::ID(RNA_id_pointer_create(reinterpret_cast<ID *>(object->data)));
+}
 
 struct BObjectInfo {
   /* Object directly provided by the depsgraph iterator. This object is only valid during one
@@ -35,16 +52,28 @@ struct BObjectInfo {
   BL::Object real_object;
 
   /* The object-data referenced by the iter object. This is still valid after the depsgraph
-   * iterator is done. It might have a different type compared to real_object.data(). */
+   * iterator is done. It might have a different type compared to object_get_data(real_object). */
   BL::ID object_data;
+
+  /* Object will use adaptive subdivision. */
+  bool use_adaptive_subdivision;
 
   /* True when the current geometry is the data of the referenced object. False when it is a
    * geometry instance that does not have a 1-to-1 relationship with an object. */
   bool is_real_object_data() const
   {
-    return const_cast<BL::Object &>(real_object).data() == object_data;
+    return object_get_data(const_cast<BL::Object &>(real_object), use_adaptive_subdivision) ==
+           object_data;
   }
 };
+
+static inline BL::Mesh object_copy_mesh_data(const BObjectInfo &b_ob_info)
+{
+  ::Object *object = static_cast<::Object *>(b_ob_info.real_object.ptr.data);
+  ::Mesh *mesh = BKE_mesh_new_from_object(
+      nullptr, object, false, false, !b_ob_info.use_adaptive_subdivision);
+  return BL::Mesh(RNA_id_pointer_create(&mesh->id));
+}
 
 using BlenderAttributeType = BL::ShaderNodeAttribute::attribute_type_enum;
 BlenderAttributeType blender_attribute_name_split_type(ustring name, string *r_real_name);
@@ -52,35 +81,15 @@ BlenderAttributeType blender_attribute_name_split_type(ustring name, string *r_r
 void python_thread_state_save(void **python_thread_state);
 void python_thread_state_restore(void **python_thread_state);
 
-static bool mesh_use_corner_normals(BL::Mesh &mesh, Mesh::SubdivisionType subdivision_type)
+static bool mesh_use_corner_normals(const BObjectInfo &b_ob_info, BL::Mesh &mesh)
 {
-  return mesh && (subdivision_type == Mesh::SUBDIVISION_NONE) &&
+  return mesh && !b_ob_info.use_adaptive_subdivision &&
          (static_cast<const ::Mesh *>(mesh.ptr.data)->normals_domain(true) ==
           blender::bke::MeshNormalDomain::Corner);
 }
 
-static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
-                                      BObjectInfo &b_ob_info,
-                                      BL::Depsgraph & /*depsgraph*/,
-                                      bool /*calc_undeformed*/,
-                                      Mesh::SubdivisionType subdivision_type)
+static inline BL::Mesh object_to_mesh(BObjectInfo &b_ob_info)
 {
-  /* TODO: make this work with copy-on-evaluation, modifiers are already evaluated. */
-#if 0
-  bool subsurf_mod_show_render = false;
-  bool subsurf_mod_show_viewport = false;
-
-  if (subdivision_type != Mesh::SUBDIVISION_NONE) {
-    BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length() - 1];
-
-    subsurf_mod_show_render = subsurf_mod.show_render();
-    subsurf_mod_show_viewport = subsurf_mod.show_viewport();
-
-    subsurf_mod.show_render(false);
-    subsurf_mod.show_viewport(false);
-  }
-#endif
-
   BL::Mesh mesh = (b_ob_info.object_data.is_a(&RNA_Mesh)) ? BL::Mesh(b_ob_info.object_data) :
                                                             BL::Mesh(PointerRNA_NULL);
 
@@ -90,43 +99,31 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
     if (mesh) {
       if (mesh.is_editmode()) {
         /* Flush edit-mesh to mesh, including all data layers. */
-        BL::Depsgraph depsgraph(PointerRNA_NULL);
-        mesh = b_ob_info.real_object.to_mesh(false, depsgraph);
-        use_corner_normals = mesh_use_corner_normals(mesh, subdivision_type);
+        mesh = object_copy_mesh_data(b_ob_info);
+        use_corner_normals = mesh_use_corner_normals(b_ob_info, mesh);
       }
-      else if (mesh_use_corner_normals(mesh, subdivision_type)) {
+      else if (mesh_use_corner_normals(b_ob_info, mesh)) {
         /* Make a copy to split faces. */
-        BL::Depsgraph depsgraph(PointerRNA_NULL);
-        mesh = b_ob_info.real_object.to_mesh(false, depsgraph);
+        mesh = object_copy_mesh_data(b_ob_info);
         use_corner_normals = true;
       }
     }
     else {
-      BL::Depsgraph depsgraph(PointerRNA_NULL);
-      mesh = b_ob_info.real_object.to_mesh(false, depsgraph);
-      use_corner_normals = mesh_use_corner_normals(mesh, subdivision_type);
+      mesh = object_copy_mesh_data(b_ob_info);
+      use_corner_normals = mesh_use_corner_normals(b_ob_info, mesh);
     }
   }
   else {
     /* TODO: what to do about non-mesh geometry instances? */
-    use_corner_normals = mesh_use_corner_normals(mesh, subdivision_type);
+    use_corner_normals = mesh_use_corner_normals(b_ob_info, mesh);
   }
-
-#if 0
-  if (subdivision_type != Mesh::SUBDIVISION_NONE) {
-    BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length() - 1];
-
-    subsurf_mod.show_render(subsurf_mod_show_render);
-    subsurf_mod.show_viewport(subsurf_mod_show_viewport);
-  }
-#endif
 
   if (mesh) {
     if (use_corner_normals) {
       mesh.split_faces();
     }
 
-    if (subdivision_type == Mesh::SUBDIVISION_NONE) {
+    if (b_ob_info.use_adaptive_subdivision) {
       mesh.calc_loop_triangles();
     }
   }
@@ -134,17 +131,15 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   return mesh;
 }
 
-static inline void free_object_to_mesh(BL::BlendData & /*data*/,
-                                       BObjectInfo &b_ob_info,
-                                       BL::Mesh &mesh)
+static inline void free_object_to_mesh(BObjectInfo &b_ob_info, BL::Mesh &mesh)
 {
   if (!b_ob_info.is_real_object_data()) {
     return;
   }
   /* Free mesh if we didn't just use the existing one. */
   BL::Object object = b_ob_info.real_object;
-  if (object.data().ptr.data != mesh.ptr.data) {
-    object.to_mesh_clear();
+  if (object_get_data(object, b_ob_info.use_adaptive_subdivision).ptr.data != mesh.ptr.data) {
+    BKE_id_free(nullptr, static_cast<ID *>(mesh.ptr.data));
   }
 }
 
@@ -675,13 +670,11 @@ static inline BL::MeshSequenceCacheModifier object_mesh_cache_find(BL::Object &b
   return BL::MeshSequenceCacheModifier(PointerRNA_NULL);
 }
 
-static BL::SubsurfModifier object_subdivision_modifier(BL::Object &b_ob,
-                                                       const bool preview,
-                                                       const bool experimental)
+static BL::SubsurfModifier object_subdivision_modifier(BL::Object &b_ob, const bool preview)
 {
   PointerRNA cobj = RNA_pointer_get(&b_ob.ptr, "cycles");
 
-  if (cobj.data && !b_ob.modifiers.empty() && experimental) {
+  if (cobj.data && !b_ob.modifiers.empty()) {
     BL::Modifier mod = b_ob.modifiers[b_ob.modifiers.length() - 1];
     const bool enabled = preview ? mod.show_viewport() : mod.show_render();
 
@@ -698,9 +691,13 @@ static BL::SubsurfModifier object_subdivision_modifier(BL::Object &b_ob,
 
 static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
                                                             const bool preview,
-                                                            const bool experimental)
+                                                            const bool use_adaptive_subdivision)
 {
-  BL::SubsurfModifier subsurf = object_subdivision_modifier(b_ob, preview, experimental);
+  if (!use_adaptive_subdivision) {
+    return Mesh::SUBDIVISION_NONE;
+  }
+
+  BL::SubsurfModifier subsurf = object_subdivision_modifier(b_ob, preview);
 
   if (subsurf) {
     if (subsurf.subdivision_type() == BL::SubsurfModifier::subdivision_type_CATMULL_CLARK) {
@@ -715,9 +712,14 @@ static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
 static inline void object_subdivision_to_mesh(BL::Object &b_ob,
                                               Mesh &mesh,
                                               const bool preview,
-                                              const bool experimental)
+                                              const bool use_adaptive_subdivision)
 {
-  BL::SubsurfModifier subsurf = object_subdivision_modifier(b_ob, preview, experimental);
+  if (!use_adaptive_subdivision) {
+    mesh.set_subdivision_type(Mesh::SUBDIVISION_NONE);
+    return;
+  }
+
+  BL::SubsurfModifier subsurf = object_subdivision_modifier(b_ob, preview);
 
   if (!subsurf) {
     mesh.set_subdivision_type(Mesh::SUBDIVISION_NONE);
