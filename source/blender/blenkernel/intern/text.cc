@@ -77,7 +77,7 @@ static void text_init_data(ID *id)
   BLI_listbase_clear(&text->lines);
 
   TextLine *tmp = txt_line_malloc();
-  tmp->line = (char *)MEM_mallocN(1, "textline_string");
+  tmp->line = MEM_malloc_arrayN<char>(1, "textline_string");
   tmp->format = nullptr;
 
   tmp->line[0] = 0;
@@ -308,7 +308,7 @@ int txt_extended_ascii_as_utf8(char **str)
   }
 
   if (added != 0) {
-    char *newstr = static_cast<char *>(MEM_mallocN(length + added + 1, "text_line"));
+    char *newstr = MEM_malloc_arrayN<char>(size_t(length) + size_t(added) + 1, "text_line");
     ptrdiff_t mi = 0;
     i = 0;
 
@@ -365,7 +365,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
   for (i = 0; i < len; i++) {
     if (buffer[i] == '\n') {
       TextLine *tmp = txt_line_malloc();
-      tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
+      tmp->line = MEM_malloc_arrayN<char>(size_t(llen) + 1, "textline_string");
       tmp->format = nullptr;
 
       if (llen) {
@@ -393,7 +393,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
    *   deal with newline at end of file. (see #28087) (sergey) */
   if (llen != 0 || lines_count == 0 || buffer[len - 1] == '\n') {
     TextLine *tmp = txt_line_malloc();
-    tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
+    tmp->line = MEM_malloc_arrayN<char>(size_t(llen) + 1, "textline_string");
     tmp->format = nullptr;
 
     if (llen) {
@@ -482,7 +482,7 @@ Text *BKE_text_load_ex(Main *bmain,
 
   if (is_internal == false) {
     const size_t filepath_len = strlen(filepath);
-    ta->filepath = static_cast<char *>(MEM_mallocN(filepath_len + 1, "text_name"));
+    ta->filepath = MEM_malloc_arrayN<char>(filepath_len + 1, "text_name");
     memcpy(ta->filepath, filepath, filepath_len + 1);
   }
   else {
@@ -591,7 +591,7 @@ void BKE_text_file_modified_ignore(Text *text)
 
 static TextLine *txt_line_malloc()
 {
-  TextLine *l = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+  TextLine *l = MEM_mallocN<TextLine>("textline");
   /* Quiet VALGRIND warning, may avoid unintended differences with MEMFILE undo as well. */
   memset(l->_pad0, 0, sizeof(l->_pad0));
   return l;
@@ -614,7 +614,7 @@ static void make_new_line(TextLine *line, char *newline)
 static TextLine *txt_new_linen(const char *str, int str_len)
 {
   TextLine *tmp = txt_line_malloc();
-  tmp->line = static_cast<char *>(MEM_mallocN(str_len + 1, "textline_string"));
+  tmp->line = MEM_malloc_arrayN<char>(size_t(str_len) + 1, "textline_string");
   tmp->format = nullptr;
 
   memcpy(tmp->line, str, str_len);
@@ -1230,8 +1230,8 @@ static void txt_delete_sel(Text *text)
 
   txt_order_cursors(text, false);
 
-  buf = static_cast<char *>(
-      MEM_mallocN(text->curc + (text->sell->len - text->selc) + 1, "textline_string"));
+  buf = MEM_malloc_arrayN<char>(
+      size_t(text->curc) + (size_t(text->sell->len) - size_t(text->selc)) + 1, "textline_string");
 
   memcpy(buf, text->curl->line, text->curc);
   memcpy(buf + text->curc, text->sell->line + text->selc, text->sell->len - text->selc);
@@ -1349,7 +1349,7 @@ char *txt_to_buf_for_undo(Text *text, size_t *r_buf_len)
   LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
     buf_len += l->len + 1;
   }
-  char *buf = static_cast<char *>(MEM_mallocN(buf_len, __func__));
+  char *buf = MEM_malloc_arrayN<char>(size_t(buf_len), __func__);
   char *buf_step = buf;
   LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
     memcpy(buf_step, l->line, l->len);
@@ -1406,7 +1406,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
     const int len = buf_step_next - buf_step;
 
     TextLine *l = txt_line_malloc();
-    l->line = static_cast<char *>(MEM_mallocN(len + 1, "textline_string"));
+    l->line = MEM_malloc_arrayN<char>(size_t(len) + 1, "textline_string");
     l->len = len;
     l->format = nullptr;
 
@@ -1439,7 +1439,7 @@ char *txt_to_buf(Text *text, size_t *r_buf_strlen)
   if (has_data) {
     buf_len -= 1;
   }
-  char *buf = static_cast<char *>(MEM_mallocN(buf_len + 1, __func__));
+  char *buf = MEM_malloc_arrayN<char>(buf_len + 1, __func__);
   char *buf_step = buf;
   LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
     memcpy(buf_step, l->line, l->len);
@@ -1503,7 +1503,7 @@ char *txt_sel_to_buf(const Text *text, size_t *r_buf_strlen)
 
   if (linef == linel) {
     length = charl - charf;
-    buf = static_cast<char *>(MEM_mallocN(length + 1, "sel buffer"));
+    buf = MEM_malloc_arrayN<char>(length + 1, "sel buffer");
     memcpy(buf, linef->line + charf, length);
     buf[length] = '\0';
   }
@@ -1515,7 +1515,7 @@ char *txt_sel_to_buf(const Text *text, size_t *r_buf_strlen)
       length += tmp->len + 1;
     }
 
-    buf = static_cast<char *>(MEM_mallocN(length + 1, "sel buffer"));
+    buf = MEM_malloc_arrayN<char>(length + 1, "sel buffer");
 
     memcpy(buf, linef->line + charf, linef->len - charf);
     length = linef->len - charf;
@@ -1664,13 +1664,14 @@ void txt_split_curline(Text *text)
 
   /* Make the two half strings */
 
-  left = static_cast<char *>(MEM_mallocN(text->curc + 1, "textline_string"));
+  left = MEM_malloc_arrayN<char>(size_t(text->curc) + 1, "textline_string");
   if (text->curc) {
     memcpy(left, text->curl->line, text->curc);
   }
   left[text->curc] = 0;
 
-  right = static_cast<char *>(MEM_mallocN(text->curl->len - text->curc + 1, "textline_string"));
+  right = MEM_malloc_arrayN<char>(size_t(text->curl->len) - size_t(text->curc) + 1,
+                                  "textline_string");
   memcpy(right, text->curl->line + text->curc, text->curl->len - text->curc + 1);
 
   MEM_freeN(text->curl->line);
@@ -1728,7 +1729,7 @@ static void txt_combine_lines(Text *text, TextLine *linea, TextLine *lineb)
     return;
   }
 
-  tmp = static_cast<char *>(MEM_mallocN(linea->len + lineb->len + 1, "textline_string"));
+  tmp = MEM_malloc_arrayN<char>(size_t(linea->len) + size_t(lineb->len) + 1, "textline_string");
 
   s = tmp;
   memcpy(s, linea->line, linea->len);
@@ -1896,7 +1897,7 @@ static bool txt_add_char_intern(Text *text, uint add, bool replace_tabs)
 
   add_len = BLI_str_utf8_from_unicode(add, ch, sizeof(ch));
 
-  tmp = static_cast<char *>(MEM_mallocN(text->curl->len + add_len + 1, "textline_string"));
+  tmp = MEM_malloc_arrayN<char>(size_t(text->curl->len) + add_len + 1, "textline_string");
 
   memcpy(tmp, text->curl->line, text->curc);
   memcpy(tmp + text->curc, ch, add_len);
@@ -1953,8 +1954,8 @@ bool txt_replace_char(Text *text, uint add)
   add_size = BLI_str_utf8_from_unicode(add, ch, sizeof(ch));
 
   if (add_size > del_size) {
-    char *tmp = static_cast<char *>(
-        MEM_mallocN(text->curl->len + add_size - del_size + 1, "textline_string"));
+    char *tmp = MEM_malloc_arrayN<char>(size_t(text->curl->len) + add_size - del_size + 1,
+                                        "textline_string");
     memcpy(tmp, text->curl->line, text->curc);
     memcpy(tmp + text->curc + add_size,
            text->curl->line + text->curc + del_size,
@@ -2001,7 +2002,8 @@ static void txt_select_prefix(Text *text, const char *add, bool skip_blank_lines
 
     /* don't indent blank lines */
     if ((text->curl->len != 0) || (skip_blank_lines == 0)) {
-      tmp = static_cast<char *>(MEM_mallocN(text->curl->len + indentlen + 1, "textline_string"));
+      tmp = MEM_malloc_arrayN<char>(size_t(text->curl->len) + size_t(indentlen) + 1,
+                                    "textline_string");
 
       text->curc = 0;
       if (text->curc) {

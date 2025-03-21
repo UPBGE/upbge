@@ -1627,7 +1627,7 @@ bool weight_paint_poll_ignore_tool(bContext *C)
 /**
  * \note Keep in sync with #vpaint_mode_toggle_exec
  */
-static int wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   wmMsgBus *mbus = CTX_wm_message_bus(C);
@@ -1922,10 +1922,8 @@ static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/)
   ob.sculpt->cache = nullptr;
 }
 
-static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int retval;
-
   op->customdata = paint_stroke_new(C,
                                     op,
                                     SCULPT_stroke_get_location,
@@ -1935,19 +1933,21 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     wpaint_stroke_done,
                                     event->type);
 
-  if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  OPERATOR_RETVAL_CHECK(retval);
+
+  if (retval == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, (PaintStroke *)op->customdata);
     return OPERATOR_FINISHED;
   }
   WM_event_add_modal_handler(C, op);
 
-  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wpaint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
 {
   op->customdata = paint_stroke_new(C,
                                     op,
@@ -1972,7 +1972,7 @@ static void wpaint_cancel(bContext *C, wmOperator *op)
   paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }
 
-static int wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, (PaintStroke **)&op->customdata);
 }

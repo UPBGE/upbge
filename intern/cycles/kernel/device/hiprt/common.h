@@ -105,7 +105,7 @@ ccl_device_inline bool curve_custom_intersect(const hiprtRay &ray,
   int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
   int2 data_offset = kernel_data_fetch(custom_prim_info_offset, object_id);
   // data_offset.x: where the data (prim id, type )for the geometry of the current object begins
-  // the prim_id that is in hiprtHit hit is local to the partciular geometry so we add the above
+  // the prim_id that is in hiprtHit hit is local to the particular geometry so we add the above
   // ofstream
   // to map prim id in hiprtHit to the one compatible to what next stage expects
 
@@ -563,8 +563,8 @@ ccl_device_inline bool local_intersection_filter(const hiprtRay &ray,
   const uint max_hits = payload->max_hits;
 
   /* Triangle primitive uses hardware intersection, other primitives  do custom intersection
-   * which does reservoir samlping for intersections. For the custom primitives only check
-   * whether we can stop travsersal early on. The rest of the checks here only do for the
+   * which does reservoir sampling for intersections. For the custom primitives only check
+   * whether we can stop traversal early on. The rest of the checks here only do for the
    * regular triangles. */
   const int primitive_type = kernel_data_fetch(objects, object_id).primitive_type;
   if (primitive_type != PRIMITIVE_TRIANGLE) {
@@ -586,26 +586,10 @@ ccl_device_inline bool local_intersection_filter(const hiprtRay &ray,
     return false;  // stop search
   }
 
-  int hit_index = 0;
-  if (payload->lcg_state) {
-    for (int i = min(max_hits, payload->local_isect->num_hits) - 1; i >= 0; --i) {
-      if (hit.t == payload->local_isect->hits[i].t) {
-        return true;  // continue search
-      }
-    }
-    hit_index = payload->local_isect->num_hits++;
-    if (payload->local_isect->num_hits > max_hits) {
-      hit_index = lcg_step_uint(payload->lcg_state) % payload->local_isect->num_hits;
-      if (hit_index >= max_hits) {
-        return true;  // continue search
-      }
-    }
-  }
-  else {
-    if (payload->local_isect->num_hits && hit.t > payload->local_isect->hits[0].t) {
-      return true;
-    }
-    payload->local_isect->num_hits = 1;
+  const int hit_index = local_intersect_get_record_index(
+      payload->local_isect, hit.t, payload->lcg_state, max_hits);
+  if (hit_index == -1) {
+    return true;  // continue search
   }
 
   Intersection *isect = &payload->local_isect->hits[hit_index];

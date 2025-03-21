@@ -1028,7 +1028,7 @@ struct wmOperatorType {
    * any interface code or input device state.
    * See defines below for return values.
    */
-  int (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * This callback executes on a running operator whenever as property
@@ -1044,7 +1044,9 @@ struct wmOperatorType {
    * canceled due to some external reason, cancel is called
    * See defines below for return values.
    */
-  int (*invoke)(bContext *C, wmOperator *op, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*invoke)(bContext *C,
+                             wmOperator *op,
+                             const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Called when a modal operator is canceled (not used often).
@@ -1058,7 +1060,9 @@ struct wmOperatorType {
    * or execute other operators. They keep running until they don't return
    * `OPERATOR_RUNNING_MODAL`.
    */
-  int (*modal)(bContext *C, wmOperator *op, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*modal)(bContext *C,
+                            wmOperator *op,
+                            const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Verify if the operator can be executed in the current context. Note
@@ -1216,8 +1220,8 @@ struct wmDragID {
 };
 
 struct wmDragAsset {
-  int import_method; /* #eAssetImportMethod. */
   const AssetRepresentationHandle *asset;
+  AssetImportSettings import_settings;
 };
 
 struct wmDragAssetCatalog {

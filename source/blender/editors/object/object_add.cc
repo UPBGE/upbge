@@ -270,7 +270,9 @@ static bool object_add_drop_xy_get(bContext *C, wmOperator *op, int (*r_mval)[2]
  * Set the drop coordinate to the mouse position (if not already set) and call the operator's
  * `exec()` callback.
  */
-static int object_add_drop_xy_generic_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_add_drop_xy_generic_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   if (!object_add_drop_xy_is_set(op)) {
     RNA_int_set(op->ptr, "drop_x", event->xy[0]);
@@ -700,7 +702,7 @@ Object *add_type(bContext *C,
 }
 
 /* for object add operator */
-static int object_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   bool enter_editmode;
@@ -767,7 +769,7 @@ static const char *get_lightprobe_defname(int type)
   }
 }
 
-static int lightprobe_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lightprobe_add_exec(bContext *C, wmOperator *op)
 {
   bool enter_editmode;
   ushort local_view_bits;
@@ -857,7 +859,7 @@ static const char *get_effector_defname(ePFieldType type)
   return CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Field");
 }
 
-static int effector_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus effector_add_exec(bContext *C, wmOperator *op)
 {
   bool enter_editmode;
   ushort local_view_bits;
@@ -928,7 +930,7 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
 /** \name Add Camera Operator
  * \{ */
 
-static int object_camera_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_camera_add_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   Scene *scene = CTX_data_scene(C);
@@ -988,7 +990,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
 /** \name Add Metaball Operator
  * \{ */
 
-static int object_metaball_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_metaball_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1059,7 +1061,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
 /** \name Add Text Operator
  * \{ */
 
-static int object_add_text_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_text_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   bool enter_editmode;
@@ -1104,7 +1106,7 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
 /** \name Add Armature Operator
  * \{ */
 
-static int object_armature_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_armature_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1177,7 +1179,7 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
 /** \name Add Empty Operator
  * \{ */
 
-static int object_empty_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_empty_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   int type = RNA_enum_get(op->ptr, "type");
@@ -1217,7 +1219,7 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
   add_generic_props(ot, false);
 }
 
-static int object_image_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_image_add_exec(bContext *C, wmOperator *op)
 {
   Image *ima = nullptr;
 
@@ -1258,7 +1260,7 @@ static int object_image_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!RNA_struct_property_is_set(op->ptr, "align")) {
     /* Default to Aligned unless something else was explicitly passed. */
@@ -1376,7 +1378,7 @@ static EnumPropertyItem rna_enum_gpencil_add_stroke_depth_order_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1575,7 +1577,7 @@ static const char *get_light_defname(int type)
   }
 }
 
-static int object_light_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_light_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   Light *la;
@@ -1709,7 +1711,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
   return add_info;
 }
 
-static int collection_instance_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_instance_add_exec(bContext *C, wmOperator *op)
 {
   std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, op);
   if (!add_info) {
@@ -1733,7 +1735,9 @@ static int collection_instance_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_instance_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_instance_add_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   if (!object_add_drop_xy_is_set(op)) {
     RNA_int_set(op->ptr, "drop_x", event->xy[0]);
@@ -1798,7 +1802,7 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
  *
  * \{ */
 
-static int collection_drop_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_drop_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   LayerCollection *active_collection = CTX_data_layer_collection(C);
@@ -1870,13 +1874,12 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
 
   add_generic_props(ot, false);
 
-  /* IMPORTANT: Instancing option. Intentionally remembered across executions (no #PROP_SKIP_SAVE).
-   */
-  RNA_def_boolean(ot->srna,
-                  "use_instance",
-                  true,
-                  "Instance",
-                  "Add the dropped collection as collection instance");
+  prop = RNA_def_boolean(ot->srna,
+                         "use_instance",
+                         true,
+                         "Instance",
+                         "Add the dropped collection as collection instance");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   object_add_drop_xy_props(ot);
 
@@ -1894,7 +1897,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
  * Use for dropping ID's from the outliner.
  * \{ */
 
-static int object_data_instance_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_data_instance_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ID *id = nullptr;
@@ -1960,7 +1963,7 @@ void OBJECT_OT_data_instance_add(wmOperatorType *ot)
 /** \name Add Speaker Operator
  * \{ */
 
-static int object_speaker_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_speaker_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2019,7 +2022,7 @@ void OBJECT_OT_speaker_add(wmOperatorType *ot)
 /** \name Add Curves Operator
  * \{ */
 
-static int object_curves_random_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_curves_random_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -2050,7 +2053,7 @@ void OBJECT_OT_curves_random_add(wmOperatorType *ot)
   add_generic_props(ot, false);
 }
 
-static int object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -2129,7 +2132,7 @@ static bool object_pointcloud_add_poll(bContext *C)
   return ED_operator_objectmode(C);
 }
 
-static int object_pointcloud_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -2193,7 +2196,7 @@ void base_free_and_unlink_no_indirect_check(Main *bmain, Scene *scene, Object *o
   BKE_scene_collections_object_remove(bmain, scene, ob, true);
 }
 
-static int object_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_delete_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2283,7 +2286,9 @@ static int object_delete_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus object_delete_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
@@ -2666,7 +2671,7 @@ static void make_object_duplilist_real(bContext *C,
   DEG_id_tag_update(&base->object->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-static int object_duplicates_make_real_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_duplicates_make_real_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -3941,7 +3946,7 @@ static Object *convert_pointcloud(Base &base,
   }
 }
 
-static int object_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -4371,7 +4376,7 @@ Base *add_duplicate(
 }
 
 /* contextual operator dupli */
-static int duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -4504,7 +4509,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
  * Use for drag & drop.
  * \{ */
 
-static int object_add_named_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_named_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -4625,7 +4630,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 /**
  * Alternate behavior for dropping an asset that positions the appended object(s).
  */
-static int object_transform_to_mouse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_transform_to_mouse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -4768,7 +4773,7 @@ static bool object_join_poll(bContext *C)
   return false;
 }
 
-static int object_join_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_join_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = CTX_data_active_object(C);
@@ -4789,7 +4794,7 @@ static int object_join_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  int ret = OPERATOR_CANCELLED;
+  wmOperatorStatus ret = OPERATOR_CANCELLED;
   if (ob->type == OB_MESH) {
     ret = ED_mesh_join_objects_exec(C, op);
   }
@@ -4800,10 +4805,10 @@ static int object_join_exec(bContext *C, wmOperator *op)
     ret = ED_armature_join_objects_exec(C, op);
   }
   else if (ob->type == OB_POINTCLOUD) {
-    ret = pointcloud::join_objects(C, op);
+    ret = pointcloud::join_objects_exec(C, op);
   }
   else if (ob->type == OB_CURVES) {
-    ret = curves::join_objects(C, op);
+    ret = curves::join_objects_exec(C, op);
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     ret = ED_grease_pencil_join_objects_exec(C, op);
@@ -4874,7 +4879,7 @@ static bool join_shapes_poll(bContext *C)
   return false;
 }
 
-static int join_shapes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = CTX_data_active_object(C);

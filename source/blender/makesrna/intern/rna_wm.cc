@@ -1437,14 +1437,13 @@ static bool rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
   return visible;
 }
 
-static int rna_operator_exec_cb(bContext *C, wmOperator *op)
+static wmOperatorStatus rna_operator_exec_cb(bContext *C, wmOperator *op)
 {
   extern FunctionRNA rna_Operator_execute_func;
 
   ParameterList list;
   FunctionRNA *func;
   void *ret;
-  int result;
 
   ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
   PointerRNA opr = RNA_pointer_create_discrete(owner_id, op->type->rna_ext.srna, op);
@@ -1455,7 +1454,7 @@ static int rna_operator_exec_cb(bContext *C, wmOperator *op)
   const bool has_error = op->type->rna_ext.call(C, &opr, func, &list) == -1;
 
   RNA_parameter_get_lookup(&list, "result", &ret);
-  result = *(int *)ret;
+  const wmOperatorStatus result = wmOperatorStatus(*(int *)ret);
 
   RNA_parameter_list_free(&list);
 
@@ -1464,6 +1463,7 @@ static int rna_operator_exec_cb(bContext *C, wmOperator *op)
     WM_event_remove_modal_handler_all(op, false);
   }
 
+  OPERATOR_RETVAL_CHECK(result);
   return result;
 }
 
@@ -1493,14 +1493,13 @@ static bool rna_operator_check_cb(bContext *C, wmOperator *op)
   return result;
 }
 
-static int rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *event)
 {
   extern FunctionRNA rna_Operator_invoke_func;
 
   ParameterList list;
   FunctionRNA *func;
   void *ret;
-  int result;
 
   ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
   PointerRNA opr = RNA_pointer_create_discrete(owner_id, op->type->rna_ext.srna, op);
@@ -1512,7 +1511,7 @@ static int rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *ev
   const bool has_error = op->type->rna_ext.call(C, &opr, func, &list) == -1;
 
   RNA_parameter_get_lookup(&list, "result", &ret);
-  result = *(int *)ret;
+  wmOperatorStatus retval = wmOperatorStatus(*(int *)ret);
 
   RNA_parameter_list_free(&list);
 
@@ -1521,18 +1520,18 @@ static int rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *ev
     WM_event_remove_modal_handler_all(op, false);
   }
 
-  return result;
+  OPERATOR_RETVAL_CHECK(retval);
+  return retval;
 }
 
 /* same as invoke */
-static int rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *event)
 {
   extern FunctionRNA rna_Operator_modal_func;
 
   ParameterList list;
   FunctionRNA *func;
   void *ret;
-  int result;
 
   ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
   PointerRNA opr = RNA_pointer_create_discrete(owner_id, op->type->rna_ext.srna, op);
@@ -1544,11 +1543,12 @@ static int rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *eve
   op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_get_lookup(&list, "result", &ret);
-  result = *(int *)ret;
+  wmOperatorStatus retval = wmOperatorStatus(*(int *)ret);
 
   RNA_parameter_list_free(&list);
 
-  return result;
+  OPERATOR_RETVAL_CHECK(retval);
+  return retval;
 }
 
 static void rna_operator_draw_cb(bContext *C, wmOperator *op)
