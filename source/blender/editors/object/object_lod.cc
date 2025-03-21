@@ -52,7 +52,7 @@
 
 namespace blender::ed::object {
 
-static int object_lod_add_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus object_lod_add_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = blender::ed::object::context_object(C);
 
@@ -80,7 +80,7 @@ void OBJECT_OT_lod_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int object_lod_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_lod_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = blender::ed::object::context_object(C);
   int index = RNA_int_get(op->ptr, "index");

@@ -273,7 +273,7 @@ static bool remove_component_poll(bContext *C)
 
 /* ************* Add/Remove Sensor Operator ************* */
 
-static int sensor_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sensor_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
   bSensor *sens = edit_sensor_property_get(C, op, &ob);
@@ -291,7 +291,7 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sensor_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus sensor_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_sensor_invoke_properties(C, op)) {
     return sensor_remove_exec(C, op);
@@ -314,7 +314,7 @@ static void LOGIC_OT_sensor_remove(wmOperatorType *ot)
   edit_sensor_properties(ot);
 }
 
-static int sensor_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sensor_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   bSensor *sens;
@@ -384,7 +384,7 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
 
 /* ************* Add/Remove Controller Operator ************* */
 
-static int controller_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus controller_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
   bController *cont = edit_controller_property_get(C, op, &ob);
@@ -403,7 +403,7 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int controller_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus controller_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_controller_invoke_properties(C, op)) {
     return controller_remove_exec(C, op);
@@ -426,7 +426,7 @@ static void LOGIC_OT_controller_remove(wmOperatorType *ot)
   edit_controller_properties(ot);
 }
 
-static int controller_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus controller_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   bController *cont;
@@ -518,7 +518,7 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
 
 /* ************* Add/Remove Actuator Operator ************* */
 
-static int actuator_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actuator_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
   bActuator *act = edit_actuator_property_get(C, op, &ob);
@@ -537,7 +537,7 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int actuator_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus actuator_remove_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_actuator_invoke_properties(C, op)) {
     return actuator_remove_exec(C, op);
@@ -560,7 +560,7 @@ static void LOGIC_OT_actuator_remove(wmOperatorType *ot)
   edit_actuator_properties(ot);
 }
 
-static int actuator_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actuator_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   bActuator *act;
@@ -636,7 +636,7 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
 static const EnumPropertyItem logicbricks_move_direction[] = {
     {1, "UP", 0, "Move Up", ""}, {2, "DOWN", 0, "Move Down", ""}, {0, nullptr, 0, nullptr, nullptr}};
 
-static int sensor_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sensor_move_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
   bSensor *sens = edit_sensor_property_get(C, op, &ob);
@@ -654,7 +654,7 @@ static int sensor_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sensor_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus sensor_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_sensor_invoke_properties(C, op)) {
     return sensor_move_exec(C, op);
@@ -683,7 +683,7 @@ static void LOGIC_OT_sensor_move(wmOperatorType *ot)
       ot->srna, "direction", logicbricks_move_direction, 1, "Direction", "Move Up or Down");
 }
 
-static int controller_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus controller_move_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
   bController *cont = edit_controller_property_get(C, op, &ob);
@@ -701,7 +701,7 @@ static int controller_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int controller_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus controller_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_controller_invoke_properties(C, op)) {
     return controller_move_exec(C, op);
@@ -730,7 +730,7 @@ static void LOGIC_OT_controller_move(wmOperatorType *ot)
       ot->srna, "direction", logicbricks_move_direction, 1, "Direction", "Move Up or Down");
 }
 
-static int actuator_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actuator_move_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
   bActuator *act = edit_actuator_property_get(C, op, &ob);
@@ -748,7 +748,7 @@ static int actuator_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int actuator_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus actuator_move_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   if (edit_actuator_invoke_properties(C, op)) {
     return actuator_move_exec(C, op);
@@ -779,7 +779,7 @@ static void LOGIC_OT_actuator_move(wmOperatorType *ot)
 
 /* ************************ view ********************* */
 
-static int logic_view_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus logic_view_all_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   rctf cur_new = region->v2d.tot;
@@ -811,7 +811,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 
 /* ********** flip a region alignment ********************* */
 
-static int logic_region_flip_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus logic_region_flip_exec(bContext *C, wmOperator */*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
   ARegion *region = logic_has_buttons_region(sa);
@@ -852,13 +852,13 @@ static void LOGIC_OT_region_flip(wmOperatorType *ot)
 }
 
 /* Custom object operators */
-static int python_class_new_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus python_class_new_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   /* Better for user feedback. */
   return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X);
 }
 
-static int custom_object_register_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus custom_object_register_exec(bContext *C, wmOperator *op)
 {
   PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
@@ -884,7 +884,7 @@ static int custom_object_register_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int custom_object_create_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus custom_object_create_exec(bContext *C, wmOperator *op)
 {
   PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
@@ -958,7 +958,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
   RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
-static int custom_object_remove_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus custom_object_remove_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = CTX_data_active_object(C);
 
@@ -998,7 +998,7 @@ static void LOGIC_OT_custom_object_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 }
 
-static int custom_object_reload_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus custom_object_reload_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
 
@@ -1036,7 +1036,7 @@ static void LOGIC_OT_custom_object_reload(wmOperatorType *ot)
 }
 
 /* Component operators */
-static int component_register_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus component_register_exec(bContext *C, wmOperator *op)
 {
   PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
@@ -1062,7 +1062,7 @@ static int component_register_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int component_create_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus component_create_exec(bContext *C, wmOperator *op)
 {
   PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
@@ -1136,7 +1136,7 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
   RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
 }
 
-static int component_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus component_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   PythonProxy *pp = nullptr;
@@ -1180,7 +1180,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
 }
 
-static int component_move_up_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus component_move_up_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   PythonProxy *p1, *p2 = nullptr;
@@ -1272,7 +1272,7 @@ static bool component_move_down_poll(bContext *C)
   return index < count - 1;
 }
 
-static int component_move_down_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus component_move_down_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   PythonProxy *p1, *p2 = nullptr;
@@ -1327,7 +1327,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
 }
 
-static int component_reload_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus component_reload_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   PythonProxy *pp = nullptr, *prev_pp = nullptr;

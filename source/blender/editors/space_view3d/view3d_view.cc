@@ -1525,7 +1525,7 @@ static bool game_engine_poll(bContext *C)
   return 1;
 }
 
-static int game_engine_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_GAMEENGINE
   Scene *startscene = CTX_data_scene(C);

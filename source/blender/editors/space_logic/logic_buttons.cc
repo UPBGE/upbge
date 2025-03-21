@@ -50,7 +50,7 @@
 #include "interface_intern.hh"
 #include "logic_intern.hh"
 
-static int logic_properties_toggle_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus logic_properties_toggle_exec(bContext *C, wmOperator */*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
   ARegion *region = logic_has_buttons_region(sa);
@@ -98,7 +98,7 @@ static int cut_links_intersect(uiLinkLine *line, float mcoords[][2], int tot)
   return 0;
 }
 
-static int cut_links_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   float mcoords[256][2];

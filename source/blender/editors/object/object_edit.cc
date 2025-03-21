@@ -2151,7 +2151,7 @@ static ListBase selected_objects_get(bContext *C)
 
 /************************ Game Properties ***********************/
 
-static int game_property_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus game_property_new_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bProperty *prop;
@@ -2196,7 +2196,7 @@ void OBJECT_OT_game_property_new(wmOperatorType *ot)
   RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the game property to add");
 }
 
-static int game_property_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus game_property_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bProperty *prop;
@@ -2239,7 +2239,7 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 #define GAME_PROPERTY_MOVE_UP 1
 #define GAME_PROPERTY_MOVE_DOWN -1
 
-static int game_property_move(bContext *C, wmOperator *op)
+static wmOperatorStatus game_property_move(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bProperty *prop;
@@ -2348,7 +2348,7 @@ static const EnumPropertyItem *gameprops_itemf(bContext *C,
   return item;
 }
 
-static int game_property_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus game_property_copy_exec(bContext *C, wmOperator *op)
 {
   Object *ob = blender::ed::object::context_active_object(C);
   bProperty *prop;
@@ -2411,7 +2411,7 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static int game_property_clear_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus game_property_clear_exec(bContext *C, wmOperator */*op*/)
 {
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     BKE_bproperty_free_list(&ob_iter->prop);
@@ -2438,7 +2438,7 @@ void OBJECT_OT_game_property_clear(wmOperatorType *ot)
 
 /************************ Copy Logic Bricks ***********************/
 
-static int logicbricks_copy_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus logicbricks_copy_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = blender::ed::object::context_active_object(C);
 
@@ -2494,7 +2494,7 @@ void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int game_physics_copy_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus game_physics_copy_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = blender::ed::object::context_active_object(C);
 
