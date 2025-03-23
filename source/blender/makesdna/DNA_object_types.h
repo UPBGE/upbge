@@ -309,8 +309,10 @@ typedef struct Object {
   short colbits DNA_DEPRECATED;
 
   /** Transformation settings and transform locks. */
-  short transflag, protectflag;
-  short trackflag, upflag;
+  int transflag;
+  short protectflag;
+  short trackflag;
+  int upflag, _pad56;
   /** Used for DopeSheet filtering settings (expanded/collapsed). */
   short nlaflag;
 

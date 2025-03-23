@@ -38,7 +38,7 @@
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
-#define UPBGE_FILE_SUBVERSION 0
+#define UPBGE_FILE_SUBVERSION 1
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to

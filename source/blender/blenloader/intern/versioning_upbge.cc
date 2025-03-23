@@ -413,6 +413,16 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       /* Game overlay mouse control moved from flag to gameflag */
       if (cam->flag & (1 << 11)) {
         cam->gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
+        cam->flag &= ~(1 << 11);
+      }
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 45, 1)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      /* OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY moved from 1 << 14 to 1 << 31 */
+      if (ob->transflag & (1 << 14)) {
+        ob->transflag |= (1 << 31);
+        ob->transflag &= ~(1 << 14);
       }
     }
   }
