@@ -669,7 +669,7 @@ enum {
 
 };
 
-/** #Object.transflag (short) */
+/** #Object.transflag (int//upbge) */
 enum {
   OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK = 1 << 0,
   OB_TRANSFLAG_UNUSED_1 = 1 << 1, /* cleared */
@@ -687,7 +687,9 @@ enum {
   OB_TRANSFLAG_UNUSED_12 = 1 << 12, /* cleared */
   /* runtime constraints disable */
   OB_NO_CONSTRAINTS = 1 << 13,
-  OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY = 1 << 14,  // UPBGE
+  /* when calculating vertex parent position, ignore CD_ORIGINDEX layer */
+  OB_PARENT_USE_FINAL_INDICES = 1 << 14,
+  OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY = 1 << 31,  // UPBGE
 
   OB_DUPLI = OB_DUPLIVERTS | OB_DUPLICOLLECTION | OB_DUPLIFACES | OB_DUPLIPARTS,
 };
