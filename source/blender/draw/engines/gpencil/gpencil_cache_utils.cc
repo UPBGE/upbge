@@ -39,14 +39,12 @@ namespace blender::draw::gpencil {
 /** \name Object
  * \{ */
 
-GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
-                                          Object *ob,
-                                          const bool is_stroke_order_3d,
-                                          const blender::Bounds<float3> bounds)
+tObject *gpencil_object_cache_add(Instance *inst,
+                                  Object *ob,
+                                  const bool is_stroke_order_3d,
+                                  const Bounds<float3> bounds)
 {
-  using namespace blender;
-  GPENCIL_tObject *tgp_ob = static_cast<GPENCIL_tObject *>(
-      BLI_memblock_alloc(inst->gp_object_pool));
+  tObject *tgp_ob = static_cast<tObject *>(BLI_memblock_alloc(inst->gp_object_pool));
 
   tgp_ob->layers.first = tgp_ob->layers.last = nullptr;
   tgp_ob->vfx.first = tgp_ob->vfx.last = nullptr;
@@ -82,7 +80,7 @@ GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
   rescale_m4(mat, size);
   /* BBox space to World. */
   mul_m4_m4m4(mat, ob->object_to_world().ptr(), mat);
-  if (blender::draw::View::default_get().is_persp()) {
+  if (View::default_get().is_persp()) {
     /* BBox center to camera vector. */
     sub_v3_v3v3(tgp_ob->plane_normal, inst->camera_pos, mat[3]);
   }
@@ -109,7 +107,7 @@ GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
   mul_mat3_m4_v3(ob->object_to_world().ptr(), size);
   float radius = len_v3(size);
   mul_m4_v3(ob->object_to_world().ptr(), center);
-  rescale_m4(tgp_ob->plane_mat, blender::float3{radius, radius, radius});
+  rescale_m4(tgp_ob->plane_mat, float3{radius, radius, radius});
   copy_v3_v3(tgp_ob->plane_mat[3], center);
 
   /* Add to corresponding list if is in front. */
@@ -123,7 +121,7 @@ GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
   return tgp_ob;
 }
 
-#define SORT_IMPL_LINKTYPE GPENCIL_tObject
+#define SORT_IMPL_LINKTYPE tObject
 
 #define SORT_IMPL_FUNC gpencil_tobject_sort_fn_r
 #include "../../blenlib/intern/list_sort_impl.h"
@@ -133,8 +131,8 @@ GPENCIL_tObject *gpencil_object_cache_add(Instance *inst,
 
 static int gpencil_tobject_dist_sort(const void *a, const void *b)
 {
-  const GPENCIL_tObject *ob_a = (const GPENCIL_tObject *)a;
-  const GPENCIL_tObject *ob_b = (const GPENCIL_tObject *)b;
+  const tObject *ob_a = (const tObject *)a;
+  const tObject *ob_b = (const tObject *)b;
   /* Reminder, camera_z is negative in front of the camera. */
   if (ob_a->camera_z > ob_b->camera_z) {
     return 1;
@@ -189,7 +187,7 @@ void gpencil_object_cache_sort(Instance *inst)
 static float grease_pencil_layer_final_opacity_get(const Instance *inst,
                                                    const Object *ob,
                                                    const GreasePencil &grease_pencil,
-                                                   const blender::bke::greasepencil::Layer &layer)
+                                                   const bke::greasepencil::Layer &layer)
 {
   const bool is_obact = ((inst->obact) && (inst->obact == ob));
   const bool is_fade = (inst->fade_layer_opacity > -1.0f) && (is_obact) &&
@@ -259,7 +257,7 @@ static float4 grease_pencil_layer_final_tint_and_alpha_get(const Instance *inst,
 
 /* Random color by layer. */
 static void grease_pencil_layer_random_color_get(const Object *ob,
-                                                 const blender::bke::greasepencil::Layer &layer,
+                                                 const bke::greasepencil::Layer &layer,
                                                  float r_color[3])
 {
   const float hsv_saturation = 0.7f;
@@ -272,12 +270,10 @@ static void grease_pencil_layer_random_color_get(const Object *ob,
   hsv_to_rgb_v(hsv, r_color);
 }
 
-GPENCIL_tLayer *grease_pencil_layer_cache_get(GPENCIL_tObject *tgp_ob,
-                                              int layer_id,
-                                              const bool skip_onion)
+tLayer *grease_pencil_layer_cache_get(tObject *tgp_ob, int layer_id, const bool skip_onion)
 {
   BLI_assert(layer_id >= 0);
-  for (GPENCIL_tLayer *layer = tgp_ob->layers.first; layer != nullptr; layer = layer->next) {
+  for (tLayer *layer = tgp_ob->layers.first; layer != nullptr; layer = layer->next) {
     if (skip_onion && layer->is_onion) {
       continue;
     }
@@ -288,15 +284,15 @@ GPENCIL_tLayer *grease_pencil_layer_cache_get(GPENCIL_tObject *tgp_ob,
   return nullptr;
 }
 
-GPENCIL_tLayer *grease_pencil_layer_cache_add(Instance *inst,
-                                              const Object *ob,
-                                              const blender::bke::greasepencil::Layer &layer,
-                                              const int onion_id,
-                                              const bool is_used_as_mask,
-                                              GPENCIL_tObject *tgp_ob)
+tLayer *grease_pencil_layer_cache_add(Instance *inst,
+                                      const Object *ob,
+                                      const bke::greasepencil::Layer &layer,
+                                      const int onion_id,
+                                      const bool is_used_as_mask,
+                                      tObject *tgp_ob)
 
 {
-  using namespace blender::bke::greasepencil;
+  using namespace bke::greasepencil;
   const GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
 
   const bool is_in_front = (ob->dtx & OB_DRAW_IN_FRONT);
@@ -330,7 +326,7 @@ GPENCIL_tLayer *grease_pencil_layer_cache_add(Instance *inst,
 
   /* Create the new layer descriptor. */
   int64_t id = inst->gp_layer_pool->append_and_get_index({});
-  GPENCIL_tLayer *tgp_layer = &(*inst->gp_layer_pool)[id];
+  tLayer *tgp_layer = &(*inst->gp_layer_pool)[id];
   BLI_LINKS_APPEND(&tgp_ob->layers, tgp_layer);
   tgp_layer->layer_id = *grease_pencil.get_layer_index(layer);
   tgp_layer->is_onion = onion_id != 0;

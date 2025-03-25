@@ -45,6 +45,7 @@ void IMB_colormanagement_assign_byte_colorspace(ImBuf *ibuf, const char *name);
 const char *IMB_colormanagement_get_float_colorspace(ImBuf *ibuf);
 const char *IMB_colormanagement_get_rect_colorspace(ImBuf *ibuf);
 
+ColorSpace *IMB_colormanagement_space_get_named(const char *name);
 bool IMB_colormanagement_space_is_data(ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_scene_linear(ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_srgb(ColorSpace *colorspace);
@@ -506,6 +507,7 @@ enum {
   COLOR_ROLE_DEFAULT_SEQUENCER,
   COLOR_ROLE_DEFAULT_BYTE,
   COLOR_ROLE_DEFAULT_FLOAT,
+  COLOR_ROLE_ACES_INTERCHANGE,
   COLOR_ROLE_DATA,
 };
 

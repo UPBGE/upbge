@@ -404,11 +404,15 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       for (bNode *node : ntree->all_nodes()) {
         if (node->type_legacy == SH_NODE_SCRIPT) {
           NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
-          BKE_bpath_foreach_path_fixed_process(bpath_data, nss->filepath, sizeof(nss->filepath));
+          if (nss->mode == NODE_SCRIPT_EXTERNAL && nss->filepath[0]) {
+            BKE_bpath_foreach_path_fixed_process(bpath_data, nss->filepath, sizeof(nss->filepath));
+          }
         }
         else if (node->type_legacy == SH_NODE_TEX_IES) {
           NodeShaderTexIES *ies = static_cast<NodeShaderTexIES *>(node->storage);
-          BKE_bpath_foreach_path_fixed_process(bpath_data, ies->filepath, sizeof(ies->filepath));
+          if (ies->mode == NODE_IES_EXTERNAL && ies->filepath[0]) {
+            BKE_bpath_foreach_path_fixed_process(bpath_data, ies->filepath, sizeof(ies->filepath));
+          }
         }
       }
       break;
@@ -4024,22 +4028,25 @@ static Set<int> get_known_node_types_set()
   return result;
 }
 
-static bool can_read_node_type(const int type)
+static bool can_read_node_type(const bNode &node)
 {
   /* Can always read custom node types. */
-  if (ELEM(type, NODE_CUSTOM, NODE_CUSTOM_GROUP)) {
+  if (ELEM(node.type_legacy, NODE_CUSTOM, NODE_CUSTOM_GROUP)) {
     return true;
   }
-
-  /* Check known built-in types. */
-  static Set<int> known_types = get_known_node_types_set();
-  return known_types.contains(type);
+  if (node.type_legacy < NODE_LEGACY_TYPE_GENERATION_START) {
+    /* Check known built-in types. */
+    static Set<int> known_types = get_known_node_types_set();
+    return known_types.contains(node.type_legacy);
+  }
+  /* Nodes with larger legacy_type are only identified by their idname. */
+  return node_type_find(node.idname) != nullptr;
 }
 
 static void node_replace_undefined_types(bNode *node)
 {
-  /* If the integer type is unknown then this node cannot be read. */
-  if (!can_read_node_type(node->type_legacy)) {
+  /* If the node type is built-in but unknown, the node cannot be read. */
+  if (!can_read_node_type(*node)) {
     node->type_legacy = NODE_CUSTOM;
     /* This type name is arbitrary, it just has to be unique enough to not match a future node
      * idname. Includes the old type identifier for debugging purposes. */

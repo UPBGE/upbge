@@ -167,10 +167,6 @@ class Mesh : public Geometry {
 
   AttributeSet subd_attributes;
 
-  /* Temporary storage for attribute interpolation, per triangle and per vertex. */
-  array<int> subd_triangle_patch_index;
-  array<float2> subd_corner_patch_uv;
-
   /* BVH */
   size_t vert_offset;
 
@@ -225,7 +221,7 @@ class Mesh : public Geometry {
   bool has_motion_blur() const override;
   PrimitiveType primitive_type() const override;
 
-  void tessellate(DiagSplit *split);
+  void tessellate(SubdParams &params);
 
   SubdFace get_subd_face(const size_t index) const;
   size_t get_num_subd_faces() const
