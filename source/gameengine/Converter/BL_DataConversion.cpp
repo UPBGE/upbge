@@ -419,13 +419,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
-  blender::Span<float3> loop_nors_dst;
-  float(*loop_normals)[3] = (float(*)[3])CustomData_get_layer(&final_me->corner_data, CD_NORMAL);
-  const bool do_loop_nors = (loop_normals == nullptr);
-  if (do_loop_nors) {
-    loop_nors_dst = final_me->corner_normals();
-  }
-
   const bke::AttributeAccessor attributes = final_me->attributes();
 
   float(*tangent)[4] = nullptr;
@@ -521,6 +514,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const bool *sharp_faces = static_cast<const bool *>(
       CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
 
+  const Span<float3> vertex_normals = final_me->vert_normals();
   const Span<int> corner_verts = final_me->corner_verts();
   const Span<int> corner_edges = final_me->corner_edges();
   const Span<int2> edges = final_me->edges();
@@ -544,8 +538,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const float *vp = &positions[vert_i][0];
 
       const MT_Vector3 pt(vp);
-      const MT_Vector3 no(do_loop_nors ? MT_Vector3(loop_nors_dst[vert_i].x, loop_nors_dst[vert_i].y, loop_nors_dst[vert_i].z) :
-                         MT_Vector3(loop_normals[vert_i][0], loop_normals[vert_i][1], loop_normals[vert_i][2]));
+      const MT_Vector3 no(vertex_normals[vert_i].x, vertex_normals[vert_i].y, vertex_normals[vert_i].z);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[vert_i]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
