@@ -30,11 +30,11 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
     return false;
   }
 
-  if (kernel_data.device_bvh == 0)
+  if (kernel_data.device_bvh == 0) {
     return false;
+  }
 
   hiprtRay ray_hip;
-
   SET_HIPRT_RAY(ray_hip, ray)
 
   RayPayload payload;
@@ -44,7 +44,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
   payload.prim_type = PRIMITIVE_NONE;
   payload.ray_time = ray->time;
 
-  hiprtHit hit = {};
+  hiprtHit hit;
 
   GET_TRAVERSAL_STACK()
 
@@ -56,14 +56,16 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
     GET_TRAVERSAL_CLOSEST_HIT(table_closest_intersect, 0, ray->time)
     hit = traversal.getNextHit();
   }
+
   if (hit.hasHit()) {
     set_intersect_point(kg, hit, isect);
-    if (isect->type > 1) {  // should be applied only for curves
+    if (isect->type > 1) { /* Should be applied only for curves. */
       isect->type = payload.prim_type;
       isect->prim = hit.primID;
     }
     return true;
   }
+
   return false;
 }
 
@@ -157,7 +159,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
 
   return hit.hasHit();
 }
-#endif  //__BVH_LOCAL__
+#endif /*__BVH_LOCAL__ */
 
 #ifdef __SHADOW_RECORD_ALL__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
@@ -176,24 +178,24 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
   }
 
   hiprtRay ray_hip;
-
   SET_HIPRT_RAY(ray_hip, ray)
+
   ShadowPayload payload;
-  payload.kg = kg;
-  payload.self = ray->self;
+  payload.ray.kg = kg;
+  payload.ray.self = ray->self;
+  payload.ray.visibility = visibility;
+  payload.ray.prim_type = PRIMITIVE_NONE;
+  payload.ray.ray_time = ray->time;
   payload.in_state = state;
   payload.max_hits = max_hits;
-  payload.visibility = visibility;
-  payload.prim_type = PRIMITIVE_NONE;
-  payload.ray_time = ray->time;
   payload.num_hits = 0;
   payload.r_num_recorded_hits = num_recorded_hits;
   payload.r_throughput = throughput;
+
   GET_TRAVERSAL_STACK()
   GET_TRAVERSAL_ANY_HIT(table_shadow_intersect, 1, ray->time)
-  hiprtHit hit = traversal.getNextHit();
-  num_recorded_hits = payload.r_num_recorded_hits;
-  throughput = payload.r_throughput;
+
+  const hiprtHit hit = traversal.getNextHit();
   return hit.hasHit();
 }
 #endif /* __SHADOW_RECORD_ALL__ */
@@ -229,18 +231,17 @@ ccl_device_intersect bool scene_intersect_volume(KernelGlobals kg,
   GET_TRAVERSAL_STACK()
 
   GET_TRAVERSAL_CLOSEST_HIT(table_volume_intersect, 3, ray->time)
-  hiprtHit hit = traversal.getNextHit();
-  // return hit.hasHit();
+  const hiprtHit hit = traversal.getNextHit();
   if (hit.hasHit()) {
     set_intersect_point(kg, hit, isect);
-    if (isect->type > 1) {  // should be applied only for curves
+    if (isect->type > 1) { /* Should be applied only for curves. */
       isect->type = payload.prim_type;
       isect->prim = hit.primID;
     }
     return true;
   }
-  else
-    return false;
+
+  return false;
 }
 #endif /* __VOLUME__ */
 
