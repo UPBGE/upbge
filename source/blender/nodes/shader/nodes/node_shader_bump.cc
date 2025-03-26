@@ -32,7 +32,21 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1000.0f)
       .description(
           "Multiplier for the height value to control the overall distance for bump mapping");
-  b.add_input<decl::Float>("Height").default_value(1.0f).min(-1000.0f).max(1000.0f).hide_value();
+  b.add_input<decl::Float>("Filter Width")
+      .default_value(0.1f)
+      .min(0.001)
+      .max(10.0f)
+      .subtype(PROP_PIXEL)
+      .description(
+          "Filter width in pixels, used to compute the bump mapping direction. For most textures "
+          "the default value of 0.1 enables subpixel filtering for stable results. For stepwise "
+          "textures a larger filter width can be used to get a bevel like effect on the edges");
+  b.add_input<decl::Float>("Height")
+      .default_value(1.0f)
+      .min(-1000.0f)
+      .max(1000.0f)
+      .hide_value()
+      .description("Height above surface. Connect the height map texture to this input");
   b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).hide_value();
   b.add_output<decl::Vector>("Normal");
 }
@@ -50,18 +64,19 @@ static int gpu_shader_bump(GPUMaterial *mat,
 {
   /* If there is no Height input, the node becomes a no-op. */
   if (!in[2].link) {
-    if (!in[3].link) {
+    if (!in[4].link) {
       return GPU_link(mat, "world_normals_get", &out[0].link);
     }
     /* Actually running the bump code would normalize, but Cycles handles it as total no-op. */
-    return GPU_link(mat, "vector_copy", in[3].link, &out[0].link);
+    return GPU_link(mat, "vector_copy", in[4].link, &out[0].link);
   }
 
-  if (!in[3].link) {
-    GPU_link(mat, "world_normals_get", &in[3].link);
+  if (!in[4].link) {
+    GPU_link(mat, "world_normals_get", &in[4].link);
   }
 
-  const char *height_function = GPU_material_split_sub_function(mat, GPU_FLOAT, &in[2].link);
+  const float filter_width = in[2].vec[0];
+  const char *height_function = GPU_material_split_sub_function(mat, GPU_FLOAT, &in[3].link);
 
   /* TODO (Miguel Pozo):
    * Currently, this doesn't compute the actual differentials, just the height at dX and dY
@@ -71,7 +86,7 @@ static int gpu_shader_bump(GPUMaterial *mat,
    * A better option would be to add a "value" input socket (in this case the height) to the
    * differentiate node, but currently this kind of intermediate nodes are pruned in the
    * code generation process (see #104265), so we need to fix that first. */
-  GPUNodeLink *dheight = GPU_differentiate_float_function(height_function);
+  GPUNodeLink *dheight = GPU_differentiate_float_function(height_function, filter_width);
 
   float invert = (node->custom1) ? -1.0 : 1.0;
 

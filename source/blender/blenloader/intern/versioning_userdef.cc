@@ -1413,6 +1413,53 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->ndof_flag |= NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO;
   }
 
+  if (!USER_VERSION_ATLEAST(405, 10)) {
+    static const blender::Map<std::string, std::string> keymap_renames = {
+        {"SequencerCommon", "Video Sequence Editor"},
+        {"SequencerPreview", "Preview"},
+
+        {"Sequencer Tool: Cursor", "Preview Tool: Cursor"},
+        {"Sequencer Tool: Sample", "Preview Tool: Sample"},
+        {"Sequencer Tool: Move", "Preview Tool: Move"},
+        {"Sequencer Tool: Rotate", "Preview Tool: Rotate"},
+        {"Sequencer Tool: Scale", "Preview Tool: Scale"},
+
+        {"Sequencer Timeline Tool: Select Box", "Sequencer Tool: Select Box"},
+        {"Sequencer Timeline Tool: Select Box (fallback)",
+         "Sequencer Tool: Select Box (fallback)"},
+
+        {"Sequencer Preview Tool: Tweak", "Preview Tool: Tweak"},
+        {"Sequencer Preview Tool: Tweak (fallback)", "Preview Tool: Tweak (fallback)"},
+        {"Sequencer Preview Tool: Select Box", "Preview Tool: Select Box"},
+        {"Sequencer Preview Tool: Select Box (fallback)", "Preview Tool: Select Box (fallback)"},
+    };
+
+    LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
+      std::string old_name(keymap->idname);
+      if (const std::string *new_name = keymap_renames.lookup_ptr(old_name)) {
+        STRNCPY(keymap->idname, new_name->c_str());
+      }
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 11)) {
+    wmKeyConfigFilterItemParams params{};
+    params.check_item = true;
+    params.check_diff_item_add = true;
+    BKE_keyconfig_pref_filter_items(
+        userdef,
+        &params,
+        [](wmKeyMapItem *kmi, void * /*user_data*/) -> bool {
+          if (kmi->shift == KM_ANY && kmi->ctrl == KM_ANY && kmi->alt == KM_ANY &&
+              kmi->oskey == KM_ANY)
+          {
+            kmi->hyper = KM_ANY;
+          }
+          return false;
+        },
+        nullptr);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

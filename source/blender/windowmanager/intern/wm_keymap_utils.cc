@@ -205,10 +205,10 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
         km_id = "Sequencer";
         break;
       case SEQ_VIEW_PREVIEW:
-        km_id = "SequencerPreview";
+        km_id = "Preview";
         break;
       case SEQ_VIEW_SEQUENCE_PREVIEW:
-        km_id = "SequencerCommon";
+        km_id = "Video Sequence Editor";
         break;
     }
   }
@@ -545,6 +545,12 @@ static bool wm_keymap_item_uses_modifier(const wmKeyMapItem *kmi, const int even
       return false;
     }
   }
+  if (kmi->hyper != KM_ANY) {
+    if ((kmi->hyper == KM_NOTHING) != ((event_modifier & KM_HYPER) == 0)) {
+      return false;
+    }
+  }
+
   return true;
 }
 

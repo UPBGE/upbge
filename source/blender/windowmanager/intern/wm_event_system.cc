@@ -2374,27 +2374,32 @@ BLI_INLINE bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
 
   /* Account for rare case of when these keys are used as the 'type' not as modifiers. */
   if (kmi->shift != KM_ANY) {
-    const bool shift = (winevent->modifier & KM_SHIFT) != 0;
-    if ((shift != bool(kmi->shift)) && !ELEM(winevent->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY))
-    {
+    const int8_t shift = (winevent->modifier & KM_SHIFT) ? KM_MOD_HELD : KM_NOTHING;
+    if ((shift != kmi->shift) && !ELEM(winevent->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY)) {
       return false;
     }
   }
   if (kmi->ctrl != KM_ANY) {
-    const bool ctrl = (winevent->modifier & KM_CTRL) != 0;
-    if (ctrl != bool(kmi->ctrl) && !ELEM(winevent->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
+    const int8_t ctrl = (winevent->modifier & KM_CTRL) ? KM_MOD_HELD : KM_NOTHING;
+    if ((ctrl != kmi->ctrl) && !ELEM(winevent->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
       return false;
     }
   }
   if (kmi->alt != KM_ANY) {
-    const bool alt = (winevent->modifier & KM_ALT) != 0;
-    if (alt != bool(kmi->alt) && !ELEM(winevent->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
+    const int8_t alt = (winevent->modifier & KM_ALT) ? KM_MOD_HELD : KM_NOTHING;
+    if ((alt != kmi->alt) && !ELEM(winevent->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
       return false;
     }
   }
   if (kmi->oskey != KM_ANY) {
-    const bool oskey = (winevent->modifier & KM_OSKEY) != 0;
-    if ((oskey != bool(kmi->oskey)) && (winevent->type != EVT_OSKEY)) {
+    const int8_t oskey = (winevent->modifier & KM_OSKEY) ? KM_MOD_HELD : KM_NOTHING;
+    if ((oskey != kmi->oskey) && (winevent->type != EVT_OSKEY)) {
+      return false;
+    }
+  }
+  if (kmi->hyper != KM_ANY) {
+    const int8_t hyper = (winevent->modifier & KM_HYPER) ? KM_MOD_HELD : KM_NOTHING;
+    if ((hyper != kmi->hyper) && (winevent->type != EVT_HYPER)) {
       return false;
     }
   }
@@ -5215,6 +5220,9 @@ static int wm_event_type_from_ghost_key(GHOST_TKey key)
     case GHOST_kKeyLeftOS:
     case GHOST_kKeyRightOS:
       return EVT_OSKEY;
+    case GHOST_kKeyLeftHyper:
+    case GHOST_kKeyRightHyper:
+      return EVT_HYPER;
     case GHOST_kKeyLeftAlt:
       return EVT_LEFTALTKEY;
     case GHOST_kKeyRightAlt:
@@ -6074,6 +6082,10 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
         }
         case EVT_OSKEY: {
           SET_FLAG_FROM_TEST(event.modifier, (event.val == KM_PRESS), KM_OSKEY);
+          break;
+        }
+        case EVT_HYPER: {
+          SET_FLAG_FROM_TEST(event.modifier, (event.val == KM_PRESS), KM_HYPER);
           break;
         }
         default: {

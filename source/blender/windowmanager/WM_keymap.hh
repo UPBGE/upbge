@@ -14,6 +14,10 @@
 #include "DNA_windowmanager_types.h"
 #include "WM_types.hh"
 
+#ifdef hyper /* MSVC defines. */
+#  undef hyper
+#endif
+
 struct EnumPropertyItem;
 
 /* Key Configuration. */
@@ -53,8 +57,14 @@ struct KeyMapItem_Params {
   int16_t type;
   /** #wmKeyMapItem.val. */
   int8_t value;
-  /** #wmKeyMapItem `ctrl, shift, alt, oskey`. */
-  int8_t modifier;
+  /**
+   * #wmKeyMapItem `ctrl, shift, alt, oskey, hyper`.
+   *
+   * Use a larger size than `uint8_t` because it needs to store
+   * the "Any" versions of the modifier flags are used.
+   */
+  int16_t modifier;
+
   /** #wmKeyMapItem.keymodifier. */
   int16_t keymodifier;
   /** #wmKeyMapItem.direction. */
@@ -181,6 +191,7 @@ std::optional<std::string> WM_keymap_item_raw_to_string(int8_t shift,
                                                         int8_t ctrl,
                                                         int8_t alt,
                                                         int8_t oskey,
+                                                        int8_t hyper,
                                                         short keymodifier,
                                                         short val,
                                                         short type,
