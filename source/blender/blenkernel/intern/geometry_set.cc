@@ -16,6 +16,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
+#include "BKE_subdiv_modifier.hh"
 #include "BKE_volume.hh"
 
 #include "DNA_object_types.h"
@@ -219,6 +220,17 @@ std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set)
 {
   Vector<std::string> parts;
   if (const Mesh *mesh = geometry_set.get_mesh()) {
+    if (mesh->runtime->subsurf_runtime_data) {
+      const int resolution = mesh->runtime->subsurf_runtime_data->resolution;
+      if (is_power_of_2_i(resolution - 1)) {
+        /* Display the resolution as subdiv levels if possible because that's more common.*/
+        const int level = log2_floor(resolution - 1);
+        parts.append(std::to_string(level) + " subdiv levels");
+      }
+      else {
+        parts.append(std::to_string(resolution) + " subdiv resolution");
+      }
+    }
     parts.append(std::to_string(mesh->verts_num) + " verts");
     parts.append(std::to_string(mesh->edges_num) + " edges");
     parts.append(std::to_string(mesh->faces_num) + " faces");
@@ -294,6 +306,15 @@ bool GeometrySet::owns_direct_data() const
     }
   }
   return true;
+}
+
+void GeometrySet::ensure_no_shared_components()
+{
+  for (const int i : IndexRange(this->components_.size())) {
+    if (components_[i]) {
+      this->get_component_for_write(GeometryComponent::Type(i));
+    }
+  }
 }
 
 const Mesh *GeometrySet::get_mesh() const

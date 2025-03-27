@@ -183,7 +183,7 @@ bool VKBackend::is_supported()
     return false;
   }
 
-  // go over all the devices
+  /* Go over all the devices. */
   uint32_t physical_devices_count = 0;
   vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, nullptr);
   Array<VkPhysicalDevice> vk_physical_devices(physical_devices_count);
@@ -485,7 +485,10 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   device.context_register(*context);
   GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
                                       VKContext::swap_buffers_pre_callback,
-                                      VKContext::swap_buffers_post_callback);
+                                      VKContext::swap_buffers_post_callback,
+                                      VKContext::openxr_acquire_framebuffer_image_callback,
+                                      VKContext::openxr_release_framebuffer_image_callback);
+
   return context;
 }
 

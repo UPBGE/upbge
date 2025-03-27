@@ -2222,16 +2222,6 @@ void BKE_nla_action_pushdown(const OwnedAnimData owned_adt, const bool is_libove
     return;
   }
 
-  /* if the action is empty, we also shouldn't try to add to stack,
-   * as that will cause us grief down the track
-   */
-  /* TODO: what about modifiers? */
-  animrig::Action &action = adt->action->wrap();
-  if (!action.has_keyframes(adt->slot_handle)) {
-    CLOG_ERROR(&LOG, "action has no data");
-    return;
-  }
-
   /* Add a new NLA strip to the track, which references the active action + slot. */
   strip = BKE_nlastack_add_strip(owned_adt, is_liboverride);
   if (strip == nullptr) {
@@ -2500,6 +2490,18 @@ void BKE_nla_tweakmode_exit(const OwnedAnimData owned_adt)
   }
 
   if (owned_adt.adt.action) {
+    /* When a strip has no slot assigned, it can still enter tweak mode. Inserting a key will then
+     * create a slot. When exiting tweak mode, this slot has to be assigned to the strip.
+     * At this moment in time, the adt->action is still the one being tweaked. */
+    NlaStrip *active_strip = owned_adt.adt.actstrip;
+    if (active_strip && active_strip->action_slot_handle != owned_adt.adt.slot_handle) {
+      const animrig::ActionSlotAssignmentResult result = animrig::nla::assign_action_slot_handle(
+          *active_strip, owned_adt.adt.slot_handle, owned_adt.owner_id);
+      BLI_assert_msg(result == animrig::ActionSlotAssignmentResult::OK,
+                     "When exiting tweak mode, syncing the tweaked Action slot should work");
+      UNUSED_VARS_NDEBUG(result);
+    }
+
     /* The Action will be replaced with adt->tmpact, and thus needs to be unassigned first. */
 
     /* The high-level function animrig::unassign_action() will check whether NLA tweak mode is
