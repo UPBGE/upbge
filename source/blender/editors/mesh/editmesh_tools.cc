@@ -4729,7 +4729,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
         ele_sort[i].data = v_link;
 
         /* Do not allow the best corner or the diagonally opposite corner to be detected.*/
-        if (i == 0 || i == verts_len / 2) {
+        if (ELEM(i, 0, verts_len / 2)) {
           ele_sort[i].sort_value = 0;
         }
       }
@@ -9700,7 +9700,7 @@ static wmOperatorStatus edbm_mod_weighted_strength_exec(bContext *C, wmOperator 
     }
     else {
       BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-        int *strength = static_cast<int *>(BM_ELEM_CD_GET_VOID_P(f, cd_prop_int_offset));
+        const int *strength = static_cast<int *>(BM_ELEM_CD_GET_VOID_P(f, cd_prop_int_offset));
         if (*strength == face_strength) {
           BM_face_select_set(bm, f, true);
           BM_select_history_store(bm, f);

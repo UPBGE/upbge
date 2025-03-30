@@ -1110,17 +1110,6 @@ static void curve_mapping_apply_pixel(const CurveMapping *curve_mapping,
   }
 }
 
-void colorspace_set_default_role(char *colorspace, int size, int role)
-{
-  if (colorspace && colorspace[0] == '\0') {
-    const char *role_colorspace;
-
-    role_colorspace = IMB_colormanagement_role_colorspace_name_get(role);
-
-    BLI_strncpy(colorspace, role_colorspace, size);
-  }
-}
-
 void colormanage_imbuf_set_default_spaces(ImBuf *ibuf)
 {
   ibuf->byte_buffer.colorspace = colormanage_colorspace_get_named(global_role_default_byte);
@@ -1459,6 +1448,14 @@ const char *IMB_colormanagement_get_rect_colorspace(ImBuf *ibuf)
   }
 
   return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE);
+}
+
+const char *IMB_colormanagement_space_from_filepath_rules(const char *filepath)
+{
+  OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
+  const char *colorspace = OCIO_getColorSpaceFromFilepath(config, filepath);
+  OCIO_configRelease(config);
+  return colorspace;
 }
 
 ColorSpace *IMB_colormanagement_space_get_named(const char *name)

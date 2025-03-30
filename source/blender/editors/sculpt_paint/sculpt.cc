@@ -382,7 +382,7 @@ bool vert_has_unique_face_set(const int /*face_set_offset*/, const BMVert & /*ve
 
 }  // namespace face_set
 
-Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors)
+Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors)
 {
   r_neighbors.clear();
   BMIter liter;
@@ -397,7 +397,7 @@ Span<BMVert *> vert_neighbors_get_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_ne
   return r_neighbors;
 }
 
-Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, Vector<BMVert *, 64> &r_neighbors)
+Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, BMeshNeighborVerts &r_neighbors)
 {
   r_neighbors.clear();
   BMIter liter;
@@ -737,18 +737,13 @@ std::optional<BMVert *> nearest_vert_calc_bmesh(const bke::pbvh::Tree &pbvh,
 
 }  // namespace blender::ed::sculpt_paint
 
-bool SCULPT_is_symmetry_iteration_valid(char i, char symm)
-{
-  return i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5)));
-}
-
 bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                const float br_co[3],
                                                float radius,
                                                char symm)
 {
   for (char i = 0; i <= symm; ++i) {
-    if (!SCULPT_is_symmetry_iteration_valid(i, symm)) {
+    if (!blender::ed::sculpt_paint::is_symmetry_iteration_valid(i, symm)) {
       continue;
     }
     float3 location = blender::ed::sculpt_paint::symmetry_flip(br_co, ePaintSymmetryFlags(i));
@@ -1270,7 +1265,7 @@ static float calc_symmetry_feather(const Sculpt &sd,
 
   overlap = 0.0f;
   for (int i = 0; i <= symm; i++) {
-    if (!SCULPT_is_symmetry_iteration_valid(i, symm)) {
+    if (!blender::ed::sculpt_paint::is_symmetry_iteration_valid(i, symm)) {
       continue;
     }
 
@@ -3717,7 +3712,7 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
   /* `symm` is a bit combination of XYZ -
    * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   for (int i = 0; i <= symm; i++) {
-    if (!SCULPT_is_symmetry_iteration_valid(i, symm)) {
+    if (!is_symmetry_iteration_valid(i, symm)) {
       continue;
     }
     const ePaintSymmetryFlags symm = ePaintSymmetryFlags(i);
@@ -7774,7 +7769,7 @@ GroupedSpan<BMVert *> calc_vert_neighbors(Set<BMVert *, 0> verts,
   r_offset_data.resize(verts.size() + 1);
   r_data.clear();
 
-  Vector<BMVert *, 64> neighbor_data;
+  BMeshNeighborVerts neighbor_data;
   int i = 0;
   for (BMVert *vert : verts) {
     r_offset_data[i] = r_data.size();
@@ -7930,7 +7925,7 @@ void calc_vert_neighbors_interior(const Set<BMVert *, 0> &verts,
                                   MutableSpan<Vector<BMVert *>> result)
 {
   BLI_assert(verts.size() == result.size());
-  Vector<BMVert *, 64> neighbor_data;
+  BMeshNeighborVerts neighbor_data;
 
   int i = 0;
   for (BMVert *vert : verts) {

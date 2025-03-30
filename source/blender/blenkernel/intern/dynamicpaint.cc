@@ -3436,7 +3436,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
   }
 
   /* Save image */
-  IMB_saveiff(ibuf, output_file, IB_float_data);
+  IMB_save_image(ibuf, output_file, IB_float_data);
   IMB_freeImBuf(ibuf);
 }
 

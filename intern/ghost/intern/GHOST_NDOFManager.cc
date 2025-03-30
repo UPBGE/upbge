@@ -674,6 +674,17 @@ static bool nearHomePosition(const GHOST_TEventNDOFMotionData *ndof, float thres
 bool GHOST_NDOFManager::sendMotionEvent()
 {
   if (!motion_event_pending_) {
+    if (motion_state_ != GHOST_kNotStarted) {
+      /* Detect window de-activation and change the `motion_state_` even when no motion is pending.
+       * Without this check it's possible the window is de-activated before the NDOF
+       * motion callbacks have run, while the `motion_state_` is active.
+       * In this case, activating the window again would create an event
+       * with a large time-delta, see: #134733. */
+      if (system_.getWindowManager()->getActiveWindow() == nullptr) {
+        /* Avoid large `dt` times when changing windows. */
+        motion_state_ = GHOST_kNotStarted;
+      }
+    }
     return false;
   }
 
@@ -717,7 +728,7 @@ bool GHOST_NDOFManager::sendMotionEvent()
         data->progress = GHOST_kStarting;
         motion_state_ = GHOST_kInProgress;
         /* Previous motion time will be ancient, so just make up a reasonable time delta. */
-        data->dt = 0.0125f;
+        data->dt = NDOF_TIME_DELTA_STARTING;
       }
       else {
         /* Send no event and keep current state. */

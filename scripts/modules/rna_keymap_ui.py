@@ -164,6 +164,9 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 
     # Expanded, additional event settings
     if kmi.show_expanded:
+        from _bpy import _wm_capabilities
+        capabilities = _wm_capabilities()
+
         box = col.box()
 
         split = box.split(factor=0.4)
@@ -175,6 +178,8 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             sub.prop(kmi, "idname", text="")
 
         if map_type not in {'TEXTINPUT', 'TIMER'}:
+            from sys import platform
+
             sub = split.column()
             subrow = sub.row(align=True)
 
@@ -195,15 +200,25 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             subrow = sub.row()
             subrow.scale_x = 0.75
             subrow.prop(kmi, "any", toggle=True)
+
+            # Match text in `WM_key_event_string`.
+            match platform:
+                case "darwin":
+                    oskey_label = "Cmd"
+                case "win32":
+                    oskey_label = "Win"
+                case _:
+                    oskey_label = "OS"
+
             # Use `*_ui` properties as integers aren't practical.
             subrow.prop(kmi, "shift_ui", toggle=True)
             subrow.prop(kmi, "ctrl_ui", toggle=True)
             subrow.prop(kmi, "alt_ui", toggle=True)
-            subrow.prop(kmi, "oskey_ui", text="Cmd", toggle=True)
+            subrow.prop(kmi, "oskey_ui", text=oskey_label, toggle=True)
 
             # On systems that don't support Hyper, only show if it's enabled.
             # Otherwise the user may have a key binding that doesn't work and can't be changed.
-            if _platform_supports_hyper_key() or kmi.hyper == 1:
+            if capabilities['KEYBOARD_HYPER_KEY'] or kmi.hyper == 1:
                 subrow.prop(kmi, "hyper_ui", text="Hyper", toggle=True)
 
             subrow.prop(kmi, "key_modifier", text="", event=True)
@@ -222,16 +237,6 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 _EVENT_TYPES = set()
 _EVENT_TYPE_MAP = {}
 _EVENT_TYPE_MAP_EXTRA = {}
-
-_HAS_HYPER_KEY = None
-
-
-def _platform_supports_hyper_key():
-    global _HAS_HYPER_KEY
-    if _HAS_HYPER_KEY is None:
-        from _bpy import _ghost_backend
-        _HAS_HYPER_KEY = _ghost_backend() in {'WAYLAND', 'X11'}
-    return _HAS_HYPER_KEY
 
 
 def draw_filtered(display_keymaps, filter_type, filter_text, layout):
