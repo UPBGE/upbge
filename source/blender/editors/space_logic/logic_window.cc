@@ -725,7 +725,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
   int yco = 0;
   uiBut *but;
 
-  block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
+  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
   /* See
    * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
    * if issue */
@@ -832,7 +832,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
   uiBut *but;
   int yco = 0;
 
-  block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
+  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
   /* See
    * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
    * if issue */
@@ -940,7 +940,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
   int xco = 0;
   uiBut *but;
 
-  block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
+  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
   /* See
    * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
    * if issue */
@@ -1025,7 +1025,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
 
   short yco = 12, xco = 0, stbit, offset;
 
-  block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   /* use this for a fake extra empy space around the buttons */
   uiDefBut(block, UI_BTYPE_LABEL, 0, "", -5, -5, 200, 34, nullptr, 0, 0, "");
@@ -2598,7 +2598,7 @@ void logic_buttons(bContext *C, ARegion *region)
   idar = get_selected_and_linked_obs(C, &count, slogic->scaflag);
 
   BLI_snprintf(uiblockstr, sizeof(uiblockstr), "buttonswin %p", (void *)region);
-  block = UI_block_begin(C, region, uiblockstr, UI_EMBOSS);
+  block = UI_block_begin(C, region, uiblockstr, blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, do_logic_buts, nullptr);
   UI_block_bounds_set_normal(block, U.widget_unit / 2);
 
