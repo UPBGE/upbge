@@ -1849,6 +1849,9 @@ static int ui_handler_region_drag_toggle(bContext *C, const wmEvent *event, void
       ui_drag_toggle_set(C, drag_info, event->xy);
       break;
     }
+    default: {
+      break;
+    }
   }
 
   if (done) {
@@ -4180,6 +4183,9 @@ static int ui_do_but_textedit(
       }
       break;
     }
+    default: {
+      break;
+    }
   }
 
   if (event->val == KM_PRESS && !is_ime_composing) {
@@ -4332,6 +4338,9 @@ static int ui_do_but_textedit(
         }
         break;
       }
+      default: {
+        break;
+      }
     }
 
     if ((event->utf8_buf[0]) && (retval == WM_UI_HANDLER_CONTINUE)
@@ -4446,6 +4455,9 @@ static int ui_do_but_textedit_select(
       }
       retval = WM_UI_HANDLER_BREAK;
       break;
+    default: {
+      break;
+    }
   }
 
   if (retval == WM_UI_HANDLER_BREAK) {
@@ -4985,7 +4997,7 @@ static int ui_do_but_HOTKEYEVT(bContext *C,
         (event->val == KM_PRESS))
     {
       but->drawstr.clear();
-      hotkey_but->modifier_key = 0;
+      hotkey_but->modifier_key = wmEventModifierFlag(0);
       button_activate_state(C, but, BUTTON_STATE_WAIT_KEY_EVENT);
       return WM_UI_HANDLER_BREAK;
     }
@@ -10001,6 +10013,9 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
         }
         break;
       }
+      default: {
+        break;
+      }
     }
 
     retval = WM_UI_HANDLER_CONTINUE;
@@ -10034,6 +10049,9 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
             button_activate_state(C, bt, BUTTON_STATE_HIGHLIGHT);
           }
         }
+        break;
+      }
+      default: {
         break;
       }
     }
@@ -11467,6 +11485,9 @@ static int ui_handle_menu_event(bContext *C,
                 return WM_UI_HANDLER_BREAK;
               }
             }
+          }
+          default: {
+            break;
           }
         }
       }

@@ -760,10 +760,12 @@ typedef struct {
   VkSemaphore acquire_semaphore;
   /** Semaphore to signal after the image has been updated. */
   VkSemaphore present_semaphore;
+  /** Fence to signal after the image has been updated. */
+  VkFence submission_fence;
 } GHOST_VulkanSwapChainData;
 
 typedef struct {
-  /** Resolution of the framebuffer image. */
+  /** Resolution of the frame-buffer image. */
   VkExtent2D extent;
   /**
    * Host accessible data containing the image data. Data is stored in the selected swapchain

@@ -3933,7 +3933,6 @@ static PyObject *pyrna_struct_path_from_id(BPy_StructRNA *self, PyObject *args)
 {
   const char *name = nullptr;
   PropertyRNA *prop;
-  PyObject *ret;
 
   PYRNA_STRUCT_CHECK_OBJ(self);
 
@@ -3973,9 +3972,7 @@ static PyObject *pyrna_struct_path_from_id(BPy_StructRNA *self, PyObject *args)
     return nullptr;
   }
 
-  ret = PyUnicode_FromString(path->c_str());
-
-  return ret;
+  return PyC_UnicodeFromStdStr(path.value());
 }
 
 PyDoc_STRVAR(
@@ -3990,7 +3987,6 @@ PyDoc_STRVAR(
 static PyObject *pyrna_prop_path_from_id(BPy_PropertyRNA *self)
 {
   PropertyRNA *prop = self->prop;
-  PyObject *ret;
 
   const std::optional<std::string> path = RNA_path_from_ID_to_property(&self->ptr.value(),
                                                                        self->prop);
@@ -4003,9 +3999,7 @@ static PyObject *pyrna_prop_path_from_id(BPy_PropertyRNA *self)
     return nullptr;
   }
 
-  ret = PyUnicode_FromString(path->c_str());
-
-  return ret;
+  return PyC_UnicodeFromStdStr(path.value());
 }
 
 PyDoc_STRVAR(
@@ -4574,7 +4568,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
                 ret = PyTuple_New(3);
                 PyTuple_SET_ITEMS(ret,
                                   pyrna_struct_CreatePyObject(base_ptr),
-                                  PyUnicode_FromString(path_str->c_str()),
+                                  PyC_UnicodeFromStdStr(path_str.value()),
                                   PyLong_FromLong(newindex));
               }
               else {
@@ -6111,9 +6105,14 @@ static PyObject *pyrna_prop_collection_iter(PyObject *self)
 }
 #endif /* # !USE_PYRNA_ITER */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pyrna_struct_methods[] = {
@@ -6295,8 +6294,12 @@ static PyMethodDef pyrna_prop_collection_idprop_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *data)
@@ -8657,9 +8660,14 @@ static PyObject *bpy_types_module_dir(PyObject *self)
   return ret;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_types_module_methods[] = {
@@ -8668,8 +8676,12 @@ static PyMethodDef bpy_types_module_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static void bpy_types_module_free(void *self)
@@ -10372,9 +10384,14 @@ static PyObject *pyrna_bl_owner_id_set(PyObject * /*self*/, PyObject *value)
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 PyMethodDef meth_bpy_owner_id_get = {
@@ -10390,8 +10407,12 @@ PyMethodDef meth_bpy_owner_id_set = {
     nullptr,
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */

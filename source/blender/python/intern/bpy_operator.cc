@@ -314,8 +314,6 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
   bool macro_args = true;
   int error_val = 0;
 
-  PyObject *pybuf;
-
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
@@ -381,14 +379,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (!op_string.empty()) {
-    pybuf = PyUnicode_FromString(op_string.c_str());
-  }
-  else {
-    pybuf = PyUnicode_FromString("");
-  }
-
-  return pybuf;
+  return PyC_UnicodeFromStdStr(op_string);
 }
 
 static PyObject *pyop_dir(PyObject * /*self*/)
@@ -426,9 +417,14 @@ static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
   return pyrna_enum_bitfield_as_set(rna_enum_operator_type_flag_items, ot->flag);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_ops_methods[] = {
@@ -442,8 +438,12 @@ static PyMethodDef bpy_ops_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyModuleDef bpy_ops_module = {
