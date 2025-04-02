@@ -422,23 +422,6 @@ mark_as_advanced(WITH_SYSTEM_AUDASPACE)
 
 set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
 
-option(WITH_OPENMP "Enable OpenMP (has to be supported by the compiler)" ON)
-if(UNIX AND NOT APPLE)
-  option(WITH_OPENMP_STATIC "Link OpenMP statically (only used by the release environment)" OFF)
-  mark_as_advanced(WITH_OPENMP_STATIC)
-elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.1)
-  # Prior to LLVM 19.1, OpenMP was not included in public LLVM builds for Windows ARM64
-  if(WITH_OPENMP)
-    if(WITH_STRICT_BUILD_OPTIONS)
-      message(SEND_ERROR "OpenMP enabled, but LLVM ${CMAKE_CXX_COMPILER_VERSION} detected, minimum of 19.1 required for OpenMP functionality")
-    else()
-      message(STATUS "Disabling OpenMP, LLVM ${CMAKE_CXX_COMPILER_VERSION} detected, minimum of 19.1 required for OpenMP functionality")
-    endif()
-    set(WITH_OPENMP OFF)
-    set(WITH_OPENMP_STATIC OFF)
-  endif()
-endif()
-
 if(WITH_GHOST_X11)
   option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)" ON)
   option(WITH_X11_XINERAMA  "Enable multi-monitor support" ON)
@@ -869,21 +852,30 @@ Enable user-interface tests (Experimental)"
   OFF
 )
 if(UNIX AND NOT (APPLE OR HAIKU))
+  # Headless is preferable as opening windows on the developers computer
+  # prevents the system being used while tests run. It's also unreliable,
+  # where tiling compositors ignore the window size causing some tests to fail.
+  set(_option_default OFF)
+  if(WITH_GHOST_WAYLAND)
+    set(_option_default ON)
+  endif()
   option(WITH_UI_TESTS_HEADLESS "\
 Enable user-interface tests using a headless display server. \
 Currently this depends on WITH_GHOST_WAYLAND and the weston compositor \
 (Experimental)"
-    OFF
+    ${_option_default}
   )
+  unset(_option_default)
+
   option(WITH_LINUX_OFFICIAL_RELEASE_TESTS "\
 Enable sanity check tests for the linux official release. \
-These test are only relevant for checking that our offical Linux releases are portable and \
+These test are only relevant for checking that our official Linux releases are portable and \
 packaged properly. For example that we don't link to any unexpected system libraries."
     OFF
   )
 else()
   set(WITH_UI_TESTS_HEADLESS OFF)
-  # TODO: We should probaby add more sanity checks for Windows and Mac as well
+  # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
 
@@ -1692,45 +1684,6 @@ if(WITH_METAL_BACKEND)
   # No need to add frameworks here, all the ones we need for Metal and
   # Metal-OpenGL Interop are already being added by
   # build_files/cmake/platform/platform_apple.cmake
-endif()
-
-
-# -----------------------------------------------------------------------------
-# Configure OpenMP
-
-if(WITH_OPENMP)
-  if(NOT OPENMP_CUSTOM)
-    find_package(OpenMP)
-  endif()
-
-  set_and_warn_library_found("OpenMP" OPENMP_FOUND WITH_OPENMP)
-
-  if(OPENMP_FOUND)
-    if(NOT WITH_OPENMP_STATIC)
-      string(APPEND CMAKE_C_FLAGS " ${OpenMP_C_FLAGS}")
-      string(APPEND CMAKE_CXX_FLAGS " ${OpenMP_CXX_FLAGS}")
-      if(DEFINED OpenMP_LINKER_FLAGS)
-        string(APPEND CMAKE_EXE_LINKER_FLAGS " ${OpenMP_LINKER_FLAGS}")
-        string(APPEND CMAKE_MODULE_LINKER_FLAGS " ${OpenMP_LINKER_FLAGS}")
-      endif()
-    else()
-      # Typically avoid adding flags as defines but we can't
-      # pass OpenMP flags to the linker for static builds, meaning
-      # we can't add any OpenMP related flags to CFLAGS variables
-      # since they're passed to the linker as well.
-      add_definitions("${OpenMP_C_FLAGS}")
-
-      find_library_static(OpenMP_LIBRARIES gomp ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
-      mark_as_advanced(
-        OpenMP_LIBRARIES
-      )
-    endif()
-  endif()
-
-  mark_as_advanced(
-    OpenMP_C_FLAGS
-    OpenMP_CXX_FLAGS
-  )
 endif()
 
 
@@ -2762,17 +2715,6 @@ include(build_files/cmake/packaging.cmake)
 
 
 # -----------------------------------------------------------------------------
-# Use Dynamic Loading for OpenMP
-
-if(WITH_BLENDER)
-  openmp_delayload(blender)
-endif()
-if(WITH_PLAYER)
-  openmp_delayload(blenderplayer)
-endif()
-
-
-# -----------------------------------------------------------------------------
 # Print Final Configuration
 
 if(FIRST_RUN)
@@ -2835,7 +2777,6 @@ if(FIRST_RUN)
 
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)
-  info_cfg_option(WITH_OPENMP)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)

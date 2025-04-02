@@ -15,7 +15,6 @@ set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
 
-  ${EIGEN3_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${ZSTD_INCLUDE_DIRS}
 )
@@ -428,6 +427,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE extern_fmtlib
   PUBLIC bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::eigen
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
