@@ -1424,27 +1424,6 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 
 }  // namespace blender::bke::pbvh
 
-blender::Bounds<blender::float3> BKE_pbvh_redraw_BB(const blender::bke::pbvh::Tree &pbvh)
-{
-  using namespace blender;
-  using namespace blender::bke::pbvh;
-  if (tree_is_empty(pbvh)) {
-    return {};
-  }
-  Bounds<float3> bounds = negative_bounds();
-
-  PBVHIter iter;
-  pbvh_iter_begin(&iter, const_cast<blender::bke::pbvh::Tree &>(pbvh), {});
-  Node *node;
-  while ((node = pbvh_iter_next(&iter, Node::Leaf))) {
-    if (node->flag_ & Node::UpdateRedraw) {
-      bounds = bounds::merge(bounds, node->bounds_);
-    }
-  }
-
-  return bounds;
-}
-
 namespace blender::bke::pbvh {
 
 IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
@@ -1589,21 +1568,6 @@ Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
 }
 
 }  // namespace blender::bke::pbvh
-
-namespace blender::bke::pbvh {
-
-Bounds<float3> node_bounds(const Node &node)
-{
-  return node.bounds_;
-}
-
-}  // namespace blender::bke::pbvh
-
-blender::Bounds<blender::float3> BKE_pbvh_node_get_original_BB(
-    const blender::bke::pbvh::Node *node)
-{
-  return node->bounds_orig_;
-}
 
 void BKE_pbvh_node_get_bm_orco_data(const blender::bke::pbvh::BMeshNode &node,
                                     blender::Span<blender::float3> &r_orig_positions,
@@ -2016,10 +1980,10 @@ void clip_ray_ortho(
   const float offset_vec[3] = {1e-3f, 1e-3f, 1e-3f};
 
   if (original) {
-    bb_root = BKE_pbvh_node_get_original_BB(&first_node(pbvh));
+    bb_root = first_node(pbvh).bounds_orig();
   }
   else {
-    bb_root = node_bounds(first_node(pbvh));
+    bb_root = first_node(pbvh).bounds();
   }
 
   /* Calc rough clipping to avoid overflow later. See #109555. */

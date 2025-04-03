@@ -136,6 +136,34 @@ static void version_fcurve_noise_modifier(FCurve &fcurve)
   }
 }
 
+static void version_fix_fcurve_noise_offset(FCurve &fcurve)
+{
+  LISTBASE_FOREACH (FModifier *, fcurve_modifier, &fcurve.modifiers) {
+    if (fcurve_modifier->type != FMODIFIER_TYPE_NOISE) {
+      continue;
+    }
+    FMod_Noise *data = static_cast<FMod_Noise *>(fcurve_modifier->data);
+    if (data->legacy_noise) {
+      /* We don't want to modify anything if the noise is set to legacy, because the issue only
+       * occurred on the new style noise. */
+      continue;
+    }
+    data->offset *= data->size;
+  }
+}
+
+static void nlastrips_apply_fcurve_versioning(ListBase &strips)
+{
+  LISTBASE_FOREACH (NlaStrip *, strip, &strips) {
+    LISTBASE_FOREACH (FCurve *, fcurve, &strip->fcurves) {
+      version_fix_fcurve_noise_offset(*fcurve);
+    }
+
+    /* Check sub-strips (if meta-strips). */
+    nlastrips_apply_fcurve_versioning(strip->strips);
+  }
+}
+
 /* Move bone-group color to the individual bones. */
 static void version_bonegroup_migrate_color(Main *bmain)
 {
@@ -2134,6 +2162,23 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
         });
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+      blender::animrig::Action &action = dna_action->wrap();
+      blender::animrig::foreach_fcurve_in_action(
+          action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
+    }
+
+    BKE_animdata_main_cb(bmain, [](ID * /* id */, AnimData *adt) {
+      LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
+        version_fix_fcurve_noise_offset(*fcurve);
+      }
+      LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
+        nlastrips_apply_fcurve_versioning(track->strips);
+      }
+    });
   }
 
   /**
@@ -6566,6 +6611,34 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 15)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_SCALE) {
+          continue;
+        }
+        if (node->storage != nullptr) {
+          continue;
+        }
+        NodeScaleData *data = MEM_callocN<NodeScaleData>(__func__);
+        data->interpolation = CMP_NODE_INTERPOLATION_BILINEAR;
+        node->storage = data;
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 16)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->grease_pencil_settings.smaa_threshold_render =
+          scene->grease_pencil_settings.smaa_threshold;
+      scene->grease_pencil_settings.aa_samples = 1;
     }
   }
 

@@ -1682,6 +1682,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
       if (seq::transform_test_overlap(scene, ed->seqbasep, strip)) {
         seq::transform_seqbase_shuffle(ed->seqbasep, strip, scene);
       }
+      strip->flag &= ~SEQ_IGNORE_CHANNEL_LOCK;
     }
   }
 
