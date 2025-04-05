@@ -31,6 +31,8 @@
 
 #include "CM_Message.h"
 
+using namespace blender::gpu::shader;
+
 RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
     : m_loc(-1), m_count(1), m_dirty(true), m_type(UNI_NONE), m_transpose(0), m_dataLen(data_size)
 {
@@ -145,6 +147,8 @@ RAS_Shader::RAS_Shader() : m_shader(nullptr), m_use(0), m_error(0), m_dirty(true
   for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
     m_progs[i] = "";
   }
+  m_constantUniforms = {};
+  m_samplerUniforms = {};
 }
 
 RAS_Shader::~RAS_Shader()
@@ -249,7 +253,43 @@ void RAS_Shader::DeleteShader()
   }
 }
 
-std::string RAS_Shader::GetParsedProgram(ProgramType type) const
+void RAS_Shader::AppendUniformInfos(std::string type, std::string name)
+{
+  if (type == "float") {
+    m_constantUniforms.push_back(UniformConstant({Type::FLOAT, name}));
+  }
+  else if (type == "int") {
+    m_constantUniforms.push_back(UniformConstant({Type::INT, name}));
+  }
+  else if (type == "vec2") {
+    m_constantUniforms.push_back(UniformConstant({Type::VEC2, name}));
+  }
+  else if (type == "vec3") {
+    m_constantUniforms.push_back(UniformConstant({Type::VEC3, name}));
+  }
+  else if (type == "vec4") {
+    m_constantUniforms.push_back(UniformConstant({Type::VEC4, name}));
+  }
+  else if (type == "mat3") {
+    m_constantUniforms.push_back(UniformConstant({Type::MAT3, name}));
+  }
+  else if (type == "mat4") {
+    m_constantUniforms.push_back(UniformConstant({Type::MAT4, name}));
+  }
+  else if (type == "sampler2D") {
+    if (m_samplerUniforms.size() > 7) {
+      CM_Warning("RAS_Shader: Sampler index can't be > 7");
+    }
+    else {
+      m_samplerUniforms.push_back({m_samplerUniforms.size(), name});
+    }
+  }
+  else {
+    CM_Warning("Invalid/unsupported uniform type: " << name);
+  }
+}
+
+std::string RAS_Shader::GetParsedProgram(ProgramType type)
 {
   std::string prog = m_progs[type];
   if (prog.empty()) {
@@ -263,7 +303,23 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type) const
     prog.erase(pos, nline - pos);
   }
 
-  prog.insert(0, "#line 0\n");
+  unsigned int uni_pos = prog.find("uniform");
+  while (uni_pos != -1) {
+    const unsigned int type_pos = prog.find(" ", uni_pos) + 1;
+    const unsigned int name_pos = prog.find(" ", type_pos) + 1;
+    const unsigned int end_namepos = prog.find(";", name_pos);
+    std::string type = prog.substr(type_pos, (name_pos - 1) - type_pos);
+    std::string name = prog.substr(name_pos, end_namepos - name_pos);
+    AppendUniformInfos(type, name);
+
+    prog.replace(uni_pos, 2, "//");
+
+    const unsigned int endline_pos = prog.find("\n", end_namepos);
+
+    uni_pos = prog.find("uniform", endline_pos);
+  }
+
+  prog.insert(0, "\n");
 
   return prog;
 }
@@ -281,7 +337,32 @@ bool RAS_Shader::LinkProgram()
   std::string vert;
   std::string frag;
   std::string geom;
-  const char *shname = "custom";
+
+  vert = GetParsedProgram(VERTEX_PROGRAM);
+  frag = GetParsedProgram(FRAGMENT_PROGRAM);
+  geom = GetParsedProgram(GEOMETRY_PROGRAM);
+
+  StageInterfaceInfo iface("s_Interface", "");
+  iface.smooth(Type::VEC4, "bgl_TexCoord");
+
+  ShaderCreateInfo info("s_Display");
+  info.push_constant(Type::FLOAT, "bgl_RenderedTextureWidth");
+  info.push_constant(Type::FLOAT, "bgl_RenderedTextureHeight");
+  info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
+    info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
+  }
+  info.sampler(8, ImageType::FLOAT_2D, "bgl_RenderedTexture");
+  info.sampler(9, ImageType::FLOAT_2D, "bgl_DepthTexture");
+  for (UniformConstant &constant : m_constantUniforms) {
+    info.push_constant(constant.type, constant.name);
+  }
+  info.vertex_out(iface);
+  info.fragment_out(0, Type::VEC4, "fragColor");
+  info.vertex_source("common_colormanagement_lib.glsl");
+  info.fragment_source("common_colormanagement_lib.glsl");
+  info.vertex_source_generated = vert;
+  info.fragment_source_generated = frag;
 
   if (m_error) {
     goto program_error;
@@ -292,17 +373,8 @@ bool RAS_Shader::LinkProgram()
     return false;
   }
 
-  vert = GetParsedProgram(VERTEX_PROGRAM);
-  frag = GetParsedProgram(FRAGMENT_PROGRAM);
-  geom = GetParsedProgram(GEOMETRY_PROGRAM);
+  m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
 
-  m_shader = GPU_shader_create_ex(c_str_to_stringref_opt(vert.c_str()),
-                                  c_str_to_stringref_opt(frag.c_str()),
-                                  geom.empty() ? std::nullopt : c_str_to_stringref_opt(geom.c_str()),
-                                  std::nullopt,
-                                  std::nullopt,
-                                  std::nullopt,
-                                  blender::StringRefNull(shname));
   if (!m_shader) {
     goto program_error;
   }
@@ -469,7 +541,7 @@ int RAS_Shader::GetAttribLocation(const std::string &name)
 int RAS_Shader::GetUniformLocation(const std::string &name, bool debug)
 {
   BLI_assert(m_shader != nullptr);
-  int location = GPU_shader_get_uniform_location_old(m_shader, name.c_str());
+  int location = GPU_shader_get_uniform(m_shader, name.c_str());
 
   if (location == -1 && debug) {
     CM_Error("invalid uniform value: " << name << ".");

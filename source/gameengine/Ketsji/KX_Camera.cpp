@@ -32,7 +32,6 @@
 
 #include "KX_Camera.h"
 
-#include <epoxy/gl.h>
 #include "GPU_matrix.hh"
 #include "GPU_viewport.hh"
 
@@ -962,11 +961,11 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition, "getScreenPosition()\n")
     }
   }
 
-  GLint viewport[4];
-  GLfloat vec[3];
-  GLfloat win[3];
-  GLfloat modelmatrix[4][4];
-  GLfloat projmatrix[4][4];
+  int viewport[4];
+  float vec[3];
+  float win[3];
+  float modelmatrix[4][4];
+  float projmatrix[4][4];
 
   MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
   MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
@@ -1007,11 +1006,11 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect, "getScreenVect()\n")
 
   y = 1.0 - y;  // to follow Blender window coordinate system (Top-Down)
 
-  GLint viewport[4];
-  GLfloat vec[3];
-  GLfloat win[3];
-  GLfloat modelmatrixinv[4][4];
-  GLfloat projmatrix[4][4];
+  int viewport[4];
+  float vec[3];
+  float win[3];
+  float modelmatrixinv[4][4];
+  float projmatrix[4][4];
 
   MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
   MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
@@ -1049,9 +1048,9 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay, "getScreenRay()\n")
 
   y = 1.0 - y;  // to follow Blender window coordinate system (Top-Down)
 
-  GLint viewport[4];
-  GLfloat modelmatrixinv[4][4];
-  GLfloat projmatrix[4][4];
+  int viewport[4];
+  float modelmatrixinv[4][4];
+  float projmatrix[4][4];
 
   MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
   MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();

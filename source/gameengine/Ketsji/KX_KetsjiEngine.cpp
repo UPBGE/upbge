@@ -1125,8 +1125,8 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene,
   // up), only for filters.
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
-  m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
-  m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+  GPU_viewport(0, 0, width + 1, height + 1);
+  GPU_scissor(0, 0, width + 1, height + 1);
 
   RAS_FrameBuffer *frameBuffer = scene->Render2DFilters(m_rasterizer, m_canvas, inputfb, targetfb);
 

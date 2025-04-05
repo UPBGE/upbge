@@ -139,7 +139,6 @@ class Shader {
   //virtual void shader_bind_attributes(int *locations, const char **names, int len) = 0;
   /* GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
      bgl_TextureCoordinateOffset[9]; */
-  virtual int shader_get_uniform_location_old(const char *name) = 0;
   /*********/
 
  protected:

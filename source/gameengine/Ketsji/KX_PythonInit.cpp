@@ -1097,30 +1097,6 @@ static PyObject *gPyGetMaterialType(PyObject *)
   return PyLong_FromLong(0);
 }
 
-static PyObject *gPySetAnisotropicFiltering(PyObject *, PyObject *args)
-{
-  short level;
-
-  if (!PyArg_ParseTuple(args, "h:setAnisotropicFiltering", &level))
-    return nullptr;
-
-  if (level != 1 && level != 2 && level != 4 && level != 8 && level != 16) {
-    PyErr_SetString(PyExc_ValueError,
-                    "Rasterizer.setAnisotropicFiltering(level): Expected value of 1, 2, 4, 8, or "
-                    "16 for value");
-    return nullptr;
-  }
-
-  KX_GetActiveEngine()->GetRasterizer()->SetAnisotropicFiltering(level);
-
-  Py_RETURN_NONE;
-}
-
-static PyObject *gPyGetAnisotropicFiltering(PyObject *, PyObject *args)
-{
-  return PyLong_FromLong(KX_GetActiveEngine()->GetRasterizer()->GetAnisotropicFiltering());
-}
-
 static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 {
   PyObject *ob_from;
@@ -1182,36 +1158,6 @@ static PyObject *gPySetFullScreen(PyObject *, PyObject *value)
 static PyObject *gPyGetFullScreen(PyObject *)
 {
   return PyBool_FromLong(KX_GetActiveEngine()->GetCanvas()->GetFullScreen());
-}
-
-static PyObject *gPySetMipmapping(PyObject *, PyObject *args)
-{
-  int val = 0;
-
-  if (!PyArg_ParseTuple(args, "i:setMipmapping", &val))
-    return nullptr;
-
-  if (val < 0 || val > RAS_Rasterizer::RAS_MIPMAP_MAX) {
-    PyErr_SetString(PyExc_ValueError, "Rasterizer.setMipmapping(val): invalid mipmaping option");
-    return nullptr;
-  }
-
-  if (!KX_GetActiveEngine()->GetRasterizer()) {
-    PyErr_SetString(PyExc_RuntimeError, "Rasterizer.setMipmapping(val): Rasterizer not available");
-    return nullptr;
-  }
-
-  KX_GetActiveEngine()->GetRasterizer()->SetMipmapping((RAS_Rasterizer::MipmapOption)val);
-  Py_RETURN_NONE;
-}
-
-static PyObject *gPyGetMipmapping(PyObject *)
-{
-  if (!KX_GetActiveEngine()->GetRasterizer()) {
-    PyErr_SetString(PyExc_RuntimeError, "Rasterizer.getMipmapping(): Rasterizer not available");
-    return nullptr;
-  }
-  return PyLong_FromLong(KX_GetActiveEngine()->GetRasterizer()->GetMipmapping());
 }
 
 static PyObject *gPySetVsync(PyObject *, PyObject *args)
@@ -1353,14 +1299,6 @@ static struct PyMethodDef rasterizer_methods[] = {
      (PyCFunction)gPyGetGLSLMaterialSetting,
      METH_VARARGS,
      "get the state of a GLSL material setting"},
-    {"setAnisotropicFiltering",
-     (PyCFunction)gPySetAnisotropicFiltering,
-     METH_VARARGS,
-     "set the anisotropic filtering level (must be one of 1, 2, 4, 8, 16)"},
-    {"getAnisotropicFiltering",
-     (PyCFunction)gPyGetAnisotropicFiltering,
-     METH_VARARGS,
-     "get the anisotropic filtering level"},
     {"drawLine", (PyCFunction)gPyDrawLine, METH_VARARGS, "draw a line on the screen"},
     {"setWindowSize", (PyCFunction)gPySetWindowSize, METH_VARARGS, ""},
     {"setFullScreen", (PyCFunction)gPySetFullScreen, METH_O, ""},
@@ -1369,8 +1307,6 @@ static struct PyMethodDef rasterizer_methods[] = {
      (PyCFunction)gPyGetDisplayDimensions,
      METH_NOARGS,
      "Get the actual dimensions, in pixels, of the physical display (e.g., the monitor)."},
-    {"setMipmapping", (PyCFunction)gPySetMipmapping, METH_VARARGS, ""},
-    {"getMipmapping", (PyCFunction)gPyGetMipmapping, METH_NOARGS, ""},
     {"setVsync", (PyCFunction)gPySetVsync, METH_VARARGS, ""},
     {"getVsync", (PyCFunction)gPyGetVsync, METH_NOARGS, ""},
     {"showFramerate", (PyCFunction)gPyShowFramerate, METH_VARARGS, "show or hide the framerate"},
@@ -1561,19 +1497,6 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_ACTIONACT_LOOPSTOP, ACT_ACTION_LOOP_STOP);
   KX_MACRO_addTypesToDict(d, KX_ACTIONACT_LOOPEND, ACT_ACTION_LOOP_END);
   KX_MACRO_addTypesToDict(d, KX_ACTIONACT_PROPERTY, ACT_ACTION_FROM_PROP);
-
-  /* 7. GL_BlendFunc */
-  KX_MACRO_addTypesToDict(d, BL_ZERO, RAS_Rasterizer::RAS_ZERO);
-  KX_MACRO_addTypesToDict(d, BL_ONE, RAS_Rasterizer::RAS_ONE);
-  KX_MACRO_addTypesToDict(d, BL_SRC_COLOR, RAS_Rasterizer::RAS_SRC_COLOR);
-  KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_COLOR, RAS_Rasterizer::RAS_ONE_MINUS_SRC_COLOR);
-  KX_MACRO_addTypesToDict(d, BL_DST_COLOR, RAS_Rasterizer::RAS_DST_COLOR);
-  KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_COLOR, RAS_Rasterizer::RAS_ONE_MINUS_DST_COLOR);
-  KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA, RAS_Rasterizer::RAS_SRC_ALPHA);
-  KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_ALPHA, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
-  KX_MACRO_addTypesToDict(d, BL_DST_ALPHA, RAS_Rasterizer::RAS_DST_ALPHA);
-  KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_ALPHA, RAS_Rasterizer::RAS_ONE_MINUS_DST_ALPHA);
-  KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA_SATURATE, RAS_Rasterizer::RAS_SRC_ALPHA_SATURATE);
 
   /* 8. UniformTypes */
   KX_MACRO_addTypesToDict(d, SHD_TANGENT, BL_Shader::SHD_TANGENT);
@@ -2216,10 +2139,6 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
   ErrorObject = PyUnicode_FromString("Rasterizer.error");
   PyDict_SetItemString(d, "error", ErrorObject);
   Py_DECREF(ErrorObject);
-
-  KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NONE, RAS_Rasterizer::RAS_MIPMAP_NONE);
-  KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NEAREST, RAS_Rasterizer::RAS_MIPMAP_NEAREST);
-  KX_MACRO_addTypesToDict(d, RAS_MIPMAP_LINEAR, RAS_Rasterizer::RAS_MIPMAP_LINEAR);
 
   /* for get/setVsync */
   KX_MACRO_addTypesToDict(d, VSYNC_OFF, VSYNC_OFF);

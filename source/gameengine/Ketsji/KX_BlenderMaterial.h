@@ -57,7 +57,6 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
-  EXP_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
 
 #endif  // WITH_PYTHON
 

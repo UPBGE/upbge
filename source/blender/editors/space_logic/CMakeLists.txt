@@ -30,7 +30,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC

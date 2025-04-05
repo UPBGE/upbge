@@ -404,7 +404,6 @@ char *GPU_shader_validate(GPUShader *shader);
 //void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
 /* GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
    bgl_TextureCoordinateOffset[9]; */
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
 /****************************************End of UPBGE************************************/
 
 /** \} */

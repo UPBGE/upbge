@@ -64,47 +64,10 @@ class RAS_OpenGLRasterizer {
   RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);
   virtual ~RAS_OpenGLRasterizer();
 
-  unsigned short GetNumLights() const;
-
-  void Enable(RAS_Rasterizer::EnableBit bit);
-  void Disable(RAS_Rasterizer::EnableBit bit);
-
-  void SetDepthFunc(RAS_Rasterizer::DepthFunc func);
-  void SetDepthMask(RAS_Rasterizer::DepthMask depthmask);
-
-  void SetBlendFunc(RAS_Rasterizer::BlendFunc src, RAS_Rasterizer::BlendFunc dst);
-
   unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
-  void Init();
-  void Exit();
   void DrawOverlayPlane();
   void BeginFrame();
-  void Clear(int clearbit);
-  void SetClearColor(float r, float g, float b, float a = 1.0f);
-  void SetClearDepth(float d);
-  void SetColorMask(bool r, bool g, bool b, bool a);
-  void EndFrame();
-
-  void SetViewport(int x, int y, int width, int height);
-  void SetScissor(int x, int y, int width, int height);
-
-  void SetLines(bool enable);
-
-  void SetAmbient(const MT_Vector3 &amb, float factor);
-
-  void SetPolygonOffset(float mult, float add);
-
-  void EnableClipPlane(int numplanes);
-  void DisableClipPlane(int numplanes);
-
-  void SetFrontFace(bool ccw);
-
-  /**
-   * Render Tools
-   */
-
-  void DisableForText();
 
   /**
    * Prints information about what the hardware supports.

@@ -111,10 +111,9 @@ void RAS_2DFilterFrameBuffer::Bind(RAS_Rasterizer *rasty)
 {
   GPU_framebuffer_bind(m_frameBuffer->GetFrameBuffer());
   if (!(m_flag & RAS_VIEWPORT_SIZE)) {
-    rasty->SetViewport(0, 0, m_width + 1, m_height + 1);
-    rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+    GPU_viewport(0, 0, m_width + 1, m_height + 1);
     GPU_scissor_test(true);
-    rasty->SetScissor(0, 0, m_width + 1, m_height + 1);
+    GPU_scissor(0, 0, m_width + 1, m_height + 1);
   }
 }
 
@@ -127,10 +126,9 @@ void RAS_2DFilterFrameBuffer::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
   if (!(m_flag & RAS_VIEWPORT_SIZE)) {
     const int width = canvas->GetWidth();
     const int height = canvas->GetHeight();
-    rasty->SetViewport(0, 0, width + 1, height + 1);
-    rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+    GPU_viewport(0, 0, width + 1, height + 1);
     GPU_scissor_test(true);
-    rasty->SetScissor(0, 0, width + 1, height + 1);
+    GPU_scissor(0, 0, width + 1, height + 1);
   }
 }
 

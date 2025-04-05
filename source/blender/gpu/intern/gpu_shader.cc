@@ -1013,9 +1013,4 @@ char *GPU_shader_validate(GPUShader *shader)
 //{
 //  unwrap(shader)->shader_bind_attributes(locations, names, len);
 //}
-
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
-{
-  return unwrap(shader)->shader_get_uniform_location_old(name);
-}
 /**********************End of UPBGE*******************************/

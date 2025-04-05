@@ -151,8 +151,6 @@ class RAS_IDisplayArray {
 
   /// Return the primitive type used for indices.
   PrimitiveType GetPrimitiveType() const;
-  /// Return the primitive type used for indices in OpenGL value.
-  int GetOpenGLPrimitiveType() const;
 
   /// Modification categories.
   enum {

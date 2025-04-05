@@ -119,71 +119,13 @@ class RAS_Rasterizer {
     RAS_STEREO_RIGHTEYE,
   };
 
-  /**
-   * Mipmap options
-   */
-  enum MipmapOption {
-    RAS_MIPMAP_NONE,
-    RAS_MIPMAP_NEAREST,
-    RAS_MIPMAP_LINEAR,
-
-    RAS_MIPMAP_MAX, /* Should always be last */
-  };
-
   enum ShadowType {
     RAS_SHADOW_NONE,
     RAS_SHADOW_SIMPLE,
     RAS_SHADOW_VARIANCE,
   };
 
-  enum EnableBit {
-    RAS_DEPTH_TEST = 0,
-    RAS_ALPHA_TEST,
-    RAS_SCISSOR_TEST,
-    RAS_TEXTURE_2D,
-    RAS_TEXTURE_CUBE_MAP,
-    RAS_BLEND,
-    RAS_COLOR_MATERIAL,
-    RAS_CULL_FACE,
-    RAS_LIGHTING,
-    RAS_MULTISAMPLE,
-    RAS_POLYGON_STIPPLE,
-    RAS_POLYGON_OFFSET_FILL,
-    RAS_POLYGON_OFFSET_LINE
-  };
-
-  enum DepthFunc {
-    RAS_NEVER = 0,
-    RAS_LEQUAL,
-    RAS_LESS,
-    RAS_ALWAYS,
-    RAS_GEQUAL,
-    RAS_GREATER,
-    RAS_NOTEQUAL,
-    RAS_EQUAL
-  };
-
-  enum BlendFunc {
-    RAS_ZERO = 0,
-    RAS_ONE,
-    RAS_SRC_COLOR,
-    RAS_ONE_MINUS_SRC_COLOR,
-    RAS_DST_COLOR,
-    RAS_ONE_MINUS_DST_COLOR,
-    RAS_SRC_ALPHA,
-    RAS_ONE_MINUS_SRC_ALPHA,
-    RAS_DST_ALPHA,
-    RAS_ONE_MINUS_DST_ALPHA,
-    RAS_SRC_ALPHA_SATURATE
-  };
-
   enum MatrixMode { RAS_PROJECTION = 0, RAS_MODELVIEW, RAS_TEXTURE, RAS_MATRIX_MODE_MAX };
-
-  enum ClearBit {
-    RAS_COLOR_BUFFER_BIT = 0x2,
-    RAS_DEPTH_BUFFER_BIT = 0x4,
-    RAS_STENCIL_BUFFER_BIT = 0x8
-  };
 
   /** Return the output frame buffer normally used for the input frame buffer
    * index in case of filters render.
@@ -265,7 +207,6 @@ class RAS_Rasterizer {
   int m_lastlightlayer;
   bool m_lastlighting;
   void *m_lastauxinfo;
-  unsigned int m_numgllights;
 
   /// Class used to manage off screens used by the rasterizer.
   FrameBuffers m_frameBuffers;
@@ -284,40 +225,9 @@ class RAS_Rasterizer {
   virtual ~RAS_Rasterizer();
 
   /**
-   * Enable capability
-   * \param bit Enable bit
-   */
-  void Enable(EnableBit bit);
-
-  /**
-   * Disable capability
-   * \param bit Enable bit
-   */
-  void Disable(EnableBit bit);
-
-  /**
-   * Set the value for Depth Buffer comparisons
-   * \param func Depth comparison function
-   */
-  void SetDepthFunc(DepthFunc func);
-
-  /**
-   * Set the blending equation.
-   * \param src The src value.
-   * \param dst The destination value.
-   */
-  void SetBlendFunc(BlendFunc src, BlendFunc dst);
-
-  /**
    * Takes a screenshot
    */
   unsigned int *MakeScreenshot(int x, int y, int width, int height);
-
-  /**
-   * SetDepthMask enables or disables writing a fragment's depth value
-   * to the Z buffer.
-   */
-  void SetDepthMask(DepthMask depthmask);
 
   /**
    * Init initializes the renderer.
@@ -338,32 +248,6 @@ class RAS_Rasterizer {
    * EndFrame is called at the end of each frame.
    */
   void EndFrame();
-
-  /**
-   * Clears a specified set of buffers
-   * \param clearbit What buffers to clear (separated by bitwise OR)
-   */
-  void Clear(int clearbit);
-
-  /**
-   * Set background color
-   */
-  void SetClearColor(float r, float g, float b, float a = 1.0f);
-
-  /**
-   * Set background depth
-   */
-  void SetClearDepth(float d);
-
-  /**
-   * Set background color mask.
-   */
-  void SetColorMask(bool r, bool g, bool b, bool a);
-
-  /**
-   * Draw screen overlay plane with basic uv coordinates.
-   */
-  void DrawOverlayPlane();
 
   /// Update dimensions of all off screens.
   void UpdateFrameBuffers(RAS_ICanvas *canvas);
@@ -443,16 +327,6 @@ class RAS_Rasterizer {
   ViewPortMatrices GetAllMatrices();
 
   /**
-   * Get/Set viewport area
-   */
-  void SetViewport(int x, int y, int width, int height);
-
-  /**
-   * Set scissor mask
-   */
-  void SetScissor(int x, int y, int width, int height);
-
-  /**
    */
   const MT_Vector3 &GetCameraPosition();
   bool GetCameraOrtho();
@@ -462,21 +336,6 @@ class RAS_Rasterizer {
 
   /// \return the current drawing mode: RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
   ShadowType GetShadowMode();
-
-  /**
-   * Sets face culling
-   */
-  void SetCullFace(bool enable);
-
-  /// Set and enable clip plane.
-  void EnableClipPlane(int numplanes);
-  /// Disable clip plane
-  void DisableClipPlane(int numplanes);
-
-  /**
-   * Sets wireframe mode.
-   */
-  void SetLines(bool enable);
 
   /**
    */
@@ -517,11 +376,6 @@ class RAS_Rasterizer {
 
   void SetAmbientColor(const MT_Vector3 &color);
 
-  /**
-   * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
-   */
-  void SetPolygonOffset(float mult, float add);
-
   RAS_DebugDraw &GetDebugDraw();
   void FlushDebugDraw(RAS_ICanvas *canvas);
 
@@ -532,16 +386,6 @@ class RAS_Rasterizer {
   const MT_Matrix4x4 &GetPersMatrix() const;
   const MT_Matrix4x4 &GetPersInvMatrix() const;
 
-  void SetFrontFace(bool ccw);
-
-  void SetInvertFrontFace(bool invert);
-
-  void SetAnisotropicFiltering(short level);
-  short GetAnisotropicFiltering();
-
-  void SetMipmapping(MipmapOption val);
-  MipmapOption GetMipmapping();
-
   /// \see KX_RayCast
   bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);
   /// \see KX_RayCast
@@ -551,8 +395,6 @@ class RAS_Rasterizer {
    * Render Tools
    */
   void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
-
-  void DisableForText();
 
   void SetClientObject(void *obj);
 

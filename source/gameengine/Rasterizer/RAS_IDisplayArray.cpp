@@ -26,8 +26,6 @@
 
 #include "RAS_DisplayArray.h"
 
-#include <epoxy/gl.h>
-
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat &format)
     : m_type(type), m_modifiedFlag(NONE_MODIFIED), m_format(format)
 {
@@ -81,19 +79,6 @@ RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::Primitiv
 RAS_IDisplayArray::PrimitiveType RAS_IDisplayArray::GetPrimitiveType() const
 {
   return m_type;
-}
-
-int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
-{
-  switch (m_type) {
-    case LINES: {
-      return GL_LINES;
-    }
-    case TRIANGLES: {
-      return GL_TRIANGLES;
-    }
-  }
-  return 0;
 }
 
 void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)

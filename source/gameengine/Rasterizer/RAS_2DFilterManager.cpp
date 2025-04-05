@@ -94,14 +94,6 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
 
   RAS_FrameBuffer *previousfb = inputfb;
 
-  /* Set source off screen to RAS_FrameBuffer_FILTER0 in case of multisample and blit,
-   * else keep the original source off screen. */
-  // if (inputfb->GetSamples()) {
-  //	previousfb = rasty->GetFrameBuffer(RAS_Rasterizer::RAS_FrameBuffer_FILTER0);
-  //	// No need to bind previousfb because a blit is proceeded.
-  //	rasty->DrawOffScreen(inputfb, previousfb);
-  //}
-
   // The filter color input off screen, changed for each filters.
   RAS_FrameBuffer *colorfb;
   // The filter depth input off scree, unchanged for each filters.

@@ -26,6 +26,8 @@
 
 #include "KX_2DFilter.h"
 
+#include "../python/gpu/gpu_py_texture.hh"
+
 #include "KX_2DFilterFrameBuffer.h"
 
 KX_2DFilter::KX_2DFilter(RAS_2DFilterData &data) : RAS_2DFilter(data)
@@ -43,43 +45,20 @@ bool KX_2DFilter::LinkProgram()
 
 #ifdef WITH_PYTHON
 
-bool KX_2DFilter::CheckTexture(int index, int bindCode, const std::string &prefix) const
+bool KX_2DFilter::SetTextureUniform(BPyGPUTexture *py_texture, const char *samplerName)
 {
-  if (!m_shader) {
-    PyErr_Format(PyExc_ValueError, "%s: KX_2DFilter, No valid shader found", prefix.c_str());
+  if (GetError()) {
     return false;
   }
-  if (index < 0 || index >= RAS_Texture::MaxUnits) {
+  if (!py_texture) {
     PyErr_Format(PyExc_ValueError,
-                 "%s: KX_2DFilter, index out of range [0, %i]",
-                 prefix.c_str(),
-                 (RAS_Texture::MaxUnits - 1));
+                 "KX_2DFilter, no valid GPUTexture found");
     return false;
   }
-  if (bindCode < 0) {
-    PyErr_Format(PyExc_ValueError, "%s: KX_2DFilter, bindCode negative", prefix.c_str());
-    return false;
-  }
-
-  return true;
-}
-
-bool KX_2DFilter::SetTextureUniform(int index, const char *samplerName)
-{
-  if (samplerName) {
-    if (GetError()) {
-      return false;
-    }
-    int loc = GetUniformLocation(samplerName);
-
-    if (loc != -1) {
-#  ifdef SORT_UNIFORMS
-      SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);
-#  else
-      SetUniform(loc, index);
-#  endif
-    }
-  }
+  GPU_shader_bind(m_shader);
+  int slot = GPU_shader_get_sampler_binding(m_shader, samplerName);
+  GPU_texture_bind(py_texture->tex, slot);
+  GPU_shader_uniform_1i(m_shader, samplerName, slot);
 
   return true;
 }
@@ -124,7 +103,6 @@ PyTypeObject KX_2DFilter::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_2DFilter
 
 PyMethodDef KX_2DFilter::Methods[] = {
     EXP_PYMETHODTABLE(KX_2DFilter, setTexture),
-    EXP_PYMETHODTABLE(KX_2DFilter, setCubeMap),
     EXP_PYMETHODTABLE_KEYWORDS(KX_2DFilter, addOffScreen),
     EXP_PYMETHODTABLE_NOARGS(KX_2DFilter, removeOffScreen),
     {nullptr, nullptr}  // Sentinel
@@ -171,47 +149,19 @@ PyObject *KX_2DFilter::pyattr_get_frameBuffer(EXP_PyObjectPlus *self_v,
   return frameBuffer ? static_cast<KX_2DFilterFrameBuffer *>(frameBuffer)->GetProxy() : Py_None;
 }
 
-EXP_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
+EXP_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(samplerName, gputexture)")
 {
-  int index = 0;
-  int bindCode = 0;
+  BPyGPUTexture *py_texture;
   char *samplerName = nullptr;
 
-  if (!PyArg_ParseTuple(args, "ii|s:setTexture", &index, &bindCode, &samplerName)) {
+  if (!PyArg_ParseTuple(args, "sO!:setTexture", &samplerName, &BPyGPUTexture_Type, &py_texture)) {
     return nullptr;
   }
 
-  if (!CheckTexture(index, bindCode, "setTexture(index, bindCode, samplerName)")) {
+  if (!SetTextureUniform(py_texture, samplerName)) {
     return nullptr;
   }
 
-  if (!SetTextureUniform(index, samplerName)) {
-    return nullptr;
-  }
-
-  m_textures[index] = {RAS_Texture::GetTexture2DType(), bindCode};
-  Py_RETURN_NONE;
-}
-
-EXP_PYMETHODDEF_DOC(KX_2DFilter, setCubeMap, "setCubeMap(index, bindCode, samplerName)")
-{
-  int index = 0;
-  int bindCode = 0;
-  char *samplerName = nullptr;
-
-  if (!PyArg_ParseTuple(args, "ii|s:setCubeMap", &index, &bindCode, &samplerName)) {
-    return nullptr;
-  }
-
-  if (!CheckTexture(index, bindCode, "setCubeMap(index, bindCode, samplerName)")) {
-    return nullptr;
-  }
-
-  if (!SetTextureUniform(index, samplerName)) {
-    return nullptr;
-  }
-
-  m_textures[index] = {RAS_Texture::GetCubeMapTextureType(), bindCode};
   Py_RETURN_NONE;
 }
 

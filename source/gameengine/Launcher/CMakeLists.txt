@@ -45,7 +45,6 @@ set(INC
 set(INC_SYS
   ../../../intern/moto/include
   ${BOOST_INCLUDE_DIR}
-  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC

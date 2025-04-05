@@ -25,7 +25,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
-#include <epoxy/gl.h>
 
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
@@ -206,15 +205,15 @@ void RAS_2DFilter::ParseShaderProgram()
 of nearby fragments. Or vertices or whatever.*/
 void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 {
-  const GLfloat texturewidth = (GLfloat)canvas->GetWidth() + 1;
-  const GLfloat textureheight = (GLfloat)canvas->GetHeight() + 1;
-  const GLfloat xInc = 1.0f / texturewidth;
-  const GLfloat yInc = 1.0f / textureheight;
+  const float texturewidth = (float)canvas->GetWidth() + 1;
+  const float textureheight = (float)canvas->GetHeight() + 1;
+  const float xInc = 1.0f / texturewidth;
+  const float yInc = 1.0f / textureheight;
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      m_textureOffsets[(((i * 3) + j) * 2) + 0] = (-1.0f * xInc) + ((GLfloat)i * xInc);
-      m_textureOffsets[(((i * 3) + j) * 2) + 1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
+      m_textureOffsets[(((i * 3) + j) * 2) + 0] = (-1.0f * xInc) + ((float)i * xInc);
+      m_textureOffsets[(((i * 3) + j) * 2) + 1] = (-1.0f * yInc) + ((float)j * yInc);
     }
   }
 }
@@ -232,13 +231,6 @@ void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *color
     GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
     GPU_apply_state();
   }
-
-  // Bind custom textures.
-  for (const auto &pair : m_textures) {
-    glActiveTexture(GL_TEXTURE0 + pair.first);
-    glBindTexture(pair.second.first, pair.second.second);
-  }
-  GPU_apply_state();
 }
 
 void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *colorfb)
@@ -252,14 +244,6 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb->GetFrameBuffer()));
   }
-
-  // Unbind custom textures.
-  for (const auto &pair : m_textures) {
-    glActiveTexture(GL_TEXTURE0 + pair.first);
-    glBindTexture(pair.second.first, 0);
-  }
-
-  glActiveTexture(GL_TEXTURE0);
 }
 
 void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)

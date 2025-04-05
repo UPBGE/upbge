@@ -272,7 +272,6 @@ std::string KX_BlenderMaterial::GetName()
 
 PyMethodDef KX_BlenderMaterial::Methods[] = {
     EXP_PYMETHODTABLE(KX_BlenderMaterial, getShader),
-    EXP_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -367,47 +366,6 @@ EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
   }
 
   return m_shader->GetShader()->GetProxy();
-}
-
-static const unsigned int GL_array[11] = {RAS_Rasterizer::RAS_ZERO,
-                                          RAS_Rasterizer::RAS_ONE,
-                                          RAS_Rasterizer::RAS_SRC_COLOR,
-                                          RAS_Rasterizer::RAS_ONE_MINUS_SRC_COLOR,
-                                          RAS_Rasterizer::RAS_DST_COLOR,
-                                          RAS_Rasterizer::RAS_ONE_MINUS_DST_COLOR,
-                                          RAS_Rasterizer::RAS_SRC_ALPHA,
-                                          RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA,
-                                          RAS_Rasterizer::RAS_DST_ALPHA,
-                                          RAS_Rasterizer::RAS_ONE_MINUS_DST_ALPHA,
-                                          RAS_Rasterizer::RAS_SRC_ALPHA_SATURATE};
-
-EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, bge.logic.dest)")
-{
-  unsigned int b[2];
-  if (PyArg_ParseTuple(args, "ii:setBlending", &b[0], &b[1])) {
-    bool value_found[2] = {false, false};
-    for (int i = 0; i < 11; i++) {
-      if (b[0] == GL_array[i]) {
-        value_found[0] = true;
-        m_blendFunc[0] = b[0];
-      }
-      if (b[1] == GL_array[i]) {
-        value_found[1] = true;
-        m_blendFunc[1] = b[1];
-      }
-      if (value_found[0] && value_found[1]) {
-        break;
-      }
-    }
-    if (!value_found[0] || !value_found[1]) {
-      PyErr_SetString(PyExc_ValueError,
-                      "material.setBlending(int, int): KX_BlenderMaterial, invalid enum.");
-      return nullptr;
-    }
-    m_userDefBlend = true;
-    Py_RETURN_NONE;
-  }
-  return nullptr;
 }
 
 bool ConvertPythonToMaterial(PyObject *value,

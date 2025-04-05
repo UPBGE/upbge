@@ -1993,14 +1993,9 @@ char *MTLShader::shader_validate()
   return nullptr;
 }
 
-void MTLShader::shader_bind_attributes(int *locations, const char **names, int len)
-{
-}
-
-int MTLShader::shader_get_uniform_location_old(const char *name)
-{
-  return -1;
-}
+//void MTLShader::shader_bind_attributes(int *locations, const char **names, int len)
+//{
+//}
 /**************End of UPBGE************/
 
 }  // namespace blender::gpu
