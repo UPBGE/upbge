@@ -770,6 +770,11 @@ GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
   return context->releaseDrawingContext();
 }
 
+GHOST_ContextHandle GHOST_GetActiveGPUContext()
+{
+  return (GHOST_ContextHandle)GHOST_IContext::getActiveDrawingContext();
+}
+
 uint GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
@@ -1285,9 +1290,7 @@ void GHOST_SetVulkanSwapBuffersCallbacks(
     void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
     void (*swap_buffers_post_callback)(void),
     void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
-    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *)
-
-)
+    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *))
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
   context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback,

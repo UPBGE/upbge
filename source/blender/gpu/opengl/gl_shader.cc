@@ -158,7 +158,7 @@ static const char *to_string(const Type &type)
   return "unknown";
 }
 
-static Type to_component_type(const Type &type)
+static Type UNUSED_FUNCTION(to_component_type)(const Type &type)
 {
   switch (type) {
     case Type::FLOAT:
@@ -1272,12 +1272,8 @@ bool GLShader::post_finalize(const shader::ShaderCreateInfo *info)
   async_compilation_ = false;
 
   GLuint program_id = program_get();
-  if (info != nullptr && info->legacy_resource_location_ == false) {
-    interface = new GLShaderInterface(program_id, *info);
-  }
-  else {
-    interface = new GLShaderInterface(program_id);
-  }
+
+  interface = new GLShaderInterface(program_id, *info);
 
   return true;
 }
@@ -1353,18 +1349,6 @@ void GLShader::uniform_int(int location, int comp_len, int array_size, const int
       BLI_assert(0);
       break;
   }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name GPUVertFormat from Shader
- * \{ */
-
-int GLShader::program_handle_get() const
-{
-  BLI_assert(program_active_);
-  return program_active_->program_id;
 }
 
 /** \} */

@@ -89,7 +89,6 @@ class VKShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-
   /* UPBGE */
   char *shader_validate() override;
   void shader_bind_attributes(int *locations, const char **names, int len) override;
@@ -97,10 +96,6 @@ class VKShader : public Shader {
      bgl_TextureCoordinateOffset[9]; */
   int shader_get_uniform_location_old(const char *name) override;
   /*********/
-
-  /* DEPRECATED: Kept only because of BGL API. */
-  int program_handle_get() const override;
-
   VkPipeline ensure_and_get_compute_pipeline();
   VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,
                                               VKVertexAttributeObject &vao,
