@@ -184,7 +184,6 @@ void KX_BlenderMaterial::OnConstruction()
 
 void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 {
-  RAS_Texture::DesactiveTextures();
 }
 
 void KX_BlenderMaterial::OnExit()
