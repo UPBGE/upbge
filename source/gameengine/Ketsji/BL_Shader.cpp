@@ -906,7 +906,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
   }
 
   // 	m_attribs = {{attr, RAS_Rasterizer::RAS_TEXTANGENT}}; TODO
-  BindAttributes({{attr, "Tangent"}});
+  //BindAttributes({{attr, "Tangent"}});
   Py_RETURN_NONE;
 }
 

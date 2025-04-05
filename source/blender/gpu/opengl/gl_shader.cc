@@ -1568,16 +1568,16 @@ char *GLShader::shader_validate()
   return NULL;
 }
 
-void GLShader::shader_bind_attributes(int *locations, const char **names, int len)
-{
-  if (interface) {
-    delete interface;
-  }
-  for (unsigned short i = 0; i < len; ++i) {
-    glBindAttribLocation(program_active_->program_id, locations[i], names[i]);
-  }
-  interface = new GLShaderInterface(program_active_->program_id);
-}
+//void GLShader::shader_bind_attributes(int *locations, const char **names, int len)
+//{
+//  if (interface) {
+//    delete interface;
+//  }
+//  for (unsigned short i = 0; i < len; ++i) {
+//    glBindAttribLocation(program_active_->program_id, locations[i], names[i]);
+//  }
+//  interface = new GLShaderInterface();
+//}
 
 int GLShader::shader_get_uniform_location_old(const char *name)
 {

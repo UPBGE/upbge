@@ -450,21 +450,21 @@ int RAS_Shader::GetAttribLocation(const std::string &name)
   return GPU_shader_get_attribute(m_shader, name.c_str());
 }
 
-void RAS_Shader::BindAttributes(const std::unordered_map<int, std::string> &attrs)
-{
-  const unsigned short len = attrs.size();
-  int *locations = (int *)BLI_array_alloca(locations, len);
-  const char **names = (const char **)BLI_array_alloca(names, len);
-
-  unsigned short i = 0;
-  for (const std::pair<int, std::string> &pair : attrs) {
-    locations[i] = pair.first;
-    names[i] = pair.second.c_str();
-    ++i;
-  }
-
-  GPU_shader_bind_attributes(m_shader, locations, (const char **)names, len);
-}
+//void RAS_Shader::BindAttributes(const std::unordered_map<int, std::string> &attrs)
+//{
+//  const unsigned short len = attrs.size();
+//  int *locations = (int *)BLI_array_alloca(locations, len);
+//  const char **names = (const char **)BLI_array_alloca(names, len);
+//
+//  unsigned short i = 0;
+//  for (const std::pair<int, std::string> &pair : attrs) {
+//    locations[i] = pair.first;
+//    names[i] = pair.second.c_str();
+//    ++i;
+//  }
+//
+//  GPU_shader_bind_attributes(m_shader, locations, (const char **)names, len);
+//}
 
 int RAS_Shader::GetUniformLocation(const std::string &name, bool debug)
 {
