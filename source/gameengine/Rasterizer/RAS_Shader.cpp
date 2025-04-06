@@ -332,6 +332,93 @@ static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *
   return blender::StringRefNull(str);
 }
 
+static int constant_type_size(Type type)
+{
+  switch (type) {
+    case Type::BOOL:
+    case Type::FLOAT:
+    case Type::INT:
+    case Type::UINT:
+    case Type::UCHAR4:
+    case Type::CHAR4:
+    case Type::VEC3_101010I2:
+    case Type::USHORT2:
+    case Type::SHORT2:
+      return 4;
+      break;
+    case Type::USHORT3:
+    case Type::SHORT3:
+      return 6;
+      break;
+    case Type::VEC2:
+    case Type::UVEC2:
+    case Type::IVEC2:
+    case Type::USHORT4:
+    case Type::SHORT4:
+      return 8;
+      break;
+    case Type::VEC3:
+    case Type::UVEC3:
+    case Type::IVEC3:
+      return 12;
+      break;
+    case Type::VEC4:
+    case Type::UVEC4:
+    case Type::IVEC4:
+      return 16;
+      break;
+    case Type::MAT3:
+      return 36 + 3 * 4;
+    case Type::MAT4:
+      return 64;
+      break;
+    case Type::UCHAR:
+    case Type::CHAR:
+      return 1;
+      break;
+    case Type::UCHAR2:
+    case Type::CHAR2:
+    case Type::USHORT:
+    case Type::SHORT:
+      return 2;
+      break;
+    case Type::UCHAR3:
+    case Type::CHAR3:
+      return 3;
+      break;
+  }
+  BLI_assert(false);
+  return -1;
+}
+
+static int constants_calc_size(ShaderCreateInfo *info)
+{
+  int size_prev = 0;
+  int size_last = 0;
+  for (const ShaderCreateInfo::PushConst &uniform : info->push_constants_) {
+    int pad = 0;
+    int size = constant_type_size(uniform.type);
+    if (size_last && size_last != size) {
+      /* Calc pad. */
+      int pack = (size == 8) ? 8 : 16;
+      if (size_last < size) {
+        pad = pack - (size_last % pack);
+      }
+      else {
+        pad = size_prev % pack;
+      }
+    }
+    else if (size == 12) {
+      /* It is still unclear how Vulkan handles padding for `vec3` constants. For now let's follow
+       * the rules of the `std140` layout. */
+      pad = 4;
+    }
+    size_prev += pad + size * std::max(1, uniform.array_size);
+    size_last = size;
+  }
+  return size_prev + (size_prev % 16);
+}
+
 bool RAS_Shader::LinkProgram()
 {
   std::string vert;
@@ -348,7 +435,7 @@ bool RAS_Shader::LinkProgram()
   ShaderCreateInfo info("s_Display");
   info.push_constant(Type::FLOAT, "bgl_RenderedTextureWidth");
   info.push_constant(Type::FLOAT, "bgl_RenderedTextureHeight");
-  info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  //info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
   }
@@ -363,6 +450,15 @@ bool RAS_Shader::LinkProgram()
   info.fragment_source("common_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
+
+#define VULKAN_LIMIT 128
+  int size = constants_calc_size(&info);
+  if (size > VULKAN_LIMIT) {
+    printf("Push constants have a minimum supported size of " STRINGIFY(VULKAN_LIMIT) " bytes, however the constants added so far already reach %d bytes. Consider using UBO.\n", size);
+    goto program_error;
+    return false;
+  }
+#undef VULKAN_LIMIT
 
   if (m_error) {
     goto program_error;
