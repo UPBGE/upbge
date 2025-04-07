@@ -1709,6 +1709,7 @@ int main(int argc,
 #  endif /*WITH_PYTHON*/
 
               WM_set_g_system_blenderplayer(system);
+              GPU_backend_ghost_system_set(system);
               WM_init_gpu();
 
               UI_theme_init_default();
