@@ -18,6 +18,7 @@
 #include "BLI_dial_2d.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
@@ -48,23 +49,13 @@
 
 static int gizmo_cage2d_transform_flag_get(const wmGizmo *gz);
 
-static void gizmo_calc_rect_view_scale(const wmGizmo *gz, const float dims[2], float scale[2])
+static void gizmo_calc_rect_view_scale(const wmGizmo *gz, float scale[2])
 {
   float matrix_final_no_offset[4][4];
-  float asp[2] = {1.0f, 1.0f};
-  if (dims[0] > dims[1]) {
-    asp[0] = dims[1] / dims[0];
-  }
-  else {
-    asp[1] = dims[0] / dims[1];
-  }
   float x_axis[3], y_axis[3];
   WM_gizmo_calc_matrix_final_no_offset(gz, matrix_final_no_offset);
   mul_v3_mat3_m4v3(x_axis, matrix_final_no_offset, gz->matrix_offset[0]);
   mul_v3_mat3_m4v3(y_axis, matrix_final_no_offset, gz->matrix_offset[1]);
-
-  mul_v2_v2(x_axis, asp);
-  mul_v2_v2(y_axis, asp);
 
   float len_x_axis = len_v3(x_axis);
   float len_y_axis = len_v3(y_axis);
@@ -74,13 +65,13 @@ static void gizmo_calc_rect_view_scale(const wmGizmo *gz, const float dims[2], f
   scale[1] = safe_divide(1.0f, len_y_axis);
 }
 
-static void gizmo_calc_rect_view_margin(const wmGizmo *gz, const float dims[2], float margin[2])
+static void gizmo_calc_rect_view_margin(const wmGizmo *gz, float margin[2])
 {
   float handle_size;
   handle_size = 0.15f;
   handle_size *= gz->scale_final;
   float scale_xy[2];
-  gizmo_calc_rect_view_scale(gz, dims, scale_xy);
+  gizmo_calc_rect_view_scale(gz, scale_xy);
 
   margin[0] = (handle_size * scale_xy[0]);
   margin[1] = (handle_size * scale_xy[1]);
@@ -692,7 +683,7 @@ static void gizmo_cage2d_draw_intern(wmGizmo *gz,
   GPU_matrix_mul(matrix_final);
 
   float margin[2];
-  gizmo_calc_rect_view_margin(gz, dims, margin);
+  gizmo_calc_rect_view_margin(gz, margin);
 
   /* Handy for quick testing draw (if it's outside bounds). */
   if (false) {
@@ -891,7 +882,7 @@ static int gizmo_cage2d_test_select(bContext *C, wmGizmo *gz, const int mval[2])
   }
 
   float margin[2];
-  gizmo_calc_rect_view_margin(gz, dims, margin);
+  gizmo_calc_rect_view_margin(gz, margin);
 
   /* Expand for hots-pot. */
   const float size[2] = {size_real[0] + margin[0] / 2, size_real[1] + margin[1] / 2};
@@ -1210,6 +1201,26 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
       zero_v2(pivot);
     }
 
+    float curr_mouse[2];
+    copy_v2_v2(curr_mouse, data->orig_mouse);
+
+    /* Rotate current and original mouse coordinates around gizmo center. */
+    if (transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_ROTATE) {
+      float rot[3][3];
+      float loc[3];
+      float size[3];
+      mat4_to_loc_rot_size(loc, rot, size, gz->matrix_offset);
+
+      invert_m3(rot);
+      sub_v2_v2(point_local, loc);
+      mul_m3_v2(rot, point_local);
+      add_v2_v2(point_local, loc);
+
+      sub_v2_v2(curr_mouse, loc);
+      mul_m3_v2(rot, curr_mouse);
+      add_v2_v2(curr_mouse, loc);
+    }
+
     bool constrain_axis[2] = {false};
     gizmo_constrain_from_scale_part(gz->highlight_part, constrain_axis);
 
@@ -1219,7 +1230,7 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
       size_new[i] = size_orig[i];
       if (constrain_axis[i] == false) {
         /* Original cursor position relative to pivot. */
-        const float delta_orig = data->orig_mouse[i] - data->orig_matrix_offset[3][i] -
+        const float delta_orig = curr_mouse[i] - data->orig_matrix_offset[3][i] -
                                  pivot[i] * size_orig[i];
         const float delta_curr = point_local[i] - data->orig_matrix_offset[3][i] -
                                  pivot[i] * size_orig[i];
@@ -1230,7 +1241,6 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
             continue;
           }
         }
-
         /* Original cursor position does not exactly lie on the cage boundary due to margin. */
         size_new[i] = delta_curr / (signf(delta_orig) * 0.5f * dims[i] - pivot[i]);
       }

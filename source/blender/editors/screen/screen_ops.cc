@@ -846,7 +846,7 @@ static void area_actionzone_get_rect(AZone *az, rcti *r_rect)
     const bool is_right = is_vertical && bool(az->region->v2d.scroll & V2D_SCROLL_RIGHT);
     const bool is_left = is_vertical && bool(az->region->v2d.scroll & V2D_SCROLL_LEFT);
     const bool is_top = is_horizontal && bool(az->region->v2d.scroll & V2D_SCROLL_TOP);
-    const bool is_botton = is_horizontal && bool(az->region->v2d.scroll & V2D_SCROLL_BOTTOM);
+    const bool is_bottom = is_horizontal && bool(az->region->v2d.scroll & V2D_SCROLL_BOTTOM);
     /* For scroll azones use the area around the region's scroll-bar location. */
     rcti scroller_vert = is_horizontal ? az->region->v2d.hor : az->region->v2d.vert;
     BLI_rcti_translate(&scroller_vert, az->region->winrct.xmin, az->region->winrct.ymin);
@@ -856,7 +856,7 @@ static void area_actionzone_get_rect(AZone *az, rcti *r_rect)
     r_rect->xmin = scroller_vert.xmin - (is_right ? V2D_SCROLL_HIDE_HEIGHT : edge_padding);
     r_rect->ymin = scroller_vert.ymin - (is_top ? V2D_SCROLL_HIDE_WIDTH : edge_padding);
     r_rect->xmax = scroller_vert.xmax + (is_left ? V2D_SCROLL_HIDE_HEIGHT : edge_padding);
-    r_rect->ymax = scroller_vert.ymax + (is_botton ? V2D_SCROLL_HIDE_WIDTH : edge_padding);
+    r_rect->ymax = scroller_vert.ymax + (is_bottom ? V2D_SCROLL_HIDE_WIDTH : edge_padding);
   }
   else {
     azone_clipped_rect_calc(az, r_rect);
@@ -1740,17 +1740,7 @@ static void area_move_set_limits(wmWindow *win,
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     if (dir_axis == SCREEN_AXIS_H) {
-      int areamin = ED_area_headersize();
-
-      if (area->v1->vec.y > window_rect.ymin) {
-        areamin += U.pixelsize;
-      }
-      if (area->v2->vec.y < (window_rect.ymax - 1)) {
-        areamin += U.pixelsize;
-      }
-
-      int y1 = screen_geom_area_height(area) - areamin - int(U.pixelsize);
-
+      const int y1 = area->winy - ED_area_headersize();
       /* if top or down edge selected, test height */
       if (area->v1->editflag && area->v4->editflag) {
         *bigger = min_ii(*bigger, y1);
@@ -1760,17 +1750,7 @@ static void area_move_set_limits(wmWindow *win,
       }
     }
     else {
-      int areamin = AREAMINX * UI_SCALE_FAC;
-
-      if (area->v1->vec.x > window_rect.xmin) {
-        areamin += U.pixelsize;
-      }
-      if (area->v4->vec.x < (window_rect.xmax - 1)) {
-        areamin += U.pixelsize;
-      }
-
-      int x1 = screen_geom_area_width(area) - areamin - int(U.pixelsize);
-
+      const int x1 = area->winx - (AREAMINX * UI_SCALE_FAC);
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
         *bigger = min_ii(*bigger, x1);
@@ -1782,11 +1762,11 @@ static void area_move_set_limits(wmWindow *win,
   }
 }
 
-static void area_move_draw_cb(const wmWindow * /*win*/, void *userdata)
+static void area_move_draw_cb(const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  screen_draw_move_highlight(md->screen, md->dir_axis);
+  screen_draw_move_highlight(win, md->screen, md->dir_axis);
 }
 
 /* validate selection inside screen, set variables OK */

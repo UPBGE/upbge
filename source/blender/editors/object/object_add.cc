@@ -3299,7 +3299,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const int thickness = RNA_int_get(info.op_props, "thickness");
   const float offset = RNA_float_get(info.op_props, "offset");
 
-  /* To be compatible with the thickness value prior to Grease Pencil v3. */
+  /* To be compatible with the thickness value of legacy Grease Pencil. */
   const float stroke_radius = float(thickness) / 2 *
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
@@ -3469,6 +3469,8 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, frame_number);
     BLI_assert(drawing != nullptr);
     drawing->strokes_for_write() = curves_eval->geometry.wrap();
+    /* Default radius (1.0 unit) is too thick for converted strokes. */
+    drawing->radii_for_write().fill(0.01f);
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
