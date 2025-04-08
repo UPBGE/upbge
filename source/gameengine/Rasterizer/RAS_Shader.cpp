@@ -461,7 +461,6 @@ bool RAS_Shader::LinkProgram()
       goto program_error;
     }
   }
-#undef VULKAN_LIMIT
 
   if (m_error) {
     goto program_error;
