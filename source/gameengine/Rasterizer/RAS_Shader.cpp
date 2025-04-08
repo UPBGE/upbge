@@ -26,6 +26,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_string_ref.hh"
+#include "GPU_context.hh"
 #include "GPU_immediate.hh"
 #include "MEM_guardedalloc.h"
 
@@ -435,7 +436,9 @@ bool RAS_Shader::LinkProgram()
   ShaderCreateInfo info("s_Display");
   info.push_constant(Type::FLOAT, "bgl_RenderedTextureWidth");
   info.push_constant(Type::FLOAT, "bgl_RenderedTextureHeight");
-  //info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
+    info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+  }
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
   }
@@ -451,12 +454,12 @@ bool RAS_Shader::LinkProgram()
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
 
-#define VULKAN_LIMIT 128
-  int size = constants_calc_size(&info);
-  if (size > VULKAN_LIMIT) {
-    printf("Push constants have a minimum supported size of " STRINGIFY(VULKAN_LIMIT) " bytes, however the constants added so far already reach %d bytes. Consider using UBO.\n", size);
-    goto program_error;
-    return false;
+  if (GPU_backend_get_type() == GPU_BACKEND_VULKAN) {
+    int size = constants_calc_size(&info);
+    if (size > 128) {  // #define VULKAN_LIMIT 128 in gpu_py_shader_create_info
+      printf("Push constants have a minimum supported size of 128 bytes, however the constants added so far already reach %d bytes. Wait for Ubos to be implemented.\n", size);
+      goto program_error;
+    }
   }
 #undef VULKAN_LIMIT
 
