@@ -187,6 +187,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
       "show_properties_data",
       "show_properties_bone",
       "show_properties_bone_constraints",
+      "show_properties_game",
       "show_properties_material",
       "show_properties_texture",
   };
