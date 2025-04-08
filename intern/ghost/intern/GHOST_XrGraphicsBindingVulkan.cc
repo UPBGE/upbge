@@ -15,6 +15,10 @@
 #include "GHOST_XrGraphicsBindingVulkan.hh"
 #include "GHOST_Xr_intern.hh"
 
+#ifdef _WIN32
+#  include <vulkan/vulkan_win32.h>
+#endif
+
 /** OpenXR/Vulkan specific function pointers. */
 PFN_xrGetVulkanGraphicsRequirements2KHR
     GHOST_XrGraphicsBindingVulkan::s_xrGetVulkanGraphicsRequirements2KHR_fn = nullptr;
@@ -169,7 +173,9 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
   /* Physical device selection */
   XrVulkanGraphicsDeviceGetInfoKHR xr_device_get_info = {
       XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR, nullptr, system_id, m_vk_instance};
-  s_xrGetVulkanGraphicsDevice2KHR_fn(instance, &xr_device_get_info, &m_vk_physical_device);
+  CHECK_XR(
+      s_xrGetVulkanGraphicsDevice2KHR_fn(instance, &xr_device_get_info, &m_vk_physical_device),
+      "Unable to create an OpenXR compatible Vulkan physical device.");
 
   /* Queue family */
   uint32_t vk_queue_family_count = 0;
@@ -214,7 +220,7 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
                                                        nullptr};
   CHECK_XR(
       s_xrCreateVulkanDeviceKHR_fn(instance, &xr_device_create_info, &m_vk_device, &vk_result),
-      "Unable to create an OpenXR compatible Vulkan device.");
+      "Unable to create an OpenXR compatible Vulkan logical device.");
 
   vkGetDeviceQueue(m_vk_device, m_graphics_queue_family, 0, &m_vk_queue);
 
@@ -309,6 +315,11 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
   };
 
 #ifdef _WIN32
+  bool has_vk_khr_external_memory_win32_extension = has_extension(
+      VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+  if (has_vk_khr_external_memory_win32_extension) {
+    return GHOST_kVulkanXRModeWin32;
+  }
 #elif defined(__APPLE__)
 #else /* UNIX/Linux */
   bool has_vk_khr_external_memory_fd_extension = has_extension(
@@ -406,15 +417,12 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
 
   switch (m_data_transfer_mode) {
     case GHOST_kVulkanXRModeFD:
-      submitToSwapchainImageFd(vulkan_image, draw_info);
+    case GHOST_kVulkanXRModeWin32:
+      submitToSwapchainImageGpu(vulkan_image, draw_info);
       break;
 
     case GHOST_kVulkanXRModeCPU:
       submitToSwapchainImageCpu(vulkan_image, draw_info);
-      break;
-
-    default:
-      // assert(false);
       break;
   }
 }
@@ -543,17 +551,26 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 /** \name Data transfer FD
  * \{ */
 
-void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
-  GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeFD};
+  GHOST_VulkanOpenXRData openxr_data = {m_data_transfer_mode};
   m_ghost_ctx->openxr_acquire_framebuffer_image_callback_(&openxr_data);
 
   /* Create an image handle */
   VkExternalMemoryImageCreateInfo vk_external_memory_image_info = {
-      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-      nullptr,
-      VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT};
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO, nullptr, 0};
+
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD:
+      vk_external_memory_image_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+      break;
+    case GHOST_kVulkanXRModeWin32:
+      vk_external_memory_image_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+      break;
+    case GHOST_kVulkanXRModeCPU:
+      break;
+  }
 
   VkImageCreateInfo vk_image_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
                                      &vk_external_memory_image_info,
@@ -574,17 +591,45 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
   VkImage vk_image;
   vkCreateImage(m_vk_device, &vk_image_info, nullptr, &vk_image);
 
+  /* Get the memory requirements */
+  VkMemoryRequirements vk_memory_requirements = {};
+  vkGetImageMemoryRequirements(m_vk_device, vk_image, &vk_memory_requirements);
+
   /* Import the memory */
+  VkDeviceMemory device_memory = VK_NULL_HANDLE;
   VkMemoryDedicatedAllocateInfo vk_memory_dedicated_allocation_info = {
       VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, nullptr, vk_image, VK_NULL_HANDLE};
-  VkImportMemoryFdInfoKHR import_memory_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
-                                                &vk_memory_dedicated_allocation_info,
-                                                VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
-                                                int(openxr_data.gpu.image_handle)};
-  VkMemoryAllocateInfo allocate_info = {
-      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_memory_info, openxr_data.gpu.memory_size};
-  VkDeviceMemory device_memory;
-  vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD: {
+      VkImportMemoryFdInfoKHR import_memory_info = {VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+                                                    &vk_memory_dedicated_allocation_info,
+                                                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
+                                                    int(openxr_data.gpu.image_handle)};
+      VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                            &import_memory_info,
+                                            vk_memory_requirements.size};
+      vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+      break;
+    }
+
+    case GHOST_kVulkanXRModeWin32: {
+#ifdef _WIN32
+      VkImportMemoryWin32HandleInfoKHR import_memory_info = {
+          VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
+          &vk_memory_dedicated_allocation_info,
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
+          HANDLE(openxr_data.gpu.image_handle)};
+      VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                            &import_memory_info,
+                                            vk_memory_requirements.size};
+      vkAllocateMemory(m_vk_device, &allocate_info, nullptr, &device_memory);
+#endif
+      break;
+    }
+
+    case GHOST_kVulkanXRModeCPU:
+      break;
+  }
 
   /* Bind the imported memory to the image. */
   vkBindImageMemory(m_vk_device, vk_image, device_memory, openxr_data.gpu.memory_offset);
@@ -622,7 +667,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
                                                      swapchain_image.image,
                                                      {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}}};
   vkCmdPipelineBarrier(vk_command_buffer,
-                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                        VK_PIPELINE_STAGE_TRANSFER_BIT,
                        0,
                        0,
@@ -645,6 +690,28 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageFd(
                  VK_IMAGE_LAYOUT_GENERAL,
                  1,
                  &vk_image_copy);
+
+  /* Swapchain needs to be in an VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL compatible layout. */
+  VkImageMemoryBarrier vk_image_memory_barrier2 = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                                   nullptr,
+                                                   VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                   0,
+                                                   VK_IMAGE_LAYOUT_GENERAL,
+                                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                   VK_QUEUE_FAMILY_IGNORED,
+                                                   VK_QUEUE_FAMILY_IGNORED,
+                                                   swapchain_image.image,
+                                                   {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+  vkCmdPipelineBarrier(vk_command_buffer,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                       0,
+                       0,
+                       nullptr,
+                       0,
+                       nullptr,
+                       1,
+                       &vk_image_memory_barrier2);
 
   /* End command recording. */
   vkEndCommandBuffer(vk_command_buffer);

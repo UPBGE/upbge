@@ -217,38 +217,6 @@ bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windo
   return system->validWindow(window);
 }
 
-GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
-                                         const GHOST_DisplaySetting *setting,
-                                         const bool stereoVisual)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  GHOST_IWindow *window = nullptr;
-  GHOST_GPUSettings gpu_settings = {0};
-  if (stereoVisual) {
-    gpu_settings.flags |= GHOST_gpuStereoVisual;
-  }
-  /* temp: upbge, hardcoded because unused */
-  gpu_settings.context_type = GHOST_kDrawingContextTypeOpenGL;
-
-  system->beginFullScreen(*setting, &window, gpu_settings);
-
-  return (GHOST_WindowHandle)window;
-}
-
-GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->endFullScreen();
-}
-
-bool GHOST_GetFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->getFullScreen();
-}
-
 GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
                                               int32_t x,
                                               int32_t y)
