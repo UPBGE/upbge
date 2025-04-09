@@ -31,6 +31,7 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"image_openexr", nullptr},
     {"image_openjpeg", nullptr},
     {"image_tiff", nullptr},
+    {"image_webp", nullptr},
     {"input_ndof", nullptr},
     {"audaspace", nullptr},
     {"international", nullptr},
@@ -132,7 +133,7 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -144,13 +145,13 @@ static PyObject *make_builtopts_info()
   /* HDR */
   SetObjIncref(Py_True);
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -158,6 +159,12 @@ static PyObject *make_builtopts_info()
 
   /* TIFF */
   SetObjIncref(Py_True);
+
+#ifdef WITH_IMAGE_WEBP
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
 
 #ifdef WITH_INPUT_NDOF
   SetObjIncref(Py_True);

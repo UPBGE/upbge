@@ -4,6 +4,11 @@
 
 /** \file
  * \ingroup imbuf
+ *
+ * The SGI Image File Format.
+ * https://en.wikipedia.org/wiki/Silicon_Graphics_Image
+ *
+ * \note this format uses big-endian values.
  */
 
 #include <algorithm>
@@ -19,9 +24,18 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#define IMAGIC 0732
+/**
+ * The SGI IRIS magic number.
+ * The value is `[0x01 0xda]` when read as a big-endian ushort.
+ */
+#define IRIS_MAGIC 0732
 
-struct IMAGE {
+/**
+ * The SGI IRIS header.
+ *
+ * Not directly read and written, although this maps neatly to the on-disk value.
+ */
+struct IRIS_Header {
   ushort imagic; /* Stuff saved on disk. */
   ushort type;
   ushort dim;
@@ -38,7 +52,7 @@ struct IMAGE {
 
 #define HEADER_SIZE 512
 
-BLI_STATIC_ASSERT(sizeof(IMAGE) == HEADER_SIZE, "Invalid header size");
+BLI_STATIC_ASSERT(sizeof(IRIS_Header) == HEADER_SIZE, "Invalid header size");
 
 #define RINTLUM (79)
 #define GINTLUM (156)
@@ -88,8 +102,8 @@ struct MFileOffset {
 #define DIRTY_FLAG_ENCODING (1 << 1)
 
 /* Functions. */
-static void readheader(MFileOffset *inf, IMAGE *image);
-static int writeheader(FILE *outf, const IMAGE *image);
+static void readheader(MFileOffset *inf, IRIS_Header *image);
+static int writeheader(FILE *outf, const IRIS_Header *image);
 
 static ushort getshort(MFileOffset *inf);
 static uint getlong(MFileOffset *mofs);
@@ -151,9 +165,9 @@ static int putlong(FILE *outf, uint val)
   return fwrite(buf, 4, 1, outf);
 }
 
-static void readheader(MFileOffset *inf, IMAGE *image)
+static void readheader(MFileOffset *inf, IRIS_Header *image)
 {
-  memset(image, 0, sizeof(IMAGE));
+  memset(image, 0, sizeof(IRIS_Header));
   image->imagic = getshort(inf);
   image->type = getshort(inf);
   image->dim = getshort(inf);
@@ -162,11 +176,11 @@ static void readheader(MFileOffset *inf, IMAGE *image)
   image->zsize = getshort(inf);
 }
 
-static int writeheader(FILE *outf, const IMAGE *image)
+static int writeheader(FILE *outf, const IRIS_Header *image)
 {
-  IMAGE t = {0};
+  IRIS_Header t = {0};
 
-  fwrite(&t, sizeof(IMAGE), 1, outf);
+  fwrite(&t, sizeof(IRIS_Header), 1, outf);
   fseek(outf, 0, SEEK_SET);
   putshort(outf, image->imagic);
   putshort(outf, image->type);
@@ -202,15 +216,12 @@ static void readtab(MFileOffset *inf, uint *tab, int len)
 /* From misc_util: flip the bytes from x. */
 #define GS(x) (((uchar *)(x))[0] << 8 | ((uchar *)(x))[1])
 
-/* This one is only def-ed once, strangely... */
-#define GSS(x) (((uchar *)(x))[1] << 8 | ((uchar *)(x))[0])
-
 bool imb_is_a_iris(const uchar *mem, size_t size)
 {
   if (size < 2) {
     return false;
   }
-  return ((GS(mem) == IMAGIC) || (GSS(mem) == IMAGIC));
+  return GS(mem) == IRIS_MAGIC;
 }
 
 ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace & /*r_colorspace*/)
@@ -220,7 +231,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   const uchar *rledat;
   const uchar *mem_end = mem + size;
   MFileOffset _inf_data = {mem, 0}, *inf = &_inf_data;
-  IMAGE image;
+  IRIS_Header image;
   int bpp, rle, cur, badorder;
   ImBuf *ibuf = nullptr;
   uchar dirty_flag = 0;
@@ -236,19 +247,21 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   }
 
   readheader(inf, &image);
-  if (image.imagic != IMAGIC) {
-    fprintf(stderr, "longimagedata: bad magic number in image file\n");
-    return nullptr;
-  }
+  /* The call to `imb_is_a_iris` ensures this. */
+  BLI_assert(image.imagic == IRIS_MAGIC);
 
   rle = ISRLE(image.type);
   bpp = BPP(image.type);
   if (!ELEM(bpp, 1, 2)) {
-    fprintf(stderr, "longimagedata: image must have 1 or 2 byte per pix chan\n");
+    fprintf(stderr, "%s: image must have 1 or 2 byte per pix chan\n", __func__);
     return nullptr;
   }
   if (uint(image.zsize) > 8) {
-    fprintf(stderr, "longimagedata: channels over 8 not supported\n");
+    fprintf(stderr, "%s: channels over 8 not supported\n", __func__);
+    return nullptr;
+  }
+  if (image.zsize == 0 || image.ysize == 0) {
+    fprintf(stderr, "%s: zero size image found\n", __func__);
     return nullptr;
   }
 
@@ -537,7 +550,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   }
 
   if (dirty_flag) {
-    fprintf(stderr, "longimagedata: corrupt file content (%d)\n", dirty_flag);
+    fprintf(stderr, "%s: corrupt file content (%d)\n", __func__, dirty_flag);
   }
   ibuf->ftype = IMB_FTYPE_IRIS;
 
@@ -763,7 +776,7 @@ static bool output_iris(const char *filepath,
                         const int zsize)
 {
   FILE *outf;
-  IMAGE *image;
+  IRIS_Header *image;
   int tablen, y, z, pos, len = 0;
   uint *starttab, *lengthtab;
   uchar *rlebuf;
@@ -778,15 +791,15 @@ static bool output_iris(const char *filepath,
 
   tablen = ysize * zsize * sizeof(int);
 
-  image = MEM_mallocN<IMAGE>("iris image");
+  image = MEM_mallocN<IRIS_Header>("iris image");
   starttab = MEM_malloc_arrayN<uint>(size_t(tablen), "iris starttab");
   lengthtab = MEM_malloc_arrayN<uint>(size_t(tablen), "iris lengthtab");
   rlebuflen = 1.05 * xsize + 10;
   rlebuf = MEM_malloc_arrayN<uchar>(size_t(rlebuflen), "iris rlebuf");
   lumbuf = MEM_malloc_arrayN<uint>(size_t(xsize), "iris lumbuf");
 
-  memset(image, 0, sizeof(IMAGE));
-  image->imagic = IMAGIC;
+  memset(image, 0, sizeof(IRIS_Header));
+  image->imagic = IRIS_MAGIC;
   image->type = RLE(1);
   if (zsize > 1) {
     image->dim = 3;
@@ -845,7 +858,7 @@ static bool output_iris(const char *filepath,
     return true;
   }
 
-  fprintf(stderr, "output_iris: not enough space for image!!\n");
+  fprintf(stderr, "%s: not enough space for image!!\n", __func__);
   return false;
 }
 
@@ -924,6 +937,12 @@ static int compressrow(const uchar *lbuf, uchar *rlebuf, const int z, const int 
 
 bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)
 {
+  const uint limit = std::numeric_limits<ushort>::max();
+  if (ibuf->x > limit || ibuf->y > limit) {
+    fprintf(stderr, "%s: image x/y exceeds %u\n", __func__, limit);
+    return false;
+  }
+
   const short zsize = (ibuf->planes + 7) >> 3;
 
   IMB_convert_rgba_to_abgr(ibuf);

@@ -230,7 +230,7 @@ static ImBuf *wm_block_splash_banner_image(int *r_width,
   IMB_premultiply_alpha(ibuf);
 
 #else
-  UNUSED_VARS(width);
+  UNUSED_VARS(max_height);
 #endif
   *r_height = height;
   *r_width = width;
@@ -435,7 +435,6 @@ void WM_OT_splash(wmOperatorType *ot)
 
 static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg*/)
 {
-  constexpr bool show_color = false;
   const uiStyle *style = UI_style_get_dpi();
   const int dialog_width = style->widget.points * 42 * UI_SCALE_FAC;
 
@@ -449,8 +448,8 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
 
 /* Blender logo. */
 #ifndef WITH_HEADLESS
-
-  float size = 0.2f * dialog_width;
+  constexpr bool show_color = false;
+  const float size = 0.2f * dialog_width;
 
   ImBuf *ibuf = UI_svg_icon_bitmap(ICON_BLENDER_LOGO_LARGE, size, show_color);
 
