@@ -580,17 +580,32 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         fprintf(stderr, "could not get a list of mounted file-systems\n");
       }
       else {
+
+        /* Similar to `STRPREFIX`,
+         * but ensures the prefix precedes a directory separator or null terminator.
+         * Define locally since it's fairly specific to this particular use case. */
+        auto strncmp_dir_delimit = [](const char *a, const char *b, size_t b_len) -> int {
+          const int result = strncmp(a, b, b_len);
+          return (result == 0 && !ELEM(a[b_len], '\0', '/')) ? 1 : result;
+        };
+#    define STRPREFIX_DIR_DELIMIT(a, b) (strncmp_dir_delimit((a), (b), strlen(b)) == 0)
+
         while ((mnt = getmntent(fp))) {
-          if (STRPREFIX(mnt->mnt_dir, "/boot")) {
+          if (STRPREFIX_DIR_DELIMIT(mnt->mnt_dir, "/boot") ||
+              /* According to: https://wiki.archlinux.org/title/EFI_system_partition (2025),
+               * this is a common path to mount the EFI partition. */
+              STRPREFIX_DIR_DELIMIT(mnt->mnt_dir, "/efi"))
+          {
             /* Hide share not usable to the user. */
             continue;
           }
-          if (!STRPREFIX(mnt->mnt_fsname, "/dev")) {
+          if (!STRPREFIX_DIR_DELIMIT(mnt->mnt_fsname, "/dev")) {
             continue;
           }
+          /* Use non-delimited prefix since a slash isn't expected after loop. */
           if (STRPREFIX(mnt->mnt_fsname, "/dev/loop")) {
-            /* The dev/loop* entries are SNAPS used by desktop environment
-             * (Gnome) no need for them to show up in the list. */
+            /* The `/dev/loop*` entries are SNAPS used by desktop environment
+             * (GNOME) no need for them to show up in the list. */
             continue;
           }
 
@@ -603,6 +618,8 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
           found = 1;
         }
+#    undef STRPREFIX_DIR_DELIMIT
+
         if (endmntent(fp) == 0) {
           fprintf(stderr, "could not close the list of mounted file-systems\n");
         }
@@ -659,11 +676,12 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
 /* For all platforms, we add some directories from User Preferences to
  * the FS_CATEGORY_OTHER category so that these directories
- * have the appropriate icons when they are added to the Bookmarks. */
+ * have the appropriate icons when they are added to the Bookmarks.
+ *
+ * NOTE: of the preferences support as `//` prefix.
+ * Skip them since they depend on the current loaded blend file. */
 #define FS_UDIR_PATH(dir, icon) \
-\
-  if (BLI_strnlen(dir, 3) > 2) { \
-\
+  if (dir[0] && !BLI_path_is_rel(dir)) { \
     fsmenu_insert_entry(fsmenu, FS_CATEGORY_OTHER, dir, nullptr, icon, FS_INSERT_LAST); \
   }
 

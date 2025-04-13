@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -161,7 +161,7 @@ void do_clay_brush(const Depsgraph &depsgraph,
   calc_brush_plane(depsgraph, brush, object, node_mask, area_no, area_co);
 
   const float initial_radius = fabsf(ss.cache->initial_radius);
-  const float offset = SCULPT_brush_plane_offset_get(sd, ss);
+  const float offset = brush_plane_offset_get(brush, ss);
 
   /* This implementation skips a factor calculation as it currently has
    * no user-facing impact (i.e. is effectively a constant)

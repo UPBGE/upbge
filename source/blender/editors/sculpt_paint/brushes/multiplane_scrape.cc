@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
@@ -537,7 +537,7 @@ void do_multiplane_scrape_brush(const Depsgraph &depsgraph,
 
   const bool flip = (ss.cache->bstrength < 0.0f);
   const float radius = flip ? -ss.cache->radius : ss.cache->radius;
-  const float offset = SCULPT_brush_plane_offset_get(sd, ss);
+  const float offset = brush_plane_offset_get(brush, ss);
   const float displace = -radius * offset;
 
   float3 sculpt_plane_normal;
