@@ -257,25 +257,25 @@ void RAS_Shader::DeleteShader()
 void RAS_Shader::AppendUniformInfos(std::string type, std::string name)
 {
   if (type == "float") {
-    m_constantUniforms.push_back(UniformConstant({Type::FLOAT, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::float_t, name}));
   }
   else if (type == "int") {
-    m_constantUniforms.push_back(UniformConstant({Type::INT, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::int_t, name}));
   }
   else if (type == "vec2") {
-    m_constantUniforms.push_back(UniformConstant({Type::VEC2, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::float2_t, name}));
   }
   else if (type == "vec3") {
-    m_constantUniforms.push_back(UniformConstant({Type::VEC3, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::float3_t, name}));
   }
   else if (type == "vec4") {
-    m_constantUniforms.push_back(UniformConstant({Type::VEC4, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::float4_t, name}));
   }
   else if (type == "mat3") {
-    m_constantUniforms.push_back(UniformConstant({Type::MAT3, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::float3x3_t, name}));
   }
   else if (type == "mat4") {
-    m_constantUniforms.push_back(UniformConstant({Type::MAT4, name}));
+    m_constantUniforms.push_back(UniformConstant({Type::float4x4_t, name}));
   }
   else if (type == "sampler2D") {
     if (m_samplerUniforms.size() > 7) {
@@ -336,55 +336,55 @@ static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *
 static int constant_type_size(Type type)
 {
   switch (type) {
-    case Type::BOOL:
-    case Type::FLOAT:
-    case Type::INT:
-    case Type::UINT:
-    case Type::UCHAR4:
-    case Type::CHAR4:
-    case Type::VEC3_101010I2:
-    case Type::USHORT2:
-    case Type::SHORT2:
+    case Type::bool_t:
+    case Type::float_t:
+    case Type::int_t:
+    case Type::uint_t:
+    case Type::uchar4_t:
+    case Type::char4_t:
+    case Type::float3_10_10_10_2_t:
+    case Type::ushort2_t:
+    case Type::short2_t:
       return 4;
       break;
-    case Type::USHORT3:
-    case Type::SHORT3:
+    case Type::ushort3_t:
+    case Type::short3_t:
       return 6;
       break;
-    case Type::VEC2:
-    case Type::UVEC2:
-    case Type::IVEC2:
-    case Type::USHORT4:
-    case Type::SHORT4:
+    case Type::float2_t:
+    case Type::uint2_t:
+    case Type::int2_t:
+    case Type::ushort4_t:
+    case Type::short4_t:
       return 8;
       break;
-    case Type::VEC3:
-    case Type::UVEC3:
-    case Type::IVEC3:
+    case Type::float3_t:
+    case Type::uint3_t:
+    case Type::int3_t:
       return 12;
       break;
-    case Type::VEC4:
-    case Type::UVEC4:
-    case Type::IVEC4:
+    case Type::float4_t:
+    case Type::uint4_t:
+    case Type::int4_t:
       return 16;
       break;
-    case Type::MAT3:
+    case Type::float3x3_t:
       return 36 + 3 * 4;
-    case Type::MAT4:
+    case Type::float4x4_t:
       return 64;
       break;
-    case Type::UCHAR:
-    case Type::CHAR:
+    case Type::uchar_t:
+    case Type::char_t:
       return 1;
       break;
-    case Type::UCHAR2:
-    case Type::CHAR2:
-    case Type::USHORT:
-    case Type::SHORT:
+    case Type::uchar2_t:
+    case Type::char2_t:
+    case Type::ushort_t:
+    case Type::short_t:
       return 2;
       break;
-    case Type::UCHAR3:
-    case Type::CHAR3:
+    case Type::uchar3_t:
+    case Type::char3_t:
       return 3;
       break;
   }
@@ -431,13 +431,13 @@ bool RAS_Shader::LinkProgram()
   geom = GetParsedProgram(GEOMETRY_PROGRAM);
 
   StageInterfaceInfo iface("s_Interface", "");
-  iface.smooth(Type::VEC4, "bgl_TexCoord");
+  iface.smooth(Type::float4_t, "bgl_TexCoord");
 
   ShaderCreateInfo info("s_Display");
-  info.push_constant(Type::FLOAT, "bgl_RenderedTextureWidth");
-  info.push_constant(Type::FLOAT, "bgl_RenderedTextureHeight");
+  info.push_constant(Type::float_t, "bgl_RenderedTextureWidth");
+  info.push_constant(Type::float_t, "bgl_RenderedTextureHeight");
   if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
-    info.push_constant(Type::VEC2, "bgl_TextureCoordinateOffset", 9);
+    info.push_constant(Type::float2_t, "bgl_TextureCoordinateOffset", 9);
   }
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
@@ -448,7 +448,7 @@ bool RAS_Shader::LinkProgram()
     info.push_constant(constant.type, constant.name);
   }
   info.vertex_out(iface);
-  info.fragment_out(0, Type::VEC4, "fragColor");
+  info.fragment_out(0, Type::float4_t, "fragColor");
   info.vertex_source("common_colormanagement_lib.glsl");
   info.fragment_source("common_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;

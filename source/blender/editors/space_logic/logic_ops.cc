@@ -931,7 +931,7 @@ static void LOGIC_OT_custom_object_register(wmOperatorType *ot)
                         64,
                         "MyObject",
                         "The class name with module (module.ClassName)");
-  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
 static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
@@ -955,7 +955,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
                         64,
                         "MyObject",
                         "The class name with module (module.ClassName)");
-  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
 static wmOperatorStatus custom_object_remove_exec(bContext *C, wmOperator */*op*/)
@@ -1109,7 +1109,7 @@ static void LOGIC_OT_python_component_register(wmOperatorType *ot)
                         64,
                         "Component",
                         "The component class name with module (module.ComponentName)");
-  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
 static void LOGIC_OT_python_component_create(wmOperatorType *ot)
@@ -1133,7 +1133,7 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
                         64,
                         "Component",
                         "The component class name with module (module.ComponentName)");
-  RNA_def_parameter_flags(parm, (PropertyFlag)0, PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
 static wmOperatorStatus component_remove_exec(bContext *C, wmOperator *op)
