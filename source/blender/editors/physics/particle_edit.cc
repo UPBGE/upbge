@@ -4204,7 +4204,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
 
   totface = mesh->totface_legacy;
   mface = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
-  blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
+  blender::Span<blender::float3> positions = mesh->vert_positions();
 
   /* lets intersect the faces */
   for (i = 0; i < totface; i++, mface++) {
@@ -5130,7 +5130,7 @@ static void point_inside_bvh_cb(void *userdata,
 {
   PointInsideBVH *data = static_cast<PointInsideBVH *>(userdata);
 
-  data->bvhdata->raycast_callback(&data->bvhdata, index, ray, hit);
+  data->bvhdata->raycast_callback(data->bvhdata, index, ray, hit);
 
   if (hit->index != -1) {
     ++data->num_hits;
@@ -5204,7 +5204,7 @@ static void shape_cut(PEData *data, int pa_index)
                            0.0f,
                            &hit,
                            data->shape_bvh->raycast_callback,
-                           &data->shape_bvh);
+                           data->shape_bvh);
       if (hit.index >= 0) {
         if (hit.dist < len_shape) {
           cut_time = ((hit.dist / len_shape) + float(k)) / float(totkeys);
