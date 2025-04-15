@@ -80,6 +80,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_ghost
+  bf_nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
