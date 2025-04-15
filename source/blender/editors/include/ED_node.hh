@@ -12,6 +12,8 @@
 
 #include "BKE_compute_context_cache_fwd.hh"
 
+#include "NOD_geometry_nodes_closure_location.hh"
+
 #include "ED_node_c.hh"
 
 struct SpaceNode;
@@ -25,6 +27,10 @@ struct rcti;
 struct rctf;
 struct NodesModifierData;
 struct uiLayout;
+
+namespace blender::bke {
+class bNodeTreeZone;
+}
 
 namespace blender::ed::space_node {
 
@@ -79,11 +85,35 @@ struct ObjectAndModifier {
  * Finds the context-modifier for the node editor.
  */
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode);
+
+bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
+                                                const Object &object,
+                                                const NodesModifierData &nmd);
+
 /**
- * Used to get the compute context for the (nested) node group that is currently edited.
+ * Get the compute context for the active context that the user is currently looking at in that
+ * node tree.
  */
-[[nodiscard]] std::optional<const ComputeContext *> compute_context_for_tree_path(
-    const SpaceNode &snode,
+[[nodiscard]] const ComputeContext *compute_context_for_edittree(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
+
+/**
+ * Attempts to find a compute context that the closure is evaluated in. If none is found, null is
+ * returned. If multiple are found, it currently picks the first one it finds which is somewhat
+ * arbitrary.
+ */
+[[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
+    const ComputeContext *closure_socket_context,
+    const bNodeSocket &closure_socket,
+    bke::ComputeContextCache &compute_context_cache,
+    const std::optional<nodes::ClosureSourceLocation> &source_location);
+
+/**
+ * Creates a compute context for the given zone. It takes e.g. the current inspection index into
+ * account.
+ */
+[[nodiscard]] const ComputeContext *compute_context_for_zone(
+    const bke::bNodeTreeZone &zone,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
 

@@ -74,10 +74,10 @@ DistortionGrid::DistortionGrid(
                                         &top_delta);
 
   /* Clamp deltas to avoid excessive memory requirements in case of extreme distortion. */
-  right_delta = std::clamp(right_delta, 0, size.x);
-  left_delta = std::clamp(left_delta, 0, size.x);
-  bottom_delta = std::clamp(bottom_delta, 0, size.y);
-  top_delta = std::clamp(top_delta, 0, size.y);
+  right_delta = math::min(right_delta, size.x);
+  left_delta = math::min(left_delta, size.x);
+  bottom_delta = math::min(bottom_delta, size.y);
+  top_delta = math::min(top_delta, size.y);
 
   /* Extend the size by the deltas of the bounds. */
   const int2 extended_size = size + int2(right_delta + left_delta, bottom_delta + top_delta);
