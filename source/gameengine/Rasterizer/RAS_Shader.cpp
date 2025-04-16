@@ -449,8 +449,8 @@ bool RAS_Shader::LinkProgram()
   }
   info.vertex_out(iface);
   info.fragment_out(0, Type::float4_t, "fragColor");
-  info.vertex_source("common_colormanagement_lib.glsl");
-  info.fragment_source("common_colormanagement_lib.glsl");
+  info.vertex_source("draw_colormanagement_lib.glsl");
+  info.fragment_source("draw_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
 
