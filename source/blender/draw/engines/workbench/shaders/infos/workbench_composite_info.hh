@@ -8,10 +8,10 @@
 
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "workbench_shader_shared.h"
+#  include "workbench_shader_shared.hh"
 
-#  include "draw_fullscreen_info.hh"
 #  include "draw_view_info.hh"
+#  include "gpu_shader_fullscreen_info.hh"
 
 #  define WORKBENCH_LIGHTING_STUDIO
 #  define WORKBENCH_LIGHTING_MATCAP
@@ -33,11 +33,11 @@ SAMPLER(3, DEPTH_2D, depth_tx)
 SAMPLER(4, FLOAT_2D, normal_tx)
 SAMPLER(5, FLOAT_2D, material_tx)
 UNIFORM_BUF(WB_WORLD_SLOT, WorldData, world_data)
-TYPEDEF_SOURCE("workbench_shader_shared.h")
+TYPEDEF_SOURCE("workbench_shader_shared.hh")
 PUSH_CONSTANT(bool, forceShadowing)
 FRAGMENT_OUT(0, float4, fragColor)
 FRAGMENT_SOURCE("workbench_composite_frag.glsl")
-ADDITIONAL_INFO(draw_fullscreen)
+ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 

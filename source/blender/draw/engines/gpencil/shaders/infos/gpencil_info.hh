@@ -9,11 +9,11 @@
 
 #  define GP_LIGHT
 
-#  include "gpencil_shader_shared.h"
+#  include "gpencil_shader_shared.hh"
 
-#  include "draw_fullscreen_info.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
+#  include "gpu_shader_fullscreen_info.hh"
 
 #  define SMAA_GLSL_3
 #  define SMAA_STAGE 1
@@ -25,7 +25,7 @@
 
 #include "gpu_shader_create_info.hh"
 
-#include "gpencil_defines.h"
+#include "gpencil_defines.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name GPencil Object rendering
@@ -51,7 +51,7 @@ GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 GPU_SHADER_CREATE_INFO(gpencil_geometry)
 DO_STATIC_COMPILATION()
 DEFINE("GP_LIGHT")
-TYPEDEF_SOURCE("gpencil_defines.h")
+TYPEDEF_SOURCE("gpencil_defines.hh")
 SAMPLER(2, FLOAT_2D, gpFillTexture)
 SAMPLER(3, FLOAT_2D, gpStrokeTexture)
 SAMPLER(4, DEPTH_2D, gpSceneDepthTexture)
@@ -99,7 +99,7 @@ PUSH_CONSTANT(float, blendOpacity)
 FRAGMENT_OUT(0, float4, fragColor)
 FRAGMENT_OUT(1, float4, fragRevealage)
 FRAGMENT_SOURCE("gpencil_layer_blend_frag.glsl")
-ADDITIONAL_INFO(draw_fullscreen)
+ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_mask_invert)
@@ -107,7 +107,7 @@ DO_STATIC_COMPILATION()
 FRAGMENT_OUT(0, float4, fragColor)
 FRAGMENT_OUT(1, float4, fragRevealage)
 FRAGMENT_SOURCE("gpencil_mask_invert_frag.glsl")
-ADDITIONAL_INFO(draw_fullscreen)
+ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_depth_merge)
@@ -187,7 +187,7 @@ IMAGE(1, GPENCIL_ACCUM_FORMAT, READ_WRITE, FLOAT_2D, dst_img)
 PUSH_CONSTANT(float, weight_src)
 PUSH_CONSTANT(float, weight_dst)
 FRAGMENT_SOURCE("gpencil_antialiasing_accumulation_frag.glsl")
-ADDITIONAL_INFO(draw_fullscreen)
+ADDITIONAL_INFO(gpu_fullscreen)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

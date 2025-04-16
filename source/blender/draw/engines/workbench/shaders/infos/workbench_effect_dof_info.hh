@@ -6,10 +6,10 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "workbench_shader_shared.h"
+#  include "workbench_shader_shared.hh"
 
-#  include "draw_fullscreen_info.hh"
 #  include "draw_view_info.hh"
+#  include "gpu_shader_fullscreen_info.hh"
 
 #  define PREPARE
 #  define DOWNSAMPLE
@@ -37,7 +37,7 @@ PUSH_CONSTANT(float2, invertedViewportSize)
 PUSH_CONSTANT(float2, nearFar)
 PUSH_CONSTANT(float3, dofParams)
 PUSH_CONSTANT(float, noiseOffset)
-ADDITIONAL_INFO(draw_fullscreen)
+ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 

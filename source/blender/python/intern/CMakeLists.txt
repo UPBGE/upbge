@@ -320,6 +320,10 @@ if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
 endif()
 
+if(WITH_IO_FBX)
+  add_definitions(-DWITH_IO_FBX)
+endif()
+
 if(WITH_IO_GREASE_PENCIL)
   add_definitions(-DWITH_IO_GREASE_PENCIL)
 endif()
