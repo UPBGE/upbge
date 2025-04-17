@@ -1183,7 +1183,7 @@ DRWTextStore *DRW_text_cache_ensure()
 /* UPBGE */
 static void update_lods(Depsgraph *depsgraph, Object *ob_eval, float camera_pos[3])
 {
-  Object *ob_orig = DEG_get_original_object(ob_eval);
+  Object *ob_orig = DEG_get_original(ob_eval);
   BKE_object_lod_update(ob_orig, camera_pos);
 
   if (ob_orig->currentlod) {
@@ -2377,7 +2377,7 @@ void DRW_game_render_loop(bContext *C,
         if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
           continue;
         }
-        Object *orig_ob = DEG_get_original_object(ob);
+        Object *orig_ob = DEG_get_original(ob);
 
         if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
           blender::draw::ObjectRef ob_ref(data_, ob);
@@ -2399,7 +2399,7 @@ void DRW_game_render_loop(bContext *C,
           continue;
         }
 
-        Object *orig_ob = DEG_get_original_object(ob);
+        Object *orig_ob = DEG_get_original(ob);
         /* Don't render objects in overlay collections in main pass */
         if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
           continue;
