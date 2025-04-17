@@ -377,7 +377,7 @@ set(METAL_SRC
   metal/mtl_shader_interface.hh
   metal/mtl_shader_interface_type.hh
   metal/mtl_shader_log.hh
-  metal/mtl_shader_shared.h
+  metal/mtl_shader_shared.hh
   metal/mtl_state.hh
   metal/mtl_storage_buffer.hh
   metal/mtl_texture.hh
@@ -452,20 +452,6 @@ if(WITH_VULKAN_BACKEND)
 
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
-
-set(MSL_SRC
-  shaders/metal/mtl_shader_defines.msl
-  shaders/metal/mtl_shader_common.msl
-
-  metal/kernels/compute_texture_update.msl
-  metal/kernels/compute_texture_read.msl
-  metal/kernels/depth_2d_update_float_frag.glsl
-  metal/kernels/depth_2d_update_int24_frag.glsl
-  metal/kernels/depth_2d_update_int32_frag.glsl
-  metal/kernels/depth_2d_update_vert.glsl
-  metal/kernels/gpu_shader_fullscreen_blit_vert.glsl
-  metal/kernels/gpu_shader_fullscreen_blit_frag.glsl
-)
 
 set(GLSL_SRC
   GPU_shader_shared.hh
@@ -680,8 +666,6 @@ set(GLSL_SRC_TEST
 )
 
 set(MTL_BACKEND_GLSL_SRC
-  metal/kernels/compute_texture_update.msl
-  metal/kernels/compute_texture_read.msl
   metal/kernels/depth_2d_update_float_frag.glsl
   metal/kernels/depth_2d_update_int24_frag.glsl
   metal/kernels/depth_2d_update_int32_frag.glsl
@@ -691,9 +675,13 @@ set(MTL_BACKEND_GLSL_SRC
 )
 
 set(MSL_SRC
+  metal/mtl_shader_shared.hh
+
+  metal/kernels/compute_texture_update.msl
+  metal/kernels/compute_texture_read.msl
+
   shaders/metal/mtl_shader_defines.msl
   shaders/metal/mtl_shader_common.msl
-  metal/mtl_shader_shared.h
 )
 
 if(WITH_GTESTS)

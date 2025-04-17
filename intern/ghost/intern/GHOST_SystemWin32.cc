@@ -285,7 +285,6 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
       state,
       gpuSettings.context_type,
       ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
-      false,
       (GHOST_WindowWin32 *)parentWindow,
       ((gpuSettings.flags & GHOST_gpuDebugContext) != 0),
       is_dialog,
@@ -618,11 +617,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
       ::LoadIcon(nullptr, IDI_APPLICATION);
     }
     wc.hCursor = ::LoadCursor(0, IDC_ARROW);
-    wc.hbrBackground =
-#ifdef INW32_COMPISITING
-        (HBRUSH)CreateSolidBrush
-#endif
-        (HBRUSH) GetStockObject(DKGRAY_BRUSH);
+    wc.hbrBackground = (HBRUSH)GetStockObject(DKGRAY_BRUSH);
     wc.lpszMenuName = 0;
     wc.lpszClassName = L"GHOST_WindowClass";
 
@@ -2251,7 +2246,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
               RECT rect;
               GetClientRect(hwnd, &rect);
               FillRect((HDC)(wParam), &rect, bgBrush);
-              /* Clear the backround brush after the initial fill as we don't
+              /* Clear the background brush after the initial fill as we don't
                * need or want any default Windows fill behavior on redraw. */
               SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR) nullptr);
             }

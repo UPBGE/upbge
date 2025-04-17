@@ -1156,10 +1156,10 @@ typedef struct NodeBilateralBlurData {
 typedef struct NodeKuwaharaData {
   short size DNA_DEPRECATED;
   short variation;
-  int uniformity;
-  float sharpness;
-  float eccentricity;
-  char high_precision;
+  int uniformity DNA_DEPRECATED;
+  float sharpness DNA_DEPRECATED;
+  float eccentricity DNA_DEPRECATED;
+  char high_precision DNA_DEPRECATED;
   char _pad[3];
 } NodeKuwaharaData;
 
@@ -1619,7 +1619,7 @@ typedef struct NodeCryptomatte {
 } NodeCryptomatte;
 
 typedef struct NodeDenoise {
-  char hdr;
+  char hdr DNA_DEPRECATED;
   char prefilter;
   char quality;
   char _pad[1];

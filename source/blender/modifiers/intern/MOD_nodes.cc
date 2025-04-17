@@ -477,7 +477,8 @@ namespace blender {
  * To make sure that it is executed, all parent group nodes and zones have to be set to  have side
  * effects as well.
  */
-static void try_add_side_effect_node(const ComputeContext &final_compute_context,
+static void try_add_side_effect_node(const ModifierEvalContext &ctx,
+                                     const ComputeContext &final_compute_context,
                                      const int final_node_id,
                                      const NodesModifierData &nmd,
                                      nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
@@ -620,6 +621,49 @@ static void try_add_side_effect_node(const ComputeContext &final_compute_context
       current_tree = reinterpret_cast<const bNodeTree *>(group_node->id);
       current_zone = nullptr;
     }
+    else if (const auto *compute_context =
+                 dynamic_cast<const bke::EvaluateClosureComputeContext *>(compute_context_generic))
+    {
+      const bNode *evaluate_node = current_tree->node_by_id(compute_context->node_id());
+      if (!evaluate_node) {
+        return;
+      }
+      if (evaluate_node->is_muted()) {
+        return;
+      }
+      if (current_zone != current_zones->get_zone_by_node(evaluate_node->identifier)) {
+        return;
+      }
+      const std::optional<nodes::ClosureSourceLocation> &source_location =
+          compute_context->closure_source_location();
+      if (!source_location) {
+        return;
+      }
+      if (!source_location->tree->zones()) {
+        return;
+      }
+      const lf::FunctionNode *lf_evaluate_node =
+          lf_graph_info->mapping.possible_side_effect_node_map.lookup_default(evaluate_node,
+                                                                              nullptr);
+      if (!lf_evaluate_node) {
+        return;
+      }
+      /* The tree may sometimes be original and sometimes evaluated, depending on the source of the
+       * compute context. */
+      const bNodeTree *eval_closure_tree = DEG_is_evaluated_id(&source_location->tree->id) ?
+                                               source_location->tree :
+                                               reinterpret_cast<const bNodeTree *>(
+                                                   DEG_get_evaluated_id(
+                                                       ctx.depsgraph, &source_location->tree->id));
+      const bNode *closure_output_node = eval_closure_tree->node_by_id(
+          source_location->closure_output_node_id);
+      if (!closure_output_node) {
+        return;
+      }
+      local_side_effect_nodes.nodes_by_context.add(parent_compute_context_hash, lf_evaluate_node);
+      current_tree = eval_closure_tree;
+      current_zone = eval_closure_tree->zones()->get_zone_by_node(closure_output_node->identifier);
+    }
     else {
       return;
     }
@@ -666,7 +710,7 @@ static void find_side_effect_nodes_for_viewer_path(
   if (!parsed_path.has_value()) {
     return;
   }
-  if (parsed_path->object != DEG_get_original_object(ctx.object)) {
+  if (parsed_path->object != DEG_get_original(ctx.object)) {
     return;
   }
   if (parsed_path->modifier_name != nmd.modifier.name) {
@@ -683,10 +727,11 @@ static void find_side_effect_nodes_for_viewer_path(
     }
   }
 
-  try_add_side_effect_node(*current, parsed_path->viewer_node_id, nmd, r_side_effect_nodes);
+  try_add_side_effect_node(ctx, *current, parsed_path->viewer_node_id, nmd, r_side_effect_nodes);
 }
 
 static void find_side_effect_nodes_for_nested_node(
+    const ModifierEvalContext &ctx,
     const NodesModifierData &nmd,
     const int root_nested_node_id,
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
@@ -722,7 +767,7 @@ static void find_side_effect_nodes_for_nested_node(
       nested_node_id = ref->path.id_in_node;
     }
     else {
-      try_add_side_effect_node(*compute_context, ref->path.node_id, nmd, r_side_effect_nodes);
+      try_add_side_effect_node(ctx, *compute_context, ref->path.node_id, nmd, r_side_effect_nodes);
       return;
     }
   }
@@ -748,7 +793,7 @@ static void find_side_effect_nodes_for_baking(const NodesModifierData &nmd,
     if (!modifier_cache.requested_bakes.contains(ref.id)) {
       continue;
     }
-    find_side_effect_nodes_for_nested_node(nmd, ref.id, r_side_effect_nodes);
+    find_side_effect_nodes_for_nested_node(ctx, nmd, ref.id, r_side_effect_nodes);
   }
 }
 
@@ -759,7 +804,7 @@ static void find_side_effect_nodes_for_active_gizmos(
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
     Set<ComputeContextHash> &r_socket_log_contexts)
 {
-  Object *object_orig = DEG_get_original_object(ctx.object);
+  Object *object_orig = DEG_get_original(ctx.object);
   const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
       BKE_modifier_get_original(ctx.object, const_cast<ModifierData *>(&nmd.modifier)));
   bke::ComputeContextCache compute_context_cache;
@@ -771,7 +816,8 @@ static void find_side_effect_nodes_for_active_gizmos(
       [&](const ComputeContext &compute_context,
           const bNode &gizmo_node,
           const bNodeSocket &gizmo_socket) {
-        try_add_side_effect_node(compute_context, gizmo_node.identifier, nmd, r_side_effect_nodes);
+        try_add_side_effect_node(
+            ctx, compute_context, gizmo_node.identifier, nmd, r_side_effect_nodes);
         r_socket_log_contexts.add(compute_context.hash());
 
         nodes::gizmos::foreach_compute_context_on_gizmo_path(
@@ -1726,7 +1772,7 @@ static void add_data_block_items_writeback(const ModifierEvalContext &ctx,
               bake_orig, sorted_new_mappings, [&](const bake::BakeDataBlockID &key) -> ID * {
                 ID *id_orig = nullptr;
                 if (ID *id_eval = data.new_mappings.lookup_default(key, nullptr)) {
-                  id_orig = DEG_get_original_id(id_eval);
+                  id_orig = DEG_get_original(id_eval);
                 }
                 else {
                   needs_reevaluation = true;
@@ -1748,7 +1794,7 @@ static void add_data_block_items_writeback(const ModifierEvalContext &ctx,
               });
 
           if (needs_reevaluation) {
-            Object *object_orig = DEG_get_original_object(object_eval);
+            Object *object_orig = DEG_get_original(object_eval);
             DEG_id_tag_update(&object_orig->id, ID_RECALC_GEOMETRY);
             DEG_relations_tag_update(bmain);
           }

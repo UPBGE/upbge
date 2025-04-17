@@ -781,6 +781,24 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     if (node->type_legacy == CMP_NODE_PIXELATE) {
       write_input_to_property_int16("Size", node->custom1);
     }
+
+    if (node->type_legacy == CMP_NODE_KUWAHARA) {
+      NodeKuwaharaData *storage = static_cast<NodeKuwaharaData *>(node->storage);
+      write_input_to_property_bool_char("High Precision", storage->high_precision);
+      write_input_to_property_int("Uniformity", storage->uniformity);
+      write_input_to_property_float("Sharpness", storage->sharpness);
+      write_input_to_property_float("Eccentricity", storage->eccentricity);
+    }
+
+    if (node->type_legacy == CMP_NODE_DESPECKLE) {
+      write_input_to_property_float("Color Threshold", node->custom3);
+      write_input_to_property_float("Neighbor Threshold", node->custom4);
+    }
+
+    if (node->type_legacy == CMP_NODE_DENOISE) {
+      NodeDenoise *storage = static_cast<NodeDenoise *>(node->storage);
+      write_input_to_property_bool_char("HDR", storage->hdr);
+    }
   }
 }
 
