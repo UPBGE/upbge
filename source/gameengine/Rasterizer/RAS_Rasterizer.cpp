@@ -169,8 +169,12 @@ RAS_Rasterizer::RAS_Rasterizer()
       m_last_frontface(true)
 {
   m_impl.reset(new RAS_OpenGLRasterizer(this));
-
+#if defined(__APPLE__)
+  // Temporal fix to avoid crash in MacOS with Metal. It will be replaced with a proper solution later
+  m_numgllights = 8;
+#else
   m_numgllights = m_impl->GetNumLights();
+#endif
 }
 
 RAS_Rasterizer::~RAS_Rasterizer()

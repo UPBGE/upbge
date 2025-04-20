@@ -228,7 +228,11 @@ GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
     gpu_settings.flags |= GHOST_gpuStereoVisual;
   }
   /* temp: upbge, hardcoded because unused */
+#if defined(__APPLE__) && defined(WITH_METAL_BACKEND)
+  gpu_settings.context_type = GHOST_kDrawingContextTypeMetal;
+#else
   gpu_settings.context_type = GHOST_kDrawingContextTypeOpenGL;
+#endif
 
   system->beginFullScreen(*setting, &window, gpu_settings);
 
