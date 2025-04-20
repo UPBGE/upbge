@@ -805,20 +805,11 @@ static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush
 /**
  * Test whether the #StrokeCache.sculpt_normal needs update in #do_brush_action
  */
-static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, const Brush &brush)
+static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush)
 {
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
-    /* The normal for the Plane brush is expected to have already been calculated in
-     * #calc_brush_plane. */
-    BLI_assert_msg(!math::is_zero(ss.cache->sculpt_normal),
-                   "Normal should have been previously calculated.");
-    return false;
-  }
-
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
   return ((bke::brush::supports_normal_weight(brush) && (ss.cache->normal_weight > 0.0f)) ||
-          auto_mask::needs_normal(sd, &brush) ||
           ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_BLOB,
                SCULPT_BRUSH_TYPE_CREASE,
@@ -2587,7 +2578,7 @@ static float3 calc_sculpt_normal(const Depsgraph &depsgraph,
 static void update_sculpt_normal(const Depsgraph &depsgraph,
                                  const Sculpt &sd,
                                  Object &ob,
-                                 const IndexMask &node_mask)
+                                 const brushes::CursorSampleResult &cursor_sample_result)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   StrokeCache &cache = *ob.sculpt->cache;
@@ -2603,10 +2594,15 @@ static void update_sculpt_normal(const Depsgraph &depsgraph,
   if (cache.mirror_symmetry_pass == 0 && cache.radial_symmetry_pass == 0 &&
       (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(cache) || update_normal))
   {
-    cache.sculpt_normal = calc_sculpt_normal(depsgraph, sd, ob, node_mask);
-    if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-      project_plane_v3_v3v3(cache.sculpt_normal, cache.sculpt_normal, cache.view_normal_symm);
-      normalize_v3(cache.sculpt_normal);
+    if (cursor_sample_result.plane_normal) {
+      cache.sculpt_normal = *cursor_sample_result.plane_normal;
+    }
+    else {
+      cache.sculpt_normal = calc_sculpt_normal(depsgraph, sd, ob, cursor_sample_result.node_mask);
+      if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
+        project_plane_v3_v3v3(cache.sculpt_normal, cache.sculpt_normal, cache.view_normal_symm);
+        normalize_v3(cache.sculpt_normal);
+      }
     }
     copy_v3_v3(cache.sculpt_normal_symm, cache.sculpt_normal);
   }
@@ -3137,10 +3133,10 @@ static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
 }
 
 /** Calculates the nodes that a brush will influence. */
-static brushes::NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
-                                                    Object &ob,
-                                                    const Brush &brush,
-                                                    IndexMaskMemory &memory)
+static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgraph,
+                                                        Object &ob,
+                                                        const Brush &brush,
+                                                        IndexMaskMemory &memory)
 {
   const SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -3237,9 +3233,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
-  const brushes::NodeMaskResult node_mask_result = calc_brush_node_mask(
+  const brushes::CursorSampleResult cursor_sample_result = calc_brush_node_mask(
       depsgraph, ob, brush, memory);
-  const IndexMask node_mask = node_mask_result.node_mask;
+  const IndexMask node_mask = cursor_sample_result.node_mask;
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
    * vertices and uses regular coords undo. */
@@ -3294,8 +3290,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
-  if (sculpt_brush_needs_normal(ss, sd, brush)) {
-    update_sculpt_normal(depsgraph, sd, ob, node_mask);
+  if (sculpt_brush_needs_normal(ss, brush)) {
+    update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
   }
 
   update_brush_local_mat(sd, ob);
@@ -3392,13 +3388,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brushes::do_clay_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
+      BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);
       brushes::do_clay_strips_brush(depsgraph,
                                     sd,
                                     ob,
                                     node_mask,
-                                    *node_mask_result.plane_normal,
-                                    *node_mask_result.plane_center);
+                                    *cursor_sample_result.plane_normal,
+                                    *cursor_sample_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
       brushes::do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);
@@ -3477,13 +3473,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
       color::do_smear_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_PLANE:
-      BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
+      BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);
       brushes::do_plane_brush(depsgraph,
                               sd,
                               ob,
                               node_mask,
-                              *node_mask_result.plane_normal,
-                              *node_mask_result.plane_center);
+                              *cursor_sample_result.plane_normal,
+                              *cursor_sample_result.plane_center);
       break;
   }
 
@@ -4093,8 +4089,8 @@ static void sculpt_update_cache_invariants(
 
   const float3 z_axis = {0.0f, 0.0f, 1.0f};
   ob.runtime->world_to_object = math::invert(ob.object_to_world());
-  const float3x3 view_inv(float4x4(cache->vc->rv3d->viewinv));
-  cache->view_normal = math::normalize(z_axis * view_inv * ob.world_to_object().view<3, 3>());
+  cache->view_normal = math::normalize(math::transform_direction(
+      float4x4(cache->vc->rv3d->viewinv) * ob.world_to_object(), z_axis));
 
   cache->supports_gravity = bke::brush::supports_gravity(*brush) && sd.gravity_factor > 0.0f;
   /* Get gravity vector in world space. */
