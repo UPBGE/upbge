@@ -366,6 +366,13 @@ if(APPLE)
     )
   endif()
 
+  if(WITH_VULKAN_BACKEND)
+    install(
+      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY}
+      DESTINATION ${PLAYER_TARGETDIR_LIB}
+    )
+  endif()
+
   # python
   if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
     # Copy the python libs into the install directory
