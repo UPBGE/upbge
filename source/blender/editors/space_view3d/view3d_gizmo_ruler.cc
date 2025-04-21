@@ -1145,7 +1145,7 @@ static wmOperatorStatus gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEve
   wmGizmoGroup *gzgroup = gz->parent_gzgroup;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
   RulerItem *ruler_item_pick = (RulerItem *)gz;
-  RulerInteraction *inter = (RulerInteraction *)MEM_callocN(sizeof(RulerInteraction), __func__);
+  RulerInteraction *inter = MEM_callocN<RulerInteraction>(__func__);
   gz->interaction_data = inter;
 
   ARegion *region = ruler_info->region;
@@ -1258,7 +1258,9 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
     }
   }
 
-  MEM_SAFE_FREE(gz->interaction_data);
+  RulerInteraction *inter = static_cast<RulerInteraction *>(gz->interaction_data);
+  MEM_freeN(inter);
+  gz->interaction_data = nullptr;
 
   ruler_state_set(ruler_info, RULER_STATE_NORMAL);
 }
@@ -1295,7 +1297,7 @@ void VIEW3D_GT_ruler_item(wmGizmoType *gzt)
 
 static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  RulerInfo *ruler_info = (RulerInfo *)MEM_callocN(sizeof(RulerInfo), __func__);
+  RulerInfo *ruler_info = MEM_callocN<RulerInfo>(__func__);
 
   wmGizmo *gizmo;
   {

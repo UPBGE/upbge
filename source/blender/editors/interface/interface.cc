@@ -1707,7 +1707,7 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
           opnames_len = 0; /* Do nothing. */
         }
         if (free) {
-          MEM_freeN((void *)item);
+          MEM_freeN(item);
         }
       }
 
@@ -3300,7 +3300,7 @@ void ui_but_string_get_ex(uiBut *but,
       else {
         BLI_strncpy(str, buf, str_maxncpy);
       }
-      MEM_freeN((void *)buf);
+      MEM_freeN(buf);
     }
   }
   else if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -3949,7 +3949,7 @@ void UI_block_free(const bContext *C, uiBlock *block)
   block->buttons.clear();
 
   if (block->unit) {
-    MEM_freeN((void *)block->unit);
+    MEM_freeN(block->unit);
   }
 
   if (block->func_argN) {
@@ -4951,7 +4951,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   UI_block_layout_set_current(block, layout);
 
   if (free) {
-    MEM_freeN((void *)item_array);
+    MEM_freeN(item_array);
   }
 }
 
@@ -5093,7 +5093,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     }
 
     if (free) {
-      MEM_freeN((void *)item);
+      MEM_freeN(item);
     }
   }
   else {
@@ -5379,7 +5379,7 @@ AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy)
   autocpl = MEM_callocN<AutoComplete>(__func__);
   autocpl->maxncpy = maxncpy;
   autocpl->matches = 0;
-  autocpl->truncate = static_cast<char *>(MEM_callocN(sizeof(char) * maxncpy, __func__));
+  autocpl->truncate = MEM_calloc_arrayN<char>(maxncpy, __func__);
   autocpl->startname = startname;
 
   return autocpl;
@@ -6840,7 +6840,7 @@ static void operator_enum_search_update_fn(
     }
 
     if (do_free) {
-      MEM_freeN((void *)all_items);
+      MEM_freeN(all_items);
     }
   }
 }

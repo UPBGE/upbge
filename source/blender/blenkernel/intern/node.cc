@@ -823,6 +823,38 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Shutter");
       storage->fac = input->default_value_typed<bNodeSocketValueFloat>()->value / 2.0f;
     }
+
+    if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Minimum", storage->t2);
+      write_input_to_property_float("Maximum", storage->t1);
+    }
+
+    if (node->type_legacy == CMP_NODE_CHROMA_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Minimum", storage->t2);
+      write_input_to_property_float("Maximum", storage->t1);
+      write_input_to_property_float("Falloff", storage->fstrength);
+    }
+
+    if (node->type_legacy == CMP_NODE_COLOR_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Hue", storage->t1);
+      write_input_to_property_float("Saturation", storage->t2);
+      write_input_to_property_float("Value", storage->t3);
+    }
+
+    if (node->type_legacy == CMP_NODE_DIFF_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Tolerance", storage->t1);
+      write_input_to_property_float("Falloff", storage->t2);
+    }
+
+    if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Tolerance", storage->t1);
+      write_input_to_property_float("Falloff", storage->t2);
+    }
   }
 }
 

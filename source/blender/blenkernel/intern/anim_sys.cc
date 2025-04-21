@@ -1237,7 +1237,7 @@ static void nlaeval_snapshot_init(NlaEvalSnapshot *snapshot,
 {
   snapshot->base = base;
   snapshot->size = std::max(16, nlaeval->num_channels);
-  snapshot->channels = MEM_calloc_arrayN<NlaEvalChannelSnapshot *>(size_t(snapshot->size),
+  snapshot->channels = MEM_calloc_arrayN<NlaEvalChannelSnapshot *>(snapshot->size,
                                                                    "NlaEvalSnapshot::channels");
 }
 
@@ -3259,7 +3259,7 @@ static void animsys_create_action_track_strip(const AnimData *adt,
 {
   using namespace blender::animrig;
 
-  memset(r_action_strip, 0, sizeof(NlaStrip));
+  *r_action_strip = NlaStrip{};
 
   /* Set settings of dummy NLA strip from AnimData settings. */
   bAction *action = adt->action;

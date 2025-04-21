@@ -570,10 +570,10 @@ static uiButMultiState *ui_multibut_lookup(uiHandleButtonData *data, const uiBut
 #endif
 
 /* buttons clipboard */
-static ColorBand but_copypaste_coba = {0};
-static CurveMapping but_copypaste_curve = {0};
+static ColorBand but_copypaste_coba = {};
+static CurveMapping but_copypaste_curve = {};
 static bool but_copypaste_curve_alive = false;
-static CurveProfile but_copypaste_profile = {0};
+static CurveProfile but_copypaste_profile = {};
 static bool but_copypaste_profile_alive = false;
 
 /** \} */
@@ -2067,7 +2067,7 @@ static void ui_selectcontext_apply(bContext *C,
         wmWindow *win = CTX_wm_window(C);
         if ((win->eventstate->modifier & KM_SHIFT) == 0) {
           const int len = RNA_property_array_length(&but->rnapoin, prop);
-          bool *tmparray = static_cast<bool *>(MEM_callocN(sizeof(bool) * len, __func__));
+          bool *tmparray = MEM_calloc_arrayN<bool>(len, __func__);
 
           tmparray[index] = true;
 
@@ -2783,7 +2783,7 @@ static void ui_but_get_pasted_text_from_clipboard(const bool ensure_utf8,
     *r_buf_len = length;
   }
   else {
-    *r_buf_paste = static_cast<char *>(MEM_callocN(sizeof(char), __func__));
+    *r_buf_paste = MEM_callocN<char>(__func__);
     *r_buf_len = 0;
   }
 }
@@ -3209,7 +3209,7 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
       break;
   }
 
-  MEM_freeN((void *)buf_paste);
+  MEM_freeN(buf_paste);
 }
 
 void ui_but_clipboard_free()
@@ -3779,8 +3779,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   /* retrieve string */
   text_edit.max_string_size = ui_but_string_get_maxncpy(but);
   if (text_edit.max_string_size != 0) {
-    text_edit.edit_string = static_cast<char *>(
-        MEM_callocN(sizeof(char) * text_edit.max_string_size, "textedit str"));
+    text_edit.edit_string = MEM_calloc_arrayN<char>(text_edit.max_string_size, "textedit str");
     /* We do not want to truncate precision to default here, it's nice to show value,
      * not to edit it - way too much precision is lost then. */
     ui_but_string_get_ex(but,
@@ -7480,7 +7479,7 @@ static int ui_do_but_HSVCIRCLE(
       len = RNA_property_array_length(&but->rnapoin, but->rnaprop);
       if (len >= 3) {
         float rgb[3], def_hsv[3];
-        float *def = static_cast<float *>(MEM_callocN(sizeof(float) * len, __func__));
+        float *def = MEM_calloc_arrayN<float>(len, __func__);
 
         RNA_property_float_get_default_array(&but->rnapoin, but->rnaprop, def);
         ui_color_picker_hsv_to_rgb(def, def_hsv);
