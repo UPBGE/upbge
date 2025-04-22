@@ -311,8 +311,8 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
 
     wm_block_splash_add_label(block,
                               BKE_upbge_version_string(),
-                              splash_width - 8.0 * UI_SCALE_FAC,
-                              splash_height - 13.0 * UI_SCALE_FAC);
+                              splash_width - 5.0 * UI_SCALE_FAC,
+                              splash_height - 230.0 * UI_SCALE_FAC);
   }
 
   /* Banner image passed through the environment, to overlay on the splash and
