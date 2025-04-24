@@ -440,10 +440,10 @@ bool RAS_Shader::LinkProgram()
     info.push_constant(Type::float2_t, "bgl_TextureCoordinateOffset", 9);
   }
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
-    info.sampler(sampler.first, ImageType::FLOAT_2D, sampler.second);
+    info.sampler(sampler.first, ImageType::Float2D, sampler.second);
   }
-  info.sampler(8, ImageType::FLOAT_2D, "bgl_RenderedTexture");
-  info.sampler(9, ImageType::FLOAT_2D, "bgl_DepthTexture");
+  info.sampler(8, ImageType::Float2D, "bgl_RenderedTexture");
+  info.sampler(9, ImageType::Float2D, "bgl_DepthTexture");
   for (UniformConstant &constant : m_constantUniforms) {
     info.push_constant(constant.type, constant.name);
   }
