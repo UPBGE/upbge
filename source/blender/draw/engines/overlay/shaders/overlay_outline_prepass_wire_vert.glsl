@@ -19,7 +19,7 @@ uint outline_colorid_get()
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
-  if (isTransform) {
+  if (is_transform) {
     return 0u; /* colorTransform */
   }
   else if (is_active) {
@@ -45,11 +45,6 @@ VertIn input_assembly(uint in_vertex_id)
   return vert_in;
 }
 
-/* Replace top 2 bits (of the 16bit output) by outlineId.
- * This leaves 16K different IDs to create outlines between objects.
- * SHIFT = (32 - (16 - 2)) */
-#define SHIFT 18u
-
 struct VertOut {
   float3 ws_P;
   float4 hs_P;
@@ -74,7 +69,7 @@ VertOut vertex_main(VertIn v_in)
   uint outline_id = outline_colorid_get();
 
   /* Combine for 16bit uint target. */
-  vert_out.ob_id = (outline_id << 14u) | ((vert_out.ob_id << SHIFT) >> SHIFT);
+  vert_out.ob_id = outline_id_pack(outline_id, vert_out.ob_id);
 
   return vert_out;
 }

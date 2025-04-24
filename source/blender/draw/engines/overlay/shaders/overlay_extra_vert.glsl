@@ -11,43 +11,6 @@ VERTEX_SHADER_CREATE_INFO(overlay_extra_spot_cone)
 #include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
-#define lamp_area_size inst_data.xy
-#define lamp_clip_sta inst_data.z
-#define lamp_clip_end inst_data.w
-
-#define lamp_spot_cosine inst_data.x
-#define lamp_spot_blend inst_data.y
-
-#define camera_corner inst_data.xy
-#define camera_center inst_data.zw
-#define camera_dist color.a
-#define camera_dist_sta inst_data.z
-#define camera_dist_end inst_data.w
-#define camera_distance_color inst_data.x
-
-#define empty_size inst_data.xyz
-#define empty_scale inst_data.w
-
-/* TODO(fclem): Share with C code. */
-#define VCLASS_LIGHT_AREA_SHAPE (1 << 0)
-#define VCLASS_LIGHT_SPOT_SHAPE (1 << 1)
-#define VCLASS_LIGHT_SPOT_BLEND (1 << 2)
-#define VCLASS_LIGHT_SPOT_CONE (1 << 3)
-#define VCLASS_LIGHT_DIST (1 << 4)
-
-#define VCLASS_CAMERA_FRAME (1 << 5)
-#define VCLASS_CAMERA_DIST (1 << 6)
-#define VCLASS_CAMERA_VOLUME (1 << 7)
-
-#define VCLASS_SCREENSPACE (1 << 8)
-#define VCLASS_SCREENALIGNED (1 << 9)
-
-#define VCLASS_EMPTY_SCALED (1 << 10)
-#define VCLASS_EMPTY_AXES (1 << 11)
-#define VCLASS_EMPTY_AXES_NAME (1 << 12)
-#define VCLASS_EMPTY_AXES_SHADOW (1 << 13)
-#define VCLASS_EMPTY_SIZE (1 << 14)
-
 void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
@@ -65,10 +28,27 @@ void main()
   obmat[0][3] = obmat[1][3] = obmat[2][3] = 0.0f;
   obmat[3][3] = 1.0f;
 
-  finalColor = color;
+  final_color = color;
   if (color.a < 0.0f) {
-    finalColor.a = 1.0f;
+    final_color.a = 1.0f;
   }
+
+  float2 lamp_area_size = inst_data.xy;
+  float lamp_clip_sta = inst_data.z;
+  float lamp_clip_end = inst_data.w;
+
+  float lamp_spot_cosine = inst_data.x;
+  float lamp_spot_blend = inst_data.y;
+
+  float2 camera_corner = inst_data.xy;
+  float2 camera_center = inst_data.zw;
+  float camera_dist = color.a;
+  float camera_dist_sta = inst_data.z;
+  float camera_dist_end = inst_data.w;
+  float camera_distance_color = inst_data.x;
+
+  float3 empty_size = inst_data.xyz;
+  float empty_scale = inst_data.w;
 
   float lamp_spot_sine;
   float3 vpos = pos;
@@ -120,16 +100,16 @@ void main()
       /* Override color. */
       switch (int(camera_distance_color)) {
         case 0: /* Mist */
-          finalColor = float4(0.5f, 0.5f, 0.5f, 1.0f);
+          final_color = float4(0.5f, 0.5f, 0.5f, 1.0f);
           break;
         case 1: /* Mist Active */
-          finalColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+          final_color = float4(1.0f, 1.0f, 1.0f, 1.0f);
           break;
         case 2: /* Clip */
-          finalColor = float4(0.5f, 0.5f, 0.25f, 1.0f);
+          final_color = float4(0.5f, 0.5f, 0.25f, 1.0f);
           break;
         case 3: /* Clip Active */
-          finalColor = float4(1.0f, 1.0f, 0.5f, 1.0f);
+          final_color = float4(1.0f, 1.0f, 0.5f, 1.0f);
           break;
       }
     }
@@ -162,8 +142,8 @@ void main()
 
     float3 axis_color = float3(0.0f);
     axis_color[int(axis)] = 1.0f;
-    finalColor.rgb = mix(axis_color + fract(axis), color.rgb, color.a);
-    finalColor.a = 1.0f;
+    final_color.rgb = mix(axis_color + fract(axis), color.rgb, color.a);
+    final_color.a = 1.0f;
   }
 
   /* Not exclusive with previous flags. */
@@ -173,16 +153,16 @@ void main()
     float color_intensity = fract(color.r);
     switch (color_class) {
       case 0: /* No eye (convergence plane). */
-        finalColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+        final_color = float4(1.0f, 1.0f, 1.0f, 1.0f);
         break;
       case 1: /* Left eye. */
-        finalColor = float4(0.0f, 1.0f, 1.0f, 1.0f);
+        final_color = float4(0.0f, 1.0f, 1.0f, 1.0f);
         break;
       case 2: /* Right eye. */
-        finalColor = float4(1.0f, 0.0f, 0.0f, 1.0f);
+        final_color = float4(1.0f, 0.0f, 0.0f, 1.0f);
         break;
     }
-    finalColor *= float4(float3(color_intensity), color.g);
+    final_color *= float4(float3(color_intensity), color.g);
   }
 
   float3 world_pos;
@@ -230,7 +210,7 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
   /* Convert to screen position [0..sizeVp]. */
-  edgePos = edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_pos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 
 #if defined(SELECT_ENABLE)
   /* HACK: to avoid losing sub-pixel object in selections, we add a bit of randomness to the

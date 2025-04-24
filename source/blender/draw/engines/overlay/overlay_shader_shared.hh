@@ -11,14 +11,14 @@
 #  include "DNA_view3d_types.h"
 #endif
 
-/* TODO(fclem): Should eventually become OVERLAY_BackgroundType.
- * But there is no uint push constant functions at the moment. */
-#define BG_SOLID 0
-#define BG_GRADIENT 1
-#define BG_CHECKER 2
-#define BG_RADIAL 3
-#define BG_SOLID_CHECKER 4
-#define BG_MASK 5
+enum OVERLAY_BackgroundType : uint32_t {
+  BG_SOLID = 0u,
+  BG_GRADIENT = 1u,
+  BG_CHECKER = 2u,
+  BG_RADIAL = 3u,
+  BG_SOLID_CHECKER = 4u,
+  BG_MASK = 5u,
+};
 
 enum OVERLAY_UVLineStyle : uint32_t {
   OVERLAY_UV_LINE_STYLE_OUTLINE = 0u,
@@ -46,6 +46,53 @@ enum OVERLAY_GridBits : uint32_t {
 #ifndef GPU_SHADER
 ENUM_OPERATORS(OVERLAY_GridBits, CUSTOM_GRID)
 #endif
+
+enum VertexClass : uint32_t {
+  VCLASS_NONE = 0,
+
+  VCLASS_LIGHT_AREA_SHAPE = 1 << 0,
+  VCLASS_LIGHT_SPOT_SHAPE = 1 << 1,
+  VCLASS_LIGHT_SPOT_BLEND = 1 << 2,
+  VCLASS_LIGHT_SPOT_CONE = 1 << 3,
+  VCLASS_LIGHT_DIST = 1 << 4,
+
+  VCLASS_CAMERA_FRAME = 1 << 5,
+  VCLASS_CAMERA_DIST = 1 << 6,
+  VCLASS_CAMERA_VOLUME = 1 << 7,
+
+  VCLASS_SCREENSPACE = 1 << 8,
+  VCLASS_SCREENALIGNED = 1 << 9,
+
+  VCLASS_EMPTY_SCALED = 1 << 10,
+  VCLASS_EMPTY_AXES = 1 << 11,
+  VCLASS_EMPTY_AXES_NAME = 1 << 12,
+  VCLASS_EMPTY_AXES_SHADOW = 1 << 13,
+  VCLASS_EMPTY_SIZE = 1 << 14,
+};
+#ifndef GPU_SHADER
+ENUM_OPERATORS(VertexClass, VCLASS_EMPTY_SIZE)
+#endif
+
+enum StickBoneFlag {
+  COL_WIRE = (1u << 0u),
+  COL_HEAD = (1u << 1u),
+  COL_TAIL = (1u << 2u),
+  COL_BONE = (1u << 3u),
+  POS_HEAD = (1u << 4u),
+  POS_TAIL = (1u << 5u),
+  POS_BONE = (1u << 6u),
+};
+#ifndef GPU_SHADER
+ENUM_OPERATORS(StickBoneFlag, POS_BONE)
+#endif
+
+static inline uint outline_id_pack(uint outline_id, uint object_id)
+{
+  /* Replace top 2 bits (of the 16bit output) by outline_id.
+   * This leaves 16K different IDs to create outlines between objects.
+   * 18 = (32 - (16 - 2)) */
+  return (outline_id << 14u) | ((object_id << 18u) >> 18u);
+}
 
 /* Match: #SI_GRID_STEPS_LEN */
 #define OVERLAY_GRID_STEPS_LEN 8
@@ -257,10 +304,11 @@ BLI_STATIC_ASSERT_ALIGN(VertexData, 16)
 /* Limited by expand_prim_len bit count. */
 #define PARTICLE_SHAPE_CIRCLE_RESOLUTION 7
 
-/* TODO(fclem): This should be a enum, but it breaks compilation on Metal for some reason. */
-#define PART_SHAPE_AXIS 1
-#define PART_SHAPE_CIRCLE 2
-#define PART_SHAPE_CROSS 3
+enum OVERLAY_ParticleShape : uint32_t {
+  PART_SHAPE_AXIS = 1,
+  PART_SHAPE_CIRCLE = 2,
+  PART_SHAPE_CROSS = 3,
+};
 
 struct ParticlePointData {
   packed_float3 position;
@@ -311,17 +359,6 @@ struct BoneEnvelopeData {
 };
 BLI_STATIC_ASSERT_ALIGN(BoneEnvelopeData, 16)
 
-/* Keep in sync with armature_stick_vert.glsl. */
-enum StickBoneFlag {
-  COL_WIRE = (1u << 0u),
-  COL_HEAD = (1u << 1u),
-  COL_TAIL = (1u << 2u),
-  COL_BONE = (1u << 3u),
-  POS_HEAD = (1u << 4u),
-  POS_TAIL = (1u << 5u),
-  POS_BONE = (1u << 6u),
-};
-
 struct BoneStickData {
   float4 bone_start;
   float4 bone_end;
@@ -349,3 +386,21 @@ struct BoneStickData {
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)
+
+/**
+ * We want to know how much of a pixel is covered by a line.
+ * Here, we imagine the square pixel is a circle with the same area and try to find the
+ * intersection area. The overlap area is a circular segment.
+ * https://en.wikipedia.org/wiki/Circular_segment The formula for the area uses inverse trig
+ * function and is quite complex. Instead, we approximate it by using the smoothstep function and
+ * a 1.05f factor to the disc radius.
+ *
+ * For an alternate approach, see:
+ * https://developer.nvidia.com/gpugems/gpugems2/part-iii-high-quality-rendering/chapter-22-fast-prefiltered-lines
+ */
+#define M_1_SQRTPI 0.5641895835477563f /* `1/sqrt(pi)`. */
+#define DISC_RADIUS (M_1_SQRTPI * 1.05f)
+#define LINE_SMOOTH_START (0.5f - DISC_RADIUS)
+#define LINE_SMOOTH_END (0.5f + DISC_RADIUS)
+/* Returns 0 before LINE_SMOOTH_START and 1 after LINE_SMOOTH_END. */
+#define LINE_STEP(dist) smoothstep(LINE_SMOOTH_START, LINE_SMOOTH_END, dist)

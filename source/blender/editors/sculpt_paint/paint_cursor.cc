@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -36,6 +37,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "NOD_texture.h"
 
@@ -1243,6 +1245,7 @@ struct PaintCursorContext {
   ARegion *region;
   wmWindow *win;
   wmWindowManager *wm;
+  bScreen *screen;
   Depsgraph *depsgraph;
   Scene *scene;
   UnifiedPaintSettings *ups;
@@ -1311,6 +1314,7 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.region = region;
   pcontext.wm = CTX_wm_manager(C);
   pcontext.win = CTX_wm_window(C);
+  pcontext.screen = CTX_wm_screen(C);
   pcontext.depsgraph = CTX_data_depsgraph_pointer(C);
   pcontext.scene = CTX_data_scene(C);
   pcontext.ups = &pcontext.scene->toolsettings->unified_paint_settings;
@@ -1455,6 +1459,15 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
      * with the UI (dragging a number button for e.g.), see: #102792. */
     return;
   }
+
+  /* Don't set the cursor when a temporary popup is opened (e.g. a context menu, pie menu or
+   * dialog), see: #137386. */
+  if (!BLI_listbase_is_empty(&pcontext.screen->regionbase) &&
+      (BKE_screen_find_region_type(pcontext.screen, RGN_TYPE_TEMPORARY) != nullptr))
+  {
+    return;
+  }
+
   if (ELEM(pcontext.mode, PaintMode::GPencil, PaintMode::VertexGPencil)) {
     WM_cursor_set(pcontext.win, WM_CURSOR_DOT);
   }

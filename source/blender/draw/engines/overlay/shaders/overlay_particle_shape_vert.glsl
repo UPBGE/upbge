@@ -35,7 +35,7 @@ void main()
   int particle_id = gl_VertexID;
   int shape_vert_id = gl_VertexID;
 
-  switch (shape_type) {
+  switch (OVERLAY_ParticleShape(shape_type)) {
     case PART_SHAPE_AXIS:
     case PART_SHAPE_CROSS:
       shape_vert_id = gl_VertexID % 6;
@@ -58,7 +58,7 @@ void main()
 #endif
 
   float3 shape_pos = float3(0.0f);
-  switch (shape_type) {
+  switch (OVERLAY_ParticleShape(shape_type)) {
     case PART_SHAPE_AXIS:
       shape_pos = float3(axis_id == 0, axis_id == 1, axis_id == 2) * 2.0f * float(axis_vert != 0u);
       break;
@@ -72,13 +72,13 @@ void main()
       break;
   }
 
-  finalColor = float4(1.0f);
+  final_color = float4(1.0f);
   if (shape_type == PART_SHAPE_AXIS) {
     /* Works because of flat interpolation. */
-    finalColor.rgb = shape_pos;
+    final_color.rgb = shape_pos;
   }
   else {
-    finalColor.rgb = part.value < 0.0f ? ucolor.rgb : texture(weightTex, part.value).rgb;
+    final_color.rgb = part.value < 0.0f ? ucolor.rgb : texture(weight_tx, part.value).rgb;
   }
 
   /* Draw-size packed in alpha. */
@@ -93,7 +93,7 @@ void main()
     world_pos += rotate(shape_pos, part.rotation);
   }
   gl_Position = drw_point_world_to_homogenous(world_pos);
-  edgeStart = edgePos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 
   view_clipping_distances(world_pos);
 }

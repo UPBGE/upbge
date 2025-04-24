@@ -8,18 +8,17 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_background)
 
 #include "gpu_shader_math_base_lib.glsl"
 
-/* 4x4 bayer matrix prepared for 8bit UNORM precision error. */
-#define P(x) (((x + 0.5f) * (1.0f / 16.0f) - 0.5f) * (1.0f / 255.0f))
-
 float dither()
 {
+  /* 4x4 bayer matrix prepared for 8bit UNORM precision error. */
   /* NOTE(Metal): Declaring constant array in function scope to avoid increasing local shader
    * memory pressure. */
+#define P(x) (((x + 0.5f) * (1.0f / 16.0f) - 0.5f) * (1.0f / 255.0f))
   constexpr float4 dither_mat4x4[4] = float4_array(float4(P(0.0f), P(8.0f), P(2.0f), P(10.0f)),
                                                    float4(P(12.0f), P(4.0f), P(14.0f), P(6.0f)),
                                                    float4(P(3.0f), P(11.0f), P(1.0f), P(9.0f)),
                                                    float4(P(15.0f), P(7.0f), P(13.0f), P(5.0f)));
-
+#undef P
   int2 co = int2(gl_FragCoord.xy) % 4;
   return dither_mat4x4[co.x][co.y];
 }
@@ -32,8 +31,8 @@ void main()
    * This removes the alpha channel and put the background behind reference images
    * while masking the reference images by the render alpha.
    */
-  float alpha = texture(colorBuffer, screen_uv).a;
-  float depth = texture(depthBuffer, screen_uv).r;
+  float alpha = texture(color_buffer, screen_uv).a;
+  float depth = texture(depth_buffer, screen_uv).r;
 
   float3 bg_col;
   float3 col_high;
@@ -41,9 +40,11 @@ void main()
 
   /* BG_SOLID_CHECKER selects BG_SOLID when no pixel has been drawn otherwise use the BG_CHERKER.
    */
-  int bg_type = bgType == BG_SOLID_CHECKER ? (depth == 1.0f ? BG_SOLID : BG_CHECKER) : bgType;
+  OVERLAY_BackgroundType type = OVERLAY_BackgroundType(bg_type) == BG_SOLID_CHECKER ?
+                                    (depth == 1.0f ? BG_SOLID : BG_CHECKER) :
+                                    OVERLAY_BackgroundType(bg_type);
 
-  switch (bg_type) {
+  switch (type) {
     case BG_SOLID:
       bg_col = colorBackground.rgb;
       break;
@@ -79,17 +80,21 @@ void main()
       break;
     }
     case BG_MASK:
-      fragColor = float4(float3(1.0f - alpha), 0.0f);
+      frag_color = float4(float3(1.0f - alpha), 0.0f);
+      return;
+    case BG_SOLID_CHECKER:
+      /* Unreachable. */
+      assert(0);
       return;
   }
 
-  bg_col = mix(bg_col, colorOverride.rgb, colorOverride.a);
+  bg_col = mix(bg_col, color_override.rgb, color_override.a);
 
   /* Mimic alpha under behavior. Result is premultiplied. */
-  fragColor = float4(bg_col, 1.0f) * (1.0f - alpha);
+  frag_color = float4(bg_col, 1.0f) * (1.0f - alpha);
 
   /* Special case: If the render is not transparent, do not clear alpha values. */
   if (depth == 1.0f && alpha == 1.0f) {
-    fragColor.a = 1.0f;
+    frag_color.a = 1.0f;
   }
 }

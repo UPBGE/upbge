@@ -110,17 +110,17 @@ static const EnumPropertyItem solver_items[] = {
      "EXACT",
      0,
      "Exact",
-     "Exact solver for the best results"},
+     "Slower solver with the best results for coplanar faces"},
     {int(geometry::boolean::Solver::Float),
      "FLOAT",
      0,
      "Float",
-     "Simple solver for the best performance, without support for overlapping geometry"},
+     "Simple solver with good performance, without support for overlapping geometry"},
     {int(geometry::boolean::Solver::Manifold),
      "MANIFOLD",
      0,
      "Manifold",
-     "Very fast and robust solver (best with manifold input)"},
+     "Fastest solver that works only on manifold meshes but gives better results"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -364,7 +364,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   get_origin_and_normal(gesture_data, shape_origin, shape_normal);
   plane_from_point_normal_v3(shape_plane, shape_origin, shape_normal);
 
-  const float (*ob_imat)[4] = vc.obact->world_to_object().ptr();
+  const float(*ob_imat)[4] = vc.obact->world_to_object().ptr();
 
   /* Write vertices coordinates OperationType::Difference for the front face. */
   MutableSpan<float3> positions = trim_operation->mesh->vert_positions_for_write();
@@ -450,7 +450,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   /* Get the triangulation for the front/back poly. */
   const int face_tris_num = bke::mesh::face_triangles_num(screen_points.size());
   Array<uint3> tris(face_tris_num);
-  BLI_polyfill_calc(reinterpret_cast<const float (*)[2]>(screen_points.data()),
+  BLI_polyfill_calc(reinterpret_cast<const float(*)[2]>(screen_points.data()),
                     screen_points.size(),
                     0,
                     reinterpret_cast<uint(*)[3]>(tris.data()));

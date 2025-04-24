@@ -14,6 +14,8 @@
 #  include "gpu_index_load_info.hh"
 #  include "gpu_shader_create_info.hh"
 
+#  include "overlay_shader_shared.hh"
+
 #  define HAIR_SHADER
 #  define DRW_HAIR_INFO
 
@@ -32,7 +34,8 @@ FLAT(uint, ob_id)
 GPU_SHADER_NAMED_INTERFACE_END(interp)
 
 GPU_SHADER_CREATE_INFO(overlay_outline_prepass)
-PUSH_CONSTANT(bool, isTransform)
+TYPEDEF_SOURCE("overlay_shader_shared.hh")
+PUSH_CONSTANT(bool, is_transform)
 VERTEX_OUT(overlay_outline_prepass_iface)
 /* Using uint because 16bit uint can contain more ids than int. */
 FRAGMENT_OUT(0, uint, out_object_id)
@@ -77,7 +80,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_mesh)
 ADDITIONAL_INFO(draw_object_infos)
 ADDITIONAL_INFO(gpu_index_buffer_load)
-STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
+STORAGE_BUF_FREQ(0, read, float, pos[], GEOMETRY)
 PUSH_CONSTANT(int2, gpu_attr_0)
 VERTEX_SOURCE("overlay_outline_prepass_wire_vert.glsl")
 GPU_SHADER_CREATE_END()
@@ -96,13 +99,14 @@ GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 
 GPU_SHADER_CREATE_INFO(overlay_outline_prepass_gpencil)
 DO_STATIC_COMPILATION()
-PUSH_CONSTANT(bool, isTransform)
+TYPEDEF_SOURCE("overlay_shader_shared.hh")
+PUSH_CONSTANT(bool, is_transform)
 VERTEX_OUT(overlay_outline_prepass_iface)
 VERTEX_OUT(overlay_outline_prepass_gpencil_flat_iface)
 VERTEX_OUT(overlay_outline_prepass_gpencil_noperspective_iface)
 VERTEX_SOURCE("overlay_outline_prepass_gpencil_vert.glsl")
-PUSH_CONSTANT(bool, gpStrokeOrder3d) /* TODO(fclem): Move to a GPencil object UBO. */
-PUSH_CONSTANT(float4, gpDepthPlane)  /* TODO(fclem): Move to a GPencil object UBO. */
+PUSH_CONSTANT(bool, gp_stroke_order3d) /* TODO(fclem): Move to a GPencil object UBO. */
+PUSH_CONSTANT(float4, gp_depth_plane)  /* TODO(fclem): Move to a GPencil object UBO. */
 /* Using uint because 16bit uint can contain more ids than int. */
 FRAGMENT_OUT(0, uint, out_object_id)
 FRAGMENT_SOURCE("overlay_outline_prepass_gpencil_frag.glsl")
@@ -137,15 +141,15 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_outline_prepass_pointcloud)
 
 GPU_SHADER_CREATE_INFO(overlay_outline_detect)
 DO_STATIC_COMPILATION()
-PUSH_CONSTANT(float, alphaOcclu)
-PUSH_CONSTANT(bool, isXrayWires)
-PUSH_CONSTANT(bool, doAntiAliasing)
-PUSH_CONSTANT(bool, doThickOutlines)
-SAMPLER(0, UINT_2D, outlineId)
-SAMPLER(1, DEPTH_2D, outlineDepth)
-SAMPLER(2, DEPTH_2D, sceneDepth)
-FRAGMENT_OUT(0, float4, fragColor)
-FRAGMENT_OUT(1, float4, lineOutput)
+PUSH_CONSTANT(float, alpha_occlu)
+PUSH_CONSTANT(bool, is_xray_wires)
+PUSH_CONSTANT(bool, do_anti_aliasing)
+PUSH_CONSTANT(bool, do_thick_outlines)
+SAMPLER(0, usampler2D, outline_id_tx)
+SAMPLER(1, sampler2DDepth, outline_depth_tx)
+SAMPLER(2, sampler2DDepth, scene_depth_tx)
+FRAGMENT_OUT(0, float4, frag_color)
+FRAGMENT_OUT(1, float4, line_output)
 FRAGMENT_SOURCE("overlay_outline_detect_frag.glsl")
 ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(draw_view)

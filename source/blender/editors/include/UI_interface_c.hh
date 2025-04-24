@@ -556,20 +556,29 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
  *
  * Cut off the middle of the text to fit into the given width.
  *
- * \note in case this middle clipping would just remove a few chars,
- * it rather clips right, which is more readable.
- *
  * If `rpart_sep` is not null, the part of `str` starting to first occurrence of `rpart_sep`
  * is preserved at all cost.
  * Useful for strings with shortcuts
  * (like `A Very Long Foo Bar Label For Menu Entry|Ctrl O' -> 'AVeryLong...MenuEntry|Ctrl O`).
+ *
+ * \param clip_right_if_tight: In case this middle clipping would just remove a few chars, or there
+ * are less than 10 characters before the clipping, it rather clips right, which is more readable.
  */
 float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              char *str,
                              float okwidth,
                              float minwidth,
                              size_t max_len,
-                             char rpart_sep);
+                             char rpart_sep,
+                             bool clip_right_if_tight = true);
+
+blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
+    const uiFontStyle *fstyle,
+    const char *str,
+    char *clipped_str_buf,
+    const size_t max_len_clipped_str_buf,
+    const float max_line_width,
+    const int max_lines);
 
 /**
  * Callbacks.
@@ -2175,6 +2184,14 @@ enum {
    * over the layout and can enable it). */
   UI_TEMPLATE_OP_PROPS_NO_SPLIT_LAYOUT = 1 << 4,
   UI_TEMPLATE_OP_PROPS_HIDE_PRESETS = 1 << 5,
+  /**
+   * Allow the buttons placed by the template to send an undo push. Usually this isn't wanted,
+   * except for rare cases where operators draw their properties into a regular UI for later
+   * execution (e.g. collection exporter panels in Properties).
+   *
+   * This should never be enabled for UIs that trigger redo, like "Adjust Last Operation" panels.
+   */
+  UI_TEMPLATE_OP_PROPS_ALLOW_UNDO_PUSH = 1 << 6,
 };
 
 /* Used for transparent checkers shown under color buttons that have an alpha component. */
@@ -2782,6 +2799,24 @@ void UI_fontstyle_draw(const uiFontStyle *fs,
                        size_t str_len,
                        const uchar col[4],
                        const uiFontStyleDraw_Params *fs_params);
+
+void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
+                                            const rcti *rect,
+                                            const char *str,
+                                            const uchar col[4],
+                                            eFontStyle_Align align,
+                                            int *r_xofs,
+                                            int *r_yofs,
+                                            ResultBLF *r_info);
+/**
+ * Draws text with wrapping and shortening using "..." so that it fits into the given rectangle.
+ */
+void UI_fontstyle_draw_multiline_clipped(const uiFontStyle *fs,
+                                         const rcti *rect,
+                                         const char *str,
+                                         const uchar col[4],
+                                         eFontStyle_Align align);
+
 /**
  * Drawn same as #UI_fontstyle_draw, but at 90 degree angle.
  */

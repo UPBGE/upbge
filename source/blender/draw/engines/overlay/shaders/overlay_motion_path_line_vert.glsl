@@ -37,33 +37,33 @@ struct VertOut {
   float4 color;
 };
 
-#define frameCurrent mpathLineSettings.x
-#define frameStart mpathLineSettings.y
-#define frameEnd mpathLineSettings.z
-#define cacheStart mpathLineSettings.w
-
 VertOut vertex_main(VertIn vert_in)
 {
+  int frame_current = mpath_line_settings.x;
+  // int frameStart = mpath_line_settings.y; /* UNUSED */
+  // int frameEnd = mpath_line_settings.z; /* UNUSED */
+  int cache_start = mpath_line_settings.w;
+
   VertOut vert_out;
   /* Optionally transform from view space to world space for screen space motion paths. */
   vert_out.ws_P = transform_point(camera_space_matrix, vert_in.P);
   vert_out.hs_P = drw_point_world_to_homogenous(vert_out.ws_P);
   vert_out.ss_P = drw_ndc_to_screen(drw_perspective_divide(vert_out.hs_P)).xy * sizeViewport;
 
-  int frame = int(vert_in.vert_id) + cacheStart;
+  int frame = int(vert_in.vert_id) + cache_start;
 
-  float3 blend_base = (abs(frame - frameCurrent) == 0) ?
+  float3 blend_base = (abs(frame - frame_current) == 0) ?
                           colorCurrentFrame.rgb :
                           colorBackground.rgb; /* "bleed" CFRAME color to ease color blending */
-  bool use_custom_color = customColorPre.x >= 0.0f;
+  bool use_custom_color = custom_color_pre.x >= 0.0f;
 
-  if (frame < frameCurrent) {
-    vert_out.color.rgb = use_custom_color ? customColorPre : colorBeforeFrame.rgb;
+  if (frame < frame_current) {
+    vert_out.color.rgb = use_custom_color ? custom_color_pre : colorBeforeFrame.rgb;
   }
-  else if (frame > frameCurrent) {
-    vert_out.color.rgb = use_custom_color ? customColorPost : colorAfterFrame.rgb;
+  else if (frame > frame_current) {
+    vert_out.color.rgb = use_custom_color ? custom_color_post : colorAfterFrame.rgb;
   }
-  else /* if (frame == frameCurrent) */ {
+  else /* if (frame == frame_current) */ {
     vert_out.color.rgb = use_custom_color ? colorCurrentFrame.rgb : blend_base;
   }
   vert_out.color.a = 1.0f;
@@ -108,7 +108,7 @@ void geometry_main(VertOut geom_in[2],
   float2 edge_dir = orthogonal(normalize(ss_P1 - ss_P0 + 1e-8f)) * sizeViewportInv;
 
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
-  float line_size = float(lineThickness) * sizePixel;
+  float line_size = float(line_thickness) * sizePixel;
 
   GeomOut geom_out;
 
