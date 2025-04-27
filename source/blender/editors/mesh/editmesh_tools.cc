@@ -5735,14 +5735,14 @@ static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
   uiItemR(layout, op->ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemR(layout, op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_vertex_group"));
   uiItemR(col, op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
+  row = &layout->row(true, IFACE_("Symmetry"));
   uiItemR(row, op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(row, true);
+  sub = &row->row(true);
   uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "use_symmetry"));
   uiItemR(sub, op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
@@ -7511,7 +7511,7 @@ void MESH_OT_offset_edge_loops(wmOperatorType *ot)
   ot->poll = ED_operator_editmesh;
 
   /* Keep internal, since this is only meant to be accessed via
-   * 'MESH_OT_offset_edge_loops_slide'. */
+   * `MESH_OT_offset_edge_loops_slide`. */
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;

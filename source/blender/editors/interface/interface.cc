@@ -4674,7 +4674,7 @@ static uiBut *ui_def_but(uiBlock *block,
   }
 
 #ifdef WITH_PYTHON
-  /* If the 'UI_OT_editsource' is running, extract the source info from the button. */
+  /* If the `UI_OT_editsource` is running, extract the source info from the button. */
   if (UI_editsource_enable_check()) {
     UI_editsource_active_but_test(but);
   }
@@ -4852,7 +4852,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         }
       }
 
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
 
     const EnumPropertyItem *item = &item_array[a];

@@ -241,10 +241,10 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
       continue;
     }
     if (!(undo_step_count % col_size)) {
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
     const bool is_active = (us == wm->undo_stack->step_active);
-    uiLayout *row = uiLayoutRow(column, false);
+    uiLayout *row = &column->row(false);
     uiLayoutSetEnabled(row, !is_active);
     uiItemIntO(row,
                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, us->name),

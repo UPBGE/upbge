@@ -1177,6 +1177,30 @@ class CYCLES_CAMERA_PT_dof_aperture(CyclesButtonsPanel, Panel):
         col.prop(dof, "aperture_ratio")
 
 
+class CYCLES_CAMERA_PT_lens_custom_parameters(CyclesButtonsPanel, Panel):
+    bl_label = "Parameters"
+    bl_parent_id = "DATA_PT_lens"
+
+    @classmethod
+    def poll(cls, context):
+        cam = context.camera
+        return (super().poll(context) and
+                cam and
+                cam.type == 'CUSTOM' and
+                len(cam.cycles_custom.keys()) > 0)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        cam = context.camera
+        ccam = cam.cycles_custom
+
+        col = layout.column()
+        for key in ccam.keys():
+            col.prop(ccam, f'["{key}"]')
+
+
 class CYCLES_PT_context_material(CyclesButtonsPanel, Panel):
     bl_label = ""
     bl_context = "material"
@@ -1285,27 +1309,6 @@ class CYCLES_OBJECT_PT_motion_blur(CyclesButtonsPanel, Panel):
         col.prop(cob, "motion_steps", text="Steps")
         if ob.type != 'CAMERA':
             col.prop(cob, "use_deform_motion", text="Deformation")
-
-
-class CYCLES_OBJECT_PT_shading_shadow_terminator(CyclesButtonsPanel, Panel):
-    bl_label = "Shadow Terminator"
-    bl_parent_id = "OBJECT_PT_shading"
-    bl_context = "object"
-
-    @classmethod
-    def poll(cls, context):
-        return CyclesButtonsPanel.poll(context) and context.object.type != 'LIGHT'
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)
-
-        ob = context.object
-        cob = ob.cycles
-        flow.prop(cob, "shadow_terminator_geometry_offset", text="Geometry Offset")
-        flow.prop(cob, "shadow_terminator_offset", text="Shading Offset")
 
 
 class CYCLES_OBJECT_PT_shading_gi_approximation(CyclesButtonsPanel, Panel):
@@ -2521,9 +2524,9 @@ classes = (
     CYCLES_PT_post_processing,
     CYCLES_CAMERA_PT_dof,
     CYCLES_CAMERA_PT_dof_aperture,
+    CYCLES_CAMERA_PT_lens_custom_parameters,
     CYCLES_PT_context_material,
     CYCLES_OBJECT_PT_motion_blur,
-    CYCLES_OBJECT_PT_shading_shadow_terminator,
     CYCLES_OBJECT_PT_shading_gi_approximation,
     CYCLES_OBJECT_PT_shading_caustics,
     CYCLES_OBJECT_PT_lightgroup,

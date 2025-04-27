@@ -90,7 +90,7 @@ void template_add_button_search_menu(const bContext *C,
     if (use_big_size) {
       /* Assume column layout here. To be more correct, we should check if the layout passed to
        * template_id is a column one, but this should work well in practice. */
-      col = uiLayoutColumn(layout, true);
+      col = &layout->column(true);
     }
 
     but = uiDefBlockButN(block,
@@ -117,7 +117,7 @@ void template_add_button_search_menu(const bContext *C,
       UI_but_flag_enable(but, UI_BUT_DISABLED);
     }
     if (use_big_size) {
-      uiLayoutRow(col ? col : layout, true);
+      (col ? col : layout)->row(true);
     }
   }
   else {
@@ -268,7 +268,7 @@ void uiTemplatePathBuilder(uiLayout *layout,
   }
 
   /* Start drawing UI Elements using standard defines */
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
 
   /* Path (existing string) Widget */
   uiItemR(row, ptr, propname, UI_ITEM_NONE, text, ICON_RNA);

@@ -235,11 +235,11 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   if (decimate_type == MOD_DECIM_MODE_COLLAPSE) {
     uiItemR(layout, ptr, "ratio", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-    row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
+    row = &layout->row(true, IFACE_("Symmetry"));
     uiLayoutSetPropDecorate(row, false);
-    sub = uiLayoutRow(row, true);
+    sub = &row->row(true);
     uiItemR(sub, ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
-    sub = uiLayoutRow(sub, true);
+    sub = &sub->row(true);
     uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_symmetry"));
     uiItemR(sub, ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
     uiItemDecoratorR(row, ptr, "symmetry_axis", 0);
@@ -247,7 +247,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     uiItemR(layout, ptr, "use_collapse_triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
-    sub = uiLayoutRow(layout, true);
+    sub = &layout->row(true);
     bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
     uiLayoutSetActive(sub, has_vertex_group);
     uiItemR(sub, ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -257,7 +257,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   }
   else { /* decimate_type == MOD_DECIM_MODE_DISSOLVE. */
     uiItemR(layout, ptr, "angle_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *col = uiLayoutColumn(layout, false);
+    uiLayout *col = &layout->column(false);
     uiItemR(col, ptr, "delimit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(layout, ptr, "use_dissolve_boundaries", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }

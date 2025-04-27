@@ -248,14 +248,14 @@ static void edbm_intersect_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemR(row, op->ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemS(layout);
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemR(row, op->ptr, "separate_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemS(layout);
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemR(row, op->ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemS(layout);
 
@@ -333,7 +333,7 @@ void MESH_OT_intersect(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Boolean Intersect
  *
- * \note internally this is nearly exactly the same as 'MESH_OT_intersect',
+ * \note internally this is nearly exactly the same as `MESH_OT_intersect`,
  * however from a user perspective they are quite different, so expose as different tools.
  * \{ */
 
@@ -409,11 +409,11 @@ static void edbm_intersect_boolean_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemR(row, op->ptr, "operation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemS(layout);
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemR(row, op->ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemS(layout);
 

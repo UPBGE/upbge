@@ -92,6 +92,35 @@ struct uiLayout : uiItem {
   float search_weight_;
 
   LayoutSuppressFlag suppress_flag_;
+
+ public:
+  /**
+   * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
+   * each other in a column.
+   */
+  uiLayout &column(bool align);
+  /**
+   * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
+   * each other in a column.
+   * \param heading: Heading label to set to the first child element added in the sub-layout
+   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * label column when there is no label defined.
+   */
+  uiLayout &column(bool align, blender::StringRef heading);
+
+  /**
+   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
+   * other in row.
+   */
+  uiLayout &row(bool align);
+  /**
+   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
+   * other in row.
+   * \param heading: Heading label to set to the first child element added in the sub-layout
+   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * label column when there is no label defined.
+   */
+  uiLayout &row(bool align, blender::StringRef heading);
 };
 
 enum {
@@ -270,8 +299,6 @@ void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag);
 
 /* Layout create functions. */
 
-uiLayout *uiLayoutRow(uiLayout *layout, bool align);
-
 struct PanelLayout {
   uiLayout *header;
   uiLayout *body;
@@ -350,18 +377,6 @@ uiLayout *uiLayoutPanel(const bContext *C,
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-/**
- * See #uiLayoutColumnWithHeading().
- */
-uiLayout *uiLayoutRowWithHeading(uiLayout *layout, bool align, blender::StringRef heading);
-uiLayout *uiLayoutColumn(uiLayout *layout, bool align);
-/**
- * Variant of #uiLayoutColumn() that sets a heading label for the layout if the first item is
- * added through #uiItemFullR(). If split layout is used and the item has no string to add to the
- * first split-column, the heading is added there instead. Otherwise the heading inserted with a
- * new row.
- */
-uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, blender::StringRef heading);
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align);
 uiLayout *uiLayoutGridFlow(uiLayout *layout,
                            bool row_major,

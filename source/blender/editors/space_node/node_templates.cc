@@ -538,7 +538,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       }
 
       if (first) {
-        column = uiLayoutColumn(layout, false);
+        column = &layout->column(false);
         UI_block_layout_set_current(block, column);
 
         uiItemL(column, IFACE_(cname), ICON_NODE);
@@ -626,7 +626,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
     ntreetype->foreach_nodeclass(arg, node_menu_column_foreach_cb);
   }
 
-  column = uiLayoutColumn(split, false);
+  column = &split->column(false);
   UI_block_layout_set_current(block, column);
 
   if (sock->link) {
@@ -849,7 +849,7 @@ static void ui_node_draw_input(uiLayout &layout,
   PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &input);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
-  row = uiLayoutRow(&layout, true);
+  row = &layout.row(true);
 
   uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
   /* Decorations are added manually here. */
@@ -858,7 +858,7 @@ static void ui_node_draw_input(uiLayout &layout,
   bool add_dummy_decorator = false;
 
   {
-    uiLayout *sub = uiLayoutRow(split_wrapper.label_column, true);
+    uiLayout *sub = &split_wrapper.label_column->row(true);
 
     if (depth > 0) {
       UI_block_emboss_set(block, blender::ui::EmbossType::None);
@@ -873,7 +873,7 @@ static void ui_node_draw_input(uiLayout &layout,
       UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
 
-    sub = uiLayoutRow(sub, true);
+    sub = &sub->row(true);
     uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
     uiItemL(sub, node_socket_get_label(&input, panel_label), ICON_NONE);
   }
@@ -896,7 +896,7 @@ static void ui_node_draw_input(uiLayout &layout,
     }
   }
   else {
-    uiLayout *sub = uiLayoutRow(row, true);
+    uiLayout *sub = &row->row(true);
 
     uiTemplateNodeLink(sub, &C, &ntree, &node, &input);
 
@@ -908,7 +908,7 @@ static void ui_node_draw_input(uiLayout &layout,
       switch (input.type) {
         case SOCK_VECTOR:
           uiItemS(sub);
-          sub = uiLayoutColumn(sub, true);
+          sub = &sub->column(true);
           ATTR_FALLTHROUGH;
         case SOCK_FLOAT:
         case SOCK_INT:
