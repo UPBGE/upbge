@@ -2354,7 +2354,7 @@ void DRW_game_render_loop(bContext *C,
 
   draw_ctx.acquire_data();
 
-  bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
+  bool gpencil_engine_needed = DRW_gpencil_engine_needed(depsgraph, v3d);
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 

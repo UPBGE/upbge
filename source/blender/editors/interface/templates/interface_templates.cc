@@ -382,13 +382,13 @@ void uiTemplateGameStates(uiLayout *layout,
   /* layers are laid out going across rows, with the columns being divided into groups */
 
   for (group = 0; group < groups; group++) {
-    uCol = uiLayoutColumn(layout, true);
+    uCol = &layout->column(true);
 
     for (row = 0; row < 2; row++) {
       uiBlock *block;
       uiBut *but;
 
-      uRow = uiLayoutRow(uCol, true);
+      uRow = &uCol->row(true);
       block = uiLayoutGetBlock(uRow);
       state = groups * cols_per_group * row + cols_per_group * group;
 
