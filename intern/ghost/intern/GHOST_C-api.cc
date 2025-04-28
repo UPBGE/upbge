@@ -218,7 +218,7 @@ bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windo
 }
 
 GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
-                                         const GHOST_DisplaySetting *setting,
+                                         const GHOST_DisplaySettings &setting,
                                          const bool stereoVisual)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
@@ -234,7 +234,7 @@ GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
   gpu_settings.context_type = GHOST_kDrawingContextTypeOpenGL;
 #endif
 
-  system->beginFullScreen(*setting, &window, gpu_settings);
+  system->beginFullScreen(&window, setting, gpu_settings);
 
   return (GHOST_WindowHandle)window;
 }

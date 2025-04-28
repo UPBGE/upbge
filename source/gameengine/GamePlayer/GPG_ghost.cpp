@@ -363,11 +363,9 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   uint32_t sysWidth = 0, sysHeight = 0;
   system->getMainDisplayDimensions(sysWidth, sysHeight);
   // Create the main window
-  GHOST_DisplaySetting setting;
-  setting.xPixels = (useDesktop) ? sysWidth : width;
-  setting.yPixels = (useDesktop) ? sysHeight : height;
-  setting.bpp = bpp;
-  setting.frequency = frequency;
+  GHOST_DisplaySettings settings;
+  settings.xPixels = (useDesktop) ? sysWidth : width;
+  settings.yPixels = (useDesktop) ? sysHeight : height;
 
   GHOST_GPUSettings gpu_settings = {0};
   if (stereoVisual) {
@@ -378,7 +376,7 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
 
   GHOST_IWindow *window = nullptr;
-  system->beginFullScreen(setting, &window, gpu_settings);
+  system->beginFullScreen(&window, settings, gpu_settings);
   window->setCursorVisibility(false);
   /* note that X11 ignores this (it uses a window internally for fullscreen) */
   window->setState(GHOST_kWindowStateFullScreen);

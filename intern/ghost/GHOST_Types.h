@@ -734,6 +734,13 @@ typedef struct {
 } GHOST_GPUSettings;
 
 typedef struct {
+  int xPixels;
+  int yPixels;
+  /* int bpp;
+  int frequency; */
+} GHOST_DisplaySettings;
+
+typedef struct {
   float colored_titlebar_bg_color[3];
   float colored_titlebar_fg_color[3];
 } GHOST_WindowDecorationStyleSettings;

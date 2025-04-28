@@ -285,8 +285,8 @@ class GHOST_ISystem {
    *                  This window is invalid after full screen has been ended.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
-                                         GHOST_IWindow **window,
+  virtual GHOST_TSuccess beginFullScreen(GHOST_IWindow **window,
+                                         const GHOST_DisplaySettings &setting,
                                          const GHOST_GPUSettings &gpu_settings) = 0;
 
   /**
@@ -296,8 +296,8 @@ class GHOST_ISystem {
    *
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting,
-                                          GHOST_IWindow **window) = 0;
+  virtual GHOST_TSuccess updateFullScreen(GHOST_IWindow **window,
+                                          const GHOST_DisplaySettings &setting) = 0;
 
   /**
    * Ends full screen mode.

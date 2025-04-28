@@ -110,8 +110,8 @@ class GHOST_System : public GHOST_ISystem {
    * This window is invalid after full screen has been ended.
    * \return Indication of success.
    */
-  GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
-                                 GHOST_IWindow **window,
+  GHOST_TSuccess beginFullScreen(GHOST_IWindow **window,
+                                 const GHOST_DisplaySettings &settings,
                                  const GHOST_GPUSettings &gpu_settings) override;
 
   /**
@@ -121,8 +121,8 @@ class GHOST_System : public GHOST_ISystem {
    *
    * \return Indication of success.
    */
-  GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting,
-                                  GHOST_IWindow **window) override;
+  GHOST_TSuccess updateFullScreen(GHOST_IWindow **window,
+                                  const GHOST_DisplaySettings &settings) override;
 
   /**
    * Ends full screen mode.
@@ -405,7 +405,7 @@ class GHOST_System : public GHOST_ISystem {
    * \return Indication of success.
    */
   GHOST_TSuccess createFullScreenWindow(GHOST_Window **window,
-                                        const GHOST_DisplaySetting &settings,
+                                        const GHOST_DisplaySettings &settings,
                                         const GHOST_GPUSettings &gpu_settings);
 
 
@@ -427,9 +427,6 @@ class GHOST_System : public GHOST_ISystem {
 #ifdef WITH_GHOST_DEBUG
   GHOST_EventPrinter *m_eventPrinter;
 #endif  // WITH_GHOST_DEBUG
-
-  /** Settings of the display before the display went full-screen. */
-  GHOST_DisplaySetting m_preFullScreenSetting;
 
   /* Use multi-touch gestures? */
   bool m_multitouchGestures;
