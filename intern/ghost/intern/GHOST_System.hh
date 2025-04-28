@@ -19,7 +19,6 @@
 #  include "GHOST_EventPrinter.hh"
 #endif  // WITH_GHOST_DEBUG
 
-class GHOST_DisplayManager;
 class GHOST_Event;
 class GHOST_TimerManager;
 class GHOST_Window;
@@ -409,8 +408,6 @@ class GHOST_System : public GHOST_ISystem {
                                         const GHOST_DisplaySetting &settings,
                                         const GHOST_GPUSettings &gpu_settings);
 
-  /** The display manager (platform dependent). */
-  GHOST_DisplayManager *m_displayManager;
 
   /** The timer manager. */
   GHOST_TimerManager *m_timerManager;

@@ -2651,13 +2651,22 @@ void MTLPixelBuffer::unmap()
   }
 }
 
-int64_t MTLPixelBuffer::get_native_handle()
+GPUPixelBufferNativeHandle MTLPixelBuffer::get_native_handle()
 {
-  if (buffer_ == nil) {
-    return 0;
+  GPUPixelBufferNativeHandle native_handle;
+
+  /* Only spported with unified memory currently. */
+  MTLContext *ctx = MTLContext::get();
+  BLI_assert(ctx);
+  if (![ctx->device hasUnifiedMemory]) {
+    return native_handle;
   }
 
-  return reinterpret_cast<int64_t>(buffer_);
+  /* Just get pointer to unified memory. No need to unmap. */
+  native_handle.handle = reinterpret_cast<int64_t>(map());
+  native_handle.size = size_;
+
+  return native_handle;
 }
 
 size_t MTLPixelBuffer::get_size()
