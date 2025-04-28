@@ -74,7 +74,9 @@ void register_node_type_sh_sprites_animation()
   common_node_type_base(&ntype, "ShaderNodeSpritesAnimation", SH_NODE_SPRITES_ANIMATION);
   ntype.ui_name = "SpritesAnimation";
   ntype.ui_description = "To animate sprites";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.add_ui_poll = object_eevee_shader_nodes_poll;
   ntype.gpu_fn = file_ns::gpu_shader_sprites_animation;
 
