@@ -2749,8 +2749,7 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
                                                 PointerRNA *r_ptr,
                                                 PropertyRNA **r_prop,
                                                 bool *r_is_undo,
-                                                bool *r_is_userdef,
-                                                bool *r_override_path_supports_blend_relative);
+                                                bool *r_is_userdef);
 /**
  * For new/open operators.
  *

@@ -40,8 +40,6 @@ enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
 }  // namespace blender::ui
 
-enum class LayoutSuppressFlag : uint8_t;
-
 /**
  * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -91,8 +89,6 @@ struct uiLayout : uiItem {
   /** Is copied to uiButs created in this layout. */
   float search_weight_;
 
-  LayoutSuppressFlag suppress_flag_;
-
  public:
   /**
    * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
@@ -121,6 +117,27 @@ struct uiLayout : uiItem {
    * label column when there is no label defined.
    */
   uiLayout &row(bool align, blender::StringRef heading);
+
+  /**
+   * Add a new column flow sub-layout, items placed in this sub-layout would be evenly distributed
+   * in columns.
+   * \param number: the number of columns in which items are distributed.
+   */
+  uiLayout &column_flow(int number, bool align);
+  /**
+   * Add a new grid flow sub-layout, items placed in this sub-layout would be distributed in a
+   * grid.
+   * \param row_major: When true items are distributed by rows, otherwise items are distributed by
+   * columns.
+   * \param columns_len: When positive is the fixed number of columns to show, when 0 its automatic
+   * defined, when negative its an automatic stepped number of columns/rows to show (e.g. when \a
+   * row_major is true -3 will automatically show (1,2,3,6,9,...) columns, or when \a row_major is
+   * false -3 will automatically show (3,6,9,...) rows).
+   * \param even_columns: All columns will have the same width.
+   * \param even_rows: All rows will have the same height.
+   */
+  uiLayout &grid_flow(
+      bool row_major, int columns_len, bool even_columns, bool even_rows, bool align);
 };
 
 enum {
@@ -287,16 +304,6 @@ float uiLayoutGetSearchWeight(uiLayout *layout);
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
 
-/** Support suppressing checks typically performed to communicate issues to users. */
-enum class LayoutSuppressFlag : uint8_t {
-  PathSupportsBlendFileRelative = 1 << 0,
-};
-ENUM_OPERATORS(LayoutSuppressFlag, LayoutSuppressFlag::PathSupportsBlendFileRelative)
-
-LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout);
-void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag);
-void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag);
-
 /* Layout create functions. */
 
 struct PanelLayout {
@@ -377,13 +384,6 @@ uiLayout *uiLayoutPanel(const bContext *C,
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align);
-uiLayout *uiLayoutGridFlow(uiLayout *layout,
-                           bool row_major,
-                           int columns_len,
-                           bool even_columns,
-                           bool even_rows,
-                           bool align);
 uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout,
                           uiList *ui_list,
