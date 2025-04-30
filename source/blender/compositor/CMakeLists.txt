@@ -204,6 +204,7 @@ set(GLSL_SRC
   shaders/compositor_glare_streaks_filter.glsl
   shaders/compositor_glare_write_glare_output.glsl
   shaders/compositor_glare_write_highlights_output.glsl
+  shaders/compositor_horizontal_lens_distortion.glsl
   shaders/compositor_id_mask.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl
@@ -239,11 +240,10 @@ set(GLSL_SRC
   shaders/compositor_plane_deform_motion_blur_mask.glsl
   shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
-  shaders/compositor_projector_lens_distortion.glsl
+  shaders/compositor_radial_lens_distortion.glsl
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_scale_variable.glsl
-  shaders/compositor_screen_lens_distortion.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
   shaders/compositor_smaa_edge_detection.glsl
   shaders/compositor_smaa_neighborhood_blending.glsl
@@ -315,15 +315,20 @@ list(APPEND LIB
 )
 
 set(GLSL_SOURCE_CONTENT "")
+set(GLSL_METADATA_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
-  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
 endforeach()
 
 set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_compositor_source_list.h")
 file(GENERATE OUTPUT ${glsl_source_list_file} CONTENT "${GLSL_SOURCE_CONTENT}")
 list(APPEND SRC ${glsl_source_list_file})
+set(glsl_metadata_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_compositor_metadata_list.hh")
+file(GENERATE OUTPUT ${glsl_metadata_list_file} CONTENT "${GLSL_METADATA_CONTENT}")
+list(APPEND SRC ${glsl_metadata_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(bf_compositor_shaders PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
