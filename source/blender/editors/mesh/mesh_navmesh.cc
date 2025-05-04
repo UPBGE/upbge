@@ -88,7 +88,7 @@ static void createVertsTrisData(
   /* calculate number of verts and tris */
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     me = (Mesh *)ob_eval->data;
     BKE_mesh_tessface_ensure(me);
     BLI_linklist_append(&meshes_pair, me);

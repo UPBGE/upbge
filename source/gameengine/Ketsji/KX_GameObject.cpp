@@ -350,7 +350,7 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
   }
 
   if (ob_orig && !skip_transform) {
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
     copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
     BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
   }
@@ -1169,9 +1169,9 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
 
     /* Here we want to change the object which will be rendered, then the evaluated object by the
      * depsgraph */
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+    Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
 
-    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentLodLevel->GetObject());
+    Object *eval_lod_ob = DEG_get_evaluated(depsgraph, currentLodLevel->GetObject());
     /* Try to get the object with all modifiers applied */
     Mesh *lod_mesh = (Mesh *)eval_lod_ob->data;
     BKE_object_free_derived_caches(ob_eval);

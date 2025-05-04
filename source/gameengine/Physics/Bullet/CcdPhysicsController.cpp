@@ -2036,7 +2036,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
+  Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
   Mesh *me = (Mesh *)ob_eval->data;
 
   /* No need to call again ensure_tessface as it was called in BL_DataConversion */
@@ -2373,7 +2373,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   else if (evaluatedMesh) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, from_gameobj->GetBlenderObject());
+    Object *ob_eval = DEG_get_evaluated(depsgraph, from_gameobj->GetBlenderObject());
     me = (Mesh *)ob_eval->data;
   }
   else if (from_gameobj && !evaluatedMesh) {

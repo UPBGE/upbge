@@ -376,7 +376,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Get Mesh data
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
 
   BKE_mesh_tessface_ensure(final_me);

@@ -617,7 +617,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   /* TODO: This doesn't work currently because of eval_ctx. */
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+  Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
   BKE_mesh_tessface_ensure(final_me);
   CustomData *pdata = &final_me->face_data;

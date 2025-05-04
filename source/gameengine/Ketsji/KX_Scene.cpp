@@ -1246,7 +1246,7 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
   for (Object *child : children) {
     if (child->parent == ob) {
       ob_child = child;
-      Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
+      Object *ob_child_eval = DEG_get_evaluated(depsgraph, ob_child);
       BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world().ptr(), true, false);
       invert_m4_m4(ob_child->parentinv,
                    BKE_object_calc_parent(depsgraph, scene, ob_child_eval).ptr());
