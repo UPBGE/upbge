@@ -112,7 +112,7 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
 {
   using namespace blender::bke;
 
-  if (!DEG_is_evaluated_id(&id_dst) || !grease_pencil.adt) {
+  if (!DEG_is_evaluated(&id_dst) || !grease_pencil.adt) {
     return;
   }
 
@@ -2589,6 +2589,8 @@ Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
   }
 
   /* Fall back to default material. */
+  /* XXX FIXME This is critical abuse of the 'default material' feature, these IDs should never be
+   * used/returned as 'regular' data. */
   return BKE_material_default_gpencil();
 }
 

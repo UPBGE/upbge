@@ -1621,7 +1621,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     uiBut *confirm_but;
     uiBut *cancel_but;
 
-    col = uiLayoutSplit(col, 0.0f, true);
+    col = &col->split(0.0f, true);
     uiLayoutSetScaleY(col, small ? 1.0f : 1.2f);
 
     if (windows_layout) {
@@ -2766,8 +2766,10 @@ static void radial_control_paint_curve(uint pos, Brush *br, float radius, int li
   immEnd();
 }
 
-static void radial_control_paint_cursor(
-    bContext * /*C*/, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void *customdata)
+static void radial_control_paint_cursor(bContext * /*C*/,
+                                        const blender::int2 & /*xy*/,
+                                        const blender::float2 & /*tilt*/,
+                                        void *customdata)
 {
   RadialControl *rc = static_cast<RadialControl *>(customdata);
   const uiStyle *style = UI_style_get();
@@ -2822,6 +2824,7 @@ static void radial_control_paint_cursor(
       break;
   }
 
+  int x, y;
   if (rc->subtype == PROP_ANGLE) {
     /* Use the initial mouse position to draw the rotation preview. This avoids starting the
      * rotation in a random direction. */

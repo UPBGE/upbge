@@ -91,6 +91,11 @@ struct uiLayout : uiItem {
 
  public:
   /**
+   * Add a new box sub-layout, items placed in this sub-layout are added vertically one under
+   * each other in a column and are surrounded by a box.
+   */
+  uiLayout &box();
+  /**
    * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column.
    */
@@ -138,6 +143,13 @@ struct uiLayout : uiItem {
    */
   uiLayout &grid_flow(
       bool row_major, int columns_len, bool even_columns, bool even_rows, bool align);
+
+  /**
+   * Add a new split sub-layout, items placed in this sub-layout are added horizontally next to
+   * each other in row, but width is splitted between the first item and remaining items.
+   * \param percentage: Width percent to split.
+   */
+  uiLayout &split(float percentage, bool align);
 };
 
 enum {
@@ -384,13 +396,11 @@ uiLayout *uiLayoutPanel(const bContext *C,
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout,
                           uiList *ui_list,
                           PointerRNA *actptr,
                           PropertyRNA *actprop);
 uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align);
-uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, bool align);
 uiLayout *uiLayoutOverlap(uiLayout *layout);
 uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
 /** Pie menu layout: Buttons are arranged around a center. */

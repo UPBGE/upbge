@@ -317,8 +317,10 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
     {
       const std::optional<blender::Bounds<float3>> bounds = BKE_pose_minmax(ob_eval_iter, true);
       if (bounds) {
-        minmax_v3v3_v3(min, max, bounds->min);
-        minmax_v3v3_v3(min, max, bounds->max);
+        const blender::Bounds<float3> world_bounds = blender::bounds::transform_bounds(
+            ob_eval->object_to_world(), *bounds);
+        minmax_v3v3_v3(min, max, world_bounds.min);
+        minmax_v3v3_v3(min, max, world_bounds.max);
         changed = true;
       }
     }
@@ -386,7 +388,7 @@ bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
       continue;
     }
     Object *ob = base->object;
-    BLI_assert(!DEG_is_original_id(&ob->id));
+    BLI_assert(!DEG_is_original(ob));
 
     float3 min, max;
     view3d_object_calc_minmax(depsgraph, scene, ob, false, min, max);

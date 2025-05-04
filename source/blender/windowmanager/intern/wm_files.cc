@@ -4149,7 +4149,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
 
   /* Buttons. */
   uiBut *but;
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
+  uiLayout *split = &layout->split(0.0f, true);
   uiLayoutSetScaleY(split, 1.2f);
 
   /* Empty space. */
@@ -4340,10 +4340,10 @@ static void file_overwrite_detailed_info_show(uiLayout *parent_layout, Main *bma
     char message_line1[256];
     char message_line2[256];
     SNPRINTF(message_line1,
-             RPT_("This file was saved by a newer version of Blender (%s)"),
+             RPT_("This file was saved by a newer version of Blender (%s)."),
              writer_ver_str);
     SNPRINTF(message_line2,
-             RPT_("Saving it with this Blender (%s) may cause loss of data"),
+             RPT_("Saving it with this Blender (%s) may cause loss of data."),
              current_ver_str);
     uiItemL(layout, message_line1, ICON_NONE);
     uiItemL(layout, message_line2, ICON_NONE);
@@ -4506,7 +4506,7 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
 
   /* Buttons. */
 
-  uiLayout *split = uiLayoutSplit(layout, 0.3f, true);
+  uiLayout *split = &layout->split(0.3f, true);
   uiLayoutSetScaleY(split, 1.2f);
 
   split->column(false);
@@ -4516,7 +4516,7 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
     save_file_overwrite_confirm_button(block, post_action);
   }
 
-  uiLayout *split_right = uiLayoutSplit(split, 0.1f, true);
+  uiLayout *split_right = &split->split(0.1f, true);
 
   split_right->column(false);
   /* Empty space. */
@@ -4819,7 +4819,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   if (windows_layout) {
     /* Windows standard layout. */
 
-    uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
+    uiLayout *split = &layout->split(0.0f, true);
     uiLayoutSetScaleY(split, 1.2f);
 
     split->column(false);
@@ -4834,13 +4834,13 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   else {
     /* Non-Windows layout (macOS and Linux). */
 
-    uiLayout *split = uiLayoutSplit(layout, 0.3f, true);
+    uiLayout *split = &layout->split(0.3f, true);
     uiLayoutSetScaleY(split, 1.2f);
 
     split->column(false);
     wm_block_file_close_discard_button(block, post_action);
 
-    uiLayout *split_right = uiLayoutSplit(split, 0.1f, true);
+    uiLayout *split_right = &split->split(0.1f, true);
 
     split_right->column(false);
     /* Empty space. */

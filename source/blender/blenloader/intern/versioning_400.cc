@@ -4189,6 +4189,178 @@ static void do_version_directional_blur_node_options_to_inputs_animation(bNodeTr
   });
 }
 
+/* The options were converted into inputs. */
+static void do_version_bilateral_blur_node_options_to_inputs(bNodeTree *node_tree, bNode *node)
+{
+  NodeBilateralBlurData *storage = static_cast<NodeBilateralBlurData *>(node->storage);
+  if (!storage) {
+    return;
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Size")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_INT, PROP_NONE, "Size", "Size");
+    input->default_value_typed<bNodeSocketValueInt>()->value = std::ceil(storage->iter +
+                                                                         storage->sigma_space);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Threshold")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Threshold", "Threshold");
+    /* Threshold was previously multiplied by 3. */
+    input->default_value_typed<bNodeSocketValueFloat>()->value = storage->sigma_color / 3.0f;
+  }
+}
+
+/* The options were converted into inputs. */
+static void do_version_bilateral_blur_node_options_to_inputs_animation(bNodeTree *node_tree,
+                                                                       bNode *node)
+{
+  /* Compute the RNA path of the node. */
+  char escaped_node_name[sizeof(node->name) * 2 + 1];
+  BLI_str_escape(escaped_node_name, node->name, sizeof(escaped_node_name));
+  const std::string node_rna_path = fmt::format("nodes[\"{}\"]", escaped_node_name);
+
+  BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
+    /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
+     * path. */
+    if (!blender::StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+      return;
+    }
+
+    /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
+     * values of the FCurves frames when needed. */
+    char *old_rna_path = fcurve->rna_path;
+    if (BLI_str_endswith(fcurve->rna_path, "iterations")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "sigma_color")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    }
+
+    /* The RNA path was changed, free the old path. */
+    if (fcurve->rna_path != old_rna_path) {
+      MEM_freeN(old_rna_path);
+    }
+  });
+}
+
+/* The Use Alpha option and Alpha input were removed. If Use Alpha was disabled, set the input
+ * alpha to 1 using a Set Alpha node, otherwise, if the Alpha input is linked, set it to the image
+ * using a Set Alpha node. */
+static void do_version_composite_viewer_remove_alpha(bNodeTree *node_tree)
+{
+  /* Maps the names of the viewer and composite nodes to the links going into their image and alpha
+   * inputs. */
+  blender::Map<std::string, bNodeLink *> node_to_image_link_map;
+  blender::Map<std::string, bNodeLink *> node_to_alpha_link_map;
+
+  /* Find links going into the composite and viewer nodes. */
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+    if (!ELEM(link->tonode->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_VIEWER)) {
+      continue;
+    }
+
+    if (blender::StringRef(link->tosock->identifier) == "Image") {
+      node_to_image_link_map.add_new(link->tonode->name, link);
+    }
+    else if (blender::StringRef(link->tosock->identifier) == "Alpha") {
+      node_to_alpha_link_map.add_new(link->tonode->name, link);
+    }
+  }
+
+  LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+    if (!ELEM(node->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_VIEWER)) {
+      continue;
+    }
+
+    bNodeSocket *image_input = blender::bke::node_find_socket(*node, SOCK_IN, "Image");
+
+    /* Use Alpha is disabled, so we need to set the alpha to 1. */
+    if (node->custom2 & CMP_NODE_OUTPUT_IGNORE_ALPHA) {
+      /* Nothing is connected to the image, just set the default value alpha to 1. */
+      if (!node_to_image_link_map.contains(node->name)) {
+        image_input->default_value_typed<bNodeSocketValueRGBA>()->value[3] = 1.0f;
+        continue;
+      }
+
+      bNodeLink *image_link = node_to_image_link_map.lookup(node->name);
+
+      /* Add a set alpha node and make the necessary connections. */
+      bNode *set_alpha_node = blender::bke::node_add_static_node(
+          nullptr, *node_tree, CMP_NODE_SETALPHA);
+      set_alpha_node->parent = node->parent;
+      set_alpha_node->location[0] = node->location[0] - node->width - 20.0f;
+      set_alpha_node->location[1] = node->location[1];
+
+      NodeSetAlpha *data = static_cast<NodeSetAlpha *>(set_alpha_node->storage);
+      data->mode = CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA;
+
+      bNodeSocket *set_alpha_input = blender::bke::node_find_socket(
+          *set_alpha_node, SOCK_IN, "Image");
+      bNodeSocket *set_alpha_output = blender::bke::node_find_socket(
+          *set_alpha_node, SOCK_OUT, "Image");
+
+      version_node_add_link(*node_tree,
+                            *image_link->fromnode,
+                            *image_link->fromsock,
+                            *set_alpha_node,
+                            *set_alpha_input);
+      version_node_add_link(*node_tree, *set_alpha_node, *set_alpha_output, *node, *image_input);
+
+      blender::bke::node_remove_link(node_tree, *image_link);
+      continue;
+    }
+
+    /* If we don't continue, the alpha input is connected and Use Alpha is enabled, so we need to
+     * set the alpha using a Set Alpha node. */
+    if (!node_to_alpha_link_map.contains(node->name)) {
+      continue;
+    }
+
+    bNodeLink *alpha_link = node_to_alpha_link_map.lookup(node->name);
+
+    /* Add a set alpha node and make the necessary connections. */
+    bNode *set_alpha_node = blender::bke::node_add_static_node(
+        nullptr, *node_tree, CMP_NODE_SETALPHA);
+    set_alpha_node->parent = node->parent;
+    set_alpha_node->location[0] = node->location[0] - node->width - 20.0f;
+    set_alpha_node->location[1] = node->location[1];
+
+    NodeSetAlpha *data = static_cast<NodeSetAlpha *>(set_alpha_node->storage);
+    data->mode = CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA;
+
+    bNodeSocket *set_alpha_input = blender::bke::node_find_socket(
+        *set_alpha_node, SOCK_IN, "Image");
+    bNodeSocket *set_alpha_alpha = blender::bke::node_find_socket(
+        *set_alpha_node, SOCK_IN, "Alpha");
+    bNodeSocket *set_alpha_output = blender::bke::node_find_socket(
+        *set_alpha_node, SOCK_OUT, "Image");
+
+    version_node_add_link(*node_tree,
+                          *alpha_link->fromnode,
+                          *alpha_link->fromsock,
+                          *set_alpha_node,
+                          *set_alpha_alpha);
+    version_node_add_link(*node_tree, *set_alpha_node, *set_alpha_output, *node, *image_input);
+    blender::bke::node_remove_link(node_tree, *alpha_link);
+
+    if (!node_to_image_link_map.contains(node->name)) {
+      copy_v4_v4(set_alpha_input->default_value_typed<bNodeSocketValueRGBA>()->value,
+                 image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+    }
+    else {
+      bNodeLink *image_link = node_to_image_link_map.lookup(node->name);
+      version_node_add_link(*node_tree,
+                            *image_link->fromnode,
+                            *image_link->fromsock,
+                            *set_alpha_node,
+                            *set_alpha_input);
+      blender::bke::node_remove_link(node_tree, *image_link);
+    }
+  }
+}
+
 static void do_version_viewer_shortcut(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
@@ -5065,6 +5237,19 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_DBLUR) {
             do_version_directional_blur_node_options_to_inputs_animation(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 60)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_BILATERALBLUR) {
+            do_version_bilateral_blur_node_options_to_inputs_animation(node_tree, node);
           }
         }
       }
@@ -10173,6 +10358,28 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             do_version_directional_blur_node_options_to_inputs(node_tree, node);
           }
         }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 60)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_BILATERALBLUR) {
+            do_version_bilateral_blur_node_options_to_inputs(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 61)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        do_version_composite_viewer_remove_alpha(node_tree);
       }
     }
     FOREACH_NODETREE_END;

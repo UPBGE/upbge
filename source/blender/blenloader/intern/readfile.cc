@@ -656,7 +656,7 @@ static BHead bhead_from_bhead4(const BHead4 &bhead4)
   BHead bhead;
   bhead.code = bhead4.code;
   bhead.len = bhead4.len;
-  bhead.old = reinterpret_cast<const void *>(bhead4.old);
+  bhead.old = reinterpret_cast<const void *>(uintptr_t(bhead4.old));
   bhead.SDNAnr = bhead4.SDNAnr;
   bhead.nr = bhead4.nr;
   return bhead;
@@ -685,7 +685,7 @@ static const void *old_ptr_from_uint64_ptr(const uint64_t ptr, const bool use_en
     return reinterpret_cast<const void *>(ptr);
   }
   else {
-    return reinterpret_cast<const void *>(uint32_from_uint64_ptr(ptr, use_endian_swap));
+    return reinterpret_cast<const void *>(uintptr_t(uint32_from_uint64_ptr(ptr, use_endian_swap)));
   }
 }
 
@@ -822,14 +822,15 @@ static BHeadN *get_bhead(FileData *fd)
 
           const int64_t readsize = fd->file->read(fd->file, new_bhead + 1, size_t(bhead->len));
 
-          if (readsize != bhead->len) {
+          if (UNLIKELY(readsize != bhead->len)) {
             fd->is_eof = true;
             MEM_freeN(new_bhead);
             new_bhead = nullptr;
           }
-
-          if (fd->flags & FD_FLAGS_IS_MEMFILE) {
-            new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+          else {
+            if (fd->flags & FD_FLAGS_IS_MEMFILE) {
+              new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+            }
           }
         }
         else {
@@ -914,11 +915,15 @@ static bool blo_bhead_read_data(FileData *fd, BHead *thisblock, void *buf)
     success = false;
   }
   else {
-    if (fd->file->read(fd->file, buf, size_t(new_bhead->bhead.len)) != new_bhead->bhead.len) {
+    if (UNLIKELY(fd->file->read(fd->file, buf, size_t(new_bhead->bhead.len)) !=
+                 new_bhead->bhead.len))
+    {
       success = false;
     }
-    if (fd->flags & FD_FLAGS_IS_MEMFILE) {
-      new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+    else {
+      if (fd->flags & FD_FLAGS_IS_MEMFILE) {
+        new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+      }
     }
   }
   if (fd->file->seek(fd->file, offset_backup, SEEK_SET) == -1) {
@@ -5058,16 +5063,25 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
   BKE_main_free(main_newid);
 }
 
-static void *blo_verify_data_address(void *new_address,
+static void *blo_verify_data_address(FileData *fd,
+                                     void *new_address,
                                      const void * /*old_address*/,
                                      const size_t expected_size)
 {
   if (new_address != nullptr) {
     /* Not testing equality, since size might have been aligned up,
      * or might be passed the size of a base struct with inheritance. */
-    BLI_assert_msg(MEM_allocN_len(new_address) >= expected_size,
-                   "Corrupt .blend file, unexpected data size.");
-    UNUSED_VARS_NDEBUG(expected_size);
+    if (MEM_allocN_len(new_address) < expected_size) {
+      blo_readfile_invalidate(fd,
+                              static_cast<Main *>(fd->mainlist->last),
+                              "Corrupt .blend file, unexpected data size.");
+      /* Return null to trigger a hard-crash rather than allowing readfile code to further access
+       * this invalid block of memory.
+       *
+       * It could also potentially allow the calling code to do its own error checking and abort
+       * reading process, but that is not implemented currently. */
+      return nullptr;
+    }
   }
 
   return new_address;
@@ -5083,7 +5097,7 @@ void *BLO_read_get_new_data_address_no_us(BlendDataReader *reader,
                                           const size_t expected_size)
 {
   void *new_address = newdataadr_no_us(reader->fd, old_address);
-  return blo_verify_data_address(new_address, old_address, expected_size);
+  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
 }
 
 void *BLO_read_struct_array_with_size(BlendDataReader *reader,
@@ -5091,7 +5105,7 @@ void *BLO_read_struct_array_with_size(BlendDataReader *reader,
                                       const size_t expected_size)
 {
   void *new_address = newdataadr(reader->fd, old_address);
-  return blo_verify_data_address(new_address, old_address, expected_size);
+  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
 }
 
 void *BLO_read_struct_by_name_array(BlendDataReader *reader,
