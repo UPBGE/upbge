@@ -248,9 +248,8 @@ struct DRWManager {
   /** Mutex to lock the drw manager and avoid concurrent context usage. */
   TicketMutex *system_gpu_context_mutex;
 
-  DRWDebugModule *debug;
-
   DRWDebugBge debug_bge;
+  DRWDebugModule *debug;
 };
 
 extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded rendering. */

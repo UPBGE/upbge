@@ -219,6 +219,3 @@ void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   bool is_active_render,
                                   bool is_active_layer);
 
-/* UPBGE */
-void DRW_gpu_context_create_blenderplayer(void *syshandle);
-/* End of UPBGE */

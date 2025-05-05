@@ -3648,23 +3648,6 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
   memset(&DST, 0xFF, offsetof(DRWManager, system_gpu_context));
 }
 
-void DRW_gpu_context_create_blenderplayer(void *ghost_system)
-{
-  BLI_assert(DST.system_gpu_context == NULL); /* Ensure it's called once */
-
-  DST.system_gpu_context_mutex = BLI_ticket_mutex_alloc();
-
-  /* This changes the active context. */
-  DST.system_gpu_context = WM_system_gpu_context_create_blenderplayer(ghost_system);
-  WM_system_gpu_context_activate(DST.system_gpu_context);
-  /* Be sure to create gpu_context too. */
-  DST.blender_gpu_context = GPU_context_create(nullptr, DST.system_gpu_context);
-  /* Setup compilation context. */
-  DRW_shader_init();
-  /* Activate the window's context afterwards. */
-  wm_window_reset_drawable();
-}
-
 /* Called instead of DRW_transform_to_display in eevee_engine
  * to avoid double tonemapping of rendered textures with ImageRender
  */
