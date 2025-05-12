@@ -127,7 +127,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 
   std::lock_guard lock(mutex_);
 
-  SpecializationBatchHandle specialization_handle = specialization_handles_.lookup_or_add_cb(
+  SpecializationBatchHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
       {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
@@ -701,8 +701,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       break;
   }
 
+  const bool support_volume_attributes = ELEM(geometry_type, MAT_GEOM_MESH, MAT_GEOM_VOLUME);
   const bool do_vertex_attrib_load = !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME) &&
-                                     (pipeline_type != MAT_PIPE_VOLUME_MATERIAL);
+                                     (pipeline_type != MAT_PIPE_VOLUME_MATERIAL ||
+                                      !support_volume_attributes);
 
   if (!do_vertex_attrib_load && !info.vertex_out_interfaces_.is_empty()) {
     /* Codegen outputs only one interface. */

@@ -86,6 +86,8 @@ struct SpaceNode_Runtime {
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
 
+  std::optional<int> frame_identifier_to_highlight;
+
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
    * regular compositing pipeline.
@@ -228,6 +230,10 @@ void NODE_OT_backimage_fit(wmOperatorType *ot);
 void NODE_OT_backimage_sample(wmOperatorType *ot);
 
 /* `drawnode.cc` */
+
+float2 socket_link_connection_location(const bNode &node,
+                                       const bNodeSocket &socket,
+                                       const bNodeLink &link);
 
 NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const bNode *node,

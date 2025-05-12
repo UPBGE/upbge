@@ -17,9 +17,9 @@
 #include "BLI_iterator.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_mutex.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
 
 #include "BLT_translation.hh"
 
@@ -432,7 +432,7 @@ static Collection *collection_add(Main *bmain,
   }
 
   /* Create new collection. */
-  Collection *collection = static_cast<Collection *>(BKE_id_new(bmain, ID_GR, name));
+  Collection *collection = BKE_id_new<Collection>(bmain, name);
   collection->flag |= COLLECTION_IS_SPAWNED; //UPBGE
 
   /* We increase collection user count when linking to Collections. */
@@ -869,14 +869,13 @@ static void collection_object_cache_fill(ListBase *lb,
 ListBase BKE_collection_object_cache_get(Collection *collection)
 {
   if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE)) {
-    static ThreadMutex cache_lock = BLI_MUTEX_INITIALIZER;
+    static blender::Mutex cache_lock;
 
-    BLI_mutex_lock(&cache_lock);
+    std::scoped_lock lock(cache_lock);
     if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE)) {
       collection_object_cache_fill(&collection->runtime.object_cache, collection, 0, false);
       collection->flag |= COLLECTION_HAS_OBJECT_CACHE;
     }
-    BLI_mutex_unlock(&cache_lock);
   }
 
   return collection->runtime.object_cache;
@@ -885,15 +884,14 @@ ListBase BKE_collection_object_cache_get(Collection *collection)
 ListBase BKE_collection_object_cache_instanced_get(Collection *collection)
 {
   if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE_INSTANCED)) {
-    static ThreadMutex cache_lock = BLI_MUTEX_INITIALIZER;
+    static blender::Mutex cache_lock;
 
-    BLI_mutex_lock(&cache_lock);
+    std::scoped_lock lock(cache_lock);
     if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE_INSTANCED)) {
       collection_object_cache_fill(
           &collection->runtime.object_cache_instanced, collection, 0, true);
       collection->flag |= COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
     }
-    BLI_mutex_unlock(&cache_lock);
   }
 
   return collection->runtime.object_cache_instanced;

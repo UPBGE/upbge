@@ -107,15 +107,15 @@ bool maskedit_poll(bContext *C)
   return false;
 }
 
-bool check_show_imbuf(SpaceSeq *sseq)
+bool check_show_imbuf(const SpaceSeq &sseq)
 {
-  return (sseq->mainb == SEQ_DRAW_IMG_IMBUF) &&
-         ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
+  return (sseq.mainb == SEQ_DRAW_IMG_IMBUF) &&
+         ELEM(sseq.view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
-bool check_show_strip(SpaceSeq *sseq)
+bool check_show_strip(const SpaceSeq &sseq)
 {
-  return ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW);
+  return ELEM(sseq.view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
 static bool sequencer_fcurves_targets_color_strip(const FCurve *fcurve)
@@ -131,12 +131,8 @@ static bool sequencer_fcurves_targets_color_strip(const FCurve *fcurve)
   return true;
 }
 
-bool has_playback_animation(const SpaceSeq *sseq, const Scene *scene)
+bool has_playback_animation(const Scene *scene)
 {
-  if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
-    return true;
-  }
-
   if (!scene->adt) {
     return false;
   }
@@ -255,7 +251,7 @@ bool sequencer_view_strips_poll(bContext *C)
   if (sseq == nullptr) {
     return false;
   }
-  if (!check_show_strip(sseq)) {
+  if (!check_show_strip(*sseq)) {
     return false;
   }
   ARegion *region = CTX_wm_region(C);
@@ -1614,15 +1610,15 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
 
   uiLayout *row = &layout->row(false);
-  uiItemR(row, op->ptr, "type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "side", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op->ptr, "type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "side", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
 
-  uiItemR(layout, op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
-    uiItemR(layout, op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

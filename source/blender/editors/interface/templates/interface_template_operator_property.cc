@@ -84,7 +84,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
   UI_block_lock_clear(block);
 
   if (layout_flags & UI_TEMPLATE_OP_PROPS_SHOW_TITLE) {
-    uiItemL(layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE);
+    layout->label(WM_operatortype_name(op->type, op->ptr), ICON_NONE);
   }
 
   /* menu */
@@ -143,7 +143,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     if ((return_info & UI_PROP_BUTS_NONE_ADDED) &&
         (layout_flags & UI_TEMPLATE_OP_PROPS_SHOW_EMPTY))
     {
-      uiItemL(layout, IFACE_("No Properties"), ICON_NONE);
+      layout->label(IFACE_("No Properties"), ICON_NONE);
     }
   }
 
@@ -351,7 +351,7 @@ static wmOperator *minimal_operator_create(wmOperatorType *ot, PointerRNA *prope
 static void draw_export_controls(
     bContext *C, uiLayout *layout, const std::string &label, int index, bool valid)
 {
-  uiItemL(layout, label, ICON_NONE);
+  layout->label(label, ICON_NONE);
   if (valid) {
     uiLayout *row = &layout->row(false);
     uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
@@ -377,15 +377,14 @@ static void draw_export_properties(bContext *C,
   PropertyRNA *prop = RNA_struct_find_property(&exporter_ptr, "filepath");
 
   std::string placeholder = "//" + filename;
-  uiItemFullR(col,
-              &exporter_ptr,
-              prop,
-              RNA_NO_INDEX,
-              0,
-              UI_ITEM_NONE,
-              std::nullopt,
-              ICON_NONE,
-              placeholder.c_str());
+  col->prop(&exporter_ptr,
+            prop,
+            RNA_NO_INDEX,
+            0,
+            UI_ITEM_NONE,
+            std::nullopt,
+            ICON_NONE,
+            placeholder.c_str());
 
   template_operator_property_buts_draw_single(C,
                                               op,
@@ -408,7 +407,7 @@ static void draw_exporter_item(uiList * /*ui_list*/,
 {
   uiLayout *row = &layout->row(false);
   uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-  uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+  row->prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
@@ -461,7 +460,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   using namespace blender;
   PointerRNA exporter_ptr = RNA_pointer_create_discrete(
       &collection->id, &RNA_CollectionExport, data);
-  PanelLayout panel = uiLayoutPanelProp(C, layout, &exporter_ptr, "is_open");
+  PanelLayout panel = layout->panel_prop(C, &exporter_ptr, "is_open");
 
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
   if (!fh) {

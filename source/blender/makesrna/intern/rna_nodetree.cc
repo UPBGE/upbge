@@ -4227,6 +4227,9 @@ static const char node_input_translation_direction[] = "Translation Direction";
 /* Alpha Over node. */
 static const char node_input_straight_alpha[] = "Straight Alpha";
 
+/* Bokeh Blur node. */
+static const char node_input_extend_bounds[] = "Extend Bounds";
+
 /* --------------------------------------------------------------------
  * White Balance Node.
  */
@@ -6862,6 +6865,17 @@ static void def_scatter(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_volume_coefficients(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "phase", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, node_scatter_phase_items);
+  RNA_def_property_ui_text(prop, "Phase", "Phase function for the scattered light");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_toon(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -7724,6 +7738,7 @@ static void rna_def_cmp_output_file_slot_file(BlenderRNA *brna)
   RNA_def_struct_name_property(srna, prop);
   RNA_def_property_ui_text(prop, "Path", "Subpath used for this slot");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
+  RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_TEMPLATES);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
 }
 static void rna_def_cmp_output_file_slot_layer(BlenderRNA *brna)
@@ -7797,7 +7812,8 @@ static void def_cmp_output_file(BlenderRNA *brna, StructRNA *srna)
   prop = RNA_def_property(srna, "base_path", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "base_path");
   RNA_def_property_ui_text(prop, "Base Path", "Base output path for the image");
-  RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE);
+  RNA_def_property_flag(
+      prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE | PROP_PATH_SUPPORTS_TEMPLATES);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "active_input_index", PROP_INT, PROP_NONE);
@@ -7994,12 +8010,18 @@ static void def_cmp_scale(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "offset_x", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "custom3");
-  RNA_def_property_ui_text(prop, "X Offset", "Offset image horizontally (factor of image size)");
+  RNA_def_property_ui_text(prop,
+                           "X Offset",
+                           "Offset image horizontally (factor of image size). (Deprecated: Use a "
+                           "Translate node instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "offset_y", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "custom4");
-  RNA_def_property_ui_text(prop, "Y Offset", "Offset image vertically (factor of image size)");
+  RNA_def_property_ui_text(
+      prop,
+      "Y Offset",
+      "Offset image vertically (factor of image size). (Deprecated: Use Translate node instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   RNA_def_struct_sdna_from(srna, "NodeScaleData", "storage");
@@ -9699,27 +9721,21 @@ static void def_cmp_bokehblur(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "use_extended_bounds", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", CMP_NODEFLAG_BLUR_EXTEND_BOUNDS);
-  RNA_def_property_ui_text(
-      prop, "Extend Bounds", "Extend bounds of the input image to fully fit blurred image");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
-#  if 0
-  prop = RNA_def_property(srna, "f_stop", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "custom3");
-  RNA_def_property_range(prop, 0.0f, 128.0f);
-  RNA_def_property_ui_text(
+  RNA_def_property_boolean_funcs(
       prop,
-      "F-Stop",
-      "Amount of focal blur, 128 (infinity) is perfect focus, half the value doubles "
-      "the blur radius");
+      "rna_node_property_to_input_getter<bool, node_input_extend_bounds>",
+      "rna_node_property_to_input_setter<bool, node_input_extend_bounds>");
+  RNA_def_property_ui_text(prop,
+                           "Extend Bounds",
+                           "Extend bounds of the input image to fully fit blurred image. "
+                           "(Deprecated: Use Extend Bounds input instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-#  endif
 
   prop = RNA_def_property(srna, "blur_max", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "custom4");
   RNA_def_property_range(prop, 0.0f, 10000.0f);
-  RNA_def_property_ui_text(prop, "Max Blur", "Blur limit, maximum CoC radius");
+  RNA_def_property_ui_text(
+      prop, "Max Blur", "Blur limit, maximum CoC radius. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -13615,6 +13631,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeVolumeInfo");
   define("ShaderNode", "ShaderNodeVolumePrincipled");
   define("ShaderNode", "ShaderNodeVolumeScatter", def_scatter);
+  define("ShaderNode", "ShaderNodeVolumeCoefficients", def_volume_coefficients);
   define("ShaderNode", "ShaderNodeWavelength");
   define("ShaderNode", "ShaderNodeWireframe", def_sh_tex_wireframe);
 

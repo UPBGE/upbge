@@ -73,10 +73,18 @@ Object *CurveFromGeometry::create_curve_object(Main *bmain, const OBJImportParam
   return obj;
 }
 
+static int8_t get_valid_nurbs_degree(const NurbsElement &element)
+{
+  /* Use max(1, min()) to avoid undefined clamp behavior when curve_indices.size() == 0 */
+  const int degree = std::max(1, std::min<int>(element.degree, element.curv_indices.size() - 1));
+  return degree + 1 > std::numeric_limits<int8_t>::max() ? std::numeric_limits<int8_t>::max() - 1 :
+                                                           int8_t(degree);
+}
+
 void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import_params)
 {
   const NurbsElement &nurbs_geometry = curve_geometry_.nurbs_element_;
-  const int degree = nurbs_geometry.degree;
+  const int8_t degree = get_valid_nurbs_degree(nurbs_geometry);
   Nurb *nurb = static_cast<Nurb *>(curve->nurb.first);
 
   nurb->type = CU_NURBS;
@@ -87,8 +95,7 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
   nurb->pntsu = 0;
   /* Total points = pntsu * pntsv. */
   nurb->pntsv = 1;
-  nurb->orderu = nurb->orderv = (nurbs_geometry.degree + 1 > SHRT_MAX) ? 4 :
-                                                                         nurbs_geometry.degree + 1;
+  nurb->orderu = nurb->orderv = degree + 1;
   nurb->resolu = nurb->resolv = curve->resolu;
 
   nurb->flagu = this->detect_knot_mode(import_params,
@@ -135,8 +142,29 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
   }
 }
 
+static bool detect_knot_mode_cyclic(const int degree,
+                                    const Span<int> indices,
+                                    const Span<float> knots)
+{
+  const Span<int> indices_tail = indices.take_back(degree);
+  for (const int i : IndexRange(degree)) {
+    if (indices[i] != indices_tail[i]) {
+      return false;
+    }
+  }
+  const Span<float> knots_tail = knots.take_back(2 * degree + 1);
+  for (const int i : IndexRange(degree - 1)) {
+    const float head_span = knots[i + 1] - knots[i];
+    const float tail_span = knots_tail[i + 1] - knots_tail[i];
+    if (abs(head_span - tail_span) > 0.0001f) {
+      return false;
+    }
+  }
+  return true;
+}
+
 short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
-                                          const int degree,
+                                          const int8_t degree,
                                           const Span<int> indices,
                                           const Span<float> knots,
                                           const float2 range)
@@ -144,33 +172,14 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
   short knot_mode = 0;
 
   if (import_params.close_spline_loops && indices.size() > degree) {
-    const Span<int> indices_tail = indices.take_back(degree);
-    bool is_cyclic = true;
-    for (const int i : IndexRange(degree)) {
-      if (indices[i] != indices_tail[i]) {
-        is_cyclic = false;
-        break;
-      }
-    }
-    const Span<float> knots_tail = knots.take_back(2 * degree + 1);
-    for (const int i : IndexRange(degree - 1)) {
-      const float head_span = knots[i + 1] - knots[i];
-      const float tail_span = knots_tail[i + 1] - knots_tail[i];
-      if (abs(head_span - tail_span) > 0.0001f) {
-        is_cyclic = false;
-        break;
-      }
-    }
-    if (is_cyclic) {
-      knot_mode = CU_NURB_CYCLIC;
-    }
+    SET_FLAG_FROM_TEST(knot_mode, detect_knot_mode_cyclic(degree, indices, knots), CU_NURB_CYCLIC);
   }
 
   /* Figure out whether curve should have U endpoint flag set:
    * the parameters should have at least (degree+1) values on each end,
    * and their values should match curve range. */
   bool do_endpoints = false;
-  int order = degree + 1;
+  const int8_t order = degree + 1;
   if (knots.size() >= order * 2) {
     do_endpoints = true;
     for (int i = 0; i < order; ++i) {

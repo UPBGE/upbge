@@ -31,7 +31,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_exec(GeoNodeExecParams params)
@@ -40,14 +40,18 @@ static void node_exec(GeoNodeExecParams params)
     return;
   }
 
-  if (params.user_data()->call_data->operator_data->mode != OB_MODE_EDIT) {
+  const GeoNodesOperatorData *operator_data = params.user_data()->call_data->operator_data;
+  const AttrDomain domain = static_cast<AttrDomain>(params.node().custom1);
+
+  /* Active Point, Edge, and Face are only supported in Edit Mode. */
+  if (operator_data->mode != OB_MODE_EDIT &&
+      ELEM(domain, AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face))
+  {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const GeoNodesOperatorData *operator_data = params.user_data()->call_data->operator_data;
-
-  switch (static_cast<AttrDomain>(params.node().custom1)) {
+  switch (domain) {
     case AttrDomain::Point:
       params.set_output("Exists", operator_data->active_point_index >= 0);
       params.set_output("Index", std::max(0, operator_data->active_point_index));

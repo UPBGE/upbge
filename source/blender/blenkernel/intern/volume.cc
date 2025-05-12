@@ -72,7 +72,6 @@ using blender::bke::GVolumeGrid;
 
 #ifdef WITH_OPENVDB
 #  include <list>
-#  include <mutex>
 
 #  include <openvdb/openvdb.h>
 #  include <openvdb/points/PointDataGrid.h>
@@ -110,7 +109,7 @@ struct VolumeGridVector : public std::list<GVolumeGrid> {
 
   /* Mutex for file loading of grids list. `const` write access to the fields after this must be
    * protected by locking with this mutex. */
-  mutable std::mutex mutex;
+  mutable blender::Mutex mutex;
   /* Absolute file path that grids have been loaded from. */
   char filepath[FILE_MAX];
   /* File loading error message. */
@@ -318,7 +317,7 @@ void BKE_volume_init_grids(Volume *volume)
 
 Volume *BKE_volume_add(Main *bmain, const char *name)
 {
-  Volume *volume = (Volume *)BKE_id_new(bmain, ID_VO, name);
+  Volume *volume = BKE_id_new<Volume>(bmain, name);
 
   return volume;
 }
@@ -480,7 +479,7 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
   }
 
   /* Double-checked lock. */
-  std::lock_guard<std::mutex> lock(const_grids.mutex);
+  std::lock_guard lock(const_grids.mutex);
   if (BKE_volume_is_loaded(volume)) {
     return const_grids.error_msg.empty();
   }
@@ -1027,6 +1026,16 @@ bool BKE_volume_grid_determinant_valid(const double determinant)
   UNUSED_VARS(determinant);
   return true;
 #endif
+}
+
+bool BKE_volume_voxel_size_valid(const float3 &voxel_size)
+{
+  return BKE_volume_grid_determinant_valid(voxel_size[0] * voxel_size[1] * voxel_size[2]);
+}
+
+bool BKE_volume_grid_transform_valid(const float4x4 &transform)
+{
+  return BKE_volume_grid_determinant_valid(blender::math::determinant(transform));
 }
 
 int BKE_volume_simplify_level(const Depsgraph *depsgraph)

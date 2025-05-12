@@ -704,7 +704,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 200 * UI_SCALE_FAC, UI_UNIT_Y, 0, style);
 
   uiItemL_ex(layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
-  uiItemL(layout, RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
+  layout->label(RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
 
   uiBut *text_but = uiDefBut(block,
                              UI_BTYPE_TEXT,
@@ -2581,7 +2581,7 @@ bool ED_curve_editfont_select_pick(
     bContext *C,
     const int mval[2],
     /* NOTE: `params->deselect_all` is ignored as only one text-box is active at once. */
-    const SelectPick_Params *params)
+    const SelectPick_Params &params)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *obedit = CTX_data_edit_object(C);

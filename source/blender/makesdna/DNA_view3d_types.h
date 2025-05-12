@@ -75,7 +75,13 @@ typedef struct RegionView3D {
 
   /** View rotation, must be kept normalized. */
   float viewquat[4];
-  /** Distance from 'ofs' along -viewinv[2] vector, where result is negative as is 'ofs'. */
+  /**
+   * Distance from `ofs` along `-viewinv[2]` vector, where result is negative as is `ofs`.
+   *
+   * \note Besides being above zero, the range of this value is not strictly defined,
+   * see #ED_view3d_dist_soft_range_get to calculate a working range
+   * viewport "zoom" functions to use.
+   */
   float dist;
   /** Camera view offsets, 1.0 = viewplane moves entire width/height. */
   float camdx, camdy;
@@ -118,6 +124,11 @@ typedef struct RegionView3D {
   char _pad8[4];
 
   char ndof_flag;
+  /**
+   * Rotation center used for for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
+   * Any modification should be followed by adjusting #RegionView3D::dist
+   * to prevent problems zooming in after navigation. See: #134732.
+   */
   float ndof_ofs[3];
 
   /** Active rotation from NDOF (run-time only). */

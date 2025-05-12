@@ -275,7 +275,10 @@ static void spreadsheet_update_context(const bContext *C)
       const std::optional<ViewerPathForGeometryNodesViewer> workspace_parsed_path =
           blender::ed::viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path);
       if (workspace_parsed_path.has_value()) {
-        if (BKE_viewer_path_equal(&sspreadsheet->viewer_path, &workspace->viewer_path)) {
+        if (BKE_viewer_path_equal(&sspreadsheet->viewer_path,
+                                  &workspace->viewer_path,
+                                  VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME))
+        {
           /* Nothing changed. */
           break;
         }
@@ -621,7 +624,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
                                      style);
   uiItemSpacer(layout);
   uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
-  uiItemL(layout, stats_str, ICON_NONE);
+  layout->label(stats_str, ICON_NONE);
   UI_block_layout_resolve(block, nullptr, nullptr);
   UI_block_align_end(block);
   UI_block_end(C, block);

@@ -47,16 +47,16 @@ bool maskedit_poll(bContext *C);
 /**
  * Are we displaying the seq output (not channels or histogram).
  */
-bool check_show_imbuf(SpaceSeq *sseq);
+bool check_show_imbuf(const SpaceSeq &sseq);
 
-bool check_show_strip(SpaceSeq *sseq);
+bool check_show_strip(const SpaceSeq &sseq);
 /**
  * Check if there is animation shown during playback.
  *
  * - Colors of color strips are displayed on the strip itself.
  * - Backdrop is drawn.
  */
-bool has_playback_animation(const SpaceSeq *sseq, const Scene *scene);
+bool has_playback_animation(const Scene *scene);
 
 void ED_operatormacros_sequencer();
 

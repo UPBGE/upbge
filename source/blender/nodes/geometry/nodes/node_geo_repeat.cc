@@ -47,18 +47,18 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "repeat_items", false, IFACE_("Repeat Items"))) {
+  if (uiLayout *panel = layout->panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
     socket_items::ui::draw_items_list_with_operators<RepeatItemsAccessor>(
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           uiLayoutSetPropSep(panel, true);
           uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 
-  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace repeat_input_node {

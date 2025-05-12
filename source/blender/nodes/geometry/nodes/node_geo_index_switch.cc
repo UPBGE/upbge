@@ -63,19 +63,19 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   bNode &node = *static_cast<bNode *>(ptr->data);
   NodeIndexSwitch &storage = node_storage(node);
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "index_switch_items", false, IFACE_("Items"))) {
+  if (uiLayout *panel = layout->panel(C, "index_switch_items", false, IFACE_("Items"))) {
     uiItemO(panel, IFACE_("Add Item"), ICON_ADD, "node.index_switch_item_add");
     uiLayout *col = &panel->column(false);
     for (const int i : IndexRange(storage.items_num)) {
       uiLayout *row = &col->row(false);
-      uiItemL(row, node.input_socket(i + 1).name, ICON_NONE);
+      row->label(node.input_socket(i + 1).name, ICON_NONE);
       uiItemIntO(row, "", ICON_REMOVE, "node.index_switch_item_remove", "index", i);
     }
   }

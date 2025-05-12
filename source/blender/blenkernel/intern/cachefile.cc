@@ -16,6 +16,7 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -45,8 +46,6 @@
 #ifdef WITH_USD
 #  include "usd.hh"
 #endif
-
-#include <mutex>
 
 static void cachefile_handle_free(CacheFile *cache_file);
 
@@ -153,7 +152,7 @@ IDTypeInfo IDType_ID_CF = {
 };
 
 /* TODO: make this per cache file to avoid global locks. */
-static std::mutex cache_mutex;
+static blender::Mutex cache_mutex;
 
 void BKE_cachefile_reader_open(CacheFile *cache_file,
                                CacheReader **reader,
@@ -308,7 +307,7 @@ static void cachefile_handle_free(CacheFile *cache_file)
 
 void *BKE_cachefile_add(Main *bmain, const char *name)
 {
-  CacheFile *cache_file = static_cast<CacheFile *>(BKE_id_new(bmain, ID_CF, name));
+  CacheFile *cache_file = BKE_id_new<CacheFile>(bmain, name);
 
   return cache_file;
 }

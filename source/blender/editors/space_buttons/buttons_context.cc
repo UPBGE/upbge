@@ -1234,7 +1234,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     /* Add > triangle. */
     if (!first) {
-      uiItemL(row, "", ICON_RIGHTARROW);
+      row->label("", ICON_RIGHTARROW);
     }
 
     /* Add icon and name. */
@@ -1250,7 +1250,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
       }
     }
     else {
-      uiItemL(row, "", icon);
+      row->label("", icon);
     }
 
     first = false;

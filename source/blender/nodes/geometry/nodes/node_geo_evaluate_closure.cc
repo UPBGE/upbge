@@ -82,22 +82,29 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "input_items", false, IFACE_("Input Items"))) {
+  if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "output_items", false, IFACE_("Output Items"))) {
+  if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureOutputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
+}
+
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode & /*node*/,
+                                                       const bNodeSocket &output_socket)
+{
+  return evaluate_closure_node_internally_linked_input(output_socket);
 }
 
 static void node_operators()
@@ -117,6 +124,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.internally_linked_input = node_internally_linked_input;
   ntype.register_operators = node_operators;
   bke::node_type_storage(
       ntype, "NodeGeometryEvaluateClosure", node_free_storage, node_copy_storage);

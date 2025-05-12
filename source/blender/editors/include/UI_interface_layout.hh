@@ -40,6 +40,11 @@ enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
 }  // namespace blender::ui
 
+struct PanelLayout {
+  uiLayout *header;
+  uiLayout *body;
+};
+
 /**
  * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -53,6 +58,9 @@ struct uiItem {
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
 };
+
+enum eUI_Item_Flag : uint16_t;
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -90,6 +98,9 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  uiLayout &absolute(bool align);
+  uiBlock *absolute_block();
+
   /**
    * Add a new box sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column and are surrounded by a box.
@@ -104,7 +115,7 @@ struct uiLayout : uiItem {
    * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column.
    * \param heading: Heading label to set to the first child element added in the sub-layout
-   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * through #uiLayout::prop. When property split is used, this heading label is set in the split
    * label column when there is no label defined.
    */
   uiLayout &column(bool align, blender::StringRef heading);
@@ -118,7 +129,7 @@ struct uiLayout : uiItem {
    * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
    * other in row.
    * \param heading: Heading label to set to the first child element added in the sub-layout
-   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * through #uiLayout::prop. When property split is used, this heading label is set in the split
    * label column when there is no label defined.
    */
   uiLayout &row(bool align, blender::StringRef heading);
@@ -144,12 +155,114 @@ struct uiLayout : uiItem {
   uiLayout &grid_flow(
       bool row_major, int columns_len, bool even_columns, bool even_rows, bool align);
 
+  /** Add a new list box sub-layout. */
+  uiLayout &list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *actprop);
+
+  /**
+   * Add a pie menu layout, buttons are arranged around a center.
+   * Only one pie menu per layout root can be added, if it's already initialized it will be
+   * returned instead of adding a new one.
+   */
+  uiLayout &menu_pie();
+
+  /** Add a new overlap sub-layout. */
+  uiLayout &overlap();
+
+  /**
+   * Create a "layout panel" which is a panel that is defined as part of the `uiLayout`. This
+   * allows creating expandable sections which can also be nested.
+   *
+   * The open-state of the panel is defined by an RNA property which is passed in as a pointer +
+   * property name pair. This gives the caller flexibility to decide who should own the open-state.
+   *
+   * \param C: The context is necessary because sometimes the panel may be forced to be open by the
+   * context even of the open-property is `false`. This can happen with e.g. property search.
+   * \param layout: The `uiLayout` that should contain the sub-panel.
+   * Only layouts that span the full width of the region are supported for now.
+   * \param open_prop_owner: Data that contains the open-property.
+   * \param open_prop_name: Name of the open-property in `open_prop_owner`.
+   *
+   * \return A #PanelLayout containing layouts for both the header row and the panel body. If the
+   * panel is closed and should not be drawn, the body layout will be NULL.
+   */
+  PanelLayout panel_prop(const bContext *C,
+                         PointerRNA *open_prop_owner,
+                         blender::StringRefNull open_prop_name);
+  /**
+   * Variant of #panel_prop that automatically creates the header row with the
+   * given label and only returns the body layout.
+   *
+   * \param label: Text that's shown in the panel header. It should already be translated.
+   *
+   * \return NULL if the panel is closed and should not be drawn, otherwise the layout where the
+   * sub-panel should be inserted into.
+   */
+  uiLayout *panel_prop(const bContext *C,
+                       PointerRNA *open_prop_owner,
+                       blender::StringRefNull open_prop_name,
+                       blender::StringRef label);
+  PanelLayout panel_prop_with_bool_header(const bContext *C,
+                                          PointerRNA *open_prop_owner,
+                                          blender::StringRefNull open_prop_name,
+                                          PointerRNA *bool_prop_owner,
+                                          blender::StringRefNull bool_prop_name,
+                                          std::optional<blender::StringRefNull> label);
+  /**
+   * Variant of #panel_prop that automatically stores the open-close-state in the root
+   * panel. When a dynamic number of panels is required, it's recommended to use #panel_prop
+   * instead of passing in generated id names.
+   *
+   * \param idname: String that identifies the open-close-state in the root panel.
+   */
+  PanelLayout panel(const bContext *C, blender::StringRef idname, bool default_closed);
+
+  /**
+   * Variant of #panel that automatically creates the header row with the given label and
+   * only returns the body layout.
+   *
+   * \param label:  Text that's shown in the panel header. It should already be translated.
+   *
+   * \return NULL if the panel is closed and should not be drawn, otherwise the layout where the
+   * sub-panel should be inserted into.
+   */
+  uiLayout *panel(const bContext *C,
+                  blender::StringRef idname,
+                  bool default_closed,
+                  blender::StringRef label);
+
   /**
    * Add a new split sub-layout, items placed in this sub-layout are added horizontally next to
    * each other in row, but width is splitted between the first item and remaining items.
    * \param percentage: Width percent to split.
    */
   uiLayout &split(float percentage, bool align);
+
+  /** Items. */
+
+  /** Adds a label item that will display text and/or icon in the layout. */
+  void label(blender::StringRef name, int icon);
+
+  /**
+   * Adds a RNA property item, and exposes it into the layout.
+   * \param ptr: RNA pointer to the struct owner of \a prop.
+   * \param prop: The property in \a ptr to add.
+   * \param index: When \a prop is a array property, indicates what entry to expose through the
+   * layout, #RNA_NO_INDEX (-1) means all.
+   */
+  void prop(PointerRNA *ptr,
+            PropertyRNA *prop,
+            int index,
+            int value,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRefNull> name_opt,
+            int icon,
+            std::optional<blender::StringRefNull> placeholder = std::nullopt);
+  /** Adds a RNA property item, and exposes it into the layout. */
+  void prop(PointerRNA *ptr,
+            blender::StringRefNull propname,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRefNull> name,
+            int icon);
 };
 
 enum {
@@ -173,7 +286,7 @@ enum {
   UI_LAYOUT_ALIGN_RIGHT = 3,
 };
 
-enum eUI_Item_Flag {
+enum eUI_Item_Flag : uint16_t {
   /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   UI_ITEM_R_EXPAND = 1 << 1,
   UI_ITEM_R_SLIDER = 1 << 2,
@@ -318,93 +431,7 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 
 /* Layout create functions. */
 
-struct PanelLayout {
-  uiLayout *header;
-  uiLayout *body;
-};
-
-/**
- * Create a "layout panel" which is a panel that is defined as part of the `uiLayout`. This allows
- * creating expandable sections which can also be nested.
- *
- * The open-state of the panel is defined by an RNA property which is passed in as a pointer +
- * property name pair. This gives the caller flexibility to decide who should own the open-state.
- *
- * \param C: The context is necessary because sometimes the panel may be forced to be open by the
- * context even of the open-property is `false`. This can happen with e.g. property search.
- * \param layout: The `uiLayout` that should contain the sub-panel.
- * Only layouts that span the full width of the region are supported for now.
- * \param open_prop_owner: Data that contains the open-property.
- * \param open_prop_name: Name of the open-property in `open_prop_owner`.
- *
- * \return A #PanelLayout containing layouts for both the header row and the panel body. If the
- * panel is closed and should not be drawn, the body layout will be NULL.
- */
-PanelLayout uiLayoutPanelProp(const bContext *C,
-                              uiLayout *layout,
-                              PointerRNA *open_prop_owner,
-                              blender::StringRefNull open_prop_name);
-PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                            uiLayout *layout,
-                                            PointerRNA *open_prop_owner,
-                                            blender::StringRefNull open_prop_name,
-                                            PointerRNA *bool_prop_owner,
-                                            blender::StringRefNull bool_prop_name,
-                                            std::optional<blender::StringRefNull> label);
-
-/**
- * Variant of #uiLayoutPanelProp that automatically creates the header row with the
- * given label and only returns the body layout.
- *
- * \param label: Text that's shown in the panel header. It should already be translated.
- *
- * \return NULL if the panel is closed and should not be drawn, otherwise the layout where the
- * sub-panel should be inserted into.
- */
-uiLayout *uiLayoutPanelProp(const bContext *C,
-                            uiLayout *layout,
-                            PointerRNA *open_prop_owner,
-                            blender::StringRefNull open_prop_name,
-                            blender::StringRef label);
-
-/**
- * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
- * panel. When a dynamic number of panels is required, it's recommended to use #uiLayoutPanelProp
- * instead of passing in generated id names.
- *
- * \param idname: String that identifies the open-close-state in the root panel.
- */
-PanelLayout uiLayoutPanel(const bContext *C,
-                          uiLayout *layout,
-                          blender::StringRef idname,
-                          bool default_closed);
-
-/**
- * Variant of #uiLayoutPanel that automatically creates the header row with the given label and
- * only returns the body layout.
- *
- * \param label:  Text that's shown in the panel header. It should already be translated.
- *
- * \return NULL if the panel is closed and should not be drawn, otherwise the layout where the
- * sub-panel should be inserted into.
- */
-uiLayout *uiLayoutPanel(const bContext *C,
-                        uiLayout *layout,
-                        blender::StringRef idname,
-                        bool default_closed,
-                        blender::StringRef label);
-
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
-
-uiLayout *uiLayoutListBox(uiLayout *layout,
-                          uiList *ui_list,
-                          PointerRNA *actptr,
-                          PropertyRNA *actprop);
-uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align);
-uiLayout *uiLayoutOverlap(uiLayout *layout);
-uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
-/** Pie menu layout: Buttons are arranged around a center. */
-uiLayout *uiLayoutRadial(uiLayout *layout);
 
 enum class LayoutSeparatorType : int8_t {
   Auto,
@@ -498,21 +525,6 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              const char *menu_id, /* extra menu arg. */
                              PointerRNA *r_opptr);
 
-void uiItemR(uiLayout *layout,
-             PointerRNA *ptr,
-             blender::StringRefNull propname,
-             eUI_Item_Flag flag,
-             std::optional<blender::StringRefNull> name,
-             int icon);
-void uiItemFullR(uiLayout *layout,
-                 PointerRNA *ptr,
-                 PropertyRNA *prop,
-                 int index,
-                 int value,
-                 eUI_Item_Flag flag,
-                 std::optional<blender::StringRefNull> name_opt,
-                 int icon,
-                 std::optional<blender::StringRefNull> placeholder = std::nullopt);
 /**
  * Use a wrapper function since re-implementing all the logic in this function would be messy.
  */
@@ -608,8 +620,8 @@ struct uiPropertySplitWrapper {
 };
 
 /**
- * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
- * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
+ * Normally, we handle the split layout in #uiLayout::prop(), but there are other cases where the
+ * logic is needed. Ideally, #uiLayout::prop() could just call this, but it currently has too many
  * special needs.
  *
  * The returned #uiPropertySplitWrapper.decorator_column may be null when decorators are disabled
@@ -617,7 +629,6 @@ struct uiPropertySplitWrapper {
  */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
-void uiItemL(uiLayout *layout, blender::StringRef name, int icon); /* label */
 uiBut *uiItemL_ex(
     uiLayout *layout, blender::StringRef name, int icon, bool highlight, bool redalert);
 /**

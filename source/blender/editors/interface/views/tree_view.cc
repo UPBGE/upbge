@@ -883,7 +883,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   uiLayout &prev_layout = current_layout();
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(&block_);
 
-  uiLayout *overlap = uiLayoutOverlap(&prev_layout);
+  uiLayout *overlap = &prev_layout.overlap();
 
   if (!item.is_interactive_) {
     uiLayoutSetActive(overlap, false);
@@ -1000,7 +1000,7 @@ void BasicTreeViewItem::build_row(uiLayout &row)
 void BasicTreeViewItem::add_label(uiLayout &layout, StringRefNull label_override)
 {
   const StringRefNull label = label_override.is_empty() ? StringRefNull(label_) : label_override;
-  uiItemL(&layout, IFACE_(label), icon);
+  layout.label(IFACE_(label), icon);
 }
 
 void BasicTreeViewItem::on_activate(bContext &C)

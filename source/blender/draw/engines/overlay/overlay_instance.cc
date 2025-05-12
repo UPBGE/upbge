@@ -244,7 +244,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_WIRE, gb.colors.wire);
   UI_GetThemeColor4fv(TH_WIRE_EDIT, gb.colors.wire_edit);
   UI_GetThemeColor4fv(TH_ACTIVE, gb.colors.active_object);
-  UI_GetThemeColor4fv(TH_SELECT, gb.colors.select);
+  UI_GetThemeColor4fv(TH_SELECT, gb.colors.object_select);
   gb.colors.library_select = rgba_uchar_to_float(0x88, 0xFF, 0xFF, 155);
   gb.colors.library = rgba_uchar_to_float(0x55, 0xCC, 0xCC, 155);
   UI_GetThemeColor4fv(TH_TRANSFORM, gb.colors.transform);
@@ -447,7 +447,7 @@ void Instance::begin_sync()
     layer.bounds.begin_sync(resources, state);
     layer.cameras.begin_sync(resources, state);
     layer.curves.begin_sync(resources, state);
-    layer.edit_text.begin_sync(resources, state);
+    layer.text.begin_sync(resources, state);
     layer.empties.begin_sync(resources, state);
     layer.facing.begin_sync(resources, state);
     layer.fade.begin_sync(resources, state);
@@ -573,7 +573,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         layer.pointclouds.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_FONT:
-        layer.edit_text.edit_object_sync(manager, ob_ref, resources, state);
+        layer.text.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_GREASE_PENCIL:
         layer.grease_pencil.edit_object_sync(manager, ob_ref, resources, state);
@@ -653,7 +653,7 @@ void Instance::end_sync()
     layer.axes.end_sync(resources, state);
     layer.bounds.end_sync(resources, state);
     layer.cameras.end_sync(resources, state);
-    layer.edit_text.end_sync(resources, state);
+    layer.text.end_sync(resources, state);
     layer.empties.end_sync(resources, state);
     layer.force_fields.end_sync(resources, state);
     layer.lights.end_sync(resources, state);
@@ -812,7 +812,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     // layer.facing.draw(framebuffer, manager, view);
     layer.fade.draw(framebuffer, manager, view);
     layer.mode_transfer.draw(framebuffer, manager, view);
-    layer.edit_text.draw(framebuffer, manager, view);
+    layer.text.draw(framebuffer, manager, view);
     layer.paints.draw(framebuffer, manager, view);
     layer.particles.draw(framebuffer, manager, view);
   };

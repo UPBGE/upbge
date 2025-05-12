@@ -58,7 +58,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -73,10 +73,10 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 
-  if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "capture_attribute_items", false, IFACE_("Capture Items")))
+  if (uiLayout *panel = layout->panel(
+          C, "capture_attribute_items", false, IFACE_("Capture Items")))
   {
     socket_items::ui::draw_items_list_with_operators<CaptureAttributeItemsAccessor>(
         C, panel, tree, node);
@@ -84,7 +84,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         tree, node, [&](PointerRNA *item_ptr) {
           uiLayoutSetPropSep(panel, true);
           uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 }
@@ -245,6 +245,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   });
 }
 
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode &node,
+                                                       const bNodeSocket &output_socket)
+{
+  return &node.input_socket(output_socket.index());
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -266,6 +273,7 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
+  ntype.internally_linked_input = node_internally_linked_input;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

@@ -397,6 +397,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
 # Select Backend source based on availability
@@ -630,6 +631,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_volume_absorption.glsl
   shaders/material/gpu_shader_material_volume_principled.glsl
   shaders/material/gpu_shader_material_volume_scatter.glsl
+  shaders/material/gpu_shader_material_volume_coefficients.glsl
   shaders/material/gpu_shader_material_voronoi.glsl
   shaders/material/gpu_shader_material_wireframe.glsl
   shaders/material/gpu_shader_material_world_normals.glsl
@@ -746,10 +748,6 @@ if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
-endif()
-
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
@@ -768,14 +766,11 @@ target_link_libraries(bf_gpu PUBLIC
   bf_compositor_shaders
   bf_draw_shaders
   bf_gpu_shaders
+  bf_imbuf_opencolorio_shaders
 )
 
 if(WITH_OPENGL_BACKEND AND UNIX)
   target_link_libraries(bf_gpu PUBLIC rt)
-endif()
-
-if(WITH_OPENCOLORIO)
-  target_link_libraries(bf_gpu PUBLIC bf_ocio_shaders)
 endif()
 
 if(WITH_OPENSUBDIV)

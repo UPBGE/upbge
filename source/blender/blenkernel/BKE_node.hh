@@ -136,6 +136,9 @@ using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
 using NodeElemEvalFunction = void (*)(blender::nodes::value_elem::ElemEvalParams &params);
 using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEvalParams &params);
+using NodeInternallyLinkedInputFunction = const bNodeSocket *(*)(const bNodeTree &tree,
+                                                                 const bNode &node,
+                                                                 const bNodeSocket &output_socket);
 
 /**
  * \brief Defines a socket type.
@@ -259,8 +262,6 @@ struct bNodeType {
 
   /** Called when the node is updated in the editor. */
   void (*updatefunc)(bNodeTree *ntree, bNode *node) = nullptr;
-  /** Check and update if internal ID data has changed. */
-  void (*group_update_func)(bNodeTree *ntree, bNode *node) = nullptr;
 
   /**
    * Initialize a new node instance of this type after creation.
@@ -366,6 +367,9 @@ struct bNodeType {
 
   /** Get extra information that is drawn next to the node. */
   NodeExtraInfoFunction get_extra_info = nullptr;
+
+  /** Get the internally linked input socket for the case when the node is muted. */
+  NodeInternallyLinkedInputFunction internally_linked_input = nullptr;
 
   /**
    * "Abstract" evaluation of the node. It tells the caller which parts of the inputs affect which
