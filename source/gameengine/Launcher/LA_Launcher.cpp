@@ -258,9 +258,11 @@ void LA_Launcher::InitEngine()
   if (U.audiodevice != 4) {
     // Initialize 3D Audio Settings.
     AUD_Device *device = BKE_sound_get_device();
-    AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
-    AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
-    AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
+    if (device) {
+      AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
+      AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
+      AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
+    }
   }
   //}
 #endif  // WITH_AUDASPACE
@@ -354,7 +356,10 @@ void LA_Launcher::ExitEngine()
   //if (m_audioDeviceIsInitialized) {
     // Stop all remaining playing sounds.
   if (U.audiodevice != 4) {
-    AUD_Device_stopAll(BKE_sound_get_device());
+    AUD_Device *device = BKE_sound_get_device();
+    if (device) {
+      AUD_Device_stopAll(BKE_sound_get_device());
+    }
   }
   //}
 #endif  // WITH_AUDASPACE

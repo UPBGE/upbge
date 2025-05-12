@@ -31,6 +31,7 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_FACEMAP:
     case CD_MTEXPOLY:
     case CD_MLOOPUV:
+    case CD_RECAST:
     case CD_MPOLY:
     case CD_MLOOP:
     case CD_BWEIGHT:

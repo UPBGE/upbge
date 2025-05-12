@@ -1730,4 +1730,9 @@ void BKE_sound_load_no_assert(Main *bmain, struct bSound *sound)
 {
   sound_load_audio(bmain, sound, true);
 }
+
+void *BKE_sound_get_device()
+{
+  return g_state.sound_device;
+}
 /**************************/
