@@ -1,1 +1,1 @@
-*.* merge=ours
+*.* -merge -diff
