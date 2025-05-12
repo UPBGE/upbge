@@ -158,8 +158,6 @@ namespace blender::nodes {
 
 StructRNA *SeparateBundleItemsAccessor::item_srna = &RNA_NodeGeometrySeparateBundleItem;
 int SeparateBundleItemsAccessor::node_type = GEO_NODE_SEPARATE_BUNDLE;
-int SeparateBundleItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometrySeparateBundleItem);
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
