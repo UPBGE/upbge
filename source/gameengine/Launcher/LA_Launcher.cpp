@@ -257,6 +257,7 @@ void LA_Launcher::InitEngine()
   //if (m_audioDeviceIsInitialized) {
   if (U.audiodevice != 4) {
     // Initialize 3D Audio Settings.
+    BKE_sound_use_begin(); // Since 308f6032c8047ea710fa75510ec212ca84d14135
     AUD_Device *device = BKE_sound_get_device();
     if (device) {
       AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);

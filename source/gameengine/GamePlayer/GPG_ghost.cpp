@@ -1993,7 +1993,7 @@ int main(int argc,
 
   /* No need to call this early, rather do it late so that other
    * pieces of Blender using sound may exit cleanly, see also T50676. */
-  BKE_sound_exit();
+  BKE_sound_exit_once();
 
   BKE_appdir_exit();
 
