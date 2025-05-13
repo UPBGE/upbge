@@ -150,11 +150,11 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
     });
   }
 
-  uiItemS(layout);
+  layout->separator();
 
-  uiItemO(layout, IFACE_("Eyedropper"), ICON_EYEDROPPER, "UI_OT_eyedropper_colorramp");
+  layout->op("UI_OT_eyedropper_colorramp", IFACE_("Eyedropper"), ICON_EYEDROPPER);
 
-  uiItemS(layout);
+  layout->separator();
 
   {
     uiBut *but = uiDefIconTextBut(block,

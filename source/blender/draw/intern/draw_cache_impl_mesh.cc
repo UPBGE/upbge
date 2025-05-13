@@ -221,12 +221,6 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
           layer = CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name);
           type = CD_MTFACE;
 
-#if 0 /* Tangents are always from UVs - this will never happen. */
-          if (layer == -1) {
-            layer = CustomData_get_named_layer(cd_ldata, CD_TANGENT, name);
-            type = CD_TANGENT;
-          }
-#endif
           if (layer == -1) {
             /* Try to match a generic attribute, we use the first attribute domain with a
              * matching name. */
@@ -307,7 +301,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
         case CD_PROP_FLOAT:
         case CD_PROP_FLOAT2: {
           if (layer != -1 && domain.has_value()) {
-            drw_attributes_add_request(attributes, name, type, *domain);
+            drw_attributes_add_request(attributes, name);
           }
           break;
         }
@@ -702,10 +696,10 @@ static void request_active_and_default_color_attributes(const Object &object,
       int layer_index;
       eCustomDataType type;
       if (drw_custom_data_match_attribute(cd_vdata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name, type, bke::AttrDomain::Point);
+        drw_attributes_add_request(&attributes, name);
       }
       else if (drw_custom_data_match_attribute(cd_ldata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name, type, bke::AttrDomain::Corner);
+        drw_attributes_add_request(&attributes, name);
       }
     }
   };

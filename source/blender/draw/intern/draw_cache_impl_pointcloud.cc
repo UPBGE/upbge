@@ -316,7 +316,7 @@ static void pointcloud_extract_attribute(const PointCloud &pointcloud,
    * similar texture state swizzle to map the attribute correctly as for volume attributes, so we
    * can control the conversion ourselves. */
   bke::AttributeReader<ColorGeometry4f> attribute = attributes.lookup_or_default<ColorGeometry4f>(
-      request.attribute_name, request.domain, {0.0f, 0.0f, 0.0f, 1.0f});
+      request.attribute_name, bke::AttrDomain::Point, {0.0f, 0.0f, 0.0f, 1.0f});
 
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
@@ -356,12 +356,10 @@ gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
     ListBase gpu_attrs = GPU_material_attributes(gpu_material);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
       const char *name = gpu_attr->name;
-      const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
-      if (!meta_data) {
+      if (!attributes.contains(name)) {
         continue;
       }
-
-      drw_attributes_add_request(&attrs_needed, name, meta_data->data_type, meta_data->domain);
+      drw_attributes_add_request(&attrs_needed, name);
     }
   }
 
@@ -408,13 +406,12 @@ gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const 
   const bke::AttributeAccessor attributes = pointcloud->attributes();
   PointCloudBatchCache &cache = *pointcloud_batch_cache_get(*pointcloud);
 
-  const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
-  if (!meta_data) {
+  if (!attributes.contains(name)) {
     return nullptr;
   }
   {
     DRW_Attributes requests{};
-    drw_attributes_add_request(&requests, name, meta_data->data_type, meta_data->domain);
+    drw_attributes_add_request(&requests, name);
     drw_attributes_merge(&cache.eval_cache.attr_used, &requests, cache.render_mutex);
   }
 

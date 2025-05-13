@@ -75,7 +75,8 @@ static void store_transform_properties(const Scene *scene,
   tdseq->orig_rotation = transform->rotation;
   tdseq->orig_flag = strip->flag;
   tdseq->orig_mirror = seq::image_transform_mirror_factor_get(strip);
-  tdseq->active_seq_orig_rotation = ed->act_strip->data->transform->rotation;
+  tdseq->active_seq_orig_rotation = ed->act_strip ? ed->act_strip->data->transform->rotation :
+                                                    transform->rotation;
   tdseq->strip = strip;
   td->extra = static_cast<void *>(tdseq);
 }
@@ -270,7 +271,7 @@ static void image_transform_set(TransInfo *t)
 
     /* Scale. */
     transform->scale_x = tdseq->orig_scale.x * result.scale.x;
-    transform->scale_y = tdseq->orig_scale.x * result.scale.x;
+    transform->scale_y = tdseq->orig_scale.y * result.scale.y;
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {

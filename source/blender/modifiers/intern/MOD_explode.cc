@@ -1192,9 +1192,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetActive(row, has_vertex_group);
   row->prop(ptr, "protect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemO(layout, IFACE_("Refresh"), ICON_NONE, "OBJECT_OT_explode_refresh");
+  layout->op("OBJECT_OT_explode_refresh", IFACE_("Refresh"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

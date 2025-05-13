@@ -566,9 +566,9 @@ static void panel_draw(const bContext *C, Panel *panel)
     col = &row->column(false);
 
     uiLayout *sub = &col->column(true);
-    uiItemO(sub, "", ICON_ADD, "OBJECT_OT_grease_pencil_time_modifier_segment_add");
-    uiItemO(sub, "", ICON_REMOVE, "OBJECT_OT_grease_pencil_time_modifier_segment_remove");
-    uiItemS(col);
+    sub->op("OBJECT_OT_grease_pencil_time_modifier_segment_add", "", ICON_ADD);
+    sub->op("OBJECT_OT_grease_pencil_time_modifier_segment_remove", "", ICON_REMOVE);
+    col->separator();
     sub = &col->column(true);
     uiItemEnumO_string(
         sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_time_modifier_segment_move", "type", "UP");
@@ -615,7 +615,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void segment_list_item_draw(uiList * /*ui_list*/,

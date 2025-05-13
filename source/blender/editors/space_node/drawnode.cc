@@ -611,8 +611,8 @@ static void node_composit_buts_cryptomatte_legacy_ex(uiLayout *layout,
                                                      bContext * /*C*/,
                                                      PointerRNA * /*ptr*/)
 {
-  uiItemO(layout, IFACE_("Add Crypto Layer"), ICON_ADD, "NODE_OT_cryptomatte_layer_add");
-  uiItemO(layout, IFACE_("Remove Crypto Layer"), ICON_REMOVE, "NODE_OT_cryptomatte_layer_remove");
+  layout->op("NODE_OT_cryptomatte_layer_add", IFACE_("Add Crypto Layer"), ICON_ADD);
+  layout->op("NODE_OT_cryptomatte_layer_remove", IFACE_("Remove Crypto Layer"), ICON_REMOVE);
 }
 
 static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -1360,7 +1360,11 @@ static void std_node_socket_draw(
               break;
             }
           }
-          layout->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+          const char *name = "";
+          if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
+            name = sock->name;
+          }
+          layout->prop(ptr, "default_value", DEFAULT_FLAGS, name, ICON_NONE);
         }
       }
       else if (default_value->has_conflict()) {
@@ -1957,7 +1961,7 @@ static void set_nodelink_vertex(gpu::VertBuf *vbo,
                                 uint pos_id,
                                 uint exp_id,
                                 uint v,
-                                const uchar uv[2],
+                                const float uv[2],
                                 const float pos[2],
                                 const float exp[2])
 {
@@ -1969,7 +1973,7 @@ static void set_nodelink_vertex(gpu::VertBuf *vbo,
 static void nodelink_batch_init()
 {
   GPUVertFormat format = {0};
-  uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_U8, 2, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint expand_id = GPU_vertformat_attr_add(&format, "expand", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
@@ -1984,7 +1988,7 @@ static void nodelink_batch_init()
   int v = 0;
 
   for (int k = 0; k < 2; k++) {
-    uchar uv[2] = {0, 0};
+    float uv[2] = {0.0f, 0.0f};
     float pos[2] = {0.0f, 0.0f};
     float exp[2] = {0.0f, 1.0f};
 
@@ -1995,47 +1999,47 @@ static void nodelink_batch_init()
 
     /* curve strip */
     for (int i = 0; i < LINK_RESOL; i++) {
-      uv[0] = 255 * (i / float(LINK_RESOL - 1));
-      uv[1] = 0;
+      uv[0] = (i / float(LINK_RESOL - 1));
+      uv[1] = 0.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
-      uv[1] = 255;
+      uv[1] = 1.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     }
     /* restart */
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-    uv[0] = 127;
-    uv[1] = 0;
+    uv[0] = 0.5f;
+    uv[1] = 0.0f;
     copy_v2_v2(pos, arrow_verts[0]);
     copy_v2_v2(exp, arrow_expand_axis[0]);
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     /* arrow */
     for (int i = 0; i < 3; i++) {
-      uv[1] = 0;
+      uv[1] = 0.0f;
       copy_v2_v2(pos, arrow_verts[i]);
       copy_v2_v2(exp, arrow_expand_axis[i]);
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-      uv[1] = 255;
+      uv[1] = 1.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     }
 
     /* restart */
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-    uv[0] = 127;
-    uv[1] = 0;
+    uv[0] = 0.5f;
+    uv[1] = 0.0f;
     copy_v2_v2(pos, mute_verts[0]);
     copy_v2_v2(exp, mute_expand_axis[0]);
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     /* bar */
     for (int i = 0; i < 3; ++i) {
-      uv[1] = 0;
+      uv[1] = 0.0f;
       copy_v2_v2(pos, mute_verts[i]);
       copy_v2_v2(exp, mute_expand_axis[i]);
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-      uv[1] = 255;
+      uv[1] = 1.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     }
 
@@ -2069,7 +2073,7 @@ static void nodelink_batch_init()
   g_batch_link.end_color_id = GPU_vertformat_attr_add(
       &format_inst, "end_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
   g_batch_link.muted_id = GPU_vertformat_attr_add(
-      &format_inst, "domuted", GPU_COMP_U8, 2, GPU_FETCH_INT);
+      &format_inst, "domuted", GPU_COMP_U32, 1, GPU_FETCH_INT);
   g_batch_link.dim_factor_id = GPU_vertformat_attr_add(
       &format_inst, "dim_factor", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   g_batch_link.thickness_id = GPU_vertformat_attr_add(
@@ -2195,7 +2199,7 @@ static void nodelink_batch_add_link(const SpaceNode &snode,
   copy_v4_v4((float *)GPU_vertbuf_raw_step(&g_batch_link.start_color_step),
              draw_config.start_color);
   copy_v4_v4((float *)GPU_vertbuf_raw_step(&g_batch_link.end_color_step), draw_config.end_color);
-  char *muted = (char *)GPU_vertbuf_raw_step(&g_batch_link.muted_step);
+  uint32_t *muted = (uint32_t *)GPU_vertbuf_raw_step(&g_batch_link.muted_step);
   muted[0] = draw_config.drawmuted;
   *(float *)GPU_vertbuf_raw_step(&g_batch_link.dim_factor_step) = draw_config.dim_factor;
   *(float *)GPU_vertbuf_raw_step(&g_batch_link.thickness_step) = draw_config.thickness;

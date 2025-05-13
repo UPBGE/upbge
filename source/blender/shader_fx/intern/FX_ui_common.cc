@@ -121,12 +121,11 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   uiLayoutSetUnitsX(layout, 4.0f);
 
   /* Duplicate. */
-  uiItemO(layout,
-          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
-          ICON_DUPLICATE,
-          "OBJECT_OT_shaderfx_copy");
+  layout->op("OBJECT_OT_shaderfx_copy",
+             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
+             ICON_DUPLICATE);
 
-  uiItemS(layout);
+  layout->separator();
 
   /* Move to first. */
   row = &layout->column(false);
@@ -199,10 +198,10 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
 
   row = &row->row(false);
   uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-  uiItemO(row, "", ICON_X, "OBJECT_OT_shaderfx_remove");
+  row->op("OBJECT_OT_shaderfx_remove", "", ICON_X);
 
   /* Some padding so the X isn't too close to the drag icon. */
-  uiItemS(layout);
+  layout->separator();
 }
 
 /** \} */

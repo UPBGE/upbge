@@ -722,7 +722,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   /* Hitting Enter in the text input is treated the same as clicking the Confirm button. */
   UI_but_func_set(text_but, text_insert_unicode_confirm, block, edit_string);
 
-  uiItemS(layout);
+  layout->separator();
 
   /* Buttons. */
 
@@ -2250,7 +2250,6 @@ void ED_curve_editfont_make(Object *obedit)
 {
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
-  int len_char32;
 
   if (ef == nullptr) {
     ef = cu->editfont = MEM_callocN<EditFont>("editfont");
@@ -2261,10 +2260,12 @@ void ED_curve_editfont_make(Object *obedit)
   }
 
   /* Convert the original text to chat32_t. */
-  len_char32 = BLI_str_utf8_as_utf32(ef->textbuf, cu->str, MAXTEXT + 4);
-  BLI_assert(len_char32 == cu->len_char32);
-  ef->len = len_char32;
-  BLI_assert(ef->len >= 0);
+  if (cu->str) {
+    int len_char32 = BLI_str_utf8_as_utf32(ef->textbuf, cu->str, MAXTEXT + 4);
+    BLI_assert(len_char32 == cu->len_char32);
+    ef->len = len_char32;
+    BLI_assert(ef->len >= 0);
+  }
 
   /* Old files may not have this initialized (v2.34). Leaving zeroed is OK. */
   if (cu->strinfo) {
@@ -2290,7 +2291,9 @@ void ED_curve_editfont_load(Object *obedit)
   EditFont *ef = cu->editfont;
 
   /* Free the old curve string */
-  MEM_freeN(cu->str);
+  if (cu->str) {
+    MEM_freeN(cu->str);
+  }
 
   /* Calculate the actual string length in UTF-8 variable characters */
   cu->len_char32 = ef->len;

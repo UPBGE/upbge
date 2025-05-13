@@ -169,7 +169,7 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
   uiItemIntO(row, "", ICON_X, "SPREADSHEET_OT_remove_row_filter_rule", "index", current_index);
 
   /* Some padding so the X isn't too close to the drag icon. */
-  uiItemS_ex(layout, 0.25f);
+  layout->separator(0.25f);
 }
 
 static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
@@ -270,7 +270,7 @@ static void spreadsheet_row_filters_layout(const bContext *C, Panel *panel)
     uiLayoutSetActive(layout, false);
   }
 
-  uiItemO(layout, std::nullopt, ICON_ADD, "SPREADSHEET_OT_add_row_filter_rule");
+  layout->op("SPREADSHEET_OT_add_row_filter_rule", std::nullopt, ICON_ADD);
 
   const bool panels_match = UI_panel_list_matches_data(region, row_filters, filter_panel_id_fn);
 

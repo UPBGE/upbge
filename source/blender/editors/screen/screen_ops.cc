@@ -4582,7 +4582,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
 
   if (sa1 && sa2) {
-    uiItemS(layout);
+    layout->separator();
   }
 
   /* Join needs two very similar areas. */
@@ -4612,7 +4612,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
 
-      uiItemS(layout);
+      layout->separator();
     }
   }
 
@@ -5189,12 +5189,11 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
               UI_ITEM_NONE,
               &ptr);
 
-  uiItemS(layout);
+  layout->separator();
 
-  uiItemO(layout,
-          area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
-          ICON_NONE,
-          "SCREEN_OT_screen_full_area");
+  layout->op("SCREEN_OT_screen_full_area",
+             area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
+             ICON_NONE);
 
   if (area->spacetype != SPACE_FILE && !area->full) {
     uiItemFullO(layout,
@@ -5208,9 +5207,9 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
-  uiItemO(layout, std::nullopt, ICON_NONE, "SCREEN_OT_area_dupli");
-  uiItemS(layout);
-  uiItemO(layout, std::nullopt, ICON_X, "SCREEN_OT_area_close");
+  layout->op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
+  layout->separator();
+  layout->op("SCREEN_OT_area_close", std::nullopt, ICON_X);
 }
 
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
@@ -5232,16 +5231,15 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
           &ptr, "show_region_tool_header", UI_ITEM_NONE, IFACE_("Show Tool Settings"), ICON_NONE);
     }
 
-    uiItemO(col,
+    col->op("SCREEN_OT_header_toggle_menus",
             IFACE_("Show Menus"),
-            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
-            "SCREEN_OT_header_toggle_menus");
+            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT);
   }
 
   if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-    uiItemS(layout);
+    layout->separator();
     ED_screens_region_flip_menu_create(C, layout, nullptr);
-    uiItemS(layout);
+    layout->separator();
     screen_area_menu_items(area, layout);
   }
 }
@@ -5257,7 +5255,7 @@ void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void * /
   }
 
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  uiItemS(layout);
+  layout->separator();
   screen_area_menu_items(area, layout);
 }
 
@@ -5273,7 +5271,7 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
   /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
-  uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
+  layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
 
 static void ed_screens_statusbar_menu_create(uiLayout *layout, void * /*arg*/)
@@ -5323,7 +5321,7 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
 
       /* We need WM_OP_INVOKE_DEFAULT in case menu item is over another area. */
       uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-      uiItemO(layout, IFACE_("Hide"), ICON_NONE, "SCREEN_OT_region_toggle");
+      layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 
       ED_screens_region_flip_menu_create(C, layout, nullptr);
       const ScrArea *area = CTX_wm_area(C);

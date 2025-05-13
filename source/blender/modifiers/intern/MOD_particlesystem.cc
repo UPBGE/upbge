@@ -225,20 +225,18 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
     if (ELEM(psys->part->ren_as, PART_DRAW_GR, PART_DRAW_OB)) {
-      uiItemO(layout,
-              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Instances Real"),
-              ICON_NONE,
-              "OBJECT_OT_duplicates_make_real");
+      layout->op("OBJECT_OT_duplicates_make_real",
+                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Instances Real"),
+                 ICON_NONE);
     }
     else if (psys->part->ren_as == PART_DRAW_PATH) {
-      uiItemO(layout,
-              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Convert to Mesh"),
-              ICON_NONE,
-              "OBJECT_OT_modifier_convert");
+      layout->op("OBJECT_OT_modifier_convert",
+                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Convert to Mesh"),
+                 ICON_NONE);
     }
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

@@ -811,8 +811,16 @@ static std::string run_node_group_get_description(bContext *C,
   return asset->get_metadata().description;
 }
 
-static void add_attribute_search_or_value_buttons(uiLayout *layout,
-                                                  PointerRNA *md_ptr,
+struct DrawOperatorInputsContext {
+  const bNodeTree &ntree;
+  PointerRNA *bmain_ptr;
+  PointerRNA *op_ptr;
+  nodes::PropertiesVectorSet properties;
+  Array<bool> input_usages;
+};
+
+static void add_attribute_search_or_value_buttons(DrawOperatorInputsContext &ctx,
+                                                  uiLayout *layout,
                                                   const StringRef socket_id_esc,
                                                   const StringRefNull rna_path,
                                                   const bNodeTreeInterfaceSocket &socket)
@@ -832,7 +840,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
   uiLayout *name_row = &split->row(false);
   uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
 
-  const bool use_attribute = RNA_boolean_get(md_ptr, rna_path_use_attribute.c_str());
+  const bool use_attribute = RNA_boolean_get(ctx.op_ptr, rna_path_use_attribute.c_str());
   if (socket_type == SOCK_BOOLEAN && !use_attribute) {
     name_row->label("", ICON_NONE);
   }
@@ -848,30 +856,25 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
 
   if (use_attribute) {
     /* TODO: Add attribute search. */
-    prop_row->prop(md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
+    prop_row->prop(ctx.op_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
     const char *name = socket_type == SOCK_BOOLEAN ? (socket.name ? socket.name : "") : "";
-    prop_row->prop(md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+    prop_row->prop(ctx.op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
   }
 
-  prop_row->prop(md_ptr, rna_path_use_attribute, UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
+  prop_row->prop(ctx.op_ptr, rna_path_use_attribute, UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
 }
 
-static void draw_property_for_socket(const bNodeTree &node_tree,
+static void draw_property_for_socket(DrawOperatorInputsContext &ctx,
                                      uiLayout *layout,
-                                     const nodes::PropertiesVectorSet &properties_set,
-                                     PointerRNA *bmain_ptr,
-                                     PointerRNA *op_ptr,
-                                     const bNodeTreeInterfaceSocket &socket,
-                                     const int socket_index,
-                                     const bool affects_output)
+                                     const bNodeTreeInterfaceSocket &socket)
 {
   bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  const IDProperty *property = properties_set.lookup_key_default_as(socket.identifier, nullptr);
+  const IDProperty *property = ctx.properties.lookup_key_default_as(socket.identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -879,11 +882,11 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
     return;
   }
 
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, socket.identifier, sizeof(socket_id_esc));
+  const int socket_index = ctx.ntree.interface_input_index(socket);
+  const bool affects_output = ctx.input_usages[socket_index];
 
-  char rna_path[sizeof(socket_id_esc) + 4];
-  SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+  const std::string socket_id_esc = BLI_str_escape(socket.identifier);
+  const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
 
   uiLayout *row = &layout->row(true);
   uiLayoutSetActive(row, affects_output);
@@ -895,39 +898,39 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   const char *name = socket.name ? socket.name : "";
   switch (socket_type) {
     case SOCK_OBJECT:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "objects", name, ICON_OBJECT_DATA);
+      uiItemPointerR(row, ctx.op_ptr, rna_path, ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
       break;
     case SOCK_COLLECTION:
       uiItemPointerR(
-          row, op_ptr, rna_path, bmain_ptr, "collections", name, ICON_OUTLINER_COLLECTION);
+          row, ctx.op_ptr, rna_path, ctx.bmain_ptr, "collections", name, ICON_OUTLINER_COLLECTION);
       break;
     case SOCK_MATERIAL:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "materials", name, ICON_MATERIAL);
+      uiItemPointerR(row, ctx.op_ptr, rna_path, ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
       break;
     case SOCK_TEXTURE:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "textures", name, ICON_TEXTURE);
+      uiItemPointerR(row, ctx.op_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
       break;
     case SOCK_IMAGE:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "images", name, ICON_IMAGE);
+      uiItemPointerR(row, ctx.op_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
       break;
     case SOCK_MENU: {
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
-        row->prop(op_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
+        row->prop(ctx.op_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
       }
       else {
-        row->prop(op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        row->prop(ctx.op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
       break;
     }
     default:
-      if (nodes::input_has_attribute_toggle(node_tree, socket_index)) {
-        add_attribute_search_or_value_buttons(row, op_ptr, socket_id_esc, rna_path, socket);
+      if (nodes::input_has_attribute_toggle(ctx.ntree, socket_index)) {
+        add_attribute_search_or_value_buttons(ctx, row, socket_id_esc, rna_path, socket);
       }
       else {
-        row->prop(op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        row->prop(ctx.op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
   }
-  if (!nodes::input_has_attribute_toggle(node_tree, socket_index)) {
+  if (!nodes::input_has_attribute_toggle(ctx.ntree, socket_index)) {
     row->label("", ICON_BLANK1);
   }
 }
@@ -944,26 +947,17 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   if (!node_tree) {
     return;
   }
-  const nodes::PropertiesVectorSet properties_set = nodes::build_properties_vector_set(
-      op->properties);
 
   node_tree->ensure_interface_cache();
 
-  Array<bool> input_usages(node_tree->interface_inputs().size());
+  DrawOperatorInputsContext ctx{*node_tree, &bmain_ptr, op->ptr};
+  ctx.properties = nodes::build_properties_vector_set(op->properties);
+  ctx.input_usages.reinitialize(node_tree->interface_inputs().size());
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *node_tree, properties_set, input_usages);
+      *node_tree, ctx.properties, ctx.input_usages);
 
-  int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
-    draw_property_for_socket(*node_tree,
-                             layout,
-                             properties_set,
-                             &bmain_ptr,
-                             op->ptr,
-                             *io_socket,
-                             input_index,
-                             input_usages[input_index]);
-    ++input_index;
+    draw_property_for_socket(ctx, layout, *io_socket);
   }
 }
 
@@ -1438,7 +1432,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     PointerRNA props_ptr;
@@ -1467,7 +1461,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       return;
     }
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", *layout);
@@ -1550,7 +1544,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     if (first) {
