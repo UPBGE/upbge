@@ -1126,7 +1126,7 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
 
   sub = &row->row(false);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-  uiItemO(sub, "", ICON_X, "LOGIC_OT_sensor_remove");
+  sub->op("LOGIC_OT_sensor_remove", "", ICON_X);
 }
 
 static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
@@ -1566,7 +1566,7 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 
   sub = &row->row(false);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-  uiItemO(sub, "", ICON_X, "LOGIC_OT_controller_remove");
+  sub->op("LOGIC_OT_controller_remove","", ICON_X);
 }
 
 static void draw_controller_expression(uiLayout *layout, PointerRNA *ptr)
@@ -1667,7 +1667,7 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 
   sub = &row->row(false);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-  uiItemO(sub, "", ICON_X, "LOGIC_OT_actuator_remove");
+  sub->op("LOGIC_OT_actuator_remove","", ICON_X);
 }
 
 static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
@@ -2731,7 +2731,7 @@ void logic_buttons(bContext *C, ARegion *region)
     if ((ob->scaflag & OB_SHOWCONT) == 0)
       continue;
 
-    uiItemS(layout);
+    layout->separator();
 
     for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
       PointerRNA ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Controller, cont);
@@ -2857,7 +2857,7 @@ void logic_buttons(bContext *C, ARegion *region)
     if ((ob->scaflag & OB_SHOWSENS) == 0)
       continue;
 
-    uiItemS(layout);
+    layout->separator();
 
     for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
       PointerRNA ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Sensor, sens);
@@ -2968,7 +2968,7 @@ void logic_buttons(bContext *C, ARegion *region)
     if ((ob->scaflag & OB_SHOWACT) == 0)
       continue;
 
-    uiItemS(layout);
+    layout->separator();
 
     for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
 
