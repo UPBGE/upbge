@@ -325,14 +325,6 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type)
   return prog;
 }
 
-static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *str)
-{
-  if (!str) {
-    return std::nullopt;
-  }
-  return blender::StringRefNull(str);
-}
-
 static int constant_type_size(Type type)
 {
   switch (type) {
