@@ -498,7 +498,7 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
   if (modifier_compute_context == nullptr) {
     return;
   }
-  if (modifier_compute_context->modifier_name() != nmd.modifier.name) {
+  if (modifier_compute_context->modifier_uid() != nmd.modifier.persistent_uid) {
     return;
   }
 
@@ -713,7 +713,7 @@ static void find_side_effect_nodes_for_viewer_path(
   if (parsed_path->object != DEG_get_original(ctx.object)) {
     return;
   }
-  if (parsed_path->modifier_name != nmd.modifier.name) {
+  if (parsed_path->modifier_uid != nmd.modifier.persistent_uid) {
     return;
   }
 
@@ -2386,7 +2386,13 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_MENU: {
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
-        row->prop(ctx.md_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
+        /* Use a single space when the name is empty to work around a bug with expanded enums. Also
+         * see #ui_item_enum_expand_exec. */
+        row->prop(ctx.md_ptr,
+                  rna_path,
+                  UI_ITEM_R_EXPAND,
+                  StringRef(name).is_empty() ? " " : name,
+                  ICON_NONE);
       }
       else {
         row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);

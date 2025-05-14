@@ -417,7 +417,6 @@ static const EnumPropertyItem rna_enum_viewport_lighting_items[] = {
 
 static const EnumPropertyItem rna_enum_shading_color_type_items[] = {
     {V3D_SHADING_MATERIAL_COLOR, "MATERIAL", 0, "Material", "Show material color"},
-    {V3D_SHADING_SINGLE_COLOR, "SINGLE", 0, "Single", "Show scene in a single color"},
     {V3D_SHADING_OBJECT_COLOR, "OBJECT", 0, "Object", "Show object color"},
     {V3D_SHADING_RANDOM_COLOR, "RANDOM", 0, "Random", "Show random object color"},
     {V3D_SHADING_VERTEX_COLOR, "VERTEX", 0, "Attribute", "Show active color attribute"},
@@ -426,6 +425,7 @@ static const EnumPropertyItem rna_enum_shading_color_type_items[] = {
      0,
      "Texture",
      "Show the texture from the active image texture node using the active UV map coordinates"},
+    {V3D_SHADING_SINGLE_COLOR, "SINGLE", 0, "Custom", "Show scene in a single custom color"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4257,7 +4257,7 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
       {V3D_SHADING_BACKGROUND_VIEWPORT,
        "VIEWPORT",
        0,
-       "Viewport",
+       "Custom",
        "Use a custom color limited to this viewport only"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -6237,16 +6237,6 @@ static void rna_def_space_sequencer_cache_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_cache_raw", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "cache_overlay.flag", SEQ_CACHE_SHOW_RAW);
   RNA_def_property_ui_text(prop, "Raw Images", "Visualize cached raw images");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_cache_preprocessed", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_overlay.flag", SEQ_CACHE_SHOW_PREPROCESSED);
-  RNA_def_property_ui_text(prop, "Preprocessed Images", "Visualize cached pre-processed images");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_cache_composite", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_overlay.flag", SEQ_CACHE_SHOW_COMPOSITE);
-  RNA_def_property_ui_text(prop, "Composite Images", "Visualize cached composite images");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 }
 
@@ -8697,8 +8687,8 @@ static void rna_def_modifier_viewer_path_elem(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "ModifierViewerPathElem", "ViewerPathElem");
 
-  prop = RNA_def_property(srna, "modifier_name", PROP_STRING, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Modifier Name", "");
+  prop = RNA_def_property(srna, "modifier_uid", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Modifier UID", "The persistent UID of the modifier");
 }
 
 static void rna_def_group_node_viewer_path_elem(BlenderRNA *brna)
