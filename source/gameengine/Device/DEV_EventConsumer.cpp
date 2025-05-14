@@ -75,7 +75,9 @@ void DEV_EventConsumer::HandleWheelEvent(GHOST_TEventDataPtr data)
 {
   GHOST_TEventWheelData *wheelData = (GHOST_TEventWheelData *)data;
 
-  m_device->ConvertWheelEvent(wheelData->z);
+  if (wheelData->axis == GHOST_kEventWheelAxisVertical) {
+    m_device->ConvertWheelEvent(wheelData->value);
+  }
 }
 
 void DEV_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
