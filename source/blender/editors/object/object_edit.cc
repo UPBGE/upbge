@@ -2783,7 +2783,7 @@ static void move_to_collection_menus_items(uiLayout *layout, MoveToCollectionDat
                menu->index);
   }
   else {
-    uiItemMenuF(layout, menu->collection->id.name + 2, icon, move_to_collection_menu_create, menu);
+    layout->menu_fn(menu->collection->id.name + 2, icon, move_to_collection_menu_create, menu);
   }
 }
 

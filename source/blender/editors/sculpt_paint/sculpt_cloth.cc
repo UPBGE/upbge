@@ -1842,22 +1842,17 @@ void do_cloth_brush(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  /* Brushes that use anchored strokes and restore the mesh can't rely on symmetry passes and steps
-   * count as it is always the first step, so the simulation needs to be created when it does not
-   * exist for this stroke. */
-  if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) || !ss.cache->cloth_sim) {
+  if (!ss.cache->cloth_sim) {
+    ss.cache->cloth_sim = brush_simulation_create(depsgraph,
+                                                  ob,
+                                                  brush->cloth_mass,
+                                                  brush->cloth_damping,
+                                                  brush->cloth_constraint_softbody_strength,
+                                                  (brush->flag2 & BRUSH_CLOTH_USE_COLLISION),
+                                                  is_cloth_deform_brush(*brush));
+  }
 
-    /* The simulation structure only needs to be created on the first symmetry pass. */
-    if (SCULPT_stroke_is_first_brush_step(*ss.cache) || !ss.cache->cloth_sim) {
-      ss.cache->cloth_sim = brush_simulation_create(depsgraph,
-                                                    ob,
-                                                    brush->cloth_mass,
-                                                    brush->cloth_damping,
-                                                    brush->cloth_constraint_softbody_strength,
-                                                    (brush->flag2 & BRUSH_CLOTH_USE_COLLISION),
-                                                    is_cloth_deform_brush(*brush));
-    }
-
+  if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     if (brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_LOCAL) {
       /* When using simulation a fixed local simulation area, constraints are created only using
        * the initial stroke position and initial radius (per symmetry pass) instead of per node.
@@ -2415,8 +2410,8 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
 
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
-  SculptCursorGeometryInfo sgi;
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  CursorGeometryInfo cgi;
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -2434,7 +2429,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  ss.filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");

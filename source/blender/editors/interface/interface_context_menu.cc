@@ -1112,7 +1112,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     MenuType *mt_idtemplate_liboverride = WM_menutype_find("UI_MT_idtemplate_liboverride", true);
     if (mt_idtemplate_liboverride && mt_idtemplate_liboverride->poll(C, mt_idtemplate_liboverride))
     {
-      uiItemM_ptr(layout, mt_idtemplate_liboverride, IFACE_("Library Override"), ICON_NONE);
+      layout->menu(mt_idtemplate_liboverride, IFACE_("Library Override"), ICON_NONE);
       layout->separator();
     }
   }
@@ -1353,20 +1353,17 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       /* skip */
     }
     else if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-      uiItemMenuF(
-          layout, IFACE_("Header"), ICON_NONE, ED_screens_header_tools_menu_create, nullptr);
+      layout->menu_fn(IFACE_("Header"), ICON_NONE, ED_screens_header_tools_menu_create, nullptr);
     }
     else if (region->regiontype == RGN_TYPE_NAV_BAR) {
-      uiItemMenuF(layout, IFACE_("Navigation Bar"), ICON_NONE, ED_buttons_navbar_menu, nullptr);
+      layout->menu_fn(IFACE_("Navigation Bar"), ICON_NONE, ED_buttons_navbar_menu, nullptr);
       const ScrArea *area = CTX_wm_area(C);
       if (area && area->spacetype == SPACE_PROPERTIES) {
-        uiItemMenuF(
-            layout, IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
+        layout->menu_fn(IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
       }
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {
-      uiItemMenuF(
-          layout, IFACE_("Footer"), ICON_NONE, ED_screens_footer_tools_menu_create, nullptr);
+      layout->menu_fn(IFACE_("Footer"), ICON_NONE, ED_screens_footer_tools_menu_create, nullptr);
     }
   }
 

@@ -478,8 +478,8 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
     if (v3d) {
       /* Update the active face set manually as the paint cursor is not enabled when using the Mesh
        * Filter Tool. */
-      SculptCursorGeometryInfo sgi;
-      SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+      CursorGeometryInfo cgi;
+      cursor_geometry_info_update(C, &cgi, mval_fl, false);
     }
   }
 
@@ -509,7 +509,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   const SculptSession &ss = *ob.sculpt;
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   return OPERATOR_PASS_THROUGH;
 }

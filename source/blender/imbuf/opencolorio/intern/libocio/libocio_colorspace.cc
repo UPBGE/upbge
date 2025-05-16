@@ -38,7 +38,7 @@ static bool color_space_is_invertible(const OCIO_NAMESPACE::ConstColorSpaceRcPtr
 {
   const StringRefNull family = ocio_color_space->getFamily();
 
-  if (family == "rrt" || family == "display") {
+  if (ELEM(family, "rrt", "display")) {
     /* assume display and rrt transformations are not invertible in fact some of them could be,
      * but it doesn't make much sense to allow use them as invertible. */
     return false;
@@ -131,7 +131,18 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
   this->index = index;
 
   is_inveetible_ = color_space_is_invertible(ocio_color_space);
-  color_space_is_builtin(ocio_config, ocio_color_space, is_scene_linear_, is_srgb_);
+}
+
+bool LibOCIOColorSpace::is_scene_linear() const
+{
+  ensure_srgb_scene_linear_info();
+  return is_scene_linear_;
+}
+
+bool LibOCIOColorSpace::is_srgb() const
+{
+  ensure_srgb_scene_linear_info();
+  return is_srgb_;
 }
 
 const CPUProcessor *LibOCIOColorSpace::get_to_scene_linear_cpu_processor() const
@@ -156,6 +167,15 @@ const CPUProcessor *LibOCIOColorSpace::get_from_scene_linear_cpu_processor() con
     }
     return std::make_unique<LibOCIOCPUProcessor>(ocio_processor->getDefaultCPUProcessor());
   });
+}
+
+void LibOCIOColorSpace::ensure_srgb_scene_linear_info() const
+{
+  if (is_info_cached_) {
+    return;
+  }
+  color_space_is_builtin(ocio_config_, ocio_color_space_, is_scene_linear_, is_srgb_);
+  is_info_cached_ = true;
 }
 
 }  // namespace blender::ocio

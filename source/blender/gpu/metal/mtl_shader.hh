@@ -425,9 +425,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
     case GPU_FETCH_FLOAT: \
       BLI_assert_msg(0, "Invalid fetch mode for integer attribute"); \
       break; \
-    case GPU_FETCH_INT_TO_FLOAT: \
-      /* Fallback to manual conversion */ \
-      break; \
   } \
   break;
 
@@ -439,7 +436,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
       BLI_assert_msg(0, "Invalid fetch mode for integer attribute"); \
       break; \
     case GPU_FETCH_INT_TO_FLOAT_UNIT: \
-    case GPU_FETCH_INT_TO_FLOAT: \
       /* Fallback to manual conversion */ \
       break; \
   } \
@@ -465,7 +461,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
           break;
         case GPU_FETCH_INT:
         case GPU_FETCH_INT_TO_FLOAT_UNIT:
-        case GPU_FETCH_INT_TO_FLOAT:
           BLI_assert_msg(0, "Invalid fetch mode for float attribute");
           break;
       }
@@ -475,7 +470,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
           return MTLVertexFormatInt1010102Normalized;
         case GPU_FETCH_FLOAT:
         case GPU_FETCH_INT:
-        case GPU_FETCH_INT_TO_FLOAT:
           BLI_assert_msg(0, "Invalid fetch mode for compressed attribute");
           break;
       }

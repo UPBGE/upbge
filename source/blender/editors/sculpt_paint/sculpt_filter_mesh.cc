@@ -166,7 +166,7 @@ void cache_init(bContext *C,
 
   float3 co;
 
-  if (vc.rv3d && SCULPT_stroke_get_location(C, co, mval_fl, false)) {
+  if (vc.rv3d && stroke_get_location_bvh(C, co, mval_fl, false)) {
     /* Get radius from brush. */
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
@@ -2424,8 +2424,8 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   if (use_automasking) {
     /* Update the active face set manually as the paint cursor is not enabled when using the
      * Mesh Filter Tool. */
-    SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+    CursorGeometryInfo cgi;
+    cursor_geometry_info_update(C, &cgi, mval_fl, false);
   }
 
   SCULPT_vertex_random_access_ensure(ob);
@@ -2445,7 +2445,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   sculpt_filter_specific_init(*depsgraph, filter_type, op, ob);
 

@@ -132,7 +132,7 @@ inline constexpr DataFormat to_data_format(TextureFormat format)
 }
 
 /**
- * Formats compatible with framebuffer attachments.
+ * Formats compatible with frame-buffer attachments.
  */
 enum class TextureTargetFormat : uint8_t {
   Invalid = 0,
