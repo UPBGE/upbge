@@ -217,7 +217,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
          *
          * We do it based on the specified name.
          */
-        if (name[0] != '\0') {
+        if (!name.is_empty()) {
           layer = CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name);
           type = CD_MTFACE;
 
@@ -254,7 +254,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
       switch (type) {
         case CD_MTFACE: {
           if (layer == -1) {
-            layer = (name[0] != '\0') ?
+            layer = !name.is_empty() ?
                         CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name) :
                         CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
           }
@@ -265,12 +265,12 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
         }
         case CD_TANGENT: {
           if (layer == -1) {
-            layer = (name[0] != '\0') ?
+            layer = !name.is_empty() ?
                         CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name) :
                         CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
 
             /* Only fallback to orco (below) when we have no UV layers, see: #56545 */
-            if (layer == -1 && name[0] != '\0') {
+            if (layer == -1 && !name.is_empty()) {
               layer = CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
             }
           }
@@ -1094,7 +1094,7 @@ void DRW_mesh_batch_cache_free_old(Mesh *mesh, int ctime)
   }
 
   mesh_cd_layers_type_clear(&cache->cd_used_over_time);
-  drw_attributes_clear(&cache->attr_used_over_time);
+  cache->attr_used_over_time.clear();
 }
 
 static void init_empty_dummy_batch(gpu::Batch &batch)
@@ -1211,7 +1211,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
     drw_attributes_merge(
         &cache.attr_used_over_time, &cache.attr_needed, mesh.runtime->render_mutex);
-    drw_attributes_clear(&cache.attr_needed);
+    cache.attr_needed.clear();
   }
 
   if ((batch_requested & MBC_EDITUV) || cd_uv_update) {

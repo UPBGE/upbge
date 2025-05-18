@@ -134,7 +134,7 @@ static void discard_attributes(CurvesEvalCache &eval_cache)
     GPU_VERTBUF_DISCARD_SAFE(eval_cache.final.attributes_buf[j]);
   }
 
-  drw_attributes_clear(&eval_cache.final.attr_used);
+  eval_cache.final.attr_used.clear();
 }
 
 static void clear_edit_data(CurvesBatchCache *cache)
@@ -795,7 +795,7 @@ static bool ensure_attributes(const Curves &curves,
       switch (type) {
         case CD_MTFACE: {
           if (layer == -1) {
-            layer = (name[0] != '\0') ?
+            layer = !name.is_empty() ?
                         CustomData_get_named_layer(&cd_curve, CD_PROP_FLOAT2, name) :
                         CustomData_get_render_layer(&cd_curve, CD_PROP_FLOAT2);
             if (layer != -1) {
@@ -803,7 +803,7 @@ static bool ensure_attributes(const Curves &curves,
             }
           }
           if (layer == -1) {
-            layer = (name[0] != '\0') ?
+            layer = !name.is_empty() ?
                         CustomData_get_named_layer(&cd_point, CD_PROP_FLOAT2, name) :
                         CustomData_get_render_layer(&cd_point, CD_PROP_FLOAT2);
             if (layer != -1) {
@@ -811,7 +811,7 @@ static bool ensure_attributes(const Curves &curves,
             }
           }
 
-          if (layer != -1 && name[0] == '\0' && domain.has_value()) {
+          if (layer != -1 && !name.is_empty() && domain.has_value()) {
             name = CustomData_get_layer_name(
                 domain == bke::AttrDomain::Curve ? &cd_curve : &cd_point, CD_PROP_FLOAT2, layer);
           }
@@ -1001,7 +1001,7 @@ void DRW_curves_batch_cache_free_old(Curves *curves, int ctime)
     do_discard = true;
   }
 
-  drw_attributes_clear(&final_cache.attr_used_over_time);
+  final_cache.attr_used_over_time.clear();
 
   if (do_discard) {
     discard_attributes(cache->eval_cache);

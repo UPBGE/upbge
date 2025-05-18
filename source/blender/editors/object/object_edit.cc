@@ -338,7 +338,7 @@ void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
   ot->description = "Reveal temporarily hidden objects";
   ot->idname = "OBJECT_OT_hide_view_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hide_view_clear_exec;
   ot->poll = object_hide_poll;
 
@@ -404,7 +404,7 @@ void OBJECT_OT_hide_view_set(wmOperatorType *ot)
   ot->description = "Temporarily hide objects from the viewport";
   ot->idname = "OBJECT_OT_hide_view_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hide_view_set_exec;
   ot->poll = object_hide_poll;
 
@@ -530,7 +530,7 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
   ot->description = "Show only objects in collection (Shift to extend)";
   ot->idname = "OBJECT_OT_hide_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hide_collection_exec;
   ot->invoke = object_hide_collection_invoke;
   ot->poll = ED_operator_view3d_active;
@@ -1037,7 +1037,7 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
   ot->description = "Toggle object's edit mode";
   ot->idname = "OBJECT_OT_editmode_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = editmode_toggle_exec;
   ot->poll = editmode_toggle_poll;
 
@@ -1133,7 +1133,7 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_posemode_toggle";
   ot->description = "Enable or disable posing/selecting bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = posemode_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -1204,7 +1204,7 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
   ot->description = "Toggle object's force field";
   ot->idname = "OBJECT_OT_forcefield_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = forcefield_toggle_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -1396,7 +1396,7 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_paths_calculate";
   ot->description = "Generate motion paths for the selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_calculate_paths_invoke;
   ot->exec = object_calculate_paths_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -1468,7 +1468,7 @@ void OBJECT_OT_paths_update(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_paths_update";
   ot->description = "Recalculate motion paths for selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_update_paths_exec;
   ot->poll = object_update_paths_poll;
 
@@ -1509,7 +1509,7 @@ void OBJECT_OT_paths_update_visible(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_paths_update_visible";
   ot->description = "Recalculate all visible motion paths for objects and poses";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_update_all_paths_exec;
   ot->poll = object_update_all_paths_poll;
 
@@ -1585,7 +1585,7 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
   ot->name = "Clear Object Paths";
   ot->idname = "OBJECT_OT_paths_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_clear_paths_exec;
   ot->poll = ED_operator_object_active_editable;
   ot->get_description = object_clear_paths_get_description;
@@ -1744,7 +1744,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
   ot->description = "Render and display faces uniform, using face normals";
   ot->idname = "OBJECT_OT_shade_flat";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shade_poll;
   ot->exec = shade_smooth_exec;
 
@@ -1765,7 +1765,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
   ot->description = "Render and display faces smooth, using interpolated vertex normals";
   ot->idname = "OBJECT_OT_shade_smooth";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shade_poll;
   ot->exec = shade_smooth_exec;
 
@@ -2128,7 +2128,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
   ot->description = "Sets the object interaction mode";
   ot->idname = "OBJECT_OT_mode_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_mode_set_exec;
   ot->poll = object_mode_set_poll;
 
@@ -2870,7 +2870,7 @@ void OBJECT_OT_move_to_collection(wmOperatorType *ot)
   ot->description = "Move objects to a collection";
   ot->idname = "OBJECT_OT_move_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;
@@ -2909,7 +2909,7 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
   ot->description = "Link objects to a collection";
   ot->idname = "OBJECT_OT_link_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;

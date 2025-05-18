@@ -54,6 +54,7 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyingsets.hh"
 
@@ -408,7 +409,7 @@ void OBJECT_OT_select_by_type(wmOperatorType *ot)
   ot->description = "Select all visible objects that are of a type";
   ot->idname = "OBJECT_OT_select_by_type";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_by_type_exec;
   ot->poll = objects_selectable_poll;
@@ -692,7 +693,7 @@ void OBJECT_OT_select_linked(wmOperatorType *ot)
   ot->description = "Select all visible objects that are linked";
   ot->idname = "OBJECT_OT_select_linked";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_linked_exec;
   ot->poll = objects_selectable_poll;
@@ -1116,7 +1117,7 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
   ot->description = "Select all visible objects grouped by various properties";
   ot->idname = "OBJECT_OT_select_grouped";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_grouped_exec;
   ot->poll = objects_selectable_poll;
@@ -1173,7 +1174,7 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all visible objects in scene";
   ot->idname = "OBJECT_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_all_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1234,7 +1235,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   ot->description = "Select object in the same collection";
   ot->idname = "OBJECT_OT_select_same_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_same_collection_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1305,7 +1306,7 @@ void OBJECT_OT_select_mirror(wmOperatorType *ot)
       "Select the mirror objects of the selected object e.g. \"L.sword\" and \"R.sword\"";
   ot->idname = "OBJECT_OT_select_mirror";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_mirror_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1399,7 +1400,7 @@ void OBJECT_OT_select_more(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_more";
   ot->description = "Select connected parent/child objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_more_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1430,7 +1431,7 @@ void OBJECT_OT_select_less(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_less";
   ot->description = "Deselect objects at the boundaries of parent/child relationships";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_less_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1483,7 +1484,7 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
   ot->description = "Select or deselect random visible objects";
   ot->idname = "OBJECT_OT_select_random";
 
-  /* api callbacks */
+  /* API callbacks. */
   // ot->invoke = object_select_random_invoke; /* TODO: need a number popup. */
   ot->exec = object_select_random_exec;
   ot->poll = objects_selectable_poll;

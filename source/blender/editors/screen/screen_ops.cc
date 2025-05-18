@@ -4502,7 +4502,7 @@ static void SCREEN_OT_area_join(wmOperatorType *ot)
   ot->description = "Join selected areas into new window";
   ot->idname = "SCREEN_OT_area_join";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = area_join_exec;
   ot->invoke = area_join_invoke;
   ot->modal = area_join_modal;
@@ -4641,7 +4641,7 @@ static void SCREEN_OT_area_options(wmOperatorType *ot)
   ot->description = "Operations for splitting and merging";
   ot->idname = "SCREEN_OT_area_options";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_area_options_invoke;
 
   ot->poll = ED_operator_screen_mainwinactive;
@@ -4685,7 +4685,7 @@ static void SCREEN_OT_spacedata_cleanup(wmOperatorType *ot)
   ot->description = "Remove unused settings for invisible editors";
   ot->idname = "SCREEN_OT_spacedata_cleanup";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = spacedata_cleanup_exec;
   ot->poll = WM_operator_winactive;
 }
@@ -4733,7 +4733,7 @@ static void SCREEN_OT_repeat_last(wmOperatorType *ot)
   ot->description = "Repeat last action";
   ot->idname = "SCREEN_OT_repeat_last";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = repeat_last_exec;
 
   ot->poll = repeat_history_poll;
@@ -4803,7 +4803,7 @@ static void SCREEN_OT_repeat_history(wmOperatorType *ot)
   ot->description = "Display menu for previous actions performed";
   ot->idname = "SCREEN_OT_repeat_history";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = repeat_history_invoke;
   ot->exec = repeat_history_exec;
   ot->poll = repeat_history_poll;
@@ -4837,7 +4837,7 @@ static void SCREEN_OT_redo_last(wmOperatorType *ot)
   ot->description = "Display parameters for last action performed";
   ot->idname = "SCREEN_OT_redo_last";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = redo_last_invoke;
   ot->poll = repeat_history_poll;
 }
@@ -5008,7 +5008,7 @@ static void SCREEN_OT_region_quadview(wmOperatorType *ot)
   ot->description = "Split selected area into camera, front, right, and top views";
   ot->idname = "SCREEN_OT_region_quadview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = region_quadview_exec;
   ot->poll = ED_operator_region_view3d_active;
   ot->flag = 0;
@@ -5060,7 +5060,7 @@ static void SCREEN_OT_region_toggle(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_region_toggle";
   ot->description = "Hide or unhide the region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = region_toggle_exec;
   ot->poll = region_toggle_poll;
   ot->flag = 0;
@@ -5128,7 +5128,7 @@ static void SCREEN_OT_region_flip(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_region_flip";
   ot->description = "Toggle the region's alignment (left/right or top/bottom)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = region_flip_exec;
   ot->poll = region_flip_poll;
   ot->flag = 0;
@@ -5160,7 +5160,7 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_header_toggle_menus";
   ot->description = "Expand or collapse the header pulldown menus";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = header_toggle_menus_exec;
   ot->poll = ED_operator_areaactive;
   ot->flag = 0;
@@ -5342,7 +5342,7 @@ static void SCREEN_OT_region_context_menu(wmOperatorType *ot)
   ot->description = "Display region context menu";
   ot->idname = "SCREEN_OT_region_context_menu";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_context_menu_invoke;
 }
 
@@ -5740,7 +5740,7 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
   ot->description = "Step through animation by position";
   ot->idname = "SCREEN_OT_animation_step";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_animation_step_invoke;
 
   ot->poll = operator_screenactive_norender;
@@ -5882,7 +5882,7 @@ static void SCREEN_OT_animation_play(wmOperatorType *ot)
   ot->description = "Play animation";
   ot->idname = "SCREEN_OT_animation_play";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_animation_play_exec;
 
   ot->poll = operator_screenactive_norender;
@@ -5932,7 +5932,7 @@ static void SCREEN_OT_animation_cancel(wmOperatorType *ot)
   ot->description = "Cancel animation, returning to the original frame";
   ot->idname = "SCREEN_OT_animation_cancel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_animation_cancel_exec;
 
   ot->poll = ED_operator_screenactive;
@@ -5992,7 +5992,7 @@ static void SCREEN_OT_box_select(wmOperatorType *ot)
   ot->name = "Box Select";
   ot->idname = "SCREEN_OT_box_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = box_select_exec;
   ot->invoke = WM_gesture_box_invoke;
   ot->modal = WM_gesture_box_modal;
@@ -6043,7 +6043,7 @@ static void SCREEN_OT_back_to_previous(wmOperatorType *ot)
   ot->description = "Revert back to the original screen layout, before fullscreen area overlay";
   ot->idname = "SCREEN_OT_back_to_previous";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fullscreen_back_exec;
   ot->poll = ED_operator_screenactive;
 }
@@ -6131,7 +6131,7 @@ static void SCREEN_OT_userpref_show(wmOperatorType *ot)
   ot->description = "Edit user preferences and system settings";
   ot->idname = "SCREEN_OT_userpref_show";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = userpref_show_exec;
   ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
   ot->get_description = userpref_show_get_description;
@@ -6230,7 +6230,7 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
   ot->description = "Show drivers editor in a separate window";
   ot->idname = "SCREEN_OT_drivers_editor_show";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = drivers_editor_show_exec;
   ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
 }
@@ -6284,7 +6284,7 @@ static void SCREEN_OT_info_log_show(wmOperatorType *ot)
   ot->description = "Show info log in a separate window";
   ot->idname = "SCREEN_OT_info_log_show";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = info_log_show_exec;
   ot->poll = ED_operator_screenactive_nobackground;
 }
@@ -6316,7 +6316,7 @@ static void SCREEN_OT_new(wmOperatorType *ot)
   ot->description = "Add a new screen";
   ot->idname = "SCREEN_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_new_exec;
   ot->poll = WM_operator_winactive;
 }
@@ -6345,7 +6345,7 @@ static void SCREEN_OT_delete(wmOperatorType *ot)
   ot->description = "Delete active screen";
   ot->idname = "SCREEN_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_delete_exec;
 }
 
@@ -6493,7 +6493,7 @@ static void SCREEN_OT_region_blend(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_region_blend";
   ot->description = "Blend in and out overlapping region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = region_blend_invoke;
 
   /* flags */
@@ -6561,7 +6561,7 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
   ot->description = "Set the space type or cycle subtype";
   ot->idname = "SCREEN_OT_space_type_set_or_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = space_type_set_or_cycle_exec;
   ot->poll = space_type_set_or_cycle_poll;
 
@@ -6643,7 +6643,7 @@ static void SCREEN_OT_space_context_cycle(wmOperatorType *ot)
   ot->description = "Cycle through the editor context by activating the next/previous one";
   ot->idname = "SCREEN_OT_space_context_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = space_context_cycle_invoke;
   ot->poll = space_context_cycle_poll;
 
@@ -6709,7 +6709,7 @@ static void SCREEN_OT_workspace_cycle(wmOperatorType *ot)
   ot->description = "Cycle through workspaces";
   ot->idname = "SCREEN_OT_workspace_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = space_workspace_cycle_invoke;
   ot->poll = ED_operator_screenactive;
 

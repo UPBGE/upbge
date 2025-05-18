@@ -2677,9 +2677,6 @@ float3 tilt_apply_to_normal(const Object &object,
                             const float2 &tilt,
                             const float tilt_strength)
 {
-  if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_tools_tilt)) {
-    return normal;
-  }
   const float3 world_space = math::transform_direction(object.object_to_world(), normal);
 
   /* Tweaked based on initial user feedback, with a value of 1.0, higher brush tilt strength
@@ -4678,7 +4675,7 @@ bool cursor_geometry_info_update(bContext *C,
     out->location = float3(0.0f);
     out->normal = float3(0.0f);
     out->active_vertex_co = float3(0.0f);
-    ss.clear_active_vert(false);
+    ss.clear_active_elements(false);
     return false;
   }
 
@@ -4724,7 +4721,7 @@ bool cursor_geometry_info_update(bContext *C,
     out->location = float3(0.0f);
     out->normal = float3(0.0f);
     out->active_vertex_co = float3(0.0f);
-    ss.clear_active_vert(true);
+    ss.clear_active_elements(true);
     return false;
   }
 
