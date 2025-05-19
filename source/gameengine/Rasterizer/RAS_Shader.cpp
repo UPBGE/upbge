@@ -325,93 +325,6 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type)
   return prog;
 }
 
-static int constant_type_size(Type type)
-{
-  switch (type) {
-    case Type::bool_t:
-    case Type::float_t:
-    case Type::int_t:
-    case Type::uint_t:
-    case Type::uchar4_t:
-    case Type::char4_t:
-    case Type::float3_10_10_10_2_t:
-    case Type::ushort2_t:
-    case Type::short2_t:
-      return 4;
-      break;
-    case Type::ushort3_t:
-    case Type::short3_t:
-      return 6;
-      break;
-    case Type::float2_t:
-    case Type::uint2_t:
-    case Type::int2_t:
-    case Type::ushort4_t:
-    case Type::short4_t:
-      return 8;
-      break;
-    case Type::float3_t:
-    case Type::uint3_t:
-    case Type::int3_t:
-      return 12;
-      break;
-    case Type::float4_t:
-    case Type::uint4_t:
-    case Type::int4_t:
-      return 16;
-      break;
-    case Type::float3x3_t:
-      return 36 + 3 * 4;
-    case Type::float4x4_t:
-      return 64;
-      break;
-    case Type::uchar_t:
-    case Type::char_t:
-      return 1;
-      break;
-    case Type::uchar2_t:
-    case Type::char2_t:
-    case Type::ushort_t:
-    case Type::short_t:
-      return 2;
-      break;
-    case Type::uchar3_t:
-    case Type::char3_t:
-      return 3;
-      break;
-  }
-  BLI_assert(false);
-  return -1;
-}
-
-static int constants_calc_size(ShaderCreateInfo *info)
-{
-  int size_prev = 0;
-  int size_last = 0;
-  for (const ShaderCreateInfo::PushConst &uniform : info->push_constants_) {
-    int pad = 0;
-    int size = constant_type_size(uniform.type);
-    if (size_last && size_last != size) {
-      /* Calc pad. */
-      int pack = (size == 8) ? 8 : 16;
-      if (size_last < size) {
-        pad = pack - (size_last % pack);
-      }
-      else {
-        pad = size_prev % pack;
-      }
-    }
-    else if (size == 12) {
-      /* It is still unclear how Vulkan handles padding for `vec3` constants. For now let's follow
-       * the rules of the `std140` layout. */
-      pad = 4;
-    }
-    size_prev += pad + size * std::max(1, uniform.array_size);
-    size_last = size;
-  }
-  return size_prev + (size_prev % 16);
-}
-
 bool RAS_Shader::LinkProgram()
 {
   std::string vert;
@@ -428,9 +341,7 @@ bool RAS_Shader::LinkProgram()
   ShaderCreateInfo info("s_Display");
   info.push_constant(Type::float_t, "bgl_RenderedTextureWidth");
   info.push_constant(Type::float_t, "bgl_RenderedTextureHeight");
-  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
-    info.push_constant(Type::float2_t, "bgl_TextureCoordinateOffset", 9);
-  }
+  info.push_constant(Type::float2_t, "bgl_TextureCoordinateOffset", 9);
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::Float2D, sampler.second);
   }
@@ -445,14 +356,6 @@ bool RAS_Shader::LinkProgram()
   info.fragment_source("draw_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
-
-  if (GPU_backend_get_type() == GPU_BACKEND_VULKAN) {
-    int size = constants_calc_size(&info);
-    if (size > 128) {  // #define VULKAN_LIMIT 128 in gpu_py_shader_create_info
-      printf("Push constants have a minimum supported size of 128 bytes, however the constants added so far already reach %d bytes. Wait for Ubos to be implemented.\n", size);
-      goto program_error;
-    }
-  }
 
   if (m_error) {
     goto program_error;
