@@ -284,9 +284,9 @@ class MTLShader : public Shader {
 
   /* UPBGE */
   char *shader_validate() override;
-  //void shader_bind_attributes(int *locations, const char **names, int len) override;
   /*********/
-  void bind() override;
+
+  void bind(const shader::SpecializationConstants *constants_state) override;
   void unbind() override;
 
   void uniform_float(int location, int comp_len, int array_size, const float *data) override;

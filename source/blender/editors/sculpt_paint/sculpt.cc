@@ -111,15 +111,18 @@ static CLG_LogRef LOG = {"ed.sculpt_paint"};
 
 namespace blender::ed::sculpt_paint {
 
-float sculpt_calc_radius(const ViewContext &vc,
-                         const Brush &brush,
-                         const Scene &scene,
-                         const float3 location)
+/* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
+float object_space_radius_get(const ViewContext &vc,
+                              const Scene &scene,
+                              const Brush &brush,
+                              const float3 &location,
+                              const float scale_factor)
 {
   if (!BKE_brush_use_locked_size(&scene, &brush)) {
-    return paint_calc_object_space_radius(vc, location, BKE_brush_size_get(&scene, &brush));
+    return paint_calc_object_space_radius(
+        vc, location, BKE_brush_size_get(&scene, &brush) * scale_factor);
   }
-  return BKE_brush_unprojected_radius_get(&scene, &brush);
+  return BKE_brush_unprojected_radius_get(&scene, &brush) * scale_factor;
 }
 
 bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
@@ -821,7 +824,6 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush
                SCULPT_BRUSH_TYPE_ROTATE,
                SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
                SCULPT_BRUSH_TYPE_THUMB) ||
-
           (mask_tex->tex && mask_tex->brush_map_mode == MTEX_MAP_MODE_AREA)) ||
          brush_uses_topology_rake(ss, brush) || BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt);
 }
@@ -851,14 +853,10 @@ bool stroke_is_dyntopo(const Object &object, const Brush &brush)
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  return ((pbvh.type() == bke::pbvh::Type::BMesh) &&
-
-          (!ss.cache || (!ss.cache->alt_smooth)) &&
-
+  return ((pbvh.type() == bke::pbvh::Type::BMesh) && (!ss.cache || (!ss.cache->alt_smooth)) &&
           /* Requires mesh restore, which doesn't work with
            * dynamic-topology. */
           !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
-
           bke::brush::supports_dyntopo(brush));
 }
 
@@ -3004,7 +3002,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   /* Build a list of all nodes that are potentially within the brush's area of influence. */
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
                                                                                  !ss.cache->accum;
-  const float radius_scale = 1.25f;
+  constexpr float radius_scale = 1.25f;
 
   IndexMaskMemory memory;
   const IndexMask node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale, memory);
@@ -3019,7 +3017,6 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   ss.vertex_info.boundary.clear();
 
   PBVHTopologyUpdateMode mode = PBVHTopologyUpdateMode(0);
-  float location[3];
 
   if (!(sd.flags & SCULPT_DYNTOPO_DETAIL_MANUAL)) {
     if (sd.flags & SCULPT_DYNTOPO_SUBDIVIDE) {
@@ -3070,10 +3067,6 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
                                    ss.cache->radius,
                                    (brush.flag & BRUSH_FRONTFACE) != 0,
                                    (brush.falloff_shape != PAINT_FALLOFF_SHAPE_SPHERE));
-
-  /* Update average stroke position. */
-  copy_v3_v3(location, ss.cache->location);
-  mul_m4_v3(ob.object_to_world().ptr(), location);
 }
 
 static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
@@ -4340,7 +4333,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 
   /* Truly temporary data that isn't stored in properties. */
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-    cache.initial_radius = sculpt_calc_radius(*cache.vc, brush, scene, cache.location);
+    cache.initial_radius = object_space_radius_get(*cache.vc, scene, brush, cache.location);
 
     if (!BKE_brush_use_locked_size(&scene, &brush)) {
       BKE_brush_unprojected_radius_set(&scene, &brush, cache.initial_radius);
@@ -4753,7 +4746,6 @@ bool cursor_geometry_info_update(bContext *C,
   }
 
   /* Sampled normal calculation. */
-  float radius;
 
   /* Update cursor data in SculptSession. */
   const float3 z_axis = {0.0f, 0.0f, 1.0f};
@@ -4765,13 +4757,7 @@ bool cursor_geometry_info_update(bContext *C,
   ss.rv3d = vc.rv3d;
   ss.v3d = vc.v3d;
 
-  if (!BKE_brush_use_locked_size(scene, &brush)) {
-    radius = paint_calc_object_space_radius(vc, out->location, BKE_brush_size_get(scene, &brush));
-  }
-  else {
-    radius = BKE_brush_unprojected_radius_get(scene, &brush);
-  }
-  ss.cursor_radius = radius;
+  ss.cursor_radius = object_space_radius_get(vc, *scene, brush, out->location);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = pbvh_gather_cursor_update(ob, original, memory);
@@ -4908,7 +4894,7 @@ static bool stroke_get_location_bvh_ex(bContext *C,
 
   float closest_radius_sq = std::numeric_limits<float>::max();
   if (limit_closest_radius) {
-    closest_radius_sq = sculpt_calc_radius(vc, brush, *CTX_data_scene(C), out);
+    closest_radius_sq = object_space_radius_get(vc, *CTX_data_scene(C), brush, out);
     closest_radius_sq *= closest_radius_sq;
   }
 

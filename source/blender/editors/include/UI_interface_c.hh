@@ -1055,7 +1055,7 @@ void UI_but_color_set(uiBut *but, const uchar color[4]);
 /**
  * Set at hint that describes the expected value when empty.
  */
-void UI_but_placeholder_set(uiBut *but, const char *placeholder_text) ATTR_NONNULL(1);
+void UI_but_placeholder_set(uiBut *but, blender::StringRef placeholder_text);
 
 /**
  * Special button case, only draw it when used actively, for outliner etc.
@@ -1195,7 +1195,7 @@ uiBut *uiDefButBitC(uiBlock *block,
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 std::optional<blender::StringRefNull> str,
+                 std::optional<blender::StringRef> str,
                  int x,
                  int y,
                  short width,
@@ -1209,7 +1209,7 @@ uiBut *uiDefButR(uiBlock *block,
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      std::optional<blender::StringRefNull> str,
+                      std::optional<blender::StringRef> str,
                       int x,
                       int y,
                       short width,
@@ -1425,7 +1425,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              std::optional<blender::StringRefNull> str,
+                              std::optional<blender::StringRef> str,
                               int x,
                               int y,
                               short width,
@@ -1682,7 +1682,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      PointerRNA *ptr,
                      PropertyRNA *prop,
                      int index,
-                     std::optional<blender::StringRefNull> name,
+                     std::optional<blender::StringRef> name,
                      int icon,
                      int x,
                      int y,

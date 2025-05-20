@@ -281,6 +281,9 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     }
   }
 
+  this->depth = GPU_clip_control_support() ? DepthState{0.0f, DRW_STATE_DEPTH_GREATER_EQUAL} :
+                                             DepthState{1.0f, DRW_STATE_DEPTH_LESS_EQUAL};
+
   /* Compute the passes needed by the viewport compositor. */
   Set<std::string> passes_used_by_viewport_compositor;
   if (inst_.is_viewport_compositor_enabled) {
@@ -638,6 +641,10 @@ void Film::end_sync()
   aovs_info.push_update();
 
   sync_mist();
+
+  inst_.manager->warm_shader_specialization(accumulate_ps_);
+  inst_.manager->warm_shader_specialization(copy_ps_);
+  inst_.manager->warm_shader_specialization(cryptomatte_post_ps_);
 }
 
 float2 Film::pixel_jitter_get() const
