@@ -1636,14 +1636,14 @@ GLSourcesBaked GLShader::get_sources()
 char *GLShader::shader_validate()
 {
   GLint success;
-  glValidateProgram(program_active_->program_id);
-  glGetProgramiv(program_active_->program_id, GL_VALIDATE_STATUS, &success);
+  glValidateProgram(main_program_->program_id);
+  glGetProgramiv(main_program_->program_id, GL_VALIDATE_STATUS, &success);
 
   if (success > 0) {
     GLsizei charlen;
     char *log = (char *)MEM_mallocN(success, "GPU_shader_validate");
 
-    glGetProgramInfoLog(program_active_->program_id, success, &charlen, log);
+    glGetProgramInfoLog(main_program_->program_id, success, &charlen, log);
 
     return log;
   }
