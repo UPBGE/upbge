@@ -642,6 +642,10 @@ void Film::end_sync()
 
   sync_mist();
 
+  /* Update sample table length for specialization warmup. Otherwise, we will warm a specialization
+   * that is not actually used. We still need to update it once per sample afterward. */
+  update_sample_table();
+
   inst_.manager->warm_shader_specialization(accumulate_ps_);
   inst_.manager->warm_shader_specialization(copy_ps_);
   inst_.manager->warm_shader_specialization(cryptomatte_post_ps_);
@@ -727,6 +731,12 @@ void Film::update_sample_table()
   int filter_radius_ceil = ceilf(data_.filter_radius);
   float filter_radius_sqr = square_f(data_.filter_radius);
 
+  /* Reset */
+  for (FilmSample &sample : data_.samples) {
+    sample.texel = int2(0, 0);
+    sample.weight = 0.0f;
+  }
+
   data_.samples_len = 0;
   if (data_.scaling_factor > 1) {
     /* For this case there might be no valid samples for some pixels.
@@ -783,6 +793,11 @@ void Film::update_sample_table()
     if (closest_index != 0) {
       std::swap(data_.samples[closest_index], data_.samples[0]);
     }
+    /* Avoid querying a different shader specialization for this case.
+     * This can happen with the default settings. */
+    if (data_.samples_len <= 9) {
+      data_.samples_len = 9;
+    }
   }
   else {
     /* Large Filter Size. */
@@ -809,6 +824,24 @@ void Film::update_sample_table()
       data_.samples_weight_total += sample.weight;
       i++;
     }
+  }
+
+  /* Round to specific amount of sample to avoid variation in sample count to cause stutter on
+   * startup because of shader specialization. */
+  if (data_.samples_len == 1) {
+    data_.samples_len = 1;
+  }
+  else if (data_.samples_len <= 4) {
+    data_.samples_len = 4;
+  }
+  else if (data_.samples_len <= 9) {
+    data_.samples_len = 9;
+  }
+  else if (data_.samples_len <= 16) {
+    data_.samples_len = 16;
+  }
+  else {
+    BLI_assert_unreachable();
   }
 }
 

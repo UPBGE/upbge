@@ -10497,10 +10497,10 @@ static void def_cmp_translate(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_relative", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "relative", 1);
-  RNA_def_property_ui_text(
-      prop,
-      "Relative",
-      "Use relative (fraction of input image size) values to define translation");
+  RNA_def_property_ui_text(prop,
+                           "Relative",
+                           "Use relative (fraction of input image size) values to define "
+                           "translation. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "wrap_axis", PROP_ENUM, PROP_NONE);
@@ -13766,6 +13766,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodePlaneTrackDeform", def_cmp_planetrackdeform);
   define("CompositorNode", "CompositorNodePosterize");
   define("CompositorNode", "CompositorNodePremulKey", def_cmp_premul_key);
+  define("CompositorNode", "CompositorNodeRelativeToPixel");
   define("CompositorNode", "CompositorNodeRGB");
   define("CompositorNode", "CompositorNodeRGBToBW");
   define("CompositorNode", "CompositorNodeRLayers", def_cmp_render_layers);

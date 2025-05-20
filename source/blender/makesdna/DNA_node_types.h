@@ -12,7 +12,8 @@
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_scene_types.h" /* for #ImageFormatData */
-#include "DNA_vec_types.h"   /* for #rctf */
+#include "DNA_texture_types.h"
+#include "DNA_vec_types.h" /* for #rctf */
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -3032,6 +3033,22 @@ typedef enum CMPNodeLensDistortionType {
   CMP_NODE_LENS_DISTORTION_RADIAL = 0,
   CMP_NODE_LENS_DISTORTION_HORIZONTAL = 1,
 } CMPNodeLensDistortionType;
+
+/* Relative To Pixel node. Stored in custom1. */
+typedef enum CMPNodeRelativeToPixelDataType {
+  CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_FLOAT = 0,
+  CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_VECTOR = 1,
+} CMPNodeRelativeToPixelDataType;
+
+/* Relative To Pixel node. Stored in custom2. */
+typedef enum CMPNodeRelativeToPixelReferenceDimension {
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_PER_DIMENSION = 0,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_X = 1,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_Y = 2,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_GREATER = 3,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_SMALLER = 4,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_DIAGONAL = 5,
+} CMPNodeRelativeToPixelReferenceDimension;
 
 /* Point Density shader node */
 
