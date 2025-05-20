@@ -527,6 +527,7 @@ typedef struct bTheme {
   ThemeSpace space_text;
   ThemeSpace space_outliner;
   ThemeSpace space_node;
+  ThemeSpace tlogic;
   ThemeSpace space_preferences;
   ThemeSpace space_console;
   ThemeSpace space_clip;

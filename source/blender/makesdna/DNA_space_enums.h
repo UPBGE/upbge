@@ -108,6 +108,7 @@ typedef enum eSpaceButtons_Context {
   BCONTEXT_SHADERFX = 15,
   BCONTEXT_OUTPUT = 16,
   BCONTEXT_COLLECTION = 17,
+  BCONTEXT_GAME = 18,
 
   /* Keep last. */
   BCONTEXT_TOT,
@@ -1049,9 +1050,7 @@ typedef enum eSpace_Type {
   SPACE_TIME = 15, /* Deprecated */
 #endif
   SPACE_NODE = 16,
-#ifdef DNA_DEPRECATED_ALLOW
-  SPACE_LOGIC = 17, /* Deprecated */
-#endif
+  SPACE_LOGIC = 17,
   SPACE_CONSOLE = 18,
   SPACE_USERPREF = 19,
   SPACE_CLIP = 20,
