@@ -636,7 +636,7 @@ typedef struct FileDirEntryArr {
 
 typedef struct SpaceImageOverlay {
   int flag;
-  char _pad[4];
+  float passepartout_alpha;
 } SpaceImageOverlay;
 
 typedef struct SpaceImage {
