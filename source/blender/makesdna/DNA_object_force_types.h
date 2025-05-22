@@ -258,9 +258,9 @@ typedef struct SoftBody {
   float nodemass;
   /**
    * Along with it introduce mass painting starting to fix old bug .. nastiness that VG are indexes
-   * rather find them by name tag to find it -> jow20090613. #MAX_VGROUP_NAME size.
+   * rather find them by name tag to find it -> jow20090613.
    */
-  char namedVG_Mass[64];
+  char namedVG_Mass[/*MAX_VGROUP_NAME*/ 64];
   /** Softbody amount of gravitation to apply. */
   float grav;
   /** Friction to env. */
@@ -284,9 +284,9 @@ typedef struct SoftBody {
   short vertgroup;
   /**
    * Starting to fix old bug .. nastiness that VG are indexes
-   * rather find them by name tag to find it -> jow20090613. #MAX_VGROUP_NAME size.
+   * rather find them by name tag to find it -> jow20090613.
    */
-  char namedVG_Softgoal[64];
+  char namedVG_Softgoal[/*MAX_VGROUP_NAME*/ 64];
 
   short fuzzyness;
 
@@ -299,9 +299,8 @@ typedef struct SoftBody {
    * Along with it introduce Spring_K painting
    * starting to fix old bug .. nastiness that VG are indexes
    * rather find them by name tag to find it -> jow20090613.
-   * MAX_VGROUP_NAME
    */
-  char namedVG_Spring_K[64];
+  char namedVG_Spring_K[/*MAX_VGROUP_NAME*/ 64];
 
   /* baking */
   char _pad1[6];

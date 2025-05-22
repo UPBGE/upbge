@@ -47,8 +47,7 @@ typedef enum eUIFont_ID {
 #
 typedef struct uiFont {
   struct uiFont *next, *prev;
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
   /** From BLF library. */
   short blf_id;
   /** Own id (eUIFont_ID). */
@@ -82,8 +81,7 @@ typedef struct uiFontStyle {
 typedef struct uiStyle {
   struct uiStyle *next, *prev;
 
-  /** #MAX_NAME */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   uiFontStyle paneltitle;
   uiFontStyle grouplabel;
@@ -318,10 +316,10 @@ typedef struct ThemeSpace {
 
   /** Dope-sheet. */
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];
-  /** Keytypes. */
+  /** Key-types. */
   unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
       keytype_movehold[4], keytype_generated[4];
-  /** Keytypes. */
+  /** Key-types. */
   unsigned char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
       keytype_jitter_select[4], keytype_movehold_select[4], keytype_generated_select[4];
   unsigned char keyborder[4], keyborder_select[4];
@@ -494,8 +492,7 @@ typedef struct ThemeStripColor {
  */
 typedef struct bTheme {
   struct bTheme *next, *prev;
-  /** #MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   /* NOTE: Values after `name` are copied when resetting the default theme. */
 
@@ -504,10 +501,8 @@ typedef struct bTheme {
    *
    * This is needed so it's possible to know if updating or removing a theme preset
    * should apply changes to the current theme.
-   *
-   * #FILE_MAX.
    */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   ThemeUI tui;
 

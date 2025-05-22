@@ -1344,40 +1344,40 @@ static bool is_node_socket_supported(const bNodeSocket *sock)
 
 namespace versioning_internal {
 
-/* Specific code required to properly handle older blendfiles (pre-2.83), where some node data
+/* Specific code required to properly handle older blend-files (pre-2.83), where some node data
  * (like the sockets default values) were written as raw bytes buffer, without any DNA type
  * information. */
 
-/* Node socket default values were historicaly written and read as raw bytes buffers, without any
+/* Node socket default values were historically written and read as raw bytes buffers, without any
  * DNA typing information.
  *
- * The writing code was fixed in commit 50d5050e9c, which is included in the 2.83 release. However
- * the matching reading code was only fixed in the 4.5 release.
+ * The writing code was fixed in commit `50d5050e9c`, which is included in the 2.83 release.
+ * However the matching reading code was only fixed in the 4.5 release.
  *
- * So currently, reading code assumes that any blendfile >= 3.0 has correct DNA info for these
+ * So currently, reading code assumes that any blend-file >= 3.0 has correct DNA info for these
  * default values, and it keeps previous 'raw buffer' reading code for older ones.
  *
  * This means that special care must be taken when the various DNA types used for these default
  * values are modified, as a 'manual' version of DNA internal versioning must be performed on data
- * from older blendfiles (see also #direct_link_node_socket_default_value).
+ * from older blend-files (see also #direct_link_node_socket_default_value).
  */
 constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING = 300;
 
 /* The `_404` structs below are copies of DNA structs as they were in Blender 4.4 and before. Their
  * data layout should never have to be modified in any way, as it matches the expected data layout
- * in the raw bytes buffers read from older blendfiles.
+ * in the raw bytes buffers read from older blend-files.
  *
  * NOTE: There is _no_ need to protect DNA structs definition in any way to ensure forward
  * compatibility, for the following reasons:
- *   - The DNA struct info _is_ properly written in blendfiles since 2.83.
- *   - When there is DNA info for a BHead in the blendfile, even if that BHead is ultimately
+ *   - The DNA struct info _is_ properly written in blend-files since 2.83.
+ *   - When there is DNA info for a #BHead in the blend-file, even if that #BHead is ultimately
  *     'read'/used as raw bytes buffer through a call to `BLO_read_data_address`, the actual
- *     reading of that BHead from the blendfile will have already gone through the lower-level 'DNA
- *     versioning' process, which means that DNA struct changes (like adding new properties,
+ *     reading of that #BHead from the blend-file will have already gone through the lower-level
+ *     'DNA versioning' process, which means that DNA struct changes (like adding new properties,
  *     increasing an array size, etc.) will be handled properly.
- *   - Blender versions prior to 3.6 will not be able to load any 4.0+ blendfiles without immediate
- *     crash, so trying to preserve forward compatibility for versions older than 2.83 would be
- *     totally pointless.
+ *   - Blender versions prior to 3.6 will not be able to load any 4.0+ blend-files without
+ *     immediate crash, so trying to preserve forward compatibility for versions older than
+ *     2.83 would be totally pointless.
  */
 
 typedef struct bNodeSocketValueInt_404 {
@@ -1416,28 +1416,27 @@ typedef struct bNodeSocketValueRGBA_404 {
 typedef struct bNodeSocketValueString_404 {
   int subtype;
   char _pad[4];
-  /** 1024 = FILEMAX. */
-  char value[1024];
+  char value[/*FILE_MAX*/ 1024];
 } bNodeSocketValueString_404;
 
 typedef struct bNodeSocketValueObject_404 {
-  struct Object *value;
+  Object *value;
 } bNodeSocketValueObject_404;
 
 typedef struct bNodeSocketValueImage_404 {
-  struct Image *value;
+  Image *value;
 } bNodeSocketValueImage_404;
 
 typedef struct bNodeSocketValueCollection_404 {
-  struct Collection *value;
+  Collection *value;
 } bNodeSocketValueCollection_404;
 
 typedef struct bNodeSocketValueTexture_404 {
-  struct Tex *value;
+  Tex *value;
 } bNodeSocketValueTexture_404;
 
 typedef struct bNodeSocketValueMaterial_404 {
-  struct Material *value;
+  Material *value;
 } bNodeSocketValueMaterial_404;
 
 typedef struct bNodeSocketValueMenu_404 {
@@ -1460,7 +1459,7 @@ static void direct_link_node_socket_legacy_data_version_do(
   T_404 *orig_data = static_cast<T_404 *>(*raw_data);
   *raw_data = nullptr;
   T *final_data = MEM_callocN<T>(__func__);
-  /* Could use memcpy here, since we also require historic members of these DNA structs to
+  /* Could use `memcpy` here, since we also require historic members of these DNA structs to
    * never be moved or re-ordered. But better be verbose and explicit here. */
   copy_fn(*final_data, *orig_data);
   *dest_data = final_data;
@@ -1609,7 +1608,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
             [](bNodeSocketValueString &dest,
                versioning_internal::bNodeSocketValueString_404 &src) {
               dest.subtype = src.subtype;
-              BLI_strncpy(dest.value, src.value, sizeof(dest.value));
+              STRNCPY(dest.value, src.value);
             });
         break;
       case SOCK_OBJECT:
@@ -1712,7 +1711,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
   }
 }
 
-void direct_link_node_socket_storage(BlendDataReader *reader, const bNode *node, bNodeSocket *sock)
+static void direct_link_node_socket_storage(BlendDataReader *reader,
+                                            const bNode *node,
+                                            bNodeSocket *sock)
 {
   if (!sock->storage) {
     return;
@@ -1734,8 +1735,8 @@ void direct_link_node_socket_storage(BlendDataReader *reader, const bNode *node,
         NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
             sock->storage);
         BKE_image_format_blend_read_data(reader, &sockdata->format);
-        break;
       }
+      break;
     case CMP_NODE_IMAGE:
     case CMP_NODE_R_LAYERS:
       BLO_read_struct(reader, NodeImageLayer, &sock->storage);

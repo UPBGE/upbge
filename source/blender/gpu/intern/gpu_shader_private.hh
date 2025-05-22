@@ -230,6 +230,8 @@ class ShaderCompiler {
   SpecializationBatchHandle precompile_specializations(Span<ShaderSpecialization> specializations);
 
   bool specialization_batch_is_ready(SpecializationBatchHandle &handle);
+
+  void wait_for_all();
 };
 
 enum class Severity {
