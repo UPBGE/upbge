@@ -1961,7 +1961,6 @@ int main(int argc,
 
   DRW_gpu_context_enable_ex(false);
   UI_exit();
-  GPU_pass_cache_free();
   GPU_shader_cache_dir_clear_old();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);
