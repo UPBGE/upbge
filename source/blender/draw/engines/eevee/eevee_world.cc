@@ -170,7 +170,7 @@ void World::sync_volume(const WorldHandle &world_handle)
   /* Only the scene world nodetree can have volume shader. */
   if (world && world->nodetree && world->use_nodes) {
     gpumat = inst_.shaders.world_shader_get(
-        world, world->nodetree, MAT_PIPE_VOLUME_MATERIAL, !inst_.is_image_render);
+        world, world->nodetree, MAT_PIPE_VOLUME_MATERIAL, !(inst_.is_image_render || inst_.scene->flag & SCE_INTERACTIVE));
   }
 
   bool had_volume = has_volume_;
