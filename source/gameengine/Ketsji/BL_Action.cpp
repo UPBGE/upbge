@@ -431,13 +431,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
                                                                                m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-      scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
-    }
-    else {
-      scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
-    }
-
+    scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
     if (m_layer_weight >= 0)
@@ -480,12 +474,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
       bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
-        if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-          scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
-        }
-        else {
-          scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
-        }
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_GEOMETRY, ob->gameflag & OB_OVERLAY_COLLECTION);
         PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
         const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
             *m_action);
@@ -503,12 +493,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
         // the Color ones)
         bool isRightAction = ActionMatchesName(m_action, gpmd->name, ACT_TYPE_GPMODIFIER);
         if (isRightAction) {
-          if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-            scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
-          }
-          else {
-            scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
-          }
+          scene->AppendToIdsToUpdate(
+              &ob->id, ID_RECALC_GEOMETRY, ob->gameflag & OB_OVERLAY_COLLECTION);
           PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
           const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
               *m_action);
@@ -526,12 +512,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
           if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
           }
-          if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-            scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
-          }
-          else {
-            scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
-          }
+          scene->AppendToIdsToUpdate(
+              &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
           PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
           const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
               *m_action);
@@ -554,12 +536,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
             continue;
           }
           if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
-            if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-              scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
-            }
-            else {
-              scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
-            }
+            scene->AppendToIdsToUpdate(
+                &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
             PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
             const blender::animrig::slot_handle_t slot_handle =
                 blender::animrig::first_slot_handle(*m_action);
@@ -588,7 +566,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
         }
         if (isRightAction) {
-          scene->AppendToIdsToUpdateInAllRenderPasses(&nodetree->id, (IDRecalcFlag)0);
+          scene->AppendToIdsToUpdate(&nodetree->id, (IDRecalcFlag)0, false);
           PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
           const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
               *m_action);
@@ -620,7 +598,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         }
 
         if (play_normal_key_action || play_nla_key_action) {
-          scene->AppendToIdsToUpdateInAllRenderPasses(&me->id, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
           Key *key = me->key;
 
           PointerRNA ptrrna = RNA_id_pointer_create(&key->id);

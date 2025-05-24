@@ -395,7 +395,7 @@ void KX_GameObject::ReplicateBlenderObject()
                                                 V3D_SHADING_USE_COMPOSITOR_DISABLED &&
                                             v3d->shading.type >= OB_MATERIAL;
       if (is_realtime_compositor_enabled) {
-        GetScene()->AppendToIdsToUpdateInOverlayPass(&scene->id, ID_RECALC_EDITORS);
+        GetScene()->AppendToIdsToUpdate(&scene->id, ID_RECALC_EDITORS, true);
       }
     }
 
@@ -1283,12 +1283,8 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
     else {
       ob->visibility_flag |= OB_HIDE_VIEWPORT;
     }
-    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-      GetScene()->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-    }
-    else {
-      GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-    }
+    GetScene()->AppendToIdsToUpdate(
+        &ob->id, ID_RECALC_SYNC_TO_EVAL, ob->gameflag & OB_OVERLAY_COLLECTION);
   }
 
   if (recursive) {

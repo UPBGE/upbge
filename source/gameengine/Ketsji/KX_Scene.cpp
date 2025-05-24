@@ -617,7 +617,7 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   if ((m_backupOverlayFlag != scene_eval->eevee.flag) ||
       (m_backupOverlayGameFlag != scene_eval->eevee.gameflag)) {
     /* Only tag if overlay settings changed since previous frame */
-    AppendToIdsToUpdateInOverlayPass(&obcam->id, ID_RECALC_TRANSFORM);
+    AppendToIdsToUpdate(&obcam->id, ID_RECALC_TRANSFORM, true);
   }
   m_backupOverlayFlag = scene_eval->eevee.flag;
   m_backupOverlayGameFlag = scene_eval->eevee.gameflag;
@@ -1319,23 +1319,23 @@ bool KX_Scene::SomethingIsMoving()
   return false;
 }
 
-void KX_Scene::AppendToIdsToUpdateInAllRenderPasses(ID *id, IDRecalcFlag flag)
+void KX_Scene::AppendToIdsToUpdate(ID *id, IDRecalcFlag flag, bool in_overlay_collection_only)
 {
   std::pair<ID *, IDRecalcFlag> it = {id, flag};
-  if (std::find(m_idsToUpdateInAllRenderPasses.begin(),
-                m_idsToUpdateInAllRenderPasses.end(),
-                it) == m_idsToUpdateInAllRenderPasses.end()) {
-    m_idsToUpdateInAllRenderPasses.push_back(it);
+  if (in_overlay_collection_only) {
+    if (std::find(m_idsToUpdateInOverlayPass.begin(), m_idsToUpdateInOverlayPass.end(), it) ==
+        m_idsToUpdateInOverlayPass.end())
+    {
+      m_idsToUpdateInOverlayPass.push_back(it);
+    }
   }
-}
-
-void KX_Scene::AppendToIdsToUpdateInOverlayPass(ID *id, IDRecalcFlag flag)
-{
-  std::pair<ID *, IDRecalcFlag> it = {id, flag};
-  if (std::find(m_idsToUpdateInOverlayPass.begin(),
-                m_idsToUpdateInOverlayPass.end(),
-                it) == m_idsToUpdateInOverlayPass.end()) {
-    m_idsToUpdateInOverlayPass.push_back(it);
+  else {
+    if (std::find(m_idsToUpdateInAllRenderPasses.begin(),
+                  m_idsToUpdateInAllRenderPasses.end(),
+                  it) == m_idsToUpdateInAllRenderPasses.end())
+    {
+      m_idsToUpdateInAllRenderPasses.push_back(it);
+    }
   }
 }
 
@@ -1357,6 +1357,7 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
     }
     m_idsToUpdateInOverlayPass.clear();
   }
+  //m_idsToUpdateInAllRenderPasses will be cleared only at last render pass
 }
 
 void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)

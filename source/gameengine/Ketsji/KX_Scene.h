@@ -364,8 +364,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
-  void AppendToIdsToUpdateInAllRenderPasses(ID *id, IDRecalcFlag flag);
-  void AppendToIdsToUpdateInOverlayPass(ID *id, IDRecalcFlag flag);
+  void AppendToIdsToUpdate(ID *id, IDRecalcFlag flag, bool in_overlay_collection_only);
   void TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam);
   void TagBlenderPhysicsObject(Scene *scene, Object *ob);
   KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj,
