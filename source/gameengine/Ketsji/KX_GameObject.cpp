@@ -1274,25 +1274,20 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
 {
   Object *ob = GetBlenderObject();
   if (ob) {
-    Scene *scene = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    Base *base = BKE_view_layer_base_find(view_layer, ob);
-    if (base) {  // Base can be NULL for objects in linked collections...
-      if (v) {
-        base->flag &= ~BASE_HIDDEN;
-      }
-      else {
-        base->flag |= BASE_HIDDEN;
-      }
-
-      BKE_layer_collection_sync(scene, view_layer);
-      if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-        GetScene()->AppendToIdsToUpdateInOverlayPass(&scene->id, ID_RECALC_BASE_FLAGS);
-      }
-      else {
-        GetScene()->AppendToIdsToUpdateInAllRenderPasses(&scene->id, ID_RECALC_BASE_FLAGS);
-      }
+    Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
+    GetScene()->TagForCollectionRemap();
+    DEG_relations_tag_update(bmain);
+    if (v) {
+      ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+    }
+    else {
+      ob->visibility_flag |= OB_HIDE_VIEWPORT;
+    }
+    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+      GetScene()->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+    }
+    else {
+      GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 
