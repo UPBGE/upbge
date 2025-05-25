@@ -255,6 +255,7 @@ set(SRC
   BLI_gsqueue.h
   BLI_hash.h
   BLI_hash.hh
+  BLI_hash_fwd.hh
   BLI_hash_md5.hh
   BLI_hash_mm2a.hh
   BLI_hash_mm3.hh
@@ -609,6 +610,7 @@ if(WITH_GTESTS)
     tests/BLI_unique_sorted_indices_test.cc
     tests/BLI_utildefines_test.cc
     tests/BLI_uuid_test.cc
+    tests/BLI_vector_list_test.cc
     tests/BLI_vector_set_test.cc
     tests/BLI_vector_test.cc
     tests/BLI_virtual_array_test.cc
