@@ -676,7 +676,7 @@ enum {
 
 };
 
-/** #Object.transflag (int//upbge) */
+/** #Object.transflag (int in upbge) */
 enum {
   OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK = 1 << 0,
   OB_TRANSFLAG_UNUSED_1 = 1 << 1, /* cleared */
