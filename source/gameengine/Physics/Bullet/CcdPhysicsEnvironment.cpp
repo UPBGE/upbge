@@ -21,8 +21,6 @@
 
 #include "CcdPhysicsEnvironment.h"
 
-#include "BKE_context.hh"
-#include "BKE_layer.hh"
 #include "BKE_object.hh"
 #include "BLI_bounds_types.hh"
 #include "DNA_object_force_types.h"
@@ -3231,10 +3229,12 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   physicscontroller->SetNewClientInfo(gameobj->getClientInfo());
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
   // don't add automatically sensor object, they are added when a collision sensor is registered
   if (!isbulletsensor && (blenderobject->lay & activeLayerBitInfo) != 0 &&
-      BKE_object_is_visible_in_viewport(CTX_wm_view3d(C), blenderobject)) {
+      (blenderobject->base_flag &
+                            (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0)
+  {
     this->AddCcdPhysicsController(physicscontroller);
   }
 

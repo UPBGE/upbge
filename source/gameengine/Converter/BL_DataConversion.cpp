@@ -1378,8 +1378,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
     }
 
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    bool isInActiveLayer = BKE_object_is_visible_in_viewport(CTX_wm_view3d(C), blenderobject);
+    bool isInActiveLayer = (blenderobject->base_flag &
+                            (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
     kxscene->BackupVisibilityFlag(blenderobject, blenderobject->visibility_flag);
