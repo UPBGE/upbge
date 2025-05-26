@@ -231,7 +231,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   scene->lay = 1;
 
   m_kxobWithLod = {};
-  m_obRestrictFlags = {};
+  m_obVisibilityFlag = {};
   m_backupOverlayFlag = -1;
   m_backupOverlayGameFlag = -1;
 
@@ -323,7 +323,6 @@ KX_Scene::~KX_Scene()
   ReinitBlenderContextVariables();
 
   Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -361,13 +360,6 @@ KX_Scene::~KX_Scene()
 
   /* Fixes issue when switching .blend erm...*/
   GPU_shader_force_unbind();
-
-  for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
-    Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
-    base->flag &= ~BASE_HIDDEN;
-    BKE_layer_collection_sync(scene, view_layer);
-    DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  }
 
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
@@ -440,8 +432,7 @@ KX_Scene::~KX_Scene()
     delete m_sceneConverter;
   }
 
-  RestoreRestrictFlags();
-  m_obRestrictFlags.clear();
+  RestoreVisibilityFlag();
 
   // Flush depsgraph updates a last time at ge exit
   BKE_scene_graph_update_tagged(depsgraph, bmain);
@@ -1184,19 +1175,25 @@ void KX_Scene::RemoveObjFromLodObjList(KX_GameObject *gameobj)
   }
 }
 
-void KX_Scene::BackupRestrictFlag(Object *ob, char restrictFlag)
+void KX_Scene::BackupVisibilityFlag(Object *ob, short visibilityFlag)
 {
-  m_obRestrictFlags.insert({ob, restrictFlag});
+  m_obVisibilityFlag.insert({ob, visibilityFlag});
 }
 
-void KX_Scene::RestoreRestrictFlags()
+void KX_Scene::RestoreVisibilityFlag()
 {
-  for (std::map<Object *, char>::iterator it = m_obRestrictFlags.begin();
-       it != m_obRestrictFlags.end();
+  for (std::map<Object *, short>::iterator it = m_obVisibilityFlag.begin();
+       it != m_obVisibilityFlag.end();
        it++) {
     Object *ob = it->first;
     ob->visibility_flag = it->second;
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
+  BKE_main_collection_sync_remap(bmain);
+  m_obVisibilityFlag.clear();
 }
 
 void KX_Scene::TagForCollectionRemap()

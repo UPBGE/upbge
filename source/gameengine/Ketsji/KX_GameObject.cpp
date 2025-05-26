@@ -88,7 +88,6 @@ KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
 KX_GameObject::KX_GameObject()
     : SCA_IObject(),
       m_isReplica(false),            // eevee
-      m_visibleAtGameStart(false),   // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
       m_layer(0),
@@ -154,18 +153,11 @@ KX_GameObject::~KX_GameObject()
   }
 
   if (m_pSGNode) {
+    RemoveOrHideBlenderObject();
+
+    /* At KX_Scene exit */
     KX_Scene *scene = GetScene();
-
-    if (scene->m_isRuntime) {
-      HideOriginalObject();
-      RemoveReplicaObject();
-    }
-    else {  // at scene exit
-      if (ob && strcmp(ob->id.name, "OBgame_default_cam") != 0) {
-        SetVisible(m_visibleAtGameStart, false);
-      }
-      RemoveReplicaObject();
-
+    if (!scene->m_isRuntime) {
       if (ob && ob->type == OB_MBALL) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
@@ -224,14 +216,6 @@ KX_GameObject::~KX_GameObject()
 void KX_GameObject::SetBlenderObject(Object *obj)
 {
   m_pBlenderObject = obj;
-  if (obj) {
-    Scene *scene = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    Base *base = BKE_view_layer_base_find(view_layer, obj);
-    if (base) {  // base can be nullptr for objects in instanced collections
-      m_visibleAtGameStart = (base->flag & BASE_HIDDEN) == 0;
-    }
-  }
 }
 
 void KX_GameObject::SyncTransformWithDepsgraph()
@@ -405,33 +389,19 @@ void KX_GameObject::ReplicateBlenderObject()
     m_isReplica = true;
   }
 }
-void KX_GameObject::RemoveReplicaObject()
+void KX_GameObject::RemoveOrHideBlenderObject()
 {
   Object *ob = GetBlenderObject();
-  if (ob && m_isReplica) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = CTX_data_main(C);
-    BKE_id_delete(bmain, ob);
-    SetBlenderObject(nullptr);
-    DEG_relations_tag_update(bmain);
-  }
-}
-
-void KX_GameObject::HideOriginalObject()
-{
-  Object *ob = GetBlenderObject();
-  if (ob && !m_isReplica &&
-      (ob->base_flag & (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                        BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0) {
-    Scene *scene = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    Base *base = BKE_view_layer_base_find(view_layer, ob);
-    if (base) {  // As for SetVisible, there are cases (when we use bpy...) where Objects have no
-                 // base.
-      base->flag |= BASE_HIDDEN;
-      BKE_layer_collection_sync(scene, view_layer);
-      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-      GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
+  if (ob) {
+    if (m_isReplica) {
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Main *bmain = CTX_data_main(C);
+      BKE_id_delete(bmain, ob);
+      SetBlenderObject(nullptr);
+      DEG_relations_tag_update(bmain);
+    }
+    else {
+      SetVisible(false, false);
     }
   }
 }

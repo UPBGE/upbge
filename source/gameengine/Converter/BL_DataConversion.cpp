@@ -1378,17 +1378,17 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
     }
 
-    bool isInActiveLayer = (blenderobject->base_flag &
-                            (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    bool isInActiveLayer = BKE_object_is_visible_in_viewport(CTX_wm_view3d(C), blenderobject);
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
-    /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases,
+    kxscene->BackupVisibilityFlag(blenderobject, blenderobject->visibility_flag);
+
+    /* Force OB_HIDE_VIEWPORT to avoid not needed depsgraph operations in some cases,
      * unless blenderobject is a lodlevel because we want to be abled to get
      * evaluated meshes from lodlevels and restrict viewport prevents meshes to be evaluated
      */
     if (!isInActiveLayer && !is_lod_level(lod_objects, blenderobject)) {
-      kxscene->BackupRestrictFlag(blenderobject, blenderobject->visibility_flag);
       blenderobject->visibility_flag |= OB_HIDE_VIEWPORT;
       BKE_main_collection_sync_remap(maggie);
       DEG_relations_tag_update(maggie);

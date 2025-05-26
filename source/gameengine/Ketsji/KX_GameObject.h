@@ -106,7 +106,6 @@ class KX_GameObject : public SCA_IObject {
   /* EEVEE INTEGRATION */
   float m_prevobject_to_world[4][4];
   bool m_isReplica;
-  bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
   /* END OF EEVEE INTEGRATION */
@@ -154,8 +153,7 @@ class KX_GameObject : public SCA_IObject {
   void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
   void TagForTransformUpdateEvaluated();
   void ReplicateBlenderObject();
-  void HideOriginalObject();
-  void RemoveReplicaObject();
+  void RemoveOrHideBlenderObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
   void SuspendLogicAndActions(bool childrenRecursive);

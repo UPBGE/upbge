@@ -132,7 +132,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   BL_SceneConverter *m_sceneConverter;
   bool m_isPythonMainLoop;
   std::vector<KX_GameObject *> m_kxobWithLod;
-  std::map<Object *, char> m_obRestrictFlags;
+  std::map<Object *, short> m_obVisibilityFlag;
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
   int m_backupOverlayFlag;
@@ -326,7 +326,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void ConvertBlenderAction(struct bAction *act);
 
   bool m_isRuntime;  // Too lazy to put that in protected
-  std::vector<Object *> m_hiddenObjectsDuringRuntime;
 
   void RenderAfterCameraSetup(KX_Camera *cam,
                               class RAS_FrameBuffer *background_fb,
@@ -350,8 +349,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void SetIsPythonMainLoop(bool isPython);
   void AddObjToLodObjList(KX_GameObject *gameobj);
   void RemoveObjFromLodObjList(KX_GameObject *gameobj);
-  void BackupRestrictFlag(Object *ob, char restrictFlag);
-  void RestoreRestrictFlags();
+  void BackupVisibilityFlag(Object *ob, short visibilityFlag);
+  void RestoreVisibilityFlag();
   void TagForCollectionRemap();
   KX_GameObject *GetGameObjectFromObject(Object *ob);
   void BackupObjectsMatToWorld(BackupObj *back);
