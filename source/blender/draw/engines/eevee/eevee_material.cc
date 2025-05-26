@@ -180,8 +180,9 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                          blender_mat->nodetree :
                          default_surface_ntree_.nodetree_get(blender_mat);
 
-  bool use_deferred_compilation = inst_.is_viewport() || GPU_use_parallel_compilation();
-  if (inst_.is_viewport_image_render || inst_.scene->flag & SCE_INTERACTIVE) {
+  bool use_deferred_compilation = (inst_.is_viewport() || GPU_use_parallel_compilation()) &&
+                                  (inst_.scene->flag & SCE_INTERACTIVE) == 0;
+  if (inst_.is_viewport_image_render) {
     /* We can't defer compilation in viewport image render, since we can't re-sync.(See #130235) */
     use_deferred_compilation = false;
   }

@@ -2380,6 +2380,8 @@ void DRW_game_render_loop(bContext *C,
                                      !is_overlay_pass;
 
   draw_ctx.acquire_data();
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  draw_ctx.data->modules_init();
 
   const bool gpencil_engine_needed = DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
 
