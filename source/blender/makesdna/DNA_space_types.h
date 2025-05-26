@@ -1124,7 +1124,9 @@ typedef struct SpreadsheetColumn {
    * #eSpreadsheetColumnValueType.
    */
   uint8_t data_type;
-  char _pad0[3];
+  char _pad0[1];
+  /** #eSpreadsheetColumnFlag. */
+  uint16_t flag;
   /** Width in SPREADSHEET_WIDTH_UNIT. */
   float width;
 
