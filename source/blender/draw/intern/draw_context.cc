@@ -1242,6 +1242,11 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
   draw_ctx.engines_data_validate();
+
+  /* UPBGE: Init modules ahead of time because the begin_sync happens before DRW_render_object_iter.
+   * It's an UPBGE only addition for now but it's possible that the bug (init_modules called too late) arises in Blender too */
+  draw_ctx.data->modules_init();
+
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     /* Only iterate over objects for internal engines or when overlays are enabled */
     if (do_populate_loop) {
