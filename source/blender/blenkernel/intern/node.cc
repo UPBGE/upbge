@@ -2474,16 +2474,16 @@ bNodeTreeType *node_tree_type_find(const StringRef idname)
   return *value;
 }
 
+ResourceScope *scope1 = MEM_new<ResourceScope>("scope1");
 static void defer_free_tree_type(bNodeTreeType *tree_type)
 {
-  static ResourceScope scope;
-  scope.add_destruct_call([tree_type]() { MEM_delete(tree_type); });
+  scope1->add_destruct_call([tree_type]() { MEM_delete(tree_type); });
 }
 
+ResourceScope *scope2 = MEM_new<ResourceScope>("scope2");
 static void defer_free_node_type(bNodeType *ntype)
 {
-  static ResourceScope scope;
-  scope.add_destruct_call([ntype]() {
+  scope2->add_destruct_call([ntype]() {
     /* May be null if the type is statically allocated. */
     if (ntype->free_self) {
       ntype->free_self(ntype);
@@ -2491,10 +2491,10 @@ static void defer_free_node_type(bNodeType *ntype)
   });
 }
 
+ResourceScope *scope3 = MEM_new<ResourceScope>("scope3");
 static void defer_free_socket_type(bNodeSocketType *stype)
 {
-  static ResourceScope scope;
-  scope.add_destruct_call([stype]() {
+  scope3->add_destruct_call([stype]() {
     /* May be null if the type is statically allocated. */
     if (stype->free_self) {
       stype->free_self(stype);
@@ -5476,6 +5476,9 @@ void node_system_exit()
     }
     ntree_free_type(nt);
   }
+  MEM_delete(scope1);
+  MEM_delete(scope2);
+  MEM_delete(scope3);
 }
 
 /* -------------------------------------------------------------------- */
