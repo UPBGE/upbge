@@ -1165,12 +1165,6 @@ typedef struct SpreadsheetInstanceID {
 typedef struct SpreadsheetTableID {
   /** #eSpreadsheetTableIDType. */
   int type;
-
-#ifdef __cplusplus
-  uint64_t hash() const;
-  friend bool operator==(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
-  friend bool operator!=(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
-#endif
 } SpreadsheetTableID;
 
 typedef struct SpreadsheetTableIDGeometry {
