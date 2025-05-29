@@ -736,7 +736,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
   Scene *scene = context->scene;
   float fac;
   int i;
-  EffectHandle sh = effect_handle_get(strip);
+  EffectHandle sh = strip_effect_handle_get(strip);
   const FCurve *fcu = nullptr;
   ImBuf *ibuf[2];
   Strip *input[2];
@@ -1477,10 +1477,11 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
     depsgraph = BKE_scene_ensure_depsgraph(context->bmain, scene, view_layer);
     BKE_scene_graph_update_for_newframe(depsgraph);
     Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
+    Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     ibuf = view3d_fn(
         /* set for OpenGL render (nullptr when scrubbing) */
         depsgraph,
-        scene,
+        scene_eval,
         &context->scene->display.shading,
         eDrawType(context->scene->r.seq_prev_type),
         camera_eval,
