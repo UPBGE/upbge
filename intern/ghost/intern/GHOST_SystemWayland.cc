@@ -1493,14 +1493,30 @@ struct GWL_Display {
    */
   int seats_active_index = 0;
 
+  /**
+   * When true, running without any windows.
+   * Wayland is only used to access the GPU.
+   *
+   * \note In general logic should not diverge too much in background mode,
+   * so as to avoid maintaining multiple code-paths however some logic can be skipped
+   * such as libraries for showing window decorations and threaded event handling.
+   */
+  bool background = false;
+
   /* Threaded event handling. */
 #ifdef USE_EVENT_BACKGROUND_THREAD
   /**
    * Run a thread that consumes events in the background.
    * Use `pthread` because `std::thread` leaks memory.
+   *
+   * Not set when `background == true`.
    */
   pthread_t events_pthread = 0;
-  /** Use to exit the event reading loop. */
+  /**
+   * Use to exit the event reading loop.
+   *
+   * Not set when `background == true`.
+   */
   bool events_pthread_is_active = false;
 
   /**
@@ -1533,9 +1549,11 @@ struct GWL_Display {
 static void gwl_display_destroy(GWL_Display *display)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  if (display->events_pthread) {
-    ghost_wl_display_lock_without_input(display->wl.display, display->system->server_mutex);
-    display->events_pthread_is_active = false;
+  if (!display->background) {
+    if (display->events_pthread) {
+      ghost_wl_display_lock_without_input(display->wl.display, display->system->server_mutex);
+      display->events_pthread_is_active = false;
+    }
   }
 #endif
 
@@ -1579,9 +1597,11 @@ static void gwl_display_destroy(GWL_Display *display)
 #endif
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  if (display->events_pthread) {
-    gwl_display_event_thread_destroy(display);
-    display->system->server_mutex->unlock();
+  if (!display->background) {
+    if (display->events_pthread) {
+      gwl_display_event_thread_destroy(display);
+      display->system->server_mutex->unlock();
+    }
   }
 
   /* Important to remove after the seats which may have key repeat timers active. */
@@ -2010,9 +2030,9 @@ bool ghost_wl_display_report_error_if_set(wl_display *display)
 #ifdef __GNUC__
 static void ghost_wayland_log_handler(const char *msg, va_list arg)
     __attribute__((format(printf, 1, 0)));
+static void ghost_wayland_log_handler_background(const char *msg, va_list arg)
+    __attribute__((format(printf, 1, 0)));
 #endif
-
-static bool ghost_wayland_log_handler_is_background = false;
 
 /**
  * Callback for WAYLAND to run when there is an error.
@@ -2022,15 +2042,6 @@ static bool ghost_wayland_log_handler_is_background = false;
  */
 static void ghost_wayland_log_handler(const char *msg, va_list arg)
 {
-  /* This is fine in background mode, we will try to fall back to headless GPU context.
-   * Happens when render farm process runs without user login session. */
-  if (ghost_wayland_log_handler_is_background &&
-      (strstr(msg, "error: XDG_RUNTIME_DIR not set in the environment") ||
-       strstr(msg, "error: XDG_RUNTIME_DIR is invalid or not set in the environment")))
-  {
-    return;
-  }
-
   fprintf(stderr, "GHOST/Wayland: ");
   vfprintf(stderr, msg, arg); /* Includes newline. */
 
@@ -2038,6 +2049,19 @@ static void ghost_wayland_log_handler(const char *msg, va_list arg)
   if (backtrace_fn) {
     backtrace_fn(stderr); /* Includes newline. */
   }
+}
+
+/** A wrapper for #ghost_wayland_log_handler to be used when running in the background. */
+static void ghost_wayland_log_handler_background(const char *msg, va_list arg)
+{
+  /* This is fine in background mode, we will try to fall back to headless GPU context.
+   * Happens when render farm process runs without user login session. */
+  if (strstr(msg, "error: XDG_RUNTIME_DIR not set in the environment") ||
+      strstr(msg, "error: XDG_RUNTIME_DIR is invalid or not set in the environment"))
+  {
+    return;
+  }
+  ghost_wayland_log_handler(msg, arg);
 }
 
 #if defined(WITH_GHOST_X11) && defined(WITH_GHOST_WAYLAND_LIBDECOR)
@@ -5344,7 +5368,20 @@ static bool xkb_compose_state_feed_and_get_utf8(
         const int utf8_buf_compose_len = xkb_compose_state_get_utf8(
             compose_state, utf8_buf_compose, sizeof(utf8_buf_compose));
         if (utf8_buf_compose_len > 0) {
-          memcpy(r_utf8_buf, utf8_buf_compose, utf8_buf_compose_len);
+          if (utf8_buf_compose_len > sizeof(GHOST_TEventKeyData::utf8_buf)) {
+            /* TODO(@ideasman42): keyboard events in GHOST only support a single character.
+             *
+             * - In the case XKB compose enters multiple code-points only the first will be used.
+             *
+             * - Besides supporting multiple characters per key input,
+             *   one possible solution would be to generate an IME event.
+             *
+             * - In practice I'm not sure how common these are.
+             *   So far no bugs have been reported about this.
+             */
+            CLOG_WARN(LOG, "key (compose_size=%d) exceeds the maximum size", utf8_buf_compose_len);
+          }
+          memcpy(r_utf8_buf, utf8_buf_compose, sizeof(GHOST_TEventKeyData::utf8_buf));
           handled = true;
         }
         break;
@@ -7331,6 +7368,7 @@ static const wl_registry_listener registry_listener = {
 static void *gwl_display_event_thread_fn(void *display_voidp)
 {
   GWL_Display *display = static_cast<GWL_Display *>(display_voidp);
+  GHOST_ASSERT(!display->background, "Foreground only");
   const int fd = wl_display_get_fd(display->wl.display);
   while (display->events_pthread_is_active) {
     /* Wait for an event, this thread is dedicated to event handling. */
@@ -7353,6 +7391,7 @@ static void *gwl_display_event_thread_fn(void *display_voidp)
 /* Event reading thread. */
 static void gwl_display_event_thread_create(GWL_Display *display)
 {
+  GHOST_ASSERT(!display->background, "Foreground only");
   GHOST_ASSERT(display->events_pthread == 0, "Only call once");
   display->events_pending.reserve(events_pending_default_size);
   display->events_pthread_is_active = true;
@@ -7365,6 +7404,7 @@ static void gwl_display_event_thread_create(GWL_Display *display)
 
 static void gwl_display_event_thread_destroy(GWL_Display *display)
 {
+  GHOST_ASSERT(!display->background, "Foreground only");
   pthread_cancel(display->events_pthread);
 }
 
@@ -7387,11 +7427,13 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
 #endif
       display_(new GWL_Display)
 {
-  ghost_wayland_log_handler_is_background = background;
-  wl_log_set_handler_client(ghost_wayland_log_handler);
+  wl_log_set_handler_client(background ? ghost_wayland_log_handler_background :
+                                         ghost_wayland_log_handler);
 
   display_->system = this;
+  display_->background = background;
   /* Connect to the Wayland server. */
+
   display_->wl.display = wl_display_connect(nullptr);
   if (!display_->wl.display) {
     display_destroy_and_free_all();
@@ -7486,8 +7528,6 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
     }
   }
   else
-#else
-  (void)background;
 #endif
   {
     const GWL_XDG_Decor_System &decor = *display_->xdg_decor;
@@ -7504,8 +7544,16 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
   wl_display_roundtrip(display_->wl.display);
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  gwl_display_event_thread_create(display_);
-
+  /* There is no need for an event handling thread in background mode
+   * because there no polling for user input. */
+  if (background) {
+    GHOST_ASSERT(display_->events_pthread_is_active == false, "Expected to be false");
+  }
+  else {
+    gwl_display_event_thread_create(display_);
+  }
+  /* Could be null in background mode, however there are enough
+   * references to this that it's safer to create it. */
   display_->ghost_timer_manager = new GHOST_TimerManager();
 #endif
 }
@@ -7554,7 +7602,7 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
     }
   }
 
-  {
+  if (!display_->background) {
     std::lock_guard lock{display_->events_pending_mutex};
     for (const GHOST_IEvent *event : display_->events_pending) {
 
@@ -9228,6 +9276,7 @@ uint64_t GHOST_SystemWayland::ms_from_input_time(const uint32_t timestamp_as_uin
 GHOST_TSuccess GHOST_SystemWayland::pushEvent_maybe_pending(const GHOST_IEvent *event)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
+  GHOST_ASSERT(!display_->background, "Foreground only");
   if (main_thread_id != std::this_thread::get_id()) {
     std::lock_guard lock{display_->events_pending_mutex};
     display_->events_pending.push_back(event);
