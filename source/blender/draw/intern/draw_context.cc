@@ -2416,8 +2416,7 @@ void DRW_game_render_loop(bContext *C,
 
         if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
           blender::draw::ObjectRef ob_ref(data_, ob);
-          duplis.try_add(ob_ref);
-          drw_engines_cache_populate(ob_ref, extraction);
+          drw_engines_cache_populate(ob_ref, duplis, extraction);
         }
       }
       DEG_OBJECT_ITER_END;
@@ -2440,8 +2439,7 @@ void DRW_game_render_loop(bContext *C,
           continue;
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
-        duplis.try_add(ob_ref);
-        drw_engines_cache_populate(ob_ref, extraction);
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
