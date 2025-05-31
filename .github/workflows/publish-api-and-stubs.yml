@@ -68,6 +68,11 @@ jobs:
       run: |
         cd upbge && \
         ./build_files/utils/make_update.py --use-linux-libraries
+
+    - name: Download LFS files
+      run: |
+        cd upbge && \
+        git lfs pull --all lfs-fallback
         
     - name: Configure CMake
       run: |
