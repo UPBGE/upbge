@@ -4867,7 +4867,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
 
   for (Object *ob : objects) {
     BMesh *bm = BKE_editmesh_from_object(ob)->bm;
-    if (bm->totvertsel == 0) {
+    if (!(ts->uv_flag & UV_SYNC_SELECTION) && (bm->totvertsel == 0)) {
       continue;
     }
 
@@ -4896,9 +4896,15 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
           changed = true;
         }
       }
-      if (changed) {
-        uv_select_tag_update_for_object(depsgraph, ts, ob);
+    }
+    if (changed) {
+      if (ts->uv_flag & UV_SYNC_SELECTION) {
+        BM_mesh_select_flush(bm);
       }
+      else {
+        uvedit_select_flush(scene, bm);
+      }
+      uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
   }
 
@@ -4975,7 +4981,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
 
   for (Object *ob : objects) {
     BMesh *bm = BKE_editmesh_from_object(ob)->bm;
-    if (bm->totvertsel == 0) {
+    if (!(ts->uv_flag & UV_SYNC_SELECTION) && (bm->totvertsel == 0)) {
       continue;
     }
 
@@ -5004,9 +5010,15 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
           changed = true;
         }
       }
-      if (changed) {
-        uv_select_tag_update_for_object(depsgraph, ts, ob);
+    }
+    if (changed) {
+      if (ts->uv_flag & UV_SYNC_SELECTION) {
+        BM_mesh_select_flush(bm);
       }
+      else {
+        uvedit_select_flush(scene, bm);
+      }
+      uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
   }
 
@@ -5097,6 +5109,12 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       }
     }
     if (changed) {
+      if (ts->uv_flag & UV_SYNC_SELECTION) {
+        BM_mesh_select_flush(bm);
+      }
+      else {
+        uvedit_select_flush(scene, bm);
+      }
       uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
   }
@@ -5208,6 +5226,12 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
     }
 
     if (changed) {
+      if (ts->uv_flag & UV_SYNC_SELECTION) {
+        BM_mesh_select_flush(bm);
+      }
+      else {
+        uvedit_select_flush(scene, bm);
+      }
       uv_select_tag_update_for_object(depsgraph, ts, obedit);
     }
   }

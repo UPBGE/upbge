@@ -2711,12 +2711,13 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
       return OPERATOR_CANCELLED;
     }
 
-    bke::greasepencil::Drawing *target_drawing = grease_pencil.get_editable_drawing_at(
-        *active_layer, scene.r.cfra);
-    BLI_assert(target_drawing != nullptr);
-
-    paste_all_strokes_from_clipboard(
-        *bmain, *object, object_to_layer, keep_world_transform, paste_on_back, *target_drawing);
+    Vector<MutableDrawingInfo> drawing_infos =
+        ed::greasepencil::retrieve_editable_drawings_from_layer(
+            scene, grease_pencil, *active_layer);
+    for (const MutableDrawingInfo info : drawing_infos) {
+      paste_all_strokes_from_clipboard(
+          *bmain, *object, object_to_layer, keep_world_transform, paste_on_back, info.drawing);
+    }
 
     if (inserted_keyframe) {
       WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
@@ -2776,18 +2777,19 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
         return OPERATOR_CANCELLED;
       }
 
-      bke::greasepencil::Drawing *target_drawing = grease_pencil.get_editable_drawing_at(
-          paste_layer, scene.r.cfra);
-      BLI_assert(target_drawing != nullptr);
-
-      clipboard_paste_strokes_ex(*bmain,
-                                 *object,
-                                 curves_to_paste,
-                                 object_to_paste_layer,
-                                 clipboard.object_to_world,
-                                 keep_world_transform,
-                                 paste_on_back,
-                                 *target_drawing);
+      Vector<MutableDrawingInfo> drawing_infos =
+          ed::greasepencil::retrieve_editable_drawings_from_layer(
+              scene, grease_pencil, paste_layer);
+      for (const MutableDrawingInfo info : drawing_infos) {
+        clipboard_paste_strokes_ex(*bmain,
+                                   *object,
+                                   curves_to_paste,
+                                   object_to_paste_layer,
+                                   clipboard.object_to_world,
+                                   keep_world_transform,
+                                   paste_on_back,
+                                   info.drawing);
+      }
 
       if (inserted_keyframe) {
         WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
@@ -4168,6 +4170,227 @@ static void GREASE_PENCIL_OT_stroke_split(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Remove Fill Guide Strokes Operator
+ * \{ */
+
+enum class RemoveFillGuidesMode : int8_t { ActiveFrame = 0, AllFrames = 1 };
+
+static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::bke::greasepencil;
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+
+  const RemoveFillGuidesMode mode = RemoveFillGuidesMode(RNA_enum_get(op->ptr, "mode"));
+
+  std::atomic<bool> changed = false;
+  Vector<MutableDrawingInfo> drawings;
+  if (mode == RemoveFillGuidesMode::ActiveFrame) {
+    for (const int layer_i : grease_pencil.layers().index_range()) {
+      const Layer &layer = grease_pencil.layer(layer_i);
+      if (!layer.is_editable()) {
+        continue;
+      }
+      if (Drawing *drawing = grease_pencil.get_editable_drawing_at(layer, scene.r.cfra)) {
+        drawings.append({*drawing, layer_i, scene.r.cfra, 1.0f});
+      }
+    }
+  }
+  else if (mode == RemoveFillGuidesMode::AllFrames) {
+    for (const int layer_i : grease_pencil.layers().index_range()) {
+      const Layer &layer = grease_pencil.layer(layer_i);
+      if (!layer.is_editable()) {
+        continue;
+      }
+      for (const auto [frame_number, frame] : layer.frames().items()) {
+        if (Drawing *drawing = grease_pencil.get_editable_drawing_at(layer, frame_number)) {
+          drawings.append({*drawing, layer_i, frame_number, 1.0f});
+        }
+      }
+    }
+  }
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    if (ed::greasepencil::remove_fill_guides(info.drawing.strokes_for_write())) {
+      changed.store(true, std::memory_order_relaxed);
+    }
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+    return OPERATOR_FINISHED;
+  }
+
+  return OPERATOR_CANCELLED;
+}
+
+static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
+{
+  static const EnumPropertyItem rna_mode_items[] = {
+      {int(RemoveFillGuidesMode::ActiveFrame), "ACTIVE_FRAME", 0, "Active Frame", ""},
+      {int(RemoveFillGuidesMode::AllFrames), "ALL_FRAMES", 0, "All Frames", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* Identifiers. */
+  ot->name = "Remove Fill Guides";
+  ot->idname = "GREASE_PENCIL_OT_remove_fill_guides";
+  ot->description = "Remove all the strokes that were created from the fill tool as guides";
+
+  /* Callbacks. */
+  ot->exec = grease_pencil_remove_fill_guides_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->prop = RNA_def_enum(
+      ot->srna, "mode", rna_mode_items, int(RemoveFillGuidesMode::AllFrames), "Mode", "");
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Outline Operator
+ * \{ */
+
+enum class OutlineMode : int8_t {
+  View = 0,
+  Front = 1,
+  Side = 2,
+  Top = 3,
+  Cursor = 4,
+  Camera = 5,
+};
+
+static const EnumPropertyItem prop_outline_modes[] = {
+    {int(OutlineMode::View), "VIEW", 0, "View", ""},
+    {int(OutlineMode::Front), "FRONT", 0, "Front", ""},
+    {int(OutlineMode::Side), "SIDE", 0, "Side", ""},
+    {int(OutlineMode::Top), "TOP", 0, "Top", ""},
+    {int(OutlineMode::Cursor), "CURSOR", 0, "Cursor", ""},
+    {int(OutlineMode::Camera), "CAMERA", 0, "Camera", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
+{
+  using bke::greasepencil::Layer;
+
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const float radius = RNA_float_get(op->ptr, "radius");
+  const float offset_factor = RNA_float_get(op->ptr, "offset_factor");
+  const int corner_subdivisions = RNA_int_get(op->ptr, "corner_subdivisions");
+  const float outline_offset = radius * offset_factor;
+  const int mat_nr = -1;
+
+  const OutlineMode mode = OutlineMode(RNA_enum_get(op->ptr, "type"));
+
+  float4x4 viewinv = float4x4::identity();
+  switch (mode) {
+    case OutlineMode::View: {
+      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      viewinv = float4x4(rv3d->viewmat);
+      break;
+    }
+    case OutlineMode::Front:
+      viewinv = float4x4({1.0f, 0.0f, 0.0f, 0.0f},
+                         {0.0f, 0.0f, 1.0f, 0.0f},
+                         {0.0f, 1.0f, 0.0f, 0.0f},
+                         {0.0f, 0.0f, 0.0f, 1.0f});
+      break;
+    case OutlineMode::Side:
+      viewinv = float4x4({0.0f, 0.0f, 1.0f, 0.0f},
+                         {0.0f, 1.0f, 0.0f, 0.0f},
+                         {1.0f, 0.0f, 0.0f, 0.0f},
+                         {0.0f, 0.0f, 0.0f, 1.0f});
+      break;
+    case OutlineMode::Top:
+      viewinv = float4x4::identity();
+      break;
+    case OutlineMode::Cursor: {
+      viewinv = scene->cursor.matrix<float4x4>();
+      break;
+    }
+    case OutlineMode::Camera:
+      viewinv = scene->camera->world_to_object();
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  bool changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (editable_strokes.is_empty()) {
+      return;
+    }
+
+    const Layer &layer = grease_pencil.layer(info.layer_index);
+    const float4x4 viewmat = viewinv * layer.to_world_space(*object);
+
+    const bke::CurvesGeometry outline = create_curves_outline(info.drawing,
+                                                              editable_strokes,
+                                                              viewmat,
+                                                              corner_subdivisions,
+                                                              radius,
+                                                              outline_offset,
+                                                              mat_nr);
+
+    info.drawing.strokes_for_write().remove_curves(editable_strokes, {});
+
+    /* Join the outline stroke into the drawing. */
+    Curves *strokes = bke::curves_new_nomain(std::move(outline));
+
+    Curves *other_curves = bke::curves_new_nomain(std::move(info.drawing.strokes_for_write()));
+    const std::array<bke::GeometrySet, 2> geometry_sets = {
+        bke::GeometrySet::from_curves(other_curves), bke::GeometrySet::from_curves(strokes)};
+
+    info.drawing.strokes_for_write() = std::move(
+        geometry::join_geometries(geometry_sets, {}).get_curves_for_write()->geometry.wrap());
+
+    info.drawing.tag_topology_changed();
+    changed = true;
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Outline";
+  ot->idname = "GREASE_PENCIL_OT_outline";
+  ot->description = "Convert selected strokes to perimeter";
+
+  /* Callbacks. */
+  ot->exec = grease_pencil_outline_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Properties */
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", prop_outline_modes, int(OutlineMode::View), "Projection Mode", "");
+  RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, 10.0f, "Radius", "", 0.0f, 10.0f);
+  RNA_def_float_factor(
+      ot->srna, "offset_factor", -1.0f, -1.0f, 1.0f, "Offset Factor", "", -1.0f, 1.0f);
+  RNA_def_int(ot->srna, "corner_subdivisions", 2, 0, 10, "Corner Subdivisions", "", 0, 5);
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4208,6 +4431,8 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_reset_uvs);
   WM_operatortype_append(GREASE_PENCIL_OT_texture_gradient);
   WM_operatortype_append(GREASE_PENCIL_OT_stroke_split);
+  WM_operatortype_append(GREASE_PENCIL_OT_remove_fill_guides);
+  WM_operatortype_append(GREASE_PENCIL_OT_outline);
 }
 
 /* -------------------------------------------------------------------- */
