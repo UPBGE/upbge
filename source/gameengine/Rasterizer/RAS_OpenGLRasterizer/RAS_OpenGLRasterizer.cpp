@@ -34,10 +34,9 @@
 #include <epoxy/gl.h>
 
 #include "GPU_context.hh"
-#include "GPU_state.hh"
+#include "GPU_framebuffer.hh"
 
 #include "CM_Message.h"
-#include "RAS_IPolygonMaterial.h"
 
 RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 {
@@ -69,7 +68,16 @@ unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int 
 
   if (width && height) {
     pixeldata = (unsigned int *)malloc(sizeof(unsigned int) * width * height);
-    glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixeldata);
+    GPUFrameBuffer *read_fb = GPU_framebuffer_back_get();
+    GPU_framebuffer_read_color(read_fb,
+                               x,
+                               y,
+                               width,
+                               height,
+                               4,
+                               0,
+                               GPU_DATA_UBYTE,
+                               pixeldata);
   }
 
   return pixeldata;
