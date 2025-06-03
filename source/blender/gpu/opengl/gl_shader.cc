@@ -11,6 +11,8 @@
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
 
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_vector.hh"
@@ -591,6 +593,24 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
 {
   std::stringstream ss;
 
+  ss << "\n/* Compilation Constants (pass-through). */\n";
+  for (const CompilationConstant &sc : info.compilation_constants_) {
+    ss << "const ";
+    switch (sc.type) {
+      case Type::int_t:
+        ss << "int " << sc.name << "=" << std::to_string(sc.value.i) << ";\n";
+        break;
+      case Type::uint_t:
+        ss << "uint " << sc.name << "=" << std::to_string(sc.value.u) << "u;\n";
+        break;
+      case Type::bool_t:
+        ss << "bool " << sc.name << "=" << (sc.value.u ? "true" : "false") << ";\n";
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+  }
   /* NOTE: We define macros in GLSL to trigger compilation error if the resource names
    * are reused for local variables. This is to match other backend behavior which needs accessors
    * macros. */
@@ -1749,15 +1769,37 @@ void GLCompilerWorker::compile(const GLSourcesBaked &sources)
   compilation_start = BLI_time_now_seconds();
 }
 
-void GLCompilerWorker::block_until_ready()
+bool GLCompilerWorker::block_until_ready()
 {
   BLI_assert(ELEM(state_, COMPILATION_REQUESTED, COMPILATION_READY));
   if (state_ == COMPILATION_READY) {
-    return;
+    return true;
   }
 
-  end_semaphore_->decrement();
+  auto delete_cached_binary = [&]() {
+    /* If the subprocess crashed when loading the binary,
+     * its name should be stored in shared memory.
+     * Delete it to prevent more crashes in the future. */
+    char str_start[] = "SOURCE_HASH:";
+    char *shared_mem = reinterpret_cast<char *>(shared_mem_->get_data());
+    if (BLI_str_startswith(shared_mem, str_start)) {
+      std::string path = GL_shader_cache_dir_get() + SEP_STR +
+                         std::string(shared_mem + sizeof(str_start) - 1);
+      if (BLI_exists(path.c_str())) {
+        BLI_delete(path.c_str(), false, false);
+      }
+    }
+  };
+
+  while (!end_semaphore_->try_decrement(1000)) {
+    if (is_lost()) {
+      delete_cached_binary();
+      return false;
+    }
+  }
+
   state_ = COMPILATION_READY;
+  return true;
 }
 
 bool GLCompilerWorker::is_lost()
@@ -1771,14 +1813,18 @@ bool GLCompilerWorker::is_lost()
 
 bool GLCompilerWorker::load_program_binary(GLint program)
 {
-  block_until_ready();
+  if (!block_until_ready()) {
+    return false;
+  }
 
   ShaderBinaryHeader *binary = (ShaderBinaryHeader *)shared_mem_->get_data();
 
   state_ = COMPILATION_FINISHED;
 
   if (binary->size > 0) {
+    GPU_debug_group_begin("Load Binary");
     glProgramBinary(program, binary->format, binary->data, binary->size);
+    GPU_debug_group_end();
     return true;
   }
 
@@ -1847,6 +1893,8 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   GLCompilerWorker *worker = get_compiler_worker();
   worker->compile(sources);
 
+  GPU_debug_group_begin("Subprocess Compilation");
+
   /* This path is always called for the default shader compilation. Not for specialization.
    * Use the default constant template.*/
   const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(
@@ -1859,6 +1907,8 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
     delete shader;
     shader = nullptr;
   }
+
+  GPU_debug_group_end();
 
   worker->release();
 
@@ -1912,6 +1962,8 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
     }
   }
 
+  GPU_debug_group_begin("Subprocess Specialization");
+
   GLCompilerWorker *worker = get_compiler_worker();
   worker->compile(sources);
   worker->block_until_ready();
@@ -1921,6 +1973,8 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
   if (!worker->load_program_binary(program_get()->program_id)) {
     program_release();
   }
+
+  GPU_debug_group_end();
 
   worker->release();
 }
