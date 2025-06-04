@@ -549,7 +549,7 @@ typedef struct bActuator {
 /* Set means the object will become invisible */
 #define ACT_VISIBILITY_INVISIBLE (1 << 0)
 #define ACT_VISIBILITY_RECURSIVE (1 << 1)
-#define ACT_VISIBILITY_OCCLUSION (1 << 2)
+//#define ACT_VISIBILITY_OCCLUSION (1 << 2)
 
 /* twodfilter->type */
 #define ACT_2DFILTER_ENABLED -2

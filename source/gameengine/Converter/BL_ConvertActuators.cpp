@@ -835,10 +835,10 @@ void BL_ConvertActuators(const char *maggiename,
         bVisibilityActuator *vis_act = (bVisibilityActuator *)bact->data;
         SCA_VisibilityActuator *tmp_vis_act = nullptr;
         bool v = ((vis_act->flag & ACT_VISIBILITY_INVISIBLE) != 0);
-        bool o = ((vis_act->flag & ACT_VISIBILITY_OCCLUSION) != 0);
+        //bool o = ((vis_act->flag & ACT_VISIBILITY_OCCLUSION) != 0);
         bool recursive = ((vis_act->flag & ACT_VISIBILITY_RECURSIVE) != 0);
 
-        tmp_vis_act = new SCA_VisibilityActuator(gameobj, !v, o, recursive);
+        tmp_vis_act = new SCA_VisibilityActuator(gameobj, !v, /*o*/false, recursive);
 
         baseact = tmp_vis_act;
       } break;

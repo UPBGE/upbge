@@ -2392,7 +2392,7 @@ static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
   row = &layout->row(false);
 
   row->prop(ptr, "use_visible", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_occlusion", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  //row->prop(ptr, "use_occlusion", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row->prop(ptr, "apply_to_children", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
