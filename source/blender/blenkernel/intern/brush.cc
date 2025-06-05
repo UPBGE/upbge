@@ -210,6 +210,11 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
 static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
+  /* In 5.0 we intend to change the brush.size value from representing radius to representing
+   * diameter. This and the corresponding code in `brush_blend_read_data` should be removed once
+   * that transition is complete. */
+  brush->size *= 2;
+  brush->unprojected_radius *= 2.0;
 
   BLO_write_id_struct(writer, Brush, id_address, &brush->id);
   BKE_id_blend_write(writer, &brush->id);
@@ -385,6 +390,13 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, brush->preview);
 
   brush->has_unsaved_changes = false;
+
+  /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To ensure
+   * correct behavior, convert this when reading newer files. */
+  if (BLO_read_fileversion_get(reader) > 500) {
+    brush->size = std::max(brush->size / 2, 1);
+    brush->unprojected_radius = std::max(brush->unprojected_radius / 2, 0.001f);
+  }
 }
 
 static void brush_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)

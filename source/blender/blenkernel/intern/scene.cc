@@ -1016,6 +1016,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   ToolSettings *tos = sce->toolsettings;
   BLO_write_struct(writer, ToolSettings, tos);
 
+  /* In 5.0 we intend to change the brush.size value from representing radius to representing
+   * diameter. This and the corresponding code in `brush_blend_read_data` should be removed once
+   * that transition is complete. */
+  tos->unified_paint_settings.size *= 2;
+  tos->unified_paint_settings.unprojected_radius *= 2.0f;
+
   if (tos->unified_paint_settings.curve_rand_hue) {
     BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_hue);
   }
@@ -1223,6 +1229,13 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     UnifiedPaintSettings *ups = &sce->toolsettings->unified_paint_settings;
     zero_v3(ups->last_location);
     ups->last_hit = 0;
+
+    /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To
+     * ensure correct behavior, convert this when reading newer files. */
+    if (BLO_read_fileversion_get(reader)) {
+      ups->size = std::max(ups->size / 2, 1);
+      ups->unprojected_radius = std::max(ups->unprojected_radius / 2, 0.001f);
+    }
 
     BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
     if (ups->curve_rand_hue) {
