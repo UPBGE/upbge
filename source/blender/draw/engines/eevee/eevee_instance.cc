@@ -223,7 +223,7 @@ void Instance::init(const int2 &output_res,
   loaded_shaders |= shaders.static_shaders_load_async(shader_request);
   loaded_shaders |= materials.default_materials_load_async();
 
-  if (is_image_render) {
+  if (is_image_render || scene->flag & SCE_INTERACTIVE) {
     /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
     loaded_shaders |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
   }
@@ -239,7 +239,7 @@ void Instance::init(const int2 &output_res,
     SET_FLAG_FROM_TEST(loaded_shaders, ready, DEFERRED_LIGHTING_SHADERS);
   }
 
-  if (is_image_render) {
+  if (is_image_render || scene->flag & SCE_INTERACTIVE) {
     loaded_shaders |= shaders.static_shaders_wait_ready(shader_request);
     loaded_shaders |= materials.default_materials_wait_ready();
   }
@@ -442,7 +442,7 @@ void Instance::end_sync()
   loaded_shaders |= shaders.static_shaders_load_async(request_bits);
   needed_shaders |= request_bits;
 
-  if (is_image_render) {
+  if (is_image_render || scene->flag & SCE_INTERACTIVE) {
     loaded_shaders |= shaders.static_shaders_wait_ready(request_bits);
   }
 
