@@ -515,30 +515,32 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
 
   const Span<float3> vertex_normals = final_me->vert_normals();
+  const Span<float3> face_normals = final_me->face_normals();
   const Span<int> corner_verts = final_me->corner_verts();
   const Span<int> corner_edges = final_me->corner_edges();
   const Span<int2> edges = final_me->edges();
 
   const OffsetIndices polys = final_me->faces();
 
-  for (const unsigned int i : polys.index_range()) {
+  for (const unsigned int face_i : polys.index_range()) {
     /* Try to get evaluated mesh poly material index */
     /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
     /* There is still an issue with boolean exact solver with polygon material indice */
-    int mat_nr = GetPolygonMaterialIndex(material_indices, final_me, i);
+    int mat_nr = GetPolygonMaterialIndex(material_indices, final_me, face_i);
 
     const ConvertedMaterial &mat = convertedMats[mat_nr];
 
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
     // Mark face as flat, so vertices are split.
-    const bool flat = (sharp_faces && sharp_faces[i]);
+    const bool flat = (sharp_faces && sharp_faces[face_i]);
 
-    for (const unsigned int vert_i : corner_verts.slice(polys[i])) {
+    for (const unsigned int vert_i : corner_verts.slice(polys[face_i])) {
       const float *vp = &positions[vert_i][0];
 
       const MT_Vector3 pt(vp);
-      const MT_Vector3 no(vertex_normals[vert_i].x, vertex_normals[vert_i].y, vertex_normals[vert_i].z);
+      const float3 normal = flat ? face_normals[face_i] : vertex_normals[vert_i];
+      const MT_Vector3 no(normal.x, normal.y, normal.z);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[vert_i]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
@@ -551,14 +553,14 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     // Convert to edges of material is rendering wire.
     if (mat.wire && mat.visible) {
-      for (const unsigned int edge_i : corner_edges.slice(polys[i])) {
+      for (const unsigned int edge_i : corner_edges.slice(polys[face_i])) {
         const int2 &edge = edges[edge_i];
         meshobj->AddLine(meshmat, vertices[edge[0]], vertices[edge[1]]);
       }
     }
 
     // Convert all faces (triangles of quad).
-    for (unsigned int j : mpolyToMface[i]) {
+    for (unsigned int j : mpolyToMface[face_i]) {
       const MFace &face = faces[j];
       const unsigned short nverts = (face.v4) ? 4 : 3;
       unsigned int indices[4];
