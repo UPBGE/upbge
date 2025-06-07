@@ -348,10 +348,6 @@
 /** \defgroup externformats External Formats
  *  \ingroup blender */
 
-/** \defgroup collada COLLADA
- *  \ingroup externformats
- */
-
 /** \defgroup avi AVI
  *  \ingroup externformats
  */
