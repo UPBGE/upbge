@@ -457,7 +457,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
     load_datablocks(main_tmp, bpy_openlib, path, ID_AC);
   }
 
-  BLO_library_link_end(main_tmp, &bpy_openlib, &liblink_params);
+  BLO_library_link_end(main_tmp, &bpy_openlib, &liblink_params, &reports);
 
   BLO_blendhandle_close(bpy_openlib);
 
