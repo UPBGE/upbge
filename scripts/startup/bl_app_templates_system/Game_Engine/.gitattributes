@@ -1,0 +1,1 @@
+startup.blend -filter -diff -merge text=auto

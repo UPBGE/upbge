@@ -1,2 +1,1 @@
-splash.png -filter -diff -merge text=auto
 upbge_logo.png -filter -diff -merge text=auto
