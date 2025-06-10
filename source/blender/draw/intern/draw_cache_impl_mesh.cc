@@ -534,12 +534,24 @@ static void mesh_batch_cache_check_vertex_group(MeshBatchCache &cache,
   }
 }
 
-static void mesh_batch_cache_request_surface_batches(MeshBatchCache &cache)
+static void mesh_batch_cache_request_surface_batches(Mesh &mesh, MeshBatchCache &cache)
 {
   mesh_batch_cache_add_request(cache, MBC_SURFACE | MBC_SURFACE_PER_MAT);
   DRW_batch_request(&cache.batch.surface);
-  for (int i = 0; i < cache.mat_len; i++) {
-    DRW_batch_request(&cache.surface_per_mat[i]);
+
+  /* If there are only a few materials at most, just request batches for everything. However, if
+   * the maximum material index is large, detect the actually used material indices first and only
+   * request those. This reduces the overhead of dealing with all these batches down the line. */
+  if (cache.mat_len < 16) {
+    for (int i = 0; i < cache.mat_len; i++) {
+      DRW_batch_request(&cache.surface_per_mat[i]);
+    }
+  }
+  else {
+    const VectorSet<int> &used_material_indices = mesh.material_indices_used();
+    for (const int i : used_material_indices) {
+      DRW_batch_request(&cache.surface_per_mat[i]);
+    }
   }
 }
 
@@ -725,7 +737,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh)
 gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
-  mesh_batch_cache_request_surface_batches(cache);
+  mesh_batch_cache_request_surface_batches(mesh, cache);
 
   return cache.batch.surface;
 }
@@ -802,7 +814,7 @@ Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(
 
   mesh_cd_layers_type_merge(&cache.cd_needed, cd_needed);
   drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
-  mesh_batch_cache_request_surface_batches(cache);
+  mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.surface_per_mat;
 }
 
@@ -810,7 +822,7 @@ Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_texpaint(Object &object, Mes
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   texpaint_request_active_uv(cache, object, mesh);
-  mesh_batch_cache_request_surface_batches(cache);
+  mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.surface_per_mat;
 }
 
@@ -818,7 +830,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_texpaint_single(Object &object, Mes
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   texpaint_request_active_uv(cache, object, mesh);
-  mesh_batch_cache_request_surface_batches(cache);
+  mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.batch.surface;
 }
 
@@ -831,7 +843,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_vertpaint(Object &object, Mesh &mes
 
   drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
 
-  mesh_batch_cache_request_surface_batches(cache);
+  mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.batch.surface;
 }
 
@@ -844,7 +856,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_sculpt(Object &object, Mesh &mesh)
 
   drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
 
-  mesh_batch_cache_request_surface_batches(cache);
+  mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.batch.surface;
 }
 
@@ -1750,6 +1762,9 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     create_material_subranges(cache.final.face_sorted, tris_ibo, cache.tris_per_mat);
     for (const int material : IndexRange(cache.mat_len)) {
       gpu::Batch *batch = cache.surface_per_mat[material];
+      if (!batch) {
+        continue;
+      }
       GPU_batch_init(batch, GPU_PRIM_TRIS, nullptr, cache.tris_per_mat[material].get());
       GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::CornerNormal).get(), false);
       GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::Position).get(), false);

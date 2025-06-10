@@ -34,7 +34,7 @@
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 1
+#define BLENDER_FILE_SUBVERSION 2
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
@@ -47,8 +47,8 @@
  * See
  * https://developer.blender.org/docs/handbook/guidelines/compatibility_handling_for_blend_files/
  * for details. */
-#define BLENDER_FILE_MIN_VERSION 306
-#define BLENDER_FILE_MIN_SUBVERSION 13
+#define BLENDER_FILE_MIN_VERSION 405
+#define BLENDER_FILE_MIN_SUBVERSION 85
 
 /** User readable version string. */
 const char *BKE_blender_version_string(void);
