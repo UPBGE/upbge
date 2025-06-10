@@ -438,7 +438,7 @@ static bool node_update_basis_buttons(const bContext &C,
                                      UI_style_get_dpi());
 
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
   uiLayoutSetContextPointer(layout, "node", &nodeptr);
@@ -521,7 +521,7 @@ static bool node_update_basis_socket(const bContext &C,
                                      UI_style_get_dpi());
 
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
   uiLayout *row = &layout->row(true);
@@ -1154,7 +1154,7 @@ static void node_update_basis_from_declaration(
                                                0,
                                                UI_style_get_dpi());
             if (node.is_muted()) {
-              uiLayoutSetActive(layout, false);
+              layout->active_set(false);
             }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
             uiLayoutSetContextPointer(layout, "node", &node_ptr);
@@ -2309,7 +2309,7 @@ static bool draw_node_details(const SpaceNode &snode)
 static void node_draw_preview_background(rctf *rect)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
@@ -3974,7 +3974,8 @@ static void node_draw_hidden(const bContext &C,
   }
 
   /* Scale widget thing. */
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -4850,7 +4851,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
   };
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   using ZoneOrNode = std::variant<const bNodeTreeZone *, const bNode *>;
   Vector<ZoneOrNode> draw_order;
@@ -5243,7 +5244,7 @@ static bool compositor_is_in_use(const bContext &context)
     return false;
   }
 
-  if (!scene->nodetree) {
+  if (!scene->compositing_node_group) {
     return false;
   }
 
