@@ -145,29 +145,41 @@ void loadTexture(unsigned int texId,
   // load texture for rendering
   glBindTexture(GL_TEXTURE_2D, texId);
   if (1 /*mipmap*/) {
-    int i;
+    //int i;
     ImBuf *ibuf;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     ibuf = IMB_allocFromBuffer((uint8_t *)texture, nullptr, size[0], size[1], 4);
 
-    IMB_makemipmap(ibuf, false); // There was a crash here using filter = true, trying to adapt 406cfd214aaad9c90b62ce48eda6d72d2eacb6fe
-
-    for (i = 0; i < ibuf->miptot; i++) {
-      ImBuf *mip = IMB_getmipmap(ibuf, i);
-
-      glTexImage2D(GL_TEXTURE_2D,
-                   i,
+    glTexImage2D(GL_TEXTURE_2D,
+                   0,
                    internalFormat,
-                   mip->x,
-                   mip->y,
+                   ibuf->x,
+                   ibuf->y,
                    0,
                    GL_RGBA,
                    GL_UNSIGNED_BYTE,
-                   mip->byte_buffer.data);
-    }
+                   ibuf->byte_buffer.data);
+
     IMB_freeImBuf(ibuf);
+
+    /* IMB_makemipmap removed here : f685f2343432627303a956e6e95b33bfddfd6cb7 */
+    //IMB_makemipmap(ibuf, false); // There was a crash here using filter = true, trying to adapt 406cfd214aaad9c90b62ce48eda6d72d2eacb6fe
+
+    //for (i = 0; i < ibuf->miptot; i++) {
+    //  ImBuf *mip = IMB_getmipmap(ibuf, i);
+
+    //  glTexImage2D(GL_TEXTURE_2D,
+    //               i,
+    //               internalFormat,
+    //               mip->x,
+    //               mip->y,
+    //               0,
+    //               GL_RGBA,
+    //               GL_UNSIGNED_BYTE,
+    //               mip->byte_buffer.data);
+    //}
   }
   else {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
