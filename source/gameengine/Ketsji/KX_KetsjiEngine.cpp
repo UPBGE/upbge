@@ -813,7 +813,8 @@ void KX_KetsjiEngine::Render()
     blender::draw::command::StateSet::set();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
 
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     const float clear_col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     immUniform4fv("color", clear_col);

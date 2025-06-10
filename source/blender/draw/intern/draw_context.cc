@@ -2227,8 +2227,9 @@ static void drw_debug_draw_lines_bge(void)
   }
 
   GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  uint col = GPU_vertformat_attr_add(vert_format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(
+      vert_format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
@@ -2268,7 +2269,7 @@ static void drw_debug_draw_boxes_bge(void)
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   const float *size = DRW_context_get()->viewport_size_get();
@@ -2511,8 +2512,9 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
   blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 
   GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint texco = GPU_vertformat_attr_add(
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
   immUniform1i("image", 0);

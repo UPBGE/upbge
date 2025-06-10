@@ -101,8 +101,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       GPU_line_width(1.0f);
 
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      uint col = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
       immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
@@ -137,7 +137,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     if (!debugDraw->m_boxes2D.empty()) {
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       for (const RAS_DebugDraw::Box2D &box2d : debugDraw->m_boxes2D) {

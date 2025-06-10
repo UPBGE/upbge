@@ -3718,7 +3718,7 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4])
 
   if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
     unsigned int pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
 #if 0 /* unused */

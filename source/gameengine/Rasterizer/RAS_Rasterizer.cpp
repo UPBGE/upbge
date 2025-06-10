@@ -321,8 +321,9 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
                                      RAS_FrameBuffer *dstFrameBuffer)
 {
   GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint texco = GPU_vertformat_attr_add(
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   GPU_matrix_reset();
 

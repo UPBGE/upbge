@@ -130,8 +130,9 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
   Initialize(canvas);
 
   GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint texco = GPU_vertformat_attr_add(
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   SetProg(true);
 
