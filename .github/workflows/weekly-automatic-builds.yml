@@ -41,13 +41,16 @@ jobs:
       
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-        with:
-          repository: "UPBGE/upbge"
-          ref: "master"
-          path: "upbge"
-          submodules: recursive
+        run: |
+          GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/UPBGE/upbge.git
 
+      - name: Checkout Submodules
+        run: |
+          cd upbge/scripts && \
+          git submodule sync && \
+          git submodule update --init --recursive --remote && \
+          git submodule foreach 'branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed "s|origin/||"); git checkout $branch && git pull --rebase origin $branch'
+        
       - name: Setup Python
         uses: actions/setup-python@v5
         with: 
