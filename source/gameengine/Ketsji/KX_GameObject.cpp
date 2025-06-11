@@ -152,6 +152,10 @@ KX_GameObject::~KX_GameObject()
     }
   }
 
+  if (m_pPhysicsController) {
+    delete m_pPhysicsController;
+  }
+
   if (m_pSGNode) {
     RemoveOrHideBlenderObject();
 
@@ -189,10 +193,6 @@ KX_GameObject::~KX_GameObject()
     m_pSGNode->SetSGClientObject(nullptr);
 
     /* m_pSGNode is freed in KX_Scene::RemoveNodeDestructObject */
-  }
-
-  if (m_pPhysicsController) {
-    delete m_pPhysicsController;
   }
 
   if (m_actionManager) {

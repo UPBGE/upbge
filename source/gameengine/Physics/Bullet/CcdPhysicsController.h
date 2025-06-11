@@ -562,6 +562,9 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   btCollisionObject *m_object;
   CcdCharacter *m_characterController;
 
+  struct SimpleDeformModifierDataBGE *m_sbModifier;
+  float (*m_sbCoords)[3];
+
   class PHY_IMotionState *m_MotionState;
   btMotionState *m_bulletMotionState;
   class btCollisionShape *m_collisionShape;

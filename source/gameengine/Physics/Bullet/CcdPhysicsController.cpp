@@ -28,6 +28,9 @@
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
+#include "BKE_modifier.hh"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_meshdata_types.h"
 
@@ -218,6 +221,8 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo &ci) : m_cc
   m_savedFriction = 0.0f;
   m_savedDyna = false;
   m_suspended = false;
+  m_sbModifier = nullptr;
+  m_sbCoords = nullptr;
 
   CreateRigidbody();
 }
@@ -734,6 +739,18 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
 CcdPhysicsController::~CcdPhysicsController()
 {
+  KX_GameObject *gameobj = KX_GameObject::GetClientObject(
+      (KX_ClientObjectInfo *)GetNewClientInfo());
+  Object *ob = gameobj->GetBlenderObject();
+  if (m_sbCoords) {
+    MEM_freeN(m_sbCoords);
+    m_sbCoords = nullptr;
+  }
+  if (m_sbModifier) {
+    BLI_remlink(&ob->modifiers, m_sbModifier);
+    BKE_modifier_free((ModifierData *)m_sbModifier);
+    m_sbModifier = nullptr;
+  }
   // will be reference counted, due to sharing
   if (m_cci.m_physicsEnv)
     m_cci.m_physicsEnv->RemoveCcdPhysicsController(this, true);
@@ -858,8 +875,10 @@ void CcdPhysicsController::UpdateSoftBody()
           index_mp_to_orig = nullptr;
         }
 
-        float(*positions)[3] = reinterpret_cast<float(*)[3]>(
-            me->vert_positions_for_write().data());
+        if (m_sbCoords == nullptr) {
+          m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * me->vert_positions().size(),
+                                                __func__);
+        }
         const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
         int numpolys = me->totface_legacy;
 
@@ -874,9 +893,9 @@ void CcdPhysicsController::UpdateSoftBody()
 
           // only add polygons that have the collisionflag set
           if (poly) {
-            float *v1 = &positions[face->v1][0];
-            float *v2 = &positions[face->v2][0];
-            float *v3 = &positions[face->v3][0];
+            float *v1 = &m_sbCoords[face->v1][0];
+            float *v2 = &m_sbCoords[face->v2][0];
+            float *v3 = &m_sbCoords[face->v3][0];
 
             int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
             int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
@@ -892,7 +911,7 @@ void CcdPhysicsController::UpdateSoftBody()
             copy_v3_v3(v3, p3.getValue());
 
             if (face->v4) {
-              float *v4 = &positions[face->v4][0];
+              float *v4 = &m_sbCoords[face->v4][0];
 
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
@@ -903,7 +922,17 @@ void CcdPhysicsController::UpdateSoftBody()
             }
           }
         }
-        me->tag_positions_changed();
+        if (m_sbModifier == nullptr) {
+          m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(
+              eModifierType_SimpleDeformBGE);
+          STRNCPY(m_sbModifier->modifier.name, "sbModifier");
+          BLI_addtail(&ob->modifiers, m_sbModifier);
+          BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
+          BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
+        }
+        m_sbModifier->vertcoos = m_sbCoords;
+
+        //me->tag_positions_changed();
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
