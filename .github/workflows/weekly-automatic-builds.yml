@@ -42,7 +42,9 @@ jobs:
     steps:
       - name: Checkout sources
         run: |
-          GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/UPBGE/upbge.git
+          git clone https://github.com/UPBGE/upbge.git
+        env:
+          GIT_LFS_SKIP_SMUDGE: 1
 
       - name: Checkout Submodules
         run: |
