@@ -1743,28 +1743,6 @@ static void rna_def_userdef_theme_ui_wcol_state(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
-static void rna_def_userdef_theme_ui_panel(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "ThemePanelColors", nullptr);
-  RNA_def_struct_sdna(srna, "uiPanelColors");
-  RNA_def_struct_ui_text(srna, "Theme Panel Color", "Theme settings for panel colors");
-
-  prop = RNA_def_property(srna, "header", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_ui_text(prop, "Header", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_ui_text(prop, "Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "sub_back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_ui_text(prop, "Sub Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-}
-
 static const EnumPropertyItem rna_enum_userdef_theme_background_types_items[] = {
     {TH_BACKGROUND_SINGLE_COLOR,
      "SINGLE_COLOR",
@@ -1821,7 +1799,6 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 
   rna_def_userdef_theme_ui_wcol(brna);
   rna_def_userdef_theme_ui_wcol_state(brna);
-  rna_def_userdef_theme_ui_panel(brna);
   rna_def_userdef_theme_ui_gradient(brna);
 
   srna = RNA_def_struct(brna, "ThemeUserInterface", nullptr);
@@ -1992,6 +1969,18 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
       prop, "Panel Roundness", "Roundness of the corners of panels and sub-panels");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.4f);
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_header", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Panel Header", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_back", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Panel Background", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_sub_back", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Sub-Panel Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Transparent Grid */
@@ -2165,12 +2154,6 @@ static void rna_def_userdef_theme_space_common(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Header Text Highlight", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  /* panel settings */
-  prop = RNA_def_property(srna, "panelcolors", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_ui_text(prop, "Panel Colors", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   /* buttons */
   // if (!ELEM(spacetype, SPACE_PROPERTIES, SPACE_OUTLINER)) {
   prop = RNA_def_property(srna, "button", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2204,27 +2187,10 @@ static void rna_def_userdef_theme_space_common(StructRNA *srna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* tabs */
-  prop = RNA_def_property(srna, "tab_active", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Tab Active", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "tab_inactive", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Tab Inactive", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "tab_back", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Tab Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "tab_outline", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Tab Outline", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  // }
 }
 
 static void rna_def_userdef_theme_space_gradient(BlenderRNA *brna)

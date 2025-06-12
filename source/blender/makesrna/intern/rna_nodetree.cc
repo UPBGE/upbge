@@ -3151,6 +3151,7 @@ static void rna_Node_tex_image_update(Main *bmain, Scene * /*scene*/, PointerRNA
 
   BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*bmain, ntree->id);
+  DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_IMAGE, nullptr);
 }
 
@@ -8063,6 +8064,19 @@ static void def_cmp_dilate_erode(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Falloff", "Falloff type of the feather");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_displace(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeDisplaceData", "storage");
+
+  prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "interpolation");
+  RNA_def_property_enum_items(prop, cmp_interpolation_items);
+  RNA_def_property_ui_text(prop, "Interpolation", "Interpolation method");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -13997,7 +14011,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeDespeckle", def_cmp_despeckle);
   define("CompositorNode", "CompositorNodeDiffMatte", def_cmp_diff_matte);
   define("CompositorNode", "CompositorNodeDilateErode", def_cmp_dilate_erode);
-  define("CompositorNode", "CompositorNodeDisplace");
+  define("CompositorNode", "CompositorNodeDisplace", def_cmp_displace);
   define("CompositorNode", "CompositorNodeDistanceMatte", def_cmp_distance_matte);
   define("CompositorNode", "CompositorNodeDoubleEdgeMask", def_cmp_double_edge_mask);
   define("CompositorNode", "CompositorNodeEllipseMask", def_cmp_ellipsemask);

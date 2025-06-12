@@ -534,11 +534,14 @@ def _template_items_uv_select_mode(params):
             op_menu("IMAGE_MT_uvs_select_mode", {"type": 'TAB', "value": 'PRESS', "ctrl": True}),
 
             *_template_items_editmode_mesh_select_mode(params),
-            # Hack to prevent fall-through, when sync select isn't enabled (and the island button isn't visible).
-            ("mesh.select_mode", {"type": 'FOUR', "value": 'PRESS'}, None),
             *(("uv.select_mode", {"type": NUMBERS_1[i], "value": 'PRESS'},
                {"properties": [("type", e)]})
-              for i, e in enumerate(('VERTEX', 'EDGE', 'FACE', 'ISLAND')))
+              for i, e in enumerate(('VERTEX', 'EDGE', 'FACE'))),
+            # Prior to v5.0 UV island was exposed as a selection mode.
+            # Even though it's not longer a distinct mode, keep the shortcut
+            # as it's handy and visually the 4th item in the UI.
+            ("wm.context_toggle", {"type": 'FOUR', "value": 'PRESS'},
+             {"properties": [("data_path", "tool_settings.use_uv_select_island")]}),
         ]
 
 
@@ -4338,7 +4341,7 @@ def km_grease_pencil_fill_tool(_params):
     return keymap
 
 
-def km_grease_pencil_fill_tool_modal_map(params):
+def km_grease_pencil_fill_tool_modal_map(_params):
     items = []
     keymap = (
         "Fill Tool Modal Map",
@@ -8007,7 +8010,7 @@ def km_3d_view_tool_paint_grease_pencil_trim(params):
 # ------------------------------------------------------------------------------
 # Tool System (3D View, Grease Pencil, Paint)
 
-def km_grease_pencil_primitive_tool_modal_map(params):
+def km_grease_pencil_primitive_tool_modal_map(_params):
     items = []
     keymap = (
         "Primitive Tool Modal Map",
@@ -8035,7 +8038,7 @@ def km_grease_pencil_primitive_tool_modal_map(params):
     return keymap
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_line(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_line(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Line",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8046,14 +8049,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_line(params):
                 {"properties": []}),
             ("grease_pencil.primitive_line", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
                 {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-                {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_polyline(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_polyline(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Polyline",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8062,14 +8062,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_polyline(params):
              {"properties": []}),
             ("grease_pencil.primitive_polyline", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_box(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_box(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Box",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8080,14 +8077,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_box(params):
              {"properties": []}),
             ("grease_pencil.primitive_box", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_circle(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_circle(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Circle",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8098,14 +8092,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_circle(params):
              {"properties": []}),
             ("grease_pencil.primitive_circle", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_arc(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_arc(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Arc",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8116,23 +8107,17 @@ def km_3d_view_tool_paint_grease_pencil_primitive_arc(params):
              {"properties": []}),
             ("grease_pencil.primitive_arc", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_curve(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_curve(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Curve",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
             ("grease_pencil.primitive_curve", {"type": 'LEFTMOUSE', "value": 'PRESS'},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
@@ -8154,7 +8139,7 @@ def km_3d_view_tool_paint_grease_pencil_eyedropper(params):
     )
 
 
-def km_grease_pencil_interpolate_tool_modal_map(params):
+def km_grease_pencil_interpolate_tool_modal_map(_params):
     items = []
     keymap = (
         "Interpolate Tool Modal Map",
@@ -8206,7 +8191,7 @@ def km_sequencer_tool_generic_select_rcs(params):
     ]
 
 
-def km_sequencer_tool_generic_select_lcs(params):
+def km_sequencer_tool_generic_select_lcs(_params):
     return [
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'},
          {"properties": [("deselect_all", True)]}),

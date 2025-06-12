@@ -133,7 +133,6 @@ const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
     {UV_SELECT_VERTEX, "VERTEX", ICON_UV_VERTEXSEL, "Vertex", "Vertex selection mode"},
     {UV_SELECT_EDGE, "EDGE", ICON_UV_EDGESEL, "Edge", "Edge selection mode"},
     {UV_SELECT_FACE, "FACE", ICON_UV_FACESEL, "Face", "Face selection mode"},
-    {UV_SELECT_ISLAND, "ISLAND", ICON_UV_ISLANDSEL, "Island", "Island selection mode"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1433,7 +1432,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (MOV_codec_supports_alpha(rd->ffcodecdata)) {
+    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec, rd->ffcodecdata.ffmpeg_prores_profile)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
@@ -4248,15 +4247,22 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_sticky_select_mode_update");
 
   prop = RNA_def_property(srna, "use_uv_select_sync", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_SYNC_SELECTION);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SYNC_SELECT);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
+  prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_ISLAND_SELECT);
+  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_ui_text(prop, "UV Island Selection", "Island selection");
+  RNA_def_property_ui_icon(prop, ICON_UV_ISLANDSEL, 0);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   prop = RNA_def_property(srna, "show_uv_local_view", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_SHOW_SAME_IMAGE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SHOW_SAME_IMAGE);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "UV Local View", "Display only faces with the currently displayed image assigned");
