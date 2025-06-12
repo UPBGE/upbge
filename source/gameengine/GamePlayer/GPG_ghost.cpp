@@ -847,9 +847,6 @@ int main(int argc,
   BKE_volumes_init();
   DEG_register_node_types();
 
-  BKE_brush_system_init();
-  RE_texture_rng_init();
-
   BKE_callback_global_init();
 
 
@@ -868,8 +865,11 @@ int main(int argc,
 
   RNA_init();
 
+  RE_texture_rng_init();
   RE_engines_init();
   blender::bke::node_system_init();
+
+  BKE_brush_system_init();
   BKE_particle_init_rng();
 
   BKE_sound_init_once();
