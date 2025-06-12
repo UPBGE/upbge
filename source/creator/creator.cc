@@ -151,6 +151,11 @@ static void main_callback_setup()
   MEM_set_error_callback(callback_mem_error);
 }
 
+/** Data to free when Blender exits early on. */
+struct CreatorAtExitData_EarlyExit {
+  bContext *C;
+};
+
 /** Free data on early exit (if Python calls `sys.exit()` while parsing args for eg). */
 struct CreatorAtExitData {
 #ifndef WITH_PYTHON_MODULE
@@ -162,9 +167,11 @@ struct CreatorAtExitData {
   int argv_num;
 #endif
 
-#if defined(WITH_PYTHON_MODULE) && !defined(USE_WIN32_UNICODE_ARGS)
-  void *_empty; /* Prevent empty struct error with MSVC. */
-#endif
+  /**
+   * When non-null, run additional exit logic.
+   * Cleared once early initialization is over.
+   */
+  CreatorAtExitData_EarlyExit *early_exit = nullptr;
 };
 
 static void callback_main_atexit(void *user_data)
@@ -176,8 +183,6 @@ static void callback_main_atexit(void *user_data)
     BLI_args_destroy(app_init_data->ba);
     app_init_data->ba = nullptr;
   }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
 
 #ifdef USE_WIN32_UNICODE_ARGS
@@ -188,9 +193,18 @@ static void callback_main_atexit(void *user_data)
     free((void *)app_init_data->argv);
     app_init_data->argv = nullptr;
   }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
+
+  if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
+    CTX_free(early_exit->C);
+
+    BKE_blender_globals_clear();
+    BKE_appdir_exit();
+
+    DNA_sdna_current_free();
+
+    CLG_exit();
+  }
 }
 
 static void callback_clg_fatal(void *fp)
@@ -296,6 +310,9 @@ int main(int argc,
   CreatorAtExitData app_init_data = {nullptr};
   BKE_blender_atexit_register(callback_main_atexit, &app_init_data);
 
+  CreatorAtExitData_EarlyExit app_init_data_early_exit = {nullptr};
+  app_init_data.early_exit = &app_init_data_early_exit;
+
 /* Un-buffered `stdout` makes `stdout` and `stderr` better synchronized, and helps
  * when stepping through code in a debugger (prints are immediately
  * visible). However disabling buffering causes lock contention on windows
@@ -374,6 +391,8 @@ int main(int argc,
 
   C = CTX_create();
 
+  app_init_data_early_exit.C = C;
+
 #ifdef WITH_PYTHON_MODULE
 #  ifdef __APPLE__
   environ = *_NSGetEnviron();
@@ -433,9 +452,6 @@ int main(int argc,
   BKE_volumes_init();
   DEG_register_node_types();
 
-  BKE_brush_system_init();
-  RE_texture_rng_init();
-
   BKE_callback_global_init();
 
 #ifdef WITH_GAMEENGINE
@@ -452,10 +468,6 @@ int main(int argc,
   app_init_data.ba = ba;
 
   main_args_setup(C, ba, false, &syshandle);
-
-  /* Begin argument parsing, ignore leaks so arguments that call #exit
-   * (such as `--version` & `--help`) don't report leaks. */
-  MEM_use_memleak_detection(false);
 
   /* Parse environment handling arguments. */
   BLI_args_parse(ba, ARG_PASS_ENVIRONMENT, nullptr, nullptr);
@@ -491,6 +503,9 @@ int main(int argc,
   main_signal_setup();
 #endif
 
+  /* Continue with regular initialization, no need to use "early" exit. */
+  app_init_data.early_exit = nullptr;
+
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
@@ -499,8 +514,11 @@ int main(int argc,
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();
 
+  RE_texture_rng_init();
   RE_engines_init();
   blender::bke::node_system_init();
+
+  BKE_brush_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
@@ -557,9 +575,6 @@ int main(int argc,
    */
   callback_main_atexit(&app_init_data);
   BKE_blender_atexit_unregister(callback_main_atexit, &app_init_data);
-
-  /* End argument parsing, allow memory leaks to be printed. */
-  MEM_use_memleak_detection(true);
 
 /* Paranoid, avoid accidental re-use. */
 #ifndef WITH_PYTHON_MODULE

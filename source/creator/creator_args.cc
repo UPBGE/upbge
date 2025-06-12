@@ -35,6 +35,7 @@
 #  endif
 
 #  include "BKE_appdir.hh"
+#  include "BKE_blender.hh"
 #  include "BKE_blender_cli_command.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_blendfile.hh"
@@ -634,6 +635,10 @@ static const char arg_handle_print_version_doc[] =
 static int arg_handle_print_version(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   print_version_full();
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
+
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
   return 0;
@@ -932,6 +937,9 @@ static int arg_handle_print_help(int /*argc*/, const char ** /*argv*/, void *dat
   bArgs *ba = (bArgs *)data;
 
   print_help(ba, false);
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
 
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
