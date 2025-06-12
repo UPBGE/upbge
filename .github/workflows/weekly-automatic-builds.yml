@@ -45,13 +45,6 @@ jobs:
           git clone https://github.com/UPBGE/upbge.git
         env:
           GIT_LFS_SKIP_SMUDGE: 1
-
-      - name: Checkout Submodules
-        run: |
-          cd upbge/scripts && \
-          git submodule sync && \
-          git submodule update --init --recursive --remote && \
-          git submodule foreach 'branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed "s|origin/||"); git checkout $branch && git pull --rebase origin $branch'
         
       - name: Setup Python
         uses: actions/setup-python@v5
