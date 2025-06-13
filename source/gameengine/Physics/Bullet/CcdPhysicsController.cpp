@@ -739,18 +739,6 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
 CcdPhysicsController::~CcdPhysicsController()
 {
-  KX_GameObject *gameobj = KX_GameObject::GetClientObject(
-      (KX_ClientObjectInfo *)GetNewClientInfo());
-  Object *ob = gameobj->GetBlenderObject();
-  if (m_sbCoords) {
-    MEM_freeN(m_sbCoords);
-    m_sbCoords = nullptr;
-  }
-  if (m_sbModifier) {
-    BLI_remlink(&ob->modifiers, m_sbModifier);
-    BKE_modifier_free((ModifierData *)m_sbModifier);
-    m_sbModifier = nullptr;
-  }
   // will be reference counted, due to sharing
   if (m_cci.m_physicsEnv)
     m_cci.m_physicsEnv->RemoveCcdPhysicsController(this, true);
@@ -949,6 +937,21 @@ void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_
 {
   if (GetSoftBody()) {
     GetSoftBody()->transform(btTransform(ToBullet(ori), ToBullet(pos)));
+  }
+}
+
+void CcdPhysicsController::RemoveSoftBodyModifier(Object *ob)
+{
+  if (GetSoftBody()) {
+    if (m_sbCoords) {
+      MEM_freeN(m_sbCoords);
+      m_sbCoords = nullptr;
+    }
+    if (m_sbModifier) {
+      BLI_remlink(&ob->modifiers, m_sbModifier);
+      BKE_modifier_free((ModifierData *)m_sbModifier);
+      m_sbModifier = nullptr;
+    }
   }
 }
 

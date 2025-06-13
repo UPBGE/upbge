@@ -676,6 +676,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   virtual void UpdateSoftBody();
   virtual void SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori);
+  virtual void RemoveSoftBodyModifier(struct Object *ob);
 
   /**
    * Called for every physics simulation step. Use this method for

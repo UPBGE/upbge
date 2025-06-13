@@ -6,8 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <algorithm>
-
 #include "BLI_math_vector.h"
 
 #include "BLT_translation.hh"

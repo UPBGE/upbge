@@ -152,10 +152,6 @@ KX_GameObject::~KX_GameObject()
     }
   }
 
-  if (m_pPhysicsController) {
-    delete m_pPhysicsController;
-  }
-
   if (m_pSGNode) {
     RemoveOrHideBlenderObject();
 
@@ -193,6 +189,10 @@ KX_GameObject::~KX_GameObject()
     m_pSGNode->SetSGClientObject(nullptr);
 
     /* m_pSGNode is freed in KX_Scene::RemoveNodeDestructObject */
+  }
+
+  if (m_pPhysicsController) {
+    delete m_pPhysicsController;
   }
 
   if (m_actionManager) {
@@ -393,6 +393,10 @@ void KX_GameObject::RemoveOrHideBlenderObject()
 {
   Object *ob = GetBlenderObject();
   if (ob) {
+    PHY_IPhysicsController *ctrl = GetPhysicsController();
+    if (ctrl) {
+      ctrl->RemoveSoftBodyModifier(ob);
+    }
     if (m_isReplica) {
       bContext *C = KX_GetActiveEngine()->GetContext();
       Main *bmain = CTX_data_main(C);
