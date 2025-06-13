@@ -865,8 +865,11 @@ void CcdPhysicsController::UpdateSoftBody()
       if (rasMesh) {
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
+        bContext *C = KX_GetActiveEngine()->GetContext();
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
         Object *ob = gameobj->GetBlenderObject();
-        Mesh *me = (Mesh *)ob->data;
+        Object *ob_eval = DEG_get_evaluated(depsgraph, gameobj->GetBlenderObject());
+        Mesh *me = (Mesh *)ob_eval->data;
         BKE_mesh_tessface_ensure(me);
 
         const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
@@ -935,7 +938,7 @@ void CcdPhysicsController::UpdateSoftBody()
         }
         m_sbModifier->vertcoos = m_sbCoords;
 
-        //me->tag_positions_changed();
+        /* call this each frame to ensure MOD_deform_bge will be called */
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
