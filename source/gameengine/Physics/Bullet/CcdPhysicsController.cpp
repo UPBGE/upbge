@@ -884,6 +884,8 @@ void CcdPhysicsController::UpdateSoftBody()
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
+        MT_Transform invtrans(&ob->world_to_object().ptr()[0][0]);
+
         for (int p2 = 0; p2 < numpolys; p2++) {
           const MFace *face = &faces[p2];
           const int origi = index_mf_to_mpoly ?
@@ -901,9 +903,9 @@ void CcdPhysicsController::UpdateSoftBody()
             int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
             int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
 
-            MT_Vector3 p1 = ToMoto(nodes.at(i1).m_x - sb->m_pose.m_com);
-            MT_Vector3 p2 = ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com);
-            MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
+            MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
+            MT_Vector3 p2 = invtrans * ToMoto(nodes.at(i2).m_x);
+            MT_Vector3 p3 = invtrans * ToMoto(nodes.at(i3).m_x);
 
             // Do we need object_to_world? maybe
             copy_v3_v3(v1, p1.getValue());
@@ -915,7 +917,7 @@ void CcdPhysicsController::UpdateSoftBody()
 
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
-              MT_Vector3 p4 = ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com);
+              MT_Vector3 p4 = invtrans * ToMoto(nodes.at(i4).m_x);
 
               copy_v3_v3(v4, p4.getValue());
 
