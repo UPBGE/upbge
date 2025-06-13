@@ -51,28 +51,15 @@ jobs:
         sudo ldconfig
 
     - name: Checkout sources
-      uses: actions/checkout@v3
-      with:
-        repository: "UPBGE/upbge"
-        ref: "master"
-        path: "upbge"
-
-    - name: Checkout Submodules
       run: |
-        cd upbge/scripts && \
-        git submodule sync && \
-        git submodule update --init --recursive --remote && \
-        git submodule foreach 'branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed "s|origin/||"); git checkout $branch && git pull --rebase origin $branch'
+        git clone https://github.com/UPBGE/upbge.git
+      env:
+        GIT_LFS_SKIP_SMUDGE: 1
         
     - name: Download Precompiled Libs
       run: |
         cd upbge && \
         ./build_files/utils/make_update.py --use-linux-libraries
-
-    - name: Download LFS files
-      run: |
-        cd upbge && \
-        git lfs pull --all lfs-fallback
         
     - name: Configure CMake
       run: |
@@ -154,11 +141,10 @@ jobs:
         sudo ldconfig
 
     - name: Checkout sources
-      uses: actions/checkout@v3
-      with:
-        repository: "UPBGE/upbge"
-        ref: "master"
-        path: "upbge"
+      run: |
+        git clone https://github.com/UPBGE/upbge.git
+      env:
+        GIT_LFS_SKIP_SMUDGE: 1
 
     - name: Prepare API Documentation
       working-directory: build
