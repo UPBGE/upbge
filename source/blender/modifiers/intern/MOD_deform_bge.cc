@@ -8,37 +8,25 @@
 
 #include <algorithm>
 
-#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_task.h"
-#include "BLI_utildefines.h"
+
 #include "BLT_translation.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_object_types.h"
-#include "DNA_screen_types.h"
 
-#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.hh"
-
-#include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
-static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh * /*mesh*/)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
-  Object *object_eval = DEG_get_evaluated(ctx->depsgraph, ctx->object);
-  Mesh *source = (Mesh *)object_eval->data;
+  Mesh *source = reinterpret_cast<Mesh *>(DEG_get_evaluated(ctx->depsgraph, &mesh->id));
   Mesh *result = BKE_mesh_copy_for_eval(*source);
 
   float(*positions)[3] = reinterpret_cast<float(*)[3]>(
@@ -70,7 +58,7 @@ ModifierTypeInfo modifierType_SimpleDeformBGE = {
     /*srna*/ nullptr,
     /*type*/ ModifierTypeType::Constructive,
 
-    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_Single,
+    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_Single,
     /*icon*/ ICON_MOD_SIMPLEDEFORM,
 
     /*copy_data*/ BKE_modifier_copydata_generic,
