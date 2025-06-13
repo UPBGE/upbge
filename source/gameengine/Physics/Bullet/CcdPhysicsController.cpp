@@ -884,7 +884,8 @@ void CcdPhysicsController::UpdateSoftBody()
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
-        MT_Transform invtrans(&ob->world_to_object().ptr()[0][0]);
+        MT_Transform invtrans(gameobj->NodeGetWorldTransform());
+        invtrans.invert(invtrans);
 
         for (int p2 = 0; p2 < numpolys; p2++) {
           const MFace *face = &faces[p2];
