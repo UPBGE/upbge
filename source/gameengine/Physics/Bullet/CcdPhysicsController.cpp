@@ -856,8 +856,8 @@ void CcdPhysicsController::UpdateSoftBody()
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
         Object *ob = gameobj->GetBlenderObject();
-        Object *ob_eval = DEG_get_evaluated(depsgraph, gameobj->GetBlenderObject());
-        Mesh *me = (Mesh *)ob_eval->data;
+        Mesh *mesh_orig = BKE_mesh_from_object(ob);
+        Mesh *me = (Mesh *)DEG_get_evaluated_id(depsgraph, &mesh_orig->id);
         BKE_mesh_tessface_ensure(me);
 
         const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
@@ -920,7 +920,7 @@ void CcdPhysicsController::UpdateSoftBody()
           m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(
               eModifierType_SimpleDeformBGE);
           STRNCPY(m_sbModifier->modifier.name, "sbModifier");
-          BLI_addtail(&ob->modifiers, m_sbModifier);
+          BLI_addhead(&ob->modifiers, m_sbModifier);
           BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
           BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
         }

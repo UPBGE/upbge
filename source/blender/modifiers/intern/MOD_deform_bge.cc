@@ -24,7 +24,11 @@
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
-  Mesh *source = reinterpret_cast<Mesh *>(DEG_get_evaluated(ctx->depsgraph, &mesh->id));
+
+  if (smd->vertcoos == nullptr) {
+    return mesh;
+  }
+  Mesh *source = reinterpret_cast<Mesh *>(DEG_get_evaluated_id(ctx->depsgraph, &mesh->id));
   Mesh *result = BKE_mesh_copy_for_eval(*source);
 
   float(*positions)[3] = reinterpret_cast<float(*)[3]>(
