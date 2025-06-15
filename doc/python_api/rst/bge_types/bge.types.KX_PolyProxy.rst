@@ -8,10 +8,14 @@ base class --- :class:`~bge.types.SCA_IObject`
 .. class:: KX_PolyProxy
 
    A polygon holds the index of the vertex forming the poylgon.
+   You can only read the vertex properties of a mesh object. In upbge 0.3+, KX_MeshProxy,
+   KX_PolyProxy, and KX_VertexProxy are only a representation of the physics shape as it was
+   when it was converted in BL_DataConversion.
+   Previously this kind of meshes were used both for render and physics, but since 0.3+,
+   it is only useful in limited cases. In most cases, bpy API should be used instead.
 
    Note:
-   The polygon attributes are read-only, you need to retrieve the vertex proxy if you want
-   to change the vertex settings.
+   The physics simulation doesn't currently update KX_Mesh/Poly/VertexProxy.
 
    .. attribute:: material_name
 

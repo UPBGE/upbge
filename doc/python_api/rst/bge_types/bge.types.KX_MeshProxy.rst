@@ -9,12 +9,17 @@ base class --- :class:`~bge.types.EXP_Value`
 
    A mesh object.
 
-   You can only change the vertex properties of a mesh object, not the mesh topology.
+   You can only read the vertex properties of a mesh object. In upbge 0.3+, KX_MeshProxy,
+   KX_PolyProxy, and KX_VertexProxy are only a representation of the physics shape as it was
+   when it was converted in BL_DataConversion.
+   Previously this kind of meshes were used both for render and physics, but since 0.3+,
+   it is only useful in limited cases. In most cases, bpy API should be used instead.
 
-   To use mesh objects effectively, you should know a bit about how the game engine handles them.
+   Note:
+   The physics simulation doesn't currently update KX_Mesh/Poly/VertexProxy.
 
    #. Mesh Objects are converted from Blender at scene load.
-   #. The Converter groups polygons by Material.  This means they can be sent to the renderer efficiently.  A material holds:
+   #. The Converter groups polygons by Material. A material holds:
 
       #. The texture.
       #. The Blender material.
@@ -46,8 +51,6 @@ base class --- :class:`~bge.types.EXP_Value`
             for v_index in range(mesh.getVertexArrayLength(m_index)):
                vertex = mesh.getVertex(m_index, v_index)
                # Do something with vertex here...
-               # ... eg: color the vertex red.
-               vertex.color = [1.0, 0.0, 0.0, 1.0]
 
    .. attribute:: materials
 
@@ -115,39 +118,4 @@ base class --- :class:`~bge.types.EXP_Value`
       :type index: integer
       :return: a polygon object.
       :rtype: :class:`~bge.types.KX_PolyProxy`
-
-   .. method:: transform(matid, matrix)
-
-      Transforms the vertices of a mesh.
-
-      :arg matid: material index, -1 transforms all.
-      :type matid: integer
-      :arg matrix: transformation matrix.
-      :type matrix: 4x4 matrix [[float]]
-
-   .. method:: transformUV(matid, matrix, uv_index=-1, uv_index_from=-1)
-
-      Transforms the vertices UV's of a mesh.
-
-      :arg matid: material index, -1 transforms all.
-      :type matid: integer
-      :arg matrix: transformation matrix.
-      :type matrix: 4x4 matrix [[float]]
-      :arg uv_index: optional uv index, -1 for all, otherwise 0 or 1.
-      :type uv_index: integer
-      :arg uv_index_from: optional uv index to copy from, -1 to transform the current uv.
-      :type uv_index_from: integer
-
-   .. method:: replaceMaterial(matid, material)
-
-      Replace the material in slot :data:`matid` by the material :data:`material`.
-
-      :arg matid: The material index.
-      :type matid: integer
-      :arg material: The material replacement.
-      :type material: :class:`~bge.types.KX_BlenderMaterial`
-
-      .. warning::
-
-         Changing the material of a mesh used by many objects can be slow. This function should be not called every frames
 

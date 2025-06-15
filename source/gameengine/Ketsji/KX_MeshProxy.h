@@ -73,9 +73,6 @@ class KX_MeshProxy : public EXP_Value {
   EXP_PYMETHOD(KX_MeshProxy, GetVertexArrayLength);
   EXP_PYMETHOD(KX_MeshProxy, GetVertex);
   EXP_PYMETHOD(KX_MeshProxy, GetPolygon);
-  EXP_PYMETHOD(KX_MeshProxy, Transform);
-  EXP_PYMETHOD(KX_MeshProxy, TransformUV);
-  EXP_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
 
   static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v,
                                         const EXP_PYATTRIBUTE_DEF *attrdef);

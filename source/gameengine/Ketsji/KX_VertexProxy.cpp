@@ -81,43 +81,38 @@ PyTypeObject KX_VertexProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Verte
 
 PyMethodDef KX_VertexProxy::Methods[] = {
     {"getXYZ", (PyCFunction)KX_VertexProxy::sPyGetXYZ, METH_NOARGS},
-    {"setXYZ", (PyCFunction)KX_VertexProxy::sPySetXYZ, METH_O},
     {"getUV", (PyCFunction)KX_VertexProxy::sPyGetUV1, METH_NOARGS},
-    {"setUV", (PyCFunction)KX_VertexProxy::sPySetUV1, METH_O},
 
     {"getUV2", (PyCFunction)KX_VertexProxy::sPyGetUV2, METH_NOARGS},
-    {"setUV2", (PyCFunction)KX_VertexProxy::sPySetUV2, METH_VARARGS},
 
     {"getRGBA", (PyCFunction)KX_VertexProxy::sPyGetRGBA, METH_NOARGS},
-    {"setRGBA", (PyCFunction)KX_VertexProxy::sPySetRGBA, METH_O},
     {"getNormal", (PyCFunction)KX_VertexProxy::sPyGetNormal, METH_NOARGS},
-    {"setNormal", (PyCFunction)KX_VertexProxy::sPySetNormal, METH_O},
     {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef KX_VertexProxy::Attributes[] = {
-    EXP_PYATTRIBUTE_RW_FUNCTION("x", KX_VertexProxy, pyattr_get_x, pyattr_set_x),
-    EXP_PYATTRIBUTE_RW_FUNCTION("y", KX_VertexProxy, pyattr_get_y, pyattr_set_y),
-    EXP_PYATTRIBUTE_RW_FUNCTION("z", KX_VertexProxy, pyattr_get_z, pyattr_set_z),
+    EXP_PYATTRIBUTE_RO_FUNCTION("x", KX_VertexProxy, pyattr_get_x),
+    EXP_PYATTRIBUTE_RO_FUNCTION("y", KX_VertexProxy, pyattr_get_y),
+    EXP_PYATTRIBUTE_RO_FUNCTION("z", KX_VertexProxy, pyattr_get_z),
 
-    EXP_PYATTRIBUTE_RW_FUNCTION("r", KX_VertexProxy, pyattr_get_r, pyattr_set_r),
-    EXP_PYATTRIBUTE_RW_FUNCTION("g", KX_VertexProxy, pyattr_get_g, pyattr_set_g),
-    EXP_PYATTRIBUTE_RW_FUNCTION("b", KX_VertexProxy, pyattr_get_b, pyattr_set_b),
-    EXP_PYATTRIBUTE_RW_FUNCTION("a", KX_VertexProxy, pyattr_get_a, pyattr_set_a),
+    EXP_PYATTRIBUTE_RO_FUNCTION("r", KX_VertexProxy, pyattr_get_r),
+    EXP_PYATTRIBUTE_RO_FUNCTION("g", KX_VertexProxy, pyattr_get_g),
+    EXP_PYATTRIBUTE_RO_FUNCTION("b", KX_VertexProxy, pyattr_get_b),
+    EXP_PYATTRIBUTE_RO_FUNCTION("a", KX_VertexProxy, pyattr_get_a),
 
-    EXP_PYATTRIBUTE_RW_FUNCTION("u", KX_VertexProxy, pyattr_get_u, pyattr_set_u),
-    EXP_PYATTRIBUTE_RW_FUNCTION("v", KX_VertexProxy, pyattr_get_v, pyattr_set_v),
+    EXP_PYATTRIBUTE_RO_FUNCTION("u", KX_VertexProxy, pyattr_get_u),
+    EXP_PYATTRIBUTE_RO_FUNCTION("v", KX_VertexProxy, pyattr_get_v),
 
-    EXP_PYATTRIBUTE_RW_FUNCTION("u2", KX_VertexProxy, pyattr_get_u2, pyattr_set_u2),
-    EXP_PYATTRIBUTE_RW_FUNCTION("v2", KX_VertexProxy, pyattr_get_v2, pyattr_set_v2),
+    EXP_PYATTRIBUTE_RO_FUNCTION("u2", KX_VertexProxy, pyattr_get_u2),
+    EXP_PYATTRIBUTE_RO_FUNCTION("v2", KX_VertexProxy, pyattr_get_v2),
 
-    EXP_PYATTRIBUTE_RW_FUNCTION("XYZ", KX_VertexProxy, pyattr_get_XYZ, pyattr_set_XYZ),
-    EXP_PYATTRIBUTE_RW_FUNCTION("UV", KX_VertexProxy, pyattr_get_UV, pyattr_set_UV),
-    EXP_PYATTRIBUTE_RW_FUNCTION("uvs", KX_VertexProxy, pyattr_get_uvs, pyattr_set_uvs),
+    EXP_PYATTRIBUTE_RO_FUNCTION("XYZ", KX_VertexProxy, pyattr_get_XYZ),
+    EXP_PYATTRIBUTE_RO_FUNCTION("UV", KX_VertexProxy, pyattr_get_UV),
+    EXP_PYATTRIBUTE_RO_FUNCTION("uvs", KX_VertexProxy, pyattr_get_uvs),
 
-    EXP_PYATTRIBUTE_RW_FUNCTION("color", KX_VertexProxy, pyattr_get_color, pyattr_set_color),
-    EXP_PYATTRIBUTE_RW_FUNCTION("colors", KX_VertexProxy, pyattr_get_colors, pyattr_set_colors),
-    EXP_PYATTRIBUTE_RW_FUNCTION("normal", KX_VertexProxy, pyattr_get_normal, pyattr_set_normal),
+    EXP_PYATTRIBUTE_RO_FUNCTION("color", KX_VertexProxy, pyattr_get_color),
+    EXP_PYATTRIBUTE_RO_FUNCTION("colors", KX_VertexProxy, pyattr_get_colors),
+    EXP_PYATTRIBUTE_RO_FUNCTION("normal", KX_VertexProxy, pyattr_get_normal),
 
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
@@ -309,306 +304,6 @@ PyObject *KX_VertexProxy::pyattr_get_normal(EXP_PyObjectPlus *self_v,
   return PyObjectFrom(MT_Vector3(self->m_vertex->getNormal()));
 }
 
-int KX_VertexProxy::pyattr_set_x(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    MT_Vector3 pos(self->m_vertex->getXYZ());
-    pos.x() = val;
-    self->m_vertex->SetXYZ(pos);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_y(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    MT_Vector3 pos(self->m_vertex->getXYZ());
-    pos.y() = val;
-    self->m_vertex->SetXYZ(pos);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_z(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    MT_Vector3 pos(self->m_vertex->getXYZ());
-    pos.z() = val;
-    self->m_vertex->SetXYZ(pos);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_u(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(0));
-    uv[0] = val;
-    self->m_vertex->SetUV(0, uv);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_v(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(0));
-    uv[1] = val;
-    self->m_vertex->SetUV(0, uv);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_u2(EXP_PyObjectPlus *self_v,
-                                  const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                  PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    if (self->GetVertex()->getUvSize() > 1) {
-      float val = PyFloat_AsDouble(value);
-      MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
-      uv[0] = val;
-      self->m_vertex->SetUV(1, uv);
-      self->m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-    }
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_v2(EXP_PyObjectPlus *self_v,
-                                  const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                  PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    if (self->GetVertex()->getUvSize() > 1) {
-      float val = PyFloat_AsDouble(value);
-      MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
-      uv[1] = val;
-      self->m_vertex->SetUV(1, uv);
-      self->m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-    }
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_r(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    unsigned int icol = self->m_vertex->getRawRGBA(0);
-    unsigned char *cp = (unsigned char *)&icol;
-    val *= 255.0f;
-    cp[0] = (unsigned char)val;
-    self->m_vertex->SetRGBA(0, icol);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_g(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    unsigned int icol = self->m_vertex->getRawRGBA(0);
-    unsigned char *cp = (unsigned char *)&icol;
-    val *= 255.0f;
-    cp[1] = (unsigned char)val;
-    self->m_vertex->SetRGBA(0, icol);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_b(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    unsigned int icol = self->m_vertex->getRawRGBA(0);
-    unsigned char *cp = (unsigned char *)&icol;
-    val *= 255.0f;
-    cp[2] = (unsigned char)val;
-    self->m_vertex->SetRGBA(0, icol);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_a(EXP_PyObjectPlus *self_v,
-                                 const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PyFloat_Check(value)) {
-    float val = PyFloat_AsDouble(value);
-    unsigned int icol = self->m_vertex->getRawRGBA(0);
-    unsigned char *cp = (unsigned char *)&icol;
-    val *= 255.0f;
-    cp[3] = (unsigned char)val;
-    self->m_vertex->SetRGBA(0, icol);
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_XYZ(EXP_PyObjectPlus *self_v,
-                                   const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                   PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PySequence_Check(value)) {
-    MT_Vector3 vec;
-    if (PyVecTo(value, vec)) {
-      self->m_vertex->SetXYZ(vec);
-      self->m_array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
-      return PY_SET_ATTR_SUCCESS;
-    }
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_UV(EXP_PyObjectPlus *self_v,
-                                  const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                  PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PySequence_Check(value)) {
-    MT_Vector2 vec;
-    if (PyVecTo(value, vec)) {
-      self->m_vertex->SetUV(0, vec);
-      self->m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-      return PY_SET_ATTR_SUCCESS;
-    }
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_uvs(EXP_PyObjectPlus *self_v,
-                                   const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                   PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PySequence_Check(value)) {
-    MT_Vector2 vec;
-    for (int i = 0; i < PySequence_Size(value) && i < self->GetVertex()->getUvSize(); ++i) {
-      if (PyVecTo(PySequence_GetItem(value, i), vec)) {
-        self->m_vertex->SetUV(i, vec);
-      }
-      else {
-        PyErr_SetString(PyExc_AttributeError,
-                        (fmt::format("list[{}] was not a vector", i).c_str()));
-        return PY_SET_ATTR_FAIL;
-      }
-    }
-
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_color(EXP_PyObjectPlus *self_v,
-                                     const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                     PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PySequence_Check(value)) {
-    MT_Vector4 vec;
-    if (PyVecTo(value, vec)) {
-      self->m_vertex->SetRGBA(0, vec);
-      self->m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-      return PY_SET_ATTR_SUCCESS;
-    }
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_colors(EXP_PyObjectPlus *self_v,
-                                      const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                      PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PySequence_Check(value)) {
-    MT_Vector4 vec;
-    for (int i = 0; i < PySequence_Size(value) && i < self->GetVertex()->getColorSize(); ++i) {
-      if (PyVecTo(PySequence_GetItem(value, i), vec)) {
-        self->m_vertex->SetRGBA(i, vec);
-      }
-      else {
-        PyErr_SetString(PyExc_AttributeError,
-                        (fmt::format("list[{}] was not a vector", i).c_str()));
-        return PY_SET_ATTR_FAIL;
-      }
-    }
-
-    self->m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
-int KX_VertexProxy::pyattr_set_normal(EXP_PyObjectPlus *self_v,
-                                      const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                      PyObject *value)
-{
-  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-  if (PySequence_Check(value)) {
-    MT_Vector3 vec;
-    if (PyVecTo(value, vec)) {
-      self->m_vertex->SetNormal(vec);
-      self->m_array->AppendModifiedFlag(RAS_IDisplayArray::NORMAL_MODIFIED);
-      return PY_SET_ATTR_SUCCESS;
-    }
-  }
-  return PY_SET_ATTR_FAIL;
-}
-
 KX_VertexProxy::KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex)
     : m_vertex(vertex), m_array(array)
 {
@@ -640,31 +335,9 @@ PyObject *KX_VertexProxy::PyGetXYZ()
   return PyObjectFrom(MT_Vector3(m_vertex->getXYZ()));
 }
 
-PyObject *KX_VertexProxy::PySetXYZ(PyObject *value)
-{
-  MT_Vector3 vec;
-  if (!PyVecTo(value, vec))
-    return nullptr;
-
-  m_vertex->SetXYZ(vec);
-  m_array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
-  Py_RETURN_NONE;
-}
-
 PyObject *KX_VertexProxy::PyGetNormal()
 {
   return PyObjectFrom(MT_Vector3(m_vertex->getNormal()));
-}
-
-PyObject *KX_VertexProxy::PySetNormal(PyObject *value)
-{
-  MT_Vector3 vec;
-  if (!PyVecTo(value, vec))
-    return nullptr;
-
-  m_vertex->SetNormal(vec);
-  m_array->AppendModifiedFlag(RAS_IDisplayArray::NORMAL_MODIFIED);
-  Py_RETURN_NONE;
 }
 
 PyObject *KX_VertexProxy::PyGetRGBA()
@@ -673,61 +346,15 @@ PyObject *KX_VertexProxy::PyGetRGBA()
   return PyLong_FromLong(rgba);
 }
 
-PyObject *KX_VertexProxy::PySetRGBA(PyObject *value)
-{
-  if (PyLong_Check(value)) {
-    int rgba = PyLong_AsLong(value);
-    m_vertex->SetRGBA(0, rgba);
-    m_array->AppendModifiedFlag(true);
-    Py_RETURN_NONE;
-  }
-  else {
-    MT_Vector4 vec;
-    if (PyVecTo(value, vec)) {
-      m_vertex->SetRGBA(0, vec);
-      m_array->AppendModifiedFlag(RAS_IDisplayArray::COLORS_MODIFIED);
-      Py_RETURN_NONE;
-    }
-  }
-
-  PyErr_SetString(PyExc_TypeError,
-                  "vert.setRGBA(value): KX_VertexProxy, expected a 4D vector or an int");
-  return nullptr;
-}
-
 PyObject *KX_VertexProxy::PyGetUV1()
 {
   return PyObjectFrom(MT_Vector2(m_vertex->getUV(0)));
-}
-
-PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
-{
-  MT_Vector2 vec;
-  if (!PyVecTo(value, vec))
-    return nullptr;
-
-  m_vertex->SetUV(0, vec);
-  m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-  Py_RETURN_NONE;
 }
 
 PyObject *KX_VertexProxy::PyGetUV2()
 {
   return (m_vertex->getUvSize() > 1) ? PyObjectFrom(MT_Vector2(m_vertex->getUV(1))) :
                                        PyObjectFrom(MT_Vector2(0.0f, 0.0f));
-}
-
-PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
-{
-  MT_Vector2 vec;
-  if (!PyVecTo(args, vec))
-    return nullptr;
-
-  if (m_vertex->getUvSize() > 1) {
-    m_vertex->SetUV(1, vec);
-    m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
-  }
-  Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON

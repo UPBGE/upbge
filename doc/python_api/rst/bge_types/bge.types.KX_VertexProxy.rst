@@ -8,10 +8,14 @@ base class --- :class:`~bge.types.SCA_IObject`
 .. class:: KX_VertexProxy
 
    A vertex holds position, UV, color and normal information.
+   You can only read the vertex properties of a mesh object. In upbge 0.3+, KX_MeshProxy,
+   KX_PolyProxy, and KX_VertexProxy are only a representation of the physics shape as it was
+   when it was converted in BL_DataConversion.
+   Previously this kind of meshes were used both for render and physics, but since 0.3+,
+   it is only useful in limited cases. In most cases, bpy API should be used instead.
 
    Note:
-   The physics simulation is NOT currently updated - physics will not respond
-   to changes in the vertex position.
+   The physics simulation doesn't currently update KX_Mesh/Poly/VertexProxy.
 
    .. attribute:: XYZ
 
@@ -124,14 +128,6 @@ base class --- :class:`~bge.types.SCA_IObject`
       :return: this vertexes position in local coordinates.
       :rtype: Vector((x, y, z))
 
-   .. method:: setXYZ(pos)
-
-      Sets the position of this vertex.
-
-      :type:  Vector((x, y, z))
-
-      :arg pos: the new position for this vertex in local coordinates.
-
    .. method:: getUV()
 
       Gets the UV (texture) coordinates of this vertex.
@@ -139,27 +135,12 @@ base class --- :class:`~bge.types.SCA_IObject`
       :return: this vertexes UV (texture) coordinates.
       :rtype: Vector((u, v))
 
-   .. method:: setUV(uv)
-
-      Sets the UV (texture) coordinates of this vertex.
-
-      :type:  Vector((u, v))
-
    .. method:: getUV2()
 
       Gets the 2nd UV (texture) coordinates of this vertex.
 
       :return: this vertexes UV (texture) coordinates.
       :rtype: Vector((u, v))
-
-   .. method:: setUV2(uv, unit)
-
-      Sets the 2nd UV (texture) coordinates of this vertex.
-
-      :type:  Vector((u, v))
-
-      :arg unit: optional argument, FLAT==1, SECOND_UV==2, defaults to SECOND_UV
-      :arg unit:  integer
 
    .. method:: getRGBA()
 
@@ -184,37 +165,9 @@ base class --- :class:`~bge.types.SCA_IObject`
       :return: packed color. 4 byte integer with one byte per color channel in RGBA format.
       :rtype: integer
 
-   .. method:: setRGBA(col)
-
-      Sets the color of this vertex.
-
-      See getRGBA() for the format of col, and its relevant problems.  Use the r, g, b and a attributes
-      or the color attribute instead.
-
-      setRGBA() also accepts a four component list as argument col.  The list represents the color as [r, g, b, a]
-      with black = [0.0, 0.0, 0.0, 1.0] and white = [1.0, 1.0, 1.0, 1.0]
-
-      .. code-block:: python
-
-         v.setRGBA(0xff0000ff) # Red
-         v.setRGBA(0xff00ff00) # Green on little endian, transparent purple on big endian
-         v.setRGBA([1.0, 0.0, 0.0, 1.0]) # Red
-         v.setRGBA([0.0, 1.0, 0.0, 1.0]) # Green on all platforms.
-
-      :arg col: the new color of this vertex in packed RGBA format.
-      :type col: integer or list [r, g, b, a]
-
    .. method:: getNormal()
 
       Gets the normal vector of this vertex.
 
       :return: normalized normal vector.
       :rtype: Vector((nx, ny, nz))
-
-   .. method:: setNormal(normal)
-
-      Sets the normal vector of this vertex.
-
-      :type:  sequence of floats [r, g, b]
-
-      :arg normal: the new normal of this vertex.
