@@ -21,22 +21,15 @@
 
 #include "MOD_util.hh"
 
-static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext * /*ctx*/,
+                         Mesh * /*mesh*/,
+                         blender::MutableSpan<blender::float3> positions)
 {
   SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
-
-  if (smd->vertcoos == nullptr) {
-    return mesh;
-  }
-
-  float(*positions)[3] = reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data());
-
-  for (int i = 0; i < mesh->vert_positions().size(); i++) {
+  for (int i = 0; i < positions.size(); i++) {
     copy_v3_v3(positions[i], smd->vertcoos[i]);
   }
-  mesh->tag_positions_changed();
-
-  return mesh;
 }
 
 /* SimpleDeform */
@@ -55,18 +48,18 @@ ModifierTypeInfo modifierType_SimpleDeformBGE = {
     /*struct_name*/ "SimpleDeformModifierDataBGE",
     /*struct_size*/ sizeof(SimpleDeformModifierDataBGE),
     /*srna*/ nullptr,
-    /*type*/ ModifierTypeType::Constructive,
+    /*type*/ ModifierTypeType::OnlyDeform,
 
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_Single,
     /*icon*/ ICON_MOD_SIMPLEDEFORM,
 
     /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deform_verts*/ nullptr,
+    /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
     /*deform_verts_EM*/ nullptr,
     /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ modify_mesh,
+    /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
     /*init_data*/ init_data,
