@@ -513,10 +513,11 @@ typedef struct UserDef {
   /** Curve non-linearity parameter. */
   float pressure_softness;
 
-  /** Overall sensitivity of 3D mouse. */
-  float ndof_sensitivity;
-  float ndof_orbit_sensitivity;
-  /** Dead-zone of 3D mouse. */
+  /** 3D mouse: overall translation sensitivity. */
+  float ndof_translation_sensitivity;
+  /** 3D mouse: overall rotation sensitivity. */
+  float ndof_rotation_sensitivity;
+  /** 3D mouse: dead-zone. */
   float ndof_deadzone;
   /** #eNdof_Flag, flags for 3D mouse. */
   int ndof_flag;
@@ -806,7 +807,7 @@ typedef enum eUserpref_UI_Flag2 {
 
 /** #UserDef.gpu_flag */
 typedef enum eUserpref_GPU_Flag {
-  USER_GPU_FLAG_NO_DEPT_PICK = (1 << 0), /* Unused. To be removed. */
+  USER_GPU_FLAG_UNUSED_0 = (1 << 0), /* Unused. To be removed. */
   USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE = (1 << 1),
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),

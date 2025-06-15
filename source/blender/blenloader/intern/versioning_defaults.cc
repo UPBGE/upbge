@@ -352,7 +352,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
 
-  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
 
@@ -371,15 +371,19 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   /* Disable Z pass by default. */
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
     view_layer->passflag &= ~SCE_PASS_Z;
+    view_layer->eevee.ambient_occlusion_distance = 10.0f;
   }
 
-  /* Display missing media by default. */
   if (scene->ed) {
+    /* Display missing media by default. */
     scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
+    /* Turn on frame pre-fetching per default. */
+    scene->ed->cache_flag |= SEQ_CACHE_PREFETCH_ENABLE;
   }
 
   /* New EEVEE defaults. */
   scene->eevee.motion_blur_shutter_deprecated = 0.5f;
+  scene->eevee.flag &= ~SCE_EEVEE_VOLUME_CUSTOM_RANGE;
 
   copy_v3_v3(scene->display.light_direction, blender::float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);

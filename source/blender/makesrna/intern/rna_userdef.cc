@@ -6296,15 +6296,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       "VBO Collection Rate",
       "Number of seconds between each run of the GL vertex buffer object garbage collector");
 
-  /* Select */
-
-  prop = RNA_def_property(srna, "use_select_pick_depth", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gpu_flag", USER_GPU_FLAG_NO_DEPT_PICK);
-  RNA_def_property_ui_text(prop,
-                           "GPU Depth Picking",
-                           "When making a selection in 3D View, use the GPU depth buffer to "
-                           "ensure the frontmost object is selected first");
-
   /* GPU subdivision evaluation. */
 
   prop = RNA_def_property(srna, "use_gpu_subdivision", PROP_BOOLEAN, PROP_NONE);
@@ -6724,14 +6715,15 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 #  ifdef WITH_INPUT_NDOF
   /* 3D mouse settings */
   /* global options */
-  prop = RNA_def_property(srna, "ndof_sensitivity", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_range(prop, 0.01f, 40.0f);
-  RNA_def_property_ui_text(prop, "Sensitivity", "Overall sensitivity of the 3D Mouse for panning");
-
-  prop = RNA_def_property(srna, "ndof_orbit_sensitivity", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "ndof_translation_sensitivity", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.01f, 40.0f);
   RNA_def_property_ui_text(
-      prop, "Orbit Sensitivity", "Overall sensitivity of the 3D Mouse for orbiting");
+      prop, "Pan Sensitivity", "Overall sensitivity of the 3D Mouse for translation");
+
+  prop = RNA_def_property(srna, "ndof_rotation_sensitivity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.01f, 40.0f);
+  RNA_def_property_ui_text(
+      prop, "Orbit Sensitivity", "Overall sensitivity of the 3D Mouse for rotation");
 
   prop = RNA_def_property(srna, "ndof_deadzone", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
