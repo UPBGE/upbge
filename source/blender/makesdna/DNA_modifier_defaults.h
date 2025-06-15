@@ -562,6 +562,11 @@
     .flag = 0, \
   }
 
+#define _DNA_DEFAULT_SimpleDeformModifierDataBGE \
+  { \
+    .vertcoos = NULL, \
+  }
+
 #define _DNA_DEFAULT_NodesModifierData \
   { \
     .bake_target = NODES_MODIFIER_BAKE_TARGET_PACKED, \

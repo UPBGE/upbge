@@ -31,6 +31,7 @@ set(SRC
   intern/MOD_curve.cc
   intern/MOD_datatransfer.cc
   intern/MOD_decimate.cc
+  intern/MOD_deform_bge.cc
   intern/MOD_displace.cc
   intern/MOD_dynamicpaint.cc
   intern/MOD_edgesplit.cc
