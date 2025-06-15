@@ -28,18 +28,15 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   if (smd->vertcoos == nullptr) {
     return mesh;
   }
-  Mesh *source = reinterpret_cast<Mesh *>(DEG_get_evaluated_id(ctx->depsgraph, &mesh->id));
-  Mesh *result = BKE_mesh_copy_for_eval(*source);
 
-  float(*positions)[3] = reinterpret_cast<float(*)[3]>(
-      result->vert_positions_for_write().data());
+  float(*positions)[3] = reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data());
 
-  for (int i = 0; i < result->vert_positions().size(); i++) {
+  for (int i = 0; i < mesh->vert_positions().size(); i++) {
     copy_v3_v3(positions[i], smd->vertcoos[i]);
   }
-  result->tag_positions_changed();
+  mesh->tag_positions_changed();
 
-  return result;
+  return mesh;
 }
 
 /* SimpleDeform */
