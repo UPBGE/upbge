@@ -8,6 +8,8 @@ Video Texture (bge.texture)
 Introduction
 ************
 
+VideoTexture (bge.texture) module is currently deprecated since upbge 0.44.
+
 The ``bge.texture`` module allows you to manipulate textures during the game.
 Several sources for texture are possible: video files, image files, video capture,
 memory buffer, camera render or a mix of that.

@@ -287,6 +287,9 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
                                    &texObj))
     return -1;
 
+  std::cout << "VideoTexture (bge.texture) module is currently deprecated since 0.44." << std::endl;
+  return -1;
+
   KX_GameObject *gameObj = nullptr;
   if (ConvertPythonToGameObject(
           KX_GetActiveScene()->GetLogicManager(), obj, &gameObj, false, "")) {
