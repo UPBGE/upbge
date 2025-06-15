@@ -72,7 +72,7 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH'}
 
     def draw(self, context):
