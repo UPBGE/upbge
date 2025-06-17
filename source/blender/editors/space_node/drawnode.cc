@@ -346,7 +346,7 @@ static void node_buts_image_user(uiLayout *layout,
 
     /* Avoid losing changes image is painted. */
     if (BKE_image_is_dirty((Image *)imaptr->data)) {
-      uiLayoutSetEnabled(split, false);
+      split->enabled_set(false);
     }
   }
 }
@@ -638,9 +638,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_TEXTURE:
       ntype->draw_buttons = node_buts_texture;
-      break;
-    case CMP_NODE_MATH:
-      ntype->draw_buttons = node_buts_math;
       break;
     case CMP_NODE_HUECORRECT:
       ntype->draw_buttons = node_composit_buts_huecorrect;
@@ -1062,7 +1059,7 @@ static void node_file_output_socket_draw(bContext *C,
     PropertyRNA *imtype_prop = RNA_struct_find_property(&imfptr, "file_format");
     RNA_property_enum_name(
         C, &imfptr, imtype_prop, RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
-    block = uiLayoutGetBlock(row);
+    block = row->block();
     UI_block_emboss_set(block, blender::ui::EmbossType::Pulldown);
     row->label(imtype_name, ICON_NONE);
     UI_block_emboss_set(block, blender::ui::EmbossType::None);

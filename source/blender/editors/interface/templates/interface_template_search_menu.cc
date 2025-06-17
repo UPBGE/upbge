@@ -1137,7 +1137,7 @@ void uiTemplateMenuSearch(uiLayout *layout)
   uiBut *but;
   static char search[256] = "";
 
-  block = uiLayoutGetBlock(layout);
+  block = layout->block();
   UI_block_layout_set_current(block, layout);
 
   but = uiDefSearchBut(

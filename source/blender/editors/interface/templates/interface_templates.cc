@@ -287,7 +287,7 @@ void uiTemplatePathBuilder(uiLayout *layout,
 
 void uiTemplateNodeSocket(uiLayout *layout, bContext * /*C*/, const float color[4])
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_align_begin(block);
 
   /* XXX using explicit socket colors is not quite ideal.
@@ -309,7 +309,7 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
   bScreen *screen = CTX_wm_screen(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
 
-  ED_file_path_button(screen, sfile, params, uiLayoutGetBlock(layout));
+  ED_file_path_button(screen, sfile, params, layout->block());
 }
 
 /** \} */
