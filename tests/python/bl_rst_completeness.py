@@ -33,8 +33,6 @@ modules = (
     ("bge.render.rst", "bge.render", False),
     ("bge.texture.rst", "bge.texture", False),
     ("bge.types.rst", "bge.types", False),
-
-    ("bgl.rst", "bgl", True),
     ("gpu.rst", "gpu", False),
 )
 

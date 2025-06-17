@@ -12,7 +12,6 @@ set(INC_SYS
 )
 
 set(SRC
-  bgl.cc
   bl_math_py_api.cc
   blf_py_api.cc
   bpy_threads.cc
@@ -23,7 +22,6 @@ set(SRC
   py_capi_rna.cc
   py_capi_utils.cc
 
-  bgl.hh
   bl_math_py_api.hh
   blf_py_api.hh
   bpy_internal_import.hh
