@@ -137,24 +137,6 @@ bool RAS_2DFilterFrameBuffer::GetValid() const
   return GPU_framebuffer_check_valid(m_frameBuffer->GetFrameBuffer(), nullptr);
 }
 
-int RAS_2DFilterFrameBuffer::GetColorBindCode(unsigned short index) const
-{
-  if (!m_colorTextures[index]) {
-    return -1;
-  }
-
-  return GPU_texture_opengl_bindcode(m_colorTextures[index]);
-}
-
-int RAS_2DFilterFrameBuffer::GetDepthBindCode() const
-{
-  if (!m_depthTexture) {
-    return -1;
-  }
-
-  return GPU_texture_opengl_bindcode(m_depthTexture);
-}
-
 GPUTexture *RAS_2DFilterFrameBuffer::GetColorTexture(int slot)
 {
   if (!m_colorTextures[slot]) {

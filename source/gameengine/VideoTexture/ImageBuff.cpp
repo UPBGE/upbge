@@ -11,7 +11,6 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "bgl.hh"
 
 #include "Exception.h"
 #include "FilterSource.h"
@@ -224,25 +223,25 @@ static bool testPyBuffer(Py_buffer *buffer, int width, int height, unsigned int 
   return true;
 }
 
-static bool testBGLBuffer(Buffer *buffer, int width, int height, unsigned int pixsize)
-{
-  unsigned int size = BGL_typeSize(buffer->type);
-  for (int i = 0; i < buffer->ndimensions; i++) {
-    size *= buffer->dimensions[i];
-  }
-  if (size != width * height * pixsize) {
-    PyErr_SetString(PyExc_ValueError, "Buffer hasn't the correct size");
-    return false;
-  }
-  return true;
-}
+//static bool testBGLBuffer(Buffer *buffer, int width, int height, unsigned int pixsize)
+//{
+//  unsigned int size = BGL_typeSize(buffer->type);
+//  for (int i = 0; i < buffer->ndimensions; i++) {
+//    size *= buffer->dimensions[i];
+//  }
+//  if (size != width * height * pixsize) {
+//    PyErr_SetString(PyExc_ValueError, "Buffer hasn't the correct size");
+//    return false;
+//  }
+//  return true;
+//}
 
 // load image
 static PyObject *load(PyImage *self, PyObject *args)
 {
   // parameters: string image buffer, its size, width, height
   Py_buffer buffer;
-  Buffer *bglBuffer;
+  //Buffer *bglBuffer;
   short width;
   short height;
   unsigned int pixSize;
@@ -258,21 +257,21 @@ static PyObject *load(PyImage *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "s*hh:load", &buffer, &width, &height)) {
     PyErr_Clear();
     // check if it is BGL buffer
-    if (!PyArg_ParseTuple(args, "O!hh:load", &BGL_bufferType, &bglBuffer, &width, &height)) {
-      // report error
-      return nullptr;
-    }
-    else {
-      if (testBGLBuffer(bglBuffer, width, height, pixSize)) {
-        try {
-          // if correct, load image
-          getImageBuff(self)->load((unsigned char *)bglBuffer->buf.asvoid, width, height);
-        }
-        catch (Exception &exp) {
-          exp.report();
-        }
-      }
-    }
+    //if (!PyArg_ParseTuple(args, "O!hh:load", &BGL_bufferType, &bglBuffer, &width, &height)) {
+    //  // report error
+    //  return nullptr;
+    //}
+    //else {
+    //  if (testBGLBuffer(bglBuffer, width, height, pixSize)) {
+    //    try {
+    //      // if correct, load image
+    //      getImageBuff(self)->load((unsigned char *)bglBuffer->buf.asvoid, width, height);
+    //    }
+    //    catch (Exception &exp) {
+    //      exp.report();
+    //    }
+    //  }
+    //}
   }
   else {
     // check if buffer size is correct
@@ -295,7 +294,7 @@ static PyObject *load(PyImage *self, PyObject *args)
 static PyObject *plot(PyImage *self, PyObject *args)
 {
   PyImage *other;
-  Buffer *bglBuffer;
+  //Buffer *bglBuffer;
   Py_buffer buffer;
   // unsigned char * buff;
   // unsigned int buffSize;
@@ -323,7 +322,7 @@ static PyObject *plot(PyImage *self, PyObject *args)
   }
   PyErr_Clear();
   // try the last format (BGL buffer)
-  if (!PyArg_ParseTuple(
+  /*if (!PyArg_ParseTuple(
           args, "O!hhhh|h:plot", &BGL_bufferType, &bglBuffer, &width, &height, &x, &y, &mode)) {
     PyErr_SetString(PyExc_TypeError,
                     "Expecting ImageBuff or Py buffer or BGL buffer as first argument; width, "
@@ -332,7 +331,7 @@ static PyObject *plot(PyImage *self, PyObject *args)
   }
   if (testBGLBuffer(bglBuffer, width, height, 4)) {
     getImageBuff(self)->plot((unsigned char *)bglBuffer->buf.asvoid, width, height, x, y, mode);
-  }
+  }*/
   if (PyErr_Occurred())
     return nullptr;
   Py_RETURN_NONE;

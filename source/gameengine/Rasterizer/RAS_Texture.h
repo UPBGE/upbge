@@ -48,11 +48,4 @@ class RAS_Texture {
   virtual unsigned int GetTextureType() = 0;
 
   enum { MaxUnits = 32 };
-
-  virtual void CheckValidTexture() = 0;
-  virtual void ActivateTexture(int unit) = 0;
-  virtual void DisableTexture() = 0;
-
-  virtual int GetBindCode() const = 0;
-  virtual void SetBindCode(int bindcode) = 0;
 };

@@ -22,7 +22,7 @@
 #include "CcdPhysicsEnvironment.h"
 
 #include "BKE_object.hh"
-#include "BLI_bounds_types.hh"
+#include "BLI_bounds.hh"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
@@ -2986,15 +2986,14 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   float bounds_center[3], bounds_extends[3];
   if (const std::optional<Bounds<float3>> bl_bounds = BKE_object_boundbox_eval_cached_get(
           blenderobject)) {
-    BoundBox bb;
-    BKE_boundbox_init_from_minmax(&bb, bl_bounds->min, bl_bounds->max);
-    bounds_extends[0] = 0.5f * fabsf(bb.vec[0][0] - bb.vec[4][0]);
-    bounds_extends[1] = 0.5f * fabsf(bb.vec[0][1] - bb.vec[2][1]);
-    bounds_extends[2] = 0.5f * fabsf(bb.vec[0][2] - bb.vec[1][2]);
+    const std::array<float3, 8> corners = bounds::corners(*bl_bounds);
+    bounds_extends[0] = 0.5f * fabsf(corners[0][0] - corners[4][0]);
+    bounds_extends[1] = 0.5f * fabsf(corners[0][1] - corners[2][1]);
+    bounds_extends[2] = 0.5f * fabsf(corners[0][2] - corners[1][2]);
 
-    bounds_center[0] = 0.5f * (bb.vec[0][0] + bb.vec[4][0]);
-    bounds_center[1] = 0.5f * (bb.vec[0][1] + bb.vec[2][1]);
-    bounds_center[2] = 0.5f * (bb.vec[0][2] + bb.vec[1][2]);
+    bounds_center[0] = 0.5f * (corners[0][0] + corners[4][0]);
+    bounds_center[1] = 0.5f * (corners[0][1] + corners[2][1]);
+    bounds_center[2] = 0.5f * (corners[0][2] + corners[1][2]);
   }
   else {
     bounds_center[0] = bounds_center[1] = bounds_center[2] = 0.0f;

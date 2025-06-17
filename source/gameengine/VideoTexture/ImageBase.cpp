@@ -9,7 +9,6 @@
 
 #include <epoxy/gl.h>
 #include "MEM_guardedalloc.h"
-#include "bgl.hh"
 
 #include "Exception.h"
 
@@ -389,100 +388,100 @@ void Image_dealloc(PyImage *self)
 // get image data
 PyObject *Image_getImage(PyImage *self, char *mode)
 {
-  try {
-    unsigned int *image = self->m_image->getImage();
-    if (image) {
-      // build BGL buffer
-      int dimensions = self->m_image->getBuffSize();
-      Buffer *buffer;
-      if (mode == nullptr || !strcasecmp(mode, "RGBA")) {
-        buffer = BGL_MakeBuffer(GL_BYTE, 1, &dimensions, image);
-      }
-      else if (!strcasecmp(mode, "F")) {
-        // this mode returns the image as an array of float.
-        // This makes sense ONLY for the depth buffer:
-        //   source = VideoTexture.ImageViewport()
-        //   source.depth = True
-        //   depth = VideoTexture.imageToArray(source, 'F')
+  //try {
+  //  unsigned int *image = self->m_image->getImage();
+  //  if (image) {
+  //    // build BGL buffer
+  //    int dimensions = self->m_image->getBuffSize();
+  //    Buffer *buffer;
+  //    if (mode == nullptr || !strcasecmp(mode, "RGBA")) {
+  //      buffer = BGL_MakeBuffer(GL_BYTE, 1, &dimensions, image);
+  //    }
+  //    else if (!strcasecmp(mode, "F")) {
+  //      // this mode returns the image as an array of float.
+  //      // This makes sense ONLY for the depth buffer:
+  //      //   source = VideoTexture.ImageViewport()
+  //      //   source.depth = True
+  //      //   depth = VideoTexture.imageToArray(source, 'F')
 
-        // adapt dimension from byte to float
-        dimensions /= sizeof(float);
-        buffer = BGL_MakeBuffer(GL_FLOAT, 1, &dimensions, image);
-      }
-      else {
-        int i, c, ncolor, pixels;
-        int offset[4];
-        unsigned char *s, *d;
-        // scan the mode to get the channels requested, no more than 4
-        for (i = ncolor = 0; mode[i] != 0 && ncolor < 4; i++) {
-          switch (toupper(mode[i])) {
-            case 'R':
-              offset[ncolor++] = 0;
-              break;
-            case 'G':
-              offset[ncolor++] = 1;
-              break;
-            case 'B':
-              offset[ncolor++] = 2;
-              break;
-            case 'A':
-              offset[ncolor++] = 3;
-              break;
-            case '0':
-              offset[ncolor++] = -1;
-              break;
-            case '1':
-              offset[ncolor++] = -2;
-              break;
-            // if you add more color code, change the switch further down
-            default:
-              THRWEXCP(InvalidColorChannel, S_OK);
-          }
-        }
-        if (mode[i] != 0) {
-          THRWEXCP(InvalidColorChannel, S_OK);
-        }
-        // first get the number of pixels
-        pixels = dimensions / 4;
-        // multiple by the number of channels, each is one byte
-        dimensions = pixels * ncolor;
-        // get an empty buffer
-        buffer = BGL_MakeBuffer(GL_BYTE, 1, &dimensions, nullptr);
-        // and fill it
-        for (i = 0, d = (unsigned char *)buffer->buf.asbyte, s = (unsigned char *)image;
-             i < pixels;
-             i++, d += ncolor, s += 4) {
-          for (c = 0; c < ncolor; c++) {
-            switch (offset[c]) {
-              case 0:
-                d[c] = s[0];
-                break;
-              case 1:
-                d[c] = s[1];
-                break;
-              case 2:
-                d[c] = s[2];
-                break;
-              case 3:
-                d[c] = s[3];
-                break;
-              case -1:
-                d[c] = 0;
-                break;
-              case -2:
-                d[c] = 0xFF;
-                break;
-            }
-          }
-        }
-      }
-      return (PyObject *)buffer;
-    }
-  }
-  catch (Exception &exp) {
-    exp.report();
-    return nullptr;
-  }
+  //      // adapt dimension from byte to float
+  //      dimensions /= sizeof(float);
+  //      buffer = BGL_MakeBuffer(GL_FLOAT, 1, &dimensions, image);
+  //    }
+  //    else {
+  //      int i, c, ncolor, pixels;
+  //      int offset[4];
+  //      unsigned char *s, *d;
+  //      // scan the mode to get the channels requested, no more than 4
+  //      for (i = ncolor = 0; mode[i] != 0 && ncolor < 4; i++) {
+  //        switch (toupper(mode[i])) {
+  //          case 'R':
+  //            offset[ncolor++] = 0;
+  //            break;
+  //          case 'G':
+  //            offset[ncolor++] = 1;
+  //            break;
+  //          case 'B':
+  //            offset[ncolor++] = 2;
+  //            break;
+  //          case 'A':
+  //            offset[ncolor++] = 3;
+  //            break;
+  //          case '0':
+  //            offset[ncolor++] = -1;
+  //            break;
+  //          case '1':
+  //            offset[ncolor++] = -2;
+  //            break;
+  //          // if you add more color code, change the switch further down
+  //          default:
+  //            THRWEXCP(InvalidColorChannel, S_OK);
+  //        }
+  //      }
+  //      if (mode[i] != 0) {
+  //        THRWEXCP(InvalidColorChannel, S_OK);
+  //      }
+  //      // first get the number of pixels
+  //      pixels = dimensions / 4;
+  //      // multiple by the number of channels, each is one byte
+  //      dimensions = pixels * ncolor;
+  //      // get an empty buffer
+  //      buffer = BGL_MakeBuffer(GL_BYTE, 1, &dimensions, nullptr);
+  //      // and fill it
+  //      for (i = 0, d = (unsigned char *)buffer->buf.asbyte, s = (unsigned char *)image;
+  //           i < pixels;
+  //           i++, d += ncolor, s += 4) {
+  //        for (c = 0; c < ncolor; c++) {
+  //          switch (offset[c]) {
+  //            case 0:
+  //              d[c] = s[0];
+  //              break;
+  //            case 1:
+  //              d[c] = s[1];
+  //              break;
+  //            case 2:
+  //              d[c] = s[2];
+  //              break;
+  //            case 3:
+  //              d[c] = s[3];
+  //              break;
+  //            case -1:
+  //              d[c] = 0;
+  //              break;
+  //            case -2:
+  //              d[c] = 0xFF;
+  //              break;
+  //          }
+  //        }
+  //      }
+  //    }
+  //    return (PyObject *)buffer;
+  //  }
+  //}
+  //catch (Exception &exp) {
+  //  exp.report();
+  //  return nullptr;
+  //}
   Py_RETURN_NONE;
 }
 

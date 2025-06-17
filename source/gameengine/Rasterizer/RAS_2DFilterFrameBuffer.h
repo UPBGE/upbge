@@ -80,8 +80,6 @@ class RAS_2DFilterFrameBuffer {
   /// Return true of the off screen is valid from the OpenGL rules for frame buffers.
   bool GetValid() const;
 
-  int GetColorBindCode(unsigned short index) const;
-  int GetDepthBindCode() const;
   GPUTexture *GetColorTexture(int slot = 0);
   GPUTexture *GetDepthTexture();
 

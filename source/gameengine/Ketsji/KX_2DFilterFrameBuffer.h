@@ -44,10 +44,6 @@ class KX_2DFilterFrameBuffer : public EXP_Value, public RAS_2DFilterFrameBuffer 
   EXP_PYMETHOD_VARARGS(KX_2DFilterFrameBuffer, GetDepthTexture);
   static PyObject *pyattr_get_width(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_height(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v,
-                                             const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v,
-                                            const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif
 };

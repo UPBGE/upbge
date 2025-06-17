@@ -96,9 +96,6 @@ PyMethodDef KX_2DFilterFrameBuffer::Methods[] = {
 PyAttributeDef KX_2DFilterFrameBuffer::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("width", KX_2DFilterFrameBuffer, pyattr_get_width),
     EXP_PYATTRIBUTE_RO_FUNCTION("height", KX_2DFilterFrameBuffer, pyattr_get_height),
-    EXP_PYATTRIBUTE_RO_FUNCTION(
-        "colorBindCodes", KX_2DFilterFrameBuffer, pyattr_get_colorBindCodes),
-    EXP_PYATTRIBUTE_RO_FUNCTION("depthBindCode", KX_2DFilterFrameBuffer, pyattr_get_depthBindCode),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -116,44 +113,11 @@ PyObject *KX_2DFilterFrameBuffer::pyattr_get_height(EXP_PyObjectPlus *self_v,
   return PyLong_FromLong(self->GetHeight());
 }
 
-static int kx_2dfilter_framebuffer_get_textures_size_cb(void *self_v)
-{
-  return RAS_2DFilterFrameBuffer::NUM_COLOR_SLOTS;
-}
-
-static PyObject *kx_2dfilter_framebuffer_get_textures_item_cb(void *self_v, int index)
-{
-  int bindCode = static_cast<KX_2DFilterFrameBuffer *>(self_v)->GetColorBindCode(index);
-  return PyLong_FromLong(bindCode);
-}
-
-PyObject *KX_2DFilterFrameBuffer::pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v,
-                                                            const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_2DFilterFrameBuffer *self = static_cast<KX_2DFilterFrameBuffer *>(self_v);
-
-  return (new EXP_ListWrapper(self_v,
-                              self->GetProxy(),
-                              nullptr,
-                              kx_2dfilter_framebuffer_get_textures_size_cb,
-                              kx_2dfilter_framebuffer_get_textures_item_cb,
-                              nullptr,
-                              nullptr))
-      ->NewProxy(true);
-}
-
-PyObject *KX_2DFilterFrameBuffer::pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v,
-                                                           const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_2DFilterFrameBuffer *self = static_cast<KX_2DFilterFrameBuffer *>(self_v);
-  return PyLong_FromLong(self->GetDepthBindCode());
-}
-
 PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
 {
   int slot = 0;
   if (PyArg_ParseTuple(args, "|i:getColorTexture", &slot)) {
-    GPUTexture *tex = GetColorTexture(slot);
+    GPUTexture *tex = GetColorTexture(0);
     if (tex) {
       return BPyGPUTexture_CreatePyObject(tex, true);
     }

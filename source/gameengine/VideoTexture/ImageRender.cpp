@@ -94,14 +94,6 @@ ImageRender::~ImageRender(void)
   m_targetfb = nullptr;
 }
 
-int ImageRender::GetColorBindCode() const
-{
-  if (m_camera->GetGPUViewport()) {
-    return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
-  }
-  return -1;
-}
-
 // capture image from viewport
 void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int format)
 {
@@ -533,11 +525,6 @@ static PyObject *ImageRender_render(PyImage *self)
   Py_RETURN_TRUE;
 }
 
-static PyObject *getColorBindCode(PyImage *self, void *closure)
-{
-  return PyLong_FromLong(getImageRender(self)->GetColorBindCode());
-}
-
 static PyObject *getPreDrawCallbacks(PyImage *self, void *closure)
 {
   ImageRender *imageRender = getImageRender(self);
@@ -658,11 +645,6 @@ static PyGetSetDef imageRenderGetSets[] = {
      (getter)Image_getFilter,
      (setter)Image_setFilter,
      (char *)"pixel filter",
-     nullptr},
-    {(char *)"colorBindCode",
-     (getter)getColorBindCode,
-     nullptr,
-     (char *)"Off-screen color texture bind code",
      nullptr},
     {(char *)"pre_draw",
      (getter)getPreDrawCallbacks,

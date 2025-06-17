@@ -38,9 +38,6 @@ class ImageRender : public ImageViewport {
   /// destructor
   virtual ~ImageRender(void);
 
-  /// Get color off screen bind code.
-  int GetColorBindCode() const;
-
   /// clipping distance
   float getClip(void)
   {
