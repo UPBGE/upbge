@@ -26,6 +26,8 @@
 
 #include "RAS_FrameBuffer.h"
 
+#include "../../blender/python/gpu/gpu_py_texture.hh"
+
 #include "GPU_framebuffer.hh"
 
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
@@ -44,6 +46,11 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
 
   GPU_framebuffer_config_array(
       m_frameBuffer, config, sizeof(config) / sizeof(GPUAttachment));
+
+#ifdef WITH_PYTHON
+  BPyGPUTexture_CreatePyObject(m_colorAttachment, false);
+  BPyGPUTexture_CreatePyObject(m_depthAttachment, false);
+#endif
 }
 
 RAS_FrameBuffer::~RAS_FrameBuffer()

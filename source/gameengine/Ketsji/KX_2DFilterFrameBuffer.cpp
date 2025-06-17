@@ -118,11 +118,7 @@ PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
 {
   GPUTexture *tex = GetColorTexture();
   if (tex) {
-    BPyGPUTexture *py_tex;
-    py_tex = PyObject_New(BPyGPUTexture, &BPyGPUTexture_Type);
-    py_tex->tex = tex;
-    Py_INCREF(py_tex);
-    return (PyObject *)py_tex;
+    return BPyGPUTexture_CreatePyObject(tex, true);
   }
   Py_RETURN_NONE;
 }
@@ -131,11 +127,7 @@ PyObject *KX_2DFilterFrameBuffer::PyGetDepthTexture(PyObject *args)
 {
   GPUTexture *tex = GetDepthTexture();
   if (tex) {
-    BPyGPUTexture *py_tex;
-    py_tex = PyObject_New(BPyGPUTexture, &BPyGPUTexture_Type);
-    py_tex->tex = tex;
-    Py_INCREF(py_tex);
-    return (PyObject *)py_tex;
+    return BPyGPUTexture_CreatePyObject(tex, true);
   }
   Py_RETURN_NONE;
 }
