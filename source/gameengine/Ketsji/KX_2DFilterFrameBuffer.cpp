@@ -88,8 +88,8 @@ PyTypeObject KX_2DFilterFrameBuffer::Type = {
     py_base_new};
 
 PyMethodDef KX_2DFilterFrameBuffer::Methods[] = {
-    {"getColorTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetColorTexture, METH_VARARGS},
-    {"getDepthTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetDepthTexture, METH_VARARGS},
+    {"getColorTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetColorTexture, METH_NOARGS},
+    {"getDepthTexture", (PyCFunction)KX_2DFilterFrameBuffer::sPyGetDepthTexture, METH_NOARGS},
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -115,12 +115,11 @@ PyObject *KX_2DFilterFrameBuffer::pyattr_get_height(EXP_PyObjectPlus *self_v,
 
 PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
 {
-  int slot = 0;
-  if (PyArg_ParseTuple(args, "|i:getColorTexture", &slot)) {
-    GPUTexture *tex = GetColorTexture(0);
-    if (tex) {
-      return BPyGPUTexture_CreatePyObject(tex, true);
-    }
+  GPUTexture *tex = GetColorTexture();
+  if (tex) {
+    PyObject *py_tex = BPyGPUTexture_CreatePyObject(tex, false);
+    Py_INCREF(py_tex);
+    return py_tex;
   }
   Py_RETURN_NONE;
 }
@@ -129,7 +128,9 @@ PyObject *KX_2DFilterFrameBuffer::PyGetDepthTexture(PyObject *args)
 {
   GPUTexture *tex = GetDepthTexture();
   if (tex) {
-    return BPyGPUTexture_CreatePyObject(tex, true);
+    PyObject *py_tex = BPyGPUTexture_CreatePyObject(tex, false);
+    Py_INCREF(py_tex);
+    return py_tex;
   }
   Py_RETURN_NONE;
 }

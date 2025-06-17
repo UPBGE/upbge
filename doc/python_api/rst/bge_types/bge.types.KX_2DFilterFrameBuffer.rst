@@ -21,11 +21,9 @@ base class --- :class:`~bge.types.EXP_Value`
 
       :type: integer
 
-   .. method:: getColorTexture(slot=0)
+   .. method:: getColorTexture()
       Returns the buffer color texture.
 
-      :arg slot: index of the slot (0-7). Always 0 in 0.3+.
-      :type slot: integer
       :return: Texture object.
       :rtype: :class:`~gpu.types.GPUTexture`
 

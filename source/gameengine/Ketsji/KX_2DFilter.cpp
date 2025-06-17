@@ -177,7 +177,7 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(width, height, mip
 
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "i|iii:addOffScreen",
+                                   "|iii:addOffScreen",
                                    const_cast<char **>(kwlist),
                                    &width,
                                    &height,

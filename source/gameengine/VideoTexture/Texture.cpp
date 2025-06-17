@@ -411,7 +411,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
             // WARNING: GPU has a ImageUser to pass, we don't. Using nullptr
             // works on image file, not necessarily on other type of image.
             m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
-            GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_2D][0];
+            //GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_2D][0];
             //m_orgImg = GPU_texture_opengl_bindcode(tex);
             //GPU_texture_set_opengl_bindcode(tex, m_actTex);
           }
