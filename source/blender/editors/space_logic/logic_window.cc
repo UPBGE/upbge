@@ -1536,7 +1536,7 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
     sub2 = &row2->split(0.4f, true);
     sub2->active_set(RNA_boolean_get(ptr, "active"));
     sub2->label(IFACE_("Controller visible at: "), ICON_NONE);
-    uiDefBlockBut(uiLayoutGetBlock(layout),
+    uiDefBlockBut(layout->block(),
                   controller_state_mask_menu,
                   cont,
                   state,

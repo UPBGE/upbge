@@ -1935,7 +1935,6 @@ int main(int argc,
   ANIM_driver_vars_copybuf_free();
   ANIM_fmodifiers_copybuf_free();
   ED_gpencil_anim_copybuf_free();
-  ED_gpencil_strokes_copybuf_free();
 
   /* free gizmo-maps after freeing blender,
    * so no deleted data get accessed during cleaning up of areas. */

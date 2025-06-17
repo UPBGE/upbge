@@ -391,7 +391,7 @@ void uiTemplateGameStates(uiLayout *layout,
       uiBut *but;
 
       uRow = &uCol->row(true);
-      block = uiLayoutGetBlock(uRow);
+      block = uRow->block();
       state = groups * cols_per_group * row + cols_per_group * group;
 
       /* add layers as toggle buts */
