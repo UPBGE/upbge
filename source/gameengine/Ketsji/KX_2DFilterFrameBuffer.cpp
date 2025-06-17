@@ -28,6 +28,7 @@
 
 #include "EXP_ListWrapper.h"
 #include "../../blender/python/gpu/gpu_py_texture.hh"
+#include "GPU_texture.hh"
 
 KX_2DFilterFrameBuffer::KX_2DFilterFrameBuffer(unsigned short colorSlots,
                                                Flag flag,
@@ -117,9 +118,11 @@ PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
 {
   GPUTexture *tex = GetColorTexture();
   if (tex) {
-    PyObject *py_tex = BPyGPUTexture_CreatePyObject(tex, false);
+    BPyGPUTexture *py_tex;
+    py_tex = PyObject_New(BPyGPUTexture, &BPyGPUTexture_Type);
+    py_tex->tex = tex;
     Py_INCREF(py_tex);
-    return py_tex;
+    return (PyObject *)py_tex;
   }
   Py_RETURN_NONE;
 }
@@ -128,9 +131,11 @@ PyObject *KX_2DFilterFrameBuffer::PyGetDepthTexture(PyObject *args)
 {
   GPUTexture *tex = GetDepthTexture();
   if (tex) {
-    PyObject *py_tex = BPyGPUTexture_CreatePyObject(tex, false);
+    BPyGPUTexture *py_tex;
+    py_tex = PyObject_New(BPyGPUTexture, &BPyGPUTexture_Type);
+    py_tex->tex = tex;
     Py_INCREF(py_tex);
-    return py_tex;
+    return (PyObject *)py_tex;
   }
   Py_RETURN_NONE;
 }
