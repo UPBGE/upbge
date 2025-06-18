@@ -1,0 +1,79 @@
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup modifiers
+ */
+
+#include "BLI_math_vector.h"
+
+#include "BLT_translation.hh"
+
+#include "DEG_depsgraph_query.hh"
+
+#include "DNA_defaults.h"
+#include "DNA_object_types.h"
+
+#include "BKE_mesh.hh"
+
+#include "UI_interface.hh"
+
+#include "MOD_util.hh"
+
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext * /*ctx*/,
+                         Mesh * /*mesh*/,
+                         blender::MutableSpan<blender::float3> positions)
+{
+  SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
+  for (int i = 0; i < positions.size(); i++) {
+    copy_v3_v3(positions[i], smd->vertcoos[i]);
+  }
+}
+
+/* SimpleDeform */
+static void init_data(ModifierData *md)
+{
+  SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
+
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
+
+  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SimpleDeformModifierDataBGE), modifier);
+}
+
+ModifierTypeInfo modifierType_SimpleDeformBGE = {
+    /*idname*/ "SimpleDeformBGE",
+    /*name*/ N_("SimpleDeformBGE"),
+    /*struct_name*/ "SimpleDeformModifierDataBGE",
+    /*struct_size*/ sizeof(SimpleDeformModifierDataBGE),
+    /*srna*/ nullptr,
+    /*type*/ ModifierTypeType::OnlyDeform,
+
+    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_Single,
+    /*icon*/ ICON_MOD_SIMPLEDEFORM,
+
+    /*copy_data*/ BKE_modifier_copydata_generic,
+
+    /*deform_verts*/ deform_verts,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ nullptr,
+
+    /*init_data*/ init_data,
+    /*required_data_mask*/ nullptr,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ nullptr,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ nullptr,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ nullptr,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+};
