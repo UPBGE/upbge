@@ -47,9 +47,12 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
   GPU_framebuffer_config_array(
       m_frameBuffer, config, sizeof(config) / sizeof(GPUAttachment));
 
+  m_py_color = nullptr;
+  m_py_depth = nullptr;
+
 #ifdef WITH_PYTHON
-  BPyGPUTexture_CreatePyObject(m_colorAttachment, false);
-  BPyGPUTexture_CreatePyObject(m_depthAttachment, false);
+  m_py_color = BPyGPUTexture_CreatePyObject(m_colorAttachment, false);
+  m_py_depth = BPyGPUTexture_CreatePyObject(m_depthAttachment, false);
 #endif
 }
 
@@ -58,6 +61,13 @@ RAS_FrameBuffer::~RAS_FrameBuffer()
   GPU_framebuffer_free(m_frameBuffer);  // it detaches attachments
   GPU_texture_free(m_colorAttachment);
   GPU_texture_free(m_depthAttachment);
+
+#ifdef WITH_PYTHON
+  PyObject_Del(m_py_color);
+  m_py_color = nullptr;
+  PyObject_Del(m_py_depth);
+  m_py_depth = nullptr;
+#endif
 }
 
 GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()

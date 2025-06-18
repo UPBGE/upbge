@@ -41,6 +41,9 @@ class RAS_FrameBuffer {
   GPUTexture *m_colorAttachment;
   GPUTexture *m_depthAttachment;
 
+  void *m_py_color;
+  void *m_py_depth;
+
  public:
   RAS_FrameBuffer(unsigned int width,
                   unsigned height,
