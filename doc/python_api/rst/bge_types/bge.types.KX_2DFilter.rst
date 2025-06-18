@@ -9,23 +9,34 @@ base class --- :class:`~bge.types.BL_Shader`
 
    2D filter shader object. Can be alternated with :class:`~bge.types.BL_Shader`'s functions.
 
-   Following builtin uniforms are available:
-   "bgl_RenderedTexture",         // RENDERED_TEXTURE_UNIFORM
-   "bgl_DepthTexture",            // DEPTH_TEXTURE_UNIFORM
-   "bgl_RenderedTextureWidth",    // RENDERED_TEXTURE_WIDTH_UNIFORM
-   "bgl_RenderedTextureHeight",   // RENDERED_TEXTURE_HEIGHT_UNIFORM
-   "bgl_TextureCoordinateOffset"  // TEXTURE_COORDINATE_OFFSETS_UNIFORM
+.. note::
 
-   Following builtin attributes are available:
-   "bgl_TexCoord",                // texture coordinates / UV
-   "fragColor"                    // returned result of 2D filter
+     Following builtin uniforms are available:
 
-   Basic example:
+       "bgl_RenderedTexture",        // RENDERED_TEXTURE_UNIFORM.
 
-   void main()
-   {
-     fragColor = texture(bgl_RenderedTexture, bgl_TexCoord.xy) * vec4(0.0, 0.0, 1.0, 1.0); //will make the rendered image blueish
-   }
+       "bgl_DepthTexture",           // DEPTH_TEXTURE_UNIFORM.
+
+       "bgl_RenderedTextureWidth",   // RENDERED_TEXTURE_WIDTH_UNIFORM.
+
+       "bgl_RenderedTextureHeight",  // RENDERED_TEXTURE_HEIGHT_UNIFORM.
+
+       "bgl_TextureCoordinateOffset" // TEXTURE_COORDINATE_OFFSETS_UNIFORM.
+
+     Following builtin attributes are available:
+
+       "bgl_TexCoord",               // texture coordinates / UV.
+
+       "fragColor"                   // returned result of 2D filter.
+
+     Basic example:
+
+   .. code-block:: glsl
+
+          void main()
+          {
+            fragColor = texture(bgl_RenderedTexture, bgl_TexCoord.xy) * vec4(0.0, 0.0, 1.0, 1.0); //will make the rendered image blueish
+          }
 
    .. attribute:: mipmap
 
