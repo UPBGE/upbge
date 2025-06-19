@@ -812,8 +812,6 @@ const bTheme U_theme_default = {
     .button_title = RGBA(0xffffffff),
     .button_text = RGBA(0xccccccff),
     .button_text_hi = RGBA(0xffffffff),
-    .navigation_bar = RGBA(0x1d1d1dff),
-    .execution_buts = RGBA(0x303030ff),
   },
   .space_preferences = {
     .back = RGBA(0x30303000),

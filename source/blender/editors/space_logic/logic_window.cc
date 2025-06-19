@@ -2700,7 +2700,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  TIP_("Object name, click to show/hide controllers"));
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
-    uiLayoutSetContextPointer(row, "object", &object_ptr);
+    row->context_ptr_set("object", &object_ptr);
     uiItemMenuEnumO(
         row, C, "LOGIC_OT_controller_add", "type", IFACE_("Add Controller"), ICON_NONE);
 
@@ -2745,7 +2745,7 @@ void logic_buttons(bContext *C, ARegion *region)
       /* put inlink button to the left */
       col = &split->column(false);
       col->active_set(RNA_boolean_get(&ptr, "active"));
-      uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_LEFT);
+      col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
                          UI_BTYPE_INLINK,
                          0,
@@ -2767,7 +2767,7 @@ void logic_buttons(bContext *C, ARegion *region)
       subsplit = &split->split(0.95f, false);
 
       col = &subsplit->column(true);
-      uiLayoutSetContextPointer(col, "controller", &ptr);
+      col->context_ptr_set("controller", &ptr);
 
       /* should make UI template for controller header.. function will do for now */
       draw_controller_header(col, &ptr, xco, width, yco);
@@ -2778,7 +2778,7 @@ void logic_buttons(bContext *C, ARegion *region)
       /* put link button to the right */
       col = &subsplit->column(false);
       col->active_set(RNA_boolean_get(&ptr, "active"));
-      uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_LEFT);
+      col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
                          UI_BTYPE_LINK,
                          0,
@@ -2851,7 +2851,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  TIP_("Object name, click to show/hide sensors"));
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
-    uiLayoutSetContextPointer(row, "object", &object_ptr);
+    row->context_ptr_set("object", &object_ptr);
     uiItemMenuEnumO(row, C, "LOGIC_OT_sensor_add", "type", IFACE_("Add Sensor"), ICON_NONE);
 
     if ((ob->scaflag & OB_SHOWSENS) == 0)
@@ -2876,7 +2876,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
         split = &layout->split(0.95f, false);
         col = &split->column(true);
-        uiLayoutSetContextPointer(col, "sensor", &ptr);
+        col->context_ptr_set("sensor", &ptr);
 
         /* should make UI template for sensor header.. function will do for now */
         draw_sensor_header(col, &ptr, &logic_ptr);
@@ -2962,7 +2962,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  TIP_("Object name, click to show/hide actuators"));
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
-    uiLayoutSetContextPointer(row, "object", &object_ptr);
+    row->context_ptr_set("object", &object_ptr);
     uiItemMenuEnumO(row, C, "LOGIC_OT_actuator_add", "type", IFACE_("Add Actuator"), ICON_NONE);
 
     if ((ob->scaflag & OB_SHOWACT) == 0)
@@ -3009,7 +3009,7 @@ void logic_buttons(bContext *C, ARegion *region)
         }
 
         col = &split->column(true);
-        uiLayoutSetContextPointer(col, "actuator", &ptr);
+        col->context_ptr_set("actuator", &ptr);
 
         /* should make UI template for actuator header.. function will do for now */
         draw_actuator_header(col, &ptr, &logic_ptr);
