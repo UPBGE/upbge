@@ -322,7 +322,7 @@ static void nla_panel_animdata(const bContext *C, Panel *panel)
 
     /* ID-block name > AnimData */
     row = &layout->row(true);
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
+    row->alignment_set(blender::ui::LayoutAlign::Left);
 
     row->label(id->name + 2, RNA_struct_ui_icon(id_ptr.type)); /* id-block (src) */
     row->label("", ICON_RIGHTARROW);                           /* expander */
@@ -495,8 +495,8 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
     ID &animated_id = *strip_ptr.owner_id;
     if (!blender::animrig::legacy::action_treat_as_legacy(action)) {
       PointerRNA animated_id_ptr = RNA_id_pointer_create(&animated_id);
-      uiLayoutSetContextPointer(column, "animated_id", &animated_id_ptr);
-      uiLayoutSetContextPointer(column, "nla_strip", &strip_ptr);
+      column->context_ptr_set("animated_id", &animated_id_ptr);
+      column->context_ptr_set("nla_strip", &strip_ptr);
       uiTemplateSearch(column,
                        C,
                        &strip_ptr,

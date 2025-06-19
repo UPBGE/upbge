@@ -1103,16 +1103,17 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         theme = context.preferences.themes[0]
         ui = theme.user_interface
 
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=False, columns=2, even_columns=True, even_rows=False, align=False)
 
         col = flow.column()
         col.prop(ui, "panel_header", text="Header")
 
-        col = flow.column(align=True)
+        col = col.column(align=True)
         col.prop(ui, "panel_back", text="Background")
         col.prop(ui, "panel_sub_back", text="Sub-Panel")
 
         col = flow.column()
+        col.prop(ui, "panel_outline", text="Outline")
         col.prop(ui, "panel_roundness", text="Roundness")
 
 
@@ -1181,12 +1182,14 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "icon_alpha")
         col.prop(ui, "icon_saturation", text="Saturation")
 
-        col = flow.column(align=True)
-        col.prop(ui, "menu_shadow_fac")
-        col.prop(ui, "menu_shadow_width", text="Shadow Width")
+        flow.separator()
 
         col = flow.column()
         col.prop(ui, "widget_emboss")
+
+        col = flow.column(align=True)
+        col.prop(ui, "menu_shadow_fac")
+        col.prop(ui, "menu_shadow_width", text="Shadow Width")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):
@@ -1729,23 +1732,14 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(asset_library, "name", text="", emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(asset_library, "name", text="", emboss=False)
+        layout.prop(asset_library, "name", text="", emboss=False)
 
 
 class USERPREF_UL_extension_repos(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         repo = item
         icon = 'INTERNET' if repo.use_remote_url else 'DISK_DRIVE'
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(repo, "name", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(repo, "name", text="", icon=icon, emboss=False)
+        layout.prop(repo, "name", text="", icon=icon, emboss=False)
 
         # Show an error icon if this repository has unusable settings.
         if repo.enabled:

@@ -250,14 +250,15 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
           dyn_data->items_filter_flags[i] = UILST_FLT_ITEM_NEVER_SHOW;
         }
         else if (filter_result == UI_LIST_ITEM_FILTER_MATCHES) {
-          dyn_data->items_filter_flags[i] = UILST_FLT_ITEM;
           if (!filter_exclude) {
+            dyn_data->items_filter_flags[i] = UILST_FLT_ITEM;
             dyn_data->items_shown++;
             do_order = order_by_name;
           }
           // printf("%s: '%s' matches '%s'\n", __func__, name, filter);
         }
         else if (filter_exclude) {
+          dyn_data->items_filter_flags[i] = UILST_FLT_ITEM;
           dyn_data->items_shown++;
           do_order = order_by_name;
         }
@@ -792,7 +793,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           /* Items should be able to set context pointers for the layout. But the list-row button
            * swallows events, so it needs the context storage too for handlers to see it. */
-          but->context = uiLayoutGetContextStore(sub);
+          but->context = sub->context_store();
 
           /* If we are "drawing" active item, set all labels as active. */
           if (i == items->active_item_idx) {
@@ -1041,7 +1042,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           /* Items should be able to set context pointers for the layout. But the list-row button
            * swallows events, so it needs the context storage too for handlers to see it. */
-          but->context = uiLayoutGetContextStore(col);
+          but->context = col->context_store();
 
           /* If we are "drawing" active item, set all labels as active. */
           if (i == items->active_item_idx) {

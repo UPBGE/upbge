@@ -119,7 +119,7 @@ void uiTemplateMovieClip(uiLayout *layout,
   PointerRNA clipptr = RNA_property_pointer_get(ptr, prop);
   MovieClip *clip = static_cast<MovieClip *>(clipptr.data);
 
-  uiLayoutSetContextPointer(layout, "edit_movieclip", &clipptr);
+  layout->context_ptr_set("edit_movieclip", &clipptr);
 
   if (!compact) {
     uiTemplateID(layout, C, ptr, propname, nullptr, "CLIP_OT_open", nullptr);
@@ -752,7 +752,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
   MovieClipUser *user = static_cast<MovieClipUser *>(userptr->data);
 
   uiLayout *col = &layout->column(false);
-  uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
+  col->alignment_set(blender::ui::LayoutAlign::Right);
 
   /* NOTE: Put the frame to cache. If the panel is drawn, the display will also be shown, as well
    * as metadata panel. So if the cache is skipped here it is not really a memory saver, but

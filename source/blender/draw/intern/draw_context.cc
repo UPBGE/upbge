@@ -2008,10 +2008,6 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!this->scene->use_nodes) {
-    return false;
-  }
-
   if (!this->scene->compositing_node_group) {
     return false;
   }

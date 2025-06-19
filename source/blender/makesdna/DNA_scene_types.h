@@ -2258,7 +2258,7 @@ typedef struct Scene {
   /** Various settings. */
   short flag;
 
-  char use_nodes;
+  char use_nodes DNA_DEPRECATED;
   char _pad3[1];
 
   struct bNodeTree *nodetree DNA_DEPRECATED;

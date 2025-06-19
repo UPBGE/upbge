@@ -441,7 +441,7 @@ static bool node_update_basis_buttons(const bContext &C,
     layout->active_set(false);
   }
 
-  uiLayoutSetContextPointer(layout, "node", &nodeptr);
+  layout->context_ptr_set("node", &nodeptr);
 
   draw_buttons(layout, (bContext *)&C, &nodeptr);
 
@@ -526,14 +526,14 @@ static bool node_update_basis_socket(const bContext &C,
 
   uiLayout *row = &layout->row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-  uiLayoutSetContextPointer(row, "node", &nodeptr);
+  row->context_ptr_set("node", &nodeptr);
 
   if (input_socket) {
     /* Context pointers for current node and socket. */
     PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, input_socket);
-    uiLayoutSetContextPointer(row, "socket", &sockptr);
+    row->context_ptr_set("socket", &sockptr);
 
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_EXPAND);
+    row->alignment_set(blender::ui::LayoutAlign::Expand);
 
     input_socket->typeinfo->draw(
         (bContext *)&C, row, &sockptr, &nodeptr, node_socket_get_label(input_socket, panel_label));
@@ -541,10 +541,10 @@ static bool node_update_basis_socket(const bContext &C,
   else {
     /* Context pointers for current node and socket. */
     PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, output_socket);
-    uiLayoutSetContextPointer(row, "socket", &sockptr);
+    row->context_ptr_set("socket", &sockptr);
 
     /* Align output buttons to the right. */
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
 
     output_socket->typeinfo->draw((bContext *)&C,
                                   row,
@@ -1157,7 +1157,7 @@ static void node_update_basis_from_declaration(
               layout->active_set(false);
             }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-            uiLayoutSetContextPointer(layout, "node", &node_ptr);
+            layout->context_ptr_set("node", &node_ptr);
             decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
             UI_block_align_end(&block);
             int buty;
@@ -5239,9 +5239,6 @@ static void snode_setup_v2d(SpaceNode &snode, ARegion &region, const float2 &cen
 static bool compositor_is_in_use(const bContext &context)
 {
   const Scene *scene = CTX_data_scene(&context);
-  if (!scene->use_nodes) {
-    return false;
-  }
 
   if (!scene->compositing_node_group) {
     return false;

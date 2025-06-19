@@ -772,8 +772,8 @@ void uiTemplateImage(uiLayout *layout,
   Scene *scene = CTX_data_scene(C);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
-  uiLayoutSetContextPointer(layout, "edit_image", &imaptr);
-  uiLayoutSetContextPointer(layout, "edit_image_user", userptr);
+  layout->context_ptr_set("edit_image", &imaptr);
+  layout->context_ptr_set("edit_image_user", userptr);
 
   SpaceImage *space_image = CTX_wm_space_image(C);
   if (!compact && (space_image == nullptr || iuser != &space_image->iuser)) {
@@ -1198,7 +1198,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 
   uiLayout *col = &layout->column(true);
-  uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
+  col->alignment_set(blender::ui::LayoutAlign::Right);
 
   if (ibuf == nullptr) {
     col->label(RPT_("Can't Load Image"), ICON_NONE);
