@@ -334,7 +334,7 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_GP = {
     /*id_code*/ GreasePencil::id_type,
     /*id_filter*/ FILTER_ID_GP,
-    /*dependencies_id_types*/ FILTER_ID_GP | FILTER_ID_MA,
+    /*dependencies_id_types*/ FILTER_ID_GP | FILTER_ID_MA | FILTER_ID_OB,
     /*main_listbase_index*/ INDEX_ID_GP,
     /*struct_size*/ sizeof(GreasePencil),
     /*name*/ "GreasePencil",
@@ -4317,7 +4317,8 @@ static void write_drawing_array(GreasePencil &grease_pencil,
     GreasePencilDrawingBase *drawing_base = grease_pencil.drawing_array[i];
     switch (GreasePencilDrawingType(drawing_base->type)) {
       case GP_DRAWING: {
-        GreasePencilDrawing drawing_copy = *reinterpret_cast<GreasePencilDrawing *>(drawing_base);
+        GreasePencilDrawing &drawing_copy = scope.construct<GreasePencilDrawing>();
+        drawing_copy = *reinterpret_cast<GreasePencilDrawing *>(drawing_base);
         bke::CurvesGeometry &curves = drawing_copy.geometry.wrap();
 
         bke::CurvesGeometry::BlendWriteData write_data(scope);

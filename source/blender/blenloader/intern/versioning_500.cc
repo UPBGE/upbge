@@ -10,8 +10,13 @@
 
 #include "DNA_ID.h"
 #include "DNA_mesh_types.h"
+#include "DNA_node_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -22,6 +27,7 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 
 #include "readfile.hh"
 
@@ -345,6 +351,92 @@ static void do_version_scene_remove_use_nodes(Scene *scene)
   /* Ignore use_nodes otherwise. */
 }
 
+/* The Dot output of the Normal node was removed, so replace it with a dot product vector math
+ * node, noting that the Dot output was actually negative the dot product of the normalized
+ * node vector with the input. */
+static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node)
+{
+  bNodeSocket *normal_input = blender::bke::node_find_socket(*node, SOCK_IN, "Normal");
+  bNodeSocket *normal_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Normal");
+  bNodeSocket *dot_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Dot");
+
+  /* Find the links going into and out from the node. */
+  bNodeLink *normal_input_link = nullptr;
+  bool is_normal_ontput_needed = false;
+  bool is_dot_output_used = false;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+    if (link->tosock == normal_input) {
+      normal_input_link = link;
+    }
+
+    if (link->fromsock == normal_output) {
+      is_normal_ontput_needed = true;
+    }
+
+    if (link->fromsock == dot_output) {
+      is_dot_output_used = true;
+    }
+  }
+
+  /* The dot output is unused, nothing to do. */
+  if (!is_dot_output_used) {
+    return;
+  }
+
+  /* Take the dot product with negative the node normal. */
+  bNode *dot_product_node = blender::bke::node_add_node(
+      nullptr, *node_tree, "ShaderNodeVectorMath");
+  dot_product_node->custom1 = NODE_VECTOR_MATH_DOT_PRODUCT;
+  dot_product_node->flag |= NODE_HIDDEN;
+  dot_product_node->parent = node->parent;
+  dot_product_node->location[0] = node->location[0];
+  dot_product_node->location[1] = node->location[1];
+
+  bNodeSocket *dot_product_a_input = blender::bke::node_find_socket(
+      *dot_product_node, SOCK_IN, "Vector");
+  bNodeSocket *dot_product_b_input = blender::bke::node_find_socket(
+      *dot_product_node, SOCK_IN, "Vector_001");
+  bNodeSocket *dot_product_output = blender::bke::node_find_socket(
+      *dot_product_node, SOCK_OUT, "Value");
+
+  copy_v3_v3(static_cast<bNodeSocketValueVector *>(dot_product_a_input->default_value)->value,
+             static_cast<bNodeSocketValueVector *>(normal_input->default_value)->value);
+
+  if (normal_input_link) {
+    version_node_add_link(*node_tree,
+                          *normal_input_link->fromnode,
+                          *normal_input_link->fromsock,
+                          *dot_product_node,
+                          *dot_product_a_input);
+    blender::bke::node_remove_link(node_tree, *normal_input_link);
+  }
+
+  /* Notice that we normalize and take the negative to reproduce the same behavior as the old
+   * Normal node. */
+  const blender::float3 node_normal =
+      normal_output->default_value_typed<bNodeSocketValueVector>()->value;
+  const blender::float3 normalized_node_normal = -blender::math::normalize(node_normal);
+  copy_v3_v3(static_cast<bNodeSocketValueVector *>(dot_product_b_input->default_value)->value,
+             normalized_node_normal);
+
+  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &node_tree->links) {
+    if (link->fromsock != dot_output) {
+      continue;
+    }
+
+    version_node_add_link(
+        *node_tree, *dot_product_node, *dot_product_output, *link->tonode, *link->tosock);
+    blender::bke::node_remove_link(node_tree, *link);
+  }
+
+  /* If only the Dot output was used, remove the node, making sure to initialize the node types to
+   * allow removal. */
+  if (!is_normal_ontput_needed) {
+    blender::bke::node_tree_set_type(*node_tree);
+    blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
+  }
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
@@ -470,6 +562,37 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       do_version_scene_remove_use_nodes(scene);
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 20)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA, SPACE_SEQ)) {
+            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                   &sl->regionbase;
+            ARegion *new_footer = do_versions_add_region_if_not_found(
+                regionbase, RGN_TYPE_FOOTER, "footer for animation editors", RGN_TYPE_HEADER);
+            if (new_footer != nullptr) {
+              new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
+                                                                        RGN_ALIGN_BOTTOM;
+              new_footer->flag |= RGN_FLAG_HIDDEN;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 21)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+          do_version_normal_node_dot_product(node_tree, node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**

@@ -220,8 +220,6 @@ inline GLenum to_gl_internal_format(eGPUTextureFormat format)
       return GL_R11F_G11F_B10F;
     case GPU_DEPTH32F_STENCIL8:
       return GL_DEPTH32F_STENCIL8;
-    case GPU_DEPTH24_STENCIL8:
-      return GL_DEPTH24_STENCIL8;
     case GPU_SRGB8_A8:
       return GL_SRGB8_ALPHA8;
     /* Texture only formats. */
@@ -281,8 +279,6 @@ inline GLenum to_gl_internal_format(eGPUTextureFormat format)
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
       return GL_DEPTH_COMPONENT32F;
-    case GPU_DEPTH_COMPONENT24:
-      return GL_DEPTH_COMPONENT24;
     case GPU_DEPTH_COMPONENT16:
       return GL_DEPTH_COMPONENT16;
   }
@@ -435,7 +431,6 @@ inline GLenum to_gl_data_format(eGPUTextureFormat format)
     case GPU_R11F_G11F_B10F:
       return GL_RGB;
     case GPU_DEPTH32F_STENCIL8:
-    case GPU_DEPTH24_STENCIL8:
       return GL_DEPTH_STENCIL;
     /* Texture only formats. */
     case GPU_RGBA16_SNORM:
@@ -478,7 +473,6 @@ inline GLenum to_gl_data_format(eGPUTextureFormat format)
       return GL_RGB;
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return GL_DEPTH_COMPONENT;
   }

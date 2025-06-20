@@ -272,11 +272,9 @@ class Texture {
   {
     switch (format_) {
       case GPU_DEPTH_COMPONENT32F:
-      case GPU_DEPTH_COMPONENT24:
       case GPU_DEPTH_COMPONENT16:
         BLI_assert(slot == 0);
         return GPU_FB_DEPTH_ATTACHMENT;
-      case GPU_DEPTH24_STENCIL8:
       case GPU_DEPTH32F_STENCIL8:
         BLI_assert(slot == 0);
         return GPU_FB_DEPTH_STENCIL_ATTACHMENT;
@@ -422,8 +420,6 @@ inline size_t to_bytesize(eGPUTextureFormat format)
     case GPU_DEPTH32F_STENCIL8:
       /* 32-bit depth, 8 bits stencil, and 24 unused bits. */
       return (32 + 8 + 24) / 8;
-    case GPU_DEPTH24_STENCIL8:
-      return (24 + 8) / 8;
     case GPU_SRGB8_A8:
       return (3 * 8 + 8) / 8;
 
@@ -473,10 +469,6 @@ inline size_t to_bytesize(eGPUTextureFormat format)
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
       return 32 / 8;
-    case GPU_DEPTH_COMPONENT24:
-      /* Depth component 24 uses 3 bytes to store the depth value, and reserved 1 byte for
-       * alignment. */
-      return (24 + 8) / 8;
     case GPU_DEPTH_COMPONENT16:
       return 16 / 8;
   }
@@ -574,7 +566,6 @@ inline eGPUTextureFormatFlag to_format_flag(eGPUTextureFormat format)
     case GPU_R11F_G11F_B10F:
       return GPU_FORMAT_FLOAT;
     case GPU_DEPTH32F_STENCIL8:
-    case GPU_DEPTH24_STENCIL8:
       return GPU_FORMAT_DEPTH_STENCIL;
     case GPU_SRGB8_A8:
       return GPU_FORMAT_NORMALIZED_INTEGER | GPU_FORMAT_SRGB;
@@ -629,7 +620,6 @@ inline eGPUTextureFormatFlag to_format_flag(eGPUTextureFormat format)
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return GPU_FORMAT_DEPTH;
   }
@@ -682,7 +672,6 @@ inline int to_component_len(eGPUTextureFormat format)
     case GPU_R11F_G11F_B10F:
       return 3;
     case GPU_DEPTH32F_STENCIL8:
-    case GPU_DEPTH24_STENCIL8:
       /* Only count depth component. */
       return 1;
     case GPU_SRGB8_A8:
@@ -727,7 +716,6 @@ inline int to_component_len(eGPUTextureFormat format)
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return 1;
   }
@@ -826,8 +814,6 @@ constexpr bool validate_data_format(eGPUTextureFormat tex_format, eGPUDataFormat
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV);
     case GPU_DEPTH32F_STENCIL8:
       /* Should have its own type. For now, we rely on the backend to do the conversion. */
-      ATTR_FALLTHROUGH;
-    case GPU_DEPTH24_STENCIL8:
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UINT_24_8, GPU_DATA_UINT);
     case GPU_SRGB8_A8:
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UBYTE);
@@ -881,7 +867,6 @@ constexpr bool validate_data_format(eGPUTextureFormat tex_format, eGPUDataFormat
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UINT);
   }
@@ -938,8 +923,6 @@ inline eGPUDataFormat to_data_format(eGPUTextureFormat tex_format)
       return GPU_DATA_10_11_11_REV;
     case GPU_DEPTH32F_STENCIL8:
       /* Should have its own type. For now, we rely on the backend to do the conversion. */
-      ATTR_FALLTHROUGH;
-    case GPU_DEPTH24_STENCIL8:
       return GPU_DATA_UINT_24_8;
     case GPU_SRGB8_A8:
       return GPU_DATA_FLOAT;
@@ -987,7 +970,6 @@ inline eGPUDataFormat to_data_format(eGPUTextureFormat tex_format)
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return GPU_DATA_FLOAT;
   }
@@ -1038,12 +1020,10 @@ inline eGPUFrameBufferBits to_framebuffer_bits(eGPUTextureFormat tex_format)
     case GPU_SRGB8_A8:
       return GPU_COLOR_BIT;
     case GPU_DEPTH32F_STENCIL8:
-    case GPU_DEPTH24_STENCIL8:
       return GPU_DEPTH_BIT | GPU_STENCIL_BIT;
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return GPU_DEPTH_BIT;
 
