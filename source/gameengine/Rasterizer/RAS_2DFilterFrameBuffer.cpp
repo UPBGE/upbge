@@ -72,6 +72,10 @@ RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 
 void RAS_2DFilterFrameBuffer::Construct()
 {
+  if (m_frameBuffer) {
+    delete m_frameBuffer;
+    m_frameBuffer = nullptr;
+  }
   m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
   /* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
   m_colorTextures[0] = m_frameBuffer->GetColorAttachment();
