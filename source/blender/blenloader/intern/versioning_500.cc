@@ -12,6 +12,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -23,11 +24,14 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_colortools.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+
+#include "SEQ_iterator.hh"
 
 #include "readfile.hh"
 
@@ -437,6 +441,62 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
   }
 }
 
+static void version_seq_text_from_legacy(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+        if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+          TextVars *data = static_cast<TextVars *>(strip->effectdata);
+          if (data->text_ptr == nullptr) {
+            data->text_ptr = BLI_strdup(data->text_legacy);
+            data->text_len_bytes = strlen(data->text_ptr);
+          }
+        }
+        return true;
+      });
+    }
+  }
+}
+
+static void apply_unified_paint_settings_to_all_modes(Scene &scene)
+{
+  const UnifiedPaintSettings &scene_ups = scene.toolsettings->unified_paint_settings;
+  auto apply_to_paint = [&](Paint *paint) {
+    if (paint == nullptr) {
+      return;
+    }
+    UnifiedPaintSettings &ups = paint->unified_paint_settings;
+
+    ups.size = scene_ups.size;
+    ups.unprojected_radius = scene_ups.unprojected_radius;
+    ups.alpha = scene_ups.alpha;
+    ups.weight = scene_ups.weight;
+    copy_v3_v3(ups.rgb, scene_ups.rgb);
+    copy_v3_v3(ups.secondary_rgb, scene_ups.secondary_rgb);
+    ups.color_jitter_flag = scene_ups.color_jitter_flag;
+    copy_v3_v3(ups.hsv_jitter, scene_ups.hsv_jitter);
+
+    BLI_assert(ups.curve_rand_hue == nullptr);
+    BLI_assert(ups.curve_rand_saturation == nullptr);
+    BLI_assert(ups.curve_rand_value == nullptr);
+    ups.curve_rand_hue = BKE_curvemapping_copy(scene_ups.curve_rand_hue);
+    ups.curve_rand_saturation = BKE_curvemapping_copy(scene_ups.curve_rand_saturation);
+    ups.curve_rand_value = BKE_curvemapping_copy(scene_ups.curve_rand_value);
+    ups.flag = scene_ups.flag;
+  };
+
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->vpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->wpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->sculpt));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_paint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_vertexpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_sculptpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_weightpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->curves_sculpt));
+  apply_to_paint(reinterpret_cast<Paint *>(&scene.toolsettings->imapaint));
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
@@ -456,19 +516,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       bke::mesh_custom_normals_to_generic(*mesh);
       rename_mesh_uv_seam_attribute(*mesh);
     }
-
-    /* Change default Sky Texture to Nishita (after removal of old sky models) */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
-            NodeTexSky *tex = (NodeTexSky *)node->storage;
-            tex->sky_model = 0;
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
@@ -593,6 +640,31 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 23)) {
+    /* Change default Sky Texture to Nishita (after removal of old sky models) */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
+            NodeTexSky *tex = (NodeTexSky *)node->storage;
+            tex->sky_model = 0;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 25)) {
+    version_seq_text_from_legacy(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 26)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      apply_unified_paint_settings_to_all_modes(*scene);
+    }
   }
 
   /**

@@ -963,6 +963,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeSpaceGeneric",
         "ThemeSpaceGradient",
         "ThemeSpaceListGeneric",
+        "ThemeSpaceRegionGeneric",
         "ThemeSpreadsheet",
         "ThemeStatusBar",
         "ThemeStripColor",
@@ -1112,7 +1113,11 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "panel_back", text="Background")
         col.prop(ui, "panel_sub_back", text="Sub-Panel")
 
-        col = flow.column()
+        col = flow.column(align=True)
+        col.prop(ui, "panel_title", text="Title")
+        col.prop(ui, "panel_text", text="Text")
+
+        col = col.column()
         col.prop(ui, "panel_outline", text="Outline")
         col.prop(ui, "panel_roundness", text="Roundness")
 

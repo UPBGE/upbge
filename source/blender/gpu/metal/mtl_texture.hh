@@ -414,7 +414,7 @@ class MTLTexture : public Texture {
    * - IF datatype IS an exact match e.g. :
    *    - Per-component size matches (e.g. GPU_DATA_UBYTE)
    *                                OR GPU_DATA_10_11_11_REV && GPU_R11G11B10 (equiv)
-   *                                OR D24S8 and GPU_DATA_UINT_24_8
+   *                                OR D24S8 and GPU_DATA_UINT_24_8_DEPRECATED
    *    We can use BLIT ENCODER.
    *
    * OTHERWISE TRIGGER COMPUTE:
@@ -524,7 +524,7 @@ inline std::string tex_data_format_to_msl_type_str(eGPUDataFormat type)
       return "uint";
     case GPU_DATA_UBYTE:
       return "uchar";
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
       return "uint"; /* Problematic type - but will match alignment. */
     case GPU_DATA_10_11_11_REV:
     case GPU_DATA_2_10_10_10_REV:
@@ -550,7 +550,7 @@ inline std::string tex_data_format_to_msl_texture_template_type(eGPUDataFormat t
       return "uint";
     case GPU_DATA_UBYTE:
       return "ushort";
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
       return "uint"; /* Problematic type. */
     case GPU_DATA_10_11_11_REV:
     case GPU_DATA_2_10_10_10_REV:
