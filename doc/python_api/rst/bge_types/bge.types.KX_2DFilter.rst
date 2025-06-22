@@ -9,7 +9,7 @@ base class --- :class:`~bge.types.BL_Shader`
 
    2D filter shader object. Can be alternated with :class:`~bge.types.BL_Shader`'s functions.
 
-.. note::
+   .. note::
 
      Following builtin uniforms are available:
 
