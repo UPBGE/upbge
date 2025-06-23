@@ -538,6 +538,34 @@ bool socket_type_supports_grids(const eNodeSocketDatatype socket_type)
   return ELEM(socket_type, SOCK_FLOAT, SOCK_VECTOR);
 }
 
+bool socket_type_always_single(const eNodeSocketDatatype socket_type)
+{
+  switch (socket_type) {
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_GEOMETRY:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_CLOSURE:
+    case SOCK_BUNDLE:
+    case SOCK_STRING:
+      return true;
+    case SOCK_CUSTOM:
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_SHADER:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_ROTATION:
+    case SOCK_MENU:
+    case SOCK_MATRIX:
+      return false;
+  }
+  return false;
+}
+
 }  // namespace blender::nodes
 
 void node_verify_sockets(bNodeTree *ntree, bNode *node, bool do_id_user)
@@ -995,9 +1023,9 @@ static bke::bNodeSocketType *make_socket_type_bundle()
   };
   socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
   socktype->get_geometry_nodes_cpp_value = [](const void * /*socket_value*/, void *r_value) {
-    new (r_value) SocketValueVariant(nodes::BundlePtr());
+    SocketValueVariant::ConstructIn(r_value, nodes::BundlePtr());
   };
-  static SocketValueVariant default_value{nodes::BundlePtr()};
+  static SocketValueVariant default_value = SocketValueVariant::From(nodes::BundlePtr());
   socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
@@ -1011,9 +1039,9 @@ static bke::bNodeSocketType *make_socket_type_closure()
   };
   socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
   socktype->get_geometry_nodes_cpp_value = [](const void * /*socket_value*/, void *r_value) {
-    new (r_value) SocketValueVariant(nodes::ClosurePtr());
+    SocketValueVariant::ConstructIn(r_value, nodes::ClosurePtr());
   };
-  static SocketValueVariant default_value{nodes::ClosurePtr()};
+  static SocketValueVariant default_value = SocketValueVariant::From(nodes::ClosurePtr());
   socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }

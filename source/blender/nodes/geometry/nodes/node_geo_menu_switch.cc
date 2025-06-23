@@ -319,7 +319,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     GField output_field{FieldOperation::Create(std::move(multi_function), std::move(item_fields))};
 
     void *output_ptr = params.get_output_data_ptr(0);
-    new (output_ptr) SocketValueVariant(std::move(output_field));
+    SocketValueVariant::ConstructIn(output_ptr, std::move(output_field));
     params.output_set(0);
   }
 };
@@ -374,7 +374,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<MenuSwitchItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
+          panel->use_property_split_set(true);
           uiLayoutSetPropDecorate(panel, false);
           panel->prop(item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
