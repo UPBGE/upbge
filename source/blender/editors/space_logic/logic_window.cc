@@ -1160,7 +1160,7 @@ static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
   Object *ob = (Object *)ptr->owner_id;
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
-  uiItemPointerR(layout,
+  layout->prop_search(
                  ptr,
                  "actuator",
                  &settings_ptr,
@@ -1188,10 +1188,10 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
     PointerRNA pose_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Pose, ob->pose);
     bones_prop = RNA_struct_find_property(&pose_ptr, "bones");
 
-    uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
+    layout->prop_search(ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
 
     if (RNA_property_collection_lookup_string(&pose_ptr, bones_prop, as->posechannel, &pchan_ptr))
-      uiItemPointerR(layout,
+      layout->prop_search(
                      ptr,
                      "constraint",
                      &pchan_ptr,
@@ -1221,8 +1221,8 @@ static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr, bContext *C
       split->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SENS_COLLISION_MATERIAL:
-      uiItemPointerR(
-          split, ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
+      split->prop_search(
+          ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
       break;
   }
 }
@@ -1325,8 +1325,8 @@ static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "modifier_key_2", UI_ITEM_R_EVENT, "", ICON_NONE);
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
-  uiItemPointerR(layout, ptr, "log", &settings_ptr, "properties", std::nullopt, ICON_NONE);
-  uiItemPointerR(layout, ptr, "target", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+  layout->prop_search(ptr, "log", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+  layout->prop_search(ptr, "target", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 }
 
 static void draw_sensor_message(uiLayout *layout, PointerRNA *ptr)
@@ -1353,7 +1353,7 @@ static void draw_sensor_mouse(uiLayout *layout, PointerRNA *ptr, bContext *C)
     }
     else {
       PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
-      uiItemPointerR(split2, ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
+      split2->prop_search(ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
     }
     split2->prop(ptr, "use_x_ray", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
@@ -1381,7 +1381,7 @@ static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
   layout->prop(ptr, "evaluation_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
-  uiItemPointerR(layout, ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+  layout->prop_search(ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 
   switch (RNA_enum_get(ptr, "evaluation_type")) {
     case SENS_PROP_INTERVAL:
@@ -1429,7 +1429,7 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
       split->prop(ptr, "property", UI_ITEM_NONE, "", ICON_NONE);
       break;
     case SENS_RAY_MATERIAL:
-      uiItemPointerR(split, ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
+      split->prop_search(ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
       break;
   }
 
@@ -1695,7 +1695,7 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 
   row = &layout->row(false);
   if ((RNA_enum_get(ptr, "play_mode") == ACT_ACTION_FROM_PROP))
-    uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+    row->prop_search(ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 
   else {
     row->prop(ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1713,7 +1713,7 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "layer_weight", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row->prop(ptr, "blend_mode", UI_ITEM_NONE, "", ICON_NONE);
 
-  uiItemPointerR(layout, ptr, "frame_property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+  layout->prop_search(ptr, "frame_property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
   layout->prop("stride_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1747,22 +1747,22 @@ static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
     case ACT_ARM_ENABLE:
     case ACT_ARM_DISABLE:
       if (ob->pose) {
-        uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
+        layout->prop_search(ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
 
         if (RNA_property_collection_lookup_string(
                 &pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
-          uiItemPointerR(
-              layout, ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
+          layout->prop_search(
+              ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
       }
       break;
     case ACT_ARM_SETTARGET:
       if (ob->pose) {
-        uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
+        layout->prop_search(ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
 
         if (RNA_property_collection_lookup_string(
                 &pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
-          uiItemPointerR(
-              layout, ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
+          layout->prop_search(
+              ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
       }
 
       layout->prop(ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1775,24 +1775,24 @@ static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
       break;
     case ACT_ARM_SETWEIGHT:
       if (ob->pose) {
-        uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
+        layout->prop_search(ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
 
         if (RNA_property_collection_lookup_string(
                 &pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
-          uiItemPointerR(
-              layout, ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
+          layout->prop_search(
+              ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
       }
 
       layout->prop(ptr, "weight", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case ACT_ARM_SETINFLUENCE:
       if (ob->pose) {
-        uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
+        layout->prop_search(ptr, "bone", &pose_ptr, "bones", std::nullopt, ICON_BONE_DATA);
 
         if (RNA_property_collection_lookup_string(
                 &pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
-          uiItemPointerR(
-              layout, ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
+          layout->prop_search(
+              ptr, "constraint", &pchan_ptr, "constraints", std::nullopt, ICON_CONSTRAINT_BONE);
       }
 
       layout->prop(ptr, "influence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1857,7 +1857,7 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
       split = &layout->split(0.15f, false);
       split->prop(ptr, "use_material_detect", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       if (RNA_boolean_get(ptr, "use_material_detect"))
-        uiItemPointerR(split, ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
+        split->prop_search(ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
       else
         split->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -1901,7 +1901,7 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
       split = &layout->split(0.15, false);
       split->prop(ptr, "use_material_detect", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       if (RNA_boolean_get(ptr, "use_material_detect"))
-        uiItemPointerR(split, ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
+        split->prop_search(ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
       else
         split->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -2025,7 +2025,7 @@ static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C
   ob = (Object *)ptr->owner_id;
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
-  uiItemPointerR(layout, ptr, "to_property", &main_ptr, "objects", std::nullopt, ICON_OBJECT_DATA);
+  layout->prop_search(ptr, "to_property", &main_ptr, "objects", std::nullopt, ICON_OBJECT_DATA);
   layout->prop(ptr, "subject", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout->row(true);
@@ -2034,7 +2034,7 @@ static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C
   if (RNA_enum_get(ptr, "body_type") == ACT_MESG_MESG)
     row->prop(ptr, "body_message", UI_ITEM_NONE, "", ICON_NONE);
   else  // mode == ACT_MESG_PROP
-    uiItemPointerR(row, ptr, "body_property", &settings_ptr, "properties", "", ICON_NONE);
+    row->prop_search(ptr, "body_property", &settings_ptr, "properties", "", ICON_NONE);
 }
 
 static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
@@ -2189,7 +2189,7 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemPointerR(layout, ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+  layout->prop_search(ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 
   switch (RNA_enum_get(ptr, "mode")) {
     case ACT_PROP_TOGGLE:
@@ -2207,8 +2207,8 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
       if (ob_from) {
         PointerRNA obj_settings_ptr = RNA_pointer_create_discrete(
             (ID *)ob_from, &RNA_GameObjectSettings, ob_from);
-        uiItemPointerR(
-            row, ptr, "object_property", &obj_settings_ptr, "properties", std::nullopt, ICON_NONE);
+        row->prop_search(
+            ptr, "object_property", &obj_settings_ptr, "properties", std::nullopt, ICON_NONE);
       }
       else {
         sub = &row->row(false);
@@ -2233,7 +2233,7 @@ static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "distribution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout->row(false);
-  uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
+  row->prop_search(ptr, "property", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 
   row = &layout->row(false);
 
