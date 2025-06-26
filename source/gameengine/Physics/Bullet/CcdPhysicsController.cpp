@@ -923,6 +923,7 @@ void CcdPhysicsController::UpdateSoftBody()
           BLI_addhead(&ob->modifiers, m_sbModifier);
           BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
           BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
+          DEG_relations_tag_update(CTX_data_main(C));
         }
         m_sbModifier->vertcoos = m_sbCoords;
 
