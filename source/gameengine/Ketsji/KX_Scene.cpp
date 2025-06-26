@@ -1399,6 +1399,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
       Base *basen = blender::ed::object::add_duplicate(
