@@ -393,6 +393,10 @@ void KX_GameObject::RemoveOrHideBlenderObject()
 {
   Object *ob = GetBlenderObject();
   if (ob) {
+    PHY_IPhysicsController *ctrl = GetPhysicsController();
+    if (ctrl) {
+      ctrl->RemoveSoftBodyModifier(ob);
+    }
     if (m_isReplica) {
       bContext *C = KX_GetActiveEngine()->GetContext();
       Main *bmain = CTX_data_main(C);

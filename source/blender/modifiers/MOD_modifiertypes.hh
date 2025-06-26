@@ -41,6 +41,7 @@ extern ModifierTypeInfo modifierType_Shrinkwrap;
 extern ModifierTypeInfo modifierType_Fluidsim;
 extern ModifierTypeInfo modifierType_Mask;
 extern ModifierTypeInfo modifierType_SimpleDeform;
+extern ModifierTypeInfo modifierType_SimpleDeformBGE;
 extern ModifierTypeInfo modifierType_Multires;
 extern ModifierTypeInfo modifierType_Surface;
 extern ModifierTypeInfo modifierType_Fluid;

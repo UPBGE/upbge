@@ -129,6 +129,7 @@ typedef enum ModifierType {
   eModifierType_GreasePencilBuild = 84,
   eModifierType_GreasePencilSimplify = 85,
   eModifierType_GreasePencilTexture = 86,
+  eModifierType_SimpleDeformBGE = 87,
   NUM_MODIFIER_TYPES,
 } ModifierType;
 
@@ -1274,6 +1275,11 @@ typedef struct ShrinkwrapModifierData {
 
   char _pad[2];
 } ShrinkwrapModifierData;
+
+typedef struct SimpleDeformModifierDataBGE {
+  ModifierData modifier;
+  float (*vertcoos)[3];
+} SimpleDeformModifierDataBGE;
 
 typedef struct SimpleDeformModifierData {
   ModifierData modifier;
