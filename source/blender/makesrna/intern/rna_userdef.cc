@@ -6516,7 +6516,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        0,
        "Forward/Backward",
        "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
-      {NDOF_PAN_YZ_SWAP_AXIS,
+      {NDOF_SWAP_YZ_AXIS,
        "NDOF_ZOOM_UP",
        0,
        "Up/Down",
