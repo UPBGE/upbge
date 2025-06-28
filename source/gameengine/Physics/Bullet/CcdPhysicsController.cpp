@@ -41,6 +41,7 @@
 #include "LinearMath/btConvexHull.h"
 
 #include "CcdPhysicsEnvironment.h"
+#include "CM_Message.h"
 #include "KX_GameObject.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
@@ -854,10 +855,12 @@ void CcdPhysicsController::UpdateSoftBody()
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
         bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+        /* We need to ensure the depsgraph is up to date to have right mesh with modifiers polycount
+         * When we just added a KX_GameObject with a constructive modifier for example */
+        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
         Object *ob = gameobj->GetBlenderObject();
-        Mesh *mesh_orig = BKE_mesh_from_object(ob);
-        Mesh *me = (Mesh *)DEG_get_evaluated_id(depsgraph, &mesh_orig->id);
+        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+        Mesh *me = (Mesh *)ob_eval->data;
         BKE_mesh_tessface_ensure(me);
 
         const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
@@ -866,10 +869,6 @@ void CcdPhysicsController::UpdateSoftBody()
           index_mp_to_orig = nullptr;
         }
 
-        if (m_sbCoords == nullptr) {
-          m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * me->vert_positions().size(),
-                                                __func__);
-        }
         const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
         int numpolys = me->totface_legacy;
 
@@ -878,57 +877,76 @@ void CcdPhysicsController::UpdateSoftBody()
         MT_Transform invtrans(gameobj->NodeGetWorldTransform());
         invtrans.invert(invtrans);
 
-        for (int p2 = 0; p2 < numpolys; p2++) {
-          const MFace *face = &faces[p2];
-          const int origi = index_mf_to_mpoly ?
-                                DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                                p2;
-          RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
+        /* If some Object modifiers are generating new faces/polys/geometry during bge runtime,
+         * we skip softbody deformation and raise a warning because softbody shape and mapping
+         * are only done once and rely on RAS_MeshObject polycount */
+        bool skip_deform = false;
+        if (numpolys != rasMesh->NumPolygons()) {
+          skip_deform = true;
+          CM_Debug("BGE SoftBody: Polygons count of object: " << ob->id.name + 2
+                    << " was modified during bge runtime.");
+          CM_Debug("It can happen when Object modifiers are changing Object geometry because "
+                       "of SoftBody Deformation or when a constructive modifier has not been evaluated yet.");
+          CM_Debug("me->totface_legacy " << me->totface_legacy);
+          CM_Debug("rasMesh->NumPolygons() " << rasMesh->NumPolygons());
+        }
 
-          // only add polygons that have the collisionflag set
-          if (poly) {
-            float *v1 = &m_sbCoords[face->v1][0];
-            float *v2 = &m_sbCoords[face->v2][0];
-            float *v3 = &m_sbCoords[face->v3][0];
+        if (!skip_deform) {
+          if (m_sbModifier == nullptr) {
+            m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(
+                eModifierType_SimpleDeformBGE);
+            STRNCPY(m_sbModifier->modifier.name, "sbModifier");
+            BLI_addtail(&ob->modifiers, m_sbModifier);
+            BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
+            BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
+            DEG_relations_tag_update(CTX_data_main(C));
+            m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * me->vert_positions().size(),
+                                                  __func__);
+          }
 
-            int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
-            int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
-            int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
+          for (int p2 = 0; p2 < numpolys; p2++) {
+            const MFace *face = &faces[p2];
+            const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(
+                                                      index_mf_to_mpoly, index_mp_to_orig, p2) :
+                                                  p2;
+            RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
 
-            MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
-            MT_Vector3 p2 = invtrans * ToMoto(nodes.at(i2).m_x);
-            MT_Vector3 p3 = invtrans * ToMoto(nodes.at(i3).m_x);
+            // only add polygons that have the collisionflag set
+            if (poly) {
+              float *v1 = &m_sbCoords[face->v1][0];
+              float *v2 = &m_sbCoords[face->v2][0];
+              float *v3 = &m_sbCoords[face->v3][0];
 
-            // Do we need object_to_world? maybe
-            copy_v3_v3(v1, p1.getValue());
-            copy_v3_v3(v2, p2.getValue());
-            copy_v3_v3(v3, p3.getValue());
+              int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
+              int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
+              int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
 
-            if (face->v4) {
-              float *v4 = &m_sbCoords[face->v4][0];
+              MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
+              MT_Vector3 p2 = invtrans * ToMoto(nodes.at(i2).m_x);
+              MT_Vector3 p3 = invtrans * ToMoto(nodes.at(i3).m_x);
 
-              int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
+              // Do we need object_to_world? maybe
+              copy_v3_v3(v1, p1.getValue());
+              copy_v3_v3(v2, p2.getValue());
+              copy_v3_v3(v3, p3.getValue());
 
-              MT_Vector3 p4 = invtrans * ToMoto(nodes.at(i4).m_x);
+              if (face->v4) {
+                float *v4 = &m_sbCoords[face->v4][0];
 
-              copy_v3_v3(v4, p4.getValue());
+                int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
+                MT_Vector3 p4 = invtrans * ToMoto(nodes.at(i4).m_x);
+
+                copy_v3_v3(v4, p4.getValue());
+              }
             }
           }
-        }
-        if (m_sbModifier == nullptr) {
-          m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(
-              eModifierType_SimpleDeformBGE);
-          STRNCPY(m_sbModifier->modifier.name, "sbModifier");
-          BLI_addhead(&ob->modifiers, m_sbModifier);
-          BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
-          BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
-          DEG_relations_tag_update(CTX_data_main(C));
-        }
-        m_sbModifier->vertcoos = m_sbCoords;
 
-        /* call this each frame to ensure MOD_deform_bge will be called */
-        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+          m_sbModifier->vertcoos = m_sbCoords;
+
+          /* call this each frame to ensure MOD_deform_bge will be called */
+          DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+        }
       }
     }
   }
