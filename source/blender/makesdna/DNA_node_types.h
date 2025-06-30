@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_scene_types.h" /* for #ImageFormatData */
@@ -595,7 +596,7 @@ enum {
   NODE_SELECT = 1 << 0,
   NODE_OPTIONS = 1 << 1,
   NODE_PREVIEW = 1 << 2,
-  NODE_HIDDEN = 1 << 3,
+  NODE_COLLAPSED = 1 << 3,
   NODE_ACTIVE = 1 << 4,
   // NODE_ACTIVE_ID = 1 << 5, /* Deprecated. */
   /** Used to indicate which group output node is used and which viewer node is active. */
@@ -1571,8 +1572,10 @@ typedef struct NodeTrackPosData {
 } NodeTrackPosData;
 
 typedef struct NodeTranslateData {
-  char wrap_axis;
+  char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
+  short extension_x;
+  short extension_y;
   short interpolation;
 } NodeTranslateData;
 
@@ -2889,6 +2892,12 @@ typedef enum CMPNodeTranslateRepeatAxis {
   CMP_NODE_TRANSLATE_REPEAT_AXIS_Y = 2,
   CMP_NODE_TRANSLATE_REPEAT_AXIS_XY = 3,
 } CMPNodeTranslateRepeatAxis;
+
+typedef enum CMPExtensionMode {
+  CMP_NODE_EXTENSION_MODE_ZERO = 0,
+  CMP_NODE_EXTENSION_MODE_EXTEND = 1,
+  CMP_NODE_EXTENSION_MODE_REPEAT = 2,
+} CMPNodeBorderCondition;
 
 #define CMP_NODE_MASK_MBLUR_SAMPLES_MAX 64
 

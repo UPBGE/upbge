@@ -1213,7 +1213,7 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *ptr,
   bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
   if (ntree && ntree->type != NTREE_COMPOSIT) {
     BKE_reportf(
-        reports, RPT_ERROR, "Node tree '%s' is not a compositing node tree.", ntree->id.name + 2);
+        reports, RPT_ERROR, "Node tree '%s' is not a compositing node group.", ntree->id.name + 2);
     return;
   }
   scene->compositing_node_group = ntree;
@@ -1503,11 +1503,11 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     if (depth_ok & R_IMF_CHAN_DEPTH_16) {
       if (is_float) {
         tmp = *item_16bit;
-        tmp.name = "Float (Half)";
+        tmp.name = N_("Float (Half)");
         if (ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
-          tmp.description =
+          tmp.description = N_(
               "16-bit color channels. Data passes like Depth will still be saved using full "
-              "32-bit precision.";
+              "32-bit precision.");
         }
         RNA_enum_item_add(&item, &totitem, &tmp);
       }
@@ -1519,7 +1519,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     if (depth_ok & R_IMF_CHAN_DEPTH_32) {
       if (is_float) {
         tmp = *item_32bit;
-        tmp.name = "Float (Full)";
+        tmp.name = N_("Float (Full)");
         RNA_enum_item_add(&item, &totitem, &tmp);
       }
       else {
@@ -9524,14 +9524,14 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "NodeTree");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(
-      prop, "Node Tree", "Compositing node tree. (Deprecated: Use compositing_node_group)");
+      prop, "Node Tree", "Compositor Nodes. (Deprecated: Use compositing_node_group)");
 
   prop = RNA_def_property(srna, "compositing_node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "compositing_node_group");
   RNA_def_property_struct_type(prop, "NodeTree");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_ui_text(prop, "Node Tree", "Compositing node tree");
+  RNA_def_property_ui_text(prop, "Node Tree", "Compositor Nodes");
   RNA_def_property_update(prop, 0, "rna_Scene_compositor_update");
   RNA_def_property_pointer_funcs(prop,
                                  nullptr,
@@ -9543,7 +9543,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(
-      prop, "Use Nodes", "Enable the compositing node tree. (Deprecated: use use_compositing)");
+      prop, "Use Nodes", "Enable the compositing node group. (Deprecated: use use_compositing)");
   RNA_def_property_boolean_funcs(prop, "rna_Scene_use_nodes_get", "rna_Scene_use_nodes_set");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
 

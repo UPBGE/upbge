@@ -656,7 +656,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   }
 
   sce->compositing_node_group = blender::bke::node_tree_add_tree(
-      bmain, DATA_("Compositing Node Tree"), ntreeType_Composite->idname);
+      bmain, DATA_("Compositor Nodes"), ntreeType_Composite->idname);
 
   ED_node_composit_default_init(C, sce->compositing_node_group);
 
@@ -1343,8 +1343,8 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
   };
 
   for (bNode *node : sorted_nodes) {
-    const bool node_hidden = node->flag & NODE_HIDDEN;
-    if (!node->is_reroute() && !node_hidden &&
+    const bool node_collapsed = node->flag & NODE_COLLAPSED;
+    if (!node->is_reroute() && !node_collapsed &&
         node->runtime->draw_bounds.ymax - cursor.y < NODE_DY)
     {
       /* Don't pick socket when cursor is over node header. This allows the user to always resize
@@ -1358,7 +1358,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
         }
         const float2 location = sock->runtime->location;
         const float distance = math::distance(location, cursor);
-        if (sock->flag & SOCK_MULTI_INPUT && !node_hidden) {
+        if (sock->flag & SOCK_MULTI_INPUT && !node_collapsed) {
           if (cursor_isect_multi_input_socket(cursor, *sock)) {
             update_best_socket(sock, distance);
             continue;
@@ -1377,7 +1377,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
         const float2 location = sock->runtime->location;
         const float distance = math::distance(location, cursor);
         if (distance < max_distance) {
-          if (node_hidden) {
+          if (node_collapsed) {
             if (location.x - cursor.x > padded_socket_size) {
               /* Needed to be able to resize collapsed nodes. */
               continue;
@@ -1731,7 +1731,7 @@ void NODE_OT_render_changed(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Node Hide Operator
+/** \name Node Collapse Operator
  * \{ */
 
 /**
@@ -1789,7 +1789,7 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag, const bool 
   }
 }
 
-static wmOperatorStatus node_hide_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_collapse_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -1798,22 +1798,22 @@ static wmOperatorStatus node_hide_toggle_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  node_flag_toggle_exec(snode, NODE_HIDDEN);
+  node_flag_toggle_exec(snode, NODE_COLLAPSED);
 
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_hide_toggle(wmOperatorType *ot)
+void NODE_OT_collapse_toggle(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Hide";
-  ot->description = "Toggle hiding of selected nodes";
+  ot->name = "Collapse";
+  ot->description = "Toggle collapsing of selected nodes";
   ot->idname = "NODE_OT_hide_toggle";
 
   /* callbacks */
-  ot->exec = node_hide_toggle_exec;
+  ot->exec = node_collapse_toggle_exec;
   ot->poll = ED_operator_node_active;
 
   /* flags */
@@ -2106,6 +2106,7 @@ static wmOperatorStatus node_delete_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
+  ED_node_set_active_viewer_key(snode);
   BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
@@ -2202,7 +2203,13 @@ static wmOperatorStatus node_output_file_add_socket_exec(bContext *C, wmOperator
   }
 
   RNA_string_get(op->ptr, "file_path", file_path);
-  ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
+
+  if (strlen(file_path) != 0) {
+    ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
+  }
+  else {
+    ntreeCompositOutputFileAddSocket(ntree, node, DATA_("Image"), &scene->r.im_format);
+  }
 
   BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
@@ -2224,7 +2231,7 @@ void NODE_OT_output_file_add_socket(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_string(
-      ot->srna, "file_path", "Image", MAX_NAME, "File Path", "Subpath of the output file");
+      ot->srna, "file_path", nullptr, MAX_NAME, "File Path", "Subpath of the output file");
 }
 
 /** \} */

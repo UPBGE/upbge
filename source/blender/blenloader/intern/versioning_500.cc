@@ -447,7 +447,7 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
   bNode *dot_product_node = blender::bke::node_add_node(
       nullptr, *node_tree, "ShaderNodeVectorMath");
   dot_product_node->custom1 = NODE_VECTOR_MATH_DOT_PRODUCT;
-  dot_product_node->flag |= NODE_HIDDEN;
+  dot_product_node->flag |= NODE_COLLAPSED;
   dot_product_node->parent = node->parent;
   dot_product_node->location[0] = node->location[0];
   dot_product_node->location[1] = node->location[1];
@@ -591,7 +591,7 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
   multiply_node->custom1 = NODE_MATH_MULTIPLY;
   multiply_node->location[0] = node->location[0] - node->width - 20.0f;
   multiply_node->location[1] = node->location[1];
-  multiply_node->flag |= NODE_HIDDEN;
+  multiply_node->flag |= NODE_COLLAPSED;
 
   bNodeSocket *multiply_input_a = static_cast<bNodeSocket *>(
       BLI_findlink(&multiply_node->inputs, 0));
@@ -627,7 +627,7 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
     separate_color_node->parent = node->parent;
     separate_color_node->location[0] = multiply_node->location[0] - multiply_node->width - 20.0f;
     separate_color_node->location[1] = multiply_node->location[1];
-    separate_color_node->flag |= NODE_HIDDEN;
+    separate_color_node->flag |= NODE_COLLAPSED;
 
     bNodeSocket *image_input = blender::bke::node_find_socket(
         *separate_color_node, SOCK_IN, "Image");
@@ -715,7 +715,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
   add_node->custom1 = NODE_MATH_ADD;
   add_node->location[0] = node->location[0];
   add_node->location[1] = node->location[1];
-  add_node->flag |= NODE_HIDDEN;
+  add_node->flag |= NODE_COLLAPSED;
 
   bNodeSocket *add_input_a = static_cast<bNodeSocket *>(BLI_findlink(&add_node->inputs, 0));
   bNodeSocket *add_input_b = static_cast<bNodeSocket *>(BLI_findlink(&add_node->inputs, 1));
@@ -736,7 +736,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
   multiply_node->custom1 = NODE_MATH_MULTIPLY;
   multiply_node->location[0] = add_node->location[0];
   multiply_node->location[1] = add_node->location[1] - 40.0f;
-  multiply_node->flag |= NODE_HIDDEN;
+  multiply_node->flag |= NODE_COLLAPSED;
 
   bNodeSocket *multiply_input_a = static_cast<bNodeSocket *>(
       BLI_findlink(&multiply_node->inputs, 0));
@@ -760,7 +760,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
     max_node->custom1 = NODE_MATH_MAXIMUM;
     max_node->location[0] = final_node->location[0];
     max_node->location[1] = final_node->location[1] - 40.0f;
-    max_node->flag |= NODE_HIDDEN;
+    max_node->flag |= NODE_COLLAPSED;
 
     bNodeSocket *max_input_a = static_cast<bNodeSocket *>(BLI_findlink(&max_node->inputs, 0));
     bNodeSocket *max_input_b = static_cast<bNodeSocket *>(BLI_findlink(&max_node->inputs, 1));
@@ -783,7 +783,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
     min_node->custom1 = NODE_MATH_MINIMUM;
     min_node->location[0] = final_node->location[0];
     min_node->location[1] = final_node->location[1] - 40.0f;
-    min_node->flag |= NODE_HIDDEN;
+    min_node->flag |= NODE_COLLAPSED;
 
     bNodeSocket *min_input_a = static_cast<bNodeSocket *>(BLI_findlink(&min_node->inputs, 0));
     bNodeSocket *min_input_b = static_cast<bNodeSocket *>(BLI_findlink(&min_node->inputs, 1));
@@ -1212,6 +1212,44 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           sfile->asset_params->base_params.filter_id |= FILTER_ID_SCE;
         }
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 31)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_TRANSLATE) {
+          continue;
+        }
+        if (node->storage != nullptr) {
+          continue;
+        }
+        NodeTranslateData *data = static_cast<NodeTranslateData *>(node->storage);
+        /* Map old wrap axis to new extension mode. */
+        switch (data->wrap_axis) {
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+            break;
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_X:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+            break;
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_Y:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
+            break;
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_XY:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
+            break;
+        }
+        node->storage = data;
+      }
+      FOREACH_NODETREE_END;
     }
   }
 
