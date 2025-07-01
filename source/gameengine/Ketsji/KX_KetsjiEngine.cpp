@@ -832,20 +832,21 @@ void KX_KetsjiEngine::Render()
                 m_canvas->GetWidth() + 1,
                 m_canvas->GetHeight() + 1};
 
-    GPU_viewport(v[0], v[1], v[2], v[3]);
-    GPU_scissor_test(true);
-    GPU_scissor(v[0], v[1], v[2], v[3]);
-
-    GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
-    GPU_matrix_identity_set();
-
-    const rcti rect = {0, v[2] - 1, 0, v[3] - 1};
+    /* rcti xmin, xmax, ymin, ymax */
+    const rcti rect = {v[0], v[2] + v[0] - 1, v[1], v[3] + v[1] - 1};
     GPUViewport *gpu_viewport = m_scenes->GetFront()->GetCurrentGPUViewport();
     GPUTexture *backup = GPU_viewport_color_texture(gpu_viewport, 0);
     GPU_viewport_switch_color_tex(gpu_viewport,
                                   GPU_framebuffer_color_texture(background_fb->GetFrameBuffer()));
     GPU_viewport_draw_to_screen_ex(gpu_viewport, 0, &rect, true, false);
     GPU_viewport_switch_color_tex(gpu_viewport, backup);
+
+    GPU_viewport(v[0], v[1], v[2], v[3]);
+    GPU_scissor_test(true);
+    GPU_scissor(v[0], v[1], v[2], v[3]);
+
+    GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+    GPU_matrix_identity_set();
 
     /* Draw last remaining debug drawings + few stuff + swapBuffer */
     EndFrame();
