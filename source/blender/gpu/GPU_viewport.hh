@@ -95,6 +95,4 @@ GPUFrameBuffer *GPU_viewport_framebuffer_render_get(GPUViewport *viewport);
 GPUFrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport);
 
 /* UPBGE */
-blender::gpu::Batch *gpu_viewport_batch_get(GPUViewport *viewport, /* UPBGE - not static */
-                                        const rctf *rect_pos,
-                                        const rctf *rect_uv);
+void GPU_viewport_switch_color_tex(GPUViewport *viewport, GPUTexture *tex);

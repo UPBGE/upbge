@@ -439,11 +439,6 @@ void DRW_game_render_loop(struct bContext *C,
 
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
 void DRW_game_viewport_render_loop_end();
-void DRW_transform_to_display(struct GPUViewport *viewport,
-                              struct GPUTexture *tex,
-                              struct View3D *v3d,
-                              struct Scene *scene,
-                              struct rcti *rect);
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 
 

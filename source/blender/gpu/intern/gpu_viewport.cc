@@ -399,7 +399,7 @@ static blender::gpu::Batch *gpu_viewport_batch_create(const rctf *rect_pos, cons
   return GPU_batch_create_ex(GPU_PRIM_TRI_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
 }
 
-blender::gpu::Batch *gpu_viewport_batch_get(GPUViewport *viewport, /* UPBGE - not static */
+static blender::gpu::Batch *gpu_viewport_batch_get(GPUViewport *viewport,
                                                    const rctf *rect_pos,
                                                    const rctf *rect_uv)
 {
@@ -643,4 +643,10 @@ void GPU_viewport_free(GPUViewport *viewport)
   gpu_viewport_batch_free(viewport);
 
   MEM_freeN(viewport);
+}
+
+/* UPBGE */
+void GPU_viewport_switch_color_tex(GPUViewport *viewport, GPUTexture *tex)
+{
+  viewport->color_render_tx[0] = tex;
 }
