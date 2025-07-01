@@ -861,16 +861,6 @@ void CcdPhysicsController::UpdateSoftBody()
         Object *ob = gameobj->GetBlenderObject();
         Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
         Mesh *me = (Mesh *)ob_eval->data;
-        BKE_mesh_tessface_ensure(me);
-
-        const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-        const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
-        if (!index_mf_to_mpoly) {
-          index_mp_to_orig = nullptr;
-        }
-
-        const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-        int numpolys = me->totface_legacy;
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
@@ -881,14 +871,14 @@ void CcdPhysicsController::UpdateSoftBody()
          * we skip softbody deformation and raise a warning because softbody shape and mapping
          * are only done once and rely on RAS_MeshObject polycount */
         bool skip_deform = false;
-        if (numpolys != rasMesh->NumPolygons()) {
+        if (me->verts_num != rasMesh->GetConversionTotVerts()) {
           skip_deform = true;
-          CM_Debug("BGE SoftBody: Polygons count of object: " << ob->id.name + 2
+          CM_Debug("BGE SoftBody: Vertices count of object: " << ob->id.name + 2
                     << " was modified during bge runtime.");
           CM_Debug("It can happen when Object modifiers are changing Object geometry because "
                        "of SoftBody Deformation or when a constructive modifier has not been evaluated yet.");
-          CM_Debug("me->totface_legacy " << me->totface_legacy);
-          CM_Debug("rasMesh->NumPolygons() " << rasMesh->NumPolygons());
+          CM_Debug("me->totvert " << me->verts_num);
+          CM_Debug("rasMesh->GetConversionTotVerts() " << rasMesh->GetConversionTotVerts());
         }
 
         if (!skip_deform) {
@@ -904,41 +894,15 @@ void CcdPhysicsController::UpdateSoftBody()
                                                   __func__);
           }
 
-          for (int p2 = 0; p2 < numpolys; p2++) {
-            const MFace *face = &faces[p2];
-            const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(
-                                                      index_mf_to_mpoly, index_mp_to_orig, p2) :
-                                                  p2;
-            RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
-
-            // only add polygons that have the collisionflag set
-            if (poly) {
-              float *v1 = &m_sbCoords[face->v1][0];
-              float *v2 = &m_sbCoords[face->v2][0];
-              float *v3 = &m_sbCoords[face->v3][0];
-
-              int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
-              int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
-              int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
-
+          for (int m = 0; m < rasMesh->NumMaterials(); m++) {
+            RAS_MeshMaterial *mmat = rasMesh->GetMeshMaterial(m);
+            RAS_IDisplayArray *array = mmat->GetDisplayArray();
+            for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+              RAS_VertexInfo info = array->GetVertexInfo(i);
+              float *v1 = &m_sbCoords[info.getOrigIndex()][0];
+              int i1 = info.getSoftBodyIndex();
               MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
-              MT_Vector3 p2 = invtrans * ToMoto(nodes.at(i2).m_x);
-              MT_Vector3 p3 = invtrans * ToMoto(nodes.at(i3).m_x);
-
-              // Do we need object_to_world? maybe
               copy_v3_v3(v1, p1.getValue());
-              copy_v3_v3(v2, p2.getValue());
-              copy_v3_v3(v3, p3.getValue());
-
-              if (face->v4) {
-                float *v4 = &m_sbCoords[face->v4][0];
-
-                int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
-
-                MT_Vector3 p4 = invtrans * ToMoto(nodes.at(i4).m_x);
-
-                copy_v3_v3(v4, p4.getValue());
-              }
             }
           }
 
