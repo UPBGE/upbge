@@ -226,30 +226,14 @@ void Instance::begin_sync()
   {
     this->stroke_batch = nullptr;
     this->fill_batch = nullptr;
-    this->do_fast_drawing = false;
 
     this->obact = draw_ctx->obact;
   }
 
-  if (this->do_fast_drawing) {
-    this->snapshot_buffer_dirty = !this->snapshot_depth_tx.is_valid();
-    const float2 size = draw_ctx->viewport_size_get();
-
-    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT;
-    this->snapshot_depth_tx.ensure_2d(GPU_DEPTH32F_STENCIL8, int2(size), usage);
-    this->snapshot_color_tx.ensure_2d(GPU_R11F_G11F_B10F, int2(size), usage);
-    this->snapshot_reveal_tx.ensure_2d(GPU_R11F_G11F_B10F, int2(size), usage);
-
-    this->snapshot_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->snapshot_depth_tx),
-                             GPU_ATTACHMENT_TEXTURE(this->snapshot_color_tx),
-                             GPU_ATTACHMENT_TEXTURE(this->snapshot_reveal_tx));
-  }
-  else {
-    /* Free unneeded buffers. */
-    this->snapshot_depth_tx.free();
-    this->snapshot_color_tx.free();
-    this->snapshot_reveal_tx.free();
-  }
+  /* Free unneeded buffers. */
+  this->snapshot_depth_tx.free();
+  this->snapshot_color_tx.free();
+  this->snapshot_reveal_tx.free();
 
   {
     PassSimple &pass = this->merge_depth_ps;
@@ -628,19 +612,20 @@ void Instance::acquire_resources()
 
   const int2 size = int2(draw_ctx->viewport_size_get());
 
-  eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
+  const eGPUTextureFormat format_color = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
+  const eGPUTextureFormat format_reveal = this->use_signed_fb ? GPU_RGBA16F : GPU_RGB10_A2;
 
   this->depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
-  this->color_tx.acquire(size, format);
-  this->reveal_tx.acquire(size, format);
+  this->color_tx.acquire(size, format_color);
+  this->reveal_tx.acquire(size, format_reveal);
 
   this->gpencil_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                           GPU_ATTACHMENT_TEXTURE(this->color_tx),
                           GPU_ATTACHMENT_TEXTURE(this->reveal_tx));
 
   if (this->use_layer_fb) {
-    this->color_layer_tx.acquire(size, format);
-    this->reveal_layer_tx.acquire(size, format);
+    this->color_layer_tx.acquire(size, format_color);
+    this->reveal_layer_tx.acquire(size, format_reveal);
 
     this->layer_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                           GPU_ATTACHMENT_TEXTURE(this->color_layer_tx),
@@ -648,8 +633,8 @@ void Instance::acquire_resources()
   }
 
   if (this->use_object_fb) {
-    this->color_object_tx.acquire(size, format);
-    this->reveal_object_tx.acquire(size, format);
+    this->color_object_tx.acquire(size, format_color);
+    this->reveal_object_tx.acquire(size, format_reveal);
 
     this->object_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                            GPU_ATTACHMENT_TEXTURE(this->color_object_tx),
@@ -658,7 +643,7 @@ void Instance::acquire_resources()
 
   if (this->use_mask_fb) {
     /* Use high quality format for render. */
-    eGPUTextureFormat mask_format = this->is_render ? GPU_R16 : GPU_R8;
+    const eGPUTextureFormat mask_format = this->is_render ? GPU_R16 : GPU_R8;
     /* We need an extra depth to not disturb the normal drawing. */
     this->mask_depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
     /* The mask_color_tx is needed for frame-buffer completeness. */
@@ -797,37 +782,6 @@ void Instance::draw_object(View &view, tObject *ob)
   GPU_debug_group_end();
 }
 
-void Instance::fast_draw_start()
-{
-  DefaultFramebufferList *dfbl = this->draw_ctx->viewport_framebuffer_list_get();
-
-  if (!this->snapshot_buffer_dirty) {
-    /* Copy back cached render. */
-    GPU_framebuffer_blit(this->snapshot_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
-    GPU_framebuffer_blit(this->snapshot_fb, 0, this->gpencil_fb, 0, GPU_COLOR_BIT);
-    GPU_framebuffer_blit(this->snapshot_fb, 1, this->gpencil_fb, 1, GPU_COLOR_BIT);
-    /* Bypass drawing. */
-    this->tobjects.first = this->tobjects.last = nullptr;
-  }
-}
-
-void Instance::fast_draw_end(View &view)
-{
-  DefaultFramebufferList *dfbl = this->draw_ctx->viewport_framebuffer_list_get();
-
-  if (this->snapshot_buffer_dirty) {
-    /* Save to snapshot buffer. */
-    GPU_framebuffer_blit(dfbl->default_fb, 0, this->snapshot_fb, 0, GPU_DEPTH_BIT);
-    GPU_framebuffer_blit(this->gpencil_fb, 0, this->snapshot_fb, 0, GPU_COLOR_BIT);
-    GPU_framebuffer_blit(this->gpencil_fb, 1, this->snapshot_fb, 1, GPU_COLOR_BIT);
-    this->snapshot_buffer_dirty = false;
-  }
-  /* Draw the sbuffer stroke(s). */
-  LISTBASE_FOREACH (tObject *, ob, &this->sbuffer_tobjects) {
-    draw_object(view, ob);
-  }
-}
-
 void Instance::draw(Manager &manager)
 {
   DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
@@ -870,10 +824,6 @@ void Instance::draw(Manager &manager)
 
   this->acquire_resources();
 
-  if (this->do_fast_drawing) {
-    fast_draw_start();
-  }
-
   if (this->tobjects.first) {
     GPU_framebuffer_bind(this->gpencil_fb);
     GPU_framebuffer_multi_clear(this->gpencil_fb, clear_cols);
@@ -883,10 +833,6 @@ void Instance::draw(Manager &manager)
 
   LISTBASE_FOREACH (tObject *, ob, &this->tobjects) {
     draw_object(view, ob);
-  }
-
-  if (this->do_fast_drawing) {
-    fast_draw_end(view);
   }
 
   if (this->scene_fb) {

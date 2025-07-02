@@ -474,8 +474,11 @@ Span<float> CurvesGeometry::nurbs_weights() const
 }
 MutableSpan<float> CurvesGeometry::nurbs_weights_for_write()
 {
-  return get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_NURBS_WEIGHT, this->points_num());
+  return get_mutable_attribute<float>(this->attribute_storage.wrap(),
+                                      AttrDomain::Point,
+                                      ATTR_NURBS_WEIGHT,
+                                      this->points_num(),
+                                      1.0f);
 }
 
 VArray<int8_t> CurvesGeometry::nurbs_knots_modes() const
@@ -1171,6 +1174,7 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
+  BLI_assert(curves_num >= 0 && points_num >= 0);
   if (points_num != this->point_num) {
     this->attribute_storage.wrap().resize(AttrDomain::Point, points_num);
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
@@ -1181,10 +1185,12 @@ void CurvesGeometry::resize(const int points_num, const int curves_num)
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
-                                           curves_num + 1);
-    /* Set common values for convenience. */
-    this->curve_offsets[0] = 0;
-    this->curve_offsets[curves_num] = this->point_num;
+                                           curves_num == 0 ? 0 : (curves_num + 1));
+    if (curves_num > 0) {
+      /* Set common values for convenience. */
+      this->curve_offsets[0] = 0;
+      this->curve_offsets[curves_num] = this->point_num;
+    }
     this->curve_num = curves_num;
   }
   this->tag_topology_changed();
@@ -1646,7 +1652,7 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
     if (iter.domain != AttrDomain::Point) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (bezier_handle_names.contains(iter.name)) {
