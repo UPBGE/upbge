@@ -31,7 +31,6 @@
 #include "BKE_context.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
-#include "BKE_object.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "DNA_gpencil_modifier_types.h"
@@ -469,20 +468,14 @@ void BL_Action::Update(float curtime, bool applyToObject)
       bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
       // TODO: We need to find the good notifier per action
       if (isRightAction) {
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        Scene *bl_scene = CTX_data_scene(C);
         IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
                                                                   ID_RECALC_GEOMETRY;
         scene->AppendToIdsToUpdate(
             &ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
-        BKE_object_modifier_update_subframe(depsgraph,
-                                            bl_scene,
-                                            ob,
-                                            !BKE_modifier_is_non_geometrical(md),
-                                            false,
-                                            m_localframe,
-                                            md->type);
+        PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+        const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+            *m_action);
+        animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
         actionIsUpdated = true;
         break;
       }
