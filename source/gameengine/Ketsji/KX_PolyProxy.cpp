@@ -115,7 +115,6 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
     EXP_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
     EXP_PYATTRIBUTE_RO_FUNCTION("vertices", KX_PolyProxy, pyattr_get_vertices),
-    EXP_PYATTRIBUTE_RO_FUNCTION("blenderPolyIndex", KX_PolyProxy, pyattr_get_orig_index),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -238,14 +237,6 @@ PyObject *KX_PolyProxy::pyattr_get_vertices(EXP_PyObjectPlus *self_v,
                               nullptr,
                               nullptr))
       ->NewProxy(true);
-}
-
-PyObject *KX_PolyProxy::pyattr_get_orig_index(EXP_PyObjectPlus *self_v,
-                                              const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-  RAS_Polygon *polygon = self->GetPolygon();
-  return PyLong_FromLong(polygon->GetOrigIndex());
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(

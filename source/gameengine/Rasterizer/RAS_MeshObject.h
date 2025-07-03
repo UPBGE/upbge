@@ -132,8 +132,7 @@ class RAS_MeshObject {
                                   unsigned int indices[4],
                                   bool visible,
                                   bool collider,
-                                  bool twoside,
-                                  int origIndex);
+                                  bool twoside);
   virtual unsigned int AddVertex(RAS_MeshMaterial *meshmat,
                                  const MT_Vector3 &xyz,
                                  const MT_Vector2 *const uvs,

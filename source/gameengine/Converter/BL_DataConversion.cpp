@@ -571,7 +571,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         indices[3] = vertices[face.v4];
       }
 
-      meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside, face_i);
+      meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside);
     }
   }
 

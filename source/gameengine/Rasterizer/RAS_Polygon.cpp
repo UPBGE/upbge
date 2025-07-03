@@ -41,7 +41,6 @@ RAS_Polygon::RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, 
     : m_bucket(bucket), m_darray(darray), m_numvert(numvert), m_polyflags(0)
 {
   m_offset[0] = m_offset[1] = m_offset[2] = m_offset[3] = 0;
-  m_origIndex = -1;
 }
 
 int RAS_Polygon::VertexCount() const
@@ -112,16 +111,6 @@ void RAS_Polygon::SetTwoside(bool twoside)
   else {
     m_polyflags &= ~TWOSIDE;
   }
-}
-
-int RAS_Polygon::GetOrigIndex()
-{
-  return m_origIndex;
-}
-
-void RAS_Polygon::SetOrigIndex(int origIndex)
-{
-  m_origIndex = origIndex;
 }
 
 RAS_MaterialBucket *RAS_Polygon::GetMaterial() const

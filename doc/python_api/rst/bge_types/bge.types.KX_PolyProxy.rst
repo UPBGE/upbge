@@ -84,18 +84,6 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       :type: :class:`~bge.types.KX_VertexProxy` list (read only)
 
-   .. attribute:: blenderPolyIndex
-
-      Index of the polygon used to create the KX_PolyProxy during
-      blender data conversion. If the rendered mesh AND the physics shape
-      are not modified during bge runtime, this index should match
-      the bpy polygon :class:`~bpy.types.MeshPolygon` index of the evaluated
-      mesh used for blender data conversion.
-      It can be used to find the bpy polygon from the result of
-      a bge RayHit test (for example used in KX_GameObject::Raycast).
-
-      :type: integer
-
    .. method:: getMaterialName()
 
       Returns the polygon material name with MA prefix
