@@ -43,6 +43,7 @@ class RAS_Polygon {
   unsigned int m_offset[4];
   unsigned short m_numvert;
   unsigned short m_polyflags;
+  int m_origIndex;
 
  public:
   enum { VISIBLE = 1, COLLIDER = 2, TWOSIDE = 4 };
@@ -67,6 +68,8 @@ class RAS_Polygon {
 
   bool IsTwoside() const;
   void SetTwoside(bool twoside);
+  int GetOrigIndex();
+  void SetOrigIndex(int origIndex);
 
   RAS_MaterialBucket *GetMaterial() const;
   RAS_IDisplayArray *GetDisplayArray() const;

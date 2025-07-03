@@ -149,7 +149,8 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat,
                                         unsigned int indices[4],
                                         bool visible,
                                         bool collider,
-                                        bool twoside)
+                                        bool twoside,
+                                        int origIndex)
 {
   // add it to the bucket, this also adds new display arrays
   RAS_MaterialBucket *bucket = meshmat->GetBucket();
@@ -161,6 +162,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat,
   poly.SetVisible(visible);
   poly.SetCollider(collider);
   poly.SetTwoside(twoside);
+  poly.SetOrigIndex(origIndex);
 
   for (unsigned short i = 0; i < numverts; ++i) {
     poly.SetVertexOffset(i, indices[i]);
