@@ -820,7 +820,7 @@ Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(
   BLI_assert(materials.size() == cache.mat_len);
 
   mesh_cd_layers_type_merge(&cache.cd_needed, cd_needed);
-  drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
+  drw_attributes_merge(&cache.attr_needed, &attrs_needed);
   mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.surface_per_mat;
 }
@@ -848,7 +848,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_vertpaint(Object &object, Mesh &mes
   VectorSet<std::string> attrs_needed{};
   request_active_and_default_color_attributes(object, mesh, attrs_needed);
 
-  drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
+  drw_attributes_merge(&cache.attr_needed, &attrs_needed);
 
   mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.batch.surface;
@@ -861,7 +861,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_sculpt(Object &object, Mesh &mesh)
   VectorSet<std::string> attrs_needed{};
   request_active_and_default_color_attributes(object, mesh, attrs_needed);
 
-  drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
+  drw_attributes_merge(&cache.attr_needed, &attrs_needed);
 
   mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.batch.surface;
@@ -1223,13 +1223,12 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       cache.batch_ready &= ~(MBC_SURFACE | MBC_SURFACE_PER_MAT);
 
       mesh_cd_layers_type_merge(&cache.cd_used, cache.cd_needed);
-      drw_attributes_merge(&cache.attr_used, &cache.attr_needed, mesh.runtime->render_mutex);
+      drw_attributes_merge(&cache.attr_used, &cache.attr_needed);
     }
     mesh_cd_layers_type_merge(&cache.cd_used_over_time, cache.cd_needed);
     mesh_cd_layers_type_clear(&cache.cd_needed);
 
-    drw_attributes_merge(
-        &cache.attr_used_over_time, &cache.attr_needed, mesh.runtime->render_mutex);
+    drw_attributes_merge(&cache.attr_used_over_time, &cache.attr_needed);
     cache.attr_needed.clear();
   }
 
