@@ -360,6 +360,7 @@ void LA_Launcher::ExitEngine()
     AUD_Device *device = BKE_sound_get_device();
     if (device) {
       AUD_Device_stopAll(BKE_sound_get_device());
+      BKE_sound_use_end();
     }
   }
   //}

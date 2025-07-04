@@ -1730,6 +1730,11 @@ void BKE_sound_use_begin()
   sound_device_use_begin();
 }
 
+void BKE_sound_use_end()
+{
+  sound_device_use_end();
+}
+
 void *BKE_sound_get_device()
 {
   return g_state.sound_device;
