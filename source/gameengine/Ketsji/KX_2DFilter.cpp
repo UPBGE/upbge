@@ -155,10 +155,17 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(samplerName, gputexture
   char *samplerName = nullptr;
 
   if (!PyArg_ParseTuple(args, "sO!:setTexture", &samplerName, &BPyGPUTexture_Type, &py_texture)) {
+    PyErr_SetString(PyExc_TypeError,
+                  "filter.setTexture(samplerName, gputexture): KX_2DFilter, expected a "
+                  "sampler name and a GPUTexture.");
     return nullptr;
   }
 
   if (!SetTextureUniform(py_texture, samplerName)) {
+    PyErr_Format(PyExc_RuntimeError,
+               "filter.setTexture(samplerName, gputexture): KX_2DFilter, "
+               "failed to set texture uniform '%s'.",
+               samplerName);
     return nullptr;
   }
 
