@@ -1068,7 +1068,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
   UI_block_align_end(block);
 
   UI_block_direction_set(block, UI_DIR_UP);
-  UI_block_end(C, block);
+  //UI_block_end(C, block);
 
   return block;
 }
