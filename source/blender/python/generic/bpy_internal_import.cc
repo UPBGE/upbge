@@ -48,7 +48,7 @@
 #include "bpy_internal_import.hh" /* own include */
 
 static Main *bpy_import_main = nullptr;
-static ListBase bpy_import_main_list;
+static std::vector<Main *> bpy_import_main_list = {};
 
 /* 'builtins' is most likely PyEval_GetBuiltins() */
 
@@ -92,12 +92,15 @@ void bpy_import_main_set(struct Main *maggie)
 
 void bpy_import_main_extra_add(struct Main *maggie)
 {
-  BLI_addhead(&bpy_import_main_list, maggie);
+  bpy_import_main_list.emplace(bpy_import_main_list.begin(), maggie);
 }
 
 void bpy_import_main_extra_remove(struct Main *maggie)
 {
-  BLI_remlink_safe(&bpy_import_main_list, maggie);
+  std::vector<Main *>::iterator it = std::find(bpy_import_main_list.begin(), bpy_import_main_list.end(), maggie);
+  if (it != bpy_import_main_list.end()) {
+    bpy_import_main_list.erase(it);
+  }
 }
 
 /* returns a dummy filename for a textblock so we can tell what file a text block comes from */
@@ -187,10 +190,11 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   }
 
   /* If we still haven't found the module try additional modules form bpy_import_main_list */
-  maggie = (Main *)bpy_import_main_list.first;
-  while (maggie && !text) {
+  for (Main *maggie : bpy_import_main_list) {
     text = (Text *)BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
-    maggie = maggie->next;
+    if (text) {
+      break;
+    }
   }
 
   if (!text) {

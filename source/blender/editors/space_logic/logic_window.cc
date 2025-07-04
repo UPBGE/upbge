@@ -2648,8 +2648,15 @@ void logic_buttons(bContext *C, ARegion *region)
   xco = 20 * U.widget_unit;
   yco = -U.widget_unit / 2;
   width = 17 * U.widget_unit;
-  layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_style_get());
+  layout = &blender::ui::block_layout(block,
+                                      blender::ui::LayoutDirection::Vertical,
+                                      blender::ui::LayoutType::Panel,
+                                      xco,
+                                      yco,
+                                      width,
+                                      20,
+                                      0,
+                                      UI_style_get());
   row = &layout->row(true);
 
   uiDefBlockBut(block,
@@ -2807,8 +2814,15 @@ void logic_buttons(bContext *C, ARegion *region)
   xco = U.widget_unit / 2;
   yco = -U.widget_unit / 2;
   width = 17 * U.widget_unit;
-  layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_style_get());
+  layout = &blender::ui::block_layout(block,
+                                      blender::ui::LayoutDirection::Vertical,
+                                      blender::ui::LayoutType::Panel,
+                                      xco,
+                                      yco,
+                                      width,
+                                      20,
+                                      0,
+                                      UI_style_get());
   row = &layout->row(true);
 
   uiDefBlockBut(block,
@@ -2917,8 +2931,15 @@ void logic_buttons(bContext *C, ARegion *region)
   xco = 40 * U.widget_unit;
   yco = -U.widget_unit / 2;
   width = 17 * U.widget_unit;
-  layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_style_get());
+  layout = &blender::ui::block_layout(block,
+                                      blender::ui::LayoutDirection::Vertical,
+                                      blender::ui::LayoutType::Panel,
+                                      xco,
+                                      yco,
+                                      width,
+                                      20,
+                                      0,
+                                      UI_style_get());
   row = &layout->row(true);
 
   uiDefBlockBut(block,
