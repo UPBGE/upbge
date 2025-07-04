@@ -241,7 +241,7 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
     }
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-    GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb->GetFrameBuffer()));
+    GPU_texture_unbind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()));
   }
 }
 
