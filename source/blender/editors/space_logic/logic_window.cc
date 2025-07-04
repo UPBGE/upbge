@@ -787,7 +787,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
-  UI_block_end(C, block);
+  //UI_block_end(C, block);
 
   return block;
 }
@@ -895,7 +895,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
-  UI_block_end(C, block);
+  //UI_block_end(C, block);
 
   return block;
 }
@@ -1002,7 +1002,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
-  UI_block_end(C, block);
+  //UI_block_end(C, block);
 
   return block;
 }
