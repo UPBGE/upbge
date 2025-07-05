@@ -369,7 +369,7 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling)
     : m_cullingCache(nullptr),
       m_cullingTree(nullptr),
-      m_numIterations(10),
+      //m_numIterations(10),
       m_numTimeSubSteps(1),
       m_solverType(PHY_SOLVER_NONE),
       m_deactivationTime(2.0f),
@@ -938,7 +938,7 @@ void CcdPhysicsEnvironment::SetDebugMode(int debugMode)
 
 void CcdPhysicsEnvironment::SetNumIterations(int numIter)
 {
-  m_numIterations = numIter;
+  m_dynamicsWorld->getSolverInfo().m_numIterations = numIter;
 }
 void CcdPhysicsEnvironment::SetDeactivationTime(float dTime)
 {

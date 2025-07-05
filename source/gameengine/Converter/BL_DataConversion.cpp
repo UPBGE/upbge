@@ -1596,8 +1596,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   if (!single_object) {
-    if (blenderscene->world)
-      kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
+    kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
   }
 
   // Create physics information.
