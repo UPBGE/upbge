@@ -1072,13 +1072,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   KX_SetActiveScene(scene);
 
-  /* Clear the depth after setting the scene viewport/scissor
-   * if it's not the first render pass. */
-  if (pass > 0) {
-    GPU_depth_mask(true);
-    GPU_framebuffer_clear_depth(background_fb->GetFrameBuffer(), 1.0f);
-  }
-
   m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE /*cameraFrameData.m_eye*/);
 
   m_logger.StartLog(tc_scenegraph);
