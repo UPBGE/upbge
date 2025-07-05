@@ -790,7 +790,9 @@ static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext */*C*/
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_SPHERE);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_BOX);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CAPSULE);
-    RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_EMPTY);
+    if (ob->body_type != OB_BODY_TYPE_CHARACTER) {
+      RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_EMPTY);
+    }
   }
 
   RNA_enum_item_end(&item, &totitem);

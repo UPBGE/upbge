@@ -426,4 +426,11 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 1)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->body_type == OB_BOUND_EMPTY) {
+        ob->body_type = OB_BOUND_BOX;
+      }
+    }
+  }
 }
