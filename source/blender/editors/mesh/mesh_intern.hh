@@ -321,6 +321,7 @@ void MESH_OT_customdata_skin_add(wmOperatorType *ot);
 void MESH_OT_customdata_skin_clear(wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_add(wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_clear(wmOperatorType *ot);
+void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot);
 
 /* UPBGE */
 /* *** mesh_navmesh.c *** */
