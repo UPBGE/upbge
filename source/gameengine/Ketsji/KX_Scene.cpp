@@ -36,7 +36,6 @@
 
 #include "KX_Scene.h"
 
-#include "BKE_duplilist.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mball.hh"
@@ -50,7 +49,6 @@
 #include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_property_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DRW_render.hh"
@@ -58,10 +56,8 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 #include "GPU_context.hh"
-#include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
-#include "WM_api.hh"
 #include "wm_draw.hh"
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"

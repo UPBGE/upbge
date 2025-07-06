@@ -8,7 +8,6 @@
 #include "ImageBase.h"
 
 #include <epoxy/gl.h>
-#include "MEM_guardedalloc.h"
 
 #include "Exception.h"
 

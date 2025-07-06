@@ -37,7 +37,6 @@
 #include "CM_List.h"
 #include "CcdConstraint.h"
 #include "CcdGraphicController.h"
-#include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
 #include "MT_MinMax.h"
 #include "PHY_IVehicle.h"

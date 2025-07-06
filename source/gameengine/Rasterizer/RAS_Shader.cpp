@@ -24,11 +24,7 @@
 
 #include "RAS_Shader.h"
 
-#include "BLI_alloca.h"
-#include "BLI_string_ref.hh"
-#include "GPU_context.hh"
 #include "GPU_immediate.hh"
-#include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
 

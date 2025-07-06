@@ -32,16 +32,10 @@
 #include "GPG_Canvas.h"
 
 #include "BKE_context.hh"
-#include "BKE_image.hh"
 #include "BKE_image_format.hh"
-#include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 #include "GHOST_ISystem.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
-#include "MEM_guardedalloc.h"
 #include "wm_window.hh"
 
 #include "KX_Globals.h"

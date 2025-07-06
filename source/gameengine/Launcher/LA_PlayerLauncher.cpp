@@ -38,7 +38,6 @@
 
 #include "BKE_sound.h"
 #include "BLI_fileops.h"
-#include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
 #include "DEV_InputDevice.h"

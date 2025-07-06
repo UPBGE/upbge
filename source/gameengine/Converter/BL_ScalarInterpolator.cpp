@@ -33,7 +33,6 @@
 
 #include "ANIM_action.hh"
 #include "BKE_fcurve.hh"
-#include "DNA_anim_types.h"
 
 using namespace blender::animrig;
 

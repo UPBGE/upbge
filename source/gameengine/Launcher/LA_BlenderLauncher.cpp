@@ -29,16 +29,10 @@
 #include "BKE_screen.hh"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
-#include "GPU_context.hh"
-#include "GPU_framebuffer.hh"
-#include "GPU_state.hh"
-#include "WM_api.hh"
 #include "wm_event_system.hh"
-#include "wm_window.hh"
 
 #include "CM_Message.h"
 #include "KX_BlenderCanvas.h"
-#include "KX_Globals.h"
 #include "KX_PythonInit.h"
 
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,

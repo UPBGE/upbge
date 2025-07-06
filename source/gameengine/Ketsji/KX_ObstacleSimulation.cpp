@@ -29,8 +29,6 @@
 #include "KX_ObstacleSimulation.h"
 
 #include "BLI_math_geom.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
 
 #include "KX_Globals.h"
 #include "KX_NavMeshObject.h"

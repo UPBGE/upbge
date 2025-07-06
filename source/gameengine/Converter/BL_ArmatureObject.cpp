@@ -32,13 +32,11 @@
 #include "BL_ArmatureObject.h"
 
 #include "ANIM_action.hh"
-#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_object_types.hh"
 #include "BLI_math_rotation.h"
-#include "DNA_armature_types.h"
 #include "RNA_access.hh"
 
 #include "BL_Action.h"

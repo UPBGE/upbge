@@ -27,13 +27,11 @@
 #include "BL_Action.h"
 
 #include "ANIM_action.hh"
-#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "RNA_access.hh"

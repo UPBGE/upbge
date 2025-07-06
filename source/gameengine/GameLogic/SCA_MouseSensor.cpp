@@ -37,7 +37,6 @@
 
 #include "SCA_MouseManager.h"
 
-#include "BLI_compiler_attrs.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

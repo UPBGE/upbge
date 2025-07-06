@@ -26,13 +26,8 @@
 
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
-#include "BLI_path_utils.hh"
-#include "BLI_string.h"
 #include "BLI_task.h"
-#include "DNA_scene_types.h"
 #include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
-#include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
 

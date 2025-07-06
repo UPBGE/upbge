@@ -60,16 +60,13 @@
 
 /* This list includes only data type definitions */
 #include "BKE_armature.hh"
-#include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh" /* give_current_material */
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_tangent.hh"
-#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BLI_listbase.h"
@@ -99,7 +96,6 @@
 #include "KX_NavMeshObject.h"
 #include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
-#include "KX_PyConstraintBinding.h"
 #include "KX_PythonComponent.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"

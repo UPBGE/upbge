@@ -27,7 +27,6 @@
 #include "BL_ActionManager.h"
 
 #include "BKE_lib_id.hh"
-#include "DNA_ID.h"
 
 #include "BL_Action.h"
 

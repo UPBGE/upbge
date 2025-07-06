@@ -33,7 +33,6 @@
 
 #  include "KX_VertexProxy.h"
 
-#include <fmt/format.h>
 
 #  include "EXP_ListWrapper.h"
 #  include "KX_MeshProxy.h"

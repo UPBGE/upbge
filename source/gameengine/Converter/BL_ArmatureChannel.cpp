@@ -34,7 +34,6 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "DNA_armature_types.h"
 
 #include "BL_ArmatureObject.h"
 

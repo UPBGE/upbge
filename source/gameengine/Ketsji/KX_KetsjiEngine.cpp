@@ -38,14 +38,10 @@
 
 #include <fmt/format.h>
 
-#include "BKE_context.hh"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
-#include "DRW_render.hh"
-#include "GPU_context.hh"
 #include "GPU_immediate.hh"
-#include "GPU_matrix.hh"
 #include "GPU_viewport.hh"
 #include "WM_api.hh"
 
@@ -55,7 +51,6 @@
 #include "KX_Camera.h"
 #include "KX_Globals.h"
 #include "KX_NetworkMessageScene.h"
-#include "KX_PyConstraintBinding.h"
 #include "KX_PythonInit.h"  // for updatePythonJoysticks
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_FrameBuffer.h"

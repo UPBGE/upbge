@@ -39,7 +39,6 @@
 #include "BKE_text.h"
 #include "DNA_controller_types.h"
 #include "DNA_text_types.h"
-#include "MEM_guardedalloc.h"
 
 #include "BL_SceneConverter.h"
 #include "EXP_IntValue.h"

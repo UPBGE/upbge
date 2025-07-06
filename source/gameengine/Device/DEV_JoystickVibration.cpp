@@ -24,7 +24,6 @@
  *  \ingroup device
  */
 
-#include <memory>  // We have to include that on Windows to make memset available
 
 #include "CM_Message.h"
 #include "DEV_Joystick.h"

@@ -30,7 +30,6 @@
 
 #include "LA_Launcher.h"
 
-#include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BKE_sound.h"
 #include "DNA_scene_types.h"
@@ -47,7 +46,6 @@
 #include "GPG_Canvas.h"
 #include "KX_Globals.h"
 #include "KX_NetworkMessageManager.h"
-#include "KX_PyConstraintBinding.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
 #include "LA_System.h"

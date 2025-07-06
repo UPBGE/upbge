@@ -24,14 +24,10 @@
 
 #include "KX_BlenderMaterial.h"
 
-#include "GPU_context.hh"
-#include "GPU_material.hh"
 #include "DNA_material_types.h"
-#include "draw_context_private.hh"
 
 #include "BL_Shader.h"
 #include "EXP_ListWrapper.h"
-#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_MaterialShader.h"
 #include "RAS_BucketManager.h"

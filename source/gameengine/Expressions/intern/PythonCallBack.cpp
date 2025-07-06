@@ -26,7 +26,6 @@
 
 #include "EXP_PythonCallBack.h"
 
-#include <iostream>
 
 #include "BLI_alloca.h"
 

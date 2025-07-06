@@ -24,18 +24,14 @@
  *  \ingroup bgerastogl
  */
 
-#include "RAS_DebugDraw.h"
 
 #include "BLF_api.hh"
 #include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
-#include "DRW_render.hh"
 #include "GPU_immediate.hh"
-#include "GPU_matrix.hh"
 
 #include "KX_Camera.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "RAS_ICanvas.h"
 #include "RAS_OpenGLDebugDraw.h"
 
