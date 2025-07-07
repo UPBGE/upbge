@@ -360,8 +360,8 @@ bool CcdPhysicsController::CreateSoftbody()
       /// only deal with meshes that have 1 sub part/component, for now
       if (trimeshshape->getMeshInterface()->getNumSubParts() == 1) {
         unsigned char *vertexBase;
-        // btScalar *scaledVertexBase;
-        // btVector3 localScaling;
+        btScalar *scaledVertexBase;
+        btVector3 localScaling;
         PHY_ScalarType vertexType;
         int numverts;
         int vertexstride;
@@ -376,19 +376,19 @@ bool CcdPhysicsController::CreateSoftbody()
                                                                    indexstride,
                                                                    numtris,
                                                                    indexType);
-        /*localScaling = scaledtrimeshshape->getLocalScaling();
+        localScaling = scaledtrimeshshape->getLocalScaling();
         scaledVertexBase = new btScalar[numverts * 3];
         for (int i = 0; i < numverts * 3; i += 3) {
           scaledVertexBase[i] = ((const btScalar *)vertexBase)[i] * localScaling.getX();
           scaledVertexBase[i + 1] = ((const btScalar *)vertexBase)[i + 1] * localScaling.getY();
           scaledVertexBase[i + 2] = ((const btScalar *)vertexBase)[i + 2] * localScaling.getZ();
-        }*/
+        }
         psb = btSoftBodyHelpers::CreateFromTriMesh(worldInfo,
-                                                   (btScalar *)vertexBase /*scaledVertexBase*/,
+                                                   (btScalar *)scaledVertexBase,
                                                    (const int *)indexbase,
                                                    numtris,
                                                    false);
-        // delete[] scaledVertexBase;
+        delete[] scaledVertexBase;
       }
     }
     else {
@@ -523,12 +523,11 @@ bool CcdPhysicsController::CreateSoftbody()
           vertexInfo.setSoftBodyIndex(0);
           btScalar maxDistSqr = 1e30;
           btSoftBody::tNodeArray &nodes(psb->m_nodes);
-          btVector3 xyz = ToBullet(vertex->xyz());
+          btVector3 xyz = ToBullet(vertex->xyz()) * m_cci.m_scaling;
           for (int n = 0; n < nodes.size(); n++) {
             btScalar distSqr = (nodes[n].m_x - xyz).length2();
             if (distSqr < maxDistSqr) {
               maxDistSqr = distSqr;
-
               vertexInfo.setSoftBodyIndex(n);
             }
           }
