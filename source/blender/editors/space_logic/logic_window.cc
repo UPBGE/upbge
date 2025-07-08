@@ -2806,7 +2806,7 @@ void logic_buttons(bContext *C, ARegion *region)
           but, nullptr, (void ***)&(cont->links), &cont->totlinks, LINK_CONTROLLER, LINK_ACTUATOR);
     }
   }
-  UI_block_layout_resolve(block, nullptr, &yco); /* stores final height in yco */
+  yco = blender::ui::block_layout_resolve(block).y; /* stores final height in yco */
   height = yco;
 
   /* ****************** Sensors ****************** */
@@ -2923,7 +2923,7 @@ void logic_buttons(bContext *C, ARegion *region)
       }
     }
   }
-  UI_block_layout_resolve(block, nullptr, &yco); /* stores final height in yco */
+  yco = blender::ui::block_layout_resolve(block).y; /* stores final height in yco */
   height = std::min(height, yco);
 
   /* ****************** Actuators ****************** */
@@ -3040,7 +3040,7 @@ void logic_buttons(bContext *C, ARegion *region)
       }
     }
   }
-  UI_block_layout_resolve(block, nullptr, &yco); /* stores final height in yco */
+  yco = blender::ui::block_layout_resolve(block).y; /* stores final height in yco */
   height = std::min(height, yco);
 
   UI_view2d_totRect_set(&region->v2d, 57.5f * U.widget_unit, height - U.widget_unit);
