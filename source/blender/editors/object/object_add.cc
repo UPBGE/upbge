@@ -4998,6 +4998,20 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
   return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
 }
 
+static bool object_update_shapes_poll(bContext *C)
+{
+  if (!active_shape_key_editable_poll(C)) {
+    return false;
+  }
+
+  Object *ob = CTX_data_active_object(C);
+  const Key *key = BKE_key_from_object(ob);
+  if (!key || BLI_listbase_is_empty(&key->block)) {
+    return false;
+  }
+  return true;
+}
+
 void OBJECT_OT_update_shapes(wmOperatorType *ot)
 {
   ot->name = "Update from Objects";
@@ -5007,7 +5021,7 @@ void OBJECT_OT_update_shapes(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_update_shapes";
 
   ot->exec = update_all_shape_keys_exec;
-  ot->poll = active_shape_key_editable_poll;
+  ot->poll = object_update_shapes_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
