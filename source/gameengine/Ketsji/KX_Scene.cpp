@@ -1449,7 +1449,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
             /* After BlenderDataConversion, a default default transform is applied to the softbody.
             /* We need to modify it */
             ctrl->SetSoftBodyTransform(newpos - oldpos,
-                                       newori, newscale);
+                                       newori.scaled(newscale[0], newscale[1], newscale[2]));
           }
         }
       }
@@ -2026,7 +2026,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
     PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
     if (ctrl) {
       if (ctrl->GetSoftBody()) {
-        ctrl->SetSoftBodyTransform(newpos, newori, newscale);
+        ctrl->SetSoftBodyTransform(newpos, newori.scaled(newscale[0], newscale[1], newscale[2]));
       }
     }
   }
