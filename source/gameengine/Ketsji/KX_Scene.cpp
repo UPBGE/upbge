@@ -2022,6 +2022,13 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
     MT_Vector3 newscale = referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
     // set the replica's relative scale with the rootnode's scale
     replica->NodeSetRelativeScale(newscale);
+
+    PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
+    if (ctrl) {
+      if (ctrl->GetSoftBody()) {
+        ctrl->SetSoftBodyTransform(newpos, newori.scaled(newscale[0], newscale[1], newscale[2]));
+      }
+    }
   }
 
   replica->GetSGNode()->UpdateWorldData(0);
