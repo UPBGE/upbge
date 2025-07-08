@@ -915,12 +915,10 @@ void CcdPhysicsController::UpdateSoftBody()
   }
 }
 
-/* To be called only one time when we add a softbody to the scene */
 void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori)
 {
   if (GetSoftBody()) {
     GetSoftBody()->transform(btTransform(ToBullet(ori), ToBullet(pos)));
-    m_softBodyTransformInitialized = true;
   }
 }
 
@@ -1124,6 +1122,14 @@ void CcdPhysicsController::SetWorldOrientation(const btMatrix3x3 &orn)
     btTransform xform = m_object->getWorldTransform();
     xform.setBasis(orn);
     SetCenterOfMassTransform(xform);
+
+    // only once!
+    if (!m_softBodyTransformInitialized && GetSoftBody()) {
+      m_softbodyStartTrans.setBasis(orn);
+      xform.setOrigin(m_softbodyStartTrans.getOrigin());
+      GetSoftBody()->transform(xform);
+      m_softBodyTransformInitialized = true;
+    }
   }
 }
 
@@ -1143,6 +1149,8 @@ void CcdPhysicsController::SetPosition(const MT_Vector3 &pos)
     btTransform xform = m_object->getWorldTransform();
     xform.setOrigin(ToBullet(pos));
     SetCenterOfMassTransform(xform);
+    if (!m_softBodyTransformInitialized)
+      m_softbodyStartTrans.setOrigin(xform.getOrigin());
     // not required
     // m_bulletMotionState->setWorldTransform(xform);
   }
