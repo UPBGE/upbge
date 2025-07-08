@@ -62,7 +62,9 @@ class PHY_IPhysicsController : public PHY_IController {
 
   virtual btSoftBody *GetSoftBody() = 0;
   virtual void UpdateSoftBody() = 0;
-  virtual void SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori) = 0;
+  virtual void SetSoftBodyTransform(const MT_Vector3 &pos,
+                                    const MT_Matrix3x3 &ori,
+                                    const MT_Vector3 &scale) = 0;
   virtual void RemoveSoftBodyModifier(struct Object *ob) = 0;
   /**
    * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late

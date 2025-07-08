@@ -916,10 +916,12 @@ void CcdPhysicsController::UpdateSoftBody()
 }
 
 /* To be called only one time when we add a softbody to the scene */
-void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori)
+void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori, const MT_Vector3 &scale)
 {
   if (GetSoftBody()) {
-    GetSoftBody()->transform(btTransform(ToBullet(ori), ToBullet(pos)));
+    GetSoftBody()->transform(btTransform(ToBullet(ori.scaled(scale[0], scale[1], scale[2])), ToBullet(pos)));
+    m_cci.m_scaling = ToBullet(scale);
+    m_collisionShape->setLocalScaling(m_cci.m_scaling);
     m_softBodyTransformInitialized = true;
   }
 }
