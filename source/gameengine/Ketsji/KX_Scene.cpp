@@ -1444,13 +1444,9 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
 
         PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
 
+        /* Hack to fix softbody transform after conversion */
         if (ctrl) {
-          if (ctrl->GetSoftBody()) {
-            /* After BlenderDataConversion, a default default transform is applied to the softbody.
-            /* We need to modify it */
-            ctrl->SetSoftBodyTransform(newpos - oldpos,
-                                       newori.scaled(newscale[0], newscale[1], newscale[2]));
-          }
+          ctrl->SetSoftBodyTransform(newpos - oldpos, newori);
         }
       }
 

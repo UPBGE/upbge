@@ -652,7 +652,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   btRigidBody *GetRigidBody();
   const btRigidBody *GetRigidBody() const;
   btCollisionObject *GetCollisionObject();
-  virtual btSoftBody *GetSoftBody();
+  btSoftBody *GetSoftBody();
   btKinematicCharacterController *GetCharacterController();
 
   CcdShapeConstructionInfo *GetShapeInfo()
