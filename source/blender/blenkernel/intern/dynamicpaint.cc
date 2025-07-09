@@ -81,7 +81,7 @@ using blender::int3;
 // #  pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
 
-static CLG_LogRef LOG = {"bke.dynamicpaint"};
+static CLG_LogRef LOG = {"object.dynamicpaint"};
 
 /* precalculated gaussian factors for 5x super sampling */
 static const float gaussianFactors[5] = {
@@ -2882,8 +2882,8 @@ int dynamicPaint_createUVSurface(Scene *scene,
   /*
    * Start generating the surface
    */
-  CLOG_INFO(
-      &LOG, 1, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
+  CLOG_DEBUG(
+      &LOG, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
 
   /* Init data struct */
   if (surface->data) {

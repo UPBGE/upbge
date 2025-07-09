@@ -117,7 +117,7 @@
 
 using blender::Array;
 
-static CLG_LogRef LOG = {"bke.image"};
+static CLG_LogRef LOG = {"image"};
 
 static void image_init(Image *ima, short source, short type);
 static void image_free_packedfiles(Image *ima);
@@ -1869,7 +1869,7 @@ static void stampdata(
     }
 
     if (use_dynamic && stats && (scene->r.stamp & R_STAMP_MEMORY)) {
-      SNPRINTF(stamp_data->memory, do_prefix ? "Peak Memory %.2fM" : "%.2fM", stats->mem_peak);
+      SNPRINTF(stamp_data->memory, do_prefix ? "Peak Memory ddM" : "%dM", stats->mem_peak);
     }
     else {
       stamp_data->memory[0] = '\0';
@@ -2709,7 +2709,7 @@ MovieReader *openanim(const char *filepath,
     else {
       reason = "not an anim";
     }
-    CLOG_INFO(&LOG, 1, "unable to load anim, %s: %s", reason, filepath);
+    CLOG_INFO(&LOG, "unable to load anim, %s: %s", reason, filepath);
 
     MOV_close(anim);
     return nullptr;

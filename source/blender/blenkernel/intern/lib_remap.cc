@@ -40,7 +40,7 @@
 
 using namespace blender::bke::id;
 
-static CLG_LogRef LOG = {"bke.lib_remap"};
+static CLG_LogRef LOG = {"lib.remap"};
 
 BKE_library_free_notifier_reference_cb free_notifier_reference_cb = nullptr;
 

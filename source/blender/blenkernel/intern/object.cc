@@ -162,7 +162,7 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.object"};
+static CLG_LogRef LOG = {"object"};
 
 /**
  * NOTE(@sergey): Vertex parent modifies original #BMesh which is not safe for threading.
