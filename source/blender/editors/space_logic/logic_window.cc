@@ -1118,8 +1118,10 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
 
   sub = &row->row(true);
   sub->active_set(RNA_boolean_get(ptr, "active"));
-  uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_UP, "direction", 1);    // up
-  uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN, "direction", 2);  // down
+  PointerRNA op_ptr = sub->op("LOGIC_OT_sensor_move", "", ICON_TRIA_UP);    // up
+  RNA_enum_set(&op_ptr, "direction", 1);
+  op_ptr = sub->op("LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN);  // down
+  RNA_enum_set(&op_ptr, "direction", 2);
 
   sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
@@ -1558,8 +1560,10 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 
   sub = &row->row(true);
   sub->active_set(RNA_boolean_get(ptr, "active"));
-  uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_UP, "direction", 1);    // up
-  uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_DOWN, "direction", 2);  // down
+  PointerRNA op_ptr = sub->op("LOGIC_OT_controller_move", "", ICON_TRIA_UP);    // up
+  RNA_enum_set(&op_ptr, "direction", 1);
+  op_ptr = sub->op("LOGIC_OT_controller_move", "", ICON_TRIA_DOWN);  // down
+  RNA_enum_set(&op_ptr, "direction", 2);
 
   sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
@@ -1659,8 +1663,10 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 
   sub = &row->row(true);
   sub->active_set(RNA_boolean_get(ptr, "active"));
-  uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_UP, "direction", 1);    // up
-  uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN, "direction", 2);  // down
+  PointerRNA op_ptr = sub->op("LOGIC_OT_actuator_move", "", ICON_TRIA_UP);    // up
+  RNA_enum_set(&op_ptr, "direction", 1);
+  op_ptr = sub->op("LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN);  // down
+  RNA_enum_set(&op_ptr, "direction", 2);
 
   sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
