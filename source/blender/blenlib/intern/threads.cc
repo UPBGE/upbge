@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstdio> /* For `printf`. */
 #include <cstdlib>
 #include <deque>
 

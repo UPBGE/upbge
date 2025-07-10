@@ -155,6 +155,10 @@ enum eObjectInfoFlag : uint32_t {
   OBJECT_NO_INFO = ~OBJECT_HOLDOUT
 };
 
+#if !defined(GPU_SHADER) && defined(__cplusplus)
+ENUM_OPERATORS(eObjectInfoFlag, OBJECT_ACTIVE_EDIT_MODE);
+#endif
+
 struct ObjectInfos {
   /** Uploaded as center + size. Converted to mul+bias to local coord. */
   packed_float3 orco_add;

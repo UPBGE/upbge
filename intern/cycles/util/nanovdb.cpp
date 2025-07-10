@@ -1,5 +1,6 @@
 /* SPDX-FileCopyrightText: Contributors to the OpenVDB Project
  * SPDX-FileCopyrightText: 2025 Blender Foundation
+ *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_NANOVDB
@@ -271,10 +272,10 @@ struct ToNanoOp {
 #  endif
     }
     catch (const std::exception &e) {
-      LOG(WARNING) << "Error converting OpenVDB to NanoVDB grid: " << e.what();
+      LOG_WARNING << "Error converting OpenVDB to NanoVDB grid: " << e.what();
     }
     catch (...) {
-      LOG(WARNING) << "Error converting OpenVDB to NanoVDB grid: Unknown error";
+      LOG_WARNING << "Error converting OpenVDB to NanoVDB grid: Unknown error";
     }
     return true;
   }

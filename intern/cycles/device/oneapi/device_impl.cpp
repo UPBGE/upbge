@@ -73,8 +73,8 @@ OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profi
               oneapi_error_string_ + "\"");
   }
   else {
-    LOG(DEBUG) << "oneAPI queue has been successfully created for the device \""
-               << info.description << "\"";
+    LOG_DEBUG << "oneAPI queue has been successfully created for the device \"" << info.description
+              << "\"";
     assert(device_queue_);
   }
 
@@ -85,7 +85,7 @@ OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profi
 #  endif
 
   if (use_hardware_raytracing) {
-    LOG(INFO) << "oneAPI will use hardware ray tracing for intersection acceleration.";
+    LOG_INFO << "oneAPI will use hardware ray tracing for intersection acceleration.";
   }
 
   size_t globals_segment_size;
@@ -95,7 +95,7 @@ OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profi
               oneapi_error_string_ + "\"");
   }
   else {
-    LOG(DEBUG) << "Successfully created global/constant memory segment (kernel globals object)";
+    LOG_DEBUG << "Successfully created global/constant memory segment (kernel globals object)";
   }
 
   kg_memory_ = usm_aligned_alloc_host(device_queue_, globals_segment_size, 16);
@@ -115,8 +115,8 @@ OneapiDevice::OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profi
     device_working_headroom = override_headroom;
     device_texture_headroom = override_headroom;
   }
-  LOG(DEBUG) << "oneAPI memory headroom size: "
-             << string_human_readable_size(device_working_headroom);
+  LOG_DEBUG << "oneAPI memory headroom size: "
+            << string_human_readable_size(device_working_headroom);
 }
 
 OneapiDevice::~OneapiDevice()
@@ -239,11 +239,11 @@ bool OneapiDevice::load_kernels(const uint requested_features)
               "\"");
     return false;
   }
-  LOG(INFO) << "Test kernel has been executed successfully for \"" << info.description << "\"";
+  LOG_INFO << "Test kernel has been executed successfully for \"" << info.description << "\"";
   assert(device_queue_);
 
   if (use_hardware_raytracing && !can_use_hardware_raytracing_for_features(requested_features)) {
-    LOG(INFO)
+    LOG_INFO
         << "Hardware ray tracing disabled, not supported yet by oneAPI for requested features.";
     use_hardware_raytracing = false;
   }
@@ -254,7 +254,7 @@ bool OneapiDevice::load_kernels(const uint requested_features)
     set_error("oneAPI kernels loading: got a runtime exception \"" + oneapi_error_string_ + "\"");
   }
   else {
-    LOG(INFO) << "Kernels loading (compilation) has been done for \"" << info.description << "\"";
+    LOG_INFO << "Kernels loading (compilation) has been done for \"" << info.description << "\"";
   }
 
   if (is_finished_ok) {
@@ -294,9 +294,9 @@ void OneapiDevice::reserve_private_memory(const uint kernel_features)
 
   size_t free_after = get_free_mem();
 
-  LOG(INFO) << "For kernel execution were reserved "
-            << string_human_readable_number(free_before - free_after) << " bytes. ("
-            << string_human_readable_size(free_before - free_after) << ")";
+  LOG_INFO << "For kernel execution were reserved "
+           << string_human_readable_number(free_before - free_after) << " bytes. ("
+           << string_human_readable_size(free_before - free_after) << ")";
 }
 
 void OneapiDevice::get_device_memory_info(size_t &total, size_t &free)
@@ -422,9 +422,9 @@ void OneapiDevice::mem_alloc(device_memory &mem)
   }
   else {
     if (mem.name) {
-      LOG(DEBUG) << "OneapiDevice::mem_alloc: \"" << mem.name << "\", "
-                 << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                 << string_human_readable_size(mem.memory_size()) << ")";
+      LOG_DEBUG << "OneapiDevice::mem_alloc: \"" << mem.name << "\", "
+                << string_human_readable_number(mem.memory_size()) << " bytes. ("
+                << string_human_readable_size(mem.memory_size()) << ")";
     }
     generic_alloc(mem);
   }
@@ -433,9 +433,9 @@ void OneapiDevice::mem_alloc(device_memory &mem)
 void OneapiDevice::mem_copy_to(device_memory &mem)
 {
   if (mem.name) {
-    LOG(DEBUG) << "OneapiDevice::mem_copy_to: \"" << mem.name << "\", "
-               << string_human_readable_number(mem.memory_size()) << " bytes. ("
-               << string_human_readable_size(mem.memory_size()) << ")";
+    LOG_DEBUG << "OneapiDevice::mem_copy_to: \"" << mem.name << "\", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")";
   }
 
   /* After getting runtime errors we need to avoid performing oneAPI runtime operations
@@ -461,9 +461,9 @@ void OneapiDevice::mem_copy_to(device_memory &mem)
 void OneapiDevice::mem_move_to_host(device_memory &mem)
 {
   if (mem.name) {
-    LOG(DEBUG) << "OneapiDevice::mem_move_to_host: \"" << mem.name << "\", "
-               << string_human_readable_number(mem.memory_size()) << " bytes. ("
-               << string_human_readable_size(mem.memory_size()) << ")";
+    LOG_DEBUG << "OneapiDevice::mem_move_to_host: \"" << mem.name << "\", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")";
   }
 
   /* After getting runtime errors we need to avoid performing oneAPI runtime operations
@@ -496,10 +496,10 @@ void OneapiDevice::mem_copy_from(
     const size_t offset = elem * y * w;
 
     if (mem.name) {
-      LOG(DEBUG) << "OneapiDevice::mem_copy_from: \"" << mem.name << "\" object of "
-                 << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                 << string_human_readable_size(mem.memory_size()) << ") from offset " << offset
-                 << " data " << size << " bytes";
+      LOG_DEBUG << "OneapiDevice::mem_copy_from: \"" << mem.name << "\" object of "
+                << string_human_readable_number(mem.memory_size()) << " bytes. ("
+                << string_human_readable_size(mem.memory_size()) << ") from offset " << offset
+                << " data " << size << " bytes";
     }
 
     /* After getting runtime errors we need to avoid performing oneAPI runtime operations
@@ -526,9 +526,9 @@ void OneapiDevice::mem_copy_from(
 void OneapiDevice::mem_zero(device_memory &mem)
 {
   if (mem.name) {
-    LOG(DEBUG) << "OneapiDevice::mem_zero: \"" << mem.name << "\", "
-               << string_human_readable_number(mem.memory_size()) << " bytes. ("
-               << string_human_readable_size(mem.memory_size()) << ")\n";
+    LOG_DEBUG << "OneapiDevice::mem_zero: \"" << mem.name << "\", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")\n";
   }
 
   /* After getting runtime errors we need to avoid performing oneAPI runtime operations
@@ -556,9 +556,9 @@ void OneapiDevice::mem_zero(device_memory &mem)
 void OneapiDevice::mem_free(device_memory &mem)
 {
   if (mem.name) {
-    LOG(DEBUG) << "OneapiDevice::mem_free: \"" << mem.name << "\", "
-               << string_human_readable_number(mem.device_size) << " bytes. ("
-               << string_human_readable_size(mem.device_size) << ")\n";
+    LOG_DEBUG << "OneapiDevice::mem_free: \"" << mem.name << "\", "
+              << string_human_readable_number(mem.device_size) << " bytes. ("
+              << string_human_readable_size(mem.device_size) << ")\n";
   }
 
   if (mem.type == MEM_GLOBAL) {
@@ -584,9 +584,9 @@ void OneapiDevice::const_copy_to(const char *name, void *host, const size_t size
 {
   assert(name);
 
-  LOG(DEBUG) << "OneapiDevice::const_copy_to \"" << name << "\" object "
-             << string_human_readable_number(size) << " bytes. ("
-             << string_human_readable_size(size) << ")";
+  LOG_DEBUG << "OneapiDevice::const_copy_to \"" << name << "\" object "
+            << string_human_readable_number(size) << " bytes. ("
+            << string_human_readable_size(size) << ")";
 
   if (strcmp(name, "data") == 0) {
     assert(size <= sizeof(KernelData));
@@ -634,9 +634,9 @@ void OneapiDevice::global_alloc(device_memory &mem)
   assert(mem.name);
 
   size_t size = mem.memory_size();
-  LOG(DEBUG) << "OneapiDevice::global_alloc \"" << mem.name << "\" object "
-             << string_human_readable_number(size) << " bytes. ("
-             << string_human_readable_size(size) << ")";
+  LOG_DEBUG << "OneapiDevice::global_alloc \"" << mem.name << "\" object "
+            << string_human_readable_number(size) << " bytes. ("
+            << string_human_readable_size(size) << ")";
 
   generic_alloc(mem);
   generic_copy_to(mem);
@@ -776,9 +776,9 @@ void OneapiDevice::tex_alloc(device_texture &mem)
       desc = sycl::ext::oneapi::experimental::image_descriptor(
           {mem.data_width, mem.data_height, 0}, mem.data_elements, channel_type);
 
-      LOG(WORK) << "Array 2D/3D allocate: " << mem.name << ", "
-                << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                << string_human_readable_size(mem.memory_size()) << ")";
+      LOG_WORK << "Array 2D/3D allocate: " << mem.name << ", "
+               << string_human_readable_number(mem.memory_size()) << " bytes. ("
+               << string_human_readable_size(mem.memory_size()) << ")";
 
       sycl::ext::oneapi::experimental::image_mem_handle memHandle =
           sycl::ext::oneapi::experimental::alloc_image_mem(desc, *queue);
@@ -1360,10 +1360,10 @@ int parse_driver_build_version(const sycl::device &device)
   }
 
   if (driver_build_version == 0) {
-    LOG(WARNING) << "Unable to parse unknown Intel GPU driver version. \"" << driver_version
-                 << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
-                 << " xx.xx.xxx.xxxx (Windows) for device \""
-                 << device.get_info<sycl::info::device::name>() << "\".";
+    LOG_WARNING << "Unable to parse unknown Intel GPU driver version. \"" << driver_version
+                << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
+                << " xx.xx.xxx.xxxx (Windows) for device \""
+                << device.get_info<sycl::info::device::name>() << "\".";
   }
 
   return driver_build_version;
@@ -1371,92 +1371,97 @@ int parse_driver_build_version(const sycl::device &device)
 
 std::vector<sycl::device> available_sycl_devices()
 {
+  std::vector<sycl::device> available_devices;
   bool allow_all_devices = false;
   if (getenv("CYCLES_ONEAPI_ALL_DEVICES") != nullptr) {
     allow_all_devices = true;
   }
 
-  const std::vector<sycl::platform> &oneapi_platforms = sycl::platform::get_platforms();
+  try {
+    const std::vector<sycl::platform> &oneapi_platforms = sycl::platform::get_platforms();
 
-  std::vector<sycl::device> available_devices;
-  for (const sycl::platform &platform : oneapi_platforms) {
-    /* ignore OpenCL platforms to avoid using the same devices through both Level-Zero and OpenCL.
-     */
-    if (platform.get_backend() == sycl::backend::opencl) {
-      continue;
-    }
+    for (const sycl::platform &platform : oneapi_platforms) {
+      /* ignore OpenCL platforms to avoid using the same devices through both Level-Zero and
+       * OpenCL.
+       */
+      if (platform.get_backend() == sycl::backend::opencl) {
+        continue;
+      }
 
-    const std::vector<sycl::device> &oneapi_devices =
-        (allow_all_devices) ? platform.get_devices(sycl::info::device_type::all) :
-                              platform.get_devices(sycl::info::device_type::gpu);
+      const std::vector<sycl::device> &oneapi_devices =
+          (allow_all_devices) ? platform.get_devices(sycl::info::device_type::all) :
+                                platform.get_devices(sycl::info::device_type::gpu);
 
-    for (const sycl::device &device : oneapi_devices) {
-      bool filter_out = false;
-      if (!allow_all_devices) {
-        /* For now we support all Intel(R) Arc(TM) devices and likely any future GPU,
-         * assuming they have either more than 96 Execution Units or not 7 threads per EU.
-         * Official support can be broaden to older and smaller GPUs once ready. */
-        if (!device.is_gpu() || platform.get_backend() != sycl::backend::ext_oneapi_level_zero) {
-          filter_out = true;
-        }
-        else {
-          /* Filtered-out defaults in-case these values aren't available. */
-          int number_of_eus = 96;
-          int threads_per_eu = 7;
-          if (device.has(sycl::aspect::ext_intel_gpu_eu_count)) {
-            number_of_eus = device.get_info<sycl::ext::intel::info::device::gpu_eu_count>();
-          }
-          if (device.has(sycl::aspect::ext_intel_gpu_hw_threads_per_eu)) {
-            threads_per_eu =
-                device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>();
-          }
-          /* This filters out all Level-Zero supported GPUs from older generation than Arc. */
-          if (number_of_eus <= 96 && threads_per_eu == 7) {
+      for (const sycl::device &device : oneapi_devices) {
+        bool filter_out = false;
+        if (!allow_all_devices) {
+          /* For now we support all Intel(R) Arc(TM) devices and likely any future GPU,
+           * assuming they have either more than 96 Execution Units or not 7 threads per EU.
+           * Official support can be broaden to older and smaller GPUs once ready. */
+          if (!device.is_gpu() || platform.get_backend() != sycl::backend::ext_oneapi_level_zero) {
             filter_out = true;
           }
-          /* if not already filtered out, check driver version. */
-          bool check_driver_version = !filter_out;
-          /* We don't know how to check driver version strings for non-Intel GPUs. */
-          if (check_driver_version &&
-              device.get_info<sycl::info::device::vendor>().find("Intel") == std::string::npos)
-          {
-            check_driver_version = false;
-          }
-          /* Because of https://github.com/oneapi-src/unified-runtime/issues/1777, future drivers
-           * may break parsing done by a SYCL runtime from before the fix we expect in major
-           * version 8. Parsed driver version would start with something different than current
-           * "1.3.". To avoid blocking a device by mistake in the case of new driver / old SYCL
-           * runtime, we disable driver version check in case LIBSYCL_MAJOR_VERSION is below 8 and
-           * actual driver version doesn't start with 1.3. */
-#  if __LIBSYCL_MAJOR_VERSION < 8
-          if (check_driver_version &&
-              !string_startswith(device.get_info<sycl::info::device::driver_version>(), "1.3."))
-          {
-            check_driver_version = false;
-          }
-#  endif
-          if (check_driver_version) {
-            int driver_build_version = parse_driver_build_version(device);
-            const int lowest_supported_driver_version = (driver_build_version > 100000) ?
-                                                            lowest_supported_driver_version_win :
-                                                            lowest_supported_driver_version_neo;
-            if (driver_build_version < lowest_supported_driver_version) {
+          else {
+            /* Filtered-out defaults in-case these values aren't available. */
+            int number_of_eus = 96;
+            int threads_per_eu = 7;
+            if (device.has(sycl::aspect::ext_intel_gpu_eu_count)) {
+              number_of_eus = device.get_info<sycl::ext::intel::info::device::gpu_eu_count>();
+            }
+            if (device.has(sycl::aspect::ext_intel_gpu_hw_threads_per_eu)) {
+              threads_per_eu =
+                  device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>();
+            }
+            /* This filters out all Level-Zero supported GPUs from older generation than Arc. */
+            if (number_of_eus <= 96 && threads_per_eu == 7) {
               filter_out = true;
+            }
+            /* if not already filtered out, check driver version. */
+            bool check_driver_version = !filter_out;
+            /* We don't know how to check driver version strings for non-Intel GPUs. */
+            if (check_driver_version &&
+                device.get_info<sycl::info::device::vendor>().find("Intel") == std::string::npos)
+            {
+              check_driver_version = false;
+            }
+            /* Because of https://github.com/oneapi-src/unified-runtime/issues/1777, future drivers
+             * may break parsing done by a SYCL runtime from before the fix we expect in major
+             * version 8. Parsed driver version would start with something different than current
+             * "1.3.". To avoid blocking a device by mistake in the case of new driver / old SYCL
+             * runtime, we disable driver version check in case LIBSYCL_MAJOR_VERSION is below 8
+             * and actual driver version doesn't start with 1.3. */
+#  if __LIBSYCL_MAJOR_VERSION < 8
+            if (check_driver_version &&
+                !string_startswith(device.get_info<sycl::info::device::driver_version>(), "1.3."))
+            {
+              check_driver_version = false;
+            }
+#  endif
+            if (check_driver_version) {
+              int driver_build_version = parse_driver_build_version(device);
+              const int lowest_supported_driver_version = (driver_build_version > 100000) ?
+                                                              lowest_supported_driver_version_win :
+                                                              lowest_supported_driver_version_neo;
+              if (driver_build_version < lowest_supported_driver_version) {
+                filter_out = true;
 
-              LOG(WARNING) << "Driver version for device \""
-                           << device.get_info<sycl::info::device::name>()
-                           << "\" is too old. Expected \"" << lowest_supported_driver_version
-                           << "\" or newer, but got \"" << driver_build_version << "\".";
+                LOG_WARNING << "Driver version for device \""
+                            << device.get_info<sycl::info::device::name>()
+                            << "\" is too old. Expected \"" << lowest_supported_driver_version
+                            << "\" or newer, but got \"" << driver_build_version << "\".";
+              }
             }
           }
         }
-      }
-      if (!filter_out) {
-        available_devices.push_back(device);
+        if (!filter_out) {
+          available_devices.push_back(device);
+        }
       }
     }
   }
-
+  catch (sycl::exception &e) {
+    LOG_WARNING << "An error has been encountered while enumerating SYCL devices: " << e.what();
+  }
   return available_devices;
 }
 
