@@ -2714,8 +2714,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
-    uiItemMenuEnumO(
-        row, C, "LOGIC_OT_controller_add", "type", IFACE_("Add Controller"), ICON_NONE);
+    row->op_menu_enum(C, "LOGIC_OT_controller_add", "type", IFACE_("Add Controller"), ICON_NONE);
 
     if (RNA_boolean_get(&settings_ptr, "show_state_panel")) {
 
@@ -2872,7 +2871,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
-    uiItemMenuEnumO(row, C, "LOGIC_OT_sensor_add", "type", IFACE_("Add Sensor"), ICON_NONE);
+    row->op_menu_enum(C, "LOGIC_OT_sensor_add", "type", IFACE_("Add Sensor"), ICON_NONE);
 
     if ((ob->scaflag & OB_SHOWSENS) == 0)
       continue;
@@ -2990,7 +2989,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
-    uiItemMenuEnumO(row, C, "LOGIC_OT_actuator_add", "type", IFACE_("Add Actuator"), ICON_NONE);
+    row->op_menu_enum(C, "LOGIC_OT_actuator_add", "type", IFACE_("Add Actuator"), ICON_NONE);
 
     if ((ob->scaflag & OB_SHOWACT) == 0)
       continue;

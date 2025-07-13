@@ -3264,7 +3264,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
 
   /* needed here, because it's used before it reads userdef */
-  WM_window_set_dpi(win);
+  WM_window_dpi_set_userdef(win);
 
   /* We avoid swap buffers when we aren't at first time
    * to avoid transition when reload or load a new blend */
@@ -3300,7 +3300,7 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
 
   /* needed here, because it's used before it reads userdef */
-  WM_window_set_dpi(win);
+  WM_window_dpi_set_userdef(win);
 }
 /* End of UPBGE */
 /** \} */
