@@ -266,7 +266,7 @@ typedef struct SubsurfModifierData {
   /** #eSubsurfUVSmooth. */
   short uv_smooth;
   short quality;
-  /** #eSubsurfBoundarySmooth.  */
+  /** #eSubsurfBoundarySmooth. */
   short boundary_smooth;
   char _pad[2];
 
@@ -300,7 +300,7 @@ typedef struct CurveModifierData {
   char name[/*MAX_VGROUP_NAME*/ 64];
   /** #CurveModifierDefaultAxis. Axis along which curve deforms. */
   short defaxis;
-  /** #CurveModifierFlag.  */
+  /** #CurveModifierFlag. */
   short flag;
   char _pad[4];
   void *_pad1;
@@ -3249,7 +3249,7 @@ typedef struct GreasePencilLineartModifierData {
   struct LineartCache *shared_cache;
 
   /* Cache for single execution of line art, when LINEART_GPENCIL_USE_CACHE is enabled, this is a
-   * reference to first_lineart->shared_cache, otherwise it holds its own cache.  */
+   * reference to first_lineart->shared_cache, otherwise it holds its own cache. */
   struct LineartCache *cache;
 
   /* Keep a pointer to the render buffer so we can call destroy from #ModifierData. */
