@@ -672,22 +672,9 @@ bool KX_Scene::CameraIsInactive(KX_Camera *cam)
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
-void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
-                                      RAS_FrameBuffer *background_fb,
-                                      const RAS_Rect &viewport,
-                                      bool is_overlay_pass,
-                                      bool is_last_render_pass)
+void KX_Scene::PrepareGPUViewport(KX_Camera *cam)
 {
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  RAS_Rasterizer *rasty = engine->GetRasterizer();
-  RAS_ICanvas *canvas = engine->GetCanvas();
-  bContext *C = engine->GetContext();
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = GetBlenderScene();
-  /* This ensures a depsgraph is allocated and activates it */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
-
   if (!useViewportRender) {  // Custom bge render loop only
     bool calledFromConstructor = cam == nullptr;
     if (calledFromConstructor) {
@@ -698,12 +685,18 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       SetCurrentGPUViewport(cam->GetGPUViewport());
     }
   }
+}
 
-  engine->CountDepsgraphTime();
-
+void KX_Scene::UpdateDepsgraph(Main *bmain,
+                               Scene *scene,
+                               bool is_overlay_pass,
+                               bool is_last_render_pass,
+                               KX_Camera *cam)
+{
   if (m_collectionRemap) {
     /* check 68589a31ebfb79165f99a979357d237e5413e904 for potential issue or improvement? */
-    /* If problem with ReplicateBlenderObject, see other occurences of BKE_collection_object_add_from*/
+    /* If problem with ReplicateBlenderObject, see other occurences of
+     * BKE_collection_object_add_from*/
     BKE_main_collection_sync_remap(bmain);
     m_collectionRemap = false;
   }
@@ -725,13 +718,97 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   /* We need the changes to be flushed before each draw loop! */
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForTransformUpdateEvaluated();
   }
+}
 
+bool KX_Scene::ViewportRender(KX_Camera *cam,
+                              const RAS_Rect &viewport,
+                              const rcti &window,
+                              RAS_ICanvas *canvas,
+                              Scene *scene,
+                              bContext *C)
+{
+  bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
+  if (useViewportRender) {
+    /* Viewport render mode doesn't support several render passes then exit here
+     * if we are trying to use not supported features. */
+    if (cam && cam != KX_GetActiveEngine()->GetRenderingCameras().front()) {
+      std::cout << "Warning: Viewport Render mode doesn't support multiple render passes"
+                << std::endl;
+      return true;
+    }
+
+    /* Don't need any background framebuffer as everything will be redrawn */
+    GPU_framebuffer_restore();
+
+    if (cam) {
+      if (canvas->IsBlenderPlayer()) {
+        ARegion *region = CTX_wm_region(C);
+        scene->flag |= SCE_IS_BLENDERPLAYER;
+        region->winrct = window;
+        region->winx = canvas->GetWidth();
+        region->winy = canvas->GetHeight();
+        /* Force camera projection matrix to be the same as viewport one (for mouse events) */
+        cam->SetProjectionMatrix(MT_Matrix4x4(&CTX_wm_region_view3d(C)->winmat[0][0]));
+      }
+
+      CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+
+#ifdef WITH_XR_OPENXR
+      wmWindowManager *wm = CTX_wm_manager(C);
+      if (WM_xr_session_exists(&wm->xr)) {
+        if (WM_xr_session_is_ready(&wm->xr)) {
+          wm_xr_events_handle(CTX_wm_manager(C));
+          // wm_event_do_handlers(C);   // TODO: Find more specific XR code
+          wm_event_do_notifiers(C);  // TODO: Find more specific XR code
+        }
+      }
+#endif
+      CTX_wm_region(C)->runtime->visible = true;
+      ED_region_tag_redraw(CTX_wm_region(C));
+      wm_draw_update(C);
+
+      /* We need to do that before and after wm_draw_update
+       * because wm_draw_update unset context variables.
+       * We might need these variables at next logic step
+       */
+      ReinitBlenderContextVariables();
+
+      if (canvas->IsBlenderPlayer()) {
+        scene->flag &= ~SCE_IS_BLENDERPLAYER;
+      }
+
+      return true;
+    }
+  }
+  return false;
+}
+
+void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
+                                      RAS_FrameBuffer *background_fb,
+                                      const RAS_Rect &viewport,
+                                      bool is_overlay_pass,
+                                      bool is_last_render_pass)
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  RAS_Rasterizer *rasty = engine->GetRasterizer();
+  RAS_ICanvas *canvas = engine->GetCanvas();
+  bContext *C = engine->GetContext();
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = GetBlenderScene();
+  /* This ensures a depsgraph is allocated and activates it */
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+  PrepareGPUViewport(cam);
+
+  engine->CountDepsgraphTime();
+  UpdateDepsgraph(bmain, scene, is_overlay_pass, is_last_render_pass, cam);
   engine->EndCountDepsgraphTime();
 
   rcti window;
@@ -760,57 +837,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   ReinitBlenderContextVariables();
 
   /* Here we'll render directly the scene with viewport code. */
-  if (useViewportRender) {
-    /* Viewport render mode doesn't support several render passes then exit here
-     * if we are trying to use not supported features. */
-    if (cam && cam != KX_GetActiveEngine()->GetRenderingCameras().front()) {
-      std::cout << "Warning: Viewport Render mode doesn't support multiple render passes"
-                << std::endl;
-      return;
-    }
-
-    /* Don't need any background framebuffer as everything will be redrawn */
-    GPU_framebuffer_restore();
-
-    if (cam) {
-      if (canvas->IsBlenderPlayer()) {
-        ARegion *region = CTX_wm_region(C);
-        scene->flag |= SCE_IS_BLENDERPLAYER;
-        region->winrct = window;
-        region->winx = canvas->GetWidth();
-        region->winy = canvas->GetHeight();
-        /* Force camera projection matrix to be the same as viewport one (for mouse events) */
-        cam->SetProjectionMatrix(MT_Matrix4x4(&CTX_wm_region_view3d(C)->winmat[0][0]));
-      }
-
-      CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-
-#ifdef WITH_XR_OPENXR
-      wmWindowManager *wm = CTX_wm_manager(C);
-      if (WM_xr_session_exists(&wm->xr)) {
-        if (WM_xr_session_is_ready(&wm->xr)) {
-          wm_xr_events_handle(CTX_wm_manager(C));
-          //wm_event_do_handlers(C);   // TODO: Find more specific XR code
-          wm_event_do_notifiers(C);  // TODO: Find more specific XR code
-        }
-      }
-#endif
-      CTX_wm_region(C)->runtime->visible = true;
-      ED_region_tag_redraw(CTX_wm_region(C));
-      wm_draw_update(C);
-
-      /* We need to do that before and after wm_draw_update
-       * because wm_draw_update unset context variables.
-       * We might need these variables at next logic step
-       */
-      ReinitBlenderContextVariables();
-
-      if (canvas->IsBlenderPlayer()) {
-        scene->flag &= ~SCE_IS_BLENDERPLAYER;
-      }
-
-      return;
-    }
+  if (ViewportRender(cam, viewport, window, canvas, scene, C)) {
+    return;
   }
 
   /* Custom bge render loop only from here */
@@ -844,8 +872,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       GPU_framebuffer_restore();
     }
     /* Draw custom viewport render loop into its own GPUViewport */
-    DRW_game_render_loop(
-        C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
+    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -869,7 +896,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_restore();
 
   /* Draw 2D filters */
-  RAS_FrameBuffer *f = is_overlay_pass || !background_fb ? input : Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = is_overlay_pass || !background_fb ?
+                           input :
+                           Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
 

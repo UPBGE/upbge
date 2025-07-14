@@ -332,6 +332,15 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                               const RAS_Rect &viewport,
                               bool is_overlay_pass,
                               bool is_last_render_pass);
+  void PrepareGPUViewport(KX_Camera *cam);
+  void UpdateDepsgraph(struct Main *bmain, Scene *scene, bool is_overlay_pass, bool is_last_render_pass, KX_Camera *cam);
+  bool ViewportRender(KX_Camera *cam,
+                      const RAS_Rect &viewport,
+                      const struct rcti &window,
+                      RAS_ICanvas *canvas,
+                      Scene *scene,
+                      struct bContext *C);
+
   void RenderAfterCameraSetupImageRender(KX_Camera *cam, const struct rcti *window);
   Object *GetGameDefaultCamera();
   void ReinitBlenderContextVariables();
