@@ -65,6 +65,7 @@ void KX_BlenderCanvas::SwapBuffers()
   /* See wm_draw_update for "chronology" */
   if (!m_useViewportRender) {
     GPU_context_end_frame((GPUContext *)m_win->gpuctx);
+    GPU_context_main_unlock();
   }
 
   wm_window_swap_buffers(m_win);
@@ -111,6 +112,7 @@ void KX_BlenderCanvas::BeginDraw()
   wm_window_make_drawable(m_wm, m_win);
 
   if (!m_useViewportRender) {
+    GPU_context_main_lock();
     /* See wm_draw_update for "chronology" */
     GPU_context_begin_frame((GPUContext *)m_win->gpuctx);
   }

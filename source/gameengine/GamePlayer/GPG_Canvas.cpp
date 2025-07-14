@@ -69,6 +69,7 @@ void GPG_Canvas::BeginDraw()
 {
   if (!m_useViewportRender) {
     wmWindow *win = CTX_wm_window(m_context);
+    GPU_context_main_lock();
     /* See wm_draw_update for "chronology" */
     GPU_context_begin_frame((GPUContext *)win->gpuctx);
   }
@@ -163,6 +164,7 @@ void GPG_Canvas::SwapBuffers()
       wmWindow *win = CTX_wm_window(m_context);
       /* See wm_draw_update for "chronology" */
       GPU_context_end_frame((GPUContext *)win->gpuctx);
+      GPU_context_main_unlock();
     }
     m_window->swapBuffers();
   }
