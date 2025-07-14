@@ -25,6 +25,7 @@
 #include "RAS_Shader.h"
 
 #include "GPU_immediate.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "CM_Message.h"
 
@@ -153,6 +154,9 @@ RAS_Shader::~RAS_Shader()
   ClearUniforms();
 
   DeleteShader();
+
+  GPU_uniformbuf_free(m_ubo);
+  m_ubo = nullptr;
 }
 
 void RAS_Shader::ClearUniforms()
@@ -331,13 +335,15 @@ bool RAS_Shader::LinkProgram()
   frag = GetParsedProgram(FRAGMENT_PROGRAM);
   geom = GetParsedProgram(GEOMETRY_PROGRAM);
 
+  m_ubo = GPU_uniformbuf_create_ex(sizeof(m_uboData), nullptr, "g_data");
+  const char *ubo_str = "struct bgl_Data {float width; float height; vec4 coo_offset[9];};";
+
   StageInterfaceInfo iface("s_Interface", "");
   iface.smooth(Type::float4_t, "bgl_TexCoord");
 
   ShaderCreateInfo info("s_Display");
-  info.push_constant(Type::float_t, "bgl_RenderedTextureWidth");
-  info.push_constant(Type::float_t, "bgl_RenderedTextureHeight");
-  info.push_constant(Type::float2_t, "bgl_TextureCoordinateOffset", 9);
+  info.uniform_buf(0, "bgl_Data", "g_data", Frequency::BATCH);
+  info.typedef_source_generated = ubo_str;
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::Float2D, sampler.second);
   }
