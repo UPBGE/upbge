@@ -32,6 +32,7 @@
 #include "GPG_Canvas.h"
 
 #include "BKE_context.hh"
+#include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "GHOST_ISystem.hh"
 #include "GPU_context.hh"
@@ -70,6 +71,10 @@ void GPG_Canvas::BeginDraw()
   if (!m_useViewportRender) {
     wmWindow *win = CTX_wm_window(m_context);
     GPU_context_main_lock();
+    GPU_render_begin();
+    GPU_render_step();
+
+    BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
     GPU_context_begin_frame((GPUContext *)win->gpuctx);
   }
@@ -164,6 +169,7 @@ void GPG_Canvas::SwapBuffers()
       wmWindow *win = CTX_wm_window(m_context);
       /* See wm_draw_update for "chronology" */
       GPU_context_end_frame((GPUContext *)win->gpuctx);
+      GPU_render_end();
       GPU_context_main_unlock();
     }
     m_window->swapBuffers();
