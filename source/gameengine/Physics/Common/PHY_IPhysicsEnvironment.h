@@ -70,7 +70,7 @@ struct PHY_RayCastResult {
         m_hitPoint(0.0f, 0.0f, 0.0f),
         m_hitNormal(0.0f, 0.0f, 0.0f),
         m_meshObject(nullptr),
-        m_polygon(0),
+        m_polygon(-1),
         m_hitUVOK(0),
         m_hitUV(0.0f, 0.0f)
   {

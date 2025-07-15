@@ -41,6 +41,8 @@
 #include "KX_GameObject.h"
 #include "KX_RayCast.h"
 #include "RAS_MeshObject.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_Polygon.h"
 
 SCA_RaySensor::SCA_RaySensor(class SCA_EventManager *eventmgr,
                              SCA_IObject *gameobj,
@@ -108,13 +110,16 @@ bool SCA_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void
   }
   else {
     if (m_bFindMaterial) {
-      for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
-        RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
-        for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-          bFound = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
+      RAS_MeshObject *hitMesh = result->m_hitMesh;
+      if (hitMesh) {
+        int poly_id = result->m_hitPolygon;
+        if (poly_id != -1) {
+          RAS_Polygon *poly = hitMesh->GetPolygon(poly_id);
+          RAS_MaterialBucket *bucket = poly->GetMaterial();
+          RAS_IPolyMaterial *mat = bucket->GetPolyMaterial();
+          bFound = (m_propertyname == std::string(mat->GetName(), 2));
           if (bFound) {
             hitMaterial = m_propertyname;
-            break;
           }
         }
       }
