@@ -365,7 +365,7 @@ static void move_strips(bContext *C)
   WM_operator_properties_create_ptr(&ptr, ot);
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
   RNA_boolean_set(&ptr, "view2d_edge_pan", true);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
@@ -1028,9 +1028,12 @@ static void sequencer_add_movie_sync_sound_strip(
   /* Make sure that the sound strip start time relative to the movie is taken into account. */
   seq::add_sound_av_sync(bmain, scene, strip_sound, load_data);
 
-  /* Ensure that the sound strip start/end matches the movie strip even if the actual
-   * length and true position of the sound doesn't match up exactly.
-   */
+  /* Expand missing sound data in the underlying container to fill the movie strip's length. To the
+   * user, this missing data is the same as complete silence, so we pretend like it is. */
+  strip_sound->len = std::max(strip_movie->len, strip_sound->len);
+
+  /* Ensure that length matches the movie strip even if the underlying sound data
+   * doesn't match up (e.g. it is longer).  */
   seq::time_right_handle_frame_set(
       scene, strip_sound, seq::time_right_handle_frame_get(scene, strip_movie));
   seq::time_left_handle_frame_set(

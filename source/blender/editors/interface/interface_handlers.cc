@@ -526,7 +526,7 @@ struct uiAfterFunc {
 
   wmOperator *popup_op;
   wmOperatorType *optype;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
   PointerRNA *opptr;
 
   PointerRNA rnapoin;
@@ -840,7 +840,7 @@ static uiAfterFunc *ui_afterfunc_new()
  */
 static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
                                                 PointerRNA **properties,
-                                                wmOperatorCallContext opcontext,
+                                                blender::wm::OpCallContext opcontext,
                                                 const uiBut *context_but)
 {
   uiAfterFunc *after = ui_afterfunc_new();
@@ -861,7 +861,7 @@ static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
   }
 }
 
-void ui_handle_afterfunc_add_operator(wmOperatorType *ot, wmOperatorCallContext opcontext)
+void ui_handle_afterfunc_add_operator(wmOperatorType *ot, blender::wm::OpCallContext opcontext)
 {
   ui_handle_afterfunc_add_operator_ex(ot, nullptr, opcontext, nullptr);
 }
@@ -937,7 +937,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
     after->opptr = but->opptr;
 
     but->optype = nullptr;
-    but->opcontext = wmOperatorCallContext(0);
+    but->opcontext = blender::wm::OpCallContext(0);
     but->opptr = nullptr;
   }
 
@@ -10895,7 +10895,7 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
     uiAfterFunc *after = ui_afterfunc_new();
     wmOperatorType *ot = WM_operatortype_find("WM_OT_search_single_menu", false);
     after->optype = ot;
-    after->opcontext = WM_OP_INVOKE_DEFAULT;
+    after->opcontext = blender::wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__);
     WM_operator_properties_create_ptr(after->opptr, ot);
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);

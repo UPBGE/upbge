@@ -2715,6 +2715,8 @@ class WM_OT_toolbar_prompt(Operator):
 
 
 class BatchRenameAction(bpy.types.PropertyGroup):
+    __slots__ = ()
+
     # category: StringProperty()
     type: EnumProperty(
         name="Operation",

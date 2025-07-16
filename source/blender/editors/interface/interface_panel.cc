@@ -1149,7 +1149,11 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   if (panel->drawname && panel->drawname[0] != '\0') {
     rcti title_rect;
     title_rect.xmin = widget_rect.xmin + (panel->labelofs / aspect) + scaled_unit * 1.1f;
-    title_rect.xmax = widget_rect.xmax - scaled_unit;
+    title_rect.xmax = widget_rect.xmax;
+    if (!is_subpanel && show_background) {
+      /* Don't draw over the drag widget. */
+      title_rect.xmax -= scaled_unit;
+    }
     title_rect.ymin = widget_rect.ymin - 2.0f / aspect;
     title_rect.ymax = widget_rect.ymax;
 
@@ -2891,7 +2895,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const uiHandle
 
     /* Initiate edge panning during drags for scrolling beyond the initial region view. */
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
-    ui_handle_afterfunc_add_operator(ot, WM_OP_INVOKE_DEFAULT);
+    ui_handle_afterfunc_add_operator(ot, blender::wm::OpCallContext::InvokeDefault);
   }
   else if (state == PANEL_STATE_ANIMATION) {
     panel_set_flag_recursive(panel, PNL_SELECT, false);

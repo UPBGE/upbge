@@ -272,7 +272,6 @@ set(INC
   ../../render
   ../../../../intern/clog
   ../../../../intern/cycles/blender
-  ../../../../extern/fmtlib/include
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
 
@@ -282,7 +281,7 @@ set(INC
 )
 
 set(INC_SYS
-
+  ../../../../extern/fmtlib/include
 )
 
 if(WITH_CYCLES)
