@@ -439,7 +439,8 @@ bool WM_init_game(bContext *C)
 
     /* disable quad view */
     if (ar->alignment == RGN_ALIGN_QSPLIT)
-      WM_operator_name_call(C, "SCREEN_OT_region_quadview", WM_OP_EXEC_DEFAULT, NULL, NULL);
+      WM_operator_name_call(
+          C, "SCREEN_OT_region_quadview", blender::wm::OpCallContext::ExecDefault, NULL, NULL);
 
     /* toolbox, properties panel and header are hidden */
     for (arhide = (ARegion *)sa->regionbase.first; arhide; arhide = arhide->next) {
@@ -457,7 +458,11 @@ bool WM_init_game(bContext *C)
 
     /* Fullscreen */
     if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
-      WM_operator_name_call(C, "WM_OT_window_fullscreen_toggle", WM_OP_EXEC_DEFAULT, NULL, NULL);
+      WM_operator_name_call(C,
+                            "WM_OT_window_fullscreen_toggle",
+                            blender::wm::OpCallContext::ExecDefault,
+                            NULL,
+                            NULL);
       blender::int2 scr_size;
       if (wm_get_screensize(scr_size)) {
         ar->winrct.xmax = scr_size[0];
@@ -479,7 +484,8 @@ bool WM_init_game(bContext *C)
       GHOST_DisposeRectangle(rect);
     }
 
-    WM_operator_name_call(C, "VIEW3D_OT_game_start", WM_OP_EXEC_DEFAULT, NULL, NULL);
+    WM_operator_name_call(
+        C, "VIEW3D_OT_game_start", blender::wm::OpCallContext::ExecDefault, NULL, NULL);
 
     BKE_sound_exit();
 
