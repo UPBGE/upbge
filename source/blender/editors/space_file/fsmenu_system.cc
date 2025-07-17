@@ -213,20 +213,21 @@ static void fsmenu_add_windows_quick_access(FSMenu *fsmenu,
     conv_utf_16_to_8(path, utf_path, FILE_MAXDIR);
 
     /* Despite the above IsFolder check, Windows considers libraries and archives to be folders.
-     * However, as Blender does not support opening them, they must be filtered out. #138863.
-     */
-    const char *ext_folderlike[] = {".library-ms",
-                                    ".zip",
-                                    ".rar",
-                                    ".7z",
-                                    ".tar",
-                                    ".gz",
-                                    ".bz2",
-                                    ".zst",
-                                    ".xz",
-                                    ".cab",
-                                    ".iso",
-                                    nullptr};
+     * However, as Blender does not support opening them, they must be filtered out. #138863. */
+    const char *ext_folderlike[] = {
+        ".library-ms",
+        ".zip",
+        ".rar",
+        ".7z",
+        ".tar",
+        ".gz",
+        ".bz2",
+        ".zst",
+        ".xz",
+        ".cab",
+        ".iso",
+        nullptr,
+    };
     if (!BLI_path_extension_check_array(utf_path, ext_folderlike)) {
       /* Add folder to the fsmenu. */
       fsmenu_insert_entry(fsmenu, category, utf_path, NULL, ICON_FILE_FOLDER, flag);
@@ -667,7 +668,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             SNPRINTF(line, "%s%s", filepath, dirname);
             fsmenu_insert_entry(
                 fsmenu, FS_CATEGORY_SYSTEM, line, label, ICON_NETWORK_DRIVE, FS_INSERT_SORTED);
-            found = 1;
+            found = true;
           }
           BLI_filelist_free(dirs, dirs_num);
         }
