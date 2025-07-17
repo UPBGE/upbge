@@ -126,7 +126,7 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
 {
   Py_buffer buffer;
   char *mode = nullptr;
-  unsigned int format;
+  eGPUTextureFormat format = GPU_RGBA8;
   double ts = -1.0;
 
   memset(&buffer, 0, sizeof(buffer));
@@ -148,13 +148,11 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
         // ready to get the image into our buffer
         try {
           if (mode == nullptr || !strcmp(mode, "RGBA"))
-            format = GL_RGBA;
-          else if (!strcmp(mode, "BGRA"))
-            format = GL_BGRA;
+            format = GPU_RGBA8;
           else
             THRWEXCP(InvalidImageMode, S_OK);
 
-          if (!self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, format, ts)) {
+          if (!self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, ts)) {
             PyErr_SetString(PyExc_TypeError,
                             "Could not load the buffer, perhaps size is not compatible");
           }

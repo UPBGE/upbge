@@ -1047,6 +1047,9 @@ void GPU_texture_update_mipmap_chain(GPUTexture *texture);
  */
 void *GPU_texture_read(GPUTexture *texture, eGPUDataFormat data_format, int mip_level);
 
+/* UPBGE */
+void *GPU_texture_read_no_assert(GPUTexture *texture, eGPUDataFormat data_format, int mip_level);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

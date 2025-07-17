@@ -13,6 +13,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "FilterBase.h"
 #include "PyTypeList.h"
+#include "GPU_texture.hh"
 
 // forward declarations
 struct PyImage;
@@ -45,7 +46,7 @@ class ImageBase {
   }
 
   /// Get the image format type.
-  unsigned int GetInternalFormat()
+  eGPUTextureFormat GetInternalFormat()
   {
     return m_internalFormat;
   }
@@ -118,7 +119,7 @@ class ImageBase {
 
   /// calculate image from sources and send it to a target buffer instead of a texture
   /// format is GL_RGBA or GL_BGRA
-  virtual bool loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts);
+  virtual bool loadImage(unsigned int *buffer, unsigned int size, double ts);
 
   /// swap the B and R channel in-place in the image buffer
   void swapImageBR();
@@ -132,7 +133,7 @@ class ImageBase {
   /// image buffer size
   unsigned int m_imgSize;
   /// Image internal format type.
-  unsigned int m_internalFormat;
+  eGPUTextureFormat m_internalFormat;
   /// image size
   short m_size[2];
   /// image is available

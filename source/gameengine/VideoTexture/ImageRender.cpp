@@ -66,9 +66,7 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_rasterizer = m_engine->GetRasterizer();
   m_canvas = m_engine->GetCanvas();
 
-  m_internalFormat = GL_RGBA16F_ARB;
-
-  m_targetfb = GPU_framebuffer_create("game_fb");
+  m_internalFormat = GPU_RGBA8;
 
   m_scene->AddImageRenderCamera(m_camera);
 }
@@ -88,13 +86,20 @@ ImageRender::~ImageRender(void)
   if (m_owncamera) {
     m_camera->Release();
   }
+}
 
-  GPU_framebuffer_free(m_targetfb);
-  m_targetfb = nullptr;
+KX_Camera* ImageRender::GetCamera()
+{
+  return m_camera;
+}
+
+void ImageRender::SetTexture(Texture* tex)
+{
+  m_texture = tex;
 }
 
 // capture image from viewport
-void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int format)
+void ImageRender::calcViewport(unsigned int texId, double ts)
 {
   // render the scene from the camera
   if (!m_done) {
@@ -112,16 +117,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
       viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_apply_state();
 
-  GPUAttachment config[] = {
-      GPU_ATTACHMENT_TEXTURE(GPU_viewport_depth_texture(m_camera->GetGPUViewport())),
-      GPU_ATTACHMENT_TEXTURE(GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0))};
-
-  GPU_framebuffer_config_array(m_targetfb, config, sizeof(config) / sizeof(GPUAttachment));
-
-  GPU_framebuffer_bind(m_targetfb);
-
   // get image from viewport (or FBO)
-  ImageViewport::calcViewport(texId, ts, format);
+  ImageViewport::calcViewport(0, ts);
 
   GPU_framebuffer_restore();
 }
@@ -234,8 +231,6 @@ bool ImageRender::Render()
   GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
   GPU_apply_state();
 
-  // GPU_clear_depth(1.0f);
-
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
 
   // matrix calculation, don't apply any of the stereo mode
@@ -316,14 +311,6 @@ bool ImageRender::Render()
 
   // restore the stereo mode now that the matrix is computed
   m_rasterizer->SetStereoMode(stereomode);
-
-  if (m_rasterizer->Stereo()) {
-    // stereo mode change render settings that disturb this render, cancel them all
-    // we don't need to restore them as they are set before each frame render.
-    glDrawBuffer(GL_BACK_LEFT);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glDisable(GL_POLYGON_STIPPLE);
-  }
 
   m_engine->UpdateAnimations(m_scene);
 
@@ -882,7 +869,7 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_rasterizer = m_engine->GetRasterizer();
   m_canvas = m_engine->GetCanvas();
 
-  m_internalFormat = GL_RGBA16F_ARB;
+  m_internalFormat = GPU_RGBA8;
 
   // this constructor is used for automatic planar mirror
   // create a camera, take all data by default, in any case we will recompute the frustum on each

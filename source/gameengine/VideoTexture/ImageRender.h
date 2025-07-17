@@ -17,6 +17,7 @@
 #include "RAS_Rasterizer.h"
 
 struct GPUFrameBuffer;
+class Texture;
 
 /// class for render 3d scene
 class ImageRender : public ImageViewport {
@@ -53,6 +54,9 @@ class ImageRender : public ImageViewport {
   {
     return m_done;
   }
+
+  KX_Camera *GetCamera();
+
   /// render frame (public so that it is accessible from python)
   bool Render();
   /// in case fbo is used, method to unbind
@@ -60,6 +64,8 @@ class ImageRender : public ImageViewport {
 
   void RunPreDrawCallbacks();
   void RunPostDrawCallbacks();
+
+  void SetTexture(Texture *tex);
 
 #ifdef WITH_PYTHON
   PyObject *m_preDrawCallbacks;
@@ -80,8 +86,6 @@ class ImageRender : public ImageViewport {
   /// do we own the camera?
   bool m_owncamera;
 
-  GPUFrameBuffer *m_targetfb;
-
   /// for mirror operation
   KX_GameObject *m_observer;
   KX_GameObject *m_mirror;
@@ -100,11 +104,11 @@ class ImageRender : public ImageViewport {
   KX_KetsjiEngine *m_engine;
 
   /// render 3d scene to image
-  virtual void calcImage(unsigned int texId, double ts, unsigned int format)
+  virtual void calcImage(unsigned int texId, double ts)
   {
-    calcViewport(texId, ts, format);
+    calcViewport(texId, ts);
   }
 
   /// render 3d scene to image
-  virtual void calcViewport(unsigned int texId, double ts, unsigned int format);
+  virtual void calcViewport(unsigned int texId, double ts);
 };

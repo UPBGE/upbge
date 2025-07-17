@@ -9,6 +9,9 @@
 
 #include "ImageViewport.h"
 
+#include "GPU_framebuffer.hh"
+#include "GPU_state.hh"
+
 #include "FilterSource.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
@@ -105,7 +108,7 @@ void ImageViewport::setCaptureSize(short size[2])
 }
 
 // set position of capture rectangle
-void ImageViewport::setPosition(GLint pos[2])
+void ImageViewport::setPosition(int pos[2])
 {
   // if new position is not provided, use existing position
   if (pos == nullptr)
@@ -122,126 +125,93 @@ void ImageViewport::setPosition(GLint pos[2])
 }
 
 // capture image from viewport
-void ImageViewport::calcViewport(unsigned int texId, double ts, unsigned int format)
+void ImageViewport::calcViewport(unsigned int textid, double ts)
 {
+  GPUFrameBuffer *target = GPU_framebuffer_active_get();
   // if scale was changed
   if (m_scaleChange)
     // reset image
     init(m_capSize[0], m_capSize[1]);
   // if texture wasn't initialized
-  if (!m_texInit && texId != 0) {
+  if (!m_texInit) {
     // initialize it
-    loadTexture(texId, m_image, m_size, false, m_internalFormat);
-    m_texInit = true;
-  }
-  // if texture can be directly created
-  if (texId != 0 && m_pyfilter == nullptr && m_size[0] == m_capSize[0] &&
-      m_size[1] == m_capSize[1] && !m_flip && !m_zbuff && !m_depth) {
-    // just copy current viewport to texture
-    glBindTexture(GL_TEXTURE_2D, texId);
-    glCopyTexSubImage2D(GL_TEXTURE_2D,
-                        0,
-                        0,
-                        0,
-                        m_upLeft[0],
-                        m_upLeft[1],
-                        (GLsizei)m_capSize[0],
-                        (GLsizei)m_capSize[1]);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    // image is not available
-    m_avail = false;
+    if (m_texture) {
+      m_texture->loadTexture(m_image, m_size, false, m_internalFormat);
+      m_texInit = true;
+    }
   }
   // otherwise copy viewport to buffer, if image is not available
-  else if (!m_avail) {
+  if (!m_avail) {
     if (m_zbuff) {
       // Use read pixels with the depth buffer
       // *** misusing m_viewportImage here, but since it has the correct size
       //     (4 bytes per pixel = size of float) and we just need it to apply
       //     the filter, it's ok
-      glReadPixels(m_upLeft[0],
-                   m_upLeft[1],
-                   (GLsizei)m_capSize[0],
-                   (GLsizei)m_capSize[1],
-                   GL_DEPTH_COMPONENT,
-                   GL_FLOAT,
-                   m_viewportImage);
-      // filter loaded data
-      FilterZZZA filt;
-      filterImage(filt, (float *)m_viewportImage, m_capSize);
-    }
-    else {
-
-      if (m_depth) {
-        // Use read pixels with the depth buffer
-        // See warning above about m_viewportImage.
-        glReadPixels(m_upLeft[0],
-                     m_upLeft[1],
-                     (GLsizei)m_capSize[0],
-                     (GLsizei)m_capSize[1],
-                     GL_DEPTH_COMPONENT,
-                     GL_FLOAT,
-                     m_viewportImage);
-        // filter loaded data
-        FilterDEPTH filt;
+      GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+      float *depth_buffer = (float *)GPU_texture_read(
+          GPU_framebuffer_depth_texture(target), GPU_DATA_FLOAT, 0);
+      if (depth_buffer) {
+        std::memcpy(m_viewportImage, depth_buffer, sizeof(float) * m_capSize[0] * m_capSize[1]);
+        FilterZZZA filt;
         filterImage(filt, (float *)m_viewportImage, m_capSize);
+        MEM_freeN(depth_buffer);
       }
       else {
-
-        // get frame buffer data
-        if (m_alpha) {
-          // as we are reading the pixel in the native format, we can read directly in the image
-          // buffer if we are sure that no processing is needed on the image
-          if (m_size[0] == m_capSize[0] && m_size[1] == m_capSize[1] && !m_flip && !m_pyfilter) {
-            glReadPixels(m_upLeft[0],
-                         m_upLeft[1],
-                         (GLsizei)m_capSize[0],
-                         (GLsizei)m_capSize[1],
-                         format,
-                         GL_UNSIGNED_BYTE,
-                         m_image);
-            m_avail = true;
-          }
-          else if (!m_pyfilter) {
-            glReadPixels(m_upLeft[0],
-                         m_upLeft[1],
-                         (GLsizei)m_capSize[0],
-                         (GLsizei)m_capSize[1],
-                         format,
-                         GL_UNSIGNED_BYTE,
-                         m_viewportImage);
-            FilterRGBA32 filt;
-            filterImage(filt, m_viewportImage, m_capSize);
-          }
-          else {
-            glReadPixels(m_upLeft[0],
-                         m_upLeft[1],
-                         (GLsizei)m_capSize[0],
-                         (GLsizei)m_capSize[1],
-                         GL_RGBA,
-                         GL_UNSIGNED_BYTE,
-                         m_viewportImage);
-            FilterRGBA32 filt;
-            filterImage(filt, m_viewportImage, m_capSize);
-            if (format == GL_BGRA) {
-              // in place byte swapping
-              swapImageBR();
-            }
+        if (m_depth) {
+          // Use read pixels with the depth buffer
+          // See warning above about m_viewportImage.
+          GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+          float *depth_buffer = (float *)GPU_texture_read(
+              GPU_framebuffer_depth_texture(target), GPU_DATA_FLOAT, 0);
+          if (depth_buffer) {
+            std::memcpy(
+                m_viewportImage, depth_buffer, sizeof(float) * m_capSize[0] * m_capSize[1]);
+            // filter loaded data
+            FilterDEPTH filt;
+            filterImage(filt, (float *)m_viewportImage, m_capSize);
+            MEM_freeN(depth_buffer);
           }
         }
         else {
-          glReadPixels(m_upLeft[0],
-                       m_upLeft[1],
-                       (GLsizei)m_capSize[0],
-                       (GLsizei)m_capSize[1],
-                       GL_RGB,
-                       GL_UNSIGNED_BYTE,
-                       m_viewportImage);
-          // filter loaded data
-          FilterRGB24 filt;
-          filterImage(filt, m_viewportImage, m_capSize);
-          if (format == GL_BGRA) {
-            // in place byte swapping
-            swapImageBR();
+          // get frame buffer data
+          if (m_alpha) {
+            // as we are reading the pixel in the native format, we can read directly in the image
+            // buffer if we are sure that no processing is needed on the image
+            GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+            float *color_buffer = (float *)GPU_texture_read(
+                GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
+            if (color_buffer) {
+              if (m_size[0] == m_capSize[0] && m_size[1] == m_capSize[1] && !m_flip && !m_pyfilter)
+              {
+                std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
+                m_avail = true;
+              }
+              else if (!m_pyfilter) {
+                std::memcpy(m_viewportImage, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
+                FilterRGBA32 filt;
+                filterImage(filt, m_viewportImage, m_capSize);
+              }
+              else {
+                std::memcpy(m_viewportImage, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
+                FilterRGBA32 filt;
+                filterImage(filt, m_viewportImage, m_capSize);
+              }
+              MEM_freeN(color_buffer);
+            }
+          }
+          else {
+            GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+            float *color_buffer = (float *)GPU_texture_read(
+                GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
+
+            if (color_buffer) {
+              std::memcpy(m_viewportImage, color_buffer, 3 * m_capSize[0] * m_capSize[1]);
+
+              FilterRGB24 filt;
+              filterImage(filt, m_viewportImage, m_capSize);
+
+              MEM_freeN(color_buffer);
+            }
           }
         }
       }
@@ -249,10 +219,7 @@ void ImageViewport::calcViewport(unsigned int texId, double ts, unsigned int for
   }
 }
 
-bool ImageViewport::loadImage(unsigned int *buffer,
-                              unsigned int size,
-                              unsigned int format,
-                              double ts)
+bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, double ts)
 {
   unsigned int *tmp_image;
   bool ret;
@@ -262,19 +229,18 @@ bool ImageViewport::loadImage(unsigned int *buffer,
     // reset image
     init(m_capSize[0], m_capSize[1]);
   }
-
   // size must be identical
   if (size < getBuffSize())
     return false;
 
   if (m_avail) {
     // just copy
-    return ImageBase::loadImage(buffer, size, format, ts);
+    return ImageBase::loadImage(buffer, size, ts);
   }
   else {
     tmp_image = m_image;
     m_image = buffer;
-    calcViewport(0, ts, format);
+    calcViewport(0, ts);
     ret = m_avail;
     m_image = tmp_image;
     // since the image was not loaded to our buffer, it's not valid
@@ -348,7 +314,7 @@ int ImageViewport_setAlpha(PyImage *self, PyObject *value, void *closure)
 // get position
 static PyObject *ImageViewport_getPosition(PyImage *self, void *closure)
 {
-  GLint *pos = getImageViewport(self)->getPosition();
+  int *pos = getImageViewport(self)->getPosition();
   PyObject *ret = PyTuple_New(2);
   PyTuple_SET_ITEM(ret, 0, PyLong_FromLong(pos[0]));
   PyTuple_SET_ITEM(ret, 1, PyLong_FromLong(pos[1]));
@@ -366,8 +332,8 @@ static int ImageViewport_setPosition(PyImage *self, PyObject *value, void *closu
     return -1;
   }
   // set position
-  GLint pos[2] = {GLint(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 0))),
-                  GLint(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 1)))};
+  int pos[2] = {int(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 0))),
+                  int(PyLong_AsLong(PySequence_Fast_GET_ITEM(value, 1)))};
   getImageViewport(self)->setPosition(pos);
   // success
   return 0;

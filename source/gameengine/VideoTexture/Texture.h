@@ -14,6 +14,7 @@
 #include "ImageBase.h"
 
 struct ImBuf;
+struct GPUTexture;
 class RAS_Texture;
 class RAS_IPolyMaterial;
 class KX_Scene;
@@ -28,11 +29,10 @@ class Texture : public EXP_Value {
   bool m_useMatTexture;
 
   // video texture bind code
-  unsigned int m_actTex;
   // original texture bind code
   unsigned int m_orgTex;
   // original image bind code
-  unsigned int m_orgImg;
+  struct Image *m_orgImg;
   // original texture saved
   bool m_orgSaved;
 
@@ -40,11 +40,14 @@ class Texture : public EXP_Value {
   struct ImBuf *m_imgBuf;
   // texture image for game materials
   Image *m_imgTexture;
+
   // texture for blender materials
   RAS_Texture *m_matTexture;
 
   KX_Scene *m_scene;
   KX_GameObject *m_gameobj;
+  GPUTexture *m_origGpuTex;
+  GPUTexture *m_modifiedGPUTexture;
 
   // use mipmapping
   bool m_mipmap;
@@ -65,6 +68,9 @@ class Texture : public EXP_Value {
   void Close();
   void SetSource(PyImage *source);
 
+  // load texture
+  void loadTexture(unsigned int *texture, short *size, bool mipmap, eGPUTextureFormat format);
+
   static void FreeAllTextures(KX_Scene *scene);
 
   EXP_PYMETHOD_DOC(Texture, close);
@@ -78,18 +84,8 @@ class Texture : public EXP_Value {
   static int pyattr_set_source(EXP_PyObjectPlus *self_v,
                                const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
-  static PyObject *pyattr_get_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_bindId(EXP_PyObjectPlus *self_v,
-                               const EXP_PYATTRIBUTE_DEF *attrdef,
-                               PyObject *value);
+  static PyObject *pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 };
-
-// load texture
-void loadTexture(unsigned int texId,
-                 unsigned int *texture,
-                 short *size,
-                 bool mipmap,
-                 unsigned int internalFormat);
 
 // get material
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);

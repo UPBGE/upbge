@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include <epoxy/gl.h>
-
 #include "Common.h"
 #include "ImageBase.h"
+
+class Texture;
 
 /// class for viewport access
 class ImageViewport : public ImageBase {
@@ -51,21 +51,21 @@ class ImageViewport : public ImageBase {
   void setCaptureSize(short size[2] = nullptr);
 
   /// get position in viewport
-  GLint *getPosition(void)
+  int *getPosition(void)
   {
     return m_position;
   }
   /// set position in viewport
-  void setPosition(GLint pos[2] = nullptr);
+  void setPosition(int pos[2] = nullptr);
 
   /// capture image from viewport to user buffer
-  virtual bool loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts);
+  virtual bool loadImage(unsigned int *buffer, unsigned int size, double ts);
 
  protected:
   unsigned int m_width;
   unsigned int m_height;
   /// frame buffer rectangle
-  GLint m_viewport[4];
+  int m_viewport[4];
 
   /// size of captured area
   short m_capSize[2];
@@ -75,26 +75,28 @@ class ImageViewport : public ImageBase {
   bool m_alpha;
 
   /// position of capture rectangle in viewport
-  GLint m_position[2];
+  int m_position[2];
   /// upper left point for capturing
-  GLint m_upLeft[2];
+  int m_upLeft[2];
 
   /// buffer to copy viewport
   BYTE *m_viewportImage;
   /// texture is initialized
   bool m_texInit;
 
+  Texture *m_texture;
+
   /// capture image from viewport
-  virtual void calcImage(unsigned int texId, double ts)
+  virtual void calcImage(unsigned int texid, double ts)
   {
-    calcViewport(texId, ts, GL_RGBA);
+    calcViewport(texid, ts);
   }
 
   /// capture image from viewport
-  virtual void calcViewport(unsigned int texId, double ts, unsigned int format);
+  virtual void calcViewport(unsigned int texid, double ts);
 
   /// get viewport size
-  GLint *getViewportSize(void)
+  int *getViewportSize(void)
   {
     return m_viewport + 2;
   }

@@ -24,9 +24,13 @@
 
 #include "KX_BlenderMaterial.h"
 
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BLI_listbase.h"
 #include "DNA_material_types.h"
 
 #include "BL_Shader.h"
+#include "BL_Texture.h"
 #include "EXP_ListWrapper.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_MaterialShader.h"
@@ -52,42 +56,9 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
       m_constructed(false),
       m_lightLayer(lightlayer)
 {
+  m_nodetree = nullptr;
   m_alphablend = mat->blend_method;
-
-  /* For object converted during runtime,
-   * we don't call EEVEE_engine_data_get
-   * because it is causing a crash
-   * (m_textures list won't be available for these object)
-   */
-  //bool using_eevee_next = is_eevee_next(scene->GetBlenderScene());
-  //bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
-  //if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime && !using_eevee_next && !is_vulkan_backend) {
-  //  if (!KX_GetActiveEngine()->UseViewportRender()) {
-      /*EEVEE_Data *vedata = EEVEE_engine_data_get();
-      EEVEE_EffectsInfo *effects = vedata->stl->effects;
-      const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
-                                 ((effects->enabled_effects & EFFECT_REFRACT) != 0);
-
-      int mat_options = 0;
-      if (m_material->blend_method == MA_BM_BLEND) {
-        mat_options = VAR_MAT_MESH | VAR_MAT_BLEND;
-      }
-      else {
-        mat_options = VAR_MAT_MESH;
-      }
-      SET_FLAG_FROM_TEST(mat_options, use_ssrefract, VAR_MAT_REFRACT);
-      m_gpuMat = EEVEE_material_get(
-          vedata, scene->GetBlenderScene(), m_material, NULL, mat_options);*/
-  //    m_gpuMat = nullptr;
-  //  }
-  //  else {
-  //    m_gpuMat = nullptr;
-  //  }
-  //}
-  //else {
-  //  m_gpuMat = nullptr;
-  //}
-  m_gpuMat = nullptr;
+  m_nodetree = m_material->nodetree;
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
@@ -137,27 +108,16 @@ void KX_BlenderMaterial::ReleaseMaterial()
 
 void KX_BlenderMaterial::InitTextures()
 {
-  if (!m_gpuMat) {
+  if (!m_nodetree) {
+    // No node tree, so no textures
     return;
   }
-  GPUPass *gpupass = GPU_material_get_pass(m_gpuMat);
-
-  if (!gpupass) {
-    /* Shader compilation error */
-    return;
-  }
-
-  ListBase textures = GPU_material_textures(m_gpuMat);
-
   int i = 0;
-  for (GPUMaterialTexture *tex = (GPUMaterialTexture *)textures.first; tex; tex = tex->next) {
-    /* Textures */
-    if (tex->ima && tex->ima->gputexture[TEXTARGET_2D]) {
-      /* We keep BL_Texture, RAS_Texture.... only for ImageRender and backward compatibility
-       * with old scripts from upbge which were using BL_Texture::bindCode.
-       * Here we are only interested in GL_TEXTURE_2D textures
-       */
-      BL_Texture *texture = new BL_Texture(tex, TEXTARGET_2D);
+  LISTBASE_FOREACH(bNode *, node, &m_nodetree->nodes) {
+    if ((node->type_legacy == SH_NODE_TEX_IMAGE) ||
+        (node->typeinfo && node->typeinfo->idname == "ShaderNodeTexImage")) {
+      Image *ima = (Image *)node->id;
+      BL_Texture *texture = new BL_Texture(ima);
       m_textures[i] = texture;
       i++;
     }

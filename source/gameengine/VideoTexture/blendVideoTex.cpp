@@ -145,9 +145,6 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 {
   PyObject *m;
 
-  // initialize GL extensions
-  // bgl::InitExtensions(0);
-
   // prepare classes
   registerAllTypes();
   registerAllExceptions();

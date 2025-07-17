@@ -10,14 +10,14 @@
 #include "Texture.h"
 
 #include "BKE_image.hh"
-#include "BKE_node.hh"
-#include "BKE_node_legacy_types.hh"
-#include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
-#include "DNA_material_types.h"
-#include <epoxy/gl.h>
 #include "IMB_imbuf.hh"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
+#include "GPU_viewport.hh"
+#include "../python/gpu/gpu_py_texture.hh"
 
+#include "ImageRender.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "RAS_IPolygonMaterial.h"
@@ -41,16 +41,17 @@ static std::vector<Texture *> textures;
 
 PyObject *Texture_close(Texture *self);
 
-Texture::Texture()
-    : m_actTex(0),
+Texture::Texture():
       m_orgTex(0),
-      m_orgImg(0),
+      m_orgImg(nullptr),
       m_orgSaved(false),
       m_imgBuf(nullptr),
       m_imgTexture(nullptr),
       m_matTexture(nullptr),
       m_scene(nullptr),
       m_gameobj(nullptr),
+      m_origGpuTex(nullptr),
+      m_modifiedGPUTexture(nullptr),
       m_mipmap(false),
       m_scaledImBuf(nullptr),
       m_lastClock(0.0),
@@ -102,21 +103,17 @@ void Texture::Close()
 {
   if (m_orgSaved) {
     m_orgSaved = false;
-    // restore original texture code
-    if (m_useMatTexture) {
-      if (m_imgTexture) {
-        // This is requierd for texture used in blender material.
-      }
-    }
-    else {
-      BKE_image_release_ibuf(m_imgTexture, m_imgBuf, nullptr);
-      m_imgBuf = nullptr;
-    }
-    // drop actual texture
-    if (m_actTex != 0) {
-      glDeleteTextures(1, (GLuint *)&m_actTex);
-      m_actTex = 0;
-    }
+  }
+  if (m_origGpuTex) {
+    m_imgTexture->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
+  }
+  if (m_imgBuf) {
+    IMB_freeImBuf(m_imgBuf);
+    m_imgBuf = nullptr;
+  }
+  if (m_modifiedGPUTexture) {
+    GPU_texture_free(m_modifiedGPUTexture);
+    m_modifiedGPUTexture = nullptr;
   }
 }
 
@@ -129,58 +126,58 @@ void Texture::SetSource(PyImage *source)
 }
 
 // load texture
-void loadTexture(unsigned int texId,
-                 unsigned int *texture,
-                 short *size,
-                 bool mipmap,
-                 unsigned int internalFormat)
+void Texture::loadTexture(unsigned int *texture,
+                          short *size,
+                          bool mipmap,
+                          eGPUTextureFormat format)
 {
-  // load texture for rendering
-  glBindTexture(GL_TEXTURE_2D, texId);
-  if (1 /*mipmap*/) {
-    //int i;
-    ImBuf *ibuf;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    ibuf = IMB_allocFromBuffer((uint8_t *)texture, nullptr, size[0], size[1], 4);
-
-    glTexImage2D(GL_TEXTURE_2D,
-                   0,
-                   internalFormat,
-                   ibuf->x,
-                   ibuf->y,
-                   0,
-                   GL_RGBA,
-                   GL_UNSIGNED_BYTE,
-                   ibuf->byte_buffer.data);
-
-    IMB_freeImBuf(ibuf);
-
-    /* IMB_makemipmap removed here : f685f2343432627303a956e6e95b33bfddfd6cb7 */
-    //IMB_makemipmap(ibuf, false); // There was a crash here using filter = true, trying to adapt 406cfd214aaad9c90b62ce48eda6d72d2eacb6fe
-
-    //for (i = 0; i < ibuf->miptot; i++) {
-    //  ImBuf *mip = IMB_getmipmap(ibuf, i);
-
-    //  glTexImage2D(GL_TEXTURE_2D,
-    //               i,
-    //               internalFormat,
-    //               mip->x,
-    //               mip->y,
-    //               0,
-    //               GL_RGBA,
-    //               GL_UNSIGNED_BYTE,
-    //               mip->byte_buffer.data);
-    //}
+  // Check if the source is an ImageRender (offscreen 3D render)
+  ImageRender *imr = dynamic_cast<ImageRender *>(m_source ? m_source->m_image : nullptr);
+  if (imr && !m_origGpuTex) {
+    // For ImageRender, directly use the GPU texture from the active framebuffer
+    KX_Camera *cam = imr->GetCamera();
+    if (cam && m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
+      GPUViewport *viewport = cam->GetGPUViewport();
+      // Get the color texture from the viewport's framebuffer
+      GPUTexture *gpuTex = GPU_viewport_color_texture(viewport, 0);
+      // Assign the GPU texture to the Blender image slot
+      m_origGpuTex = m_imgTexture->gputexture[TEXTARGET_2D][0];
+      m_imgTexture->gputexture[TEXTARGET_2D][0] = gpuTex;
+    }
+    // No need to upload a CPU buffer, return early
+    return;
   }
-  else {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, internalFormat, size[0], size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+
+  // For video/image sources: upload the CPU buffer to a GPU texture
+  if (m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
+    if (m_modifiedGPUTexture) {
+      GPU_texture_free(m_modifiedGPUTexture);
+      m_modifiedGPUTexture = nullptr;
+    }
+    // Create the GPU texture if not already done
+    m_modifiedGPUTexture = GPU_texture_create_2d("videotexture",
+                                                 size[0],
+                                                 size[1],
+                                                 1,
+                                                 GPU_RGBA8,
+                                                 GPU_TEXTURE_USAGE_SHADER_READ |
+                                                     GPU_TEXTURE_USAGE_ATTACHMENT,
+                                                 nullptr);
+
+    // Upload the RGBA8 buffer to the GPU texture
+    GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
+
+    // Optionally update mipmaps
+    if (mipmap) {
+      GPU_texture_update_mipmap_chain(m_modifiedGPUTexture);
+    }
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+    if (!m_origGpuTex) {
+      m_origGpuTex = m_imgTexture->gputexture[TEXTARGET_2D][0];
+    }
+    // Integrate the new GPU texture into the Blender pipeline
+    m_imgTexture->gputexture[TEXTARGET_2D][0] = m_modifiedGPUTexture;
   }
-  // glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
 // get pointer to material
@@ -278,10 +275,9 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
                                    &texID,
                                    &Texture::Type,
                                    &texObj))
+  {
     return -1;
-
-  std::cout << "VideoTexture (bge.texture) module is currently deprecated since 0.44." << std::endl;
-  return -1;
+  }
 
   KX_GameObject *gameObj = nullptr;
   if (ConvertPythonToGameObject(
@@ -305,25 +301,6 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
         }
         tex->m_imgTexture = tex->m_matTexture->GetImage();
         tex->m_useMatTexture = true;
-
-        Material *bl_mat = mat->GetBlenderMaterial();
-        bNodeTree *ntree = bl_mat->nodetree;
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->id) {
-            if (node->type_legacy == SH_NODE_TEX_IMAGE) {
-              Image *ima = (Image *)node->id;
-              if (ima == tex->m_imgTexture) {
-                NodeTexImage *ntex = (NodeTexImage *)node->storage;
-                if (ntex->interpolation != SHD_INTERP_CLOSEST) {
-                  std::cout << "VideoTexture: Image Texture node interpolation mode is not set to "
-                               "closest. VideoTexture might not work correctly."
-                            << std::endl;
-                  break;
-                }
-              }
-            }
-          }
-        }
       }
       else if (lamp != nullptr) {
         // tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
@@ -337,15 +314,10 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 
       // if texture object is provided
       if (texObj != nullptr) {
-        // copy texture code
-        tex->m_actTex = texObj->m_actTex;
         tex->m_mipmap = texObj->m_mipmap;
         if (texObj->m_source != nullptr)
           tex->SetSource(texObj->m_source);
       }
-      else
-        // otherwise generate texture code
-        glGenTextures(1, (GLuint *)&tex->m_actTex);
     }
     catch (Exception &exp) {
       exp.report();
@@ -391,16 +363,11 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
         // check texture code
         if (!m_orgSaved) {
           m_orgSaved = true;
-          // save original image code
           if (m_useMatTexture) {
-            /*m_orgTex = m_matTexture->GetBindCode();
-            GPU_texture_set_opengl_bindcode(m_matTexture->GetGPUTexture(), m_actTex);
-            m_matTexture->SetBindCode(m_actTex);
+            m_orgImg = m_matTexture->GetImage();
             if (m_imgTexture) {
-              GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_2D][0];
-              m_orgImg = GPU_texture_opengl_bindcode(tex);
-              GPU_texture_set_opengl_bindcode(tex, m_actTex);
-            }*/
+              m_orgImg = m_imgTexture;
+            }
           }
           else {
             // Swapping will work only if the GPU has already loaded the image.
@@ -409,21 +376,19 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
             // WARNING: GPU has a ImageUser to pass, we don't. Using nullptr
             // works on image file, not necessarily on other type of image.
             m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
-            //GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_2D][0];
-            //m_orgImg = GPU_texture_opengl_bindcode(tex);
-            //GPU_texture_set_opengl_bindcode(tex, m_actTex);
+            m_orgImg = m_imgTexture;
           }
         }
 
         // get texture
-        unsigned int *texture = m_source->m_image->getImage(m_actTex, ts);
+        unsigned int *texture = m_source->m_image->getImage(0, ts);
         // if texture is available
         if (texture != nullptr) {
           // get texture size
           short *orgSize = m_source->m_image->getSize();
           // calc scaled sizes
           short size[2];
-          if (epoxy_has_gl_extension("GL_ARB_texture_non_power_of_two")) {
+          if (0) {
             size[0] = orgSize[0];
             size[1] = orgSize[1];
           }
@@ -440,7 +405,10 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
             texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
           }
           // load texture for rendering
-          loadTexture(m_actTex, texture, size, m_mipmap, m_source->m_image->GetInternalFormat());
+          loadTexture(texture,
+              size,
+              m_mipmap,
+              m_source->m_image->GetInternalFormat());
         }
         // refresh texture source, if required
         if (refreshSource) {
@@ -470,13 +438,15 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
   Py_RETURN_NONE;
 }
 
-// get OpenGL Bind Id
-PyObject *Texture::pyattr_get_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+// get gputexture
+PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  Texture *self = (Texture *)self_v;
-
-  unsigned int id = self->m_actTex;
-  return Py_BuildValue("h", id);
+  Texture *self = static_cast<Texture *>(self_v);
+  GPUTexture *gputex = self->m_imgTexture->gputexture[TEXTARGET_2D][0];
+  if (gputex) {
+    return BPyGPUTexture_CreatePyObject(gputex, true);
+  }
+  Py_RETURN_NONE;
 }
 
 // get mipmap value
@@ -535,7 +505,12 @@ int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v,
     PyErr_SetString(PyExc_TypeError, "Invalid type of value");
     return -1;
   }
-  self->SetSource(reinterpret_cast<PyImage *>(value));
+  PyImage *pyimg = reinterpret_cast<PyImage *>(value);
+  self->SetSource(pyimg);
+  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_image);
+  if (imgRender) {
+    imgRender->SetTexture(self);
+  }
   // return success
   return 0;
 }
@@ -551,7 +526,7 @@ PyMethodDef Texture::Methods[] = {
 PyAttributeDef Texture::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION("mipmap", Texture, pyattr_get_mipmap, pyattr_set_mipmap),
     EXP_PYATTRIBUTE_RW_FUNCTION("source", Texture, pyattr_get_source, pyattr_set_source),
-    EXP_PYATTRIBUTE_RO_FUNCTION("bindId", Texture, pyattr_get_bindId),
+    EXP_PYATTRIBUTE_RO_FUNCTION("gpuTexture", Texture, pyattr_get_gputexture),
     EXP_PYATTRIBUTE_NULL};
 
 // class Texture declaration

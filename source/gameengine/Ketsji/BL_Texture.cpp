@@ -26,31 +26,25 @@
 
 #include "BL_Texture.h"
 
-#include "GPU_material.hh"
+#include "GPU_texture.hh"
 
-BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
+BL_Texture::BL_Texture(Image *ima)
     : EXP_Value(),
-      m_isCubeMap(false),
-      m_gpuMatTex(gpumattex),
-      m_textarget(textarget)
+      m_isCubeMap(false), m_ima(ima)
 {
-  /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
-  m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/
-  m_name = m_gpuMatTex->ima->id.name;
+  m_isCubeMap = false;
+  m_name = m_ima->id.name + 2;
+  m_gpuTex = nullptr;
+  m_textarget = TEXTARGET_2D;
 
-  ImageUser *iuser = m_gpuMatTex->iuser_available ? &m_gpuMatTex->iuser : NULL;
-  m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser);
-
-  if (m_gpuTex) {
-    GPU_texture_ref(m_gpuTex);
+  /* only add support for existing gputextures */
+  if (BKE_image_has_opengl_texture(ima)) {
+    m_gpuTex = ima->gputexture[TEXTARGET_2D][0];
   }
 }
 
 BL_Texture::~BL_Texture()
 {
-  if (m_gpuTex) {
-    GPU_texture_free(m_gpuTex);
-  }
 }
 
 bool BL_Texture::Ok() const
@@ -65,7 +59,7 @@ bool BL_Texture::IsCubeMap() const
 
 Image *BL_Texture::GetImage() const
 {
-  return m_gpuMatTex->ima;
+  return m_ima;
 }
 
 GPUTexture *BL_Texture::GetGPUTexture() const
@@ -75,7 +69,7 @@ GPUTexture *BL_Texture::GetGPUTexture() const
 
 unsigned int BL_Texture::GetTextureType()
 {
-  return m_textarget; /*m_isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D;*/
+  return m_textarget;
 }
 
 // stuff for cvalue related things

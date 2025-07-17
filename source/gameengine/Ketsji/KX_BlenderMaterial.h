@@ -65,7 +65,7 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   static void EndFrame(RAS_Rasterizer *rasty);
 
  private:
-  GPUMaterial *m_gpuMat;
+  struct bNodeTree *m_nodetree;
 
   Material *m_material;
   std::unique_ptr<KX_MaterialShader> m_shader;

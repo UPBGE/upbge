@@ -32,7 +32,7 @@ ExpDesc InvalidImageModeDesc(InvalidImageMode,
 ImageBase::ImageBase(bool staticSrc)
     : m_image(nullptr),
       m_imgSize(0),
-      m_internalFormat(GL_RGBA8),
+      m_internalFormat(GPU_RGB8),
       m_avail(false),
       m_scale(false),
       m_scaleChange(false),
@@ -90,24 +90,10 @@ unsigned int *ImageBase::getImage(unsigned int texId, double ts)
   return m_avail ? m_image : nullptr;
 }
 
-bool ImageBase::loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts)
+bool ImageBase::loadImage(unsigned int *buffer, unsigned int size, double ts)
 {
-  unsigned int *d, *s, v, len;
   if (getImage(0, ts) != nullptr && size >= getBuffSize()) {
-    switch (format) {
-      case GL_RGBA:
-        memcpy(buffer, m_image, getBuffSize());
-        break;
-      case GL_BGRA:
-        len = (unsigned int)m_size[0] * m_size[1];
-        for (s = m_image, d = buffer; len; len--) {
-          v = *s++;
-          *d++ = VT_SWAPBR(v);
-        }
-        break;
-      default:
-        THRWEXCP(InvalidImageMode, S_OK);
-    }
+    memcpy(buffer, m_image, getBuffSize());
     return true;
   }
   return false;
@@ -387,100 +373,91 @@ void Image_dealloc(PyImage *self)
 // get image data
 PyObject *Image_getImage(PyImage *self, char *mode)
 {
-  //try {
-  //  unsigned int *image = self->m_image->getImage();
-  //  if (image) {
-  //    // build BGL buffer
-  //    int dimensions = self->m_image->getBuffSize();
-  //    Buffer *buffer;
-  //    if (mode == nullptr || !strcasecmp(mode, "RGBA")) {
-  //      buffer = BGL_MakeBuffer(GL_BYTE, 1, &dimensions, image);
-  //    }
-  //    else if (!strcasecmp(mode, "F")) {
-  //      // this mode returns the image as an array of float.
-  //      // This makes sense ONLY for the depth buffer:
-  //      //   source = VideoTexture.ImageViewport()
-  //      //   source.depth = True
-  //      //   depth = VideoTexture.imageToArray(source, 'F')
+  try {
+    unsigned int *image = self->m_image->getImage();
+    if (image) {
+      int dimensions = self->m_image->getBuffSize();
+      PyObject *py_buffer = nullptr;
 
-  //      // adapt dimension from byte to float
-  //      dimensions /= sizeof(float);
-  //      buffer = BGL_MakeBuffer(GL_FLOAT, 1, &dimensions, image);
-  //    }
-  //    else {
-  //      int i, c, ncolor, pixels;
-  //      int offset[4];
-  //      unsigned char *s, *d;
-  //      // scan the mode to get the channels requested, no more than 4
-  //      for (i = ncolor = 0; mode[i] != 0 && ncolor < 4; i++) {
-  //        switch (toupper(mode[i])) {
-  //          case 'R':
-  //            offset[ncolor++] = 0;
-  //            break;
-  //          case 'G':
-  //            offset[ncolor++] = 1;
-  //            break;
-  //          case 'B':
-  //            offset[ncolor++] = 2;
-  //            break;
-  //          case 'A':
-  //            offset[ncolor++] = 3;
-  //            break;
-  //          case '0':
-  //            offset[ncolor++] = -1;
-  //            break;
-  //          case '1':
-  //            offset[ncolor++] = -2;
-  //            break;
-  //          // if you add more color code, change the switch further down
-  //          default:
-  //            THRWEXCP(InvalidColorChannel, S_OK);
-  //        }
-  //      }
-  //      if (mode[i] != 0) {
-  //        THRWEXCP(InvalidColorChannel, S_OK);
-  //      }
-  //      // first get the number of pixels
-  //      pixels = dimensions / 4;
-  //      // multiple by the number of channels, each is one byte
-  //      dimensions = pixels * ncolor;
-  //      // get an empty buffer
-  //      buffer = BGL_MakeBuffer(GL_BYTE, 1, &dimensions, nullptr);
-  //      // and fill it
-  //      for (i = 0, d = (unsigned char *)buffer->buf.asbyte, s = (unsigned char *)image;
-  //           i < pixels;
-  //           i++, d += ncolor, s += 4) {
-  //        for (c = 0; c < ncolor; c++) {
-  //          switch (offset[c]) {
-  //            case 0:
-  //              d[c] = s[0];
-  //              break;
-  //            case 1:
-  //              d[c] = s[1];
-  //              break;
-  //            case 2:
-  //              d[c] = s[2];
-  //              break;
-  //            case 3:
-  //              d[c] = s[3];
-  //              break;
-  //            case -1:
-  //              d[c] = 0;
-  //              break;
-  //            case -2:
-  //              d[c] = 0xFF;
-  //              break;
-  //          }
-  //        }
-  //      }
-  //    }
-  //    return (PyObject *)buffer;
-  //  }
-  //}
-  //catch (Exception &exp) {
-  //  exp.report();
-  //  return nullptr;
-  //}
+      // Default: return the raw RGBA8 buffer as Python bytes
+      if (mode == nullptr || !strcasecmp(mode, "RGBA")) {
+        py_buffer = PyBytes_FromStringAndSize((const char *)image, dimensions);
+      }
+      // "F" mode: return the buffer as float array (for depth, if applicable)
+      else if (!strcasecmp(mode, "F")) {
+        int float_count = dimensions / sizeof(float);
+        py_buffer = PyBytes_FromStringAndSize((const char *)image, float_count * sizeof(float));
+      }
+      // Custom channel selection (e.g. "R", "RG", "BGA", etc.)
+      else {
+        int i, c, ncolor = 0, pixels = dimensions / 4;
+        int offset[4];
+        unsigned char *s, *d;
+        // Parse the mode string to determine which channels to extract (max 4)
+        for (i = 0; mode[i] != 0 && ncolor < 4; i++) {
+          switch (toupper(mode[i])) {
+            case 'R':
+              offset[ncolor++] = 0;
+              break;
+            case 'G':
+              offset[ncolor++] = 1;
+              break;
+            case 'B':
+              offset[ncolor++] = 2;
+              break;
+            case 'A':
+              offset[ncolor++] = 3;
+              break;
+            case '0':
+              offset[ncolor++] = -1;
+              break;
+            case '1':
+              offset[ncolor++] = -2;
+              break;
+            default:
+              THRWEXCP(InvalidColorChannel, S_OK);
+          }
+        }
+        if (mode[i] != 0) {
+          THRWEXCP(InvalidColorChannel, S_OK);
+        }
+        int out_size = pixels * ncolor;
+        py_buffer = PyBytes_FromStringAndSize(nullptr, out_size);
+        d = (unsigned char *)PyBytes_AS_STRING(py_buffer);
+        s = (unsigned char *)image;
+        // Fill the output buffer with the selected channels
+        for (i = 0; i < pixels; i++, s += 4, d += ncolor) {
+          for (c = 0; c < ncolor; c++) {
+            switch (offset[c]) {
+              case 0:
+                d[c] = s[0];
+                break;
+              case 1:
+                d[c] = s[1];
+                break;
+              case 2:
+                d[c] = s[2];
+                break;
+              case 3:
+                d[c] = s[3];
+                break;
+              case -1:
+                d[c] = 0;
+                break;
+              case -2:
+                d[c] = 0xFF;
+                break;
+            }
+          }
+        }
+      }
+      return py_buffer;
+    }
+  }
+  catch (Exception &exp) {
+    exp.report();
+    return nullptr;
+  }
   Py_RETURN_NONE;
 }
 
@@ -497,7 +474,6 @@ PyObject *Image_refresh(PyImage *self, PyObject *args)
   bool done = true;
   char *mode = nullptr;
   double ts = -1.0;
-  unsigned int format;
 
   memset(&buffer, 0, sizeof(buffer));
   if (PyArg_ParseTuple(args, "|s*sd:refresh", &buffer, &mode, &ts)) {
@@ -517,14 +493,7 @@ PyObject *Image_refresh(PyImage *self, PyObject *args)
       else {
         // ready to get the image into our buffer
         try {
-          if (mode == nullptr || !strcmp(mode, "RGBA"))
-            format = GL_RGBA;
-          else if (!strcmp(mode, "BGRA"))
-            format = GL_BGRA;
-          else
-            THRWEXCP(InvalidImageMode, S_OK);
-
-          done = self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, format, ts);
+          done = self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, ts);
         }
         catch (Exception &exp) {
           exp.report();

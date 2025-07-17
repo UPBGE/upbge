@@ -303,7 +303,7 @@ static void decklink_ConvImage(uint32_t *dest,
           accWidth += destSize[0];
           // convert pixel
           p = CONV_PIXEL(*s);
-          // if pixel has to be drown one or more times
+          // if pixel has to be drawn one or more times
           while (accWidth >= srcSize[0]) {
             // decrease accum
             accWidth -= srcSize[0];
@@ -558,7 +558,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
         self->mLeftFrame->GetBytes((void **)&leftEye);
         if (srcSize[0] == self->mSize[0] && srcSize[1] == self->mSize[1]) {
           // buffer has same size, can load directly
-          if (!leftImage->loadImage(leftEye, self->mFrameSize, GL_BGRA, ts))
+          if (!leftImage->loadImage(leftEye, self->mFrameSize, ts))
             leftEye = nullptr;
         }
         else {
@@ -577,7 +577,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
           self->mRightFrame->GetBytes((void **)&rightEye);
           if (srcSize[0] == self->mSize[0] && srcSize[1] == self->mSize[1]) {
             // buffer has same size, can load directly
-            rightImage->loadImage(rightEye, self->mFrameSize, GL_BGRA, ts);
+            rightImage->loadImage(rightEye, self->mFrameSize, ts);
           }
           else {
             // scaling is required, go the hard way

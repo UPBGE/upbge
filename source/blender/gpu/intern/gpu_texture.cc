@@ -534,6 +534,12 @@ void *GPU_texture_read(GPUTexture *texture, eGPUDataFormat data_format, int mip_
   return unwrap(texture)->read(mip_level, data_format);
 }
 
+/* UPBGE */
+void *GPU_texture_read_no_assert(GPUTexture* texture, eGPUDataFormat data_format, int mip_level)
+{
+  return unwrap(texture)->read(mip_level, data_format);
+}
+
 void GPU_texture_clear(GPUTexture *tex, eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(data != nullptr); /* Do not accept nullptr as parameter. */

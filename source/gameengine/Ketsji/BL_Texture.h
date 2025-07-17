@@ -33,12 +33,12 @@ struct GPUMaterialTexture;
 
 class BL_Texture : public EXP_Value, public RAS_Texture {
   Py_Header private : bool m_isCubeMap;
-  GPUMaterialTexture *m_gpuMatTex;
+  Image *m_ima;
   GPUTexture *m_gpuTex;
   eGPUTextureTarget m_textarget;
 
  public:
-  BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget);
+  BL_Texture(Image *ima);
   virtual ~BL_Texture();
 
   // stuff for cvalue related things

@@ -938,7 +938,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const rcti *win
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false);
+  DRW_game_render_loop(C, cam->GetGPUViewport(), depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_SceneConverter *sc_converter)
