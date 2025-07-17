@@ -1,65 +1,142 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<component type="desktop">
- <id>org.upbge.UPBGE</id>
- <name>UPBGE</name>
- <summary>UPBGE is a free and open source 3D Game Engine integrated in Blender</summary>
- <developer id="org.upbge">
-  <name>
-	 UPBGE Community
-	</name>
- </developer>
- <content_rating type="oars-1.1" />
- <metadata_license>CC0-1.0</metadata_license>
- <project_license>GPL-3.0</project_license>
- <description>
-  <p>
-      An independent fork of Blender created by Porteries Tristan, aiming to clean up and improve current Blender Game Engine (BGE) code, experiment with new features, and implement forgotten features that currently exist but have not been merged with the official releases of Blender.
-    </p>
-  <p>
-      UPBGE is a public, free and open-source project held together by its community. Hundreds of contributors have volunteered to make this project possible.
-    </p>
- </description>
- <url type="homepage">https://upbge.org</url>
- <url type="bugtracker">https://github.com/UPBGE/upbge/issues</url>
- <launchable type="desktop-id">org.upbge.UPBGE.desktop</launchable>
- <screenshots>
-  <screenshot type="default">
-   <image>https://upbge.org/975e00fef0bd07865974.jpg</image>
-  </screenshot>
-  <screenshot>
-   <image>https://upbge.org/1d46281dc23f6cb1ab1a.jpg</image>
-  </screenshot>
- </screenshots>
- <releases>
-  <release version="0.36.1" date="2023-08-20">
-   <description>
-    <p>New features:</p>
-    <ul>
-     <li>Most of new features comes from Blender development itself.</li>
-     <li>Convert DupliGroups/Instance collections at bge runtime.</li>
-     <li>BGUI library added to python modules folder.</li>
-     <li>Easy Online addon included.</li>
-     <li>Enable support of SoftBody volumes when we uncheck Shape Match.</li>
-     <li>Added the ability to play NLA tracks with Action actuator.</li>
-     <li>Added the possibility to convert actions at runtime.</li>
-     <li>Remove hardcoded limit for objects linked in logic bricks editor.</li>
-     <li>Allow antialiasing for ImageRender if nothing is moving.</li>
-     <li>Allow full rendered passes in ImageRender.</li>
-     <li>Added number of render passes per frame option.</li>
-     <li>Added an option for AddObject to duplicate object data.</li>
-     <li>Added an option to update LOD physics.</li>
-     <li>Allow hidden lodlevels to be evaluated by depsgraph.</li>
-     <li>Added experimental support for openXR.</li>
-     <li>Allow activity culling for all object types.</li>
-     <li>Blender realtime compositor in viewport works in game engine now.</li>
-     <li>Option for Show Profile and Debug Properties in bigger size for High Dpi Screens.</li>
-     <li>Added a "Soft Shadow Override" per light switch.</li>
-     <li>4 extra buttons added for Mouse.</li>
-     <li>Support for Grease Pencil modifiers animation added.</li>
-     <li>Use the up-to-date dshow format instead of death vfwcap format for camera capture.</li>
-     <li>New video play and video capture component template.</li>
-    </ul>
-   </description>
-  </release>
- </releases>-
+<?xml version='1.0' encoding='utf-8'?>
+<component type="desktop-application">
+  <!--Created with jdAppStreamEdit 9.2-->
+  <id>org.upbge.UPBGE</id>
+  <name>UPBGE</name>
+  <summary>UPBGE is a free and open source 3D Game Engine integrated in Blender</summary>
+  <developer id="org.upbge">
+    <name>UPBGE Community</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <description>
+    <p>An independent fork of Blender created by Porteries Tristan, aiming to clean up and improve current Blender Game Engine (BGE) code, experiment with new features, and implement forgotten features that currently exist but have not been merged with the official releases of Blender.</p>
+    <p>UPBGE is a public, free and open-source project held together by its community. Hundreds of contributors have volunteered to make this project possible.</p>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image type="source">https://upbge.org/975e00fef0bd07865974.jpg</image>
+    </screenshot>
+    <screenshot>
+      <image type="source">https://upbge.org/1d46281dc23f6cb1ab1a.jpg</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.44" date="2025-04-07" type="stable" urgency="low">
+      <url>https://github.com/UPBGE/upbge/wiki/Release-notes-version-0.44</url>
+      <description>
+        <p>New features:</p>
+        <ul>
+          <li>UPBGE 0.44 integrates Blender's experimental Vulkan backend, introduced in Blender 4.1 and enhanced in 4.4.</li>
+          <li>EEVEE has undergone a significant overhaul in Blender 4.2, now referred to as EEVEE Next.</li>
+          <li>Dynamic Label Fixes: Resolved issues with dynamic labels in Logic Nodes to ensure accurate and real-time updates during gameplay and development.</li>
+          <li>Version Compatibility: Adjusted internals to maintain full compatibility with Blender 4.5, preserving functionality across recent UPBGE builds.</li>
+          <li>Raycast Node Update: Added a caster input to the Raycast node, allowing precise control over which object performs the raycast, improving accuracy in interaction and detection systems.</li>
+          <li>Group Instances Fix: Fixed bugs related to the groupInstances property in collections, ensuring that object instancing behaves consistently within grouped assets.</li>
+          <li>Action Frame Range Restart: Implemented logic to restart actions when setting a new frame range. This change ensures that animations behave consistently even when dynamically modified.</li>
+          <li>Video Playback Fix: Solved an issue where videos would stop playing if no audio track was present, ensuring uninterrupted playback in all cases.</li>
+          <li>Buffer Management Optimization: Removed unnecessary buffer freeing in video playback code, reducing the risk of lags or visual artifacts during runtime.</li>
+          <li>Blender 4.4 introduces "Slotted Actions," allowing a single Action data-block to store multiple animation types (e.g., object transforms, materials, shape keys).</li>
+          <li>The Pose Library now supports exporting poses as external libraries, promoting reuse across projects and streamlining character animation workflows.</li>
+          <li>Introduced in Blender 3.6, Simulation Nodes expand Geometry Nodes to support simulations.</li>
+          <li>Blender 4.0 adds "Node Tools," allowing users to create custom tools using Geometry Nodes without scripting.</li>
+          <li>The new GPU accelerated compositor introduced in Blender 3.5, currently used for viewport compositing.</li>
+          <li>Blender 4.4 introduces a rewritten CPU compositor.</li>
+        </ul>
+      </description>
+      <artifacts>
+        <artifact type="binary" platform="x86_64-linux-gnu">
+          <location>https://github.com/UPBGE/upbge/releases/download/v0.44/upbge-0.44-linux-x86_64.tar.xz</location>
+          <checksum type="sha1">f6857cf7a29047c8ca8f0e566d0b459be705ff7f</checksum>
+          <checksum type="sha256">cb23e1003dc3ec10847eb7ac4380eba9cd5de6a53b944d6231f46841534afd5f</checksum>
+          <size type="download">402699408</size>
+          <filename>upbge-0.44-linux-x86_64.tar.xz</filename>
+        </artifact>
+        <artifact type="source">
+          <location>https://github.com/UPBGE/upbge/archive/refs/tags/v0.44.tar.gz</location>
+          <checksum type="sha1">f84e7d65dfcc00c97f67c75331e1a1b9e3385a2a</checksum>
+          <checksum type="sha256">4f9ed95a8483fc25fb9f6343dc9492acb1b06c8f21c2372caec55848f7670483</checksum>
+          <size type="download">83955585</size>
+          <filename>v0.44.tar.gz</filename>
+        </artifact>
+      </artifacts>
+    </release>
+    <release version="0.36.1" date="2023-08-20" type="stable" urgency="low">
+      <url>https://github.com/UPBGE/upbge/wiki/Release-notes-version-0.36</url>
+      <description>
+        <p>New features:</p>
+        <ul>
+          <li>Most of new features comes from Blender development itself.</li>
+          <li>Convert DupliGroups/Instance collections at bge runtime.</li>
+          <li>BGUI library added to python modules folder.</li>
+          <li>Easy Online addon included.</li>
+          <li>Enable support of SoftBody volumes when we uncheck Shape Match.</li>
+          <li>Added the ability to play NLA tracks with Action actuator.</li>
+          <li>Added the possibility to convert actions at runtime.</li>
+          <li>Remove hardcoded limit for objects linked in logic bricks editor.</li>
+          <li>Allow antialiasing for ImageRender if nothing is moving.</li>
+          <li>Allow full rendered passes in ImageRender.</li>
+          <li>Added number of render passes per frame option.</li>
+          <li>Added an option for AddObject to duplicate object data.</li>
+          <li>Added an option to update LOD physics.</li>
+          <li>Allow hidden lodlevels to be evaluated by depsgraph.</li>
+          <li>Added experimental support for openXR.</li>
+          <li>Allow activity culling for all object types.</li>
+          <li>Blender realtime compositor in viewport works in game engine now.</li>
+          <li>Option for Show Profile and Debug Properties in bigger size for High Dpi Screens.</li>
+          <li>Added a "Soft Shadow Override" per light switch.</li>
+          <li>4 extra buttons added for Mouse.</li>
+          <li>Support for Grease Pencil modifiers animation added.</li>
+          <li>Use the up-to-date dshow format instead of death vfwcap format for camera capture.</li>
+          <li>New video play and video capture component template.</li>
+        </ul>
+      </description>
+      <artifacts>
+        <artifact type="binary" platform="x86_64-linux-gnu">
+          <location>https://github.com/UPBGE/upbge/releases/download/v0.36.1/upbge-0.36.1-linux-x86_64.tar.xz</location>
+          <checksum type="sha1">d4e708371e96ccac96720fc3eacca5a288c07839</checksum>
+          <checksum type="sha256">0d53fdace0f9755c3475e5cb98dfee3e63f9968aa2b7fe516b0a8c4b1326ca4f</checksum>
+          <size type="download">383478152</size>
+          <filename>upbge-0.36.1-linux-x86_64.tar.xz</filename>
+        </artifact>
+        <artifact type="source">
+          <location>https://github.com/UPBGE/upbge/archive/refs/tags/v0.36.1.tar.gz</location>
+          <checksum type="sha1">qd4e708371e96ccac96720fc3eacca5a288c07839</checksum>
+          <checksum type="sha256">0d53fdace0f9755c3475e5cb98dfee3e63f9968aa2b7fe516b0a8c4b1326ca4f</checksum>
+          <size type="download">383478152</size>
+          <filename>v0.36.1.tar.gz</filename>
+        </artifact>
+      </artifacts>
+    </release>
+  </releases>
+  <url type="bugtracker">https://github.com/UPBGE/upbge/issues</url>
+  <url type="contribute">https://github.com/UPBGE/upbge/wiki/Development-docs</url>
+  <url type="help">https://upbge.org/docs/latest/manual/index.html</url>
+  <url type="homepage">https://upbge.org</url>
+  <url type="vcs-browser">https://github.com/UPBGE/upbge</url>
+  <categories>
+    <category>3DGraphics</category>
+    <category>Development</category>
+    <category>Graphics</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <launchable type="desktop-id">org.upbge.UPBGE.desktop</launchable>
+  <provides>
+    <mediatype>application/x-blender</mediatype>
+  </provides>
+  <keywords>
+    <keyword>3d</keyword>
+    <keyword>animation</keyword>
+    <keyword>cg</keyword>
+    <keyword>cycles</keyword>
+    <keyword>modelling</keyword>
+    <keyword>painting</keyword>
+    <keyword>python</keyword>
+    <keyword>render engine</keyword>
+    <keyword>rendering</keyword>
+    <keyword>sculpting</keyword>
+    <keyword>texturing</keyword>
+    <keyword>video editing</keyword>
+    <keyword>video tracking</keyword>
+  </keywords>
 </component>
