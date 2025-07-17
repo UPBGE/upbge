@@ -417,36 +417,22 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   const bke::AttributeAccessor attributes = final_me->attributes();
 
-  float(*tangent)[4] = nullptr;
+  Array<Array<float4>> tangent = {};
   if (uvLayers > 0) {
-    if (CustomData_get_layer_index(&final_me->corner_data, CD_TANGENT) == -1) {
-      short tangent_mask = 0;
-      const blender::Span<int3> corner_tris = final_me->corner_tris();
-      const VArraySpan sharp_face = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
-      const float3 *orco = static_cast<const float3 *>(
-          CustomData_get_layer(&final_me->vert_data, CD_ORCO));
-      BKE_mesh_calc_loop_tangent_ex(
-          final_me->vert_positions(),
-          final_me->faces(),
-          final_me->corner_verts(),
-          corner_tris,
-          final_me->corner_tri_faces(),
-          sharp_face,
-          &final_me->corner_data,
-          true,
-          nullptr,
-          0,
-          final_me->vert_normals(),
-          final_me->face_normals(),
-          final_me->corner_normals(),
-          /* may be nullptr */
-          orco ? Span(orco, final_me->verts_num) : Span<float3>(),
-          /* result */
-          &final_me->corner_data,
-          uint(final_me->corners_num),
-          &tangent_mask);
-    }
-    tangent = (float(*)[4])CustomData_get_layer(&final_me->corner_data, CD_TANGENT);
+    const StringRef active_uv_map = CustomData_get_active_layer_name(&final_me->corner_data, CD_PROP_FLOAT2);
+    const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_map, bke::AttrDomain::Corner);
+    const VArray<bool> sharp_faces =
+        attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
+    tangent = bke::mesh::calc_uv_tangents(positions,
+                                          final_me->faces(),
+                                          final_me->corner_verts(),
+                                          final_me->corner_tris(),
+                                          final_me->corner_tri_faces(),
+                                          VArraySpan(sharp_faces),
+                                          final_me->vert_normals(),
+                                          final_me->face_normals(),
+                                          final_me->corner_normals(),
+                                          {uv_map});
   }
 
   meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo);
@@ -537,7 +523,14 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const MT_Vector3 pt(vp);
       const float3 normal = flat ? face_normals[face_i] : vertex_normals[vert_i];
       const MT_Vector3 no(normal.x, normal.y, normal.z);
-      const MT_Vector4 tan = tangent ? MT_Vector4(tangent[vert_i]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+      int tangent_layer = layersInfo.activeUv;
+      MT_Vector4 tan(0.0f, 0.0f, 0.0f, 0.0f);
+      if (!tangent.is_empty() && tangent_layer < tangent.size() &&
+          vert_i < tangent[tangent_layer].size())
+      {
+        const float4 &t = tangent[tangent_layer][vert_i];
+        tan = MT_Vector4(t.x, t.y, t.z, t.w);
+      }
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
 
