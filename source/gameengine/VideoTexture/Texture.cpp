@@ -150,19 +150,26 @@ void Texture::loadTexture(unsigned int *texture,
 
   // For video/image sources: upload the CPU buffer to a GPU texture
   if (m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
+    bool keep_texture = false;
     if (m_modifiedGPUTexture) {
-      GPU_texture_free(m_modifiedGPUTexture);
-      m_modifiedGPUTexture = nullptr;
+      keep_texture = size[0] == GPU_texture_width(m_modifiedGPUTexture) &&
+                     size[1] == GPU_texture_height(m_modifiedGPUTexture);
+      if (!keep_texture) {
+        GPU_texture_free(m_modifiedGPUTexture);
+        m_modifiedGPUTexture = nullptr;
+      }
     }
-    // Create the GPU texture if not already done
-    m_modifiedGPUTexture = GPU_texture_create_2d("videotexture",
-                                                 size[0],
-                                                 size[1],
-                                                 1,
-                                                 GPU_RGBA8,
-                                                 GPU_TEXTURE_USAGE_SHADER_READ |
-                                                     GPU_TEXTURE_USAGE_ATTACHMENT,
-                                                 nullptr);
+    if (!m_modifiedGPUTexture) {
+      // Create the GPU texture if not already done
+      m_modifiedGPUTexture = GPU_texture_create_2d("videotexture",
+                                                   size[0],
+                                                   size[1],
+                                                   1,
+                                                   GPU_RGBA8,
+                                                   GPU_TEXTURE_USAGE_SHADER_READ |
+                                                       GPU_TEXTURE_USAGE_ATTACHMENT,
+                                                   nullptr);
+    }
 
     // Upload the RGBA8 buffer to the GPU texture
     GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
