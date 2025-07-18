@@ -154,7 +154,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
         std::memcpy(m_viewportImage, depth_buffer, sizeof(float) * m_capSize[0] * m_capSize[1]);
         FilterZZZA filt;
         filterImage(filt, (float *)m_viewportImage, m_capSize);
-        MEM_freeN(depth_buffer);
+        MEM_delete(depth_buffer);
       }
       else {
         if (m_depth) {
@@ -169,7 +169,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
             // filter loaded data
             FilterDEPTH filt;
             filterImage(filt, (float *)m_viewportImage, m_capSize);
-            MEM_freeN(depth_buffer);
+            MEM_delete(depth_buffer);
           }
         }
         else {
@@ -196,7 +196,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
                 FilterRGBA32 filt;
                 filterImage(filt, m_viewportImage, m_capSize);
               }
-              MEM_freeN(color_buffer);
+              MEM_delete(color_buffer);
             }
           }
           else {
@@ -210,7 +210,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
               FilterRGB24 filt;
               filterImage(filt, m_viewportImage, m_capSize);
 
-              MEM_freeN(color_buffer);
+              MEM_delete(color_buffer);
             }
           }
         }
