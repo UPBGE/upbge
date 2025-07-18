@@ -112,7 +112,7 @@ static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
 
   UI_block_emboss_set(block, blender::ui::EmbossType::None);
   uiBut *but = uiDefIconButR_prop(block,
-                                  UI_BTYPE_TOGGLE,
+                                  ButType::Toggle,
                                   1,
                                   icon,
                                   context->v2d->cur.xmax / context->scale - offset,
@@ -151,7 +151,7 @@ static float draw_channel_widget_lock(const SeqChannelDrawContext *context,
 
   UI_block_emboss_set(block, blender::ui::EmbossType::None);
   uiBut *but = uiDefIconButR_prop(block,
-                                  UI_BTYPE_TOGGLE,
+                                  ButType::Toggle,
                                   1,
                                   icon,
                                   context->v2d->cur.xmax / context->scale - offset,
@@ -228,7 +228,7 @@ static void draw_channel_labels(const SeqChannelDrawContext *context,
 
     UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     uiBut *but = uiDefButR(block,
-                           UI_BTYPE_TEXT,
+                           ButType::Text,
                            1,
                            "",
                            rect.xmin,
@@ -252,7 +252,7 @@ static void draw_channel_labels(const SeqChannelDrawContext *context,
   else {
     const char *label = seq::channel_name_get(context->channels, channel_index);
     uiDefBut(block,
-             UI_BTYPE_LABEL,
+             ButType::Label,
              0,
              label,
              rect.xmin,
@@ -310,7 +310,7 @@ void channel_draw_context_init(const bContext *C,
   r_context->area = CTX_wm_area(C);
   r_context->region = region;
   r_context->v2d = &region->v2d;
-  r_context->scene = CTX_data_scene(C);
+  r_context->scene = CTX_data_sequencer_scene(C);
   r_context->ed = seq::editing_get(r_context->scene);
   r_context->seqbase = seq::active_seqbase_get(r_context->ed);
   r_context->channels = seq::channels_displayed_get(r_context->ed);
@@ -329,7 +329,7 @@ void draw_channels(const bContext *C, ARegion *region)
 {
   draw_background();
 
-  Editing *ed = seq::editing_get(CTX_data_scene(C));
+  Editing *ed = seq::editing_get(CTX_data_sequencer_scene(C));
   if (ed == nullptr) {
     return;
   }

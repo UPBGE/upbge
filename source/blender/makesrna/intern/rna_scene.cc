@@ -5101,8 +5101,8 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
   }
 
   prop = RNA_def_property(srna, "use_pass_z", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_Z);
-  RNA_def_property_ui_text(prop, "Z", "Deliver Z values pass");
+  RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_DEPTH);
+  RNA_def_property_ui_text(prop, "Depth", "Deliver depth values pass");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
   }
@@ -9724,15 +9724,14 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_function_return(func, parm);
 
   /* Grease Pencil */
-  prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
-  RNA_def_property_struct_type(prop, "GreasePencil");
+  RNA_def_property_struct_type(prop, "Annotation");
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_ui_text(
-      prop, "Annotations", "Grease Pencil data-block used for annotations in the 3D view");
+  RNA_def_property_ui_text(prop, "Annotations", "Data-block used for annotations in the 3D view");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   /* Game Settings */

@@ -72,36 +72,19 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
     /* move over the compbufs */
     /* right after #blender::bke::node_tree_copy_tree() `oldsock` pointers are valid */
 
-    if (node->type_legacy == CMP_NODE_VIEWER) {
-      if (node->id) {
-        if (node->flag & NODE_DO_OUTPUT) {
-          local_node->id = (ID *)node->id;
-        }
-        else {
-          local_node->id = nullptr;
-        }
-      }
-    }
-
     node = node->next;
     local_node = local_node->next;
   }
 }
 
-static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
+static void local_merge(Main * /*bmain*/, bNodeTree *localtree, bNodeTree *ntree)
 {
   /* move over the compbufs and previews */
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
   LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
     if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode->name)) {
-      if (lnode->type_legacy == CMP_NODE_VIEWER) {
-        if (lnode->id && (lnode->flag & NODE_DO_OUTPUT)) {
-          /* image_merge does sanity check for pointers */
-          BKE_image_merge(bmain, (Image *)orig_node->id, (Image *)lnode->id);
-        }
-      }
-      else if (lnode->type_legacy == CMP_NODE_MOVIEDISTORTION) {
+      if (lnode->type_legacy == CMP_NODE_MOVIEDISTORTION) {
         /* special case for distortion node: distortion context is allocating in exec function
          * and to achieve much better performance on further calls this context should be
          * copied back to original node */
@@ -137,14 +120,27 @@ static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
 static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
                                                   blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::node_is_static_socket_type(*socket_type) &&
-         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
+  return blender::bke::node_is_static_socket_type(*socket_type) && ELEM(socket_type->type,
+                                                                        SOCK_FLOAT,
+                                                                        SOCK_INT,
+                                                                        SOCK_BOOLEAN,
+                                                                        SOCK_VECTOR,
+                                                                        SOCK_RGBA,
+                                                                        SOCK_MENU);
 }
 
-static bool composite_validate_link(eNodeSocketDatatype /*from*/, eNodeSocketDatatype /*to*/)
+/* Keep consistent with the is_conversion_supported function in compositor::ConversionOperation on
+ * the compositor side.*/
+static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDatatype to_type)
 {
-  /* All supported types can be implicitly converted to other types. */
-  return true;
+  /* Basic math types can be implicitly converted to each other. */
+  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
+      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  {
+    return true;
+  }
+
+  return from_type == to_type;
 }
 
 blender::bke::bNodeTreeType *ntreeType_Composite;

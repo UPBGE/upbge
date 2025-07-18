@@ -4171,7 +4171,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
    * Otherwise just enable scripts and reset the depsgraphs. */
   if ((blendfile_path[0] != '\0') && wm->file_saved) {
     but = uiDefIconTextBut(block,
-                           UI_BTYPE_BUT,
+                           ButType::But,
                            0,
                            ICON_NONE,
                            IFACE_("Allow Execution"),
@@ -4188,7 +4188,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   }
   else {
     but = uiDefIconTextBut(block,
-                           UI_BTYPE_BUT,
+                           ButType::But,
                            0,
                            ICON_NONE,
                            IFACE_("Allow Execution"),
@@ -4207,7 +4207,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
 
   col = &split->column(false);
   but = uiDefIconTextBut(block,
-                         UI_BTYPE_BUT,
+                         ButType::But,
                          0,
                          ICON_NONE,
                          IFACE_("Ignore"),
@@ -4378,7 +4378,7 @@ static void save_file_overwrite_cancel(bContext *C, void *arg_block, void * /*ar
 static void save_file_overwrite_cancel_button(uiBlock *block, wmGenericCallback *post_action)
 {
   uiBut *but = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+      block, ButType::But, 0, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
   UI_but_func_set(but, save_file_overwrite_cancel, block, post_action);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
 }
@@ -4413,7 +4413,7 @@ static void save_file_overwrite_confirm(bContext *C, void *arg_block, void *arg_
 static void save_file_overwrite_confirm_button(uiBlock *block, wmGenericCallback *post_action)
 {
   uiBut *but = uiDefIconTextBut(block,
-                                UI_BTYPE_BUT,
+                                ButType::But,
                                 0,
                                 ICON_NONE,
                                 IFACE_("Overwrite"),
@@ -4442,7 +4442,7 @@ static void save_file_overwrite_saveas(bContext *C, void *arg_block, void * /*ar
 static void save_file_overwrite_saveas_button(uiBlock *block, wmGenericCallback *post_action)
 {
   uiBut *but = uiDefIconTextBut(block,
-                                UI_BTYPE_BUT,
+                                ButType::But,
                                 0,
                                 ICON_NONE,
                                 IFACE_("Save As..."),
@@ -4647,7 +4647,7 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
 static void wm_block_file_close_cancel_button(uiBlock *block, wmGenericCallback *post_action)
 {
   uiBut *but = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+      block, ButType::But, 0, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
   UI_but_func_set(but, wm_block_file_close_cancel, block, post_action);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
 }
@@ -4655,7 +4655,7 @@ static void wm_block_file_close_cancel_button(uiBlock *block, wmGenericCallback 
 static void wm_block_file_close_discard_button(uiBlock *block, wmGenericCallback *post_action)
 {
   uiBut *but = uiDefIconTextBut(block,
-                                UI_BTYPE_BUT,
+                                ButType::But,
                                 0,
                                 ICON_NONE,
                                 IFACE_("Don't Save"),
@@ -4677,7 +4677,7 @@ static void wm_block_file_close_save_button(uiBlock *block,
 {
   uiBut *but = uiDefIconTextBut(
       block,
-      UI_BTYPE_BUT,
+      ButType::But,
       0,
       ICON_NONE,
       /* Forward compatibility issues force using 'save as' operator instead of 'save' one. */
@@ -4779,7 +4779,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
       layout->separator();
     }
     uiDefButBitC(block,
-                 UI_BTYPE_CHECKBOX,
+                 ButType::Checkbox,
                  1,
                  0,
                  message,
@@ -4804,7 +4804,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
       layout->separator();
     }
     uiBut *but = uiDefButBitC(block,
-                              UI_BTYPE_CHECKBOX,
+                              ButType::Checkbox,
                               1,
                               0,
                               "Save modified asset catalogs",

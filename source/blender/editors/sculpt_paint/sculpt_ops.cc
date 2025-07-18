@@ -33,6 +33,7 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -358,7 +359,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
 
 void ensure_valid_pivot(const Object &ob, Paint &paint)
 {
-  UnifiedPaintSettings &ups = paint.unified_paint_settings;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   /* Account for the case where no objects are evaluated. */
@@ -367,16 +368,16 @@ void ensure_valid_pivot(const Object &ob, Paint &paint)
   }
 
   /* No valid pivot? Use bounding box center. */
-  if (ups.average_stroke_counter == 0 || !ups.last_stroke_valid) {
+  if (paint_runtime.average_stroke_counter == 0 || !paint_runtime.last_stroke_valid) {
     const Bounds<float3> bounds = bke::pbvh::bounds_get(*pbvh);
     const float3 center = math::midpoint(bounds.min, bounds.max);
     const float3 location = math::transform_point(ob.object_to_world(), center);
 
-    copy_v3_v3(ups.average_stroke_accum, location);
-    ups.average_stroke_counter = 1;
+    copy_v3_v3(paint_runtime.average_stroke_accum, location);
+    paint_runtime.average_stroke_counter = 1;
 
     /* Update last stroke position. */
-    ups.last_stroke_valid = true;
+    paint_runtime.last_stroke_valid = true;
   }
 }
 
@@ -552,17 +553,17 @@ static wmOperatorStatus sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
 
   if (!is_mode_set) {
-    if (!object::mode_compat_set(C, &ob, eObjectMode(mode_flag), op->reports)) {
-      return OPERATOR_CANCELLED;
-    }
-
     /* Being in sculpt mode on an invisible object is a confusing state; while switching the
      * visibility of the current object shouldn't inherently change the mode, we prevent entering
      * sculpt mode on an object that is already invisible to better align with how the mode toggle
      * works currently. */
     const View3D *v3d = CTX_wm_view3d(C);
-    const Base *base = CTX_data_active_base(C);
+    const Base *base = BKE_view_layer_base_find(&view_layer, &ob);
     if (!BKE_base_is_visible(v3d, base)) {
+      return OPERATOR_CANCELLED;
+    }
+
+    if (!object::mode_compat_set(C, &ob, eObjectMode(mode_flag), op->reports)) {
       return OPERATOR_CANCELLED;
     }
   }
