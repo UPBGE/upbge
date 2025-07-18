@@ -8,6 +8,7 @@
 // implementation
 
 #include "ImageViewport.h"
+#include "ImageRender.h"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_state.hh"
@@ -16,6 +17,7 @@
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "RAS_ICanvas.h"
+#include "RAS_FrameBuffer.h"
 #include "Texture.h"
 
 ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
@@ -131,7 +133,6 @@ void ImageViewport::setPosition(int pos[2])
 // capture image from viewport
 void ImageViewport::calcViewport(unsigned int textid, double ts)
 {
-  GPUFrameBuffer *target = GPU_framebuffer_active_get();
   // if scale was changed
   if (m_scaleChange)
     // reset image
@@ -144,6 +145,25 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
       m_texInit = true;
     }
   }
+  // Use the main scene framebuffer for all image types except ImageRender (which uses the active
+  // framebuffer)
+  GPUFrameBuffer *target = nullptr;
+  if (dynamic_cast<ImageRender *>(this)) {
+    // For ImageRender: use the currently active framebuffer (offscreen)
+    target = GPU_framebuffer_active_get();
+  }
+  else {
+    // For all other image types: use the main scene framebuffer
+    RAS_Rasterizer *rasty = KX_GetActiveEngine()->GetRasterizer();
+    RAS_FrameBuffer *background_fb = rasty->GetFrameBuffer(
+        RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0);
+    target = background_fb ? background_fb->GetFrameBuffer() : nullptr;
+  }
+  if (!target) {
+    // error handling
+    return;
+  }
+
   // otherwise copy viewport to buffer, if image is not available
   if (!m_avail) {
     if (m_zbuff) {
@@ -152,7 +172,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
       //     (4 bytes per pixel = size of float) and we just need it to apply
       //     the filter, it's ok
       GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-      float *depth_buffer = (float *)GPU_texture_read(
+      float *depth_buffer = (float *)GPU_texture_read_no_assert(
           GPU_framebuffer_depth_texture(target), GPU_DATA_FLOAT, 0);
       if (depth_buffer) {
         std::memcpy(m_viewportImage, depth_buffer, sizeof(float) * m_capSize[0] * m_capSize[1]);
@@ -165,7 +185,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
           // Use read pixels with the depth buffer
           // See warning above about m_viewportImage.
           GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-          float *depth_buffer = (float *)GPU_texture_read(
+          float *depth_buffer = (float *)GPU_texture_read_no_assert(
               GPU_framebuffer_depth_texture(target), GPU_DATA_FLOAT, 0);
           if (depth_buffer) {
             std::memcpy(
@@ -182,7 +202,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
             // as we are reading the pixel in the native format, we can read directly in the image
             // buffer if we are sure that no processing is needed on the image
             GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-            float *color_buffer = (float *)GPU_texture_read(
+            float *color_buffer = (float *)GPU_texture_read_no_assert(
                 GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
             if (color_buffer) {
               if (m_size[0] == m_capSize[0] && m_size[1] == m_capSize[1] && !m_flip && !m_pyfilter)
@@ -205,7 +225,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
           }
           else {
             GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-            float *color_buffer = (float *)GPU_texture_read(
+            float *color_buffer = (float *)GPU_texture_read_no_assert(
                 GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
 
             if (color_buffer) {
@@ -219,6 +239,18 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
           }
         }
       }
+    }
+  }
+  ImageViewport *ivr = dynamic_cast<ImageViewport *>(this);
+  // For ImageViewport, fill the buffer at least one time
+  if (ivr && !m_avail) {
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+    float *color_buffer = (float *)GPU_texture_read_no_assert(
+        GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
+    if (color_buffer) {
+      std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
+      MEM_delete(color_buffer);
+      m_avail = true;
     }
   }
 }
