@@ -52,6 +52,7 @@ Texture::Texture():
       m_gameobj(nullptr),
       m_origGpuTex(nullptr),
       m_modifiedGPUTexture(nullptr),
+      m_py_color(nullptr),
       m_mipmap(false),
       m_scaledImBuf(nullptr),
       m_lastClock(0.0),
@@ -115,6 +116,10 @@ void Texture::Close()
     GPU_texture_free(m_modifiedGPUTexture);
     m_modifiedGPUTexture = nullptr;
   }
+  if (m_py_color) {
+    Py_XDECREF(m_py_color);
+    m_py_color = nullptr;
+  }
 }
 
 void Texture::SetSource(PyImage *source)
@@ -143,6 +148,8 @@ void Texture::loadTexture(unsigned int *texture,
       // Assign the GPU texture to the Blender image slot
       m_origGpuTex = m_imgTexture->gputexture[TEXTARGET_2D][0];
       m_imgTexture->gputexture[TEXTARGET_2D][0] = gpuTex;
+      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->gputexture[TEXTARGET_2D][0], false);
+      Py_INCREF(m_py_color);
     }
     // No need to upload a CPU buffer, return early
     return;
@@ -184,6 +191,10 @@ void Texture::loadTexture(unsigned int *texture,
     }
     // Integrate the new GPU texture into the Blender pipeline
     m_imgTexture->gputexture[TEXTARGET_2D][0] = m_modifiedGPUTexture;
+    if (!m_py_color) {
+      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->gputexture[TEXTARGET_2D][0], false);
+      Py_INCREF(m_py_color);
+    }
   }
 }
 

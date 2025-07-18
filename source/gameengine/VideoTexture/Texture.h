@@ -48,6 +48,7 @@ class Texture : public EXP_Value {
   KX_GameObject *m_gameobj;
   GPUTexture *m_origGpuTex;
   GPUTexture *m_modifiedGPUTexture;
+  void *m_py_color;
 
   // use mipmapping
   bool m_mipmap;

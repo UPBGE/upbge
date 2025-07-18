@@ -64,7 +64,9 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
 
 #ifdef WITH_PYTHON
   m_py_color = BPyGPUTexture_CreatePyObject(m_colorAttachment, false);
+  Py_INCREF(m_py_color);
   m_py_depth = BPyGPUTexture_CreatePyObject(m_depthAttachment, false);
+  Py_INCREF(m_py_depth);
 #endif
 }
 
@@ -75,9 +77,9 @@ RAS_FrameBuffer::~RAS_FrameBuffer()
   GPU_texture_free(m_depthAttachment);
 
 #ifdef WITH_PYTHON
-  PyObject_Del(m_py_color);
+  Py_XDECREF(m_py_color);
   m_py_color = nullptr;
-  PyObject_Del(m_py_depth);
+  Py_XDECREF(m_py_depth);
   m_py_depth = nullptr;
 #endif
 }
@@ -138,12 +140,14 @@ void RAS_FrameBuffer::UpdateSize(int width, int height)
     GPU_framebuffer_config_array(m_frameBuffer, config, sizeof(config) / sizeof(GPUAttachment));
 
 #ifdef WITH_PYTHON
-    PyObject_Del(m_py_color);
+    Py_XDECREF(m_py_color);
     m_py_color = nullptr;
-    PyObject_Del(m_py_depth);
+    Py_XDECREF(m_py_depth);
     m_py_depth = nullptr;
     m_py_color = BPyGPUTexture_CreatePyObject(m_colorAttachment, false);
+    Py_INCREF(m_py_color);
     m_py_depth = BPyGPUTexture_CreatePyObject(m_depthAttachment, false);
+    Py_INCREF(m_py_depth);
 #endif
   }
 }
