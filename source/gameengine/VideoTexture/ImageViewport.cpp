@@ -36,6 +36,8 @@ ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
   m_width = m_viewport[2] - m_viewport[0];
   m_height = m_viewport[3] - m_viewport[1];
 
+  m_texture = nullptr;
+
   // glGetIntegerv(GL_VIEWPORT, m_viewport);
   // create buffer for viewport image
   // Warning: this buffer is also used to get the depth buffer as an array of
