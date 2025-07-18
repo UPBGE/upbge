@@ -241,18 +241,6 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
       }
     }
   }
-  ImageViewport *ivr = dynamic_cast<ImageViewport *>(this);
-  // For ImageViewport, fill the buffer at least one time
-  if (ivr && !m_avail) {
-    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-    float *color_buffer = (float *)GPU_texture_read_no_assert(
-        GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
-    if (color_buffer) {
-      std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
-      MEM_delete(color_buffer);
-      m_avail = true;
-    }
-  }
 }
 
 bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, double ts)
