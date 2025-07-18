@@ -40,14 +40,16 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                             height,
                                             1,
                                             GPU_RGBA16F,
-                                            GPU_TEXTURE_USAGE_GENERAL,
+                                            GPU_TEXTURE_USAGE_SHADER_READ |
+                                                GPU_TEXTURE_USAGE_ATTACHMENT,
                                             nullptr);
   m_depthAttachment = GPU_texture_create_2d("depth_tex",
                                             width,
                                             height,
                                             1,
                                             GPU_DEPTH32F_STENCIL8,
-                                            GPU_TEXTURE_USAGE_GENERAL,
+                                            GPU_TEXTURE_USAGE_SHADER_READ |
+                                                GPU_TEXTURE_USAGE_ATTACHMENT,
                                             nullptr);
   m_frameBuffer = GPU_framebuffer_create("game_fb");
   GPUAttachment config[] = {
@@ -110,6 +112,7 @@ void RAS_FrameBuffer::UpdateSize(int width, int height)
   if (GPU_texture_width(m_colorAttachment) != width ||
       GPU_texture_height(m_colorAttachment) != height)
   {
+    GPU_framebuffer_free(m_frameBuffer);
     GPU_texture_free(m_colorAttachment);
     GPU_texture_free(m_depthAttachment);
     m_colorAttachment = GPU_texture_create_2d("color_tex",
@@ -117,15 +120,18 @@ void RAS_FrameBuffer::UpdateSize(int width, int height)
                                               height,
                                               1,
                                               GPU_RGBA16F,
-                                              GPU_TEXTURE_USAGE_GENERAL,
+                                              GPU_TEXTURE_USAGE_SHADER_READ |
+                                                  GPU_TEXTURE_USAGE_ATTACHMENT,
                                               nullptr);
     m_depthAttachment = GPU_texture_create_2d("depth_tex",
                                               width,
                                               height,
                                               1,
                                               GPU_DEPTH32F_STENCIL8,
-                                              GPU_TEXTURE_USAGE_GENERAL,
+                                              GPU_TEXTURE_USAGE_SHADER_READ |
+                                                  GPU_TEXTURE_USAGE_ATTACHMENT,
                                               nullptr);
+    m_frameBuffer = GPU_framebuffer_create("game_fb");
     GPUAttachment config[] = {GPU_ATTACHMENT_TEXTURE(m_depthAttachment),
                               GPU_ATTACHMENT_TEXTURE(m_colorAttachment)};
 
