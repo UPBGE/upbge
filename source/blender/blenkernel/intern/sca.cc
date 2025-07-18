@@ -1249,5 +1249,5 @@ const char *BKE_sca_get_name_state(Object *ob, short bit)
     }
     cont = cont->next;
   }
-  return nullptr;
+  return "";
 }
