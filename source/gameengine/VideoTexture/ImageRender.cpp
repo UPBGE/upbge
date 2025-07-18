@@ -68,6 +68,8 @@ ImageRender::ImageRender(KX_Scene *scene,
 
   m_internalFormat = GPU_RGBA8;
 
+  m_targetfb = GPU_framebuffer_create("game_fb");
+
   m_scene->AddImageRenderCamera(m_camera);
 }
 
@@ -86,6 +88,9 @@ ImageRender::~ImageRender(void)
   if (m_owncamera) {
     m_camera->Release();
   }
+
+  GPU_framebuffer_free(m_targetfb);
+  m_targetfb = nullptr;
 }
 
 KX_Camera* ImageRender::GetCamera()
@@ -117,8 +122,22 @@ void ImageRender::calcViewport(unsigned int texId, double ts)
       viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_apply_state();
 
+  GPU_framebuffer_texture_attach(
+      m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
+  GPU_framebuffer_texture_attach(
+      m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
+
+  /* We want color and depth textures to be available in calcViewport
+   * to be abled to apply filters */
+  GPU_framebuffer_bind(m_targetfb);
+
   // get image from viewport (or FBO)
   ImageViewport::calcViewport(0, ts);
+
+  GPU_framebuffer_texture_detach(m_targetfb,
+                                 GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
+  GPU_framebuffer_texture_detach(m_targetfb,
+                                 GPU_viewport_depth_texture(m_camera->GetGPUViewport()));
 
   GPU_framebuffer_restore();
 }
