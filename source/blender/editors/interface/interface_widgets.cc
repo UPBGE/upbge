@@ -5249,8 +5249,8 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
 
-      case UI_BTYPE_LINK:
-      case UI_BTYPE_INLINK:
+      case ButType::Link:
+      case ButType::Inlink:
         wt = widget_type(UI_WTYPE_ICON);
         wt->custom = widget_link;
         break;

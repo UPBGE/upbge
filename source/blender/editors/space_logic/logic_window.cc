@@ -732,7 +732,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
   //UI_block_func_butmenu_set(block, do_sensor_menu, nullptr);
 
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Show Objects"),
            0,
@@ -745,7 +745,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 0); });
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Hide Objects"),
            0,
@@ -758,9 +758,9 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButType::SeprLine, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Show Sensors"),
            0,
@@ -773,7 +773,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Hide Sensors"),
            0,
@@ -839,7 +839,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
   //UI_block_func_butmenu_set(block, do_controller_menu, nullptr);
 
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Show Objects"),
            0,
@@ -853,7 +853,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 0);
   });
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Hide Objects"),
            0,
@@ -866,9 +866,9 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButType::SeprLine, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Show Controllers"),
            0,
@@ -881,7 +881,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Hide Controllers"),
            0,
@@ -947,7 +947,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
   //UI_block_func_butmenu_set(block, do_actuator_menu, nullptr);
 
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Show Objects"),
            0,
@@ -960,7 +960,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 0); });
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Hide Objects"),
            0,
@@ -973,9 +973,9 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, UI_BTYPE_SEPR_LINE, 0, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButType::SeprLine, 0, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Show Actuators"),
            0,
@@ -988,7 +988,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            "");
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
-           UI_BTYPE_BUT_MENU,
+           ButType::ButMenu,
            1,
            IFACE_("Hide Actuators"),
            0,
@@ -1028,13 +1028,13 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
   block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   /* use this for a fake extra empy space around the buttons */
-  uiDefBut(block, UI_BTYPE_LABEL, 0, "", -5, -5, 200, 34, nullptr, 0, 0, "");
+  uiDefBut(block, ButType::Label, 0, "", -5, -5, 200, 34, nullptr, 0, 0, "");
 
   for (offset = 0; offset < 15; offset += 5) {
     UI_block_align_begin(block);
     for (stbit = 0; stbit < 5; stbit++) {
       but = uiDefButBitI(block,
-                         UI_BTYPE_TOGGLE,
+                         ButType::Toggle,
                          (1 << (stbit + offset)),
                          (stbit + offset),
                          "",
@@ -1050,7 +1050,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
     }
     for (stbit = 0; stbit < 5; stbit++) {
       but = uiDefButBitI(block,
-                         UI_BTYPE_TOGGLE,
+                         ButType::Toggle,
                          (1 << (stbit + offset + 15)),
                          (stbit + offset + 15),
                          "",
@@ -2699,7 +2699,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     row = &split->row(true);
     uiDefButBitS(block,
-                 UI_BTYPE_TOGGLE,
+                 ButType::Toggle,
                  OB_SHOWCONT,
                  B_REDR,
                  ob->id.name + 2,
@@ -2759,7 +2759,7 @@ void logic_buttons(bContext *C, ARegion *region)
       col->active_set(RNA_boolean_get(&ptr, "active"));
       col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
-                         UI_BTYPE_INLINK,
+                         ButType::Inlink,
                          0,
                          ICON_LINKED,
                          0,
@@ -2792,7 +2792,7 @@ void logic_buttons(bContext *C, ARegion *region)
       col->active_set(RNA_boolean_get(&ptr, "active"));
       col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
-                         UI_BTYPE_LINK,
+                         ButType::Link,
                          0,
                          ICON_LINKED,
                          0,
@@ -2856,7 +2856,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     row = &layout->row(true);
     uiDefButBitS(block,
-                 UI_BTYPE_TOGGLE,
+                 ButType::Toggle,
                  OB_SHOWSENS,
                  B_REDR,
                  ob->id.name + 2,
@@ -2907,7 +2907,7 @@ void logic_buttons(bContext *C, ARegion *region)
         col = &split->column(false);
         col->active_set(RNA_boolean_get(&ptr, "active"));
         but = uiDefIconBut(block,
-                           UI_BTYPE_LINK,
+                           ButType::Link,
                            0,
                            ICON_LINKED,
                            0,
@@ -2974,7 +2974,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     row = &layout->row(true);
     uiDefButBitS(block,
-                 UI_BTYPE_TOGGLE,
+                 ButType::Toggle,
                  OB_SHOWACT,
                  B_REDR,
                  ob->id.name + 2,
@@ -3019,7 +3019,7 @@ void logic_buttons(bContext *C, ARegion *region)
         col = &split->column(false);
         col->active_set(RNA_boolean_get(&ptr, "active"));
         but = uiDefIconBut(block,
-                           UI_BTYPE_INLINK,
+                           ButType::Inlink,
                            0,
                            ICON_LINKED,
                            0,

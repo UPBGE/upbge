@@ -123,7 +123,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
       int i = 0;
       while (i < block->buttons.size()) {
         but = block->buttons[i].get();
-        if (but->type == UI_BTYPE_LINK && but->link) {
+        if (but->type == ButType::Link && but->link) {
           for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
             nline = line->next;
 

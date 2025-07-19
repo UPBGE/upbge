@@ -1013,7 +1013,7 @@ static void ui_apply_but_undo(uiBut *but)
     str_len_clip = ui_but_tip_len_only_first_line(but);
   }
 
-  if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
+  if (ELEM(but->type, ButType::Link, ButType::Inlink)) {
     str = "Add button link";
   }
 
@@ -2245,7 +2245,7 @@ static void ui_linkline_remove_active(uiBlock *block)
   int a, b;
 
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->type == UI_BTYPE_LINK && but->link) {
+    if (but->type == ButType::Link && but->link) {
       for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
         nline = line->next;
 
@@ -2377,10 +2377,10 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     tmp_but->hardmin = from->link->tocode;
     tmp_but->poin = (char *)cont;
 
-    tmp_but->type = UI_BTYPE_INLINK;
+    tmp_but->type = ButType::Inlink;
     ui_but_link_add(C, from, tmp_but);
 
-    tmp_but->type = UI_BTYPE_LINK;
+    tmp_but->type = ButType::Link;
     ui_but_link_add(C, tmp_but, to);
 
     /* (5) garbage collection */
@@ -2404,16 +2404,16 @@ static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
     return;
   }
 
-  if (from->type == UI_BTYPE_INLINK && to->type == UI_BTYPE_INLINK) {
+  if (from->type == ButType::Inlink && to->type == ButType::Inlink) {
     return;
   }
-  else if (from->type == UI_BTYPE_LINK && to->type == UI_BTYPE_INLINK) {
+  else if (from->type == ButType::Link && to->type == ButType::Inlink) {
     if (from->link->tocode != (int)to->hardmin) {
       ui_but_smart_controller_add(C, from, to);
       return;
     }
   }
-  else if (from->type == UI_BTYPE_INLINK && to->type == UI_BTYPE_LINK) {
+  else if (from->type == ButType::Inlink && to->type == ButType::Link) {
     if (to->link->tocode == (int)from->hardmin) {
       return;
     }
@@ -2454,11 +2454,11 @@ static void ui_apply_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data)
     }
   }
   if (bt && bt != but) {
-    if (!ELEM(bt->type, UI_BTYPE_LINK, UI_BTYPE_INLINK) ||
-        !ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK))
+    if (!ELEM(bt->type, ButType::Link, ButType::Inlink) ||
+        !ELEM(but->type, ButType::Link, ButType::Inlink))
       return;
 
-    if (but->type == UI_BTYPE_LINK)
+    if (but->type == ButType::Link)
       ui_but_link_add(C, but, bt);
     else
       ui_but_link_add(C, bt, but);
@@ -2665,8 +2665,8 @@ static void ui_apply_but(
     case ButType::HotkeyEvent:
       ui_apply_but_BUT(C, but, data);
       break;
-    case UI_BTYPE_LINK:
-    case UI_BTYPE_INLINK:
+    case ButType::Link:
+    case ButType::Inlink:
       ui_apply_but_LINK(C, but, data);
       break;
     case ButType::Image:
@@ -8734,8 +8734,8 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
     case ButType::TrackPreview:
       retval = ui_do_but_TRACKPREVIEW(C, block, but, data, event);
       break;
-    case UI_BTYPE_LINK:
-    case UI_BTYPE_INLINK:
+    case ButType::Link:
+    case ButType::Inlink:
       retval = ui_do_but_LINK(C, but, data, event);
       break;
 
@@ -10023,7 +10023,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
         break;
       }
       case MOUSEMOVE: {
-        if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
+        if (ELEM(but->type, ButType::Link, ButType::Inlink)) {
           but->flag |= UI_SELECT;
           ui_do_button(C, block, but, event);
           ED_region_tag_redraw(data->region);

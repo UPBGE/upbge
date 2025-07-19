@@ -791,7 +791,7 @@ static void ui_draw_links(uiBlock *block)
   bool found_activeline = false;
 
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->type == UI_BTYPE_LINK && but->link) {
+    if (but->type == ButType::Link && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (line->deactive)
@@ -808,7 +808,7 @@ static void ui_draw_links(uiBlock *block)
 
   /* Draw the inactive lines (lines with neither button being hovered over) */
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->type == UI_BTYPE_LINK && but->link) {
+    if (but->type == ButType::Link && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (!line->deactive)
@@ -822,7 +822,7 @@ static void ui_draw_links(uiBlock *block)
    * Do this last so they appear on top of inactive and gray out lines. */
   if (found_activeline) {
     for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but->type == UI_BTYPE_LINK && but->link) {
+      if (but->type == ButType::Link && but->link) {
         for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
           if ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER))
             ui_draw_linkline(line, !found_selectline, false);
@@ -977,8 +977,8 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
 {
   uiLinkLine *line;
 
-  /* if active button is UI_BTYPE_LINK */
-  if (newbut->type == UI_BTYPE_LINK && newbut->link) {
+  /* if active button is ButType::Link */
+  if (newbut->type == ButType::Link && newbut->link) {
 
     SWAP(uiLink *, oldbut->link, newbut->link);
 
@@ -992,7 +992,7 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
 
   /* check all other button links */
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but.get() != newbut && but->type == UI_BTYPE_LINK && but->link) {
+    if (but.get() != newbut && but->type == ButType::Link && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (line->to == newbut)
           line->to = oldbut;
@@ -2585,7 +2585,7 @@ static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
   int i = 0;
   while (i < block->buttons.size()) {
     but = block->buttons[i].get();
-    if (but->type == UI_BTYPE_INLINK) {
+    if (but->type == ButType::Inlink) {
       if (but->poin == poin)
         return but;
     }
@@ -2620,7 +2620,7 @@ void UI_block_links_compose(uiBlock *block)
   int i = 0;
   while (i < block->buttons.size()) {
     but = block->buttons[i].get();
-    if (but->type == UI_BTYPE_LINK) {
+    if (but->type == ButType::Link) {
       link = but->link;
 
       /* for all pointers in the array */

@@ -404,7 +404,7 @@ void uiTemplateGameStates(uiLayout *layout,
           icon = ICON_LAYER_USED;
 
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_ICON_TOGGLE,
+                                 ButType::IconToggle,
                                  0,
                                  icon,
                                  0,
@@ -418,7 +418,7 @@ void uiTemplateGameStates(uiLayout *layout,
                                  0,
                                  BKE_sca_get_name_state(ob, state));
         UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
-        but->type = UI_BTYPE_TOGGLE;
+        but->type = ButType::ButToggle;
       }
     }
   }

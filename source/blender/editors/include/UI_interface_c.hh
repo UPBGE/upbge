@@ -430,8 +430,8 @@ enum class ButType : int8_t {
   Scroll,
   Block,
   Label,
-  UI_BTYPE_LINK,
-  UI_BTYPE_INLINK,
+  Link,
+  Inlink,
   KeyEvent,
   HsvCube,
   /** Menu (often used in headers), `*_MENU` with different draw-type. */
