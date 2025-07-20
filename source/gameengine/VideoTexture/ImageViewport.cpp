@@ -360,55 +360,57 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
     return;
   }
 
-  // Convert the framebuffer textures to RGBA8 if not already available
-  if (!m_avail) {
-    convertRGBA16toRGBA8Textures(GPU_framebuffer_color_texture(target),
-                                 GPU_framebuffer_depth_texture(target));
-  }
-
-  if (!m_avail) {
-    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-
-    // 1. Always copy GPU pixels into m_image
-    if (m_zbuff) {
-      unsigned int *depth_buffer = (unsigned int *)GPU_texture_read_no_assert(
-          m_rgba8_depth_tex, GPU_DATA_UBYTE, 0);
-      if (depth_buffer) {
-        std::memcpy(m_image, depth_buffer, sizeof(unsigned int) * m_capSize[0] * m_capSize[1]);
-        MEM_delete(depth_buffer);
-      }
-    }
-    else {
-      unsigned int *color_buffer = (unsigned int *)GPU_texture_read_no_assert(
-          m_rgba8_color_tex, GPU_DATA_UBYTE, 0);
-      if (color_buffer) {
-        std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
-        MEM_delete(color_buffer);
-      }
+  if (0) {
+    // Convert the framebuffer textures to RGBA8 if not already available
+    if (!m_avail) {
+      convertRGBA16toRGBA8Textures(GPU_framebuffer_color_texture(target),
+                                   GPU_framebuffer_depth_texture(target));
     }
 
-    // 2. Apply filters on m_image if needed (flip, alpha, depth, etc.)
-    if (m_zbuff) {
-      if (m_depth) {
-        // Apply depth filter
-        FilterDEPTH filt;
-        filterImage(filt, m_image, m_capSize);
+    if (!m_avail) {
+      GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+
+      // 1. Always copy GPU pixels into m_image
+      if (m_zbuff) {
+        unsigned int *depth_buffer = (unsigned int *)GPU_texture_read_no_assert(
+            m_rgba8_depth_tex, GPU_DATA_UBYTE, 0);
+        if (depth_buffer) {
+          std::memcpy(m_image, depth_buffer, sizeof(unsigned int) * m_capSize[0] * m_capSize[1]);
+          MEM_delete(depth_buffer);
+        }
       }
       else {
-        // Apply Z-buffer filter
-        FilterZZZA filt;
-        filterImage(filt, m_image, m_capSize);
+        unsigned int *color_buffer = (unsigned int *)GPU_texture_read_no_assert(
+            m_rgba8_color_tex, GPU_DATA_UBYTE, 0);
+        if (color_buffer) {
+          std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
+          MEM_delete(color_buffer);
+        }
       }
-    }
-    else {
-      if (m_alpha) {
-        FilterRGBA32 filt;
-        filterImage(filt, m_image, m_capSize);
-      }
-    }
 
-    // 3. Mark the image as available for Python access
-    m_avail = true;
+      // 2. Apply filters on m_image if needed (flip, alpha, depth, etc.)
+      if (m_zbuff) {
+        if (m_depth) {
+          // Apply depth filter
+          FilterDEPTH filt;
+          filterImage(filt, m_image, m_capSize);
+        }
+        else {
+          // Apply Z-buffer filter
+          FilterZZZA filt;
+          filterImage(filt, m_image, m_capSize);
+        }
+      }
+      else {
+        if (m_alpha) {
+          FilterRGBA32 filt;
+          filterImage(filt, m_image, m_capSize);
+        }
+      }
+
+      // 3. Mark the image as available for Python access
+      m_avail = true;
+    }
   }
 }
 
