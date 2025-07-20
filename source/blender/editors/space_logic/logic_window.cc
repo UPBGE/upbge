@@ -2599,7 +2599,8 @@ void logic_buttons(bContext *C, ARegion *region)
   if (ob == nullptr)
     return;
 
-  PointerRNA logic_ptr = RNA_pointer_create_discrete(nullptr, &RNA_SpaceLogicEditor, slogic);
+  PointerRNA logic_ptr = RNA_pointer_create_discrete(
+      reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceLogicEditor, slogic);
   idar = get_selected_and_linked_obs(C, &count, slogic->scaflag);
 
   BLI_snprintf(uiblockstr, sizeof(uiblockstr), "buttonswin %p", (void *)region);
