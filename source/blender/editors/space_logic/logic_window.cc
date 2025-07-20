@@ -2347,7 +2347,7 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
                nullptr,
                UI_TEMPLATE_ID_FILTER_ALL,
                false,
-               nullptr);
+               "");
   if (!RNA_pointer_get(ptr, "sound").data) {
     layout->label(IFACE_("Select a sound from the list or load a new one"), ICON_NONE);
     return;
