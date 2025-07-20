@@ -10,7 +10,11 @@
 #include "ImageViewport.h"
 #include "ImageRender.h"
 
+#include "GPU_batch.hh"
+#include "GPU_batch_presets.hh"
 #include "GPU_framebuffer.hh"
+#include "GPU_shader.hh"
+#include "gpu_shader_create_info.hh"
 #include "GPU_state.hh"
 
 #include "FilterSource.h"
@@ -39,6 +43,14 @@ ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
   m_height = m_viewport[3] - m_viewport[1];
 
   m_texture = nullptr;
+  m_rgba8_color_fb = nullptr;
+  m_rgba8_color_tex = nullptr;
+  m_rgba8_depth_fb = nullptr;
+  m_rgba8_depth_tex = nullptr;
+  m_color_to_rgba8_sh = nullptr;
+  m_depth_to_rgba8_sh = nullptr;
+  createColorToRGBA8Shader();
+  createDepthToRGBA8Shader();
 
   // glGetIntegerv(GL_VIEWPORT, m_viewport);
   // create buffer for viewport image
@@ -59,6 +71,14 @@ ImageViewport::ImageViewport(unsigned int width, unsigned int height)
   m_viewport[3] = m_height;
 
   m_texture = nullptr;
+  m_rgba8_color_fb = nullptr;
+  m_rgba8_color_tex = nullptr;
+  m_rgba8_depth_fb = nullptr;
+  m_rgba8_depth_tex = nullptr;
+  m_color_to_rgba8_sh = nullptr;
+  m_depth_to_rgba8_sh = nullptr;
+  createColorToRGBA8Shader();
+  createDepthToRGBA8Shader();
 
   // glGetIntegerv(GL_VIEWPORT, m_viewport);
   // create buffer for viewport image
@@ -73,6 +93,15 @@ ImageViewport::ImageViewport(unsigned int width, unsigned int height)
 ImageViewport::~ImageViewport(void)
 {
   delete[] m_viewportImage;
+  freeRGBA8Resources();
+  if (m_color_to_rgba8_sh) {
+    GPU_shader_free(m_color_to_rgba8_sh);
+    m_color_to_rgba8_sh = nullptr;
+  }
+  if (m_depth_to_rgba8_sh) {
+    GPU_shader_free(m_depth_to_rgba8_sh);
+    m_depth_to_rgba8_sh = nullptr;
+  }
 }
 
 // use whole viewport to capture image
@@ -130,23 +159,190 @@ void ImageViewport::setPosition(int pos[2])
     m_upLeft[idx] = m_position[idx] + m_viewport[idx];
 }
 
+void ImageViewport::createColorToRGBA8Shader()
+{
+  if (!m_color_to_rgba8_sh) {
+    static const char *vs_src = R"(
+void main()
+{
+  uv = pos;
+  gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
+}
+)";
+
+    static const char *fs_src = R"(
+void main()
+{
+  fragColor = texture(colorTex, uv);
+}
+)";
+
+    using namespace blender::gpu::shader;
+
+    StageInterfaceInfo iface("s_Interface", "");
+    iface.smooth(Type::float2_t, "uv");
+
+    ShaderCreateInfo info("copy_rgba8");
+    info.vertex_in(0, Type::float2_t, "pos");
+    info.vertex_out(iface);
+    info.vertex_source_generated = vs_src;
+    info.fragment_source_generated = fs_src;
+    info.fragment_out(0, Type::float4_t, "fragColor");
+    info.vertex_source("draw_colormanagement_lib.glsl");
+    info.fragment_source("draw_colormanagement_lib.glsl");
+    info.sampler(0, ImageType::Float2D, "colorTex");
+
+    m_color_to_rgba8_sh = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  }
+}
+
+void ImageViewport::createDepthToRGBA8Shader()
+{
+  if (!m_depth_to_rgba8_sh) {
+    using namespace blender::gpu::shader;
+    static const char *vs_src = R"(
+void main()
+{
+  uv = pos;
+  gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
+}
+)";
+
+    static const char *fs_src = R"(
+void main()
+{
+  float d = texture(depthTex, uv).r;
+  fragColor = vec4(d, d, d, 1.0);
+}
+)";
+
+    using namespace blender::gpu::shader;
+
+    StageInterfaceInfo iface("s_Interface", "");
+    iface.smooth(Type::float2_t, "uv");
+
+    ShaderCreateInfo info("depth_to_rgba8");
+    info.vertex_in(0, Type::float2_t, "pos");
+    info.vertex_out(iface);
+    info.vertex_source_generated = vs_src;
+    info.fragment_source_generated = fs_src;
+    info.fragment_out(0, Type::float4_t, "fragColor");
+    info.vertex_source("draw_colormanagement_lib.glsl");
+    info.fragment_source("draw_colormanagement_lib.glsl");
+    info.sampler(0, ImageType::Float2D, "depthTex");
+
+    m_depth_to_rgba8_sh = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  }
+}
+
+void ImageViewport::createRGBA8Resources()
+{
+  if (!m_rgba8_color_fb) {
+    m_rgba8_color_fb = GPU_framebuffer_create("temp_rgba8");
+    m_rgba8_color_tex = GPU_texture_create_2d("viewport_rgba8",
+                                              m_capSize[0],
+                                              m_capSize[1],
+                                              1,
+                                              GPU_RGBA8,
+                                              GPU_TEXTURE_USAGE_ATTACHMENT |
+                                                  GPU_TEXTURE_USAGE_SHADER_READ,
+                                              nullptr);
+    GPU_framebuffer_texture_attach(m_rgba8_color_fb, m_rgba8_color_tex, 0, 0);
+
+    m_rgba8_depth_fb = GPU_framebuffer_create("temp_rgba8_d");
+    m_rgba8_depth_tex = GPU_texture_create_2d("viewport_rgba8_d",
+                                              m_capSize[0],
+                                              m_capSize[1],
+                                              1,
+                                              GPU_RGBA8,
+                                              GPU_TEXTURE_USAGE_ATTACHMENT |
+                                                  GPU_TEXTURE_USAGE_SHADER_READ,
+                                              nullptr);
+    GPU_framebuffer_texture_attach(m_rgba8_depth_fb, m_rgba8_depth_tex, 0, 0);
+  }
+}
+
+void ImageViewport::freeRGBA8Resources()
+{
+  if (m_rgba8_color_fb) {
+    if (m_rgba8_color_tex) {
+      GPU_framebuffer_texture_detach(m_rgba8_color_fb, m_rgba8_color_tex);
+      GPU_texture_free(m_rgba8_color_tex);
+      m_rgba8_color_tex = nullptr;
+    }
+    GPU_framebuffer_free(m_rgba8_color_fb);
+    m_rgba8_color_fb = nullptr;
+  }
+  if (m_rgba8_depth_fb) {
+    if (m_rgba8_depth_tex) {
+      GPU_framebuffer_texture_detach(m_rgba8_depth_fb, m_rgba8_depth_tex);
+      GPU_texture_free(m_rgba8_depth_tex);
+      m_rgba8_depth_tex = nullptr;
+    }
+    GPU_framebuffer_free(m_rgba8_depth_fb);
+    m_rgba8_depth_fb = nullptr;
+  }
+}
+
+void ImageViewport::convertRGBA16toRGBA8Textures(GPUTexture *rgba16f_color,
+                                                 GPUTexture *rgba32f_depth)
+{
+  if (m_rgba8_color_tex) {
+    if (m_capSize[0] != GPU_texture_width(m_rgba8_color_tex) ||
+        m_capSize[1] != GPU_texture_height(m_rgba8_color_tex))
+    {
+      freeRGBA8Resources();
+    }
+  }
+  createRGBA8Resources();
+
+  blender::gpu::Batch *quad = GPU_batch_preset_quad();
+
+  GPU_framebuffer_bind(m_rgba8_color_fb);
+  GPU_shader_bind(m_color_to_rgba8_sh);
+
+  GPU_texture_bind(rgba16f_color, 0);
+
+  GPU_batch_set_shader(quad, m_color_to_rgba8_sh);
+  GPU_viewport(0, 0, m_capSize[0], m_capSize[1]);
+  GPU_batch_draw(quad);
+
+  GPU_framebuffer_restore();
+
+  GPU_texture_unbind(rgba16f_color);
+  GPU_shader_unbind();
+
+  GPU_framebuffer_bind(m_rgba8_depth_fb);
+  GPU_shader_bind(m_depth_to_rgba8_sh);
+
+  GPU_texture_bind(rgba32f_depth, 0);
+
+  GPU_batch_set_shader(quad, m_depth_to_rgba8_sh);
+  GPU_viewport(0, 0, m_capSize[0], m_capSize[1]);
+  GPU_batch_draw(quad);
+
+  GPU_texture_unbind(rgba32f_depth);
+  GPU_shader_unbind();
+
+  GPU_framebuffer_restore();
+}
+
 // capture image from viewport
 void ImageViewport::calcViewport(unsigned int textid, double ts)
 {
-  // if scale was changed
+  // If the scale changed, reinitialize the image buffer
   if (m_scaleChange)
-    // reset image
     init(m_capSize[0], m_capSize[1]);
-  // if texture wasn't initialized
+
+  // If the texture was not initialized, initialize it
   if (!m_texInit) {
-    // initialize it
     if (m_texture) {
       m_texture->loadTexture(m_image, m_size, false, m_internalFormat);
       m_texInit = true;
     }
   }
-  // Use the main scene framebuffer for all image types except ImageRender (which uses the active
-  // framebuffer)
+
+  // Get the correct framebuffer (main scene or offscreen)
   GPUFrameBuffer *target = nullptr;
   if (dynamic_cast<ImageRender *>(this)) {
     // For ImageRender: use the currently active framebuffer (offscreen)
@@ -160,97 +356,59 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
     target = background_fb ? background_fb->GetFrameBuffer() : nullptr;
   }
   if (!target) {
-    // error handling
+    // No framebuffer available, abort
     return;
   }
 
-  // otherwise copy viewport to buffer, if image is not available
+  // Convert the framebuffer textures to RGBA8 if not already available
   if (!m_avail) {
+    convertRGBA16toRGBA8Textures(GPU_framebuffer_color_texture(target),
+                                 GPU_framebuffer_depth_texture(target));
+  }
+
+  if (!m_avail) {
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+
+    // 1. Always copy GPU pixels into m_image
     if (m_zbuff) {
-      // Use read pixels with the depth buffer
-      // *** misusing m_viewportImage here, but since it has the correct size
-      //     (4 bytes per pixel = size of float) and we just need it to apply
-      //     the filter, it's ok
-      GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-      float *depth_buffer = (float *)GPU_texture_read_no_assert(
-          GPU_framebuffer_depth_texture(target), GPU_DATA_FLOAT, 0);
+      unsigned int *depth_buffer = (unsigned int *)GPU_texture_read_no_assert(
+          m_rgba8_depth_tex, GPU_DATA_UBYTE, 0);
       if (depth_buffer) {
-        std::memcpy(m_viewportImage, depth_buffer, sizeof(float) * m_capSize[0] * m_capSize[1]);
-        FilterZZZA filt;
-        filterImage(filt, (float *)m_viewportImage, m_capSize);
+        std::memcpy(m_image, depth_buffer, sizeof(unsigned int) * m_capSize[0] * m_capSize[1]);
         MEM_delete(depth_buffer);
       }
-      else {
-        if (m_depth) {
-          // Use read pixels with the depth buffer
-          // See warning above about m_viewportImage.
-          GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-          float *depth_buffer = (float *)GPU_texture_read_no_assert(
-              GPU_framebuffer_depth_texture(target), GPU_DATA_FLOAT, 0);
-          if (depth_buffer) {
-            std::memcpy(
-                m_viewportImage, depth_buffer, sizeof(float) * m_capSize[0] * m_capSize[1]);
-            // filter loaded data
-            FilterDEPTH filt;
-            filterImage(filt, (float *)m_viewportImage, m_capSize);
-            MEM_delete(depth_buffer);
-          }
-        }
-        else {
-          // get frame buffer data
-          if (m_alpha) {
-            // as we are reading the pixel in the native format, we can read directly in the image
-            // buffer if we are sure that no processing is needed on the image
-            GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-            float *color_buffer = (float *)GPU_texture_read_no_assert(
-                GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
-            if (color_buffer) {
-              if (m_size[0] == m_capSize[0] && m_size[1] == m_capSize[1] && !m_flip && !m_pyfilter)
-              {
-                std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
-                m_avail = true;
-              }
-              else if (!m_pyfilter) {
-                std::memcpy(m_viewportImage, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
-                FilterRGBA32 filt;
-                filterImage(filt, m_viewportImage, m_capSize);
-              }
-              else {
-                std::memcpy(m_viewportImage, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
-                FilterRGBA32 filt;
-                filterImage(filt, m_viewportImage, m_capSize);
-              }
-              MEM_delete(color_buffer);
-            }
-          }
-          else {
-            GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-            float *color_buffer = (float *)GPU_texture_read_no_assert(
-                GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
-
-            if (color_buffer) {
-              std::memcpy(m_viewportImage, color_buffer, 3 * m_capSize[0] * m_capSize[1]);
-
-              FilterRGB24 filt;
-              filterImage(filt, m_viewportImage, m_capSize);
-
-              MEM_delete(color_buffer);
-            }
-          }
-        }
+    }
+    else {
+      unsigned int *color_buffer = (unsigned int *)GPU_texture_read_no_assert(
+          m_rgba8_color_tex, GPU_DATA_UBYTE, 0);
+      if (color_buffer) {
+        std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
+        MEM_delete(color_buffer);
       }
     }
-  }
-  // For ImageViewport, fill the buffer at least one time
-  if (typeid(*this) == typeid(ImageViewport) && !m_avail) {
-    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-    float *color_buffer = (float *)GPU_texture_read_no_assert(
-        GPU_framebuffer_color_texture(target), GPU_DATA_FLOAT, 0);
-    if (color_buffer) {
-      std::memcpy(m_image, color_buffer, 4 * m_capSize[0] * m_capSize[1]);
-      MEM_delete(color_buffer);
-      m_avail = true;
+
+    // 2. Apply filters on m_image if needed (flip, alpha, depth, etc.)
+    if (m_zbuff) {
+      if (m_depth) {
+        // Apply depth filter
+        FilterDEPTH filt;
+        filterImage(filt, m_image, m_capSize);
+      }
+      else {
+        // Apply Z-buffer filter
+        FilterZZZA filt;
+        filterImage(filt, m_image, m_capSize);
+      }
     }
+    else {
+      if (m_alpha) {
+        FilterRGBA32 filt;
+        filterImage(filt, m_image, m_capSize);
+      }
+    }
+
+    // 3. Mark the image as available for Python access
+    m_avail = true;
   }
 }
 

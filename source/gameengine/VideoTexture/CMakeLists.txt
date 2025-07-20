@@ -13,6 +13,7 @@ set(INC
   ../Rasterizer/RAS_OpenGLRasterizer
   ../SceneGraph
   ../../blender/editors/include
+  ../../blender/gpu/intern
   ../../blender/imbuf/movie/intern
   ../../blender/makesrna
   ../../blender/python

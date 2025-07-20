@@ -157,14 +157,11 @@ void Texture::loadTexture(unsigned int *texture,
 
   // For video/image sources: upload the CPU buffer to a GPU texture
   if (m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
-    bool keep_texture = false;
-    if (m_modifiedGPUTexture) {
-      keep_texture = size[0] == GPU_texture_width(m_modifiedGPUTexture) &&
-                     size[1] == GPU_texture_height(m_modifiedGPUTexture);
-      if (!keep_texture) {
-        GPU_texture_free(m_modifiedGPUTexture);
-        m_modifiedGPUTexture = nullptr;
-      }
+    if (m_modifiedGPUTexture && (size[0] != GPU_texture_width(m_modifiedGPUTexture) ||
+                                 size[1] != GPU_texture_height(m_modifiedGPUTexture)))
+    {
+      GPU_texture_free(m_modifiedGPUTexture);
+      m_modifiedGPUTexture = nullptr;
     }
     if (!m_modifiedGPUTexture) {
       // Create the GPU texture if not already done

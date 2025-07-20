@@ -58,6 +58,12 @@ class ImageViewport : public ImageBase {
   /// set position in viewport
   void setPosition(int pos[2] = nullptr);
 
+  void createColorToRGBA8Shader();
+  void createDepthToRGBA8Shader();
+  void createRGBA8Resources();
+  void freeRGBA8Resources();
+  void convertRGBA16toRGBA8Textures(struct GPUTexture *rgba16f_color, struct GPUTexture *rgba32f_depth);
+
   /// capture image from viewport to user buffer
   virtual bool loadImage(unsigned int *buffer, unsigned int size, double ts);
 
@@ -78,6 +84,15 @@ class ImageViewport : public ImageBase {
   int m_position[2];
   /// upper left point for capturing
   int m_upLeft[2];
+
+  struct GPUFrameBuffer *m_rgba8_color_fb;
+  struct GPUTexture *m_rgba8_color_tex;
+
+  struct GPUFrameBuffer *m_rgba8_depth_fb;
+  struct GPUTexture *m_rgba8_depth_tex;
+
+  struct GPUShader *m_color_to_rgba8_sh;
+  struct GPUShader *m_depth_to_rgba8_sh;
 
   /// buffer to copy viewport
   BYTE *m_viewportImage;
