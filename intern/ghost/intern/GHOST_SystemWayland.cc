@@ -5759,7 +5759,8 @@ static void text_input_handle_enter(void *data,
                                     zwp_text_input_v3 * /*zwp_text_input_v3*/,
                                     wl_surface *surface)
 {
-  if (!ghost_wl_surface_own(surface)) {
+  /* Can be null when closing a window, see: #141777. */
+  if (!ghost_wl_surface_own_with_null_check(surface)) {
     return;
   }
   CLOG_DEBUG(LOG, "enter");
@@ -8840,7 +8841,7 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_bitmap_get(GHOST_CursorBitmapRef *bit
   bitmap->hot_spot[0] = cursor->wl.image.hotspot_x;
   bitmap->hot_spot[1] = cursor->wl.image.hotspot_y;
 
-  bitmap->data = static_cast<uint8_t *>(cursor->custom_data);
+  bitmap->data = static_cast<const uint8_t *>(cursor->custom_data);
 
   return GHOST_kSuccess;
 }

@@ -2240,6 +2240,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
 
   Object *ob = (Object *)tselem->id;
   Object *ob_active = tvc.obact;
+  const int x_pad = 3 * UI_SCALE_FAC;
 
   /* Not all objects support particle systems. */
   if (ob_active->mode == OB_MODE_PARTICLE_EDIT && !psys_get_current(ob)) {
@@ -2257,7 +2258,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
                               ButType::But,
                               0,
                               UI_icon_from_object_mode(ob_active->mode),
-                              0,
+                              x_pad,
                               te->ys,
                               UI_UNIT_X,
                               UI_UNIT_Y,
@@ -2295,12 +2296,12 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
         "Change the object in the current mode\n"
         " \u2022 Ctrl to add to the current mode");
   }
-  UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
+  UI_block_emboss_set(block, ui::EmbossType::NoneOrStatus);
   uiBut *but = uiDefIconBut(block,
                             ButType::IconToggle,
                             0,
                             icon,
-                            0,
+                            x_pad,
                             te->ys,
                             UI_UNIT_X,
                             UI_UNIT_Y,
@@ -2383,7 +2384,7 @@ static void outliner_draw_warning_tree_element(uiBlock *block,
                                        UI_UNIT_X :
                                        0;
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
+  UI_block_emboss_set(block, ui::EmbossType::NoneOrStatus);
   uiBut *but = uiDefIconBut(block,
                             ButType::IconToggle,
                             0,
@@ -4055,7 +4056,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   /* Draw outliner stuff (background, hierarchy lines and names). */
   const float right_column_width = outliner_right_columns_width(space_outliner);
   outliner_back(region);
-  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
   outliner_draw_tree(block,
                      tvc,
                      region,
@@ -4070,7 +4071,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   outliner_tree_dimensions(space_outliner, &tree_width, &tree_height);
 
   /* Default to no emboss for outliner UI. */
-  UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
+  UI_block_emboss_set(block, ui::EmbossType::NoneOrStatus);
 
   if (space_outliner->outlinevis == SO_DATA_API) {
     int buttons_start_x = outliner_data_api_buttons_start_x(tree_width);
@@ -4078,9 +4079,9 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     outliner_draw_separator(region, buttons_start_x);
     outliner_draw_separator(region, buttons_start_x + OL_RNA_COL_SIZEX);
 
-    UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+    UI_block_emboss_set(block, ui::EmbossType::Emboss);
     outliner_draw_rnabuts(block, region, space_outliner, buttons_start_x);
-    UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
+    UI_block_emboss_set(block, ui::EmbossType::NoneOrStatus);
   }
   else if (ELEM(space_outliner->outlinevis, SO_ID_ORPHANS, SO_LIBRARIES)) {
     outliner_draw_userbuts(block, region, space_outliner);
@@ -4089,10 +4090,10 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     const int x = region->v2d.cur.xmax - right_column_width;
     outliner_draw_separator(region, x);
     if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_PROPERTIES) {
-      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+      UI_block_emboss_set(block, ui::EmbossType::Emboss);
       UI_block_flag_enable(block, UI_BLOCK_NO_DRAW_OVERRIDDEN_STATE);
       outliner_draw_overrides_rna_buts(block, region, space_outliner, &space_outliner->tree, x);
-      UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
+      UI_block_emboss_set(block, ui::EmbossType::NoneOrStatus);
     }
     else if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES) {
       outliner_draw_overrides_restrictbuts(
@@ -4122,7 +4123,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     outliner_draw_warning_column(block, space_outliner, use_mode_column);
   }
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, ui::EmbossType::Emboss);
 
   /* Draw edit buttons if necessary. */
   if (te_edit) {
