@@ -328,7 +328,7 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
   GPU_matrix_reset();
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE);
-  GPUTexture *tex = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
+  blender::gpu::Texture *tex = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
   immBindTexture("image", tex);
   float mat[4][4];
   unit_m4(mat);

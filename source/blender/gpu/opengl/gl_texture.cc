@@ -821,11 +821,4 @@ size_t GLPixelBuffer::get_size()
   return size_;
 }
 
-/* UPBGE */
-void GLTexture::gl_bindcode_set(int bindcode)
-{
-  tex_id_ = bindcode;
-}
-
-/** \} */
 }  // namespace blender::gpu

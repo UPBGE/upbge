@@ -658,7 +658,7 @@ void GPU_viewport_free(GPUViewport *viewport)
 }
 
 /* UPBGE */
-void GPU_viewport_switch_color_tex(GPUViewport *viewport, GPUTexture *tex)
+void GPU_viewport_switch_color_tex(GPUViewport *viewport, blender::gpu::Texture *tex)
 {
   viewport->color_render_tx[0] = tex;
 }

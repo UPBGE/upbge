@@ -32,7 +32,7 @@ ExpDesc InvalidImageModeDesc(InvalidImageMode,
 ImageBase::ImageBase(bool staticSrc)
     : m_image(nullptr),
       m_imgSize(0),
-      m_internalFormat(GPU_RGB8),
+      m_internalFormat(blender::gpu::TextureFormat::UNORM_8_8_8_8),
       m_avail(false),
       m_scale(false),
       m_scaleChange(false),

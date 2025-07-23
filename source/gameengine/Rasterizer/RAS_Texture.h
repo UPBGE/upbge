@@ -27,8 +27,11 @@
 #include <array>
 #include <string>
 
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
+
 struct Image;
-struct GPUTexture;
 
 class RAS_Texture {
  protected:
@@ -42,7 +45,7 @@ class RAS_Texture {
   virtual bool IsCubeMap() const = 0;
 
   virtual Image *GetImage() const = 0;
-  virtual GPUTexture *GetGPUTexture() const = 0;
+  virtual blender::gpu::Texture *GetGPUTexture() const = 0;
   std::string &GetName();
 
   virtual unsigned int GetTextureType() = 0;

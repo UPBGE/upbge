@@ -109,10 +109,6 @@ class GLTexture : public Texture {
    */
   static GLuint get_sampler(const GPUSamplerState &sampler_state);
 
-  /* UPBGE */
-  void gl_bindcode_set(int bindcode) override;
-  /*********/
-
  protected:
   /** Return true on success. */
   bool init_internal() override;

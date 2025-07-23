@@ -45,12 +45,15 @@
 #include "RAS_DebugDraw.h"
 #include "RAS_Rect.h"
 
+namespace blender::gpu {
+class Texture;
+}
+
 class RAS_OpenGLRasterizer;
 class RAS_FrameBuffer;
 class RAS_ICanvas;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-struct GPUTexture;
 struct DRWShadingGroup;
 
 typedef struct ViewPortMatrices {
@@ -147,8 +150,8 @@ class RAS_Rasterizer {
     RAS_FrameBuffer *m_frameBuffers[RAS_FRAMEBUFFER_MAX];
 
     /* We need to free all textures at ge exit so we do member variables */
-    GPUTexture *m_colorTextureList[RAS_FRAMEBUFFER_MAX];
-    GPUTexture *m_depthTextureList[RAS_FRAMEBUFFER_MAX];
+    blender::gpu::Texture *m_colorTextureList[RAS_FRAMEBUFFER_MAX];
+    blender::gpu::Texture *m_depthTextureList[RAS_FRAMEBUFFER_MAX];
     unsigned int m_width;
     unsigned int m_height;
     int m_samples;

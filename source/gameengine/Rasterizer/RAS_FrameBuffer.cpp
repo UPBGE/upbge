@@ -39,7 +39,7 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                             width,
                                             height,
                                             1,
-                                            GPU_RGBA16F,
+                                            blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                                             GPU_TEXTURE_USAGE_SHADER_READ |
                                                 GPU_TEXTURE_USAGE_ATTACHMENT,
                                             nullptr);
@@ -47,7 +47,7 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                             width,
                                             height,
                                             1,
-                                            GPU_DEPTH32F_STENCIL8,
+                                            blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                             GPU_TEXTURE_USAGE_SHADER_READ |
                                                 GPU_TEXTURE_USAGE_ATTACHMENT,
                                             nullptr);
@@ -99,12 +99,12 @@ unsigned int RAS_FrameBuffer::GetHeight() const
   return GPU_texture_height(m_colorAttachment);
 }
 
-GPUTexture *RAS_FrameBuffer::GetColorAttachment()
+blender::gpu::Texture *RAS_FrameBuffer::GetColorAttachment()
 {
   return m_colorAttachment;
 }
 
-GPUTexture *RAS_FrameBuffer::GetDepthAttachment()
+blender::gpu::Texture *RAS_FrameBuffer::GetDepthAttachment()
 {
   return m_depthAttachment;
 }
@@ -121,7 +121,7 @@ void RAS_FrameBuffer::UpdateSize(int width, int height)
                                               width,
                                               height,
                                               1,
-                                              GPU_RGBA16F,
+                                              blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                                               GPU_TEXTURE_USAGE_SHADER_READ |
                                                   GPU_TEXTURE_USAGE_ATTACHMENT,
                                               nullptr);
@@ -129,7 +129,7 @@ void RAS_FrameBuffer::UpdateSize(int width, int height)
                                               width,
                                               height,
                                               1,
-                                              GPU_DEPTH32F_STENCIL8,
+                                              blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                               GPU_TEXTURE_USAGE_SHADER_READ |
                                                   GPU_TEXTURE_USAGE_ATTACHMENT,
                                               nullptr);

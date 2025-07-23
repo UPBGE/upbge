@@ -13,8 +13,11 @@
 #include "Exception.h"
 #include "ImageBase.h"
 
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
+
 struct ImBuf;
-struct GPUTexture;
 class RAS_Texture;
 class RAS_IPolyMaterial;
 class KX_Scene;
@@ -46,8 +49,8 @@ class Texture : public EXP_Value {
 
   KX_Scene *m_scene;
   KX_GameObject *m_gameobj;
-  GPUTexture *m_origGpuTex;
-  GPUTexture *m_modifiedGPUTexture;
+  blender::gpu::Texture *m_origGpuTex;
+  blender::gpu::Texture *m_modifiedGPUTexture;
   void *m_py_color;
 
   // use mipmapping
@@ -70,7 +73,10 @@ class Texture : public EXP_Value {
   void SetSource(PyImage *source);
 
   // load texture
-  void loadTexture(unsigned int *texture, short *size, bool mipmap, eGPUTextureFormat format);
+  void loadTexture(unsigned int *texture,
+                   short *size,
+                   bool mipmap,
+                   blender::gpu::TextureFormat format);
 
   static void FreeAllTextures(KX_Scene *scene);
 

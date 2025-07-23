@@ -878,7 +878,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
-  GPUTexture *color = GPU_viewport_color_texture(m_currentGPUViewport, 0);
+  blender::gpu::Texture *color = GPU_viewport_color_texture(m_currentGPUViewport, 0);
   GPUAttachment config[] = {
       GPU_ATTACHMENT_TEXTURE(GPU_viewport_depth_texture(m_currentGPUViewport)),
       GPU_ATTACHMENT_TEXTURE(color)};

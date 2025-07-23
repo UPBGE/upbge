@@ -28,8 +28,11 @@
 
 #include "RAS_Rasterizer.h"
 
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
+
 struct GPUFrameBuffer;
-struct GPUTexture;
 
 class RAS_FrameBuffer {
  private:
@@ -38,8 +41,8 @@ class RAS_FrameBuffer {
   /// The off screen type, render, final, filter ect...
   RAS_Rasterizer::FrameBufferType m_frameBufferType;
 
-  GPUTexture *m_colorAttachment;
-  GPUTexture *m_depthAttachment;
+  blender::gpu::Texture *m_colorAttachment;
+  blender::gpu::Texture *m_depthAttachment;
 
   void *m_py_color;
   void *m_py_depth;
@@ -57,8 +60,8 @@ class RAS_FrameBuffer {
   unsigned GetWidth() const;
   unsigned GetHeight() const;
 
-  GPUTexture *GetColorAttachment();
-  GPUTexture *GetDepthAttachment();
+  blender::gpu::Texture *GetColorAttachment();
+  blender::gpu::Texture *GetDepthAttachment();
 
   void UpdateSize(int width, int height);
 

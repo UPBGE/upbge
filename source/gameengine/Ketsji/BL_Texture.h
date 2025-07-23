@@ -30,11 +30,15 @@
 #include "RAS_Texture.h"
 
 struct GPUMaterialTexture;
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
+
 
 class BL_Texture : public EXP_Value, public RAS_Texture {
   Py_Header private : bool m_isCubeMap;
   Image *m_ima;
-  GPUTexture *m_gpuTex;
+  blender::gpu::Texture *m_gpuTex;
   eGPUTextureTarget m_textarget;
 
  public:
@@ -48,7 +52,7 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   virtual bool IsCubeMap() const;
 
   virtual Image *GetImage() const;
-  virtual GPUTexture *GetGPUTexture() const;
+  virtual blender::gpu::Texture *GetGPUTexture() const;
 
   virtual unsigned int GetTextureType();
 

@@ -725,9 +725,4 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
 
 /** \} */
 
-/* UPBGE */
-void VKTexture::gl_bindcode_set(int /*bindcode*/) {
-}
-/*********/
-
 }  // namespace blender::gpu

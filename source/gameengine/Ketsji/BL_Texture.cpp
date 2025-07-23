@@ -36,7 +36,6 @@ BL_Texture::BL_Texture(Image *ima)
   m_name = m_ima->id.name + 2;
   m_gpuTex = nullptr;
   m_textarget = TEXTARGET_2D;
-
   /* only add support for existing gputextures */
   if (BKE_image_has_opengl_texture(ima)) {
     m_gpuTex = ima->gputexture[TEXTARGET_2D][0];
@@ -62,7 +61,7 @@ Image *BL_Texture::GetImage() const
   return m_ima;
 }
 
-GPUTexture *BL_Texture::GetGPUTexture() const
+blender::gpu::Texture *BL_Texture::GetGPUTexture() const
 {
   return m_gpuTex;
 }

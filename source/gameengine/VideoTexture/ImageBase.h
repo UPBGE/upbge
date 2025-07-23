@@ -46,7 +46,7 @@ class ImageBase {
   }
 
   /// Get the image format type.
-  eGPUTextureFormat GetInternalFormat()
+  blender::gpu::TextureFormat GetInternalFormat()
   {
     return m_internalFormat;
   }
@@ -133,7 +133,7 @@ class ImageBase {
   /// image buffer size
   unsigned int m_imgSize;
   /// Image internal format type.
-  eGPUTextureFormat m_internalFormat;
+  blender::gpu::TextureFormat m_internalFormat;
   /// image size
   short m_size[2];
   /// image is available

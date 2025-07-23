@@ -2449,7 +2449,7 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
 /* Called instead of DRW_transform_to_display in eevee_engine
  * to avoid double tonemapping of rendered textures with ImageRender
  */
-void DRW_transform_to_display_image_render(GPUTexture *tex)
+void DRW_transform_to_display_image_render(blender::gpu::Texture *tex)
 {
   blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 

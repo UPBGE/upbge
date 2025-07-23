@@ -66,7 +66,7 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_rasterizer = m_engine->GetRasterizer();
   m_canvas = m_engine->GetCanvas();
 
-  m_internalFormat = GPU_RGBA8;
+  m_internalFormat = blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
   m_targetfb = GPU_framebuffer_create("game_fb");
 
@@ -888,7 +888,7 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_rasterizer = m_engine->GetRasterizer();
   m_canvas = m_engine->GetCanvas();
 
-  m_internalFormat = GPU_RGBA8;
+  m_internalFormat = blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
   // this constructor is used for automatic planar mirror
   // create a camera, take all data by default, in any case we will recompute the frustum on each

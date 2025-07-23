@@ -2035,12 +2035,6 @@ uint gpu::MTLTexture::gl_bindcode_get() const
   return 0;
 }
 
-/* UPBGE */
-void gpu::MTLTexture::gl_bindcode_set(int bindcode)
-{
-}
-/*********/
-
 bool gpu::MTLTexture::init_internal()
 {
   this->prepare_internal();

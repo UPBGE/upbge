@@ -134,7 +134,7 @@ void Texture::SetSource(PyImage *source)
 void Texture::loadTexture(unsigned int *texture,
                           short *size,
                           bool mipmap,
-                          eGPUTextureFormat format)
+                          blender::gpu::TextureFormat format)
 {
   // Check if the source is an ImageRender (offscreen 3D render)
   ImageRender *imr = dynamic_cast<ImageRender *>(m_source ? m_source->m_image : nullptr);
@@ -144,7 +144,7 @@ void Texture::loadTexture(unsigned int *texture,
     if (cam && m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
       GPUViewport *viewport = cam->GetGPUViewport();
       // Get the color texture from the viewport's framebuffer
-      GPUTexture *gpuTex = GPU_viewport_color_texture(viewport, 0);
+      blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
       // Assign the GPU texture to the Blender image slot
       m_origGpuTex = m_imgTexture->gputexture[TEXTARGET_2D][0];
       m_imgTexture->gputexture[TEXTARGET_2D][0] = gpuTex;
@@ -169,7 +169,7 @@ void Texture::loadTexture(unsigned int *texture,
                                                    size[0],
                                                    size[1],
                                                    1,
-                                                   GPU_RGBA8,
+                                                   blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                                    GPU_TEXTURE_USAGE_SHADER_READ |
                                                        GPU_TEXTURE_USAGE_ATTACHMENT,
                                                    nullptr);
@@ -457,7 +457,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = static_cast<Texture *>(self_v);
-  GPUTexture *gputex = self->m_imgTexture->gputexture[TEXTARGET_2D][0];
+  blender::gpu::Texture *gputex = self->m_imgTexture->gputexture[TEXTARGET_2D][0];
   if (gputex) {
     return BPyGPUTexture_CreatePyObject(gputex, true);
   }

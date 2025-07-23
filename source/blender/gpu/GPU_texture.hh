@@ -964,9 +964,6 @@ void GPU_texture_update_mipmap_chain(blender::gpu::Texture *texture);
  */
 void *GPU_texture_read(blender::gpu::Texture *texture, eGPUDataFormat data_format, int mip_level);
 
-/* UPBGE */
-void *GPU_texture_read_no_assert(GPUTexture *texture, eGPUDataFormat data_format, int mip_level);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1308,7 +1305,3 @@ void GPU_texture_update_sub_from_pixel_buffer(blender::gpu::Texture *texture,
                                               int height,
                                               int depth);
 /** \} */
-
-/******************UPBGE************************/
-void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
-/**************End of UPBGE*********************/

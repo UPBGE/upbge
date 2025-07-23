@@ -114,7 +114,7 @@ PyObject *KX_2DFilterFrameBuffer::pyattr_get_height(EXP_PyObjectPlus *self_v,
 
 PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
 {
-  GPUTexture *tex = GetColorTexture();
+  blender::gpu::Texture *tex = GetColorTexture();
   if (tex) {
     return BPyGPUTexture_CreatePyObject(tex, true);
   }
@@ -123,7 +123,7 @@ PyObject *KX_2DFilterFrameBuffer::PyGetColorTexture(PyObject *args)
 
 PyObject *KX_2DFilterFrameBuffer::PyGetDepthTexture(PyObject *args)
 {
-  GPUTexture *tex = GetDepthTexture();
+  blender::gpu::Texture *tex = GetDepthTexture();
   if (tex) {
     return BPyGPUTexture_CreatePyObject(tex, true);
   }

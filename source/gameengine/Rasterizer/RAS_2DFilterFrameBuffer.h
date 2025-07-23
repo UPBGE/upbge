@@ -32,7 +32,9 @@
 
 class RAS_ICanvas;
 class RAS_FrameBuffer;
-struct GPUTexture;
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
 
 /** \brief This class manages an off screen with more than one color textures (sample-able)
  * and an optional depth texture (sample-able), contrary to GPUFrameBuffer.
@@ -54,8 +56,8 @@ class RAS_2DFilterFrameBuffer {
   unsigned int m_height;
 
   RAS_FrameBuffer *m_frameBuffer;
-  GPUTexture *m_colorTextures[NUM_COLOR_SLOTS];
-  GPUTexture *m_depthTexture;
+  blender::gpu::Texture *m_colorTextures[NUM_COLOR_SLOTS];
+  blender::gpu::Texture *m_depthTexture;
 
   /// Construct the frame buffer and the textures with the current settings.
   void Construct();
@@ -80,8 +82,8 @@ class RAS_2DFilterFrameBuffer {
   /// Return true of the off screen is valid from the OpenGL rules for frame buffers.
   bool GetValid() const;
 
-  GPUTexture *GetColorTexture(int slot = 0);
-  GPUTexture *GetDepthTexture();
+  blender::gpu::Texture *GetColorTexture(int slot = 0);
+  blender::gpu::Texture *GetDepthTexture();
 
   unsigned int GetWidth() const;
   unsigned int GetHeight() const;

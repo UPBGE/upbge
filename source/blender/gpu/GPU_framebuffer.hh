@@ -630,8 +630,8 @@ void GPU_framebuffer_recursive_downsample(GPUFrameBuffer *fb,
                                           void *user_data);
 
 /********************UPBGE*******************/
-struct GPUTexture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb);
-struct GPUTexture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb);
+blender::gpu::Texture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb);
+blender::gpu::Texture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb);
 void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
 void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
 /****************End of UPBGE****************/

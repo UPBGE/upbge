@@ -830,7 +830,7 @@ void KX_KetsjiEngine::Render()
     /* rcti xmin, xmax, ymin, ymax */
     const rcti rect = {v[0], v[2] + v[0] - 1, v[1], v[3] + v[1] - 1};
     GPUViewport *gpu_viewport = m_scenes->GetFront()->GetCurrentGPUViewport();
-    GPUTexture *backup = GPU_viewport_color_texture(gpu_viewport, 0);
+    blender::gpu::Texture *backup = GPU_viewport_color_texture(gpu_viewport, 0);
     GPU_viewport_switch_color_tex(gpu_viewport,
                                   GPU_framebuffer_color_texture(background_fb->GetFrameBuffer()));
     GPU_viewport_draw_to_screen_ex(gpu_viewport, 0, &rect, true, false);
