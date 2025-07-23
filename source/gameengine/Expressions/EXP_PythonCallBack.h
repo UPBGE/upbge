@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <iostream>
 #include "EXP_Python.h"
 
 /** Execute each functions with at least one argument
