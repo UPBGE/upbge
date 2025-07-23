@@ -87,7 +87,7 @@
  */
 
 struct TexSnapshot {
-  GPUTexture *overlay_texture;
+  blender::gpu::Texture *overlay_texture;
   int winx;
   int winy;
   int old_size;
@@ -96,7 +96,7 @@ struct TexSnapshot {
 };
 
 struct CursorSnapshot {
-  GPUTexture *overlay_texture;
+  blender::gpu::Texture *overlay_texture;
   int size;
   int zoom;
   int curve_preset;
@@ -357,7 +357,8 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
     }
 
     if (!target->overlay_texture) {
-      eGPUTextureFormat format = col ? GPU_RGBA8 : GPU_R8;
+      blender::gpu::TextureFormat format = col ? blender::gpu::TextureFormat::UNORM_8_8_8_8 :
+                                                 blender::gpu::TextureFormat::UNORM_8;
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
       target->overlay_texture = GPU_texture_create_2d(
           "paint_cursor_overlay", size, size, 1, format, usage, nullptr);
@@ -474,8 +475,13 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
     if (!cursor_snap.overlay_texture) {
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-      cursor_snap.overlay_texture = GPU_texture_create_2d(
-          "cursor_snap_overaly", size, size, 1, GPU_R8, usage, nullptr);
+      cursor_snap.overlay_texture = GPU_texture_create_2d("cursor_snap_overaly",
+                                                          size,
+                                                          size,
+                                                          1,
+                                                          blender::gpu::TextureFormat::UNORM_8,
+                                                          usage,
+                                                          nullptr);
       GPU_texture_update(cursor_snap.overlay_texture, GPU_DATA_UBYTE, buffer);
 
       GPU_texture_swizzle_set(cursor_snap.overlay_texture, "rrrr");
@@ -693,8 +699,8 @@ static bool paint_draw_tex_overlay(Paint *paint,
     mul_v4_fl(final_color, overlay_alpha * 0.01f);
     immUniformColor4fv(final_color);
 
-    GPUTexture *texture = (primary) ? primary_snap.overlay_texture :
-                                      secondary_snap.overlay_texture;
+    blender::gpu::Texture *texture = (primary) ? primary_snap.overlay_texture :
+                                                 secondary_snap.overlay_texture;
 
     GPUSamplerExtendMode extend_mode = (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) ?
                                            GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER :

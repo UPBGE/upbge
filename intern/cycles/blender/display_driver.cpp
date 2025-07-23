@@ -228,7 +228,7 @@ class DisplayGPUTexture {
                                         max(width, 1),
                                         max(height, 1),
                                         1,
-                                        GPU_RGBA16F,
+                                        blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                                         GPU_TEXTURE_USAGE_GENERAL,
                                         nullptr);
 
@@ -261,7 +261,7 @@ class DisplayGPUTexture {
   /* Texture resource allocated by the GPU module.
    *
    * NOTE: Allocated on the render engine's context. */
-  GPUTexture *gpu_texture = nullptr;
+  blender::gpu::Texture *gpu_texture = nullptr;
 
   /* Dimensions of the texture in pixels. */
   int width = 0;

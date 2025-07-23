@@ -376,29 +376,32 @@ static void gpu_framebuffer_texture_attach_ex(GPUFrameBuffer *gpu_fb,
   unwrap(gpu_fb)->attachment_set(type, attachment);
 }
 
-void GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int mip)
+void GPU_framebuffer_texture_attach(GPUFrameBuffer *fb,
+                                    blender::gpu::Texture *tex,
+                                    int slot,
+                                    int mip)
 {
   GPUAttachment attachment = GPU_ATTACHMENT_TEXTURE_MIP(tex, mip);
   gpu_framebuffer_texture_attach_ex(fb, attachment, slot);
 }
 
 void GPU_framebuffer_texture_layer_attach(
-    GPUFrameBuffer *fb, GPUTexture *tex, int slot, int layer, int mip)
+    GPUFrameBuffer *fb, blender::gpu::Texture *tex, int slot, int layer, int mip)
 {
   GPUAttachment attachment = GPU_ATTACHMENT_TEXTURE_LAYER_MIP(tex, layer, mip);
   gpu_framebuffer_texture_attach_ex(fb, attachment, slot);
 }
 
 void GPU_framebuffer_texture_cubeface_attach(
-    GPUFrameBuffer *fb, GPUTexture *tex, int slot, int face, int mip)
+    GPUFrameBuffer *fb, blender::gpu::Texture *tex, int slot, int face, int mip)
 {
   GPUAttachment attachment = GPU_ATTACHMENT_TEXTURE_CUBEFACE_MIP(tex, face, mip);
   gpu_framebuffer_texture_attach_ex(fb, attachment, slot);
 }
 
-void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, GPUTexture *tex)
+void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, blender::gpu::Texture *tex)
 {
-  unwrap(tex)->detach_from(unwrap(fb));
+  tex->detach_from(unwrap(fb));
 }
 
 void GPU_framebuffer_config_array(GPUFrameBuffer *gpu_fb,
@@ -579,7 +582,7 @@ void GPU_framebuffer_blit(GPUFrameBuffer *gpu_fb_read,
   FrameBuffer *prev_fb = Context::get()->active_fb;
 
 #ifndef NDEBUG
-  GPUTexture *read_tex, *write_tex;
+  blender::gpu::Texture *read_tex, *write_tex;
   if (blit_buffers & (GPU_DEPTH_BIT | GPU_STENCIL_BIT)) {
     read_tex = fb_read->depth_tex();
     write_tex = fb_write->depth_tex();
@@ -680,8 +683,8 @@ struct GPUOffScreen {
     GPUFrameBuffer *fb;
   } framebuffers[MAX_CTX_FB_LEN];
 
-  GPUTexture *color;
-  GPUTexture *depth;
+  blender::gpu::Texture *color;
+  blender::gpu::Texture *depth;
 };
 
 /**
@@ -728,7 +731,7 @@ static GPUFrameBuffer *gpu_offscreen_fb_get(GPUOffScreen *ofs)
 GPUOffScreen *GPU_offscreen_create(int width,
                                    int height,
                                    bool with_depth_buffer,
-                                   eGPUTextureFormat format,
+                                   blender::gpu::TextureFormat format,
                                    eGPUTextureUsage usage,
                                    bool clear,
                                    char err_out[256])
@@ -748,12 +751,17 @@ GPUOffScreen *GPU_offscreen_create(int width,
   if (with_depth_buffer) {
     /* Format view flag is needed by Workbench Volumes to read the stencil view. */
     eGPUTextureUsage depth_usage = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
-    ofs->depth = GPU_texture_create_2d(
-        "ofs_depth", width, height, 1, GPU_DEPTH32F_STENCIL8, depth_usage, nullptr);
+    ofs->depth = GPU_texture_create_2d("ofs_depth",
+                                       width,
+                                       height,
+                                       1,
+                                       blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                       depth_usage,
+                                       nullptr);
   }
 
   if ((with_depth_buffer && !ofs->depth) || !ofs->color) {
-    const char error[] = "GPUTexture: Texture allocation failed.";
+    const char error[] = "blender::gpu::Texture: Texture allocation failed.";
     if (err_out) {
       BLI_strncpy(err_out, error, 256);
     }
@@ -868,20 +876,20 @@ int GPU_offscreen_height(const GPUOffScreen *offscreen)
   return GPU_texture_height(offscreen->color);
 }
 
-GPUTexture *GPU_offscreen_color_texture(const GPUOffScreen *offscreen)
+blender::gpu::Texture *GPU_offscreen_color_texture(const GPUOffScreen *offscreen)
 {
   return offscreen->color;
 }
 
-eGPUTextureFormat GPU_offscreen_format(const GPUOffScreen *offscreen)
+blender::gpu::TextureFormat GPU_offscreen_format(const GPUOffScreen *offscreen)
 {
   return GPU_texture_format(offscreen->color);
 }
 
 void GPU_offscreen_viewport_data_get(GPUOffScreen *offscreen,
                                      GPUFrameBuffer **r_fb,
-                                     GPUTexture **r_color,
-                                     GPUTexture **r_depth)
+                                     blender::gpu::Texture **r_color,
+                                     blender::gpu::Texture **r_depth)
 {
   *r_fb = gpu_offscreen_fb_get(offscreen);
   *r_color = offscreen->color;

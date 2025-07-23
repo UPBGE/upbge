@@ -17,7 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_mutex.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
@@ -232,7 +232,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
       if (rv == nullptr) {
         rv = MEM_callocN<RenderView>("new opengl render view");
-        STRNCPY(rv->name, srv->name);
+        STRNCPY_UTF8(rv->name, srv->name);
         BLI_addtail(&rr->views, rv);
       }
     }
@@ -771,7 +771,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   ofs = GPU_offscreen_create(sizex,
                              sizey,
                              true,
-                             GPU_RGBA16F,
+                             blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                              GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
                              false,
                              err_out);
