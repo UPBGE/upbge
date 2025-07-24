@@ -6643,7 +6643,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "sharpen_peak_jonswap");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_ui_text(prop, "Sharpen peak", "Peak sharpening for 'JONSWAP' and 'TMA' models");
+  RNA_def_property_ui_text(prop, "Sharpen Peak", "Peak sharpening for 'JONSWAP' and 'TMA' models");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
 
   prop = RNA_def_property(srna, "random_seed", PROP_INT, PROP_UNSIGNED);
