@@ -325,6 +325,82 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type)
   return prog;
 }
 
+static int ConstantTypeSize(Type type)
+{
+  using namespace blender::gpu::shader;
+  switch (type) {
+    case Type::bool_t:
+    case Type::float_t:
+    case Type::int_t:
+    case Type::uint_t:
+    case Type::uchar4_t:
+    case Type::char4_t:
+    case Type::float3_10_10_10_2_t:
+    case Type::ushort2_t:
+    case Type::short2_t:
+      return 4;
+    case Type::ushort3_t:
+    case Type::short3_t:
+      return 6;
+    case Type::float2_t:
+    case Type::uint2_t:
+    case Type::int2_t:
+    case Type::ushort4_t:
+    case Type::short4_t:
+      return 8;
+    case Type::float3_t:
+    case Type::uint3_t:
+    case Type::int3_t:
+      return 12;
+    case Type::float4_t:
+    case Type::uint4_t:
+    case Type::int4_t:
+      return 16;
+    case Type::float3x3_t:
+      return 36 + 3 * 4;
+    case Type::float4x4_t:
+      return 64;
+    case Type::uchar_t:
+    case Type::char_t:
+      return 1;
+    case Type::uchar2_t:
+    case Type::char2_t:
+    case Type::ushort_t:
+    case Type::short_t:
+      return 2;
+    case Type::uchar3_t:
+    case Type::char3_t:
+      return 3;
+  }
+  BLI_assert(false);
+  return -1;
+}
+
+static int CalcPushConstantsSize(const std::vector<UniformConstant> &constants)
+{
+  int size_prev = 0;
+  int size_last = 0;
+  for (const UniformConstant &uni : constants) {
+    int pad = 0;
+    int size = ConstantTypeSize(uni.type);
+    if (size_last && size_last != size) {
+      int pack = (size == 8) ? 8 : 16;
+      if (size_last < size) {
+        pad = pack - (size_last % pack);
+      }
+      else {
+        pad = size_prev % pack;
+      }
+    }
+    else if (size == 12) {
+      pad = 4;
+    }
+    size_prev += pad + size;
+    size_last = size;
+  }
+  return size_prev + (size_prev % 16);
+}
+
 bool RAS_Shader::LinkProgram()
 {
   std::string vert;
@@ -358,6 +434,12 @@ bool RAS_Shader::LinkProgram()
   info.fragment_source("draw_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
+
+  int size = CalcPushConstantsSize(m_constantUniforms);
+  if (size > 128) {
+    CM_Error("Push constants size exceeds 128 bytes");
+    goto program_error;
+  }
 
   if (m_error) {
     goto program_error;
