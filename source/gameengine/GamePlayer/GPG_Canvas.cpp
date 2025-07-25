@@ -34,6 +34,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "DNA_windowmanager_types.h"
 #include "GHOST_ISystem.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
