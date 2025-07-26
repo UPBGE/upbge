@@ -35,6 +35,7 @@
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_object_types.hh"
 #include "BLI_math_rotation.h"
 #include "RNA_access.hh"
@@ -204,6 +205,8 @@ BL_ArmatureObject::~BL_ArmatureObject()
   //	m_objArma->data = nullptr;
   //	BKE_id_free(bmain, m_objArma);
   //}
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  BKE_id_delete(CTX_data_main(C), m_runtime_obj);
 }
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
@@ -232,6 +235,34 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   if (m_objArma) {
     memcpy(m_object_to_world, m_objArma->object_to_world().ptr(), sizeof(m_object_to_world));
     LoadChannels();
+  }
+
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  m_runtime_obj = (Object *)BKE_id_copy_ex(
+      CTX_data_main(C),
+      &obj->id,
+      nullptr,
+      LIB_ID_CREATE_NO_DEG_TAG
+  );
+
+  bArmature *orig_arm = (bArmature *)m_origObjArma->data;
+  bArmature *runtime_arm = (bArmature *)BKE_id_copy_ex(
+      CTX_data_main(C),
+      &orig_arm->id,
+      nullptr,
+      LIB_ID_CREATE_NO_DEG_TAG  // ou LIB_ID_CREATE_LOCALIZE
+  );
+  m_runtime_obj->data = runtime_arm;
+
+  BKE_constraints_free(&m_runtime_obj->constraints);
+
+  // Supprimer les contraintes sur chaque pose channel
+  if (m_runtime_obj->pose) {
+    for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
+         pchan = pchan->next)
+    {
+      BKE_constraints_free(&pchan->constraints);
+    }
   }
 }
 

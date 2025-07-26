@@ -54,6 +54,8 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_objArma;
   Object *m_origObjArma;
 
+  Object *m_runtime_obj;
+
   double m_lastframe;
   size_t m_constraintNumber;
   size_t m_channelNumber;
