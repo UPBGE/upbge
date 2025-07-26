@@ -25,6 +25,7 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
@@ -94,6 +95,17 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
   if (!m_uniformInitialized) {
     ParseShaderProgram();
     ComputeTextureOffsets(canvas);
+    /* Set All ubo variables to 0 including padding variables */
+    m_uboData = {};
+    m_uboData.width = float(canvas->GetWidth() + 1);
+    m_uboData.height = float(canvas->GetHeight() + 1);
+    /* Same order than when texture offset are computed */
+    for (int i = 0; i < 9; ++i) {
+      m_uboData.coo_offset[i][0] = m_textureOffsets[i * 2];
+      m_uboData.coo_offset[i][1] = m_textureOffsets[i * 2 + 1];
+    }
+    /* Update ubo before any framebuffer is bound */
+    GPU_uniformbuf_update(m_ubo, &m_uboData);
     m_uniformInitialized = true;
   }
 }
@@ -115,11 +127,13 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
    * input screen because depth is unchanged. */
   BLI_assert(targetfb != colorfb);
 
+  /* Compute texture offsets */
+  Initialize(canvas);
+
   if (m_frameBuffer) {
     if (!m_frameBuffer->Update(canvas)) {
       return outpufb;
     }
-
     m_frameBuffer->Bind(rasty);
   }
   else {
@@ -127,22 +141,24 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
     outpufb = targetfb;
   }
 
-  Initialize(canvas);
-
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   uint texco = GPU_vertformat_attr_add(
       vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
+  /* bind shader here */
   SetProg(true);
 
+  /* Bind resources */
   BindTextures(depthfb, colorfb);
   BindUniforms(canvas);
+  GPU_uniformbuf_bind(m_ubo, GPU_shader_get_ubo_binding(m_shader, "g_data"));
 
   Update(rasty, MT_Matrix4x4::Identity());
 
   ApplyShader();
 
+  /* Fullscreen quad */
   immBegin(GPU_PRIM_TRIS, 3);
   immAttr2f(texco, 0.0f, 0.0f);
   immVertex2f(pos, -1.0f, -1.0f);
@@ -153,7 +169,9 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
   immVertex2f(pos, -1.0f, 3.0f);
   immEnd();
 
+  /* Unbind resources */
   UnbindTextures(depthfb, colorfb);
+  GPU_uniformbuf_unbind(m_ubo);
 
   if (m_frameBuffer) {
     m_frameBuffer->Unbind(rasty, canvas);
@@ -220,14 +238,15 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *colorfb)
 {
   if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-    GPU_texture_bind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()), 8);
+    GPU_texture_bind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()), GPU_shader_get_sampler_binding(m_shader, "bgl_RenderedTexture"));
     GPU_apply_state();
     if (m_mipmap) {
       GPU_framebuffer_mipmap_texture(colorfb->GetFrameBuffer());
     }
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-    GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
+    GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()),
+                     GPU_shader_get_sampler_binding(m_shader, "bgl_DepthTexture"));
     GPU_apply_state();
   }
 }
@@ -252,24 +271,6 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
-  }
-  if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
-    // Bind rendered texture width.
-    const unsigned int texturewidth = canvas->GetWidth() + 1;
-    SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM], (float)texturewidth);
-  }
-  if (m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM] != -1) {
-    // Bind rendered texture height.
-    const unsigned int textureheight = canvas->GetHeight() + 1;
-    SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM], (float)textureheight);
-  }
-  if (m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM] != -1) {
-    // Bind texture offsets.
-    SetUniformfv(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM],
-                 RAS_Uniform::UNI_FLOAT2,
-                 m_textureOffsets,
-                 sizeof(float) * TEXTURE_OFFSETS_SIZE,
-                 TEXTURE_OFFSETS_SIZE / 2);
   }
 
   for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
