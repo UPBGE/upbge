@@ -279,8 +279,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
 {
-  KX_GameObject::SetBlenderObject(obj);
-
   // XXX: I copied below from the destructor verbatim. But why we shouldn't free it?
   //
   // if (m_objArma) {
@@ -307,11 +305,7 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   m_runtime_obj = (Object *)BKE_id_copy_ex(
-      CTX_data_main(C),
-      &obj->id,
-      nullptr,
-      LIB_ID_CREATE_NO_DEG_TAG
-  );
+      CTX_data_main(C), &obj->id, nullptr, LIB_ID_CREATE_NO_DEG_TAG);
 
   bArmature *orig_arm = (bArmature *)m_origObjArma->data;
   bArmature *runtime_arm = (bArmature *)BKE_id_copy_ex(
@@ -339,6 +333,10 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
     BKE_pose_free(m_runtime_obj->pose);
   }
   m_runtime_obj->pose = BGE_pose_copy_clean(m_origObjArma->pose, /*copy_constraints=*/false);
+
+  m_objArma = m_runtime_obj;
+
+  KX_GameObject::SetBlenderObject(m_runtime_obj);
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
