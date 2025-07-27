@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include <tbb/parallel_for.h>
+
 #include "BLI_math_vector.h"
 
 #include "BLT_translation.hh"
@@ -36,9 +38,8 @@ static void deform_verts(ModifierData *md,
            int(positions.size()));
     return;
   }
-  for (int i = 0; i < positions.size(); i++) {
-    copy_v3_v3(positions[i], smd->vertcoos[i]);
-  }
+  tbb::parallel_for(
+      0, int(positions.size()), [&](int i) { copy_v3_v3(positions[i], smd->vertcoos[i]); });
 }
 
 /* SimpleDeform */

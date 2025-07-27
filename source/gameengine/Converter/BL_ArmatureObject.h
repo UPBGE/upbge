@@ -60,6 +60,7 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_deformedObj;
   class blender::Array<blender::float3> m_refPositions;
   int m_refPositionsNum = 0;
+  struct GPUShader *m_shader;
 
   double m_lastframe;
   size_t m_constraintNumber;

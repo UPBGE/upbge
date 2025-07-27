@@ -31,11 +31,14 @@
 
 #include "BL_ArmatureObject.h"
 
+#include <tbb/parallel_for.h>
+
 #include "ANIM_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_scene.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
@@ -46,6 +49,11 @@
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "DEG_depsgraph_query.hh"
+#include "GPU_compute.hh"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
+#include "GPU_storage_buffer.hh"
+#include "../gpu/intern/gpu_shader_create_info.hh"
 #include "DNA_meshdata_types.h"
 #include "DNA_mesh_types.h"
 #include "RNA_access.hh"
@@ -166,9 +174,9 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
 
   // 3. Forcer la mise à jour du dependency graph
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   DEG_id_tag_update(&runtime_obj->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-  CTX_data_ensure_evaluated_depsgraph(C);
+  BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
 
   // 4. Récupérer le mesh évalué dans la rest pose
   Object *deformed_eval = DEG_get_evaluated(depsgraph, deformed_obj);
@@ -307,6 +315,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_deformedObj = nullptr;
   m_sbModifier = nullptr;
   m_sbCoords = nullptr;
+  m_shader = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -332,6 +341,11 @@ BL_ArmatureObject::~BL_ArmatureObject()
     m_sbModifier = nullptr;
   }
   BKE_id_delete(CTX_data_main(C), m_runtime_obj);
+
+  if (m_shader) {
+    GPU_shader_free(m_shader);
+    m_shader = nullptr;
+  }
 }
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
@@ -623,10 +637,13 @@ void print_matrix(const float m[4][4])
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
+  // 1. Appliquer l'action à l'armature (mise à jour de la pose)
   PointerRNA ptrrna = RNA_id_pointer_create(&m_runtime_obj->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   BKE_pose_rest(m_runtime_obj->pose, false);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
+
+  // 2. Forcer la mise à jour de la pose et du mesh
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ApplyPose();
@@ -634,86 +651,163 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
-
   blender::Span<blender::float3> positions(m_refPositions.data(), m_refPositionsNum);
 
+  // 3. Préparer le buffer de sortie CPU
   if (!m_sbCoords) {
     m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * positions.size(), __func__);
   }
 
+  // 4. Calcul des matrices globales
   float premat[4][4], postmat[4][4], obinv[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
   mul_m4_m4m4(postmat, obinv, m_runtime_obj->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
-  ListBase *vgroup_names = &mesh->vertex_group_names;
+  // 5. Préparer les buffers GPU (positions, poids, indices, matrices)
+  const int num_vertices = positions.size();
+  const int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
+                            BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
+                            0;
 
-  for (int v = 0; v < positions.size(); ++v) {
-    blender::float3 co = positions[v];
-    float tmp[3];
-    copy_v3_v3(tmp, co);
+  std::vector<float> in_positions(num_vertices * 3);
+  std::vector<int> in_indices(num_vertices * 4);    // 4 influences max/vertex
+  std::vector<float> in_weights(num_vertices * 4);  // 4 influences max/vertex
+  std::vector<float> bone_matrices(num_bones * 16, 0.0f);
 
-    // Passage mesh local -> armature local
-    mul_m4_v3(premat, tmp);
-
-    blender::float3 skinned = {0.0f, 0.0f, 0.0f};
-    float total_weight = 0.0f;
-
-    const MDeformVert &dvert = dverts[v];
-    for (int g = 0; g < dvert.totweight; ++g) {
-      int group_index = dvert.dw[g].def_nr;
-      float weight = dvert.dw[g].weight;
-
-      bDeformGroup *defgroup = nullptr;
-      int idx = 0;
-      for (bDeformGroup *dg = (bDeformGroup *)vgroup_names->first; dg; dg = dg->next, ++idx) {
-        if (idx == group_index) {
-          defgroup = dg;
-          break;
-        }
+  // 6. Remplir les buffers d'entrée
+  for (int v = 0; v < num_vertices; ++v) {
+    in_positions[v * 3 + 0] = positions[v].x;
+    in_positions[v * 3 + 1] = positions[v].y;
+    in_positions[v * 3 + 2] = positions[v].z;
+    for (int i = 0; i < 4; ++i) {
+      if (i < dverts[v].totweight) {
+        in_indices[v * 4 + i] = dverts[v].dw[i].def_nr;
+        in_weights[v * 4 + i] = dverts[v].dw[i].weight;
       }
-      if (!defgroup) {
-        continue;
+      else {
+        in_indices[v * 4 + i] = 0;
+        in_weights[v * 4 + i] = 0.0f;
       }
-
-      bPoseChannel *pchan = BKE_pose_channel_find_name(m_runtime_obj->pose, defgroup->name);
-      if (!pchan) {
-        continue;
-      }
-
-      // 1. mesh local -> armature local (déjà fait)
-      // 2. armature local -> bone local (rest)
-      float inv_rest_mat[4][4];
-      invert_m4_m4(inv_rest_mat, pchan->bone->arm_mat);
-      float tmp2[3];
-      copy_v3_v3(tmp2, tmp);
-      mul_m4_v3(inv_rest_mat, tmp2);
-
-      // 3. bone local (rest) -> armature local (pose)
-      float tmp3[3];
-      mul_v3_m4v3(tmp3, pchan->pose_mat, tmp2);
-
-      // 4. Accumulation pondérée
-      skinned += blender::float3(tmp3) * weight;
-      total_weight += weight;
     }
-
-    if (total_weight > 0.0f) {
-      skinned /= total_weight;
-    }
-    else {
-      skinned = blender::float3(tmp);
-    }
-
-    // Retour armature local -> mesh local
-    float out[3];
-    copy_v3_v3(out, skinned);
-    mul_m4_v3(postmat, out);
-
-    copy_v3_v3(m_sbCoords[v], out);
   }
 
+  // 7. Calcul des matrices finales par bone
+  // On suppose que l'ordre des bones dans pose->chanbase correspond à l'index utilisé dans les
+  // indices
+  std::vector<bPoseChannel *> bone_channels;
+  bone_channels.reserve(num_bones);
+  for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
+       pchan = pchan->next)
+  {
+    bone_channels.push_back(pchan);
+  }
+
+  for (int b = 0; b < num_bones; ++b) {
+    bPoseChannel *pchan = bone_channels[b];
+    // inv_rest_mat = inverse(pchan->bone->arm_mat)
+    float inv_rest_mat[4][4];
+    invert_m4_m4(inv_rest_mat, pchan->bone->arm_mat);
+
+    // final_bone_matrix = postmat * pose_mat * inv_rest_mat * premat
+    float tmp1[4][4], tmp2[4][4], final[4][4];
+    mul_m4_m4m4(tmp1, pchan->pose_mat, inv_rest_mat);
+    mul_m4_m4m4(tmp2, tmp1, premat);
+    mul_m4_m4m4(final, postmat, tmp2);
+
+    // Stocker dans bone_matrices (row-major)
+    for (int row = 0; row < 4; ++row) {
+      for (int col = 0; col < 4; ++col) {
+        bone_matrices[b * 16 + row * 4 + col] = final[row][col];
+      }
+    }
+  }
+
+  // 8. Créer les SSBO Blender GPU
+  GPUStorageBuf *ssbo_in_pos = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
+  GPU_storagebuf_update(ssbo_in_pos, in_positions.data());
+  GPUStorageBuf *ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_vertices * 4);
+  GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
+
+  GPUStorageBuf *ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_vertices * 4);
+  GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
+
+  GPUStorageBuf *ssbo_bone_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
+  GPU_storagebuf_update(ssbo_bone_mat, bone_matrices.data());
+
+  GPUStorageBuf *ssbo_out = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
+
+  using namespace blender::gpu::shader;
+
+  if (!m_shader) {
+    ShaderCreateInfo info("BGE_Armature_Skinning");
+    info.local_group_size(256, 1, 1);
+
+    info.typedef_source_generated = R"(
+layout(std430, binding = 0) buffer InPos {
+  vec3 in_pos[];
+};
+layout(std430, binding = 1) buffer InIdx {
+  ivec4 in_idx[];
+};
+layout(std430, binding = 2) buffer InWgt {
+  vec4 in_wgt[];
+};
+layout(std430, binding = 3) buffer BoneMat {
+  mat4 bone_mat[];
+};
+layout(std430, binding = 4) buffer OutPos {
+  vec3 out_pos[];
+};
+)";
+
+    info.compute_source("draw_colormanagement_lib.glsl");
+    info.compute_source_generated = R"(
+    void main() {
+      uint v = gl_GlobalInvocationID.x;
+      vec4 pos = vec4(in_pos[v], 1.0);
+      vec3 skinned = vec3(0.0);
+      float total_weight = 0.0;
+      for (int i = 0; i < 4; ++i) {
+        int bone = in_idx[v][i];
+        float w = in_wgt[v][i];
+        skinned += (bone_mat[bone] * pos).xyz * w;
+        total_weight += w;
+      }
+      if (total_weight > 0.0)
+        skinned /= total_weight;
+      else
+        skinned = in_pos[v];
+      out_pos[v] = skinned;
+    }
+  )";
+    m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  }
+
+  GPUShader *shader = m_shader;
+
+  // 9. Bind et dispatch
+  GPU_shader_bind(shader);
+  GPU_storagebuf_bind(ssbo_in_pos, 0);
+  GPU_storagebuf_bind(ssbo_in_idx, 1);
+  GPU_storagebuf_bind(ssbo_in_wgt, 2);
+  GPU_storagebuf_bind(ssbo_bone_mat, 3);
+  GPU_storagebuf_bind(ssbo_out, 4);
+  GPU_compute_dispatch(shader, (num_vertices + 255) / 256, 1, 1);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+
+  // 10. Lire le résultat côté CPU
+  GPU_storagebuf_read(ssbo_out, m_sbCoords);
+
+  // 11. Nettoyage (optionnel, selon la gestion mémoire de ton moteur)
+  GPU_storagebuf_free(ssbo_in_pos);
+  GPU_storagebuf_free(ssbo_in_idx);
+  GPU_storagebuf_free(ssbo_in_wgt);
+  GPU_storagebuf_free(ssbo_bone_mat);
+  GPU_storagebuf_free(ssbo_out);
+
+  // 12. Mettre à jour le modificateur et notifier Blender
   m_sbModifier->vertcoos = m_sbCoords;
   DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_GEOMETRY);
 }
