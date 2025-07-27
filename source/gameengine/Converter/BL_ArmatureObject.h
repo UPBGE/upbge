@@ -56,7 +56,10 @@ class BL_ArmatureObject : public KX_GameObject {
 
   Object *m_runtime_obj;
   struct SimpleDeformModifierDataBGE *m_sbModifier;
+  float (*m_sbCoords)[3];
   Object *m_deformedObj;
+  class blender::Array<blender::float3> m_refPositions;
+  int m_refPositionsNum = 0;
 
   double m_lastframe;
   size_t m_constraintNumber;

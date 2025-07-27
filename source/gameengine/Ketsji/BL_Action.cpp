@@ -423,7 +423,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
                                                                                m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-    scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+    //scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
     if (m_layer_weight >= 0)
@@ -432,7 +432,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, &animEvalContext);
 
-    m_obj->ForceIgnoreParentTx();
+    //m_obj->ForceIgnoreParentTx();
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {

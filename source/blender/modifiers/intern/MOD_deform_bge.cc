@@ -27,6 +27,15 @@ static void deform_verts(ModifierData *md,
                          blender::MutableSpan<blender::float3> positions)
 {
   SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
+  if (!smd->vertcoos) {
+    printf("SimpleDeformBGE: vertcoos is nullptr !\n");
+    return;
+  }
+  if (positions.size() > 0 && !smd->vertcoos) {
+    printf("SimpleDeformBGE: vertcoos is nullptr whereas positions.size()=%d\n",
+           int(positions.size()));
+    return;
+  }
   for (int i = 0; i < positions.size(); i++) {
     copy_v3_v3(positions[i], smd->vertcoos[i]);
   }

@@ -147,11 +147,46 @@ void RemoveArmatureModifiers(Object *obj)
   }
 }
 
-bPose *BGE_pose_copy_clean(const bPose *src, bool copy_constraints)
+bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
+                                      bool copy_constraints,
+                                      Object *runtime_obj,
+                                      Object *deformed_obj,
+                                      blender::Array<blender::float3> &restPositions,
+                                      int &restPositionsNum)
 {
-  if (!src)
+  if (!src || !runtime_obj || !deformed_obj) {
     return nullptr;
+  }
 
+  bPose *saved_pose = nullptr;
+  BKE_pose_copy_data(&saved_pose, runtime_obj->pose, /*copy_constraints=*/true);
+
+  // 2. Appliquer la rest pose sur l'objet runtime
+  BKE_pose_rest(runtime_obj->pose, false);
+
+  // 3. Forcer la mise à jour du dependency graph
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  DEG_id_tag_update(&runtime_obj->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+  CTX_data_ensure_evaluated_depsgraph(C);
+
+  // 4. Récupérer le mesh évalué dans la rest pose
+  Object *deformed_eval = DEG_get_evaluated(depsgraph, deformed_obj);
+  Mesh *rest_mesh = static_cast<Mesh *>(deformed_eval->data);
+  blender::Span<blender::float3> rest_positions_span = rest_mesh->vert_positions();
+
+  // 5. Copier les positions dans le buffer de référence
+  restPositionsNum = rest_positions_span.size();
+  restPositions = blender::Array<blender::float3>(restPositionsNum);
+  for (int i = 0; i < restPositionsNum; ++i) {
+    restPositions[i] = rest_positions_span[i];
+  }
+
+  // 6. Restaurer la pose d'origine
+  BKE_pose_free(runtime_obj->pose);
+  runtime_obj->pose = saved_pose;
+
+  // 7. Créer la copie "clean" de la pose (optionnel : copy_constraints)
   bPose *out = (bPose *)MEM_callocN(sizeof(bPose), "BGE_pose_copy_clean");
   out->flag = src->flag;
   out->ctime = src->ctime;
@@ -196,6 +231,7 @@ bPose *BGE_pose_copy_clean(const bPose *src, bool copy_constraints)
   out->ikparam = nullptr;
 
   BKE_pose_channels_hash_ensure(out);
+
   return out;
 }
 
@@ -270,6 +306,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_deformedObj = nullptr;
   m_sbModifier = nullptr;
+  m_sbCoords = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -286,8 +323,8 @@ BL_ArmatureObject::~BL_ArmatureObject()
   //}
   bContext *C = KX_GetActiveEngine()->GetContext();
   if (m_sbModifier && m_deformedObj) {
-    if (m_sbModifier->vertcoos) {
-      MEM_freeN(m_sbModifier->vertcoos);
+    if (m_sbCoords) {
+      MEM_freeN(m_sbCoords);
       m_sbModifier->vertcoos = nullptr;
     }
     BLI_remlink(&m_deformedObj->modifiers, m_sbModifier);
@@ -360,7 +397,12 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   if (m_runtime_obj->pose) {
     BKE_pose_free(m_runtime_obj->pose);
   }
-  m_runtime_obj->pose = BGE_pose_copy_clean(m_origObjArma->pose, /*copy_constraints=*/false);
+  m_runtime_obj->pose = BGE_pose_copy_and_capture_rest(m_origObjArma->pose,
+                                                       /*copy_constraints=*/false,
+                                                       m_runtime_obj,
+                                                       m_deformedObj,
+                                                       m_refPositions,
+                                                       m_refPositionsNum);
 
   m_objArma = m_runtime_obj;
 
@@ -562,44 +604,59 @@ void BL_ArmatureObject::ApplyPose()
       constraint->UpdateTarget();
     }
     // update ourself
-    UpdateBlenderObjectMatrix(m_objArma);
+    UpdateBlenderObjectMatrix(m_runtime_obj);
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
+    BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_runtime_obj);
     // restore ourself
-    memcpy(m_objArma->runtime->object_to_world.ptr(), m_object_to_world, sizeof(m_object_to_world));
+    memcpy(m_runtime_obj->runtime->object_to_world.ptr(), m_object_to_world, sizeof(m_object_to_world));
     m_lastapplyframe = m_lastframe;
+  }
+}
+
+void print_matrix(const float m[4][4])
+{
+  for (int i = 0; i < 4; ++i) {
+    printf("[%.4f %.4f %.4f %.4f]\n", m[i][0], m[i][1], m[i][2], m[i][3]);
   }
 }
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
-  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
+  PointerRNA ptrrna = RNA_id_pointer_create(&m_runtime_obj->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
+  BKE_pose_rest(m_runtime_obj->pose, false);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_runtime_obj);
-
-  // 3. TEST : Appliquer le skinning CPU sur le mesh parenté à cette armature
-  // (Supposons que tu as un pointeur vers l'objet mesh parenté à cette armature)
-
-  CTX_data_ensure_evaluated_depsgraph(C); //just to be sure for test
+  ApplyPose();
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
-
-  // Pour chaque vertex du mesh
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
-  blender::Span<blender::float3> positions = mesh->vert_positions();
-  std::vector<blender::float3> skinned_positions(positions.size());
 
-  if (!m_sbModifier->vertcoos) {
-    m_sbModifier->vertcoos = (float(*)[3])MEM_callocN(
-        sizeof(float[3]) * positions.size(), __func__);
+  blender::Span<blender::float3> positions(m_refPositions.data(), m_refPositionsNum);
+
+  if (!m_sbCoords) {
+    m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * positions.size(), __func__);
   }
 
+  float premat[4][4], postmat[4][4], obinv[4][4];
+  copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
+  invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
+  mul_m4_m4m4(postmat, obinv, m_runtime_obj->object_to_world().ptr());
+  invert_m4_m4(premat, postmat);
+
+  ListBase *vgroup_names = &mesh->vertex_group_names;
+
   for (int v = 0; v < positions.size(); ++v) {
+    blender::float3 co = positions[v];
+    float tmp[3];
+    copy_v3_v3(tmp, co);
+
+    // Passage mesh local -> armature local
+    mul_m4_v3(premat, tmp);
+
     blender::float3 skinned = {0.0f, 0.0f, 0.0f};
     float total_weight = 0.0f;
 
@@ -608,21 +665,37 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
       int group_index = dvert.dw[g].def_nr;
       float weight = dvert.dw[g].weight;
 
-      // Récupérer le nom du groupe
-      bDeformGroup *defgroup = static_cast<bDeformGroup *>(
-          BLI_findlink(&deformed_eval->defbase, group_index));
-      if (!defgroup)
+      bDeformGroup *defgroup = nullptr;
+      int idx = 0;
+      for (bDeformGroup *dg = (bDeformGroup *)vgroup_names->first; dg; dg = dg->next, ++idx) {
+        if (idx == group_index) {
+          defgroup = dg;
+          break;
+        }
+      }
+      if (!defgroup) {
         continue;
+      }
 
-      // Trouver le bone correspondant
       bPoseChannel *pchan = BKE_pose_channel_find_name(m_runtime_obj->pose, defgroup->name);
-      if (!pchan)
+      if (!pchan) {
         continue;
+      }
 
-      // Appliquer la matrice du bone
-      blender::float3 transformed;
-      mul_v3_m4v3(transformed, pchan->pose_mat, positions[v]);
-      skinned += transformed * weight;
+      // 1. mesh local -> armature local (déjà fait)
+      // 2. armature local -> bone local (rest)
+      float inv_rest_mat[4][4];
+      invert_m4_m4(inv_rest_mat, pchan->bone->arm_mat);
+      float tmp2[3];
+      copy_v3_v3(tmp2, tmp);
+      mul_m4_v3(inv_rest_mat, tmp2);
+
+      // 3. bone local (rest) -> armature local (pose)
+      float tmp3[3];
+      mul_v3_m4v3(tmp3, pchan->pose_mat, tmp2);
+
+      // 4. Accumulation pondérée
+      skinned += blender::float3(tmp3) * weight;
       total_weight += weight;
     }
 
@@ -630,18 +703,24 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
       skinned /= total_weight;
     }
     else {
-      skinned = positions[v];
+      skinned = blender::float3(tmp);
     }
-    copy_v3_v3(m_sbModifier->vertcoos[v], skinned);
+
+    // Retour armature local -> mesh local
+    float out[3];
+    copy_v3_v3(out, skinned);
+    mul_m4_v3(postmat, out);
+
+    copy_v3_v3(m_sbCoords[v], out);
   }
 
-  // Ici, tu peux soit remplacer les positions du mesh, soit stocker dans un buffer temporaire
-  // mesh->vert_positions_for_write().copy_from(skinned_positions);
+  m_sbModifier->vertcoos = m_sbCoords;
+  DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_GEOMETRY);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
 {
-  game_blend_poses(m_objArma->pose, blend_pose, weight, mode);
+  game_blend_poses(m_runtime_obj->pose, blend_pose, weight, mode);
 }
 
 bool BL_ArmatureObject::UpdateTimestep(double curtime)
@@ -650,7 +729,7 @@ bool BL_ArmatureObject::UpdateTimestep(double curtime)
     /* Compute the timestep for the underlying IK algorithm,
      * in the GE, we use ctime to store the timestep.
      */
-    m_objArma->pose->ctime = (float)(curtime - m_lastframe);
+    m_runtime_obj->pose->ctime = (float)(curtime - m_lastframe);
     m_lastframe = curtime;
   }
 
@@ -677,15 +756,15 @@ void BL_ArmatureObject::GetPose(bPose **pose) const
      * a crash and memory leakage when
      * &SCA_ActionActuator::m_pose is freed
      */
-    BKE_pose_copy_data(pose, m_objArma->pose, 1);
+    BKE_pose_copy_data(pose, m_runtime_obj->pose, 1);
   }
   else {
-    if (*pose == m_objArma->pose) {
+    if (*pose == m_runtime_obj->pose) {
       // no need to copy if the pointers are the same
       return;
     }
 
-    extract_pose_from_pose(*pose, m_objArma->pose);
+    extract_pose_from_pose(*pose, m_runtime_obj->pose);
   }
 }
 
