@@ -55,6 +55,8 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_origObjArma;
 
   Object *m_runtime_obj;
+  struct SimpleDeformModifierDataBGE *m_sbModifier;
+  Object *m_deformedObj;
 
   double m_lastframe;
   size_t m_constraintNumber;

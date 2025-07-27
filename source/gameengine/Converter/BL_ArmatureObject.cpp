@@ -36,11 +36,18 @@
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
+#include "DEG_depsgraph_query.hh"
+#include "DNA_meshdata_types.h"
+#include "DNA_mesh_types.h"
 #include "RNA_access.hh"
 
 #include "BL_Action.h"
@@ -127,14 +134,16 @@
 
 void RemoveArmatureModifiers(Object *obj)
 {
-  ModifierData *md = (ModifierData *)obj->modifiers.first;
-  while (md) {
-    ModifierData *next = md->next;
-    if (md->type == eModifierType_Armature) {
-      BLI_remlink(&obj->modifiers, md);
-      BKE_modifier_free(md);
+  if (obj) {
+    ModifierData *md = (ModifierData *)obj->modifiers.first;
+    while (md) {
+      ModifierData *next = md->next;
+      if (md->type == eModifierType_Armature) {
+        BLI_remlink(&obj->modifiers, md);
+        BKE_modifier_free(md);
+      }
+      md = next;
     }
-    md = next;
   }
 }
 
@@ -259,6 +268,8 @@ BL_ArmatureObject::BL_ArmatureObject()
     : KX_GameObject(), m_lastframe(0.0), m_drawDebug(false), m_lastapplyframe(0.0)
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
+  m_deformedObj = nullptr;
+  m_sbModifier = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -274,6 +285,15 @@ BL_ArmatureObject::~BL_ArmatureObject()
   //	BKE_id_free(bmain, m_objArma);
   //}
   bContext *C = KX_GetActiveEngine()->GetContext();
+  if (m_sbModifier && m_deformedObj) {
+    if (m_sbModifier->vertcoos) {
+      MEM_freeN(m_sbModifier->vertcoos);
+      m_sbModifier->vertcoos = nullptr;
+    }
+    BLI_remlink(&m_deformedObj->modifiers, m_sbModifier);
+    BKE_modifier_free((ModifierData *)m_sbModifier);
+    m_sbModifier = nullptr;
+  }
   BKE_id_delete(CTX_data_main(C), m_runtime_obj);
 }
 
@@ -316,7 +336,15 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   );
   m_runtime_obj->data = runtime_arm;
 
-  RemoveArmatureModifiers(m_runtime_obj);
+  Main *bmain = CTX_data_main(C);
+  LISTBASE_FOREACH(Object *, ob, &bmain->objects) {
+    if (ob->parent == m_origObjArma && ob->type == OB_MESH) {
+      m_deformedObj = ob;
+      break;
+    }
+  }
+
+  RemoveArmatureModifiers(m_deformedObj);
 
   BKE_constraints_free(&m_runtime_obj->constraints);
 
@@ -335,6 +363,15 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   m_runtime_obj->pose = BGE_pose_copy_clean(m_origObjArma->pose, /*copy_constraints=*/false);
 
   m_objArma = m_runtime_obj;
+
+  if (m_sbModifier == nullptr && m_deformedObj) {
+    m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(eModifierType_SimpleDeformBGE);
+    STRNCPY(m_sbModifier->modifier.name, "sbModifier");
+    BLI_addtail(&m_deformedObj->modifiers, m_sbModifier);
+    BKE_modifier_unique_name(&m_deformedObj->modifiers, (ModifierData *)m_sbModifier);
+    BKE_modifiers_persistent_uid_init(*m_deformedObj, m_sbModifier->modifier);
+    DEG_relations_tag_update(CTX_data_main(C));
+  }
 
   KX_GameObject::SetBlenderObject(m_runtime_obj);
 }
@@ -540,6 +577,66 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_runtime_obj);
+
+  // 3. TEST : Appliquer le skinning CPU sur le mesh parenté à cette armature
+  // (Supposons que tu as un pointeur vers l'objet mesh parenté à cette armature)
+
+  CTX_data_ensure_evaluated_depsgraph(C); //just to be sure for test
+
+  Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
+  Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
+
+  // Pour chaque vertex du mesh
+  blender::Span<MDeformVert> dverts = mesh->deform_verts();
+  blender::Span<blender::float3> positions = mesh->vert_positions();
+  std::vector<blender::float3> skinned_positions(positions.size());
+
+  if (!m_sbModifier->vertcoos) {
+    m_sbModifier->vertcoos = (float(*)[3])MEM_callocN(
+        sizeof(float[3]) * positions.size(), __func__);
+  }
+
+  for (int v = 0; v < positions.size(); ++v) {
+    blender::float3 skinned = {0.0f, 0.0f, 0.0f};
+    float total_weight = 0.0f;
+
+    const MDeformVert &dvert = dverts[v];
+    for (int g = 0; g < dvert.totweight; ++g) {
+      int group_index = dvert.dw[g].def_nr;
+      float weight = dvert.dw[g].weight;
+
+      // Récupérer le nom du groupe
+      bDeformGroup *defgroup = static_cast<bDeformGroup *>(
+          BLI_findlink(&deformed_eval->defbase, group_index));
+      if (!defgroup)
+        continue;
+
+      // Trouver le bone correspondant
+      bPoseChannel *pchan = BKE_pose_channel_find_name(m_runtime_obj->pose, defgroup->name);
+      if (!pchan)
+        continue;
+
+      // Appliquer la matrice du bone
+      blender::float3 transformed;
+      mul_v3_m4v3(transformed, pchan->pose_mat, positions[v]);
+      skinned += transformed * weight;
+      total_weight += weight;
+    }
+
+    if (total_weight > 0.0f) {
+      skinned /= total_weight;
+    }
+    else {
+      skinned = positions[v];
+    }
+    copy_v3_v3(m_sbModifier->vertcoos[v], skinned);
+  }
+
+  // Ici, tu peux soit remplacer les positions du mesh, soit stocker dans un buffer temporaire
+  // mesh->vert_positions_for_write().copy_from(skinned_positions);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
