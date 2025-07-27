@@ -36,7 +36,10 @@
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
+#include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "RNA_access.hh"
 
@@ -121,6 +124,71 @@
 //  BKE_pose_channels_hash_ensure(out);
 //  *dst = out;
 //}
+
+void RemoveArmatureModifiers(Object *obj)
+{
+  ModifierData *md = (ModifierData *)obj->modifiers.first;
+  while (md) {
+    ModifierData *next = md->next;
+    if (md->type == eModifierType_Armature) {
+      BLI_remlink(&obj->modifiers, md);
+      BKE_modifier_free(md);
+    }
+    md = next;
+  }
+}
+
+bPose *BGE_pose_copy_clean(const bPose *src, bool copy_constraints)
+{
+  if (!src)
+    return nullptr;
+
+  bPose *out = (bPose *)MEM_callocN(sizeof(bPose), "BGE_pose_copy_clean");
+  out->flag = src->flag;
+  out->ctime = src->ctime;
+  BLI_duplicatelist(&out->chanbase, &src->chanbase);
+
+  // Remap parent/child pointers
+  GHash *ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "BGE_pose_copy_clean");
+  bPoseChannel *src_pchan = (bPoseChannel *)src->chanbase.first;
+  bPoseChannel *out_pchan = (bPoseChannel *)out->chanbase.first;
+  for (; src_pchan; src_pchan = src_pchan->next, out_pchan = out_pchan->next) {
+    BLI_ghash_insert(ghash, src_pchan, out_pchan);
+  }
+  for (out_pchan = (bPoseChannel *)out->chanbase.first; out_pchan; out_pchan = out_pchan->next) {
+    out_pchan->parent = (bPoseChannel *)BLI_ghash_lookup(ghash, out_pchan->parent);
+    out_pchan->child = (bPoseChannel *)BLI_ghash_lookup(ghash, out_pchan->child);
+
+    // Contraintes
+    if (copy_constraints) {
+      ListBase listb;
+      BKE_constraints_copy(&listb, &out_pchan->constraints, false);
+      out_pchan->constraints = listb;
+    }
+    else {
+      BLI_listbase_clear(&out_pchan->constraints);
+    }
+
+    // Nettoyage des propriétés custom
+    out_pchan->prop = nullptr;
+    out_pchan->system_properties = nullptr;
+
+    // Gestion du custom object (pour le skinning custom)
+    if (out_pchan->custom) {
+      id_us_plus(&out_pchan->custom->id);
+    }
+  }
+  BLI_ghash_free(ghash, nullptr, nullptr);
+
+  // Nettoyage global
+  out->chanhash = nullptr;
+  out->agroups.first = out->agroups.last = nullptr;
+  out->ikdata = nullptr;
+  out->ikparam = nullptr;
+
+  BKE_pose_channels_hash_ensure(out);
+  return out;
+}
 
 // Only allowed for Poses with identical channels.
 static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
@@ -254,6 +322,8 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   );
   m_runtime_obj->data = runtime_arm;
 
+  RemoveArmatureModifiers(m_runtime_obj);
+
   BKE_constraints_free(&m_runtime_obj->constraints);
 
   // Supprimer les contraintes sur chaque pose channel
@@ -264,6 +334,11 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
       BKE_constraints_free(&pchan->constraints);
     }
   }
+
+  if (m_runtime_obj->pose) {
+    BKE_pose_free(m_runtime_obj->pose);
+  }
+  m_runtime_obj->pose = BGE_pose_copy_clean(m_origObjArma->pose, /*copy_constraints=*/false);
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
