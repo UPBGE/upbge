@@ -477,7 +477,7 @@ bool composite_node_editable(bContext *C)
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo)
 {
   if (typeinfo) {
-    STRNCPY(snode->tree_idname, typeinfo->idname.c_str());
+    STRNCPY_UTF8(snode->tree_idname, typeinfo->idname.c_str());
   }
   else {
     snode->tree_idname[0] = '\0';
@@ -2131,7 +2131,7 @@ static wmOperatorStatus node_output_file_add_socket_exec(bContext *C, wmOperator
 
   RNA_string_get(op->ptr, "file_path", file_path);
 
-  if (strlen(file_path) != 0) {
+  if (file_path[0] != '\0') {
     ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
   }
   else {

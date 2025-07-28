@@ -50,6 +50,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_anim_data.hh"
@@ -564,7 +565,7 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
   //  bNodeSocketType *stype = ntreeGetSocketType(type);
   bNodeSocket *gsock = MEM_callocN<bNodeSocket>("bNodeSocket");
 
-  STRNCPY(gsock->name, name);
+  STRNCPY_UTF8(gsock->name, name);
   gsock->type = type;
 
   gsock->next = gsock->prev = nullptr;
@@ -719,7 +720,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
      */
     LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
       if (ma->nodetree && ma->nodetree->id.name[0] == '\0') {
-        STRNCPY(ma->nodetree->id.name, "NTShader Nodetree");
+        STRNCPY_UTF8(ma->nodetree->id.name, "NTShader Nodetree");
       }
     }
 
@@ -727,7 +728,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
       enum { R_PANORAMA = (1 << 10) };
       if (sce->nodetree && sce->nodetree->id.name[0] == '\0') {
-        STRNCPY(sce->nodetree->id.name, "NTCompositing Nodetree");
+        STRNCPY_UTF8(sce->nodetree->id.name, "NTCompositing Nodetree");
       }
 
       /* move to cameras */
@@ -750,7 +751,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Tex *, tx, &bmain->textures) {
       if (tx->nodetree) {
         if (tx->nodetree->id.name[0] == '\0') {
-          STRNCPY(tx->nodetree->id.name, "NTTexture Nodetree");
+          STRNCPY_UTF8(tx->nodetree->id.name, "NTTexture Nodetree");
         }
 
         /* which_output 0 is now "not specified" */
