@@ -64,6 +64,7 @@
 #include "BL_Action.h"
 #include "BL_SceneConverter.h"
 #include "KX_Globals.h"
+#include "KX_Camera.h"
 
 void RemoveArmatureModifiers(Object *obj)
 {
@@ -226,6 +227,10 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_in_idx = nullptr;
   ssbo_in_wgt = nullptr;
   ssbo_bone_mat = nullptr;
+  ssbo_bone_pose_mat = nullptr;
+  ssbo_bone_rest_mat = nullptr;
+  ssbo_postmat = nullptr;
+  ssbo_premat = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -261,9 +266,17 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_in_idx);
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_mat);
+    GPU_storagebuf_free(ssbo_bone_pose_mat);
+    GPU_storagebuf_free(ssbo_bone_rest_mat);
+    GPU_storagebuf_free(ssbo_postmat);
+    GPU_storagebuf_free(ssbo_premat);
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
     ssbo_bone_mat = nullptr;
+    ssbo_bone_pose_mat = nullptr;
+    ssbo_bone_rest_mat = nullptr;
+    ssbo_postmat = nullptr;
+    ssbo_premat = nullptr;
   }
 }
 
@@ -558,7 +571,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 {
   using namespace blender::gpu::shader;
   using namespace blender::draw;
-
   // 1. Appliquer l'action à l'armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_runtime_obj->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
@@ -579,14 +591,14 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
   blender::Span<blender::float3> positions(m_refPositions.data(), m_refPositionsNum);
 
-  // 4. Calcul des matrices globales
+  // 3. Calcul des matrices globales
   float premat[4][4], postmat[4][4], obinv[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
   mul_m4_m4m4(postmat, obinv, m_runtime_obj->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
-  // 5. Préparer les buffers GPU (indices, poids, matrices)
+  // 4. Préparer les buffers GPU (indices, poids, matrices)
   const int num_vertices = positions.size();
   const int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
                             BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
@@ -594,8 +606,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   std::vector<int> in_indices(num_vertices * 4);
   std::vector<float> in_weights(num_vertices * 4);
-  std::vector<float> bone_matrices(num_bones * 16, 0.0f);
+  std::vector<float> bone_rest_matrices(num_bones * 16, 0.0f);
+  std::vector<float> bone_pose_matrices(num_bones * 16, 0.0f);
 
+  // Indices/poids
   for (int v = 0; v < num_vertices; ++v) {
     for (int i = 0; i < 4; ++i) {
       if (i < dverts[v].totweight) {
@@ -609,6 +623,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     }
   }
 
+  // Matrices bones
   std::vector<bPoseChannel *> bone_channels;
   bone_channels.reserve(num_bones);
   for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
@@ -619,22 +634,17 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   for (int b = 0; b < num_bones; ++b) {
     bPoseChannel *pchan = bone_channels[b];
-    float inv_rest_mat[4][4];
-    invert_m4_m4(inv_rest_mat, pchan->bone->arm_mat);
-
-    float tmp1[4][4], tmp2[4][4], final[4][4];
-    mul_m4_m4m4(tmp1, pchan->pose_mat, inv_rest_mat);
-    mul_m4_m4m4(tmp2, tmp1, premat);
-    mul_m4_m4m4(final, postmat, tmp2);
-
-    for (int row = 0; row < 4; ++row) {
-      for (int col = 0; col < 4; ++col) {
-        bone_matrices[b * 16 + row * 4 + col] = final[row][col];
-      }
-    }
+    // Rest matrix (arm_mat)
+    for (int row = 0; row < 4; ++row)
+      for (int col = 0; col < 4; ++col)
+        bone_rest_matrices[b * 16 + row * 4 + col] = pchan->bone->arm_mat[row][col];
+    // Pose matrix
+    for (int row = 0; row < 4; ++row)
+      for (int col = 0; col < 4; ++col)
+        bone_pose_matrices[b * 16 + row * 4 + col] = pchan->pose_mat[row][col];
   }
 
-  // 8. Créer les SSBO Blender GPU
+  // 5. Créer les SSBO Blender GPU
   if (!ssbo_in_idx) {
     ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_vertices * 4);
   }
@@ -643,18 +653,31 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_vertices * 4);
   }
   GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
-  if (!ssbo_bone_mat) {
-    ssbo_bone_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
+  if (!ssbo_bone_rest_mat) {
+    ssbo_bone_rest_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
   }
-  GPU_storagebuf_update(ssbo_bone_mat, bone_matrices.data());
+  GPU_storagebuf_update(ssbo_bone_rest_mat, bone_rest_matrices.data());
+  if (!ssbo_bone_pose_mat) {
+    ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
+  }
+  GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
+
+  if (!ssbo_premat) {
+    ssbo_premat = GPU_storagebuf_create(sizeof(float) * 16);
+  }
+  GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
+  if (!ssbo_postmat) {
+    ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
+  }
+  GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
   if (!m_shader) {
-    ShaderCreateInfo info("BGE_Armature_Skinning");
+    ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
-
+    info.compute_source("draw_colormanagement_lib.glsl");
     info.typedef_source_generated = R"(
-layout(std430, binding = 0) buffer InPos {
-  vec3 in_pos[];
+layout(std430, binding = 0) buffer PositionBuf {
+  vec3 positions[];
 };
 layout(std430, binding = 1) buffer InIdx {
   ivec4 in_idx[];
@@ -662,49 +685,75 @@ layout(std430, binding = 1) buffer InIdx {
 layout(std430, binding = 2) buffer InWgt {
   vec4 in_wgt[];
 };
-layout(std430, binding = 3) buffer BoneMat {
-  mat4 bone_mat[];
+layout(std430, binding = 3) buffer BoneRestMat {
+  mat4 bone_rest_mat[];
 };
-layout(std430, binding = 4) buffer OutPos {
-  vec3 out_pos[];
+layout(std430, binding = 4) buffer BonePoseMat {
+  mat4 bone_pose_mat[];
+};
+layout(std430, binding = 5) buffer PreMat {
+  mat4 premat;
+};
+layout(std430, binding = 6) buffer PostMat {
+  mat4 postmat;
 };
 )";
 
-    info.compute_source("draw_colormanagement_lib.glsl");
     info.compute_source_generated = R"(
-    void main() {
-      uint v = gl_GlobalInvocationID.x;
-      vec4 pos = vec4(in_pos[v], 1.0);
-      vec3 skinned = vec3(0.0);
-      float total_weight = 0.0;
-      for (int i = 0; i < 4; ++i) {
-        int bone = in_idx[v][i];
-        float w = in_wgt[v][i];
-        skinned += (bone_mat[bone] * pos).xyz * w;
-        total_weight += w;
-      }
-      if (total_weight > 0.0)
-        skinned /= total_weight;
-      else
-        skinned = in_pos[v];
-      out_pos[v] = skinned;
+void main() {
+  uint v = gl_GlobalInvocationID.x;
+  vec4 co = vec4(positions[v], 1.0);
+
+  // mesh local -> armature local
+  co = premat * co;
+
+  vec3 skinned = vec3(0.0);
+  float total_weight = 0.0;
+
+  for (int i = 0; i < 4; ++i) {
+    int bone = in_idx[v][i];
+    float w = in_wgt[v][i];
+    if (w > 0.0) {
+      // armature local -> bone local (rest)
+      vec4 tmp = inverse(bone_rest_mat[bone]) * co;
+      // bone local (rest) -> armature local (pose)
+      tmp = bone_pose_mat[bone] * tmp;
+      skinned += tmp.xyz * w;
+      total_weight += w;
     }
-  )";
+  }
+  if (total_weight > 0.0)
+    skinned /= total_weight;
+  else
+    skinned = co.xyz;
+
+  // armature local -> mesh local
+  vec4 out_co = postmat * vec4(skinned, 1.0);
+  positions[v] = out_co.xyz;
+}
+    )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
   GPUShader *shader = m_shader;
 
-  // 9. Binder le VBO comme SSBO
+  // 6. Binder le VBO comme SSBO
   vbo_pos->bind_as_ssbo(0);
 
-  // 10. Bind et dispatch
+  // 7. Bind et dispatch
   GPU_shader_bind(shader);
   GPU_storagebuf_bind(ssbo_in_idx, 1);
   GPU_storagebuf_bind(ssbo_in_wgt, 2);
-  GPU_storagebuf_bind(ssbo_bone_mat, 3);
+  GPU_storagebuf_bind(ssbo_bone_rest_mat, 3);
+  GPU_storagebuf_bind(ssbo_bone_pose_mat, 4);
+  GPU_storagebuf_bind(ssbo_premat, 5);
+  GPU_storagebuf_bind(ssbo_postmat, 6);
   GPU_compute_dispatch(shader, (num_vertices + 255) / 256, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+
+  // Notifier EEVEE/TAA
+  DEG_id_tag_update(&KX_GetActiveScene()->GetActiveCamera()->GetBlenderObject()->id,
+                    ID_RECALC_TRANSFORM);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
