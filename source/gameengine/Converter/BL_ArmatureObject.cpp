@@ -40,6 +40,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_scene.hh"
 #include "BKE_main.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
+#include "DNA_mesh_types.h"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
 #include "BLI_ghash.h"
@@ -53,92 +56,14 @@
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_storage_buffer.hh"
+#include "../draw/intern/draw_cache_extract.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 #include "DNA_meshdata_types.h"
-#include "DNA_mesh_types.h"
 #include "RNA_access.hh"
 
 #include "BL_Action.h"
 #include "BL_SceneConverter.h"
 #include "KX_Globals.h"
-
-/**
- * Move here pose function for game engine so that we can mix with GE objects
- * Principle is as follow:
- * Use Blender structures so that BKE_pose_where_is can be used unchanged
- * Copy the constraint so that they can be enabled/disabled/added/removed at runtime
- * Don't copy the constraints for the pose used by the Action actuator, it does not need them.
- * Scan the constraint structures so that the KX equivalent of target objects are identified and
- * stored in separate list.
- * When it is about to evaluate the pose, set the KX object position in the object_to_world of the
- * corresponding Blender objects and restore after the evaluation.
- */
-// static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
-//{
-//  /* The game engine copies the current armature pose and then swaps
-//   * the object pose pointer. this makes it possible to change poses
-//   * without affecting the original blender data. */
-
-//  if (!src) {
-//    *dst = nullptr;
-//    return;
-//  }
-//  else if (*dst == src) {
-//    CM_Warning("game_copy_pose source and target are the same");
-//    *dst = nullptr;
-//    return;
-//  }
-
-//  bPose *out = (bPose *)MEM_dupallocN(src);
-//  out->chanhash = nullptr;
-//  out->agroups.first = out->agroups.last = nullptr;
-//  out->ikdata = nullptr;
-//  out->ikparam = MEM_dupallocN(src->ikparam);
-//  // out->flag |= POSE_GAME_ENGINE;
-//  BLI_duplicatelist(&out->chanbase, &src->chanbase);
-
-//  /* remap pointers */
-//  GHash *ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "game_copy_pose gh");
-
-//  bPoseChannel *pchan = (bPoseChannel *)src->chanbase.first;
-//  bPoseChannel *outpchan = (bPoseChannel *)out->chanbase.first;
-//  for (; pchan; pchan = pchan->next, outpchan = outpchan->next) {
-//    BLI_ghash_insert(ghash, pchan, outpchan);
-//  }
-
-//  for (pchan = (bPoseChannel *)out->chanbase.first; pchan; pchan = pchan->next) {
-//    pchan->parent = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->parent);
-//    pchan->child = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->child);
-
-//    if (copy_constraint) {
-//      ListBase listb;
-//      // copy all constraint for backward compatibility
-//      // BKE_constraints_copy nullptrs listb, no need to make extern for this operation.
-//      BKE_constraints_copy(&listb, &pchan->constraints, false);
-//      pchan->constraints = listb;
-//    }
-//    else {
-//      BLI_listbase_clear(&pchan->constraints);
-//    }
-
-//    if (pchan->custom) {
-//      id_us_plus(&pchan->custom->id);
-//    }
-
-//    // fails to link, props are not used in the BGE yet.
-//#if 0
-//		if (pchan->prop) {
-//			pchan->prop = IDP_CopyProperty(pchan->prop);
-//		}
-//#endif
-//    pchan->prop = nullptr;
-//  }
-
-//  BLI_ghash_free(ghash, nullptr, nullptr);
-//  // set acceleration structure for channel lookup
-//  BKE_pose_channels_hash_ensure(out);
-//  *dst = out;
-//}
 
 void RemoveArmatureModifiers(Object *obj)
 {
@@ -162,39 +87,21 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
                                       blender::Array<blender::float3> &restPositions,
                                       int &restPositionsNum)
 {
-  if (!src || !runtime_obj || !deformed_obj) {
+  if (!src || !deformed_obj) {
     return nullptr;
   }
 
-  bPose *saved_pose = nullptr;
-  BKE_pose_copy_data(&saved_pose, runtime_obj->pose, /*copy_constraints=*/true);
+  // 1. Récupérer les positions de repos directement depuis le mesh original
+  Mesh *orig_mesh = static_cast<Mesh *>(deformed_obj->data);
+  blender::Span<blender::float3> rest_positions_span = orig_mesh->vert_positions();
 
-  // 2. Appliquer la rest pose sur l'objet runtime
-  BKE_pose_rest(runtime_obj->pose, false);
-
-  // 3. Forcer la mise à jour du dependency graph
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  DEG_id_tag_update(&runtime_obj->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-  BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
-
-  // 4. Récupérer le mesh évalué dans la rest pose
-  Object *deformed_eval = DEG_get_evaluated(depsgraph, deformed_obj);
-  Mesh *rest_mesh = static_cast<Mesh *>(deformed_eval->data);
-  blender::Span<blender::float3> rest_positions_span = rest_mesh->vert_positions();
-
-  // 5. Copier les positions dans le buffer de référence
   restPositionsNum = rest_positions_span.size();
   restPositions = blender::Array<blender::float3>(restPositionsNum);
   for (int i = 0; i < restPositionsNum; ++i) {
     restPositions[i] = rest_positions_span[i];
   }
 
-  // 6. Restaurer la pose d'origine
-  BKE_pose_free(runtime_obj->pose);
-  runtime_obj->pose = saved_pose;
-
-  // 7. Créer la copie "clean" de la pose (optionnel : copy_constraints)
+  // 2. Créer la copie "clean" de la pose (optionnel : copy_constraints)
   bPose *out = (bPose *)MEM_callocN(sizeof(bPose), "BGE_pose_copy_clean");
   out->flag = src->flag;
   out->ctime = src->ctime;
@@ -316,10 +223,8 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_sbModifier = nullptr;
   m_sbCoords = nullptr;
   m_shader = nullptr;
-  ssbo_in_pos = nullptr;
   ssbo_in_idx = nullptr;
   ssbo_in_wgt = nullptr;
-  ssbo_out = nullptr;
   ssbo_bone_mat = nullptr;
 }
 
@@ -351,17 +256,13 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_shader_free(m_shader);
     m_shader = nullptr;
   }
-  if (ssbo_in_pos) {
+  if (ssbo_in_idx) {
     // 11. Nettoyage (optionnel, selon la gestion mémoire de ton moteur)
-    GPU_storagebuf_free(ssbo_in_pos);
     GPU_storagebuf_free(ssbo_in_idx);
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_mat);
-    GPU_storagebuf_free(ssbo_out);
-    ssbo_in_pos = nullptr;
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
-    ssbo_out = nullptr;
     ssbo_bone_mat = nullptr;
   }
 }
@@ -655,7 +556,10 @@ void print_matrix(const float m[4][4])
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
-  // 1. Appliquer l'action à l'armature (mise à jour de la pose)
+  using namespace blender::gpu::shader;
+  using namespace blender::draw;
+
+  // 1. Appliquer l'action à l'armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_runtime_obj->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   BKE_pose_rest(m_runtime_obj->pose, false);
@@ -668,13 +572,12 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
+
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  blender::gpu::VertBuf *vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get();
+
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
   blender::Span<blender::float3> positions(m_refPositions.data(), m_refPositionsNum);
-
-  // 3. Préparer le buffer de sortie CPU
-  if (!m_sbCoords) {
-    m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * positions.size(), __func__);
-  }
 
   // 4. Calcul des matrices globales
   float premat[4][4], postmat[4][4], obinv[4][4];
@@ -683,22 +586,17 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   mul_m4_m4m4(postmat, obinv, m_runtime_obj->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
-  // 5. Préparer les buffers GPU (positions, poids, indices, matrices)
+  // 5. Préparer les buffers GPU (indices, poids, matrices)
   const int num_vertices = positions.size();
   const int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
                             BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
                             0;
 
-  std::vector<float> in_positions(num_vertices * 3);
-  std::vector<int> in_indices(num_vertices * 4);    // 4 influences max/vertex
-  std::vector<float> in_weights(num_vertices * 4);  // 4 influences max/vertex
+  std::vector<int> in_indices(num_vertices * 4);
+  std::vector<float> in_weights(num_vertices * 4);
   std::vector<float> bone_matrices(num_bones * 16, 0.0f);
 
-  // 6. Remplir les buffers d'entrée
   for (int v = 0; v < num_vertices; ++v) {
-    in_positions[v * 3 + 0] = positions[v].x;
-    in_positions[v * 3 + 1] = positions[v].y;
-    in_positions[v * 3 + 2] = positions[v].z;
     for (int i = 0; i < 4; ++i) {
       if (i < dverts[v].totweight) {
         in_indices[v * 4 + i] = dverts[v].dw[i].def_nr;
@@ -711,9 +609,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     }
   }
 
-  // 7. Calcul des matrices finales par bone
-  // On suppose que l'ordre des bones dans pose->chanbase correspond à l'index utilisé dans les
-  // indices
   std::vector<bPoseChannel *> bone_channels;
   bone_channels.reserve(num_bones);
   for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
@@ -724,17 +619,14 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   for (int b = 0; b < num_bones; ++b) {
     bPoseChannel *pchan = bone_channels[b];
-    // inv_rest_mat = inverse(pchan->bone->arm_mat)
     float inv_rest_mat[4][4];
     invert_m4_m4(inv_rest_mat, pchan->bone->arm_mat);
 
-    // final_bone_matrix = postmat * pose_mat * inv_rest_mat * premat
     float tmp1[4][4], tmp2[4][4], final[4][4];
     mul_m4_m4m4(tmp1, pchan->pose_mat, inv_rest_mat);
     mul_m4_m4m4(tmp2, tmp1, premat);
     mul_m4_m4m4(final, postmat, tmp2);
 
-    // Stocker dans bone_matrices (row-major)
     for (int row = 0; row < 4; ++row) {
       for (int col = 0; col < 4; ++col) {
         bone_matrices[b * 16 + row * 4 + col] = final[row][col];
@@ -743,10 +635,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
 
   // 8. Créer les SSBO Blender GPU
-  if (!ssbo_in_pos) {
-    ssbo_in_pos = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
-  }
-  GPU_storagebuf_update(ssbo_in_pos, in_positions.data());
   if (!ssbo_in_idx) {
     ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_vertices * 4);
   }
@@ -759,11 +647,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_bone_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
   }
   GPU_storagebuf_update(ssbo_bone_mat, bone_matrices.data());
-  if (!ssbo_out) {
-    ssbo_out = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
-  }
-
-  using namespace blender::gpu::shader;
 
   if (!m_shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning");
@@ -812,22 +695,16 @@ layout(std430, binding = 4) buffer OutPos {
 
   GPUShader *shader = m_shader;
 
-  // 9. Bind et dispatch
+  // 9. Binder le VBO comme SSBO
+  vbo_pos->bind_as_ssbo(0);
+
+  // 10. Bind et dispatch
   GPU_shader_bind(shader);
-  GPU_storagebuf_bind(ssbo_in_pos, 0);
   GPU_storagebuf_bind(ssbo_in_idx, 1);
   GPU_storagebuf_bind(ssbo_in_wgt, 2);
   GPU_storagebuf_bind(ssbo_bone_mat, 3);
-  GPU_storagebuf_bind(ssbo_out, 4);
   GPU_compute_dispatch(shader, (num_vertices + 255) / 256, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-
-  // 10. Lire le résultat côté CPU
-  GPU_storagebuf_read(ssbo_out, m_sbCoords);
-
-  // 12. Mettre à jour le modificateur et notifier Blender
-  m_sbModifier->vertcoos = m_sbCoords;
-  DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_GEOMETRY);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
