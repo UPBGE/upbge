@@ -316,6 +316,11 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_sbModifier = nullptr;
   m_sbCoords = nullptr;
   m_shader = nullptr;
+  ssbo_in_pos = nullptr;
+  ssbo_in_idx = nullptr;
+  ssbo_in_wgt = nullptr;
+  ssbo_out = nullptr;
+  ssbo_bone_mat = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -345,6 +350,19 @@ BL_ArmatureObject::~BL_ArmatureObject()
   if (m_shader) {
     GPU_shader_free(m_shader);
     m_shader = nullptr;
+  }
+  if (ssbo_in_pos) {
+    // 11. Nettoyage (optionnel, selon la gestion mémoire de ton moteur)
+    GPU_storagebuf_free(ssbo_in_pos);
+    GPU_storagebuf_free(ssbo_in_idx);
+    GPU_storagebuf_free(ssbo_in_wgt);
+    GPU_storagebuf_free(ssbo_bone_mat);
+    GPU_storagebuf_free(ssbo_out);
+    ssbo_in_pos = nullptr;
+    ssbo_in_idx = nullptr;
+    ssbo_in_wgt = nullptr;
+    ssbo_out = nullptr;
+    ssbo_bone_mat = nullptr;
   }
 }
 
@@ -725,18 +743,25 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
 
   // 8. Créer les SSBO Blender GPU
-  GPUStorageBuf *ssbo_in_pos = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
+  if (!ssbo_in_pos) {
+    ssbo_in_pos = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
+  }
   GPU_storagebuf_update(ssbo_in_pos, in_positions.data());
-  GPUStorageBuf *ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_vertices * 4);
+  if (!ssbo_in_idx) {
+    ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_vertices * 4);
+  }
   GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
-
-  GPUStorageBuf *ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_vertices * 4);
+  if (!ssbo_in_wgt) {
+    ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_vertices * 4);
+  }
   GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
-
-  GPUStorageBuf *ssbo_bone_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
+  if (!ssbo_bone_mat) {
+    ssbo_bone_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
+  }
   GPU_storagebuf_update(ssbo_bone_mat, bone_matrices.data());
-
-  GPUStorageBuf *ssbo_out = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
+  if (!ssbo_out) {
+    ssbo_out = GPU_storagebuf_create(sizeof(float) * num_vertices * 3);
+  }
 
   using namespace blender::gpu::shader;
 
@@ -799,13 +824,6 @@ layout(std430, binding = 4) buffer OutPos {
 
   // 10. Lire le résultat côté CPU
   GPU_storagebuf_read(ssbo_out, m_sbCoords);
-
-  // 11. Nettoyage (optionnel, selon la gestion mémoire de ton moteur)
-  GPU_storagebuf_free(ssbo_in_pos);
-  GPU_storagebuf_free(ssbo_in_idx);
-  GPU_storagebuf_free(ssbo_in_wgt);
-  GPU_storagebuf_free(ssbo_bone_mat);
-  GPU_storagebuf_free(ssbo_out);
 
   // 12. Mettre à jour le modificateur et notifier Blender
   m_sbModifier->vertcoos = m_sbCoords;

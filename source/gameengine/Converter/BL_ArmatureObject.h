@@ -62,6 +62,12 @@ class BL_ArmatureObject : public KX_GameObject {
   int m_refPositionsNum = 0;
   struct GPUShader *m_shader;
 
+  struct GPUStorageBuf *ssbo_in_pos;
+  struct GPUStorageBuf *ssbo_in_idx;
+  struct GPUStorageBuf *ssbo_in_wgt;
+  struct GPUStorageBuf *ssbo_bone_mat;
+  struct GPUStorageBuf *ssbo_out;
+
   double m_lastframe;
   size_t m_constraintNumber;
   size_t m_channelNumber;
