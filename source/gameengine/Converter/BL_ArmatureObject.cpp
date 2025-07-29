@@ -1,4 +1,4 @@
-/*
+Ôªø/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -92,7 +92,7 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
     return nullptr;
   }
 
-  // 1. RÈcupÈrer les positions de repos directement depuis le mesh original
+  // 1. R√©cup√©rer les positions de repos directement depuis le mesh original
   Mesh *orig_mesh = static_cast<Mesh *>(deformed_obj->data);
   blender::Span<blender::float3> rest_positions_span = orig_mesh->vert_positions();
 
@@ -102,7 +102,7 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
     restPositions[i] = rest_positions_span[i];
   }
 
-  // 2. CrÈer la copie "clean" de la pose (optionnel : copy_constraints)
+  // 2. Cr√©er la copie "clean" de la pose (optionnel : copy_constraints)
   bPose *out = (bPose *)MEM_callocN(sizeof(bPose), "BGE_pose_copy_clean");
   out->flag = src->flag;
   out->ctime = src->ctime;
@@ -129,7 +129,7 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
       BLI_listbase_clear(&out_pchan->constraints);
     }
 
-    // Nettoyage des propriÈtÈs custom
+    // Nettoyage des propri√©t√©s custom
     out_pchan->prop = nullptr;
     out_pchan->system_properties = nullptr;
 
@@ -231,6 +231,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_bone_rest_mat = nullptr;
   ssbo_postmat = nullptr;
   ssbo_premat = nullptr;
+  ssbo_rest_pose = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -262,7 +263,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     m_shader = nullptr;
   }
   if (ssbo_in_idx) {
-    // 11. Nettoyage (optionnel, selon la gestion mÈmoire de ton moteur)
+    // 11. Nettoyage (optionnel, selon la gestion m√©moire de ton moteur)
     GPU_storagebuf_free(ssbo_in_idx);
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_mat);
@@ -270,6 +271,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_bone_rest_mat);
     GPU_storagebuf_free(ssbo_postmat);
     GPU_storagebuf_free(ssbo_premat);
+    GPU_storagebuf_free(ssbo_rest_pose);
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
     ssbo_bone_mat = nullptr;
@@ -277,6 +279,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     ssbo_bone_rest_mat = nullptr;
     ssbo_postmat = nullptr;
     ssbo_premat = nullptr;
+    ssbo_rest_pose = nullptr;
   }
 }
 
@@ -572,26 +575,30 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   using namespace blender::gpu::shader;
   using namespace blender::draw;
 
-  printf("=== [SetPoseByAction] D…BUT ===\n");
+  printf("=== [SetPoseByAction] D√âBUT ===\n");
 
-  // 1. Appliquer l'action ‡ l'armature
+  // 1. Appliquer l'action √† l'armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_runtime_obj->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   BKE_pose_rest(m_runtime_obj->pose, false);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
-  printf("[LOG] Action appliquÈe ‡ l'armature\n");
+  printf("[LOG] Action appliqu√©e √† l'armature\n");
 
-  // 2. Forcer la mise ‡ jour de la pose et du mesh
+  // 2. Forcer la mise √† jour de la pose et du mesh
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ApplyPose();
-  printf("[LOG] Pose appliquÈe, depsgraph mis ‡ jour\n");
+  printf("[LOG] Pose appliqu√©e, depsgraph mis √† jour\n");
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
 
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
   blender::gpu::VertBuf *vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get();
+
+  // Debug : Lister TOUS les VBOs pour voir ce qui se passe
+  printf("[LOG] === ANALYSE COMPLETE DES VBOs ===\n");
+  auto &vbos = cache->final.buff.vbos;
 
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
   blender::Span<blender::float3> positions_ref(m_refPositions.data(), m_refPositionsNum);
@@ -611,7 +618,9 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   printf("[LOG] postmat:\n");
   print_matrix(postmat);
 
-  // 4. PrÈparer les matrices des bones
+  int vbo_size = GPU_vertbuf_get_vertex_len(vbo_pos);
+
+  // 4. Pr√©parer les matrices des bones
   const int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
                             BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
                             0;
@@ -626,88 +635,87 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   {
     bone_channels.push_back(pchan);
   }
-
+  // 8. Corriger les matrices de bones
   for (int b = 0; b < num_bones; ++b) {
     bPoseChannel *pchan = bone_channels[b];
-    for (int row = 0; row < 4; ++row)
-      for (int col = 0; col < 4; ++col)
-        bone_rest_matrices[b * 16 + row * 4 + col] = pchan->bone->arm_mat[row][col];
-    for (int row = 0; row < 4; ++row)
-      for (int col = 0; col < 4; ++col)
-        bone_pose_matrices[b * 16 + row * 4 + col] = pchan->pose_mat[row][col];
-    printf("[LOG] Bone %d: %s\n", b, pchan->name);
+
+    float bone_rest_inv[4][4];
+    invert_m4_m4(bone_rest_inv, pchan->bone->arm_mat);
+
+    float bone_deform[4][4];
+    mul_m4_m4m4(bone_deform, pchan->pose_mat, bone_rest_inv);
+
+    for (int row = 0; row < 4; ++row) {
+      for (int col = 0; col < 4; ++col) {
+        bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
+      }
+    }
   }
 
-  // 5. Mapping group_name -> bone_index
-  std::map<std::string, int> group_to_bone;
-  for (int b = 0; b < num_bones; ++b) {
-    group_to_bone[bone_channels[b]->name] = b;
-    printf("[LOG] group_to_bone: %s -> %d\n", bone_channels[b]->name, b);
-  }
-
-  // 6. RÈcupÈrer la triangulation
+  // 6. R√©cup√©rer la triangulation
   blender::Span<int> corner_verts = mesh->corner_verts();
   blender::Span<blender::int3> corner_tris = mesh->corner_tris();
 
   int num_tris = corner_tris.size();
   int num_triangle_corners = num_tris * 3;
+  int corners_num = corner_verts.size();
+  std::cout << "vbo_size " << vbo_size << std::endl;
+  std::cout << "num_triangle_corners " << num_triangle_corners << std::endl;
+  std::cout << "num_tris " << num_tris << std::endl;
+  std::cout << "corner_num " << corners_num << std::endl;
 
-  // 7. PrÈparer les buffers d'influences PAR SOMMET
+  // 7. Pr√©parer les buffers d'influences PAR SOMMET
   int num_verts = mesh->vert_positions().size();
-  std::vector<int> in_indices(num_verts * 4);
-  std::vector<float> in_weights(num_verts * 4);
+  std::vector<int> in_indices(vbo_size * 4);
+  std::vector<float> in_weights(vbo_size * 4);
 
-  for (int v = 0; v < num_verts; ++v) {
-    const MDeformVert &dvert = dverts[v];
-    printf("[LOG] Vertex %d: dvert.totweight=%d\n", v, dvert.totweight);
+  // Comprendre la structure du VBO
+  printf("[LOG] VBO structure analysis:\n");
+  printf("[LOG] - vbo_size: %d\n", vbo_size);
+  printf("[LOG] - num_verts: %d\n", num_verts);
+  printf("[LOG] - corners_num: %d\n", corners_num);
+
+  // Le VBO peut contenir diff√©rents types de donn√©es selon le mesh
+
+  // 7. Remplir correctement les buffers
+  std::map<std::string, int> group_to_bone;
+  for (int b = 0; b < num_bones; ++b) {
+    group_to_bone[bone_channels[b]->name] = b;
+  }
+  for (int corner = 0; corner < vbo_size; ++corner) {
+    int vert_i = corner_verts[corner];
+    const MDeformVert &dvert = dverts[vert_i];
+
     for (int j = 0; j < 4; ++j) {
       if (j < dvert.totweight) {
         int def_nr = dvert.dw[j].def_nr;
-        bDeformGroup *dg = (bDeformGroup *)BLI_findlink(&mesh->vertex_group_names, def_nr);
-        const char *group_name = dg ? dg->name : nullptr;
-        int bone_idx = group_to_bone[group_name];
-        in_indices[v * 4 + j] = bone_idx;
-        in_weights[v * 4 + j] = dvert.dw[j].weight;
-        printf("[LOG]   Influence %d: group='%s' bone_idx=%d weight=%.4f\n",
-               j,
-               group_name,
-               bone_idx,
-               dvert.dw[j].weight);
+        if (def_nr >= 0 && def_nr < BLI_listbase_count(&mesh->vertex_group_names)) {
+          bDeformGroup *dg = (bDeformGroup *)BLI_findlink(&mesh->vertex_group_names, def_nr);
+          const char *group_name = dg ? dg->name : nullptr;
+          auto it = group_to_bone.find(group_name ? group_name : "");
+          int bone_idx = (it != group_to_bone.end()) ? it->second : 0;
+          in_indices[corner * 4 + j] = bone_idx;
+          in_weights[corner * 4 + j] = dvert.dw[j].weight;
+        }
+        else {
+          in_indices[corner * 4 + j] = 0;
+          in_weights[corner * 4 + j] = 0.0f;
+        }
       }
       else {
-        in_indices[v * 4 + j] = 0;
-        in_weights[v * 4 + j] = 0.0f;
+        in_indices[corner * 4 + j] = 0;
+        in_weights[corner * 4 + j] = 0.0f;
       }
     }
   }
 
-  // 8. Log de la triangulation
-  for (int t = 0; t < num_tris; ++t) {
-    const blender::int3 &tri = corner_tris[t];
-    printf("[LOG] Triangle %d: coin indices = (%d, %d, %d)\n", t, tri[0], tri[1], tri[2]);
-    printf("      vertex indices = (%d, %d, %d)\n",
-           corner_verts[tri[0]],
-           corner_verts[tri[1]],
-           corner_verts[tri[2]]);
-    printf("      positions = (%.4f, %.4f, %.4f) | (%.4f, %.4f, %.4f) | (%.4f, %.4f, %.4f)\n",
-           positions_ref[corner_verts[tri[0]]].x,
-           positions_ref[corner_verts[tri[0]]].y,
-           positions_ref[corner_verts[tri[0]]].z,
-           positions_ref[corner_verts[tri[1]]].x,
-           positions_ref[corner_verts[tri[1]]].y,
-           positions_ref[corner_verts[tri[1]]].z,
-           positions_ref[corner_verts[tri[2]]].x,
-           positions_ref[corner_verts[tri[2]]].y,
-           positions_ref[corner_verts[tri[2]]].z);
-  }
-
-  // 9. CrÈer et mettre ‡ jour les SSBO Blender GPU
+  // 9. Cr√©er et mettre √† jour les SSBO Blender GPU
   if (!ssbo_in_idx) {
-    ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_verts * 4);
+    ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * vbo_size * 4);
   }
   GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
   if (!ssbo_in_wgt) {
-    ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_verts * 4);
+    ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * vbo_size * 4);
   }
   GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
   if (!ssbo_bone_rest_mat) {
@@ -727,6 +735,19 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
   }
   GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
+  // AJOUT : Cr√©er un SSBO pour les positions de r√©f√©rence
+  std::vector<blender::float3> rest_positions_for_gpu(vbo_size);
+
+  printf("[LOG] Remplissage rest_positions: mode corners\n");
+  for (int corner = 0; corner < vbo_size; ++corner) {
+    int vert_i = corner_verts[corner];
+    rest_positions_for_gpu[corner] = positions_ref[vert_i];
+  }
+
+  if (!ssbo_rest_pose) {
+    ssbo_rest_pose = GPU_storagebuf_create(sizeof(blender::float3) * vbo_size);
+  }
+  GPU_storagebuf_update(ssbo_rest_pose, rest_positions_for_gpu.data());
 
   if (!m_shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
@@ -754,47 +775,43 @@ layout(std430, binding = 5) buffer PreMat {
 layout(std430, binding = 6) buffer PostMat {
   mat4 postmat;
 };
+layout(std430, binding = 7) buffer RestPositions {
+  vec3 rest_positions[];
+};
 )";
     info.compute_source_generated = R"(
 void main() {
   uint v = gl_GlobalInvocationID.x;
-  vec4 rest_pos = premat * vec4(positions[v], 1.0);
-
-  vec4 skinned = vec4(0.0);
+  if (v >= rest_positions.length()) return;
+  
+  vec3 rest_pos = rest_positions[v];
+  vec3 skinned = vec3(0.0);
+  float total_weight = 0.0;
+  
   for (int i = 0; i < 4; ++i) {
     int bone_idx = in_idx[v][i];
     float w = in_wgt[v][i];
     if (w > 0.0) {
-      mat4 rest = bone_rest_mat[bone_idx];
-      mat4 pose = bone_pose_mat[bone_idx];
-      mat4 skin_mat = pose * inverse(rest);
-      skinned += skin_mat * rest_pos * w;
+      // Utiliser directement la matrice de d√©formation
+      mat4 deform_mat = bone_pose_mat[bone_idx];
+      vec4 transformed = deform_mat * vec4(rest_pos, 1.0);
+      skinned += transformed.xyz * w;
+      total_weight += w;
     }
   }
-  skinned = postmat * skinned;
-  positions[v] = skinned.xyz;
+  
+  if (total_weight > 0.0) {
+    positions[v] = skinned / total_weight;
+  } else {
+    positions[v] = rest_pos;
+  }
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
-    printf("[LOG] Shader crÈÈ\n");
+    printf("[LOG] Shader cr√©√©\n");
   }
 
   GPUShader *shader = m_shader;
-
-  // 10. PrÈparer le buffer de positions dans l'ordre natif des sommets
-  blender::Span<blender::float3> vert_positions = mesh->vert_positions();
-  std::vector<blender::float3> positions_for_vbo(num_verts);
-
-  for (int v = 0; v < num_verts; ++v) {
-    positions_for_vbo[v] = positions_ref[v];
-    printf("[LOG] positions_for_vbo[%d] = (%.4f, %.4f, %.4f)\n",
-           v,
-           positions_ref[v].x,
-           positions_ref[v].y,
-           positions_ref[v].z);
-  }
-
-  int vbo_size = GPU_vertbuf_get_vertex_len(vbo_pos);
 
   // 11. Dispatch du compute shader
   vbo_pos->bind_as_ssbo(0);
@@ -805,15 +822,19 @@ void main() {
   GPU_storagebuf_bind(ssbo_bone_pose_mat, 4);
   GPU_storagebuf_bind(ssbo_premat, 5);
   GPU_storagebuf_bind(ssbo_postmat, 6);
-  GPU_compute_dispatch(shader, (num_verts + 255) / 256, 1, 1);
+  GPU_storagebuf_bind(ssbo_rest_pose, 7);
+  GPU_compute_dispatch(shader, (vbo_size + 255) / 256, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_memory_barrier(GPU_BARRIER_VERTEX_ATTRIB_ARRAY | GPU_BARRIER_BUFFER_UPDATE);
 
-  // 12. Debug : lecture du VBO
-  std::vector<blender::float3> debug_positions(num_verts);
+  GPU_flush();
+  GPU_finish();  // Attendre que toutes les op√©rations GPU soient termin√©es
+
+  // 12. Debug : lecture du VBO CORRECTE
+  std::vector<blender::float3> debug_positions(vbo_size);  // ‚Üê 280 au lieu de 72
   GPU_vertbuf_read(vbo_pos, debug_positions.data());
-  for (int v = 0; v < debug_positions.size(); ++v) {
-    printf("[LOG] Vertex %d: (%.4f, %.4f, %.4f)\n",
+  for (int v = 0; v < std::min(10, vbo_size); ++v) {
+    printf("[LOG] VBO[%d] AFTER: (%.4f, %.4f, %.4f)\n",
            v,
            debug_positions[v].x,
            debug_positions[v].y,
