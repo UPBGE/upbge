@@ -645,9 +645,18 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     float bone_deform[4][4];
     mul_m4_m4m4(bone_deform, pchan->pose_mat, bone_rest_inv);
 
+    // Remplir bone_pose_matrices
     for (int row = 0; row < 4; ++row) {
       for (int col = 0; col < 4; ++col) {
         bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
+      }
+    }
+
+    // AJOUT: Remplir bone_rest_matrices
+    for (int row = 0; row < 4; ++row) {
+      for (int col = 0; col < 4; ++col) {
+        // Copier directement la matrice de repos (arm_mat est déjà en 4x4)
+        bone_rest_matrices[b * 16 + row * 4 + col] = pchan->bone->arm_mat[row][col];
       }
     }
   }
