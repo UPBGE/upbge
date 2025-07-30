@@ -605,18 +605,32 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   for (int b = 0; b < num_bones; ++b) {
     group_to_bone[bone_channels[b]->name] = b;
   }
+  std::vector<const char *> group_names;
+  for (bDeformGroup *dg = (bDeformGroup *)mesh->vertex_group_names.first; dg; dg = dg->next) {
+    group_names.push_back(dg->name);
+  }
   tbb::parallel_for(0, num_verts, [&](int v) {
     const MDeformVert &dvert = dverts[v];
+    float total = 0.0f;
     for (int j = 0; j < 4; ++j) {
       if (j < dvert.totweight) {
+        total += dvert.dw[j].weight;
+      }
+    }
+    for (int j = 0; j < 4; ++j) {
+      if (j < dvert.totweight && total > 0.0f) {
         int def_nr = dvert.dw[j].def_nr;
-        if (def_nr >= 0 && def_nr < BLI_listbase_count(&mesh->vertex_group_names)) {
-          bDeformGroup *dg = (bDeformGroup *)BLI_findlink(&mesh->vertex_group_names, def_nr);
-          const char *group_name = dg ? dg->name : nullptr;
+        if (def_nr >= 0 && def_nr < group_names.size()) {
+          const char *group_name = group_names[def_nr];
           auto it = group_to_bone.find(group_name ? group_name : "");
-          int bone_idx = (it != group_to_bone.end()) ? it->second : 0;
-          in_indices[v * 4 + j] = bone_idx;
-          in_weights[v * 4 + j] = dvert.dw[j].weight;
+          if (it != group_to_bone.end()) {
+            in_indices[v * 4 + j] = it->second;
+            in_weights[v * 4 + j] = dvert.dw[j].weight / total;
+          }
+          else {
+            in_indices[v * 4 + j] = 0;
+            in_weights[v * 4 + j] = 0.0f;  // Ignoré
+          }
         }
         else {
           in_indices[v * 4 + j] = 0;
@@ -731,7 +745,6 @@ void main() {
   GPU_storagebuf_unbind(ssbo_premat);
   GPU_storagebuf_unbind(ssbo_rest_pose);
   GPU_shader_unbind();
-  GPU_finish();
 
   // 10. Lire les positions skinnées et mettre à jour le VBO
   std::vector<blender::float4> skinned_positions(num_verts);
