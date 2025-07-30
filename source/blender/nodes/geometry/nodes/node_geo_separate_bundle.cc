@@ -7,14 +7,16 @@
 #include "ED_screen.hh"
 
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
-
-#include "NOD_geometry_nodes_bundle.hh"
 
 #include "UI_interface_layout.hh"
 
@@ -137,10 +139,31 @@ static void node_geo_exec(GeoNodeExecParams params)
       continue;
     }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    if (!implicitly_convert_socket_value(
-            *socket_value->type, socket_value->value, *stype, output_ptr))
-    {
-      construct_socket_default_value(*stype, output_ptr);
+    if (socket_value->type->type == stype->type) {
+      socket_value->type->geometry_nodes_cpp_type->copy_construct(socket_value->value, output_ptr);
+    }
+    else {
+      if (implicitly_convert_socket_value(
+              *socket_value->type, socket_value->value, *stype, output_ptr))
+      {
+        params.error_message_add(
+            NodeWarningType::Info,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Implicit type conversion"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+      }
+      else {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Conversion not supported"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+        construct_socket_default_value(*stype, output_ptr);
+      }
     }
     lf_params.output_set(i);
   }
@@ -163,7 +186,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Bundle");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    ed::space_node::sync_sockets_separate_bundle(snode, node, nullptr);
+    sync_sockets_separate_bundle(snode, node, nullptr);
   });
 }
 
