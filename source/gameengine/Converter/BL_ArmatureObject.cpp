@@ -232,6 +232,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_postmat = nullptr;
   ssbo_premat = nullptr;
   ssbo_rest_pose = nullptr;
+  ssbo_positions = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -272,6 +273,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_postmat);
     GPU_storagebuf_free(ssbo_premat);
     GPU_storagebuf_free(ssbo_rest_pose);
+    GPU_storagebuf_free(ssbo_positions);
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
     ssbo_bone_mat = nullptr;
@@ -280,6 +282,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     ssbo_postmat = nullptr;
     ssbo_premat = nullptr;
     ssbo_rest_pose = nullptr;
+    ssbo_positions = nullptr;
   }
 }
 
@@ -744,27 +747,29 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
   }
   GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
-  // AJOUT : Créer un SSBO pour les positions de référence
-  std::vector<blender::float3> rest_positions_for_gpu(vbo_size);
-
-  printf("[LOG] Remplissage rest_positions: mode corners\n");
+  // Remplace la création et le remplissage du buffer rest_positions_for_gpu par :
+  std::vector<blender::float4> rest_positions_for_gpu(vbo_size);
   for (int corner = 0; corner < vbo_size; ++corner) {
     int vert_i = corner_verts[corner];
-    rest_positions_for_gpu[corner] = positions_ref[vert_i];
+    const blender::float3 &pos = positions_ref[vert_i];
+    rest_positions_for_gpu[corner] = blender::float4(pos[0], pos[1], pos[2], 0.0f);
   }
-
   if (!ssbo_rest_pose) {
-    ssbo_rest_pose = GPU_storagebuf_create(sizeof(blender::float3) * vbo_size);
+    ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * vbo_size);
   }
   GPU_storagebuf_update(ssbo_rest_pose, rest_positions_for_gpu.data());
+  if (!ssbo_positions) {
+    ssbo_positions = GPU_storagebuf_create(sizeof(float) * 4 * vbo_size);
+  }
+  GPU_storagebuf_clear(ssbo_positions, 0xFFFFFFFFu);
 
   if (!m_shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
-    info.local_group_size(256, 1, 1);
+    info.local_group_size(1024, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
     info.typedef_source_generated = R"(
 layout(std430, binding = 0) buffer PositionBuf {
-  vec3 positions[];
+  vec4 positions[];
 };
 layout(std430, binding = 1) buffer InIdx {
   ivec4 in_idx[];
@@ -785,7 +790,7 @@ layout(std430, binding = 6) buffer PostMat {
   mat4 postmat;
 };
 layout(std430, binding = 7) buffer RestPositions {
-  vec3 rest_positions[];
+  vec4 rest_positions[];
 };
 )";
     info.compute_source_generated = R"(
@@ -793,8 +798,8 @@ void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
   
-  vec3 rest_pos = rest_positions[v];
-  vec3 skinned = vec3(0.0);
+  vec4 rest_pos = rest_positions[v];
+  vec4 skinned = vec4(0.0);
   float total_weight = 0.0;
   
   for (int i = 0; i < 4; ++i) {
@@ -803,8 +808,8 @@ void main() {
     if (w > 0.0) {
       // Utiliser directement la matrice de déformation
       mat4 deform_mat = bone_pose_mat[bone_idx];
-      vec4 transformed = deform_mat * vec4(rest_pos, 1.0);
-      skinned += transformed.xyz * w;
+      vec4 transformed = deform_mat * rest_pos;
+      skinned += transformed * w;
       total_weight += w;
     }
   }
@@ -817,14 +822,20 @@ void main() {
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
-    printf("[LOG] Shader créé\n");
+  }
+
+  for (int i = 0; i < std::min(10, vbo_size); ++i) {
+    printf("rest_positions_for_gpu[%d] = (%.4f, %.4f, %.4f)\n",
+           i,
+           rest_positions_for_gpu[i].x,
+           rest_positions_for_gpu[i].y,
+           rest_positions_for_gpu[i].z);
   }
 
   GPUShader *shader = m_shader;
-
-  // 11. Dispatch du compute shader
-  vbo_pos->bind_as_ssbo(0);
+  //// 11. Dispatch du compute shader
   GPU_shader_bind(shader);
+  GPU_storagebuf_bind(ssbo_positions, 0);
   GPU_storagebuf_bind(ssbo_in_idx, 1);
   GPU_storagebuf_bind(ssbo_in_wgt, 2);
   GPU_storagebuf_bind(ssbo_bone_rest_mat, 3);
@@ -832,27 +843,45 @@ void main() {
   GPU_storagebuf_bind(ssbo_premat, 5);
   GPU_storagebuf_bind(ssbo_postmat, 6);
   GPU_storagebuf_bind(ssbo_rest_pose, 7);
-  GPU_compute_dispatch(shader, (vbo_size + 255) / 256, 1, 1);
+  const int group_size = 1024;
+  const int num_groups = (vbo_size + group_size - 1) / group_size;
+  GPU_compute_dispatch(shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_memory_barrier(GPU_BARRIER_VERTEX_ATTRIB_ARRAY | GPU_BARRIER_BUFFER_UPDATE);
+
+  GPU_storagebuf_unbind(ssbo_positions);
+  GPU_storagebuf_unbind(ssbo_in_idx);
+  GPU_storagebuf_unbind(ssbo_in_wgt);
+  GPU_storagebuf_unbind(ssbo_bone_rest_mat);
+  GPU_storagebuf_unbind(ssbo_bone_pose_mat);
+  GPU_storagebuf_unbind(ssbo_premat);
+  GPU_storagebuf_unbind(ssbo_postmat);
+  GPU_storagebuf_unbind(ssbo_rest_pose);
+  GPU_shader_unbind();
 
   GPU_flush();
   GPU_finish();  // Attendre que toutes les opérations GPU soient terminées
 
-  // 12. Debug : lecture du VBO CORRECTE
-  std::vector<blender::float3> debug_positions(vbo_size);  // ← 280 au lieu de 72
-  GPU_vertbuf_read(vbo_pos, debug_positions.data());
-  for (int v = 0; v < std::min(10, vbo_size); ++v) {
-    printf("[LOG] VBO[%d] AFTER: (%.4f, %.4f, %.4f)\n",
-           v,
-           debug_positions[v].x,
-           debug_positions[v].y,
-           debug_positions[v].z);
+  std::vector<blender::float4> debug_positions(vbo_size);  // ← 280 au lieu de 72
+  GPU_storagebuf_read(ssbo_positions, debug_positions.data());
+
+  std::vector<blender::float3> vbo_data(vbo_size);
+  for (int i = 0; i < vbo_size; ++i) {
+    vbo_data[i] = blender::float3(
+        debug_positions[i].x, debug_positions[i].y, debug_positions[i].z);
   }
-  std::cout << "[LOG] num_tris: " << num_tris << std::endl;
-  std::cout << "[LOG] num_triangle_corners: " << num_triangle_corners << std::endl;
-  std::cout << "[LOG] vbo_size: " << vbo_size << std::endl;
-  std::cout << "[LOG] num_vertices: " << positions_ref.size() << std::endl;
+
+  for (int i = 0; i < std::min(10, vbo_size); ++i) {
+    printf("debug_positions[%d] = (%.4f, %.4f, %.4f)\n",
+           i,
+           debug_positions[i].x,
+           debug_positions[i].y,
+           debug_positions[i].z);
+  }
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_VERTEX_ATTRIB_ARRAY | GPU_BARRIER_BUFFER_UPDATE);
+  GPU_vertbuf_use(vbo_pos);
+  GPU_vertbuf_update_sub(vbo_pos, 0, vbo_size * sizeof(blender::float3), vbo_data.data());
 
   // 13. Notifier EEVEE/TAA
   DEG_id_tag_update(&KX_GetActiveScene()->GetActiveCamera()->GetBlenderObject()->id,
