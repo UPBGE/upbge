@@ -55,20 +55,15 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_origObjArma;
 
   Object *m_runtime_obj;
-  struct SimpleDeformModifierDataBGE *m_sbModifier;
-  float (*m_sbCoords)[3];
   Object *m_deformedObj;
-  class blender::Array<blender::float3> m_refPositions;
-  int m_refPositionsNum = 0;
+  class blender::Array<blender::float4> m_refPositions;
   struct GPUShader *m_shader;
 
   struct GPUStorageBuf *ssbo_in_idx;
   struct GPUStorageBuf *ssbo_in_wgt;
-  struct GPUStorageBuf *ssbo_bone_mat;
   struct GPUStorageBuf *ssbo_bone_rest_mat;
   struct GPUStorageBuf *ssbo_bone_pose_mat;
   struct GPUStorageBuf *ssbo_premat;
-  struct GPUStorageBuf *ssbo_postmat;
   struct GPUStorageBuf *ssbo_rest_pose;
   struct GPUStorageBuf *ssbo_positions;
 
