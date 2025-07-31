@@ -41,9 +41,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
   if (current_node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
     if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
-      panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
@@ -55,7 +55,6 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   }
   else {
     if (uiLayout *panel = layout->panel(C, "output_items", false, TIP_("Output Items"))) {
-      panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
       socket_items::ui::draw_items_list_with_operators<ClosureOutputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
@@ -105,14 +104,14 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  bNode *output_node = ntree->node_by_id(node_storage(*node).output_node_id);
+  bNode *output_node = params.ntree.node_by_id(node_storage(params.node).output_node_id);
   if (!output_node) {
     return true;
   }
   return socket_items::try_add_item_via_any_extend_socket<ClosureInputItemsAccessor>(
-      *ntree, *node, *output_node, *link);
+      params.ntree, params.node, *output_node, params.link);
 }
 
 static void node_register()
@@ -180,10 +179,25 @@ static void node_free_storage(bNode *node)
   MEM_freeN(node->storage);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
+  if (params.C && params.link.fromnode == &params.node && params.link.tosock->type == SOCK_CLOSURE)
+  {
+    const NodeGeometryClosureOutput &storage = node_storage(params.node);
+    if (storage.input_items.items_num == 0 && storage.output_items.items_num == 0) {
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      if (snode && snode->edittree == &params.ntree) {
+        bNode *input_node = bke::zone_type_by_node_type(GEO_NODE_CLOSURE_OUTPUT)
+                                ->get_corresponding_input(params.ntree, params.node);
+        if (input_node) {
+          sync_sockets_closure(*snode, *input_node, params.node, nullptr, params.link.tosock);
+        }
+      }
+    }
+    return true;
+  }
   return socket_items::try_add_item_via_any_extend_socket<ClosureOutputItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
