@@ -230,6 +230,8 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_rest_pose = nullptr;
   ssbo_positions = nullptr;
   m_refPositions = {};
+  in_indices = {};
+  in_weights = {};
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -526,6 +528,103 @@ void print_matrix(const float m[4][4])
   }
 }
 
+void BL_ArmatureObject::InitSkinningBuffers()
+{
+  if (in_indices.empty()) {
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
+    Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
+    blender::Span<MDeformVert> dverts = mesh->deform_verts();
+    int num_verts = mesh->vert_positions().size();
+
+    // Prépare les bones et groupes
+    std::vector<bPoseChannel *> bone_channels;
+    int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
+                        BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
+                        0;
+    bone_channels.reserve(num_bones);
+    for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
+         pchan = pchan->next)
+    {
+      bone_channels.push_back(pchan);
+    }
+    std::map<std::string, int> group_to_bone;
+    for (int b = 0; b < num_bones; ++b) {
+      group_to_bone[std::string(bone_channels[b]->name)] = b;
+    }
+    std::vector<const char *> group_names;
+    for (bDeformGroup *dg = (bDeformGroup *)mesh->vertex_group_names.first; dg; dg = dg->next) {
+      group_names.push_back(dg->name);
+    }
+
+    // Remplissage des buffers
+    in_indices.resize(num_verts * 4, 0);
+    in_weights.resize(num_verts * 4, 0.0f);
+
+    tbb::parallel_for(0, num_verts, [&](int v) {
+      const MDeformVert &dvert = dverts[v];
+      struct Influence {
+        int bone_idx;
+        float weight;
+      };
+      std::vector<Influence> influences;
+
+      for (int j = 0; j < dvert.totweight; ++j) {
+        int def_nr = dvert.dw[j].def_nr;
+        if (def_nr >= 0 && def_nr < group_names.size()) {
+          const char *group_name = group_names[def_nr];
+          auto it = group_to_bone.find(std::string(group_name ? group_name : ""));
+          if (it != group_to_bone.end()) {
+            influences.push_back({it->second, dvert.dw[j].weight});
+          }
+        }
+      }
+
+      if (influences.empty()) {
+        for (int j = 0; j < 4; ++j) {
+          in_indices[v * 4 + j] = 0;
+          in_weights[v * 4 + j] = 0.0f;
+        }
+        return;
+      }
+
+      std::sort(influences.begin(), influences.end(), [](const Influence &a, const Influence &b) {
+        return a.weight > b.weight;
+      });
+
+      float total = 0.0f;
+      for (const auto &inf : influences)
+        total += inf.weight;
+      if (total > 1.0f && total > 0.0f) {
+        for (auto &inf : influences)
+          inf.weight /= total;
+      }
+
+      for (int j = 0; j < 4; ++j) {
+        if (j < influences.size()) {
+          in_indices[v * 4 + j] = influences[j].bone_idx;
+          in_weights[v * 4 + j] = influences[j].weight;
+        }
+        else {
+          in_indices[v * 4 + j] = 0;
+          in_weights[v * 4 + j] = 0.0f;
+        }
+      }
+    });
+
+    // Met à jour les buffers GPU une seule fois
+    if (!ssbo_in_idx) {
+      ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_verts * 4);
+    }
+    if (!ssbo_in_wgt) {
+      ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_verts * 4);
+    }
+    GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
+    GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
+  }
+}
+
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
   using namespace blender::gpu::shader;
@@ -590,61 +689,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   GPU_storagebuf_update(ssbo_bone_rest_mat, bone_rest_matrices.data());
   GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
 
-  // 4. Préparer les indices et poids de skinning (par sommet)
-  if (!ssbo_in_idx) {
-    ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_verts * 4);
-  }
-  if (!ssbo_in_wgt) {
-    ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_verts * 4);
-  }
-
-  std::vector<int> in_indices(num_verts * 4, 0);
-  std::vector<float> in_weights(num_verts * 4, 0.0f);
-
-  std::map<std::string, int> group_to_bone;
-  for (int b = 0; b < num_bones; ++b) {
-    group_to_bone[bone_channels[b]->name] = b;
-  }
-  std::vector<const char *> group_names;
-  for (bDeformGroup *dg = (bDeformGroup *)mesh->vertex_group_names.first; dg; dg = dg->next) {
-    group_names.push_back(dg->name);
-  }
-  tbb::parallel_for(0, num_verts, [&](int v) {
-    const MDeformVert &dvert = dverts[v];
-    float total = 0.0f;
-    for (int j = 0; j < 4; ++j) {
-      if (j < dvert.totweight) {
-        total += dvert.dw[j].weight;
-      }
-    }
-    for (int j = 0; j < 4; ++j) {
-      if (j < dvert.totweight && total > 0.0f) {
-        int def_nr = dvert.dw[j].def_nr;
-        if (def_nr >= 0 && def_nr < group_names.size()) {
-          const char *group_name = group_names[def_nr];
-          auto it = group_to_bone.find(group_name ? group_name : "");
-          if (it != group_to_bone.end()) {
-            in_indices[v * 4 + j] = it->second;
-            in_weights[v * 4 + j] = dvert.dw[j].weight / total;
-          }
-          else {
-            in_indices[v * 4 + j] = 0;
-            in_weights[v * 4 + j] = 0.0f;  // Ignoré
-          }
-        }
-        else {
-          in_indices[v * 4 + j] = 0;
-          in_weights[v * 4 + j] = 0.0f;
-        }
-      }
-      else {
-        in_indices[v * 4 + j] = 0;
-        in_weights[v * 4 + j] = 0.0f;
-      }
-    }
-  });
-  GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
-  GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
+  InitSkinningBuffers();
 
   // 5. Préparer les matrices de transformation
   float premat[4][4], postmat[4][4], obinv[4][4];
@@ -661,8 +706,8 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   // 6. Préparer les positions de repos (vec4, alignées sur les sommets)
   if (!ssbo_rest_pose) {
     ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_verts);
+    GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
   }
-  GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
 
   // 7. Préparer le buffer de sortie pour les positions skinnées
   if (!ssbo_positions) {
@@ -715,7 +760,8 @@ void main() {
       total_weight += w;
     }
   }
-  positions[v] = (total_weight > 0.0) ? (skinned / total_weight) : rest_pos;
+  // Correction Blender-like :
+  positions[v] = skinned + rest_pos * (1.0 - total_weight);
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);

@@ -59,6 +59,8 @@ class BL_ArmatureObject : public KX_GameObject {
   class blender::Array<blender::float4> m_refPositions;
   struct GPUShader *m_shader;
 
+  std::vector<int> in_indices;
+  std::vector<float> in_weights;
   struct GPUStorageBuf *ssbo_in_idx;
   struct GPUStorageBuf *ssbo_in_wgt;
   struct GPUStorageBuf *ssbo_bone_rest_mat;
@@ -94,6 +96,7 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Never edit this, only for accessing names.
   bPose *GetPose() const;
   void ApplyPose();
+  void InitSkinningBuffers();
   void SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx);
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 
