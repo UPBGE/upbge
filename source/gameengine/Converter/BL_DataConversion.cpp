@@ -375,14 +375,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
 
-  BKE_mesh_tessface_ensure(final_me);
-
   const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->verts_num;
-
-  const MFace *faces = (MFace *)CustomData_get_layer(&final_me->fdata_legacy, CD_MFACE);
-  const int totfaces = final_me->totface_legacy;
-  const int *mfaceToMpoly = (int *)CustomData_get_layer(&final_me->fdata_legacy, CD_ORIGINDEX);
 
   /* Extract available layers.
    * Get the active color and uv layer. */
@@ -481,15 +475,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                         bucket->IsWire()};
   }
 
-  std::vector<std::vector<unsigned int>> mpolyToMface(final_me->faces().size());
-  // Generate a list of all mfaces wrapped by a mpoly.
-  for (unsigned int i = 0; i < totfaces; ++i) {
-    mpolyToMface[mfaceToMpoly[i]].push_back(i);
-  }
-
-  // Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
-  std::vector<unsigned int> vertices(totverts, -1);
-
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
       "material_index", AttrDomain::Face, 0);
 
@@ -498,70 +483,61 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   const Span<float3> vertex_normals = final_me->vert_normals();
   const Span<float3> face_normals = final_me->face_normals();
-  const Span<int> corner_verts = final_me->corner_verts();
   const Span<int> corner_edges = final_me->corner_edges();
   const Span<int2> edges = final_me->edges();
 
   const OffsetIndices polys = final_me->faces();
 
-  for (const unsigned int face_i : polys.index_range()) {
-    /* Try to get evaluated mesh poly material index */
-    /* Old code was: const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy]; */
-    /* There is still an issue with boolean exact solver with polygon material indice */
+  // --- New version using modern triangulation ---
+  const blender::Span<blender::int3> tris = final_me->corner_tris();
+  const blender::Span<int> tri_faces = final_me->corner_tri_faces();
+  const blender::Span<int> corner_verts = final_me->corner_verts();
+
+  // Prepare an array to store the indices of already added vertices (for each Blender vertex)
+  std::vector<unsigned int> vertices(totverts, -1);
+
+  for (int tri_i = 0; tri_i < tris.size(); ++tri_i) {
+    int face_i = tri_faces[tri_i];
     int mat_nr = GetPolygonMaterialIndex(material_indices, final_me, face_i);
-
     const ConvertedMaterial &mat = convertedMats[mat_nr];
-
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
-    // Mark face as flat, so vertices are split.
-    const bool flat = (sharp_faces && sharp_faces[face_i]);
+    // For each vertex of the triangle
+    unsigned int tri_indices[3];
+    for (int j = 0; j < 3; ++j) {
+      int corner = tris[tri_i][j];
+      int vert_i = corner_verts[corner];
 
-    for (const unsigned int vert_i : corner_verts.slice(polys[face_i])) {
-      const float *vp = &positions[vert_i][0];
+      // If the vertex has not been added yet, add it
+      if (vertices[vert_i] == -1) {
+        const float *vp = &positions[vert_i][0];
+        const MT_Vector3 pt(vp);
 
-      const MT_Vector3 pt(vp);
-      const float3 normal = flat ? face_normals[face_i] : vertex_normals[vert_i];
-      const MT_Vector3 no(normal.x, normal.y, normal.z);
-      int tangent_layer = layersInfo.activeUv;
-      MT_Vector4 tan(0.0f, 0.0f, 0.0f, 0.0f);
-      if (!tangent.is_empty() && tangent_layer < tangent.size() &&
-          vert_i < tangent[tangent_layer].size())
-      {
-        const float4 &t = tangent[tangent_layer][vert_i];
-        tan = MT_Vector4(t.x, t.y, t.z, t.w);
+        // Normal: flat or smooth
+        const bool flat = (sharp_faces && sharp_faces[face_i]);
+        const float3 normal = flat ? face_normals[face_i] : vertex_normals[vert_i];
+        const MT_Vector3 no(normal.x, normal.y, normal.z);
+
+        int tangent_layer = layersInfo.activeUv;
+        MT_Vector4 tan(0.0f, 0.0f, 0.0f, 0.0f);
+        if (!tangent.is_empty() && tangent_layer < tangent.size() &&
+            vert_i < tangent[tangent_layer].size())
+        {
+          const float4 &t = tangent[tangent_layer][vert_i];
+          tan = MT_Vector4(t.x, t.y, t.z, t.w);
+        }
+        MT_Vector2 uvs[RAS_Texture::MaxUnits];
+        unsigned int rgba[RAS_Texture::MaxUnits];
+
+        BL_GetUvRgba(layersInfo.layers, vert_i, uvs, rgba, uvLayers, colorLayers);
+
+        vertices[vert_i] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vert_i);
       }
-      MT_Vector2 uvs[RAS_Texture::MaxUnits];
-      unsigned int rgba[RAS_Texture::MaxUnits];
-
-      BL_GetUvRgba(layersInfo.layers, vert_i, uvs, rgba, uvLayers, colorLayers);
-
-      // Add tracked vertices by the mpoly.
-      vertices[vert_i] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vert_i);
+      tri_indices[j] = vertices[vert_i];
     }
 
-    // Convert to edges of material is rendering wire.
-    if (mat.wire && mat.visible) {
-      for (const unsigned int edge_i : corner_edges.slice(polys[face_i])) {
-        const int2 &edge = edges[edge_i];
-        meshobj->AddLine(meshmat, vertices[edge[0]], vertices[edge[1]]);
-      }
-    }
-
-    // Convert all faces (triangles of quad).
-    for (unsigned int j : mpolyToMface[face_i]) {
-      const MFace &face = faces[j];
-      const unsigned short nverts = (face.v4) ? 4 : 3;
-      unsigned int indices[4];
-      indices[0] = vertices[face.v1];
-      indices[1] = vertices[face.v2];
-      indices[2] = vertices[face.v3];
-      if (face.v4) {
-        indices[3] = vertices[face.v4];
-      }
-
-      meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside);
-    }
+    // Add the triangle
+    meshobj->AddPolygon(meshmat, 3, tri_indices, mat.visible, mat.collider, mat.twoside);
   }
 
   // keep meshobj->m_sharedvertex_map for reinstance phys mesh.

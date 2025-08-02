@@ -142,15 +142,7 @@ static int buildRawVertIndicesData(Mesh *me,
                                    int **trisToFacesMap_r,
                                    int **recastData)
 {
-  int vi, fi, triIdx;
-  int nverts, ntris;
-  int *trisToFacesMap;
-  float *verts;
-  unsigned short *tris, *tri;
-  int nfaces;
-  MFace *faces;
-
-  nverts = me->verts_num;
+  int nverts = me->verts_num;
   if (nverts >= 0xffff) {
     printf("Converting navmesh: Error! Too many vertices. Max number of vertices %d\n", 0xffff);
     return 0;
@@ -160,59 +152,49 @@ static int buildRawVertIndicesData(Mesh *me,
     return 0;
   }
 
-  float(*v)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * me->verts_num, __func__);
-  blender::MutableSpan(reinterpret_cast<blender::float3 *>(v), me->verts_num).copy_from(me->vert_positions());
-  verts = (float *)v;
-
-  /* flip coordinates */
-  for (vi = 0; vi < nverts; vi++) {
-    SWAP(float, verts[3 * vi + 1], verts[3 * vi + 2]);
+  // Copie des positions avec swap Y/Z
+  float(*v)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * nverts, __func__);
+  blender::MutableSpan(reinterpret_cast<blender::float3 *>(v), nverts)
+      .copy_from(me->vert_positions());
+  float *verts = (float *)v;
+  for (int vi = 0; vi < nverts; vi++) {
+    float tmp = verts[3 * vi + 1];
+    verts[3 * vi + 1] = verts[3 * vi + 2];
+    verts[3 * vi + 2] = tmp;
   }
 
-  /* calculate number of tris */
-  BKE_mesh_tessface_ensure(me);
-  nfaces = me->totface_legacy;
-  if (nfaces == 0) {
-    printf("Converting navmesh: Error! There are %i vertices, but no faces!\n", nverts);
+  // Triangulation moderne
+  const blender::Span<blender::int3> tris = me->corner_tris();
+  const blender::Span<int> tri_faces = me->corner_tri_faces();
+
+  int ntris = tris.size();
+  if (ntris == 0) {
+    printf("Converting navmesh: Error! There are %i vertices, but no triangles!\n", nverts);
+    MEM_freeN(verts);
     return 0;
   }
 
-  faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-  ntris = nfaces;
-  for (fi = 0; fi < nfaces; fi++) {
-    MFace *face = &faces[fi];
-    if (face->v4)
-      ntris++;
+  unsigned short *tris_out = (unsigned short *)MEM_callocN(sizeof(unsigned short) * 3 * ntris,
+                                                           "buildRawVertIndicesData tris");
+  int *trisToFacesMap = (int *)MEM_callocN(sizeof(int) * ntris,
+                                           "buildRawVertIndicesData trisToFacesMap");
+
+  const blender::Span<int> corner_verts = me->corner_verts();
+
+  for (int triIdx = 0; triIdx < ntris; triIdx++) {
+    const blender::int3 &tri = tris[triIdx];
+    tris_out[3 * triIdx + 0] = (unsigned short)corner_verts[tri[0]];
+    tris_out[3 * triIdx + 1] = (unsigned short)corner_verts[tri[2]];  // swap
+    tris_out[3 * triIdx + 2] = (unsigned short)corner_verts[tri[1]];  // swap
+    trisToFacesMap[triIdx] = tri_faces[triIdx];
   }
 
-  /* copy and transform to triangles (reorder on the run) */
-  trisToFacesMap = (int *)MEM_callocN(sizeof(int) * ntris,
-                                      "buildRawVertIndicesData trisToFacesMap");
-  tris = (unsigned short *)MEM_callocN(sizeof(unsigned short) * 3 * ntris,
-                                       "buildRawVertIndicesData tris");
-  tri = tris;
-  triIdx = 0;
-  for (fi = 0; fi < nfaces; fi++) {
-    MFace *face = &faces[fi];
-    tri[3 * triIdx + 0] = (unsigned short)face->v1;
-    tri[3 * triIdx + 1] = (unsigned short)face->v3;
-    tri[3 * triIdx + 2] = (unsigned short)face->v2;
-    trisToFacesMap[triIdx++] = fi;
-    if (face->v4) {
-      tri[3 * triIdx + 0] = (unsigned short)face->v1;
-      tri[3 * triIdx + 1] = (unsigned short)face->v4;
-      tri[3 * triIdx + 2] = (unsigned short)face->v3;
-      trisToFacesMap[triIdx++] = fi;
-    }
-  }
-
-  /* carefully, recast data is just reference to data in mesh */
   *recastData = (int *)CustomData_get_layer(&me->face_data, CD_RECAST);
 
   *nverts_r = nverts;
   *verts_r = verts;
   *ntris_r = ntris;
-  *tris_r = tris;
+  *tris_r = tris_out;
   *trisToFacesMap_r = trisToFacesMap;
 
   return 1;
@@ -618,7 +600,6 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
-  BKE_mesh_tessface_ensure(final_me);
   CustomData *pdata = &final_me->face_data;
   int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
   if (recastData) {
