@@ -2068,7 +2068,8 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
 
   /* double lookup */
-  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
+  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy,
+                                                                   CD_ORIGINDEX);
   const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
   if (!index_mf_to_mpoly) {
     index_mp_to_orig = nullptr;
@@ -2080,249 +2081,123 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   std::vector<bool> vert_tag_array(numverts, false);
   unsigned int tot_bt_verts = 0;
 
-  if (polytope) {
-    // Tag verts we're using
-    for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
+  m_vertexArray.clear();
+  m_triFaceArray.clear();
+  m_triFaceUVcoArray.clear();
+  m_polygonIndexArray.clear();
 
-      // only add polygons that have the collision flag set
+  if (polytope) {
+    // --- POLYTOPE: Convex hull from collider faces, no UVs, no triangles ---
+    std::vector<bool> vert_tag_array(me->verts_num, false);
+    unsigned int tot_bt_verts = 0;
+
+    // Tag used vertices
+    for (int p = 0; p < meshobj->NumPolygons(); ++p) {
+      RAS_Polygon *poly = meshobj->GetPolygon(p);
       if (poly && poly->IsCollider()) {
-        if (!vert_tag_array[face->v1]) {
-          vert_tag_array[face->v1] = true;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v2]) {
-          vert_tag_array[face->v2] = true;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v3]) {
-          vert_tag_array[face->v3] = true;
-          tot_bt_verts++;
-        }
-        if (face->v4 && !vert_tag_array[face->v4]) {
-          vert_tag_array[face->v4] = true;
-          tot_bt_verts++;
+        for (int i = 0; i < poly->VertexCount(); ++i) {
+          int v_orig = poly->GetVertexInfo(i).getOrigIndex();
+          if (!vert_tag_array[v_orig]) {
+            vert_tag_array[v_orig] = true;
+            tot_bt_verts++;
+          }
         }
       }
     }
 
-    /* Can happen with ngons */
     if (!tot_bt_verts) {
-      goto cleanup_empty_mesh;
+      m_shapeType = PHY_SHAPE_NONE;
+      m_meshObject = nullptr;
+      return false;
     }
 
     m_vertexArray.resize(tot_bt_verts * 3);
-
     btScalar *bt = &m_vertexArray[0];
 
-     for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
-
-      // only add polygons that have the collisionflag set
-      if (poly->IsCollider()) {
-        if (vert_tag_array[face->v1]) {
-          const float *vtx = &positions[face->v1][0];
-          vert_tag_array[face->v1] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-        if (vert_tag_array[face->v2]) {
-          const float *vtx = &positions[face->v2][0];
-          vert_tag_array[face->v2] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-        if (vert_tag_array[face->v3]) {
-          const float *vtx = &positions[face->v3][0];
-          vert_tag_array[face->v3] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-        if (face->v4 && vert_tag_array[face->v4]) {
-          const float *vtx = &positions[face->v4][0];
-          vert_tag_array[face->v4] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
+    for (int p = 0; p < meshobj->NumPolygons(); ++p) {
+      RAS_Polygon *poly = meshobj->GetPolygon(p);
+      if (poly && poly->IsCollider()) {
+        for (int i = 0; i < poly->VertexCount(); ++i) {
+          int v_orig = poly->GetVertexInfo(i).getOrigIndex();
+          if (vert_tag_array[v_orig]) {
+            const float *vtx = &positions[v_orig][0];
+            *bt++ = vtx[0];
+            *bt++ = vtx[1];
+            *bt++ = vtx[2];
+            vert_tag_array[v_orig] = false;
+          }
         }
       }
     }
+    // Pas de tri/UV/polygonIndex à remplir pour le polytope
   }
   else {
-    unsigned int tot_bt_tris = 0;
-    std::vector<int> vert_remap_array(numverts, 0);
+    // --- TRIANGLE MESH: Use modern triangulation and UVs ---
+    const blender::Span<blender::int3> tris = me->corner_tris();
+    const blender::Span<int> corner_verts = me->corner_verts();
+    const blender::Span<int> tri_faces = me->corner_tri_faces();
 
-    // Tag verts we're using
-    for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
-
-      // only add polygons that have the collision flag set
-      if (poly && poly->IsCollider()) {
-        if (!vert_tag_array[face->v1]) {
-          vert_tag_array[face->v1] = true;
-          vert_remap_array[face->v1] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v2]) {
-          vert_tag_array[face->v2] = true;
-          vert_remap_array[face->v2] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v3]) {
-          vert_tag_array[face->v3] = true;
-          vert_remap_array[face->v3] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        if (face->v4 && !vert_tag_array[face->v4]) {
-          vert_tag_array[face->v4] = true;
-          vert_remap_array[face->v4] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        tot_bt_tris += (face->v4 ? 2 : 1); /* a quad or a tri */
+    // UVs
+    const char *uv_name = me->active_uv_map_attribute ? me->active_uv_map_attribute :
+                                                        me->default_uv_map_attribute;
+    blender::bke::AttributeAccessor attributes = me->attributes();
+    blender::VArraySpan<blender::float2> uvs;
+    if (uv_name) {
+      auto uv_varray = attributes.lookup<blender::float2>(uv_name,
+                                                          blender::bke::AttrDomain::Corner);
+      if (uv_varray) {
+        uvs = *uv_varray;
       }
     }
 
-    /* Can happen with ngons */
-    if (!tot_bt_verts) {
-      goto cleanup_empty_mesh;
-    }
+    std::map<int, int> vert_remap;
+    int next_vert = 0;
 
-    m_vertexArray.resize(tot_bt_verts * 3);
-    m_polygonIndexArray.resize(tot_bt_tris);
-    m_triFaceArray.resize(tot_bt_tris * 3);
-    btScalar *bt = &m_vertexArray[0];
-    int *poly_index_pt = &m_polygonIndexArray[0];
-    int *tri_pt = &m_triFaceArray[0];
+    for (int t = 0; t < tris.size(); ++t) {
+      const blender::int3 &tri = tris[t];
+      int tri_indices[3];
+      UVco tri_uv[3];
 
-    UVco *uv_pt = nullptr;
-    if (tfaces) {
-      m_triFaceUVcoArray.resize(tot_bt_tris * 3);
-      uv_pt = &m_triFaceUVcoArray[0];
-    }
-    else
-      m_triFaceUVcoArray.clear();
+      for (int j = 0; j < 3; ++j) {
+        int loop_idx = tri[j];
+        int vert_idx = corner_verts[loop_idx];
 
-     for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const MTFace *tface = (tfaces) ? &tfaces[p2] : nullptr;
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
-
-      // only add polygons that have the collisionflag set
-      if (poly && poly->IsCollider()) {
-        const float *v1 = &positions[face->v1][0];
-        const float *v2 = &positions[face->v2][0];
-        const float *v3 = &positions[face->v3][0];
-
-        // the face indices
-        tri_pt[0] = vert_remap_array[face->v1];
-        tri_pt[1] = vert_remap_array[face->v2];
-        tri_pt[2] = vert_remap_array[face->v3];
-        tri_pt = tri_pt + 3;
-        if (tface) {
-          uv_pt[0].uv[0] = tface->uv[0][0];
-          uv_pt[0].uv[1] = tface->uv[0][1];
-          uv_pt[1].uv[0] = tface->uv[1][0];
-          uv_pt[1].uv[1] = tface->uv[1][1];
-          uv_pt[2].uv[0] = tface->uv[2][0];
-          uv_pt[2].uv[1] = tface->uv[2][1];
-          uv_pt += 3;
+        // Remap or add the vertex
+        auto it = vert_remap.find(vert_idx);
+        if (it == vert_remap.end()) {
+          m_vertexArray.push_back(positions[vert_idx][0]);
+          m_vertexArray.push_back(positions[vert_idx][1]);
+          m_vertexArray.push_back(positions[vert_idx][2]);
+          tri_indices[j] = next_vert;
+          vert_remap[vert_idx] = next_vert++;
+        }
+        else {
+          tri_indices[j] = it->second;
         }
 
-        // m_polygonIndexArray
-        *poly_index_pt = origi;
-        poly_index_pt++;
-
-        // the vertex location
-        if (vert_tag_array[face->v1]) { /* *** v1 *** */
-          vert_tag_array[face->v1] = false;
-          *bt++ = v1[0];
-          *bt++ = v1[1];
-          *bt++ = v1[2];
-        }
-        if (vert_tag_array[face->v2]) { /* *** v2 *** */
-          vert_tag_array[face->v2] = false;
-          *bt++ = v2[0];
-          *bt++ = v2[1];
-          *bt++ = v2[2];
-        }
-        if (vert_tag_array[face->v3]) { /* *** v3 *** */
-          vert_tag_array[face->v3] = false;
-          *bt++ = v3[0];
-          *bt++ = v3[1];
-          *bt++ = v3[2];
-        }
-
-        if (face->v4) {
-          const float *v4 = &positions[face->v4][0];
-
-          tri_pt[0] = vert_remap_array[face->v1];
-          tri_pt[1] = vert_remap_array[face->v3];
-          tri_pt[2] = vert_remap_array[face->v4];
-          tri_pt = tri_pt + 3;
-          if (tface) {
-            uv_pt[0].uv[0] = tface->uv[0][0];
-            uv_pt[0].uv[1] = tface->uv[0][1];
-            uv_pt[1].uv[0] = tface->uv[2][0];
-            uv_pt[1].uv[1] = tface->uv[2][1];
-            uv_pt[2].uv[0] = tface->uv[3][0];
-            uv_pt[2].uv[1] = tface->uv[3][1];
-            uv_pt += 3;
-          }
-
-          // m_polygonIndexArray
-          *poly_index_pt = origi;
-          poly_index_pt++;
-
-          // the vertex location
-          if (vert_tag_array[face->v4]) {  // *** v4 ***
-            vert_tag_array[face->v4] = false;
-            *bt++ = v4[0];
-            *bt++ = v4[1];
-            *bt++ = v4[2];
-          }
+        // UVs
+        if (!uvs.is_empty()) {
+          tri_uv[j].uv[0] = uvs[loop_idx].x;
+          tri_uv[j].uv[1] = uvs[loop_idx].y;
         }
       }
+
+      // Triangle indices
+      m_triFaceArray.push_back(tri_indices[0]);
+      m_triFaceArray.push_back(tri_indices[1]);
+      m_triFaceArray.push_back(tri_indices[2]);
+
+      // Triangle UVs
+      if (!uvs.is_empty()) {
+        m_triFaceUVcoArray.push_back(tri_uv[0]);
+        m_triFaceUVcoArray.push_back(tri_uv[1]);
+        m_triFaceUVcoArray.push_back(tri_uv[2]);
+      }
+
+      // Polygon index (original polygon index for this triangle)
+      m_polygonIndexArray.push_back(tri_faces[t]);
     }
-
-    // If this ever gets confusing, print out an OBJ file for debugging
-#if 0
-		CM_Debug("# vert count " << m_vertexArray.size());
-		for (i = 0; i < m_vertexArray.size(); i += 1) {
-			CM_Debug("v " << m_vertexArray[i].x() << " " << m_vertexArray[i].y() << " " << m_vertexArray[i].z());
-		}
-
-		CM_Debug("# face count " << m_triFaceArray.size());
-		for (i = 0; i < m_triFaceArray.size(); i += 3) {
-			CM_Debug("f " << m_triFaceArray[i] + 1 << " " <<  m_triFaceArray[i + 1] + 1 << " " <<  m_triFaceArray[i + 2] + 1);
-		}
-#endif
   }
-
-#if 0
-	if (validpolys == false) {
-		// should not happen
-		m_shapeType = PHY_SHAPE_NONE;
-		return false;
-	}
-#endif
 
   m_meshObject = meshobj;
 
@@ -2401,157 +2276,123 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     me = (Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
-  if (me) {
-    BKE_mesh_tessface_ensure(me);
-  }
-
   if (me && meshobj) {
-    /*
-     * Mesh Update
-     *
-     * */
-    const blender::Span<blender::float3> positions = me->vert_positions();
-    MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-    numpolys = me->totface_legacy;
-    numverts = me->verts_num;
+    m_vertexArray.clear();
+    m_triFaceArray.clear();
+    m_triFaceUVcoArray.clear();
+    m_polygonIndexArray.clear();
 
-    // double lookup
-    const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-    const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
-    if (!index_mf_to_mpoly) {
-      index_mp_to_orig = nullptr;
-    }
+    if (m_shapeType == PHY_SHAPE_POLYTOPE) {
+      // --- POLYTOPE: Convex hull from collider faces, no UVs, no triangles ---
+      std::vector<bool> vert_tag_array(me->verts_num, false);
+      unsigned int tot_bt_verts = 0;
 
-    MFace *mf;
-
-    if (CustomData_has_layer(&me->fdata_legacy, CD_MTFACE)) {
-      MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
-      MTFace *tf;
-
-      std::vector<bool> vert_tag_array(numverts, false);
-      std::vector<int> vert_remap_array(numverts, 0);
-
-      for (mf = mface, tf = tface, i = 0; i < numpolys; mf++, tf++, i++) {
-        // 2.8x TODO: use GEMAT_NOPHYSICS.
-        // if (tf->mode & TF_DYNAMIC)
-        {
-          int flen;
-
-          if (mf->v4) {
-            tot_bt_tris += 2;
-            flen = 4;
-          }
-          else {
-            tot_bt_tris++;
-            flen = 3;
-          }
-
-          for (j = 0; j < flen; j++) {
-            v_orig = (*(&mf->v1 + j));
-
+      // Tag used vertices
+      for (int p = 0; p < meshobj->NumPolygons(); ++p) {
+        RAS_Polygon *poly = meshobj->GetPolygon(p);
+        if (poly && poly->IsCollider()) {
+          for (int i = 0; i < poly->VertexCount(); ++i) {
+            int v_orig = poly->GetVertexInfo(i).getOrigIndex();
             if (!vert_tag_array[v_orig]) {
               vert_tag_array[v_orig] = true;
-              vert_remap_array[v_orig] = tot_bt_verts;
               tot_bt_verts++;
             }
           }
         }
       }
 
+      if (!tot_bt_verts) {
+        m_shapeType = PHY_SHAPE_NONE;
+        m_meshObject = nullptr;
+        return false;
+      }
+
       m_vertexArray.resize(tot_bt_verts * 3);
       btScalar *bt = &m_vertexArray[0];
 
-      m_triFaceArray.resize(tot_bt_tris * 3);
-      int *tri_pt = &m_triFaceArray[0];
-
-      m_triFaceUVcoArray.resize(tot_bt_tris * 3);
-      UVco *uv_pt = &m_triFaceUVcoArray[0];
-
-      m_polygonIndexArray.resize(tot_bt_tris);
-      int *poly_index_pt = &m_polygonIndexArray[0];
-
-      for (mf = mface, tf = tface, i = 0; i < numpolys; mf++, tf++, i++) {
-        // 2.8x TODO: use GEMAT_NOPHYSICS.
-        // if (tf->mode & TF_DYNAMIC)
-        {
-          int origi = index_mf_to_mpoly ?
-                          DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, i) :
-                          i;
-
-          if (mf->v4) {
-            fv_pt = quad_verts;
-            *poly_index_pt++ = origi;
-            *poly_index_pt++ = origi;
-          }
-          else {
-            fv_pt = tri_verts;
-            *poly_index_pt++ = origi;
-          }
-
-          for (; *fv_pt > -1; fv_pt++) {
-            v_orig = (*(&mf->v1 + (*fv_pt)));
-
+      for (int p = 0; p < meshobj->NumPolygons(); ++p) {
+        RAS_Polygon *poly = meshobj->GetPolygon(p);
+        if (poly && poly->IsCollider()) {
+          for (int i = 0; i < poly->VertexCount(); ++i) {
+            int v_orig = poly->GetVertexInfo(i).getOrigIndex();
             if (vert_tag_array[v_orig]) {
-              /*WARNIND: What I dod here?*/
-              //mv = (MVert *)mvert + v_orig;
-              const float *mv = &positions[v_orig][0];
-              *bt++ = mv[0];
-              *bt++ = mv[1];
-              *bt++ = mv[2];
-
+              const float *vtx = &me->vert_positions()[v_orig][0];
+              *bt++ = vtx[0];
+              *bt++ = vtx[1];
+              *bt++ = vtx[2];
               vert_tag_array[v_orig] = false;
             }
-            *tri_pt++ = vert_remap_array[v_orig];
-            uv_pt->uv[0] = tf->uv[*fv_pt][0];
-            uv_pt->uv[1] = tf->uv[*fv_pt][1];
-            uv_pt++;
           }
         }
       }
+      // Pas de tri/UV/polygonIndex à remplir pour le polytope
     }
     else {
-      // no need for a vertex mapping. simple/fast
-      tot_bt_verts = numverts;
+      // --- TRIANGLE MESH: Use modern triangulation and UVs ---
+      const blender::Span<blender::float3> positions = me->vert_positions();
+      const blender::Span<blender::int3> tris = me->corner_tris();
+      const blender::Span<int> corner_verts = me->corner_verts();
+      const blender::Span<int> tri_faces = me->corner_tri_faces();
 
-      for (mf = mface, i = 0; i < numpolys; mf++, i++) {
-        tot_bt_tris += (mf->v4 ? 2 : 1);
+      // UVs
+      const char *uv_name = me->active_uv_map_attribute ? me->active_uv_map_attribute :
+                                                          me->default_uv_map_attribute;
+      blender::bke::AttributeAccessor attributes = me->attributes();
+      blender::VArraySpan<blender::float2> uvs;
+      if (uv_name) {
+        auto uv_varray = attributes.lookup<blender::float2>(uv_name,
+                                                            blender::bke::AttrDomain::Corner);
+        if (uv_varray) {
+          uvs = *uv_varray;
+        }
       }
 
-      m_vertexArray.resize(tot_bt_verts * 3);
-      btScalar *bt = &m_vertexArray[0];
+      std::map<int, int> vert_remap;
+      int next_vert = 0;
 
-      m_triFaceArray.resize(tot_bt_tris * 3);
-      int *tri_pt = &m_triFaceArray[0];
+      for (int t = 0; t < tris.size(); ++t) {
+        const blender::int3 &tri = tris[t];
+        int tri_indices[3];
+        UVco tri_uv[3];
 
-      m_polygonIndexArray.resize(tot_bt_tris);
-      int *poly_index_pt = &m_polygonIndexArray[0];
+        for (int j = 0; j < 3; ++j) {
+          int loop_idx = tri[j];
+          int vert_idx = corner_verts[loop_idx];
 
-      m_triFaceUVcoArray.clear();
+          // Remap or add the vertex
+          auto it = vert_remap.find(vert_idx);
+          if (it == vert_remap.end()) {
+            m_vertexArray.push_back(positions[vert_idx][0]);
+            m_vertexArray.push_back(positions[vert_idx][1]);
+            m_vertexArray.push_back(positions[vert_idx][2]);
+            tri_indices[j] = next_vert;
+            vert_remap[vert_idx] = next_vert++;
+          }
+          else {
+            tri_indices[j] = it->second;
+          }
 
-      for (i = 0; i < numverts; i++) {
-        const float *mv = &positions[i][0];
-        *bt++ = mv[0];
-        *bt++ = mv[1];
-        *bt++ = mv[2];
-      }
-
-      for (mf = mface, i = 0; i < numpolys; mf++, i++) {
-        int origi = index_mf_to_mpoly ?
-                        DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, i) :
-                        i;
-
-        if (mf->v4) {
-          fv_pt = quad_verts;
-          *poly_index_pt++ = origi;
-          *poly_index_pt++ = origi;
+          // UVs
+          if (!uvs.is_empty()) {
+            tri_uv[j].uv[0] = uvs[loop_idx].x;
+            tri_uv[j].uv[1] = uvs[loop_idx].y;
+          }
         }
-        else {
-          fv_pt = tri_verts;
-          *poly_index_pt++ = origi;
+
+        // Triangle indices
+        m_triFaceArray.push_back(tri_indices[0]);
+        m_triFaceArray.push_back(tri_indices[1]);
+        m_triFaceArray.push_back(tri_indices[2]);
+
+        // Triangle UVs
+        if (!uvs.is_empty()) {
+          m_triFaceUVcoArray.push_back(tri_uv[0]);
+          m_triFaceUVcoArray.push_back(tri_uv[1]);
+          m_triFaceUVcoArray.push_back(tri_uv[2]);
         }
 
-        for (; *fv_pt > -1; fv_pt++)
-          *tri_pt++ = (*(&mf->v1 + (*fv_pt)));
+        // Polygon index (original polygon index for this triangle)
+        m_polygonIndexArray.push_back(tri_faces[t]);
       }
     }
   }
