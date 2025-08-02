@@ -2037,8 +2037,6 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
                                        RAS_MeshObject *meshobj,
                                        bool polytope)
 {
-  int numverts;
-
   // assume no shape information
   // no support for dynamic change of shape yet
   BLI_assert(IsUnused());
@@ -2060,26 +2058,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
   Mesh *me = (Mesh *)ob_eval->data;
 
-  /* No need to call again ensure_tessface as it was called in BL_DataConversion */
-
   const blender::Span<blender::float3> positions = me->vert_positions();
-  const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-  numverts = me->verts_num;
-  const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
-
-  /* double lookup */
-  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy,
-                                                                   CD_ORIGINDEX);
-  const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
-  if (!index_mf_to_mpoly) {
-    index_mp_to_orig = nullptr;
-  }
 
   m_shapeType = (polytope) ? PHY_SHAPE_POLYTOPE : PHY_SHAPE_MESH;
-
-  // Convert blender geometry into bullet mesh, need these vars for mapping
-  std::vector<bool> vert_tag_array(numverts, false);
-  unsigned int tot_bt_verts = 0;
 
   m_vertexArray.clear();
   m_triFaceArray.clear();
@@ -2129,7 +2110,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
         }
       }
     }
-    // Pas de tri/UV/polygonIndex à remplir pour le polytope
+    // No tri/UV/polygonIndex to fill for the polytope
   }
   else {
     // --- TRIANGLE MESH: Use modern triangulation and UVs ---
@@ -2207,15 +2188,6 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
   }
   return true;
-
-cleanup_empty_mesh:
-  m_shapeType = PHY_SHAPE_NONE;
-  m_meshObject = nullptr;
-  m_vertexArray.clear();
-  m_polygonIndexArray.clear();
-  m_triFaceArray.clear();
-  m_triFaceUVcoArray.clear();
-  return false;
 }
 
 /* Updates the arrays used by CreateBulletShape(),
@@ -2231,7 +2203,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   unsigned int tot_bt_tris = 0;
   unsigned int tot_bt_verts = 0;
 
-  int i, j;
+  int i;
   int v_orig;
 
   // Use for looping over verts in a face as a try or 2 tris
@@ -2325,7 +2297,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
           }
         }
       }
-      // Pas de tri/UV/polygonIndex à remplir pour le polytope
+      // No tri/UV/polygonIndex to fill for the polytope
     }
     else {
       // --- TRIANGLE MESH: Use modern triangulation and UVs ---

@@ -488,13 +488,12 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   const OffsetIndices polys = final_me->faces();
 
-  // --- Nouvelle version utilisant la triangulation moderne ---
+  // --- New version using modern triangulation ---
   const blender::Span<blender::int3> tris = final_me->corner_tris();
   const blender::Span<int> tri_faces = final_me->corner_tri_faces();
   const blender::Span<int> corner_verts = final_me->corner_verts();
 
-  // On prépare un tableau pour stocker les indices de vertex déjà ajoutés (pour chaque sommet
-  // Blender)
+  // Prepare an array to store the indices of already added vertices (for each Blender vertex)
   std::vector<unsigned int> vertices(totverts, -1);
 
   for (int tri_i = 0; tri_i < tris.size(); ++tri_i) {
@@ -503,18 +502,18 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     const ConvertedMaterial &mat = convertedMats[mat_nr];
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
-    // Pour chaque sommet du triangle
+    // For each vertex of the triangle
     unsigned int tri_indices[3];
     for (int j = 0; j < 3; ++j) {
       int corner = tris[tri_i][j];
       int vert_i = corner_verts[corner];
 
-      // Si le vertex n'a pas encore été ajouté, on l'ajoute
+      // If the vertex has not been added yet, add it
       if (vertices[vert_i] == -1) {
         const float *vp = &positions[vert_i][0];
         const MT_Vector3 pt(vp);
 
-        // Normale : flat ou smooth
+        // Normal: flat or smooth
         const bool flat = (sharp_faces && sharp_faces[face_i]);
         const float3 normal = flat ? face_normals[face_i] : vertex_normals[vert_i];
         const MT_Vector3 no(normal.x, normal.y, normal.z);
@@ -537,7 +536,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       tri_indices[j] = vertices[vert_i];
     }
 
-    // Ajout du triangle
+    // Add the triangle
     meshobj->AddPolygon(meshmat, 3, tri_indices, mat.visible, mat.collider, mat.twoside);
   }
 
