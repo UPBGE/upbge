@@ -2300,11 +2300,19 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       // No tri/UV/polygonIndex to fill for the polytope
     }
     else {
-      // --- TRIANGLE MESH: Use modern triangulation and UVs ---
+      // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
+      static size_t last_topology_hash = 0;
       const blender::Span<blender::float3> positions = me->vert_positions();
       const blender::Span<blender::int3> tris = me->corner_tris();
       const blender::Span<int> corner_verts = me->corner_verts();
       const blender::Span<int> tri_faces = me->corner_tri_faces();
+
+      // Compute topology hash using the inline function from the header
+      size_t hash = CcdShapeConstructionInfo::hash_indices(corner_verts.data(),
+                                                           corner_verts.size());
+      hash ^= CcdShapeConstructionInfo::hash_indices(reinterpret_cast<const int *>(tris.data()),
+                                                     tris.size() * 3);
+      hash ^= CcdShapeConstructionInfo::hash_indices(tri_faces.data(), tri_faces.size());
 
       // UVs
       const char *uv_name = me->active_uv_map_attribute ? me->active_uv_map_attribute :
@@ -2319,30 +2327,49 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
         }
       }
 
-      std::map<int, int> vert_remap;
+      // If topology is unchanged, only update vertex positions
+      if (hash == last_topology_hash && m_vertexArray.size() > 0) {
+        for (size_t i = 0; i < m_vertexArray.size() / 3; ++i) {
+          m_vertexArray[i * 3 + 0] = positions[i][0];
+          m_vertexArray[i * 3 + 1] = positions[i][1];
+          m_vertexArray[i * 3 + 2] = positions[i][2];
+        }
+        // Nothing else to do
+        return true;
+      }
+      last_topology_hash = hash;
+
+      // Topology changed: full reconstruction
+      std::vector<int> vert_remap(positions.size(), -1);
       int next_vert = 0;
+
+      m_triFaceArray.resize(tris.size() * 3);
+      m_polygonIndexArray.resize(tris.size());
+      if (!uvs.is_empty()) {
+        m_triFaceUVcoArray.resize(tris.size() * 3);
+      }
+
+      // Temporary buffer for unique vertices
+      std::vector<std::array<float, 3>> temp_vertex_buffer(positions.size());
 
       for (int t = 0; t < tris.size(); ++t) {
         const blender::int3 &tri = tris[t];
         int tri_indices[3];
-        UVco tri_uv[3];
+        UVco tri_uv[3] = {};
 
         for (int j = 0; j < 3; ++j) {
           int loop_idx = tri[j];
           int vert_idx = corner_verts[loop_idx];
 
-          // Remap or add the vertex
-          auto it = vert_remap.find(vert_idx);
-          if (it == vert_remap.end()) {
-            m_vertexArray.push_back(positions[vert_idx][0]);
-            m_vertexArray.push_back(positions[vert_idx][1]);
-            m_vertexArray.push_back(positions[vert_idx][2]);
-            tri_indices[j] = next_vert;
-            vert_remap[vert_idx] = next_vert++;
+          int idx = vert_remap[vert_idx];
+          if (idx == -1) {
+            idx = next_vert++;
+            vert_remap[vert_idx] = idx;
+            temp_vertex_buffer[idx][0] = positions[vert_idx][0];
+            temp_vertex_buffer[idx][1] = positions[vert_idx][1];
+            temp_vertex_buffer[idx][2] = positions[vert_idx][2];
           }
-          else {
-            tri_indices[j] = it->second;
-          }
+          tri_indices[j] = idx;
 
           // UVs
           if (!uvs.is_empty()) {
@@ -2352,19 +2379,27 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
         }
 
         // Triangle indices
-        m_triFaceArray.push_back(tri_indices[0]);
-        m_triFaceArray.push_back(tri_indices[1]);
-        m_triFaceArray.push_back(tri_indices[2]);
+        m_triFaceArray[t * 3 + 0] = tri_indices[0];
+        m_triFaceArray[t * 3 + 1] = tri_indices[1];
+        m_triFaceArray[t * 3 + 2] = tri_indices[2];
 
         // Triangle UVs
         if (!uvs.is_empty()) {
-          m_triFaceUVcoArray.push_back(tri_uv[0]);
-          m_triFaceUVcoArray.push_back(tri_uv[1]);
-          m_triFaceUVcoArray.push_back(tri_uv[2]);
+          m_triFaceUVcoArray[t * 3 + 0] = tri_uv[0];
+          m_triFaceUVcoArray[t * 3 + 1] = tri_uv[1];
+          m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
         }
 
         // Polygon index (original polygon index for this triangle)
-        m_polygonIndexArray.push_back(tri_faces[t]);
+        m_polygonIndexArray[t] = tri_faces[t];
+      }
+
+      // Copy unique vertices to m_vertexArray
+      m_vertexArray.resize(next_vert * 3);
+      for (int i = 0; i < next_vert; ++i) {
+        m_vertexArray[i * 3 + 0] = temp_vertex_buffer[i][0];
+        m_vertexArray[i * 3 + 1] = temp_vertex_buffer[i][1];
+        m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
       }
     }
   }

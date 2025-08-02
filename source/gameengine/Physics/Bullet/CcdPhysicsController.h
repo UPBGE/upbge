@@ -93,6 +93,16 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return (m_meshObject == nullptr && m_shapeArray.empty() && m_shapeProxy == nullptr);
   }
 
+  inline size_t hash_indices(const int *data, size_t count)
+  {
+    size_t hash = 14695981039346656037ull;
+    for (size_t i = 0; i < count; ++i) {
+      hash ^= static_cast<size_t>(data[i]);
+      hash *= 1099511628211ull;
+    }
+    return hash;
+  }
+
   void AddShape(CcdShapeConstructionInfo *shapeInfo);
 
   btStridingMeshInterface *GetMeshInterface()
