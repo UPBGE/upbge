@@ -43,6 +43,7 @@ class RAS_OpenGLDebugDraw {
 
   void BindVBO(float *mvp, float color[4], float *vertexes, unsigned int ibo);
   void UnbindVBO();
+  void DrawDebugLinesBatch(const std::vector<RAS_DebugDraw::Line> &lines);
 
   void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };
