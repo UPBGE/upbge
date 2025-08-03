@@ -2089,6 +2089,10 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     if (!tot_bt_verts) {
       m_shapeType = PHY_SHAPE_NONE;
       m_meshObject = nullptr;
+      m_vertexArray.clear();
+      m_polygonIndexArray.clear();
+      m_triFaceArray.clear();
+      m_triFaceUVcoArray.clear();
       return false;
     }
 
@@ -2178,6 +2182,16 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
       // Polygon index (original polygon index for this triangle)
       m_polygonIndexArray.push_back(tri_faces[t]);
     }
+  }
+
+  if (!m_vertexArray.size() || m_triFaceArray.empty()) {
+    m_shapeType = PHY_SHAPE_NONE;
+    m_meshObject = nullptr;
+    m_vertexArray.clear();
+    m_polygonIndexArray.clear();
+    m_triFaceArray.clear();
+    m_triFaceUVcoArray.clear();
+    return false;
   }
 
   m_meshObject = meshobj;
@@ -2505,7 +2519,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   }
 
   m_meshObject = meshobj;
-
   return true;
 }
 
@@ -2524,6 +2537,9 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin,
                                                               bool useGimpact,
                                                               bool useBvh)
 {
+  if (m_shapeType == PHY_SHAPE_NONE || m_shapeType < 0) {
+    return nullptr;
+  }
   btCollisionShape *collisionShape = nullptr;
   btCompoundShape *compoundShape = nullptr;
 
@@ -2668,6 +2684,9 @@ void CcdShapeConstructionInfo::AddShape(CcdShapeConstructionInfo *shapeInfo)
 
 CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
 {
+  if (m_shapeType == PHY_SHAPE_NONE || m_shapeType < 0) {
+    return;
+  }
   for (CcdShapeConstructionInfo *shapeInfo : m_shapeArray) {
     shapeInfo->Release();
   }
