@@ -2302,13 +2302,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       const blender::Span<int> corner_verts = me->corner_verts();
       const blender::Span<int> tri_faces = me->corner_tri_faces();
 
-      // Compute topology hash using the inline function from the header
-      size_t hash = CcdShapeConstructionInfo::hash_indices(corner_verts.data(),
-                                                           corner_verts.size());
-      hash ^= CcdShapeConstructionInfo::hash_indices(reinterpret_cast<const int *>(tris.data()),
-                                                     tris.size() * 3);
-      hash ^= CcdShapeConstructionInfo::hash_indices(tri_faces.data(), tri_faces.size());
-
       // UVs
       const char *uv_name = me->active_uv_map_attribute ? me->active_uv_map_attribute :
                                                           me->default_uv_map_attribute;
@@ -2321,18 +2314,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
           uvs = *uv_varray;
         }
       }
-
-      // If topology is unchanged, only update vertex positions
-      if (hash == m_last_topology_hash && m_vertexArray.size() > 0) {
-        for (size_t i = 0; i < m_vertexArray.size() / 3; ++i) {
-          m_vertexArray[i * 3 + 0] = positions[i][0];
-          m_vertexArray[i * 3 + 1] = positions[i][1];
-          m_vertexArray[i * 3 + 2] = positions[i][2];
-        }
-        // Nothing else to do
-        return true;
-      }
-      m_last_topology_hash = hash;
 
       m_vertexArray.clear();
       m_triFaceArray.clear();
