@@ -2249,10 +2249,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   }
 
   if (me && meshobj) {
-    m_vertexArray.clear();
-    m_triFaceArray.clear();
-    m_triFaceUVcoArray.clear();
-    m_polygonIndexArray.clear();
 
     if (m_shapeType == PHY_SHAPE_POLYTOPE) {
       // --- POLYTOPE: Convex hull from collider faces, no UVs, no triangles ---
@@ -2301,7 +2297,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     }
     else {
       // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
-      static size_t last_topology_hash = 0;
       const blender::Span<blender::float3> positions = me->vert_positions();
       const blender::Span<blender::int3> tris = me->corner_tris();
       const blender::Span<int> corner_verts = me->corner_verts();
@@ -2328,7 +2323,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       }
 
       // If topology is unchanged, only update vertex positions
-      if (hash == last_topology_hash && m_vertexArray.size() > 0) {
+      if (hash == m_last_topology_hash && m_vertexArray.size() > 0) {
         for (size_t i = 0; i < m_vertexArray.size() / 3; ++i) {
           m_vertexArray[i * 3 + 0] = positions[i][0];
           m_vertexArray[i * 3 + 1] = positions[i][1];
@@ -2337,7 +2332,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
         // Nothing else to do
         return true;
       }
-      last_topology_hash = hash;
+      m_last_topology_hash = hash;
+
+      m_vertexArray.clear();
+      m_triFaceArray.clear();
+      m_triFaceUVcoArray.clear();
+      m_polygonIndexArray.clear();
 
       // Topology changed: full reconstruction
       std::vector<int> vert_remap(positions.size(), -1);
