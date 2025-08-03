@@ -129,7 +129,7 @@ class RAS_MeshObject {
   void AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2);
   virtual RAS_Polygon *AddPolygon(RAS_MeshMaterial *meshmat,
                                   int numverts,
-                                  unsigned int indices[4],
+                                  unsigned int indices[3],
                                   bool visible,
                                   bool collider,
                                   bool twoside);

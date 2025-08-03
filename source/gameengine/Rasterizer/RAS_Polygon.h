@@ -40,7 +40,7 @@ class RAS_Polygon {
   // location
   RAS_MaterialBucket *m_bucket;
   RAS_IDisplayArray *m_darray;
-  unsigned int m_offset[4];
+  unsigned int m_offset[3];
   unsigned short m_numvert;
   unsigned short m_polyflags;
 
