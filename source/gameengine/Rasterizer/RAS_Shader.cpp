@@ -24,7 +24,11 @@
 
 #include "RAS_Shader.h"
 
+#include <set>
+#include <sstream>
+
 #include "GPU_immediate.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "CM_Message.h"
 
@@ -153,6 +157,9 @@ RAS_Shader::~RAS_Shader()
   ClearUniforms();
 
   DeleteShader();
+
+  GPU_uniformbuf_free(m_ubo);
+  m_ubo = nullptr;
 }
 
 void RAS_Shader::ClearUniforms()
@@ -288,37 +295,196 @@ void RAS_Shader::AppendUniformInfos(std::string type, std::string name)
 
 std::string RAS_Shader::GetParsedProgram(ProgramType type)
 {
+  // List of built-in uniforms to ignore (already handled by the engine).
+  static const std::set<std::string> builtin_uniforms = {"bgl_RenderedTexture",
+                                                         "bgl_DepthTexture"};
+
   std::string prog = m_progs[type];
   if (prog.empty()) {
     return prog;
   }
 
-  const unsigned int pos = prog.find("#version");
-  if (pos != -1) {
+  // Remove redundant #version directive.
+  const size_t pos = prog.find("#version");
+  if (pos != std::string::npos) {
     CM_Warning("found redundant #version directive in shader program, directive ignored.");
-    const unsigned int nline = prog.find("\n", pos);
-    prog.erase(pos, nline - pos);
+    const size_t nline = prog.find("\n", pos);
+    prog.erase(pos, (nline != std::string::npos) ? (nline - pos) : std::string::npos);
   }
 
-  unsigned int uni_pos = prog.find("uniform");
-  while (uni_pos != -1) {
-    const unsigned int type_pos = prog.find(" ", uni_pos) + 1;
-    const unsigned int name_pos = prog.find(" ", type_pos) + 1;
-    const unsigned int end_namepos = prog.find(";", name_pos);
-    std::string type = prog.substr(type_pos, (name_pos - 1) - type_pos);
-    std::string name = prog.substr(name_pos, end_namepos - name_pos);
-    AppendUniformInfos(type, name);
+  std::istringstream input(prog);
+  std::string line;
+  std::string output;
 
-    prog.replace(uni_pos, 2, "//");
+  while (std::getline(input, line)) {
+    std::string trimmed = line;
+    // Skip already commented lines.
+    trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+    if (trimmed.rfind("//", 0) == 0) {
+      // Still do the replacements in commented lines for consistency.
+      // (optionally, you can skip this if you prefer)
+      // Replace built-in variable usages
+      size_t pos;
+      while ((pos = line.find("bgl_TextureCoordinateOffset[")) != std::string::npos) {
+        line.replace(pos, strlen("bgl_TextureCoordinateOffset"), "g_data.coo_offset");
+      }
+      while ((pos = line.find("bgl_RenderedTextureWidth")) != std::string::npos) {
+        line.replace(pos, strlen("bgl_RenderedTextureWidth"), "g_data.width");
+      }
+      while ((pos = line.find("bgl_RenderedTextureHeight")) != std::string::npos) {
+        line.replace(pos, strlen("bgl_RenderedTextureHeight"), "g_data.height");
+      }
+      output += line + "\n";
+      continue;
+    }
 
-    const unsigned int endline_pos = prog.find("\n", end_namepos);
+    // Look for "uniform" at the start of the line (after spaces).
+    size_t uniform_pos = trimmed.find("uniform ");
+    if (uniform_pos == 0) {
+      // Find the type (after "uniform ").
+      size_t type_start = 8;
+      while (type_start < trimmed.size() && std::isspace(trimmed[type_start]))
+        ++type_start;
+      size_t type_end = type_start;
+      while (type_end < trimmed.size() &&
+             (std::isalnum(trimmed[type_end]) || trimmed[type_end] == '_'))
+        ++type_end;
+      std::string type = trimmed.substr(type_start, type_end - type_start);
 
-    uni_pos = prog.find("uniform", endline_pos);
+      // After the type, get the variable list up to the ';'
+      size_t vars_start = type_end;
+      while (vars_start < trimmed.size() && std::isspace(trimmed[vars_start]))
+        ++vars_start;
+      size_t vars_end = trimmed.find(';', vars_start);
+      if (vars_end == std::string::npos) {
+        // Malformed line, just comment it out.
+        output += "// " + line + "\n";
+        continue;
+      }
+      std::string vars = trimmed.substr(vars_start, vars_end - vars_start);
+
+      // Split the variable list by ','
+      std::istringstream varstream(vars);
+      std::string var;
+      while (std::getline(varstream, var, ',')) {
+        // Trim spaces
+        size_t vstart = var.find_first_not_of(" \t");
+        size_t vend = var.find_last_not_of(" \t");
+        if (vstart == std::string::npos || vend == std::string::npos)
+          continue;
+        std::string varname = var.substr(vstart, vend - vstart + 1);
+
+        // Handle arrays (e.g. foo[4])
+        size_t arr_pos = varname.find('[');
+        std::string base_name = (arr_pos != std::string::npos) ? varname.substr(0, arr_pos) :
+                                                                 varname;
+
+        // Ignore built-in uniforms
+        if (builtin_uniforms.count(base_name)) {
+          continue;
+        }
+        // Register user uniform as push_constant
+        AppendUniformInfos(type, varname);
+      }
+
+      // Always comment out the uniform line (even if all variables are ignored)
+      output += "// " + line + "\n";
+      continue;
+    }
+
+    // Replace built-in variable usages in the line
+    size_t pos2;
+    while ((pos2 = line.find("bgl_TextureCoordinateOffset[")) != std::string::npos) {
+      line.replace(pos2, strlen("bgl_TextureCoordinateOffset"), "g_data.coo_offset");
+    }
+    while ((pos2 = line.find("bgl_RenderedTextureWidth")) != std::string::npos) {
+      line.replace(pos2, strlen("bgl_RenderedTextureWidth"), "g_data.width");
+    }
+    while ((pos2 = line.find("bgl_RenderedTextureHeight")) != std::string::npos) {
+      line.replace(pos2, strlen("bgl_RenderedTextureHeight"), "g_data.height");
+    }
+
+    // Normal line, just copy (with replacements)
+    output += line + "\n";
   }
 
-  prog.insert(0, "\n");
+  return "\n" + output;
+}
 
-  return prog;
+static int ConstantTypeSize(Type type)
+{
+  using namespace blender::gpu::shader;
+  switch (type) {
+    case Type::bool_t:
+    case Type::float_t:
+    case Type::int_t:
+    case Type::uint_t:
+    case Type::uchar4_t:
+    case Type::char4_t:
+    case Type::float3_10_10_10_2_t:
+    case Type::ushort2_t:
+    case Type::short2_t:
+      return 4;
+    case Type::ushort3_t:
+    case Type::short3_t:
+      return 6;
+    case Type::float2_t:
+    case Type::uint2_t:
+    case Type::int2_t:
+    case Type::ushort4_t:
+    case Type::short4_t:
+      return 8;
+    case Type::float3_t:
+    case Type::uint3_t:
+    case Type::int3_t:
+      return 12;
+    case Type::float4_t:
+    case Type::uint4_t:
+    case Type::int4_t:
+      return 16;
+    case Type::float3x3_t:
+      return 36 + 3 * 4;
+    case Type::float4x4_t:
+      return 64;
+    case Type::uchar_t:
+    case Type::char_t:
+      return 1;
+    case Type::uchar2_t:
+    case Type::char2_t:
+    case Type::ushort_t:
+    case Type::short_t:
+      return 2;
+    case Type::uchar3_t:
+    case Type::char3_t:
+      return 3;
+  }
+  BLI_assert(false);
+  return -1;
+}
+
+static int CalcPushConstantsSize(const std::vector<UniformConstant> &constants)
+{
+  int size_prev = 0;
+  int size_last = 0;
+  for (const UniformConstant &uni : constants) {
+    int pad = 0;
+    int size = ConstantTypeSize(uni.type);
+    if (size_last && size_last != size) {
+      int pack = (size == 8) ? 8 : 16;
+      if (size_last < size) {
+        pad = pack - (size_last % pack);
+      }
+      else {
+        pad = size_prev % pack;
+      }
+    }
+    else if (size == 12) {
+      pad = 4;
+    }
+    size_prev += pad + size;
+    size_last = size;
+  }
+  return size_prev + (size_prev % 16);
 }
 
 bool RAS_Shader::LinkProgram()
@@ -331,13 +497,15 @@ bool RAS_Shader::LinkProgram()
   frag = GetParsedProgram(FRAGMENT_PROGRAM);
   geom = GetParsedProgram(GEOMETRY_PROGRAM);
 
+  m_ubo = GPU_uniformbuf_create_ex(sizeof(m_uboData), nullptr, "g_data");
+  const char *ubo_str = "struct bgl_Data {float width; float height; vec4 coo_offset[9];};";
+
   StageInterfaceInfo iface("s_Interface", "");
   iface.smooth(Type::float4_t, "bgl_TexCoord");
 
   ShaderCreateInfo info("s_Display");
-  info.push_constant(Type::float_t, "bgl_RenderedTextureWidth");
-  info.push_constant(Type::float_t, "bgl_RenderedTextureHeight");
-  info.push_constant(Type::float2_t, "bgl_TextureCoordinateOffset", 9);
+  info.uniform_buf(0, "bgl_Data", "g_data", Frequency::BATCH);
+  info.typedef_source_generated = ubo_str;
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
     info.sampler(sampler.first, ImageType::Float2D, sampler.second);
   }
@@ -352,6 +520,12 @@ bool RAS_Shader::LinkProgram()
   info.fragment_source("draw_colormanagement_lib.glsl");
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
+
+  int size = CalcPushConstantsSize(m_constantUniforms);
+  if (size > 128) {
+    CM_Error("Push constants size exceeds 128 bytes");
+    goto program_error;
+  }
 
   if (m_error) {
     goto program_error;
