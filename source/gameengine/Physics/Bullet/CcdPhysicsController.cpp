@@ -1876,7 +1876,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                                   bool dupli,
                                                   bool evaluatedMesh)
 {
-  if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
+  if (!(ELEM(m_shapeInfo->m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE)))
     return false;
 
   if (!from_gameobj && !from_meshobj)
@@ -2230,7 +2230,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   if (!meshobj)
     return false;
 
-  if (m_shapeType != PHY_SHAPE_MESH)
+  if (!ELEM(m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE))
     return false;
 
   if (evaluatedMesh && !from_gameobj) {
@@ -2258,49 +2258,43 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   if (me && meshobj) {
 
     if (m_shapeType == PHY_SHAPE_POLYTOPE) {
-      // --- POLYTOPE: Convex hull from collider faces, no UVs, no triangles ---
-      std::vector<bool> vert_tag_array(me->verts_num, false);
-      unsigned int tot_bt_verts = 0;
+      // Map to remap original vertex indices to compacted indices (no duplicates).
+      std::map<int, int> vert_remap;
+      int next_vert = 0;
 
-      // Tag used vertices
+      // Iterate over all polygons in the mesh.
       for (int p = 0; p < meshobj->NumPolygons(); ++p) {
         RAS_Polygon *poly = meshobj->GetPolygon(p);
+        // Only consider polygons marked as collider.
         if (poly && poly->IsCollider()) {
+          // For each vertex in the polygon.
           for (int i = 0; i < poly->VertexCount(); ++i) {
             int v_orig = poly->GetVertexInfo(i).getOrigIndex();
-            if (!vert_tag_array[v_orig]) {
-              vert_tag_array[v_orig] = true;
-              tot_bt_verts++;
+            // If this vertex hasn't been added yet, add it to the remap.
+            if (vert_remap.find(v_orig) == vert_remap.end()) {
+              vert_remap[v_orig] = next_vert++;
             }
           }
         }
       }
 
-      if (!tot_bt_verts) {
+      // If no vertices were found, the mesh is empty or has no collider polygons.
+      if (next_vert == 0) {
         m_shapeType = PHY_SHAPE_NONE;
         m_meshObject = nullptr;
+        m_vertexArray.clear();
         return false;
       }
 
-      m_vertexArray.resize(tot_bt_verts * 3);
-      btScalar *bt = &m_vertexArray[0];
-
-      for (int p = 0; p < meshobj->NumPolygons(); ++p) {
-        RAS_Polygon *poly = meshobj->GetPolygon(p);
-        if (poly && poly->IsCollider()) {
-          for (int i = 0; i < poly->VertexCount(); ++i) {
-            int v_orig = poly->GetVertexInfo(i).getOrigIndex();
-            if (vert_tag_array[v_orig]) {
-              const float *vtx = &me->vert_positions()[v_orig][0];
-              *bt++ = vtx[0];
-              *bt++ = vtx[1];
-              *bt++ = vtx[2];
-              vert_tag_array[v_orig] = false;
-            }
-          }
-        }
+      // Fill the compacted vertex array using the remapped indices.
+      m_vertexArray.resize(next_vert * 3);
+      for (const auto &pair : vert_remap) {
+        const float *vtx = &me->vert_positions()[pair.first][0];
+        int idx = pair.second;
+        m_vertexArray[idx * 3 + 0] = vtx[0];
+        m_vertexArray[idx * 3 + 1] = vtx[1];
+        m_vertexArray[idx * 3 + 2] = vtx[2];
       }
-      // No tri/UV/polygonIndex to fill for the polytope
     }
     else {
       // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
