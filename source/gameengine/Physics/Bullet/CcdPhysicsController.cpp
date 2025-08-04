@@ -2068,25 +2068,27 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   m_polygonIndexArray.clear();
 
   if (polytope) {
-    // --- POLYTOPE: Convex hull from collider faces, no UVs, no triangles ---
-    std::vector<bool> vert_tag_array(me->verts_num, false);
-    unsigned int tot_bt_verts = 0;
+    // --- POLYTOPE: Build a convex hull from collider faces, no UVs, no triangles ---
+    // Map to ensure each vertex is added only once and to provide compact indices.
+    std::map<int, int> vert_remap;
+    int next_vert = 0;
 
-    // Tag used vertices
+    // Tag and remap used vertices from collider polygons.
     for (int p = 0; p < meshobj->NumPolygons(); ++p) {
       RAS_Polygon *poly = meshobj->GetPolygon(p);
       if (poly && poly->IsCollider()) {
         for (int i = 0; i < poly->VertexCount(); ++i) {
           int v_orig = poly->GetVertexInfo(i).getOrigIndex();
-          if (!vert_tag_array[v_orig]) {
-            vert_tag_array[v_orig] = true;
-            tot_bt_verts++;
+          // Add vertex to the map if not already present.
+          if (vert_remap.find(v_orig) == vert_remap.end()) {
+            vert_remap[v_orig] = next_vert++;
           }
         }
       }
     }
 
-    if (!tot_bt_verts) {
+    // If no vertices were found, the mesh is empty or has no collider polygons.
+    if (next_vert == 0) {
       m_shapeType = PHY_SHAPE_NONE;
       m_meshObject = nullptr;
       m_vertexArray.clear();
@@ -2096,25 +2098,16 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
       return false;
     }
 
-    m_vertexArray.resize(tot_bt_verts * 3);
-    btScalar *bt = &m_vertexArray[0];
-
-    for (int p = 0; p < meshobj->NumPolygons(); ++p) {
-      RAS_Polygon *poly = meshobj->GetPolygon(p);
-      if (poly && poly->IsCollider()) {
-        for (int i = 0; i < poly->VertexCount(); ++i) {
-          int v_orig = poly->GetVertexInfo(i).getOrigIndex();
-          if (vert_tag_array[v_orig]) {
-            const float *vtx = &positions[v_orig][0];
-            *bt++ = vtx[0];
-            *bt++ = vtx[1];
-            *bt++ = vtx[2];
-            vert_tag_array[v_orig] = false;
-          }
-        }
-      }
+    // Fill the compacted vertex array using the remapped indices.
+    m_vertexArray.resize(next_vert * 3);
+    for (const auto &pair : vert_remap) {
+      const float *vtx = &positions[pair.first][0];
+      int idx = pair.second;
+      m_vertexArray[idx * 3 + 0] = vtx[0];
+      m_vertexArray[idx * 3 + 1] = vtx[1];
+      m_vertexArray[idx * 3 + 2] = vtx[2];
     }
-    // No tri/UV/polygonIndex to fill for the polytope
+    // No triangle, UV, or polygon index arrays needed for polytope (convex hull).
   }
   else {
     // --- TRIANGLE MESH: Use modern triangulation and UVs ---
@@ -2184,7 +2177,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     }
   }
 
-  if (!m_vertexArray.size() || m_triFaceArray.empty()) {
+  if (!m_vertexArray.size() || (!polytope && m_triFaceArray.empty())) {
     m_shapeType = PHY_SHAPE_NONE;
     m_meshObject = nullptr;
     m_vertexArray.clear();
