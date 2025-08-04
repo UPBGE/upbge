@@ -2116,15 +2116,17 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     const blender::Span<int> tri_faces = me->corner_tri_faces();
 
     // UVs
-    const char *uv_name = me->active_uv_map_attribute ? me->active_uv_map_attribute :
-                                                        me->default_uv_map_attribute;
-    blender::bke::AttributeAccessor attributes = me->attributes();
     blender::VArraySpan<blender::float2> uvs;
-    if (uv_name) {
-      auto uv_varray = attributes.lookup<blender::float2>(uv_name,
-                                                          blender::bke::AttrDomain::Corner);
-      if (uv_varray) {
-        uvs = *uv_varray;
+    const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+    if (uv_layer_count > 0) {
+      const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+      if (uv_name) {
+        blender::bke::AttributeAccessor attributes = me->attributes();
+        if (auto uv_varray = attributes.lookup<blender::float2>(uv_name,
+                                                                blender::bke::AttrDomain::Corner))
+        {
+          uvs = *uv_varray;
+        }
       }
     }
 
@@ -2304,15 +2306,17 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       const blender::Span<int> tri_faces = me->corner_tri_faces();
 
       // UVs
-      const char *uv_name = me->active_uv_map_attribute ? me->active_uv_map_attribute :
-                                                          me->default_uv_map_attribute;
-      blender::bke::AttributeAccessor attributes = me->attributes();
       blender::VArraySpan<blender::float2> uvs;
-      if (uv_name) {
-        auto uv_varray = attributes.lookup<blender::float2>(uv_name,
-                                                            blender::bke::AttrDomain::Corner);
-        if (uv_varray) {
-          uvs = *uv_varray;
+      const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+      if (uv_layer_count > 0) {
+        const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+        if (uv_name) {
+          blender::bke::AttributeAccessor attributes = me->attributes();
+          if (auto uv_varray = attributes.lookup<blender::float2>(
+                  uv_name, blender::bke::AttrDomain::Corner))
+          {
+            uvs = *uv_varray;
+          }
         }
       }
 
