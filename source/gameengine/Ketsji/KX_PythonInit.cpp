@@ -1990,9 +1990,45 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
 {
   backupPySysObjects();
 
-  bpy_import_init(PyEval_GetBuiltins());
+  const char *imp_string = R"pycode(
+import sys
+import importlib.abc
+import importlib.util
 
-  bpy_import_main_set(maggie);
+class BlenderTextBlockFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        print("BlenderTextBlockFinder called for", fullname)
+        if fullname in sys.modules:
+            return None
+        if self._is_in_blender_textblocks(fullname):
+            return importlib.util.spec_from_loader(fullname, BlenderTextBlockLoader())
+        return None
+
+    def _is_in_blender_textblocks(self, name):
+        try:
+            import bpy
+            txt_name = name + ".py"
+            return any(text.name == txt_name for text in bpy.data.texts)
+        except Exception:
+            return False
+
+class BlenderTextBlockLoader(importlib.abc.Loader):
+    def create_module(self, spec):
+        return None
+
+    def exec_module(self, module):
+        import bpy
+        txt_name = module.__name__ + ".py"
+        text_block = next((text for text in bpy.data.texts if text.name == txt_name), None)
+        if text_block is None:
+            raise ImportError(f"Text block '{txt_name}' not found in bpy.data.texts")
+        code = text_block.as_string() if hasattr(text_block, "as_string") else "".join([line.body for line in text_block.lines])
+        exec(code, module.__dict__)
+
+sys.meta_path.insert(0, BlenderTextBlockFinder())
+)pycode";
+
+  //bpy_import_main_set(maggie);
 
   initPySysObjects(maggie);
 
@@ -2001,6 +2037,8 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
   BPY_python_reset(C);
 
   EXP_PyObjectPlus::ClearDeprecationWarning();
+
+  PyRun_SimpleString(imp_string);
 }
 
 void exitGamePythonScripting()
