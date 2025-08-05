@@ -28,20 +28,20 @@ static void extract_positions_mesh(const MeshRenderData &mr, MutableSpan<float4>
         // Corners
         for (int i = 0; i < corners_data.size(); ++i) {
           const float3 &pos = mr.vert_positions[mr.corner_verts[i]];
-          corners_data[i] = float4(pos.x, pos.y, pos.z, 0.0f);
+          corners_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
         }
         // Loose edges
         for (int i = 0; i < mr.loose_edges.size(); ++i) {
           const int2 &edge = mr.edges[mr.loose_edges[i]];
           const float3 &pos0 = mr.vert_positions[edge[0]];
           const float3 &pos1 = mr.vert_positions[edge[1]];
-          loose_edge_data[i * 2 + 0] = float4(pos0.x, pos0.y, pos0.z, 0.0f);
-          loose_edge_data[i * 2 + 1] = float4(pos1.x, pos1.y, pos1.z, 0.0f);
+          loose_edge_data[i * 2 + 0] = float4(pos0.x, pos0.y, pos0.z, 1.0f);
+          loose_edge_data[i * 2 + 1] = float4(pos1.x, pos1.y, pos1.z, 1.0f);
         }
         // Loose verts
         for (int i = 0; i < mr.loose_verts.size(); ++i) {
           const float3 &pos = mr.vert_positions[mr.loose_verts[i]];
-          loose_vert_data[i] = float4(pos.x, pos.y, pos.z, 0.0f);
+          loose_vert_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
         }
       });
 }
