@@ -95,10 +95,12 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
   Mesh *orig_mesh = static_cast<Mesh *>(deformed_obj->data);
   blender::Span<blender::float3> vert_positions = orig_mesh->vert_positions();
 
-  const int num_verts = orig_mesh->vert_positions().size();
-  restPositions = blender::Array<blender::float4>(num_verts);
-  tbb::parallel_for(0, num_verts, [&](int i) {
-    const blender::float3 &pos = orig_mesh->vert_positions()[i];
+  const int num_corners = orig_mesh->corners_num;
+  auto corner_verts = orig_mesh->corner_verts();
+  restPositions = blender::Array<blender::float4>(num_corners);
+  tbb::parallel_for(0, num_corners, [&](int i) {
+    int vert_idx = corner_verts[i];
+    const blender::float3 &pos = orig_mesh->vert_positions()[vert_idx];
     restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 0.0f);
   });
 
@@ -536,7 +538,8 @@ void BL_ArmatureObject::InitSkinningBuffers()
     Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
     Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
     blender::Span<MDeformVert> dverts = mesh->deform_verts();
-    int num_verts = mesh->vert_positions().size();
+    auto corner_verts = mesh->corner_verts();
+    int num_corners = mesh->corners_num;
 
     // Prépare les bones et groupes
     std::vector<bPoseChannel *> bone_channels;
@@ -559,11 +562,12 @@ void BL_ArmatureObject::InitSkinningBuffers()
     }
 
     // Remplissage des buffers
-    in_indices.resize(num_verts * 4, 0);
-    in_weights.resize(num_verts * 4, 0.0f);
+    in_indices.resize(num_corners * 4, 0);
+    in_weights.resize(num_corners * 4, 0.0f);
 
-    tbb::parallel_for(0, num_verts, [&](int v) {
-      const MDeformVert &dvert = dverts[v];
+    tbb::parallel_for(0, num_corners, [&](int v) {
+      int vert_idx = corner_verts[v];
+      const MDeformVert &dvert = dverts[vert_idx];
       struct Influence {
         int bone_idx;
         float weight;
@@ -615,10 +619,10 @@ void BL_ArmatureObject::InitSkinningBuffers()
 
     // Met à jour les buffers GPU une seule fois
     if (!ssbo_in_idx) {
-      ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_verts * 4);
+      ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
     }
     if (!ssbo_in_wgt) {
-      ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_verts * 4);
+      ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
     }
     GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
     GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
@@ -649,7 +653,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
   blender::Span<blender::float3> vert_positions = mesh->vert_positions();
-  int num_verts = vert_positions.size();
+  int num_corners = mesh->corner_verts().size();
 
   // 3. Préparer les matrices des bones
   const int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
@@ -705,15 +709,15 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   // 6. Préparer les positions de repos (vec4, alignées sur les sommets)
   if (!ssbo_rest_pose) {
-    ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_verts);
+    ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
     GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
   }
 
   // 7. Préparer le buffer de sortie pour les positions skinnées
-  if (!ssbo_positions) {
+  /*if (!ssbo_positions) {
     ssbo_positions = GPU_storagebuf_create(sizeof(float) * 4 * num_verts);
   }
-  GPU_storagebuf_clear(ssbo_positions, 0xFFFFFFFFu);
+  GPU_storagebuf_clear(ssbo_positions, 0xFFFFFFFFu);*/
 
   // 8. Créer et compiler le compute shader si besoin
   if (!m_shader) {
@@ -770,7 +774,8 @@ void main() {
   // 9. Dispatch du compute shader
   GPUShader *shader = m_shader;
   GPU_shader_bind(shader);
-  GPU_storagebuf_bind(ssbo_positions, 0);
+  //GPU_storagebuf_bind(ssbo_positions, 0);
+  vbo_pos->bind_as_ssbo(0);
   GPU_storagebuf_bind(ssbo_in_idx, 1);
   GPU_storagebuf_bind(ssbo_in_wgt, 2);
   GPU_storagebuf_bind(ssbo_bone_rest_mat, 3);
@@ -779,11 +784,11 @@ void main() {
   GPU_storagebuf_bind(ssbo_rest_pose, 7);
 
   const int group_size = 256;
-  const int num_groups = (num_verts + group_size - 1) / group_size;
+  const int num_groups = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
-  GPU_storagebuf_unbind(ssbo_positions);
+  //GPU_storagebuf_unbind(ssbo_positions);
   GPU_storagebuf_unbind(ssbo_in_idx);
   GPU_storagebuf_unbind(ssbo_in_wgt);
   GPU_storagebuf_unbind(ssbo_bone_rest_mat);
@@ -792,22 +797,22 @@ void main() {
   GPU_storagebuf_unbind(ssbo_rest_pose);
   GPU_shader_unbind();
 
-  // 10. Lire les positions skinnées et mettre à jour le VBO
-  std::vector<blender::float4> skinned_positions(num_verts);
-  GPU_storagebuf_read(ssbo_positions, skinned_positions.data());
+  //// 10. Lire les positions skinnées et mettre à jour le VBO
+  //std::vector<blender::float4> skinned_positions(num_verts);
+  //GPU_storagebuf_read(ssbo_positions, skinned_positions.data());
 
-  blender::Span<int> corner_verts = mesh->corner_verts();
-  int num_corners = corner_verts.size();
+  //blender::Span<int> corner_verts = mesh->corner_verts();
+  //int num_corners = corner_verts.size();
 
-  std::vector<blender::float3> vbo_data(num_corners);
-  tbb::parallel_for(0, num_corners, [&](int i) {
-    int vert_idx = corner_verts[i];
-    const blender::float4 &skinned = skinned_positions[vert_idx];
-    vbo_data[i] = blender::float3(skinned.x, skinned.y, skinned.z);
-  });
+  //std::vector<blender::float3> vbo_data(num_corners);
+  //tbb::parallel_for(0, num_corners, [&](int i) {
+  //  int vert_idx = corner_verts[i];
+  //  const blender::float4 &skinned = skinned_positions[vert_idx];
+  //  vbo_data[i] = blender::float3(skinned.x, skinned.y, skinned.z);
+  //});
 
-  GPU_vertbuf_use(vbo_pos);
-  GPU_vertbuf_update_sub(vbo_pos, 0, num_corners * sizeof(blender::float3), vbo_data.data());
+  //GPU_vertbuf_use(vbo_pos);
+  //GPU_vertbuf_update_sub(vbo_pos, 0, num_corners * sizeof(blender::float3), vbo_data.data());
 
   // 11. Notifier EEVEE/TAA pour mise à jour
   DEG_id_tag_update(&KX_GetActiveScene()->GetActiveCamera()->GetBlenderObject()->id,
