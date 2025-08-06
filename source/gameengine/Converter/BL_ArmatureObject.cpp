@@ -888,10 +888,10 @@ void main() {
   GPU_storagebuf_unbind(ssbo_rest_normals);
   GPU_shader_unbind();
 
-  // 11. Notifier EEVEE/TAA pour mise à jour
+  // Notify the dependency graph that the deformed mesh's transform has changed.
+  // This updates the object_to_world matrices used by EEVEE without invalidating
+  // render caches, ensuring correct shading after GPU skinning.
   DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
-  DEG_id_tag_update(&KX_GetActiveScene()->GetActiveCamera()->GetBlenderObject()->id,
-                    ID_RECALC_TRANSFORM);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
