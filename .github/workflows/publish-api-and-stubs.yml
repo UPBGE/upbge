@@ -147,16 +147,14 @@ jobs:
         GIT_LFS_SKIP_SMUDGE: 1
 
     - name: Prepare API Documentation
-      working-directory: build
-      run: | 
-        rm -Rf bin/5.0/python && \
-        bin/blender --python-use-system-env --background -noaudio --factory-startup \
-                    --python ../upbge/doc/python_api/sphinx_doc_gen.py \
-                    --output "${{ github.workspace }}/python_api"
+      run: |
+        cd upbge && \
+        ../build/bin/blender --background -noaudio --factory-startup \
+                    --python doc/python_api/sphinx_doc_gen.py
 
     - name: Build API Documentation
-      working-directory: python_api
       run: |
+        cd upbge/doc/python_api && \
         sphinx-build -b html -j auto sphinx-in upbge-api-reference && \
         rm -Rf upbge-api-reference/.doctrees && \
         zip -r upbge-api-reference/upbge-api-reference.zip upbge-api-reference
@@ -166,19 +164,21 @@ jobs:
       with:
         external_repository: UPBGE/UPBGE-API
         publish_branch: master
-        publish_dir: python_api/upbge-api-reference
+        publish_dir: upbge/doc/python_api/upbge-api-reference
         deploy_key: ${{ secrets.APIDOCS_DEPLOY_KEY }}
 
     - name: Archive Documents
       if: ${{ !env.ACT }}
-      run: tar zcvf apidocs.tar.gz python_api
+      run: |
+      cd upbge/doc && \
+      tar zcvf apidocs.tar.gz python_api
 
     - name: Upload Documents
       if: ${{ !env.ACT }}
       uses: actions/upload-artifact@v4
       with:
         name: apidocs
-        path: apidocs.tar.gz
+        path: upbge/doc/apidocs.tar.gz
         retention-days: 3
 
   publish_stubs:
