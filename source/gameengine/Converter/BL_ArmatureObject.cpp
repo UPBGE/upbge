@@ -549,8 +549,7 @@ void BL_ArmatureObject::ApplyPose()
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_runtime_obj);
-    // restore ourself
-    memcpy(m_runtime_obj->runtime->object_to_world.ptr(), m_object_to_world, sizeof(m_object_to_world));
+
     m_lastapplyframe = m_lastframe;
   }
 }
@@ -880,9 +879,6 @@ void main() {
   const int num_groups = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-  GPU_memory_barrier(GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
-  GPU_finish();
 
   GPU_storagebuf_unbind(ssbo_in_idx);
   GPU_storagebuf_unbind(ssbo_in_wgt);
@@ -892,22 +888,8 @@ void main() {
   GPU_storagebuf_unbind(ssbo_rest_normals);
   GPU_shader_unbind();
 
-  //const int count = vbo_nor->vertex_len;  // ou le nombre de coins
-  //std::vector<uint32_t> data(count);
-  //GPU_vertbuf_read(vbo_nor, data.data());
-
-  //
-
-  //for (int i = 0; i < std::min(10, count); ++i) {
-  //  printf("vbo_nor[%d] = 0x%08X\n", i, data[i]);
-  //}
-  //for (int i = 0; i < std::min(10, count); ++i) {
-  //  float x, y, z;
-  //  unpack_normal(data[i], x, y, z);
-  //  printf("vbo_nor[%d] = 0x%08X -> (%.3f, %.3f, %.3f)\n", i, data[i], x, y, z);
-  //}
-
   // 11. Notifier EEVEE/TAA pour mise à jour
+  DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
   DEG_id_tag_update(&KX_GetActiveScene()->GetActiveCamera()->GetBlenderObject()->id,
                     ID_RECALC_TRANSFORM);
 }
