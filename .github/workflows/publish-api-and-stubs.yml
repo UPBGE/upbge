@@ -170,8 +170,8 @@ jobs:
     - name: Archive Documents
       if: ${{ !env.ACT }}
       run: |
-      cd upbge/doc && \
-      tar zcvf apidocs.tar.gz python_api
+        cd upbge/doc && \
+        tar zcvf apidocs.tar.gz python_api
 
     - name: Upload Documents
       if: ${{ !env.ACT }}
