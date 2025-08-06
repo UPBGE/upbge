@@ -35,6 +35,7 @@
 
 #include "ANIM_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_attribute.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
@@ -47,7 +48,7 @@
 #include "BKE_object_types.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
@@ -85,7 +86,8 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
                                       bool copy_constraints,
                                       Object *runtime_obj,
                                       Object *deformed_obj,
-                                      blender::Array<blender::float4> &restPositions)
+                                      blender::Array<blender::float4> &restPositions,
+                                      blender::Array<blender::float4> &restNormals)
 {
   if (!src || !deformed_obj) {
     return nullptr;
@@ -101,7 +103,38 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
   tbb::parallel_for(0, num_corners, [&](int i) {
     int vert_idx = corner_verts[i];
     const blender::float3 &pos = orig_mesh->vert_positions()[vert_idx];
-    restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 0.0f);
+    restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
+  });
+  restNormals = blender::Array<blender::float4>(num_corners);
+  using namespace blender::bke;
+  auto faces = orig_mesh->faces();
+  auto face_normals = orig_mesh->face_normals();
+  auto vert_normals = orig_mesh->vert_normals();
+  auto sharp_faces = orig_mesh->attributes()
+                         .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
+                         .varray;
+
+  restNormals = blender::Array<blender::float4>(num_corners);
+  using namespace blender::math;
+  tbb::parallel_for(0, orig_mesh->faces_num, [&](int face) {
+    auto face_range = faces[face];
+    if (sharp_faces && sharp_faces[face]) {
+      // Flat: normale de face pour tous les coins
+      const blender::float3 &nor = face_normals[face];
+      blender::float3 safe_nor = normalize(nor);
+      for (int corner : face_range) {
+        restNormals[corner] = blender::float4(safe_nor.x, safe_nor.y, safe_nor.z, 0.0f);
+      }
+    }
+    else {
+      // Smooth: normale de sommet pour chaque coin
+      for (int corner : face_range) {
+        int vert = corner_verts[corner];
+        const blender::float3 &nor = vert_normals[vert];
+        blender::float3 safe_nor = normalize(nor);
+        restNormals[corner] = blender::float4(safe_nor.x, safe_nor.y, safe_nor.z, 0.0f);
+      }
+    }
   });
 
   // 2. Créer la copie "clean" de la pose (optionnel : copy_constraints)
@@ -227,11 +260,11 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_in_idx = nullptr;
   ssbo_in_wgt = nullptr;
   ssbo_bone_pose_mat = nullptr;
-  ssbo_bone_rest_mat = nullptr;
   ssbo_premat = nullptr;
   ssbo_rest_pose = nullptr;
-  ssbo_positions = nullptr;
+  ssbo_rest_normals = nullptr;
   m_refPositions = {};
+  m_refNormals = {};
   in_indices = {};
   in_weights = {};
 }
@@ -254,17 +287,15 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_in_idx);
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_pose_mat);
-    GPU_storagebuf_free(ssbo_bone_rest_mat);
     GPU_storagebuf_free(ssbo_premat);
     GPU_storagebuf_free(ssbo_rest_pose);
-    GPU_storagebuf_free(ssbo_positions);
+    GPU_storagebuf_free(ssbo_rest_normals);
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
     ssbo_bone_pose_mat = nullptr;
-    ssbo_bone_rest_mat = nullptr;
     ssbo_premat = nullptr;
     ssbo_rest_pose = nullptr;
-    ssbo_positions = nullptr;
+    ssbo_rest_normals = nullptr;
   }
 }
 
@@ -320,7 +351,8 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
                                                        /*copy_constraints=*/false,
                                                        m_runtime_obj,
                                                        m_deformedObj,
-                                                       m_refPositions);
+                                                       m_refPositions,
+                                                       m_refNormals);
 
   m_objArma = m_runtime_obj;
 
@@ -629,6 +661,27 @@ void BL_ArmatureObject::InitSkinningBuffers()
   }
 }
 
+void unpack_normal(uint32_t packed, float &x, float &y, float &z)
+{
+  // Extraire les composants 10-bit
+  int ix = int((packed >> 0) & 0x3FF);
+  int iy = int((packed >> 10) & 0x3FF);
+  int iz = int((packed >> 20) & 0x3FF);
+
+  // Gérer le complément à 2 pour les valeurs signées 10-bit
+  if (ix >= 512)
+    ix -= 1024;  // Convertir de unsigned vers signed
+  if (iy >= 512)
+    iy -= 1024;
+  if (iz >= 512)
+    iz -= 1024;
+
+  // Normaliser dans la plage [-1.0, 1.0]
+  x = float(ix) / 511.0f;
+  y = float(iy) / 511.0f;
+  z = float(iz) / 511.0f;
+}
+
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
   using namespace blender::gpu::shader;
@@ -650,6 +703,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
   blender::gpu::VertBuf *vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get();
+  blender::gpu::VertBuf *vbo_nor = cache->final.buff.vbos.lookup(VBOType::CornerNormal).get();
 
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
   blender::Span<blender::float3> vert_positions = mesh->vert_positions();
@@ -660,14 +714,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
                             BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
                             0;
 
-  if (!ssbo_bone_rest_mat) {
-    ssbo_bone_rest_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
-  }
   if (!ssbo_bone_pose_mat) {
     ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
   }
 
-  std::vector<float> bone_rest_matrices(num_bones * 16, 0.0f);
   std::vector<float> bone_pose_matrices(num_bones * 16, 0.0f);
 
   std::vector<bPoseChannel *> bone_channels;
@@ -686,11 +736,9 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     for (int row = 0; row < 4; ++row) {
       for (int col = 0; col < 4; ++col) {
         bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
-        bone_rest_matrices[b * 16 + row * 4 + col] = pchan->bone->arm_mat[row][col];
       }
     }
   }
-  GPU_storagebuf_update(ssbo_bone_rest_mat, bone_rest_matrices.data());
   GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
 
   InitSkinningBuffers();
@@ -712,12 +760,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
     GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
   }
-
-  // 7. Préparer le buffer de sortie pour les positions skinnées
-  /*if (!ssbo_positions) {
-    ssbo_positions = GPU_storagebuf_create(sizeof(float) * 4 * num_verts);
+  if (!ssbo_rest_normals) {
+    ssbo_rest_normals = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
+    GPU_storagebuf_update(ssbo_rest_normals, m_refNormals.data());
   }
-  GPU_storagebuf_clear(ssbo_positions, 0xFFFFFFFFu);*/
 
   // 8. Créer et compiler le compute shader si besoin
   if (!m_shader) {
@@ -728,14 +774,14 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 layout(std430, binding = 0) buffer PositionBuf {
   vec4 positions[];
 };
-layout(std430, binding = 1) buffer InIdx {
+layout(std430, binding = 1) buffer NormalBuf {
+  uint normals[];
+};
+layout(std430, binding = 2) buffer InIdx {
   ivec4 in_idx[];
 };
-layout(std430, binding = 2) buffer InWgt {
+layout(std430, binding = 3) buffer InWgt {
   vec4 in_wgt[];
-};
-layout(std430, binding = 3) buffer BoneRestMat {
-  mat4 bone_rest_mat[];
 };
 layout(std430, binding = 4) buffer BonePoseMat {
   mat4 bone_pose_mat[];
@@ -743,11 +789,33 @@ layout(std430, binding = 4) buffer BonePoseMat {
 layout(std430, binding = 5) buffer PreMat {
   mat4 premat;
 };
-layout(std430, binding = 7) buffer RestPositions {
+layout(std430, binding = 6) buffer RestPositions {
   vec4 rest_positions[];
+};
+layout(std430, binding = 7) buffer RestNormals {
+  vec4 rest_normals[];
 };
 )";
     info.compute_source_generated = R"(
+uint normal_pack(vec3 normal)
+{
+  normal = normalize(normal);
+  ivec3 enc = ivec3(clamp(round(normal * 511.0), -512.0, 511.0));
+  uint x = uint(enc.x) & 0x3FFu;
+  uint y = uint(enc.y) & 0x3FFu;
+  uint z = uint(enc.z) & 0x3FFu;
+  return x | (y << 10) | (z << 20);
+}
+
+vec3 safe_normalize(vec3 v)
+{
+  float len = length(v);
+  if (len > 1e-8)
+    return v / len;
+  else
+    return vec3(0.0, 0.0, 1.0); // ou v, selon le contexte
+}
+
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
@@ -766,6 +834,31 @@ void main() {
   }
   // Correction Blender-like :
   positions[v] = skinned + rest_pos * (1.0 - total_weight);
+
+  // Calcul du skinning des normales
+  vec3 n = rest_normals[v].xyz;
+  vec3 skinned_n = vec3(0.0);
+  float total_weight_n = 0.0;
+  
+  for (int i = 0; i < 4; ++i) {
+    int bone_idx = in_idx[v][i];
+    float w = in_wgt[v][i];
+    if (w > 0.0) {
+      mat3 rot = mat3(bone_pose_mat[bone_idx]);
+      // Utiliser la matrice normale (transpose de l'inverse)
+      mat3 normal_matrix = transpose(inverse(rot));
+      skinned_n += (normal_matrix * n) * w;
+      total_weight_n += w;
+    }
+  }
+  
+  // Ajouter la normale de repos si le poids total < 1
+  if (total_weight_n < 1.0) {
+    skinned_n += n * (1.0 - total_weight_n);
+  }
+  
+  skinned_n = safe_normalize(skinned_n);
+  normals[v] = normal_pack(skinned_n);
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
@@ -774,45 +867,45 @@ void main() {
   // 9. Dispatch du compute shader
   GPUShader *shader = m_shader;
   GPU_shader_bind(shader);
-  //GPU_storagebuf_bind(ssbo_positions, 0);
   vbo_pos->bind_as_ssbo(0);
-  GPU_storagebuf_bind(ssbo_in_idx, 1);
-  GPU_storagebuf_bind(ssbo_in_wgt, 2);
-  GPU_storagebuf_bind(ssbo_bone_rest_mat, 3);
+  vbo_nor->bind_as_ssbo(1);
+  GPU_storagebuf_bind(ssbo_in_idx, 2);
+  GPU_storagebuf_bind(ssbo_in_wgt, 3);
   GPU_storagebuf_bind(ssbo_bone_pose_mat, 4);
   GPU_storagebuf_bind(ssbo_premat, 5);
-  GPU_storagebuf_bind(ssbo_rest_pose, 7);
+  GPU_storagebuf_bind(ssbo_rest_pose, 6);
+  GPU_storagebuf_bind(ssbo_rest_normals, 7);
 
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
+  GPU_finish();
 
-  //GPU_storagebuf_unbind(ssbo_positions);
   GPU_storagebuf_unbind(ssbo_in_idx);
   GPU_storagebuf_unbind(ssbo_in_wgt);
-  GPU_storagebuf_unbind(ssbo_bone_rest_mat);
   GPU_storagebuf_unbind(ssbo_bone_pose_mat);
   GPU_storagebuf_unbind(ssbo_premat);
   GPU_storagebuf_unbind(ssbo_rest_pose);
+  GPU_storagebuf_unbind(ssbo_rest_normals);
   GPU_shader_unbind();
 
-  //// 10. Lire les positions skinnées et mettre à jour le VBO
-  //std::vector<blender::float4> skinned_positions(num_verts);
-  //GPU_storagebuf_read(ssbo_positions, skinned_positions.data());
+  //const int count = vbo_nor->vertex_len;  // ou le nombre de coins
+  //std::vector<uint32_t> data(count);
+  //GPU_vertbuf_read(vbo_nor, data.data());
 
-  //blender::Span<int> corner_verts = mesh->corner_verts();
-  //int num_corners = corner_verts.size();
+  //
 
-  //std::vector<blender::float3> vbo_data(num_corners);
-  //tbb::parallel_for(0, num_corners, [&](int i) {
-  //  int vert_idx = corner_verts[i];
-  //  const blender::float4 &skinned = skinned_positions[vert_idx];
-  //  vbo_data[i] = blender::float3(skinned.x, skinned.y, skinned.z);
-  //});
-
-  //GPU_vertbuf_use(vbo_pos);
-  //GPU_vertbuf_update_sub(vbo_pos, 0, num_corners * sizeof(blender::float3), vbo_data.data());
+  //for (int i = 0; i < std::min(10, count); ++i) {
+  //  printf("vbo_nor[%d] = 0x%08X\n", i, data[i]);
+  //}
+  //for (int i = 0; i < std::min(10, count); ++i) {
+  //  float x, y, z;
+  //  unpack_normal(data[i], x, y, z);
+  //  printf("vbo_nor[%d] = 0x%08X -> (%.3f, %.3f, %.3f)\n", i, data[i], x, y, z);
+  //}
 
   // 11. Notifier EEVEE/TAA pour mise à jour
   DEG_id_tag_update(&KX_GetActiveScene()->GetActiveCamera()->GetBlenderObject()->id,

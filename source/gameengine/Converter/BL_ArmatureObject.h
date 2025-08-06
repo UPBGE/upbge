@@ -57,17 +57,17 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_runtime_obj;
   Object *m_deformedObj;
   class blender::Array<blender::float4> m_refPositions;
+  class blender::Array<blender::float4> m_refNormals;
   struct GPUShader *m_shader;
 
   std::vector<int> in_indices;
   std::vector<float> in_weights;
   struct GPUStorageBuf *ssbo_in_idx;
   struct GPUStorageBuf *ssbo_in_wgt;
-  struct GPUStorageBuf *ssbo_bone_rest_mat;
   struct GPUStorageBuf *ssbo_bone_pose_mat;
   struct GPUStorageBuf *ssbo_premat;
   struct GPUStorageBuf *ssbo_rest_pose;
-  struct GPUStorageBuf *ssbo_positions;
+  struct GPUStorageBuf *ssbo_rest_normals;
 
   double m_lastframe;
   size_t m_constraintNumber;
