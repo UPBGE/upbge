@@ -66,6 +66,7 @@ class BL_ArmatureObject : public KX_GameObject {
   struct GPUStorageBuf *ssbo_in_wgt;
   struct GPUStorageBuf *ssbo_bone_pose_mat;
   struct GPUStorageBuf *ssbo_premat;
+  struct GPUStorageBuf *ssbo_postmat;
   struct GPUStorageBuf *ssbo_rest_pose;
   struct GPUStorageBuf *ssbo_rest_normals;
 

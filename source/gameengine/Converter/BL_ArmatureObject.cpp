@@ -261,6 +261,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_in_wgt = nullptr;
   ssbo_bone_pose_mat = nullptr;
   ssbo_premat = nullptr;
+  ssbo_postmat = nullptr;
   ssbo_rest_pose = nullptr;
   ssbo_rest_normals = nullptr;
   m_refPositions = {};
@@ -288,12 +289,14 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_pose_mat);
     GPU_storagebuf_free(ssbo_premat);
+    GPU_storagebuf_free(ssbo_postmat);
     GPU_storagebuf_free(ssbo_rest_pose);
     GPU_storagebuf_free(ssbo_rest_normals);
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
     ssbo_bone_pose_mat = nullptr;
     ssbo_premat = nullptr;
+    ssbo_postmat = nullptr;
     ssbo_rest_pose = nullptr;
     ssbo_rest_normals = nullptr;
   }
@@ -753,6 +756,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_premat = GPU_storagebuf_create(sizeof(float) * 16);
   }
   GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
+  if (!ssbo_postmat) {
+    ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
+  }
+  GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
   // 6. Préparer les positions de repos (vec4, alignées sur les sommets)
   if (!ssbo_rest_pose) {
@@ -794,6 +801,9 @@ layout(std430, binding = 6) buffer RestPositions {
 layout(std430, binding = 7) buffer RestNormals {
   vec4 rest_normals[];
 };
+layout(std430, binding = 8) buffer PostMat {
+  mat4 postmat;
+};
 )";
     info.compute_source_generated = R"(
 uint normal_pack(vec3 normal)
@@ -812,13 +822,13 @@ vec3 safe_normalize(vec3 v)
   if (len > 1e-8)
     return v / len;
   else
-    return vec3(0.0, 0.0, 1.0); // ou v, selon le contexte
+    return vec3(0.0, 0.0, 1.0);
 }
 
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
-  vec4 rest_pos = rest_positions[v];
+  vec4 rest_pos = premat * rest_positions[v];
   vec4 skinned = vec4(0.0);
   float total_weight = 0.0;
   for (int i = 0; i < 4; ++i) {
@@ -831,33 +841,30 @@ void main() {
       total_weight += w;
     }
   }
-  // Correction Blender-like :
-  positions[v] = skinned + rest_pos * (1.0 - total_weight);
-
-  // Calcul du skinning des normales
-  vec3 n = rest_normals[v].xyz;
+  // Correction Blender-like :
+  vec4 finalpos = skinned + rest_pos * (1.0 - total_weight);
+  positions[v] = postmat * finalpos;
+  // Calcul du skinning des normales avec la même matrice
+  vec4 n4 = premat * rest_normals[v];
+  vec3 n = n4.xyz;
   vec3 skinned_n = vec3(0.0);
   float total_weight_n = 0.0;
-  
   for (int i = 0; i < 4; ++i) {
     int bone_idx = in_idx[v][i];
     float w = in_wgt[v][i];
     if (w > 0.0) {
       mat3 rot = mat3(bone_pose_mat[bone_idx]);
-      // Utiliser la matrice normale (transpose de l'inverse)
       mat3 normal_matrix = transpose(inverse(rot));
       skinned_n += (normal_matrix * n) * w;
       total_weight_n += w;
     }
   }
-  
-  // Ajouter la normale de repos si le poids total < 1
   if (total_weight_n < 1.0) {
     skinned_n += n * (1.0 - total_weight_n);
   }
-  
-  skinned_n = safe_normalize(skinned_n);
-  normals[v] = normal_pack(skinned_n);
+  skinned_n = normalize(skinned_n);
+  vec4 finalnor = postmat * vec4(skinned_n, 0.0);
+  normals[v] = normal_pack(finalnor.xyz);
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
@@ -874,6 +881,7 @@ void main() {
   GPU_storagebuf_bind(ssbo_premat, 5);
   GPU_storagebuf_bind(ssbo_rest_pose, 6);
   GPU_storagebuf_bind(ssbo_rest_normals, 7);
+  GPU_storagebuf_bind(ssbo_postmat, 8);
 
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
@@ -886,12 +894,14 @@ void main() {
   GPU_storagebuf_unbind(ssbo_premat);
   GPU_storagebuf_unbind(ssbo_rest_pose);
   GPU_storagebuf_unbind(ssbo_rest_normals);
+  GPU_storagebuf_unbind(ssbo_postmat);
   GPU_shader_unbind();
 
   // Notify the dependency graph that the deformed mesh's transform has changed.
   // This updates the object_to_world matrices used by EEVEE without invalidating
   // render caches, ensuring correct shading after GPU skinning.
   DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
+  //DEG_id_tag_update(&m_runtime_obj->id, ID_RECALC_TRANSFORM);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
