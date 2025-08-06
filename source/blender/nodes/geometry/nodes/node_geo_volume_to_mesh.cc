@@ -15,6 +15,7 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_to_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 namespace blender::nodes::node_geo_volume_to_mesh_cc {
@@ -38,14 +39,14 @@ static EnumPropertyItem resolution_mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Resolution Mode")
-      .static_items(resolution_mode_items)
-      .description("How the voxel size is specified");
   b.add_input<decl::Geometry>("Volume")
       .supported_type(GeometryComponent::Type::Volume)
       .translation_context(BLT_I18NCONTEXT_ID_ID)
       .is_default_link_socket()
       .description("Volume to convert to a mesh");
+  b.add_input<decl::Menu>("Resolution Mode")
+      .static_items(resolution_mode_items)
+      .description("How the voxel size is specified");
   b.add_input<decl::Float>("Voxel Size")
       .default_value(0.3f)
       .min(0.01f)
@@ -65,8 +66,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  NodeGeometryVolumeToMesh *data = MEM_callocN<NodeGeometryVolumeToMesh>(__func__);
-  node->storage = data;
+  node->storage = MEM_callocN<NodeGeometryVolumeToMesh>(__func__);
 }
 
 #ifdef WITH_OPENVDB
@@ -192,10 +192,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     Mesh *mesh = create_mesh_from_volume(geometry_set, params);
     geometry_set.replace_mesh(mesh);
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
+    geometry_set.keep_only({GeometryComponent::Type::Mesh, GeometryComponent::Type::Edit});
   });
   params.set_output("Mesh", std::move(geometry_set));
 #else

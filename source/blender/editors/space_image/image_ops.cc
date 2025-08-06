@@ -2038,7 +2038,7 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
            (STREQ(prop_id, "save_as_render") && isd->image->source == IMA_SRC_VIEWER));
 }
 
-static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
+static void image_save_as_draw(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
@@ -2062,7 +2062,7 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
-  uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
+  uiTemplateImageSettings(layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
@@ -2088,7 +2088,7 @@ static bool image_save_as_poll(bContext *C)
     Image *ima = image_from_context(C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(C, "can't save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "cannot save image while rendering");
       return false;
     }
   }
@@ -2411,7 +2411,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Packed library image can't be saved: \"%s\" from \"%s\"",
+                      "Packed library image cannot be saved: \"%s\" from \"%s\"",
                       ima->id.name + 2,
                       ima->id.lib->filepath);
         }
@@ -2419,7 +2419,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
       else if (!is_format_writable) {
         BKE_reportf(reports,
                     RPT_WARNING,
-                    "Image can't be saved, use a different file format: \"%s\"",
+                    "Image cannot be saved, use a different file format: \"%s\"",
                     ima->id.name + 2);
       }
       else {
@@ -2428,7 +2428,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
           if (unique_paths.contains_as(ima->filepath)) {
             BKE_reportf(reports,
                         RPT_WARNING,
-                        "Multiple images can't be saved to an identical path: \"%s\"",
+                        "Multiple images cannot be saved to an identical path: \"%s\"",
                         ima->filepath);
           }
           else {
@@ -2438,7 +2438,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Image can't be saved, no valid file path: \"%s\"",
+                      "Image cannot be saved, no valid file path: \"%s\"",
                       ima->filepath);
         }
       }

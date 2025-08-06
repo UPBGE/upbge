@@ -15,7 +15,7 @@
 #include "UI_resources.hh"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
@@ -79,6 +79,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         output_decl.dependent_field({input_decl.index()});
       }
     }
+    if (socket_type == SOCK_BUNDLE) {
+      dynamic_cast<decl::BundleBuilder &>(output_decl)
+          .pass_through_input_index(input_decl.index());
+    }
   }
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
   b.add_output<decl::Extend>("", "__extend__")
@@ -117,10 +121,10 @@ static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode
   socket_items::copy_array<BakeItemsAccessor>(*src_node, *dst_node);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<BakeItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static const CPPType &get_item_cpp_type(const eNodeSocketDatatype socket_type)
@@ -491,7 +495,7 @@ static void node_extra_info(NodeExtraInfoParams &params)
   }
   if (!ctx.is_bakeable_in_current_context) {
     NodeExtraInfoRow row;
-    row.text = TIP_("Can't bake in zone");
+    row.text = TIP_("Cannot bake in zone");
     row.icon = ICON_ERROR;
     params.rows.append(std::move(row));
   }
@@ -562,7 +566,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     });
     return;
   }
-  if (!BakeItemsAccessor::supports_socket_type(type)) {
+  if (!BakeItemsAccessor::supports_socket_type(type, params.node_tree().type)) {
     return;
   }
 
@@ -571,7 +575,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       [type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeBake");
         socket_items::add_item_with_socket_type_and_name<BakeItemsAccessor>(
-            node, type, params.socket.name);
+            params.node_tree, node, type, params.socket.name);
         params.update_and_connect_available_socket(node, params.socket.name);
       },
       -1);
@@ -582,7 +586,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
                                                        const bNodeSocket &output_socket)
 {
   /* Internal links should always map corresponding input and output sockets. */
-  return &node.input_by_identifier(output_socket.identifier);
+  return node.input_by_identifier(output_socket.identifier);
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
@@ -879,7 +883,7 @@ void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna)
 {
   static const uiListType *data_block_list = []() {
     uiListType *list = MEM_callocN<uiListType>(__func__);
-    STRNCPY(list->idname, "DATA_UL_nodes_modifier_data_blocks");
+    STRNCPY_UTF8(list->idname, "DATA_UL_nodes_modifier_data_blocks");
     list->draw_item = draw_bake_data_block_list_item;
     WM_uilisttype_add(list);
     return list;

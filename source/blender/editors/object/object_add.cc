@@ -1476,7 +1476,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
         md->source_type = LINEART_SOURCE_SCENE;
       }
       /* Only created one layer and one material. */
-      STRNCPY(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
+      STRNCPY_UTF8(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
       md->target_material = BKE_object_material_get(object, 0);
       if (md->target_material) {
         id_us_plus(&md->target_material->id);
@@ -2618,7 +2618,7 @@ static void make_object_duplilist_real(bContext *C,
       if (ob_dst_par) {
         /* allow for all possible parent types */
         ob_dst->partype = ob_src->partype;
-        STRNCPY(ob_dst->parsubstr, ob_src->parsubstr);
+        STRNCPY_UTF8(ob_dst->parsubstr, ob_src->parsubstr);
         ob_dst->par1 = ob_src->par1;
         ob_dst->par2 = ob_src->par2;
         ob_dst->par3 = ob_src->par3;

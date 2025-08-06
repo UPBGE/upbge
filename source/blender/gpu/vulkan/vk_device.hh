@@ -41,6 +41,8 @@ struct VKExtensions {
   bool fragment_shader_barycentric = false;
   /**
    * Does the device support VK_KHR_dynamic_rendering enabled.
+   *
+   * We should assume that this is always supported. Option will be removed later in 5.0.
    */
   bool dynamic_rendering = false;
 
@@ -127,7 +129,6 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
-  void deinit(VKDevice &device);
 
   /**
    * Get the active resource pool.

@@ -21,14 +21,17 @@ ccl_device_inline float3 stack_load_float3(const ccl_private float *stack, const
   return make_float3(stack_a[0], stack_a[1], stack_a[2]);
 }
 
+ccl_device_inline float3 stack_load_float3_default(const ccl_private float *stack,
+                                                   const uint a,
+                                                   const float3 value)
+{
+  return (a == (uint)SVM_STACK_INVALID) ? value : stack_load_float3(stack, a);
+}
+
 ccl_device_inline void stack_store_float3(ccl_private float *stack, const uint a, const float3 f)
 {
   kernel_assert(a + 2 < SVM_STACK_SIZE);
-
-  ccl_private float *stack_a = stack + a;
-  stack_a[0] = f.x;
-  stack_a[1] = f.y;
-  stack_a[2] = f.z;
+  copy_v3_v3(stack + a, f);
 }
 
 ccl_device_inline float stack_load_float(const ccl_private float *stack, const uint a)
@@ -43,6 +46,13 @@ ccl_device_inline float stack_load_float_default(const ccl_private float *stack,
                                                  const uint value)
 {
   return (a == (uint)SVM_STACK_INVALID) ? __uint_as_float(value) : stack_load_float(stack, a);
+}
+
+ccl_device_inline float stack_load_float_default(const ccl_private float *stack,
+                                                 const uint a,
+                                                 const float value)
+{
+  return (a == (uint)SVM_STACK_INVALID) ? value : stack_load_float(stack, a);
 }
 
 ccl_device_inline void stack_store_float(ccl_private float *stack, const uint a, const float f)
@@ -135,6 +145,16 @@ ccl_device_forceinline void svm_unpack_node_uchar4(const uint i,
   *y = ((i >> 8) & 0xFF);
   *z = ((i >> 16) & 0xFF);
   *w = ((i >> 24) & 0xFF);
+}
+
+ccl_device_forceinline float3 dPdx(const ccl_private ShaderData *sd)
+{
+  return sd->dPdu * sd->du.dx + sd->dPdv * sd->dv.dx;
+}
+
+ccl_device_forceinline float3 dPdy(const ccl_private ShaderData *sd)
+{
+  return sd->dPdu * sd->du.dy + sd->dPdv * sd->dv.dy;
 }
 
 CCL_NAMESPACE_END

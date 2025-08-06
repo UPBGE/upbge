@@ -10,6 +10,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_asset_edit.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -25,6 +26,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -1150,7 +1152,23 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
    * visible in the render. */
+  bool render_offscreen = false;
   if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
+    Scene *scene = CTX_data_scene(C);
+    View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
+    /* For #ED_view3d_draw_offscreen_imbuf only EEVEE only produces a good result. See #141732. */
+    if (eDrawType(v3d->shading.type) == OB_RENDER) {
+      const char *engine_name = scene->r.engine;
+      render_offscreen = STR_ELEM(engine_name,
+                                  RE_engine_id_BLENDER_EEVEE,
+                                  RE_engine_id_BLENDER_EEVEE_NEXT,
+                                  RE_engine_id_BLENDER_WORKBENCH);
+    }
+    else {
+      render_offscreen = true;
+    }
+  }
+  if (render_offscreen) {
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     ARegion *region = BKE_area_find_region_type(area_p1, RGN_TYPE_WINDOW);
     if (!region) {
@@ -1434,40 +1452,28 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static ID *id_from_selected_asset(bContext *C)
-{
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
-    return nullptr;
-  }
-
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
-  Main *bmain = CTX_data_main(C);
-  return bke::asset_edit_id_from_weak_reference(
-      *bmain, asset_handle->get_id_type(), asset_reference);
-}
-
 static bool screenshot_preview_poll(bContext *C)
 {
   if (G.background) {
     return false;
   }
 
-  ID *id = id_from_selected_asset(C);
-  if (!id) {
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
-
-  if (!ID_IS_LINKED(id)) {
+  if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
 
-  if (!bke::asset_edit_id_is_editable(*id)) {
-    return false;
+  std::string lib_path = asset_handle->full_library_path();
+  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
+    return true;
   }
 
-  return WM_operator_winactive(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+  return false;
 }
 
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)

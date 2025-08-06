@@ -117,9 +117,13 @@ void KX_BlenderMaterial::InitTextures()
     if ((node->type_legacy == SH_NODE_TEX_IMAGE) ||
         (node->typeinfo && node->typeinfo->idname == "ShaderNodeTexImage")) {
       Image *ima = (Image *)node->id;
-      BL_Texture *texture = new BL_Texture(ima);
-      m_textures[i] = texture;
-      i++;
+      if (ima) {
+        if (i < RAS_Texture::MaxUnits) {
+          BL_Texture *texture = new BL_Texture(ima);
+          m_textures[i] = texture;
+          i++;
+        }
+      }
     }
   }
 }

@@ -40,7 +40,9 @@
 RAS_Polygon::RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert)
     : m_bucket(bucket), m_darray(darray), m_numvert(numvert), m_polyflags(0)
 {
-  m_offset[0] = m_offset[1] = m_offset[2] = m_offset[3] = 0;
+  for (int i = 0; i < m_numvert; ++i) {
+    m_offset[i] = 0;
+  }
 }
 
 int RAS_Polygon::VertexCount() const

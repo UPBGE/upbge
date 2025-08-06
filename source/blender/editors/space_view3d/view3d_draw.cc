@@ -14,7 +14,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 
@@ -1381,7 +1381,7 @@ static void draw_selected_name(
    * - 1 marker name `(MAX_NAME + 3)`.
    */
 
-  SNPRINTF(info_buffers.frame, "(%d)", cfra);
+  SNPRINTF_UTF8(info_buffers.frame, "(%d)", cfra);
   info_array[i++] = info_buffers.frame;
 
   if ((ob == nullptr) || (ob->mode == OB_MODE_OBJECT)) {
@@ -1508,7 +1508,8 @@ static void draw_grid_unit_name(
     if (grid_unit) {
       char numstr[32] = "";
       if (v3d->grid != 1.0f) {
-        SNPRINTF(numstr, "%s " BLI_STR_UTF8_MULTIPLICATION_SIGN " %.4g", grid_unit, v3d->grid);
+        SNPRINTF_UTF8(
+            numstr, "%s " BLI_STR_UTF8_MULTIPLICATION_SIGN " %.4g", grid_unit, v3d->grid);
       }
 
       *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
@@ -1564,10 +1565,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
   BLF_batch_draw_begin();
 
-  bScreen *screen = CTX_wm_screen(C);
-  if ((v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) ||
-      screen->state == SCREENFULL)
-  {
+  if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) {
     /* pass */
   }
   else {
@@ -1582,7 +1580,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     }
   }
 
-  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 && screen->state != SCREENFULL) {
+  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
@@ -2770,10 +2768,10 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   }
 
   if (show_fractional) {
-    SNPRINTF(printable, IFACE_("fps: %.2f"), state.fps_average);
+    SNPRINTF_UTF8(printable, IFACE_("fps: %.2f"), state.fps_average);
   }
   else {
-    SNPRINTF(printable, IFACE_("fps: %i"), int(state.fps_average + 0.5f));
+    SNPRINTF_UTF8(printable, IFACE_("fps: %i"), int(state.fps_average + 0.5f));
   }
 
   BLF_draw_default(xoffset, *yoffset, 0.0f, printable, sizeof(printable));

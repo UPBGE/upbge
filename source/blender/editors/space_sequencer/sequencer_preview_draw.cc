@@ -18,7 +18,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -115,26 +115,19 @@ ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const cha
 
   seq::RenderData context = {nullptr};
   ImBuf *ibuf;
-  int rectx, recty;
-  double render_size;
   short is_break = G.is_break;
-
-  if (sseq->render_size == SEQ_RENDER_SIZE_NONE) {
+  const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+      sseq->render_size);
+  if (render_size_mode == SEQ_RENDER_SIZE_NONE) {
     return nullptr;
   }
 
-  if (sseq->render_size == SEQ_RENDER_SIZE_SCENE) {
-    render_size = scene->r.size / 100.0;
-  }
-  else {
-    render_size = seq::rendersize_to_scale_factor(sseq->render_size);
-  }
-
-  rectx = roundf(render_size * scene->r.xsch);
-  recty = roundf(render_size * scene->r.ysch);
+  const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
+  int rectx = roundf(render_scale * scene->r.xsch);
+  int recty = roundf(render_scale * scene->r.ysch);
 
   seq::render_new_render_data(
-      bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
+      bmain, depsgraph, scene, rectx, recty, render_size_mode, false, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
   context.use_proxies = (sseq->flag & SEQ_USE_PROXIES) != 0;
   context.is_playing = screen->animtimer != nullptr;
@@ -440,7 +433,7 @@ static void draw_histogram(ARegion &region,
 
     /* Label. */
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.2f", val);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
 
     float text_width, text_height;
     BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
@@ -505,7 +498,7 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
   for (int i = 0; i < 3; i++) {
     const float y = area.ymin + (area.ymax - area.ymin) * lines[i];
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.1f", lines[i]);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.1f", lines[i]);
     quads.add_line(x0, y, x1, y, col_grid);
     UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, buf_len, col_grid);
   }
@@ -839,11 +832,7 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
       }
       break;
     case SEQ_DRAW_IMG_HISTOGRAM: {
-      ImBuf *display_ibuf = IMB_dupImBuf(&ibuf);
-      IMB_colormanagement_imbuf_make_display_space(
-          display_ibuf, &view_settings, &display_settings);
-      scopes->histogram.calc_from_ibuf(display_ibuf);
-      IMB_freeImBuf(display_ibuf);
+      scopes->histogram.calc_from_ibuf(&ibuf, view_settings, display_settings);
     } break;
     case SEQ_DRAW_IMG_RGBPARADE:
       if (!scopes->sep_waveform_ibuf) {

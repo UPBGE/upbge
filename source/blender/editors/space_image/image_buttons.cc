@@ -111,8 +111,6 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
                       UI_UNIT_X * 5,
                       UI_UNIT_X,
                       &image->render_slot,
-                      float(slot_id),
-                      0.0,
                       "");
   }
 
@@ -975,7 +973,11 @@ void uiTemplateImage(uiLayout *layout,
   UI_block_funcN_set(block, nullptr, nullptr, nullptr);
 }
 
-void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_management)
+void uiTemplateImageSettings(uiLayout *layout,
+                             bContext *C,
+                             PointerRNA *imfptr,
+                             bool color_management,
+                             const char *panel_idname)
 {
   ImageFormatData *imf = static_cast<ImageFormatData *>(imfptr->data);
   ID *id = imfptr->owner_id;
@@ -995,8 +997,8 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   col->prop(imfptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  /* Multi layer images and video media types only have a single supported format, so we needn't
-   * draw the format format enum. */
+  /* Multi layer images and video media types only have a single supported format,
+   * so we needn't draw the format enum. */
   if (imf->media_type == MEDIA_TYPE_IMAGE) {
     col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
@@ -1068,18 +1070,29 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   /* Override color management */
   if (color_management) {
-    col->separator();
-    col->prop(imfptr, "color_management", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
+    if (uiLayout *panel = col->panel(C,
+                                     panel_idname ? panel_idname : "settings_color_management",
+                                     true,
+                                     IFACE_("Color Management")))
+    {
+      panel->separator();
+      panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, " ", ICON_NONE);
+
+      uiLayout *color_settings = &panel->column(true);
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
-        PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
-        col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+        if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
+          PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
+          color_settings->prop(
+              &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+        }
       }
       else {
         PointerRNA display_settings_ptr = RNA_pointer_get(imfptr, "display_settings");
-        col->prop(&display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        uiTemplateColormanagedViewSettings(col, nullptr, imfptr, "view_settings");
+        color_settings->prop(
+            &display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        uiTemplateColormanagedViewSettings(color_settings, nullptr, imfptr, "view_settings");
+        color_settings->enabled_set(imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE);
       }
     }
   }
@@ -1209,40 +1222,40 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   col->alignment_set(blender::ui::LayoutAlign::Right);
 
   if (ibuf == nullptr) {
-    col->label(RPT_("Can't Load Image"), ICON_NONE);
+    col->label(RPT_("Cannot Load Image"), ICON_NONE);
   }
   else {
     char str[MAX_IMAGE_INFO_LEN] = {0};
     const int len = MAX_IMAGE_INFO_LEN;
     int ofs = 0;
 
-    ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_("%d \u00D7 %d, "), ibuf->x, ibuf->y);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_("%d \u00D7 %d, "), ibuf->x, ibuf->y);
 
     if (ibuf->float_buffer.data) {
       if (ibuf->channels != 4) {
-        ofs += BLI_snprintf_rlen(
+        ofs += BLI_snprintf_utf8_rlen(
             str + ofs, len - ofs, RPT_("%d float channel(s)"), ibuf->channels);
       }
       else if (ibuf->planes == R_IMF_PLANES_RGBA) {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGBA float"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGBA float"), len - ofs);
       }
       else {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGB float"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGB float"), len - ofs);
       }
     }
     else {
       if (ibuf->planes == R_IMF_PLANES_RGBA) {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGBA byte"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGBA byte"), len - ofs);
       }
       else {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGB byte"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGB byte"), len - ofs);
       }
     }
 
     blender::gpu::TextureFormat texture_format = IMB_gpu_get_texture_format(
         ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
     const char *texture_format_description = GPU_texture_format_name(texture_format);
-    ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
 
     col->label(str, ICON_NONE);
   }
@@ -1264,16 +1277,16 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
 
     if (duration > 0) {
       /* Movie duration */
-      SNPRINTF(str, RPT_("Frame %d / %d"), framenr, duration);
+      SNPRINTF_UTF8(str, RPT_("Frame %d / %d"), framenr, duration);
     }
     else if (ima->source == IMA_SRC_SEQUENCE && ibuf) {
       /* Image sequence frame number + filename */
       const char *filename = BLI_path_basename(ibuf->filepath);
-      SNPRINTF(str, RPT_("Frame %d: %s"), framenr, filename);
+      SNPRINTF_UTF8(str, RPT_("Frame %d: %s"), framenr, filename);
     }
     else {
       /* Frame number */
-      SNPRINTF(str, RPT_("Frame %d"), framenr);
+      SNPRINTF_UTF8(str, RPT_("Frame %d"), framenr);
     }
 
     col->label(str, ICON_NONE);
@@ -1307,10 +1320,10 @@ void image_buttons_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype image panel metadata");
-  STRNCPY(pt->idname, "IMAGE_PT_metadata");
-  STRNCPY(pt->label, N_("Metadata"));
-  STRNCPY(pt->category, "Image");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "IMAGE_PT_metadata");
+  STRNCPY_UTF8(pt->label, N_("Metadata"));
+  STRNCPY_UTF8(pt->category, "Image");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->order = 10;
   pt->poll = metadata_panel_context_poll;
   pt->draw = metadata_panel_context_draw;

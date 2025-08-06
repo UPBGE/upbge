@@ -50,6 +50,8 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
+#include "CLG_log.h"
+
 /* for keyframes and drivers */
 static int pyrna_struct_anim_args_parse_ex(PointerRNA *ptr,
                                            const char *error_prefix,
@@ -64,7 +66,7 @@ static int pyrna_struct_anim_args_parse_ex(PointerRNA *ptr,
 
   if (ptr->data == nullptr) {
     PyErr_Format(
-        PyExc_TypeError, "%.200s this struct has no data, can't be animated", error_prefix);
+        PyExc_TypeError, "%.200s this struct has no data, cannot be animated", error_prefix);
     return -1;
   }
 
@@ -436,7 +438,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
     BKE_reports_free(&reports);
     return nullptr;
   }
-  BKE_report_print_level_set(&reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
+  BKE_report_print_level_set(&reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
   BPy_reports_write_stdout(&reports, nullptr);
   BKE_reports_free(&reports);
 

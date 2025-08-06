@@ -183,6 +183,20 @@ void pyrna_invalidate(BPy_DummyPointerRNA *self)
   self->ptr->invalidate();
 }
 
+static void pyrna_prop_warn_deprecated(const PointerRNA *ptr,
+                                       const PropertyRNA *prop,
+                                       const DeprecatedRNA *deprecated)
+{
+  PyErr_WarnFormat(PyExc_DeprecationWarning,
+                   1,
+                   "'%s.%s' is expected to be removed in Blender %d.%d",
+                   RNA_struct_identifier(ptr->type),
+                   RNA_property_identifier(prop),
+                   deprecated->removal_version / 100,
+                   deprecated->removal_version % 100,
+                   deprecated->note);
+}
+
 #ifdef USE_PYRNA_INVALIDATE_GC
 #  define FROM_GC(g) ((PyObject *)(((PyGC_Head *)g) + 1))
 
@@ -1090,7 +1104,7 @@ static PyObject *pyrna_prop_str(BPy_PropertyRNA *self)
     return nullptr;
   }
 
-  STRNCPY(type_lower, type_id);
+  STRNCPY_UTF8(type_lower, type_id);
   BLI_str_tolower_ascii(type_lower, sizeof(type_lower));
 
   int len = -1;
@@ -1102,7 +1116,7 @@ static PyObject *pyrna_prop_str(BPy_PropertyRNA *self)
   }
 
   if (len != -1) {
-    SNPRINTF(type_count, "[%d]", len);
+    SNPRINTF_UTF8(type_count, "[%d]", len);
   }
   else {
     type_count[0] = '\0';
@@ -1403,7 +1417,7 @@ static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 
 #if 0 /* Gives Python decoding errors while generating docs :( */
         char error_str[256];
-        BLI_snprintf(error_str,
+        BLI_snprintf_utf8(error_str,
                      sizeof(error_str),
                      "RNA Warning: Current value \"%d\" "
                      "matches no enum in '%s', '%s', '%s'",
@@ -1435,6 +1449,10 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 {
   PyObject *ret;
   const int type = RNA_property_type(prop);
+
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    pyrna_prop_warn_deprecated(ptr, prop, deprecated);
+  }
 
   if (RNA_property_array_check(prop)) {
     return pyrna_py_from_array(ptr, prop);
@@ -1606,6 +1624,10 @@ static int pyrna_py_to_prop(
 {
   /* XXX hard limits should be checked here. */
   const int type = RNA_property_type(prop);
+
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    pyrna_prop_warn_deprecated(ptr, prop, deprecated);
+  }
 
   if (RNA_property_array_check(prop)) {
     /* Done getting the length. */
@@ -1819,10 +1841,10 @@ static int pyrna_py_to_prop(
             if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
               if (BLI_path_is_rel(param)) {
                 char warning_buf[256];
-                SNPRINTF(warning_buf,
-                         "%.200s.%.200s: does not support blend relative \"//\" prefix",
-                         RNA_struct_identifier(ptr->type),
-                         RNA_property_identifier(prop));
+                SNPRINTF_UTF8(warning_buf,
+                              "%.200s.%.200s: does not support blend relative \"//\" prefix",
+                              RNA_struct_identifier(ptr->type),
+                              RNA_property_identifier(prop));
                 PyErr_WarnEx(PyExc_RuntimeWarning, warning_buf, 1);
               }
             }
@@ -1944,7 +1966,7 @@ static int pyrna_py_to_prop(
           else {
             PyErr_Format(PyExc_TypeError,
                          "%.200s %.200s.%.200s collection has no type, "
-                         "can't be used as a %.200s type",
+                         "cannot be used as a %.200s type",
                          error_prefix,
                          RNA_struct_identifier(ptr->type),
                          RNA_property_identifier(prop),
@@ -1997,7 +2019,7 @@ static int pyrna_py_to_prop(
               /* Allow passing temporary ID's to functions, but not attribute assignment. */
               if (ptr->type != &RNA_Function) {
                 PyErr_Format(PyExc_TypeError,
-                             "%.200s %.200s.%.200s ID type assignment is temporary, can't assign",
+                             "%.200s %.200s.%.200s ID type assignment is temporary, cannot assign",
                              error_prefix,
                              RNA_struct_identifier(ptr->type),
                              RNA_property_identifier(prop));
@@ -4551,7 +4573,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
     bContext *C = static_cast<bContext *>(self->ptr->data);
     if (C == nullptr) {
       PyErr_Format(PyExc_AttributeError,
-                   "bpy_struct: Context is 'nullptr', can't get \"%.200s\" from context",
+                   "bpy_struct: Context is 'nullptr', cannot get \"%.200s\" from context",
                    name);
       ret = nullptr;
     }
@@ -4655,7 +4677,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
             BLI_assert_msg(0, "Invalid context type");
 
             PyErr_Format(PyExc_AttributeError,
-                         "bpy_struct: Context type invalid %d, can't get \"%.200s\" from context",
+                         "bpy_struct: Context type invalid %d, cannot get \"%.200s\" from context",
                          newtype,
                          name);
             ret = nullptr;
@@ -4752,7 +4774,7 @@ static int pyrna_struct_meta_idprop_setattro(PyObject *cls, PyObject *attr, PyOb
   {
     PyErr_Format(PyExc_AttributeError,
                  "pyrna_struct_meta_idprop_setattro() "
-                 "can't set in readonly state '%.200s.%S'",
+                 "cannot set in readonly state '%.200s.%S'",
                  ((PyTypeObject *)cls)->tp_name,
                  attr);
     return -1;
@@ -4837,7 +4859,7 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
     bContext *C = static_cast<bContext *>(self->ptr->data);
     if (C == nullptr) {
       PyErr_Format(PyExc_AttributeError,
-                   "bpy_struct: Context is 'nullptr', can't set \"%.200s\" from context",
+                   "bpy_struct: Context is 'nullptr', cannot set \"%.200s\" from context",
                    name);
       return -1;
     }
@@ -6581,21 +6603,21 @@ static void pyrna_func_error_prefix(BPy_FunctionRNA *self,
   PointerRNA *self_ptr = &self->ptr.value();
   FunctionRNA *self_func = self->func;
   if (parm_index == -1) {
-    BLI_snprintf(error,
-                 error_size,
-                 "%.200s.%.200s(): error with keyword argument \"%.200s\" - ",
-                 RNA_struct_identifier(self_ptr->type),
-                 RNA_function_identifier(self_func),
-                 RNA_property_identifier(parm));
+    BLI_snprintf_utf8(error,
+                      error_size,
+                      "%.200s.%.200s(): error with keyword argument \"%.200s\" - ",
+                      RNA_struct_identifier(self_ptr->type),
+                      RNA_function_identifier(self_func),
+                      RNA_property_identifier(parm));
   }
   else {
-    BLI_snprintf(error,
-                 error_size,
-                 "%.200s.%.200s(): error with argument %d, \"%.200s\" - ",
-                 RNA_struct_identifier(self_ptr->type),
-                 RNA_function_identifier(self_func),
-                 parm_index + 1,
-                 RNA_property_identifier(parm));
+    BLI_snprintf_utf8(error,
+                      error_size,
+                      "%.200s.%.200s(): error with argument %d, \"%.200s\" - ",
+                      RNA_struct_identifier(self_ptr->type),
+                      RNA_function_identifier(self_func),
+                      parm_index + 1,
+                      RNA_property_identifier(parm));
   }
 }
 
@@ -10074,7 +10096,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
 
   if (!pyrna_write_check()) {
     PyErr_Format(PyExc_RuntimeError,
-                 "%s can't run in readonly state '%.200s'",
+                 "%s cannot run in readonly state '%.200s'",
                  error_prefix,
                  ((PyTypeObject *)py_class)->tp_name);
     return nullptr;
@@ -10172,7 +10194,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
   if (!BLI_listbase_is_empty(&reports.list)) {
     const bool has_error = (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1);
     if (!has_error) {
-      BKE_report_print_level_set(&reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
+      BKE_report_print_level_set(&reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
       BPy_reports_write_stdout(&reports, error_prefix);
     }
     if (has_error) {
@@ -10305,7 +10327,7 @@ static PyObject *pyrna_unregister_class(PyObject * /*self*/, PyObject *py_class)
 
   if (!pyrna_write_check()) {
     PyErr_Format(PyExc_RuntimeError,
-                 "%s can't run in readonly state '%.200s'",
+                 "%s cannot run in readonly state '%.200s'",
                  error_prefix,
                  ((PyTypeObject *)py_class)->tp_name);
     return nullptr;
@@ -10376,7 +10398,7 @@ static PyObject *pyrna_unregister_class(PyObject * /*self*/, PyObject *py_class)
 
     if (prop_identifier) {
       PyErr_Format(PyExc_RuntimeError,
-                   "%s can't unregister %s because %s.%s pointer property is using this",
+                   "%s cannot unregister %s because %s.%s pointer property is using this",
                    error_prefix,
                    RNA_struct_identifier(srna),
                    RNA_struct_identifier(srna_iter),

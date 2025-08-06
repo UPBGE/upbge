@@ -71,93 +71,59 @@ using namespace blender::ed::object;
 static void createVertsTrisData(
     bContext *C, LinkNode *obs, int *nverts_r, float **verts_r, int *ntris_r, int **tris_r)
 {
-  int nfaces = 0, *tri, i, curnverts, basenverts, curnfaces;
-  float co[3], wco[3];
   Object *ob;
   Mesh *me = nullptr;
-  LinkNode *oblink, *meshlink;
+  LinkNode *oblink;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  LinkNodePair meshes_pair = {nullptr, nullptr};
 
-  int nverts, ntris, *tris;
-  float *verts;
+  std::vector<float> verts_vec;
+  std::vector<int> tris_vec;
+  int base_vert_offset = 0;
 
-  nverts = 0;
-  ntris = 0;
-
-  /* calculate number of verts and tris */
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     me = (Mesh *)ob_eval->data;
-    BKE_mesh_tessface_ensure(me);
-    BLI_linklist_append(&meshes_pair, me);
 
-    nverts += me->verts_num;
-    nfaces = me->totface_legacy;
-    ntris += nfaces;
-
-    /* resolve quad faces */
-    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-    for (i = 0; i < nfaces; i++) {
-      const MFace *face = &faces[i];
-      if (face->v4) {
-        ntris += 1;
-      }
-    }
-  }
-  LinkNode *meshes = meshes_pair.list;
-
-  /* create data */
-  verts = (float *)MEM_mallocN(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
-  tris = (int *)MEM_mallocN(sizeof(int) * 3 * ntris, "createVertsTrisData faces");
-
-  basenverts = 0;
-  tri = tris;
-  for (oblink = obs, meshlink = meshes; oblink && meshlink;
-       oblink = oblink->next, meshlink = meshlink->next) {
-    ob = (Object *)oblink->link;
-    me = (Mesh *)meshlink->link;
-
-    curnverts = me->verts_num;
     const blender::Span<blender::float3> positions = me->vert_positions();
+    const blender::Span<blender::int3> tris_span = me->corner_tris();
+    const blender::Span<int> corner_verts = me->corner_verts();
 
-    /* copy verts */
-    for (i = 0; i < curnverts; i++) {
-      const float *v = &positions[i][0];
+    std::vector<int> vert_map(me->verts_num, -1);
 
-      copy_v3_v3(co, v);
-      mul_v3_m4v3(wco, ob->object_to_world().ptr(), co);
+    for (int t = 0; t < tris_span.size(); t++) {
+      int tri_indices[3];
+      for (int j = 0; j < 3; ++j) {
+        int corner = tris_span[t][j];
+        int vert_i = corner_verts[corner];
 
-      verts[3 * (basenverts + i) + 0] = wco[0];
-      verts[3 * (basenverts + i) + 1] = wco[2];
-      verts[3 * (basenverts + i) + 2] = wco[1];
-    }
-
-    /* create tris */
-    curnfaces = me->totface_legacy;
-    const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-
-    for (i = 0; i < curnfaces; i++) {
-      const MFace *face = &faces[i];
-
-      tri[0] = basenverts + face->v1;
-      tri[1] = basenverts + face->v3;
-      tri[2] = basenverts + face->v2;
-      tri += 3;
-
-      if (face->v4) {
-        tri[0] = basenverts + face->v1;
-        tri[1] = basenverts + face->v4;
-        tri[2] = basenverts + face->v3;
-        tri += 3;
+        if (vert_map[vert_i] == -1) {
+          float co[3], wco[3];
+          const float *v = &positions[vert_i][0];
+          copy_v3_v3(co, v);
+          mul_v3_m4v3(wco, ob->object_to_world().ptr(), co);
+          verts_vec.push_back(wco[0]);
+          verts_vec.push_back(wco[2]);  // swap Y/Z
+          verts_vec.push_back(wco[1]);
+          vert_map[vert_i] = base_vert_offset + (int)(verts_vec.size() / 3) - 1;
+        }
+        tri_indices[j] = vert_map[vert_i];
       }
+      tris_vec.push_back(tri_indices[0]);
+      tris_vec.push_back(tri_indices[2]);
+      tris_vec.push_back(tri_indices[1]);
     }
-
-    basenverts += curnverts;
+    base_vert_offset = (int)(verts_vec.size() / 3);
   }
 
-  BLI_linklist_free(meshes, nullptr);
+  int nverts = (int)(verts_vec.size() / 3);
+  int ntris = (int)(tris_vec.size() / 3);
+
+  float *verts = (float *)MEM_mallocN(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
+  int *tris = (int *)MEM_mallocN(sizeof(int) * 3 * ntris, "createVertsTrisData faces");
+
+  std::copy(verts_vec.begin(), verts_vec.end(), verts);
+  std::copy(tris_vec.begin(), tris_vec.end(), tris);
 
   *nverts_r = nverts;
   *verts_r = verts;

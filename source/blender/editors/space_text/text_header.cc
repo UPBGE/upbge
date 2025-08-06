@@ -9,7 +9,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -37,10 +37,10 @@ static ARegion *text_has_properties_region(ScrArea *area)
     return region;
   }
 
-  /* add subdiv level; after header */
+  /* Add subdiv level; after header. */
   region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-  /* is error! */
+  /* Is error! */
   if (region == nullptr) {
     return nullptr;
   }
@@ -76,7 +76,7 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
       if (active_region && active_region->regiontype == RGN_TYPE_WINDOW) {
         const char *sel_start = text->curl->line + std::min(text->curc, text->selc);
         const int sel_len = std::abs(text->curc - text->selc);
-        BLI_strncpy(st->findstr, sel_start, std::min(sel_len + 1, ST_MAX_FIND_STR));
+        BLI_strncpy_utf8(st->findstr, sel_start, std::min(sel_len + 1, ST_MAX_FIND_STR));
       }
     }
 
@@ -108,7 +108,7 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
 
 void TEXT_OT_start_find(wmOperatorType *ot)
 {
-  /* identifiers */
+  /* Identifiers. */
   ot->name = "Find";
   ot->description = "Start searching text";
   ot->idname = "TEXT_OT_start_find";

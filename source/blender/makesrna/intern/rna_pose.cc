@@ -256,7 +256,7 @@ static void rna_PoseChannel_name_set(PointerRNA *ptr, const char *value)
 
   /* need to be on the stack */
   STRNCPY_UTF8(newname, value);
-  STRNCPY(oldname, pchan->name);
+  STRNCPY(oldname, pchan->name); /* Allow non UTF8 encoding for the old name. */
 
   BLI_assert(BKE_id_is_in_global_main(&ob->id));
   BLI_assert(BKE_id_is_in_global_main(static_cast<ID *>(ob->data)));
@@ -905,7 +905,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop,
       "Rotation Mode",
       /* This description is shared by other "rotation_mode" properties. */
-      "The kind of rotation to apply, values from other rotation modes aren't used");
+      "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   /* Curved bones settings - Applied on top of rest-pose values. */

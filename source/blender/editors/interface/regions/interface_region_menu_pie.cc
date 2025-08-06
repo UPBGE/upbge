@@ -17,7 +17,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -141,7 +141,7 @@ uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmE
                                            0,
                                            style);
 
-  /* NOTE: #wmEvent.xy is where we started dragging in case of #KM_CLICK_DRAG. */
+  /* NOTE: #wmEvent.xy is where we started dragging in case of #KM_PRESS_DRAG. */
   pie->mx = event->xy[0];
   pie->my = event->xy[1];
 
@@ -151,21 +151,10 @@ uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmE
     char titlestr[256];
     int w;
     if (icon) {
-      SNPRINTF(titlestr, " %s", title);
+      SNPRINTF_UTF8(titlestr, " %s", title);
       w = ui_pie_menu_title_width(titlestr, icon);
-      but = uiDefIconTextBut(pie->pie_block,
-                             ButType::Label,
-                             0,
-                             icon,
-                             titlestr,
-                             0,
-                             0,
-                             w,
-                             UI_UNIT_Y,
-                             nullptr,
-                             0.0,
-                             0.0,
-                             "");
+      but = uiDefIconTextBut(
+          pie->pie_block, ButType::Label, 0, icon, titlestr, 0, 0, w, UI_UNIT_Y, nullptr, "");
     }
     else {
       w = ui_pie_menu_title_width(title, 0);
@@ -311,7 +300,7 @@ void ui_pie_menu_level_create(uiBlock *block,
 
   /* yuk, static... issue is we can't reliably free this without doing dangerous changes */
   static PieMenuLevelData lvl;
-  STRNCPY(lvl.title, block->pie_data.title);
+  STRNCPY_UTF8(lvl.title, block->pie_data.title);
   lvl.totitem = totitem_remain;
   lvl.ot = ot;
   lvl.propname = propname;
@@ -330,8 +319,6 @@ void ui_pie_menu_level_create(uiBlock *block,
                                 UI_UNIT_X * 3,
                                 UI_UNIT_Y,
                                 nullptr,
-                                0.0f,
-                                0.0f,
                                 "Show more items of this menu");
   UI_but_funcN_set(but, ui_pie_menu_level_invoke, remaining, &lvl);
 }

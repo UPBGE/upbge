@@ -3081,7 +3081,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   if (!bm) {
     delete motionstate;
-    shapeInfo->Release();
+    if (shapeInfo && shapeInfo->m_shapeType > PHY_SHAPE_NONE) {
+      shapeInfo->Release();
+    }
     return;
   }
 

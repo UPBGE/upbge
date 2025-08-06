@@ -106,7 +106,7 @@ static void rna_Object_select_set(
     if (select) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be selected because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be selected because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -141,7 +141,7 @@ static void rna_Object_hide_set(
     if (hide) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be hidden because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be hidden because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -458,6 +458,10 @@ static PointerRNA rna_Object_shape_key_add(
   KeyBlock *kb = nullptr;
 
   if ((kb = BKE_object_shapekey_insert(bmain, ob, name, from_mix))) {
+    /* Set the initial blend value. */
+    kb->curval = 1.0f;
+    CLAMP(kb->curval, kb->slidermin, kb->slidermax);
+
     PointerRNA keyptr = RNA_pointer_create_discrete(
         (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);

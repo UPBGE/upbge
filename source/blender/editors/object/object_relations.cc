@@ -32,7 +32,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
 
@@ -477,7 +477,7 @@ void parent_set(Object *ob, Object *par, const int type, const char *substr)
   ob->parent = par;
   ob->partype &= ~PARTYPE;
   ob->partype |= type;
-  STRNCPY(ob->parsubstr, substr);
+  STRNCPY_UTF8(ob->parsubstr, substr);
 }
 
 const EnumPropertyItem prop_make_parent_types[] = {
@@ -592,7 +592,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
 
   /* Handle types. */
   if (pchan) {
-    STRNCPY(ob->parsubstr, pchan->name);
+    STRNCPY_UTF8(ob->parsubstr, pchan->name);
   }
   else {
     ob->parsubstr[0] = 0;
@@ -2006,7 +2006,7 @@ static void single_obdata_users(
                                                  LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
             break;
           default:
-            printf("ERROR %s: can't copy %s\n", __func__, id->name);
+            printf("ERROR %s: cannot copy %s\n", __func__, id->name);
             BLI_assert_msg(0, "This should never happen.");
 
             /* We need to end the FOREACH_OBJECT_FLAG_BEGIN iterator to prevent memory leak. */
@@ -3186,7 +3186,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
         ob->data = nullptr;
       }
       else {
-        BKE_report(op->reports, RPT_ERROR, "Can't unlink this object data");
+        BKE_report(op->reports, RPT_ERROR, "Cannot unlink this object data");
         return OPERATOR_CANCELLED;
       }
     }

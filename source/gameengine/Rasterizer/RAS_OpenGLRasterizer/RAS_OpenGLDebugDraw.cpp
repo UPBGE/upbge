@@ -28,7 +28,9 @@
 #include "BLF_api.hh"
 #include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
+#include "GPU_batch.hh"
 #include "GPU_immediate.hh"
+#include "GPU_vertex_buffer.hh"
 
 #include "KX_Camera.h"
 #include "KX_Globals.h"
@@ -49,6 +51,40 @@ void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, u
 
 void RAS_OpenGLDebugDraw::UnbindVBO()
 {
+}
+
+void RAS_OpenGLDebugDraw::DrawDebugLinesBatch(const std::vector<RAS_DebugDraw::Line> &lines)
+{
+  using namespace blender::gpu;
+
+  GPUVertFormat format = {};
+  GPU_vertformat_attr_add(&format, "pos", VertAttrType::SFLOAT_32_32_32);
+  GPU_vertformat_attr_add(&format, "color", VertAttrType::SFLOAT_32_32_32_32);
+
+  const int vert_count = lines.size() * 2;
+  VertBuf *vbo = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_DYNAMIC);
+  GPU_vertbuf_data_alloc(*vbo, vert_count);
+
+  struct Vertex {
+    float pos[3];
+    float color[4];
+  };
+
+  Vertex *verts = reinterpret_cast<Vertex *>(vbo->data<Vertex>().data());
+
+  for (size_t i = 0; i < lines.size(); ++i) {
+    const RAS_DebugDraw::Line &line = lines[i];
+    memcpy(verts[2 * i + 0].pos, line.m_from.getValue(), sizeof(float) * 3);
+    memcpy(verts[2 * i + 1].pos, line.m_to.getValue(), sizeof(float) * 3);
+    memcpy(verts[2 * i + 0].color, line.m_color.getValue(), sizeof(float) * 4);
+    memcpy(verts[2 * i + 1].color, line.m_color.getValue(), sizeof(float) * 4);
+  }
+
+  Batch *batch = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_FLAT_COLOR);
+  GPU_batch_set_shader(batch, shader);
+  GPU_batch_draw(batch);
+  GPU_batch_discard(batch);
 }
 
 void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
@@ -96,22 +132,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       GPU_line_smooth(true);
       GPU_line_width(1.0f);
 
-      GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-      uint col = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-      immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
-
-      immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
-      for (int i = 0; i < debugDraw->m_lines.size(); i++) {
-        RAS_DebugDraw::Line line = debugDraw->m_lines[i];
-        const MT_Vector3 &min = line.m_from;
-        const MT_Vector3 &max = line.m_to;
-        immAttr4fv(col, line.m_color.getValue());
-        immVertex3fv(pos, min.getValue());
-        immVertex3fv(pos, max.getValue());
-      }
-      immEnd();
-      immUnbindProgram();
+      DrawDebugLinesBatch(debugDraw->m_lines);
 
       /* Reset defaults */
       GPU_line_smooth(false);

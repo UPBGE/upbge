@@ -39,8 +39,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_report.hh"
+
+#include "CLG_log.h"
 
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
@@ -75,7 +76,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
@@ -146,7 +147,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
@@ -182,7 +183,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   if (!pyrna_write_check()) {
     PyErr_Format(PyExc_RuntimeError,
                  "Calling operator \"bpy.ops.%s\" error, "
-                 "can't modify blend data in this state (drawing/rendering)",
+                 "cannot modify blend data in this state (drawing/rendering)",
                  opname);
     return nullptr;
   }
@@ -257,7 +258,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       if (!BLI_listbase_is_empty(&reports->list)) {
         /* Restore the print level as this is owned by the operator now. */
         eReportType level = eReportType(reports->printlevel);
-        BKE_report_print_level_set(reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
+        BKE_report_print_level_set(reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
         BPy_reports_write_stdout(reports, nullptr);
         BKE_report_print_level_set(reports, level);
       }
@@ -318,7 +319,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
   if (C == nullptr) {
     PyErr_SetString(PyExc_RuntimeError,
-                    "Context is None, can't get the string representation of this object.");
+                    "Context is None, cannot get the string representation of this object.");
     return nullptr;
   }
 

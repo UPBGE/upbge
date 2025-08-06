@@ -106,6 +106,16 @@ typedef struct uiStyle {
   char _pad0[2];
 } uiStyle;
 
+typedef struct ThemeCommonAnim {
+  /** Preview range overlay. */
+  unsigned char preview_range[4];
+} ThemeCommonAnim;
+
+typedef struct ThemeCommon {
+  ThemeCommonAnim anim;
+  char _pad[4];
+} ThemeCommon;
+
 typedef struct uiWidgetColors {
   unsigned char outline[4];
   unsigned char outline_sel[4];
@@ -162,14 +172,14 @@ typedef struct ThemeUI {
   /* Transparent Grid */
   unsigned char transparent_checker_primary[4], transparent_checker_secondary[4];
   unsigned char transparent_checker_size;
-  char _pad1[1];
+  char _pad1[5];
 
   float icon_alpha;
   float icon_saturation;
   unsigned char widget_text_cursor[4];
 
   /* Axis Colors */
-  unsigned char xaxis[4], yaxis[4], zaxis[4];
+  unsigned char xaxis[4], yaxis[4], zaxis[4], waxis[4];
 
   /* Gizmo Colors. */
   unsigned char gizmo_hi[4];
@@ -401,8 +411,7 @@ typedef struct ThemeSpace {
   unsigned char anim_active[4];
   /** Active Action = NULL. */
   unsigned char anim_non_active[4];
-  /** Preview range overlay. */
-  unsigned char anim_preview_range[4];
+  char _pad8[4];
 
   /** NLA 'Tweaking' action/strip. */
   unsigned char nla_tweaking[4];
@@ -490,6 +499,8 @@ typedef struct bTheme {
   char filepath[/*FILE_MAX*/ 1024];
 
   ThemeUI tui;
+
+  ThemeCommon common;
 
   /**
    * Individual Space-types:

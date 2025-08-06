@@ -123,14 +123,16 @@ bool OSLManager::need_update() const
 
 void OSLManager::device_update_pre(Device *device, Scene *scene)
 {
+  if (scene->shader_manager->use_osl() || !scene->camera->script_name.empty()) {
+    shading_system_init();
+  }
+
   if (!need_update()) {
     return;
   }
 
   /* set texture system (only on CPU devices, since GPU devices cannot use OIIO) */
   if (scene->shader_manager->use_osl()) {
-    shading_system_init();
-
     /* add special builtin texture types */
     foreach_render_services([](OSLRenderServices *services) {
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandle::AO));
@@ -172,6 +174,10 @@ void OSLManager::device_update_post(Device *device,
       }
       ss->Shader(*group, "shader", scene->camera->script_name, "camera");
       ss->ShaderGroupEnd(*group);
+
+      og->ss = ss;
+      og->ts = get_texture_system();
+      og->services = static_cast<OSLRenderServices *>(ss->renderer());
 
       og->camera_state = group;
       og->use_camera = true;
@@ -275,11 +281,9 @@ void OSLManager::device_free(Device *device, DeviceScene * /*dscene*/, Scene *sc
   /* clear shader engine */
   foreach_osl_device(device, [](Device *, OSLGlobals *og) {
     og->use_shading = false;
+    og->use_camera = false;
     og->ss = nullptr;
     og->ts = nullptr;
-
-    og->use_shading = false;
-    og->use_camera = false;
     og->camera_state.reset();
   });
 
@@ -631,7 +635,12 @@ void OSLShaderManager::device_update_specific(Device *device,
   LOG_INFO << "Total " << scene->shaders.size() << " shaders.";
 
   /* setup shader engine */
-  OSLManager::foreach_osl_device(device, [](Device *, OSLGlobals *og) {
+  OSLManager::foreach_osl_device(device, [scene](Device *sub_device, OSLGlobals *og) {
+    OSL::ShadingSystem *ss = scene->osl_manager->get_shading_system(sub_device);
+    og->ss = ss;
+    og->ts = scene->osl_manager->get_texture_system();
+    og->services = static_cast<OSLRenderServices *>(ss->renderer());
+
     og->use_shading = true;
 
     og->surface_state.clear();

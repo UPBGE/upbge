@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "BLI_math_vector_types.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
 #include "MT_Matrix4x4.h"
@@ -118,6 +119,14 @@ class RAS_Shader {
   // Stored uniform variables
   RAS_UniformVec m_uniforms;
   RAS_UniformVecDef m_preDef;
+  struct bgl_Data {
+    float width;
+    float height;
+    float _pad[2];
+    float coo_offset[9][4];
+  };
+  bgl_Data m_uboData;
+  GPUUniformBuf *m_ubo;
 
   std::vector<UniformConstant> m_constantUniforms;
   std::vector<std::pair<int, std::string>> m_samplerUniforms;

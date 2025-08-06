@@ -17,6 +17,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_selection.hh"
 
 #include "NOD_rna_define.hh"
@@ -24,6 +25,20 @@
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_scale_elements_cc {
+
+static const EnumPropertyItem scale_mode_items[] = {
+    {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
+     "UNIFORM",
+     ICON_NONE,
+     "Uniform",
+     "Scale elements by the same factor in every direction"},
+    {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
+     "SINGLE_AXIS",
+     ICON_NONE,
+     "Single Axis",
+     "Scale elements in a single direction"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -35,6 +50,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Geometry to scale elements of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
   b.add_input<decl::Float>("Scale", "Scale").default_value(1.0f).min(0.0f).field_on_all();
   b.add_input<decl::Vector>("Center")
       .subtype(PROP_TRANSLATION)
@@ -42,30 +58,24 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Origin of the scaling for each element. If multiple elements are connected, their "
           "center is averaged");
-  auto &axis = b.add_input<decl::Vector>("Axis")
-                   .default_value({1.0f, 0.0f, 0.0f})
-                   .field_on_all()
-                   .description("Direction in which to scale the element")
-                   .make_available(
-                       [](bNode &node) { node.custom2 = GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS; });
-
-  const bNode *node = b.node_or_null();
-  if (node != nullptr) {
-    const GeometryNodeScaleElementsMode mode = GeometryNodeScaleElementsMode(node->custom2);
-    axis.available(mode == GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS);
-  }
+  b.add_input<decl::Menu>("Scale Mode")
+      .static_items(scale_mode_items)
+      .default_value(GEO_NODE_SCALE_ELEMENTS_UNIFORM);
+  b.add_input<decl::Vector>("Axis")
+      .default_value({1.0f, 0.0f, 0.0f})
+      .field_on_all()
+      .description("Direction in which to scale the element")
+      .usage_by_single_menu(GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS);
 };
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "scale_mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = int16_t(AttrDomain::Face);
-  node->custom2 = GEO_NODE_SCALE_ELEMENTS_UNIFORM;
 }
 
 static Array<int> create_reverse_offsets(const Span<int> indices, const int items_num)
@@ -457,7 +467,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
   const AttrDomain domain = AttrDomain(node.custom1);
-  const GeometryNodeScaleElementsMode scale_mode = GeometryNodeScaleElementsMode(node.custom2);
+  const auto scale_mode = params.get_input<GeometryNodeScaleElementsMode>("Scale Mode");
 
   GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
 
@@ -465,7 +475,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> scale_field = params.extract_input<Field<float>>("Scale");
   const Field<float3> center_field = params.extract_input<Field<float3>>("Center");
 
-  geometry.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       const bke::MeshFieldContext context{*mesh, domain};
       FieldEvaluator evaluator{context, mesh->attributes().domain_size(domain)};
@@ -538,20 +548,6 @@ static void node_rna(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem scale_mode_items[] = {
-      {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
-       "UNIFORM",
-       ICON_NONE,
-       "Uniform",
-       "Scale elements by the same factor in every direction"},
-      {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
-       "SINGLE_AXIS",
-       ICON_NONE,
-       "Single Axis",
-       "Scale elements in a single direction"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   RNA_def_node_enum(srna,
                     "domain",
                     "Domain",
@@ -559,9 +555,6 @@ static void node_rna(StructRNA *srna)
                     domain_items,
                     NOD_inline_enum_accessors(custom1),
                     int(AttrDomain::Face));
-
-  RNA_def_node_enum(
-      srna, "scale_mode", "Scale Mode", "", scale_mode_items, NOD_inline_enum_accessors(custom2));
 }
 
 static void node_register()

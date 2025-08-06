@@ -4,8 +4,8 @@
 
 #include "DNA_mesh_types.h"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_triangulate.hh"
-
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -60,6 +60,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .is_default_link_socket()
+      .description("Mesh to triangulate");
+  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Menu>("Quad Method")
       .static_items(rna_node_geometry_triangulate_quad_method_items)
       .default_value(int(geometry::TriangulateQuadMode::ShortEdge))
@@ -68,12 +74,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(int(geometry::TriangulateNGonMode::Beauty))
       .static_items(rna_node_geometry_triangulate_ngon_method_items)
       .description("Method for splitting the n-gons into triangles");
-  b.add_input<decl::Geometry>("Mesh")
-      .supported_type(GeometryComponent::Type::Mesh)
-      .is_default_link_socket()
-      .description("Mesh to triangulate");
-  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -85,7 +85,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const auto ngon_method = params.extract_input<geometry::TriangulateNGonMode>("N-gon Method");
   const auto quad_method = params.extract_input<geometry::TriangulateQuadMode>("Quad Method");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *src_mesh = geometry_set.get_mesh();
     if (!src_mesh) {
       return;

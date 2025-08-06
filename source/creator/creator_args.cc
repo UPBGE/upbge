@@ -1040,7 +1040,7 @@ static const char arg_handle_quiet_set_doc[] =
     "Suppress status printing (warnings & errors are still printed).";
 static int arg_handle_quiet_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   return 0;
 }
 
@@ -1075,7 +1075,7 @@ static const char arg_handle_background_mode_set_doc[] =
     "\tand can be re-enabled by passing in '-setaudio Default' afterwards.";
 static int arg_handle_background_mode_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  if (!G.quiet) {
+  if (!CLG_quiet_get()) {
     print_version_short();
   }
   background_mode_set();
@@ -1098,7 +1098,7 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
       BLI_assert_unreachable();
     }
     /* Application "info" messages get in the way of command line output, suppress them. */
-    G.quiet = true;
+    CLG_quiet_set(true);
 
     background_mode_set();
 
@@ -1192,7 +1192,7 @@ static int arg_handle_log_level_set(int argc, const char **argv, void * /*data*/
     else if (parse_int_clamp(argv[1], nullptr, -1, INT_MAX, &G.log.level, &err_msg)) {
       /* Numeric level for backwards compatibility. */
       if (G.log.level < 0) {
-        G.log.level = INT_MAX;
+        G.log.level = CLG_LEVEL_LEN - 1;
       }
       else {
         G.log.level = std::min(CLG_LEVEL_INFO + G.log.level, CLG_LEVEL_LEN - 1);
@@ -1563,7 +1563,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (false) {
-    /* Just a dummy if to make the following ifdef blocks work. */
+    /* Use a dummy block to make the following `ifdef` blocks work. */
   }
 #  ifdef WITH_OPENGL_BACKEND
   else if (STREQ(argv[1], (backends_supported[backends_supported_num++] = "opengl"))) {
@@ -1854,7 +1854,7 @@ static const char arg_handle_register_extension_doc[] =
     "Register blend-file extension for current user, then exit (Windows & Linux only).";
 static int arg_handle_register_extension(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -1872,7 +1872,7 @@ static const char arg_handle_register_extension_all_doc[] =
     "Register blend-file extension for all users, then exit (Windows & Linux only).";
 static int arg_handle_register_extension_all(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -1890,7 +1890,7 @@ static const char arg_handle_unregister_extension_doc[] =
     "Unregister blend-file extension for current user, then exit (Windows & Linux only).";
 static int arg_handle_unregister_extension(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -1908,7 +1908,7 @@ static const char arg_handle_unregister_extension_all_doc[] =
     "Unregister blend-file extension for all users, then exit (Windows & Linux only).";
 static int arg_handle_unregister_extension_all(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))

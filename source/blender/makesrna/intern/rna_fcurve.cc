@@ -351,13 +351,6 @@ static void rna_DriverVariable_update_data(Main *bmain, Scene *scene, PointerRNA
 
 /* ----------- */
 
-/* NOTE: this function exists only to avoid id reference-counting. */
-static void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
-{
-  DriverTarget *dtar = (DriverTarget *)ptr->data;
-  dtar->id = static_cast<ID *>(value.data);
-}
-
 static StructRNA *rna_DriverTarget_id_typef(PointerRNA *ptr)
 {
   DriverTarget *dtar = (DriverTarget *)ptr->data;
@@ -1976,11 +1969,10 @@ static void rna_def_drivertarget(BlenderRNA *brna)
   prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ID");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_DriverTarget_id_editable");
-  /* NOTE: custom set function is ONLY to avoid rna setting a user for this. */
-  RNA_def_property_pointer_funcs(
-      prop, nullptr, "rna_DriverTarget_id_set", "rna_DriverTarget_id_typef", nullptr);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, "rna_DriverTarget_id_typef", nullptr);
   RNA_def_property_ui_text(prop,
                            "ID",
                            "ID-block that the specific property used can be found from "
@@ -2041,14 +2033,14 @@ static void rna_def_drivertarget(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "options", DTAR_OPTION_USE_FALLBACK);
   RNA_def_property_ui_text(prop,
                            "Use Fallback",
-                           "Use the fallback value if the data path can't be resolved, instead of "
-                           "failing to evaluate the driver");
+                           "Use the fallback value if the data path cannot be resolved, instead "
+                           "of failing to evaluate the driver");
   RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
 
   prop = RNA_def_property(srna, "fallback_value", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fallback_value");
   RNA_def_property_ui_text(
-      prop, "Fallback", "The value to use if the data path can't be resolved");
+      prop, "Fallback", "The value to use if the data path cannot be resolved");
   RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
 
   prop = RNA_def_property(srna, "is_fallback_used", PROP_BOOLEAN, PROP_NONE);
@@ -2563,7 +2555,8 @@ static void rna_def_fcurve(BlenderRNA *brna)
        "AUTO_YRGB",
        0,
        "Auto WXYZ to YRGB",
-       "Use axis colors for XYZ parts of transform, and yellow for the 'W' channel"},
+       "Use WXYZ axis colors for quaternion/axis-angle rotations, XYZ axis colors for other "
+       "transform and color properties, and auto-rainbow for the rest"},
       {FCURVE_COLOR_CUSTOM,
        "CUSTOM",
        0,

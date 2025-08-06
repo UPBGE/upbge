@@ -201,12 +201,12 @@ static void rna_progress_begin(wmWindowManager * /*wm*/, float min, float max)
 static void rna_progress_update(wmWindowManager *wm, float value)
 {
   if (wm_progress_state.is_valid) {
-    /* Map to cursor_time range [0,9999] */
+    /* Map to factor 0..1. */
     wmWindow *win = wm->winactive;
     if (win) {
-      int val = int(10000 * (value - wm_progress_state.min) /
-                    (wm_progress_state.max - wm_progress_state.min));
-      WM_cursor_time(win, val);
+      const float progress_factor = (value - wm_progress_state.min) /
+                                    (wm_progress_state.max - wm_progress_state.min);
+      WM_cursor_progress(win, progress_factor);
     }
   }
 }
@@ -1092,9 +1092,9 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(
       parm,
       "Is Interface Locked",
-      "If true, the interface is currently locked by a running job and data shouldn't be modified "
-      "from application timers. Otherwise, the running job might conflict with the handler "
-      "causing unexpected results or even crashes.");
+      "If true, the interface is currently locked by a running job and data should not be "
+      "modified from application timers. Otherwise, the running job might conflict with the "
+      "handler causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 

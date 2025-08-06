@@ -9,7 +9,7 @@
 
 #include "BLI_color.hh"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
 #include "DNA_node_types.h"
@@ -309,7 +309,7 @@ static void node_buts_image_user(uiLayout *layout,
 
     char numstr[32];
     const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, nullptr);
-    SNPRINTF(numstr, IFACE_("Frame: %d"), framenr);
+    SNPRINTF_UTF8(numstr, IFACE_("Frame: %d"), framenr);
     layout->label(numstr, ICON_NONE);
   }
 
@@ -463,7 +463,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
     case SH_NODE_VECTOR_DISPLACEMENT:
       ntype->draw_buttons = node_shader_buts_displacement;
       break;
-    case SH_NODE_BSDF_GLASS:
     case SH_NODE_BSDF_REFRACTION:
       ntype->draw_buttons = node_shader_buts_glossy;
       break;
@@ -969,7 +968,7 @@ static const float std_node_socket_colors[][4] = {
     {0.40, 0.40, 0.40, 1.0}, /* SOCK_MENU */
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
     {0.30, 0.50, 0.50, 1.0}, /* SOCK_BUNDLE */
-    {0.50, 0.60, 0.40, 1.0}, /* SOCK_CLOSURE */
+    {0.45, 0.30, 0.26, 1.0}, /* SOCK_CLOSURE */
 };
 
 void std_node_socket_colors_get(int socket_type, float *r_color)

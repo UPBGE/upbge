@@ -1876,7 +1876,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                                   bool dupli,
                                                   bool evaluatedMesh)
 {
-  if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
+  if (!(ELEM(m_shapeInfo->m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE)))
     return false;
 
   if (!from_gameobj && !from_meshobj)
@@ -2037,8 +2037,6 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
                                        RAS_MeshObject *meshobj,
                                        bool polytope)
 {
-  int numverts;
-
   // assume no shape information
   // no support for dynamic change of shape yet
   BLI_assert(IsUnused());
@@ -2060,269 +2058,136 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
   Mesh *me = (Mesh *)ob_eval->data;
 
-  /* No need to call again ensure_tessface as it was called in BL_DataConversion */
-
   const blender::Span<blender::float3> positions = me->vert_positions();
-  const MFace *faces = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-  numverts = me->verts_num;
-  const MTFace *tfaces = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
-
-  /* double lookup */
-  const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-  const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
-  if (!index_mf_to_mpoly) {
-    index_mp_to_orig = nullptr;
-  }
 
   m_shapeType = (polytope) ? PHY_SHAPE_POLYTOPE : PHY_SHAPE_MESH;
 
-  // Convert blender geometry into bullet mesh, need these vars for mapping
-  std::vector<bool> vert_tag_array(numverts, false);
-  unsigned int tot_bt_verts = 0;
+  m_vertexArray.clear();
+  m_triFaceArray.clear();
+  m_triFaceUVcoArray.clear();
+  m_polygonIndexArray.clear();
 
   if (polytope) {
-    // Tag verts we're using
-    for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
+    // --- POLYTOPE: Build a convex hull from collider faces, no UVs, no triangles ---
+    // Map to ensure each vertex is added only once and to provide compact indices.
+    std::map<int, int> vert_remap;
+    int next_vert = 0;
 
-      // only add polygons that have the collision flag set
+    // Tag and remap used vertices from collider polygons.
+    for (int p = 0; p < meshobj->NumPolygons(); ++p) {
+      RAS_Polygon *poly = meshobj->GetPolygon(p);
       if (poly && poly->IsCollider()) {
-        if (!vert_tag_array[face->v1]) {
-          vert_tag_array[face->v1] = true;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v2]) {
-          vert_tag_array[face->v2] = true;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v3]) {
-          vert_tag_array[face->v3] = true;
-          tot_bt_verts++;
-        }
-        if (face->v4 && !vert_tag_array[face->v4]) {
-          vert_tag_array[face->v4] = true;
-          tot_bt_verts++;
+        for (int i = 0; i < poly->VertexCount(); ++i) {
+          int v_orig = poly->GetVertexInfo(i).getOrigIndex();
+          // Add vertex to the map if not already present.
+          if (vert_remap.find(v_orig) == vert_remap.end()) {
+            vert_remap[v_orig] = next_vert++;
+          }
         }
       }
     }
 
-    /* Can happen with ngons */
-    if (!tot_bt_verts) {
-      goto cleanup_empty_mesh;
+    // If no vertices were found, the mesh is empty or has no collider polygons.
+    if (next_vert == 0) {
+      m_shapeType = PHY_SHAPE_NONE;
+      m_meshObject = nullptr;
+      m_vertexArray.clear();
+      m_polygonIndexArray.clear();
+      m_triFaceArray.clear();
+      m_triFaceUVcoArray.clear();
+      return false;
     }
 
-    m_vertexArray.resize(tot_bt_verts * 3);
-
-    btScalar *bt = &m_vertexArray[0];
-
-     for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
-
-      // only add polygons that have the collisionflag set
-      if (poly->IsCollider()) {
-        if (vert_tag_array[face->v1]) {
-          const float *vtx = &positions[face->v1][0];
-          vert_tag_array[face->v1] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-        if (vert_tag_array[face->v2]) {
-          const float *vtx = &positions[face->v2][0];
-          vert_tag_array[face->v2] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-        if (vert_tag_array[face->v3]) {
-          const float *vtx = &positions[face->v3][0];
-          vert_tag_array[face->v3] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-        if (face->v4 && vert_tag_array[face->v4]) {
-          const float *vtx = &positions[face->v4][0];
-          vert_tag_array[face->v4] = false;
-          *bt++ = vtx[0];
-          *bt++ = vtx[1];
-          *bt++ = vtx[2];
-        }
-      }
+    // Fill the compacted vertex array using the remapped indices.
+    m_vertexArray.resize(next_vert * 3);
+    for (const auto &pair : vert_remap) {
+      const float *vtx = &positions[pair.first][0];
+      int idx = pair.second;
+      m_vertexArray[idx * 3 + 0] = vtx[0];
+      m_vertexArray[idx * 3 + 1] = vtx[1];
+      m_vertexArray[idx * 3 + 2] = vtx[2];
     }
+    // No triangle, UV, or polygon index arrays needed for polytope (convex hull).
   }
   else {
-    unsigned int tot_bt_tris = 0;
-    std::vector<int> vert_remap_array(numverts, 0);
+    // --- TRIANGLE MESH: Use modern triangulation and UVs ---
+    const blender::Span<blender::int3> tris = me->corner_tris();
+    const blender::Span<int> corner_verts = me->corner_verts();
+    const blender::Span<int> tri_faces = me->corner_tri_faces();
 
-    // Tag verts we're using
-    for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
-
-      // only add polygons that have the collision flag set
-      if (poly && poly->IsCollider()) {
-        if (!vert_tag_array[face->v1]) {
-          vert_tag_array[face->v1] = true;
-          vert_remap_array[face->v1] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v2]) {
-          vert_tag_array[face->v2] = true;
-          vert_remap_array[face->v2] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        if (!vert_tag_array[face->v3]) {
-          vert_tag_array[face->v3] = true;
-          vert_remap_array[face->v3] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        if (face->v4 && !vert_tag_array[face->v4]) {
-          vert_tag_array[face->v4] = true;
-          vert_remap_array[face->v4] = tot_bt_verts;
-          tot_bt_verts++;
-        }
-        tot_bt_tris += (face->v4 ? 2 : 1); /* a quad or a tri */
-      }
-    }
-
-    /* Can happen with ngons */
-    if (!tot_bt_verts) {
-      goto cleanup_empty_mesh;
-    }
-
-    m_vertexArray.resize(tot_bt_verts * 3);
-    m_polygonIndexArray.resize(tot_bt_tris);
-    m_triFaceArray.resize(tot_bt_tris * 3);
-    btScalar *bt = &m_vertexArray[0];
-    int *poly_index_pt = &m_polygonIndexArray[0];
-    int *tri_pt = &m_triFaceArray[0];
-
-    UVco *uv_pt = nullptr;
-    if (tfaces) {
-      m_triFaceUVcoArray.resize(tot_bt_tris * 3);
-      uv_pt = &m_triFaceUVcoArray[0];
-    }
-    else
-      m_triFaceUVcoArray.clear();
-
-     for (int p2 = 0; p2 < me->totface_legacy; p2++) {
-      const MFace *face = &faces[p2];
-      const MTFace *tface = (tfaces) ? &tfaces[p2] : nullptr;
-      const int origi = index_mf_to_mpoly ?
-                            DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                            p2;
-      RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
-
-      // only add polygons that have the collisionflag set
-      if (poly && poly->IsCollider()) {
-        const float *v1 = &positions[face->v1][0];
-        const float *v2 = &positions[face->v2][0];
-        const float *v3 = &positions[face->v3][0];
-
-        // the face indices
-        tri_pt[0] = vert_remap_array[face->v1];
-        tri_pt[1] = vert_remap_array[face->v2];
-        tri_pt[2] = vert_remap_array[face->v3];
-        tri_pt = tri_pt + 3;
-        if (tface) {
-          uv_pt[0].uv[0] = tface->uv[0][0];
-          uv_pt[0].uv[1] = tface->uv[0][1];
-          uv_pt[1].uv[0] = tface->uv[1][0];
-          uv_pt[1].uv[1] = tface->uv[1][1];
-          uv_pt[2].uv[0] = tface->uv[2][0];
-          uv_pt[2].uv[1] = tface->uv[2][1];
-          uv_pt += 3;
-        }
-
-        // m_polygonIndexArray
-        *poly_index_pt = origi;
-        poly_index_pt++;
-
-        // the vertex location
-        if (vert_tag_array[face->v1]) { /* *** v1 *** */
-          vert_tag_array[face->v1] = false;
-          *bt++ = v1[0];
-          *bt++ = v1[1];
-          *bt++ = v1[2];
-        }
-        if (vert_tag_array[face->v2]) { /* *** v2 *** */
-          vert_tag_array[face->v2] = false;
-          *bt++ = v2[0];
-          *bt++ = v2[1];
-          *bt++ = v2[2];
-        }
-        if (vert_tag_array[face->v3]) { /* *** v3 *** */
-          vert_tag_array[face->v3] = false;
-          *bt++ = v3[0];
-          *bt++ = v3[1];
-          *bt++ = v3[2];
-        }
-
-        if (face->v4) {
-          const float *v4 = &positions[face->v4][0];
-
-          tri_pt[0] = vert_remap_array[face->v1];
-          tri_pt[1] = vert_remap_array[face->v3];
-          tri_pt[2] = vert_remap_array[face->v4];
-          tri_pt = tri_pt + 3;
-          if (tface) {
-            uv_pt[0].uv[0] = tface->uv[0][0];
-            uv_pt[0].uv[1] = tface->uv[0][1];
-            uv_pt[1].uv[0] = tface->uv[2][0];
-            uv_pt[1].uv[1] = tface->uv[2][1];
-            uv_pt[2].uv[0] = tface->uv[3][0];
-            uv_pt[2].uv[1] = tface->uv[3][1];
-            uv_pt += 3;
-          }
-
-          // m_polygonIndexArray
-          *poly_index_pt = origi;
-          poly_index_pt++;
-
-          // the vertex location
-          if (vert_tag_array[face->v4]) {  // *** v4 ***
-            vert_tag_array[face->v4] = false;
-            *bt++ = v4[0];
-            *bt++ = v4[1];
-            *bt++ = v4[2];
-          }
+    // UVs
+    blender::VArraySpan<blender::float2> uvs;
+    const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+    if (uv_layer_count > 0) {
+      const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+      if (uv_name) {
+        blender::bke::AttributeAccessor attributes = me->attributes();
+        if (auto uv_varray = attributes.lookup<blender::float2>(uv_name,
+                                                                blender::bke::AttrDomain::Corner))
+        {
+          uvs = *uv_varray;
         }
       }
     }
 
-    // If this ever gets confusing, print out an OBJ file for debugging
-#if 0
-		CM_Debug("# vert count " << m_vertexArray.size());
-		for (i = 0; i < m_vertexArray.size(); i += 1) {
-			CM_Debug("v " << m_vertexArray[i].x() << " " << m_vertexArray[i].y() << " " << m_vertexArray[i].z());
-		}
+    std::map<int, int> vert_remap;
+    int next_vert = 0;
 
-		CM_Debug("# face count " << m_triFaceArray.size());
-		for (i = 0; i < m_triFaceArray.size(); i += 3) {
-			CM_Debug("f " << m_triFaceArray[i] + 1 << " " <<  m_triFaceArray[i + 1] + 1 << " " <<  m_triFaceArray[i + 2] + 1);
-		}
-#endif
+    for (int t = 0; t < tris.size(); ++t) {
+      const blender::int3 &tri = tris[t];
+      int tri_indices[3];
+      UVco tri_uv[3];
+
+      for (int j = 0; j < 3; ++j) {
+        int loop_idx = tri[j];
+        int vert_idx = corner_verts[loop_idx];
+
+        // Remap or add the vertex
+        auto it = vert_remap.find(vert_idx);
+        if (it == vert_remap.end()) {
+          m_vertexArray.push_back(positions[vert_idx][0]);
+          m_vertexArray.push_back(positions[vert_idx][1]);
+          m_vertexArray.push_back(positions[vert_idx][2]);
+          tri_indices[j] = next_vert;
+          vert_remap[vert_idx] = next_vert++;
+        }
+        else {
+          tri_indices[j] = it->second;
+        }
+
+        // UVs
+        if (!uvs.is_empty()) {
+          tri_uv[j].uv[0] = uvs[loop_idx].x;
+          tri_uv[j].uv[1] = uvs[loop_idx].y;
+        }
+      }
+
+      // Triangle indices
+      m_triFaceArray.push_back(tri_indices[0]);
+      m_triFaceArray.push_back(tri_indices[1]);
+      m_triFaceArray.push_back(tri_indices[2]);
+
+      // Triangle UVs
+      if (!uvs.is_empty()) {
+        m_triFaceUVcoArray.push_back(tri_uv[0]);
+        m_triFaceUVcoArray.push_back(tri_uv[1]);
+        m_triFaceUVcoArray.push_back(tri_uv[2]);
+      }
+
+      // Polygon index (original polygon index for this triangle)
+      m_polygonIndexArray.push_back(tri_faces[t]);
+    }
   }
 
-#if 0
-	if (validpolys == false) {
-		// should not happen
-		m_shapeType = PHY_SHAPE_NONE;
-		return false;
-	}
-#endif
+  if (!m_vertexArray.size() || (!polytope && m_triFaceArray.empty())) {
+    m_shapeType = PHY_SHAPE_NONE;
+    m_meshObject = nullptr;
+    m_vertexArray.clear();
+    m_polygonIndexArray.clear();
+    m_triFaceArray.clear();
+    m_triFaceUVcoArray.clear();
+    return false;
+  }
 
   m_meshObject = meshobj;
 
@@ -2332,15 +2197,6 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
   }
   return true;
-
-cleanup_empty_mesh:
-  m_shapeType = PHY_SHAPE_NONE;
-  m_meshObject = nullptr;
-  m_vertexArray.clear();
-  m_polygonIndexArray.clear();
-  m_triFaceArray.clear();
-  m_triFaceUVcoArray.clear();
-  return false;
 }
 
 /* Updates the arrays used by CreateBulletShape(),
@@ -2356,7 +2212,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   unsigned int tot_bt_tris = 0;
   unsigned int tot_bt_verts = 0;
 
-  int i, j;
+  int i;
   int v_orig;
 
   // Use for looping over verts in a face as a try or 2 tris
@@ -2376,7 +2232,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   if (!meshobj)
     return false;
 
-  if (m_shapeType != PHY_SHAPE_MESH)
+  if (!ELEM(m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE))
     return false;
 
   if (evaluatedMesh && !from_gameobj) {
@@ -2401,157 +2257,135 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     me = (Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
-  if (me) {
-    BKE_mesh_tessface_ensure(me);
-  }
-
   if (me && meshobj) {
-    /*
-     * Mesh Update
-     *
-     * */
-    const blender::Span<blender::float3> positions = me->vert_positions();
-    MFace *mface = (MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
-    numpolys = me->totface_legacy;
-    numverts = me->verts_num;
 
-    // double lookup
-    const int *index_mf_to_mpoly = (const int *)CustomData_get_layer(&me->fdata_legacy, CD_ORIGINDEX);
-    const int *index_mp_to_orig = (const int *)CustomData_get_layer(&me->face_data, CD_ORIGINDEX);
-    if (!index_mf_to_mpoly) {
-      index_mp_to_orig = nullptr;
-    }
+    if (m_shapeType == PHY_SHAPE_POLYTOPE) {
+      // Map to remap original vertex indices to compacted indices (no duplicates).
+      std::map<int, int> vert_remap;
+      int next_vert = 0;
 
-    MFace *mf;
-
-    if (CustomData_has_layer(&me->fdata_legacy, CD_MTFACE)) {
-      MTFace *tface = (MTFace *)CustomData_get_layer(&me->fdata_legacy, CD_MTFACE);
-      MTFace *tf;
-
-      std::vector<bool> vert_tag_array(numverts, false);
-      std::vector<int> vert_remap_array(numverts, 0);
-
-      for (mf = mface, tf = tface, i = 0; i < numpolys; mf++, tf++, i++) {
-        // 2.8x TODO: use GEMAT_NOPHYSICS.
-        // if (tf->mode & TF_DYNAMIC)
-        {
-          int flen;
-
-          if (mf->v4) {
-            tot_bt_tris += 2;
-            flen = 4;
-          }
-          else {
-            tot_bt_tris++;
-            flen = 3;
-          }
-
-          for (j = 0; j < flen; j++) {
-            v_orig = (*(&mf->v1 + j));
-
-            if (!vert_tag_array[v_orig]) {
-              vert_tag_array[v_orig] = true;
-              vert_remap_array[v_orig] = tot_bt_verts;
-              tot_bt_verts++;
+      // Iterate over all polygons in the mesh.
+      for (int p = 0; p < meshobj->NumPolygons(); ++p) {
+        RAS_Polygon *poly = meshobj->GetPolygon(p);
+        // Only consider polygons marked as collider.
+        if (poly && poly->IsCollider()) {
+          // For each vertex in the polygon.
+          for (int i = 0; i < poly->VertexCount(); ++i) {
+            int v_orig = poly->GetVertexInfo(i).getOrigIndex();
+            // If this vertex hasn't been added yet, add it to the remap.
+            if (vert_remap.find(v_orig) == vert_remap.end()) {
+              vert_remap[v_orig] = next_vert++;
             }
           }
         }
       }
 
-      m_vertexArray.resize(tot_bt_verts * 3);
-      btScalar *bt = &m_vertexArray[0];
+      // If no vertices were found, the mesh is empty or has no collider polygons.
+      if (next_vert == 0) {
+        m_shapeType = PHY_SHAPE_NONE;
+        m_meshObject = nullptr;
+        m_vertexArray.clear();
+        return false;
+      }
 
-      m_triFaceArray.resize(tot_bt_tris * 3);
-      int *tri_pt = &m_triFaceArray[0];
-
-      m_triFaceUVcoArray.resize(tot_bt_tris * 3);
-      UVco *uv_pt = &m_triFaceUVcoArray[0];
-
-      m_polygonIndexArray.resize(tot_bt_tris);
-      int *poly_index_pt = &m_polygonIndexArray[0];
-
-      for (mf = mface, tf = tface, i = 0; i < numpolys; mf++, tf++, i++) {
-        // 2.8x TODO: use GEMAT_NOPHYSICS.
-        // if (tf->mode & TF_DYNAMIC)
-        {
-          int origi = index_mf_to_mpoly ?
-                          DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, i) :
-                          i;
-
-          if (mf->v4) {
-            fv_pt = quad_verts;
-            *poly_index_pt++ = origi;
-            *poly_index_pt++ = origi;
-          }
-          else {
-            fv_pt = tri_verts;
-            *poly_index_pt++ = origi;
-          }
-
-          for (; *fv_pt > -1; fv_pt++) {
-            v_orig = (*(&mf->v1 + (*fv_pt)));
-
-            if (vert_tag_array[v_orig]) {
-              /*WARNIND: What I dod here?*/
-              //mv = (MVert *)mvert + v_orig;
-              const float *mv = &positions[v_orig][0];
-              *bt++ = mv[0];
-              *bt++ = mv[1];
-              *bt++ = mv[2];
-
-              vert_tag_array[v_orig] = false;
-            }
-            *tri_pt++ = vert_remap_array[v_orig];
-            uv_pt->uv[0] = tf->uv[*fv_pt][0];
-            uv_pt->uv[1] = tf->uv[*fv_pt][1];
-            uv_pt++;
-          }
-        }
+      // Fill the compacted vertex array using the remapped indices.
+      m_vertexArray.resize(next_vert * 3);
+      for (const auto &pair : vert_remap) {
+        const float *vtx = &me->vert_positions()[pair.first][0];
+        int idx = pair.second;
+        m_vertexArray[idx * 3 + 0] = vtx[0];
+        m_vertexArray[idx * 3 + 1] = vtx[1];
+        m_vertexArray[idx * 3 + 2] = vtx[2];
       }
     }
     else {
-      // no need for a vertex mapping. simple/fast
-      tot_bt_verts = numverts;
+      // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
+      const blender::Span<blender::float3> positions = me->vert_positions();
+      const blender::Span<blender::int3> tris = me->corner_tris();
+      const blender::Span<int> corner_verts = me->corner_verts();
+      const blender::Span<int> tri_faces = me->corner_tri_faces();
 
-      for (mf = mface, i = 0; i < numpolys; mf++, i++) {
-        tot_bt_tris += (mf->v4 ? 2 : 1);
+      // UVs
+      blender::VArraySpan<blender::float2> uvs;
+      const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+      if (uv_layer_count > 0) {
+        const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+        if (uv_name) {
+          blender::bke::AttributeAccessor attributes = me->attributes();
+          if (auto uv_varray = attributes.lookup<blender::float2>(
+                  uv_name, blender::bke::AttrDomain::Corner))
+          {
+            uvs = *uv_varray;
+          }
+        }
       }
 
-      m_vertexArray.resize(tot_bt_verts * 3);
-      btScalar *bt = &m_vertexArray[0];
-
-      m_triFaceArray.resize(tot_bt_tris * 3);
-      int *tri_pt = &m_triFaceArray[0];
-
-      m_polygonIndexArray.resize(tot_bt_tris);
-      int *poly_index_pt = &m_polygonIndexArray[0];
-
+      m_vertexArray.clear();
+      m_triFaceArray.clear();
       m_triFaceUVcoArray.clear();
+      m_polygonIndexArray.clear();
 
-      for (i = 0; i < numverts; i++) {
-        const float *mv = &positions[i][0];
-        *bt++ = mv[0];
-        *bt++ = mv[1];
-        *bt++ = mv[2];
+      // Topology changed: full reconstruction
+      std::vector<int> vert_remap(positions.size(), -1);
+      int next_vert = 0;
+
+      m_triFaceArray.resize(tris.size() * 3);
+      m_polygonIndexArray.resize(tris.size());
+      if (!uvs.is_empty()) {
+        m_triFaceUVcoArray.resize(tris.size() * 3);
       }
 
-      for (mf = mface, i = 0; i < numpolys; mf++, i++) {
-        int origi = index_mf_to_mpoly ?
-                        DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, i) :
-                        i;
+      // Temporary buffer for unique vertices
+      std::vector<std::array<float, 3>> temp_vertex_buffer(positions.size());
 
-        if (mf->v4) {
-          fv_pt = quad_verts;
-          *poly_index_pt++ = origi;
-          *poly_index_pt++ = origi;
-        }
-        else {
-          fv_pt = tri_verts;
-          *poly_index_pt++ = origi;
+      for (int t = 0; t < tris.size(); ++t) {
+        const blender::int3 &tri = tris[t];
+        int tri_indices[3];
+        UVco tri_uv[3] = {};
+
+        for (int j = 0; j < 3; ++j) {
+          int loop_idx = tri[j];
+          int vert_idx = corner_verts[loop_idx];
+
+          int idx = vert_remap[vert_idx];
+          if (idx == -1) {
+            idx = next_vert++;
+            vert_remap[vert_idx] = idx;
+            temp_vertex_buffer[idx][0] = positions[vert_idx][0];
+            temp_vertex_buffer[idx][1] = positions[vert_idx][1];
+            temp_vertex_buffer[idx][2] = positions[vert_idx][2];
+          }
+          tri_indices[j] = idx;
+
+          // UVs
+          if (!uvs.is_empty()) {
+            tri_uv[j].uv[0] = uvs[loop_idx].x;
+            tri_uv[j].uv[1] = uvs[loop_idx].y;
+          }
         }
 
-        for (; *fv_pt > -1; fv_pt++)
-          *tri_pt++ = (*(&mf->v1 + (*fv_pt)));
+        // Triangle indices
+        m_triFaceArray[t * 3 + 0] = tri_indices[0];
+        m_triFaceArray[t * 3 + 1] = tri_indices[1];
+        m_triFaceArray[t * 3 + 2] = tri_indices[2];
+
+        // Triangle UVs
+        if (!uvs.is_empty()) {
+          m_triFaceUVcoArray[t * 3 + 0] = tri_uv[0];
+          m_triFaceUVcoArray[t * 3 + 1] = tri_uv[1];
+          m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
+        }
+
+        // Polygon index (original polygon index for this triangle)
+        m_polygonIndexArray[t] = tri_faces[t];
+      }
+
+      // Copy unique vertices to m_vertexArray
+      m_vertexArray.resize(next_vert * 3);
+      for (int i = 0; i < next_vert; ++i) {
+        m_vertexArray[i * 3 + 0] = temp_vertex_buffer[i][0];
+        m_vertexArray[i * 3 + 1] = temp_vertex_buffer[i][1];
+        m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
       }
     }
   }
@@ -2676,7 +2510,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   }
 
   m_meshObject = meshobj;
-
   return true;
 }
 
@@ -2695,6 +2528,9 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin,
                                                               bool useGimpact,
                                                               bool useBvh)
 {
+  if (m_shapeType == PHY_SHAPE_NONE || m_shapeType < 0) {
+    return nullptr;
+  }
   btCollisionShape *collisionShape = nullptr;
   btCompoundShape *compoundShape = nullptr;
 
@@ -2839,6 +2675,9 @@ void CcdShapeConstructionInfo::AddShape(CcdShapeConstructionInfo *shapeInfo)
 
 CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
 {
+  if (m_shapeType == PHY_SHAPE_NONE || m_shapeType < 0) {
+    return;
+  }
   for (CcdShapeConstructionInfo *shapeInfo : m_shapeArray) {
     shapeInfo->Release();
   }

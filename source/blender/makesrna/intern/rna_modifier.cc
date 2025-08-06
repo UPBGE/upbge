@@ -1513,38 +1513,6 @@ static void rna_DataTransferModifier_data_types_update(Main *bmain, Scene *scene
   rna_Modifier_dependency_update(bmain, scene, ptr);
 }
 
-static void rna_DataTransferModifier_verts_data_types_set(PointerRNA *ptr, int value)
-{
-  DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
-
-  dtmd->data_types &= ~DT_TYPE_VERT_ALL;
-  dtmd->data_types |= value;
-}
-
-static void rna_DataTransferModifier_edges_data_types_set(PointerRNA *ptr, int value)
-{
-  DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
-
-  dtmd->data_types &= ~DT_TYPE_EDGE_ALL;
-  dtmd->data_types |= value;
-}
-
-static void rna_DataTransferModifier_loops_data_types_set(PointerRNA *ptr, int value)
-{
-  DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
-
-  dtmd->data_types &= ~DT_TYPE_LOOP_ALL;
-  dtmd->data_types |= value;
-}
-
-static void rna_DataTransferModifier_polys_data_types_set(PointerRNA *ptr, int value)
-{
-  DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
-
-  dtmd->data_types &= ~DT_TYPE_POLY_ALL;
-  dtmd->data_types |= value;
-}
-
 static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(bContext *C,
                                                                                 PointerRNA *ptr,
                                                                                 PropertyRNA *prop,
@@ -2262,7 +2230,7 @@ static void rna_GreasePencilDashModifierSegment_name_set(PointerRNA *ptr, const 
   char name_esc[sizeof(dmd->modifier.name) * 2];
   BLI_str_escape(name_esc, dmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
-  SNPRINTF(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
+  SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
   BKE_animdata_fix_paths_rename_all(nullptr, rna_path_prefix, oldname.c_str(), dash_segment->name);
 }
 
@@ -2366,7 +2334,7 @@ static void rna_GreasePencilTimeModifierSegment_name_set(PointerRNA *ptr, const 
   char name_esc[sizeof(tmd->modifier.name) * 2];
   BLI_str_escape(name_esc, tmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
-  SNPRINTF(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
+  SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
   BKE_animdata_fix_paths_rename_all(nullptr, rna_path_prefix, oldname.c_str(), segment->name);
 }
 
@@ -3541,8 +3509,8 @@ static void rna_def_modifier_boolean(BlenderRNA *brna)
        0,
        "Index Based",
        "Set the material on new faces based on the order of the material slot lists. If a "
-       "material doesn't exist on the modifier object, the face will use the same material slot "
-       "or the first if the object doesn't have enough slots."},
+       "material does not exist on the modifier object, the face will use the same material slot "
+       "or the first if the object does not have enough slots."},
       {eBooleanModifierMaterialMode_Transfer,
        "TRANSFER",
        0,
@@ -6211,7 +6179,7 @@ static void rna_def_modifier_weightvgproximity(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "proximity_geometry", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "proximity_flags");
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "proximity_flags");
   RNA_def_property_enum_items(prop, proximity_geometry_items);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG); /* important to run before default set */
   RNA_def_property_enum_default(prop, MOD_WVG_PROXIMITY_GEOM_FACES);
@@ -7286,9 +7254,7 @@ static void rna_def_modifier_datatransfer(BlenderRNA *brna)
                       "Vertex Data Types",
                       "Which vertex data layers to transfer");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-  RNA_def_property_enum_sdna(prop, nullptr, "data_types");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, "rna_DataTransferModifier_verts_data_types_set", nullptr);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "data_types");
   RNA_def_property_update(prop, 0, "rna_DataTransferModifier_data_types_update");
 
   prop = RNA_def_enum(srna,
@@ -7298,9 +7264,7 @@ static void rna_def_modifier_datatransfer(BlenderRNA *brna)
                       "Edge Data Types",
                       "Which edge data layers to transfer");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-  RNA_def_property_enum_sdna(prop, nullptr, "data_types");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, "rna_DataTransferModifier_edges_data_types_set", nullptr);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "data_types");
   RNA_def_property_update(prop, 0, "rna_DataTransferModifier_data_types_update");
 
   prop = RNA_def_enum(srna,
@@ -7310,9 +7274,7 @@ static void rna_def_modifier_datatransfer(BlenderRNA *brna)
                       "Face Corner Data Types",
                       "Which face corner data layers to transfer");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-  RNA_def_property_enum_sdna(prop, nullptr, "data_types");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, "rna_DataTransferModifier_loops_data_types_set", nullptr);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "data_types");
   RNA_def_property_update(prop, 0, "rna_DataTransferModifier_data_types_update");
 
   prop = RNA_def_enum(srna,
@@ -7322,9 +7284,7 @@ static void rna_def_modifier_datatransfer(BlenderRNA *brna)
                       "Poly Data Types",
                       "Which face data layers to transfer");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-  RNA_def_property_enum_sdna(prop, nullptr, "data_types");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, "rna_DataTransferModifier_polys_data_types_set", nullptr);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "data_types");
   RNA_def_property_update(prop, 0, "rna_DataTransferModifier_data_types_update");
 
   /* Mapping methods. */

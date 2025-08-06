@@ -11,6 +11,8 @@
 
 #include "RNA_enum_types.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_shade_smooth_cc {
@@ -20,10 +22,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Mesh", "Geometry")
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Description to set the smoothness of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Mesh", "Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Bool>("Shade Smooth").default_value(true).field_on_all();
 }
@@ -89,7 +91,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<bool> smooth_field = params.extract_input<Field<bool>>("Shade Smooth");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
       set_sharp(*mesh,
                 domain,

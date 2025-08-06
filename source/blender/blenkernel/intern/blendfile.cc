@@ -28,6 +28,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -898,7 +899,7 @@ static void wm_data_consistency_ensure(wmWindowManager *curwm,
       win->scene = cur_scene;
     }
     if (BKE_view_layer_find(win->scene, win->view_layer_name) == nullptr) {
-      STRNCPY(win->view_layer_name, cur_view_layer->name);
+      STRNCPY_UTF8(win->view_layer_name, cur_view_layer->name);
     }
 
     view3d_data_consistency_ensure(win, win->scene, cur_view_layer);
@@ -1354,9 +1355,7 @@ BlendFileData *BKE_blendfile_read(const char *filepath,
 {
   /* Don't print startup file loading. */
   if (params->is_startup == false) {
-    if (!G.quiet) {
-      CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
   }
 
   BlendFileData *bfd = BLO_read_from_file(filepath, eBLOReadSkip(params->skip_flags), reports);
@@ -1519,7 +1518,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {
       bAddon *addon = BKE_addon_new();
-      STRNCPY(addon->module, addons[i]);
+      STRNCPY_UTF8(addon->module, addons[i]);
       BLI_addtail(&userdef->addons, addon);
     }
   }
@@ -1635,9 +1634,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
   if (cfgdir) {
     bool ok_write;
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
-    if (!G.quiet) {
-      printf("Writing userprefs: \"%s\" ", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences: \"%s\" ", filepath);
     if (use_template_userpref) {
       ok_write = BKE_blendfile_userdef_write_app_template(filepath, reports);
     }
@@ -1646,15 +1643,10 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
     }
 
     if (ok_write) {
-      if (!G.quiet) {
-        printf("ok\n");
-      }
       BKE_report(reports, RPT_INFO, "Preferences saved");
     }
     else {
-      if (!G.quiet) {
-        printf("fail\n");
-      }
+      CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
       ok = false;
       BKE_report(reports, RPT_ERROR, "Saving preferences failed");
     }
@@ -1669,18 +1661,11 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
       /* Also save app-template preferences. */
       BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
 
-      if (!G.quiet) {
-        printf("Writing userprefs app-template: \"%s\" ", filepath);
-      }
+      CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences app-template: \"%s\" ", filepath);
       if (BKE_blendfile_userdef_write(filepath, reports) != 0) {
-        if (!G.quiet) {
-          printf("ok\n");
-        }
       }
       else {
-        if (!G.quiet) {
-          printf("fail\n");
-        }
+        CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
         ok = false;
       }
     }

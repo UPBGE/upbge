@@ -18,7 +18,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_addon.h"
@@ -930,7 +930,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->anim_non_active;
           break;
         case TH_ANIM_PREVIEW_RANGE:
-          cp = ts->anim_preview_range;
+          cp = btheme->common.anim.preview_range;
           break;
 
         case TH_NLA_TWEAK:
@@ -1003,6 +1003,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_AXIS_Z:
           cp = btheme->tui.zaxis;
+          break;
+        case TH_AXIS_W:
+          cp = btheme->tui.waxis;
           break;
 
         case TH_GIZMO_HI:
@@ -1109,7 +1112,7 @@ void UI_theme_init_default()
       BLI_findstring(&U.themes, U_theme_default.name, offsetof(bTheme, name)));
   if (btheme == nullptr) {
     btheme = MEM_callocN<bTheme>(__func__);
-    STRNCPY(btheme->name, U_theme_default.name);
+    STRNCPY_UTF8(btheme->name, U_theme_default.name);
     BLI_addhead(&U.themes, btheme);
   }
 

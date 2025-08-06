@@ -146,7 +146,7 @@ void RAS_MeshObject::AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigne
 
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat,
                                         int numverts,
-                                        unsigned int indices[4],
+                                        unsigned int indices[3],
                                         bool visible,
                                         bool collider,
                                         bool twoside)
@@ -171,13 +171,6 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat,
     darray->AddIndex(indices[0]);
     darray->AddIndex(indices[1]);
     darray->AddIndex(indices[2]);
-
-    if (numverts == 4) {
-      // Add the second triangle.
-      darray->AddIndex(indices[0]);
-      darray->AddIndex(indices[2]);
-      darray->AddIndex(indices[3]);
-    }
   }
 
   m_polygons.push_back(poly);

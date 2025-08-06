@@ -23,6 +23,7 @@
 #include "BLI_hash_mm3.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "RE_pipeline.h"
 
@@ -111,7 +112,9 @@ void CryptomatteSession::init(const ViewLayer *view_layer, bool build_meta_data)
     cryptoflags = VIEW_LAYER_CRYPTOMATTE_ALL;
   }
 
-  ListBase *object_bases = BKE_view_layer_object_bases_get(const_cast<ViewLayer *>(view_layer));
+  ListBase *object_bases = build_meta_data ? BKE_view_layer_object_bases_get(
+                                                 const_cast<ViewLayer *>(view_layer)) :
+                                             nullptr;
 
   if (cryptoflags & VIEW_LAYER_CRYPTOMATTE_OBJECT) {
     blender::bke::cryptomatte::CryptomatteLayer &objects = add_layer(
@@ -252,7 +255,7 @@ bool BKE_cryptomatte_find_name(const CryptomatteSession *session,
     return false;
   }
 
-  BLI_strncpy(r_name, name->c_str(), name_maxncpy);
+  BLI_strncpy_utf8(r_name, name->c_str(), name_maxncpy);
   return true;
 }
 
@@ -264,7 +267,7 @@ char *BKE_cryptomatte_entries_to_matte_id(NodeCryptomatte *node_storage)
     if (!first) {
       BLI_dynstr_append(matte_id, ",");
     }
-    if (STRNLEN(entry->name) != 0) {
+    if (entry->name[0] != '\0') {
       BLI_dynstr_nappend(matte_id, entry->name, sizeof(entry->name));
     }
     else {
