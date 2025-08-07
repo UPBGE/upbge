@@ -1,1 +1,2 @@
 upbge_logo.png -filter -diff -merge text=auto
+upbge_favicon.png -filter -diff -merge text=auto
