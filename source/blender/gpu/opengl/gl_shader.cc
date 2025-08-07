@@ -964,13 +964,10 @@ std::string GLShader::compute_layout_declare(const ShaderCreateInfo &info) const
 {
   std::stringstream ss;
   ss << "\n/* Compute Layout. */\n";
-  ss << "layout(local_size_x = " << info.compute_layout_.local_size_x;
-  if (info.compute_layout_.local_size_y != -1) {
-    ss << ", local_size_y = " << info.compute_layout_.local_size_y;
-  }
-  if (info.compute_layout_.local_size_z != -1) {
-    ss << ", local_size_z = " << info.compute_layout_.local_size_z;
-  }
+  ss << "layout(";
+  ss << "  local_size_x = " << info.compute_layout_.local_size_x;
+  ss << ", local_size_y = " << info.compute_layout_.local_size_y;
+  ss << ", local_size_z = " << info.compute_layout_.local_size_z;
   ss << ") in;\n";
   ss << "\n";
   return ss.str();
@@ -1658,6 +1655,13 @@ GLShader::GLProgram &GLShader::program_get(const shader::SpecializationConstants
   GPU_debug_group_begin(this->name);
 
   program.program_link(name);
+
+  /* Ensure the specialization compiled correctly.
+   * Specialization compilation should never fail, but adding this check seems to bypass an
+   * internal Nvidia driver issue (See #142046). */
+  GLint status;
+  glGetProgramiv(program.program_id, GL_LINK_STATUS, &status);
+  BLI_assert(status);
 
   GPU_debug_group_end();
   GPU_debug_group_end();

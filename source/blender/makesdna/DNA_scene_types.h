@@ -565,8 +565,6 @@ enum {
   R_IMF_FLAG_PREVIEW_JPG = 1 << 1,
 };
 
-/*  */
-
 /**
  * #ImageFormatData::depth
  *
@@ -859,8 +857,8 @@ typedef struct RenderData {
   float bake_biasdist, bake_user_scale;
 
   /**
-   *  Path to render output.
-   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   * Path to render output.
+   * \note Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
    */
   char pic[/*FILE_MAX*/ 1024];
 
@@ -2361,7 +2359,10 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
-  void *_pad9;
+#ifdef __cplusplus
+  /* Return the frame rate of the scene. */
+  double frames_per_second() const;
+#endif
 } Scene;
 
 /** \} */
@@ -2596,7 +2597,6 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 #define PEFRA ((PRVRANGEON) ? (scene->r.pefra) : (scene->r.efra))
 #define FRA2TIME(a) ((((double)scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
-#define FPS (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base)
 
 /** \} */
 
