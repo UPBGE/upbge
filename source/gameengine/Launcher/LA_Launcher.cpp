@@ -279,7 +279,7 @@ void LA_Launcher::InitEngine()
    * Could be in StartEngine set the framerate, we need the scene to do this.
    */
   Scene *scene = m_kxStartScene->GetBlenderScene();  // needed for macro
-  m_ketsjiEngine->SetAnimFrameRate(FPS);
+  m_ketsjiEngine->SetAnimFrameRate(scene->frames_per_second());
 }
 
 void LA_Launcher::ExitEngine()

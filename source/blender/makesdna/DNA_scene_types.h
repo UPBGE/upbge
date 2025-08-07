@@ -2363,6 +2363,7 @@ typedef struct Scene {
   /* Return the frame rate of the scene. */
   double frames_per_second() const;
 #endif
+  void *_pad9;
 } Scene;
 
 /** \} */
