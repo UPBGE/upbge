@@ -139,7 +139,7 @@ html_context = {
     "commit": "{:s} - {:s}".format(BLENDER_VERSION_HASH_HTML_LINK, BLENDER_VERSION_DATE),
 }
 html_extra_path = ["static"]
-html_favicon = "static/upbge_favicon.png"
+html_favicon = "static/favicon.png"
 html_logo = "static/upbge_logo.png"
 # Disable default `last_updated` value, since this is the date of doc generation, not the one of the source commit.
 html_last_updated_fmt = None
