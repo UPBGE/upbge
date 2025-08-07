@@ -42,6 +42,10 @@ static bThemeState g_theme_state = {
     RGN_TYPE_WINDOW,
 };
 
+/* -------------------------------------------------------------------- */
+/** \name Init/Exit
+ * \{ */
+
 void ui_resources_init()
 {
   UI_icons_init();
@@ -52,9 +56,11 @@ void ui_resources_free()
   UI_icons_free();
 }
 
-/* ******************************************************** */
-/*    THEMES */
-/* ******************************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Themes
+ * \{ */
 
 const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 {
@@ -408,17 +414,17 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDGE_MODE_SELECT:
           cp = ts->edge_mode_select;
           break;
-        case TH_EDGE_SEAM:
-          cp = ts->edge_seam;
-          break;
-        case TH_EDGE_SHARP:
-          cp = ts->edge_sharp;
+        case TH_EDGE_BEVEL:
+          cp = btheme->space_view3d.edge_bevel;
           break;
         case TH_EDGE_CREASE:
-          cp = ts->edge_crease;
+          cp = btheme->space_view3d.edge_crease;
           break;
-        case TH_EDGE_BEVEL:
-          cp = ts->edge_bevel;
+        case TH_EDGE_SEAM:
+          cp = btheme->space_view3d.edge_seam;
+          break;
+        case TH_EDGE_SHARP:
+          cp = btheme->space_view3d.edge_sharp;
           break;
         case TH_EDITMESH_ACTIVE:
           cp = ts->editmesh_active;
@@ -1575,3 +1581,5 @@ void UI_make_axis_color(const uchar col[3], const char axis, uchar r_col[3])
       break;
   }
 }
+
+/** \} */

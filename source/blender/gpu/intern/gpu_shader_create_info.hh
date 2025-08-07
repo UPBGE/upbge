@@ -119,7 +119,7 @@
 #  define FLAT(type, name) .flat(Type::type##_t, #name)
 #  define NO_PERSPECTIVE(type, name) .no_perspective(Type::type##_t, #name)
 
-/* LOCAL_GROUP_SIZE(int size_x, int size_y = -1, int size_z = -1) */
+/* LOCAL_GROUP_SIZE(int size_x, int size_y = 1, int size_z = 1) */
 #  define LOCAL_GROUP_SIZE(...) .local_group_size(__VA_ARGS__)
 
 #  define VERTEX_IN(slot, type, name) .vertex_in(slot, Type::type##_t, #name)
@@ -992,7 +992,7 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  Self &local_group_size(int local_size_x = -1, int local_size_y = -1, int local_size_z = -1)
+  Self &local_group_size(int local_size_x, int local_size_y = 1, int local_size_z = 1)
   {
     compute_layout_.local_size_x = local_size_x;
     compute_layout_.local_size_y = local_size_y;
@@ -1374,9 +1374,11 @@ struct ShaderCreateInfo {
    * NOTE: These functions can be exposed as a pass-through on unsupported configurations.
    * \{ */
 
-  /* \name mtl_max_total_threads_per_threadgroup
-   * \a  max_total_threads_per_threadgroup - Provides compiler hint for maximum threadgroup size up
-   * front. Maximum value is 1024. */
+  /**
+   * \name mtl_max_total_threads_per_threadgroup
+   * \a max_total_threads_per_threadgroup - Provides compiler hint for maximum threadgroup size up
+   * front. Maximum value is 1024.
+   */
   Self &mtl_max_total_threads_per_threadgroup(ushort max_total_threads_per_threadgroup)
   {
 #  ifdef WITH_METAL_BACKEND

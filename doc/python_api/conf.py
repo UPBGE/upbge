@@ -56,9 +56,9 @@ if has_module("sphinx_copybutton"):
     copybutton_exclude = ".linenos, .gp, .go"
 
 
-project = "Blender {:s} Python API".format(BLENDER_VERSION_STRING)
+project = "UPBGE 0.5x & Blender {:s} Python API".format(BLENDER_VERSION_STRING)
 root_doc = "index"
-copyright = "Blender Authors"
+copyright = "UPBGE & Blender Authors"
 version = BLENDER_VERSION_DOTS
 release = BLENDER_VERSION_DOTS
 
@@ -72,10 +72,39 @@ exclude_patterns = [
     "include__bmesh.rst",
 ]
 
-html_title = "Blender Python API"
+html_title = "UPBGE/Blender Python API"
+
+# -- Options for UPBGE HTML output -------------------------------------------------
+
+# Add any paths that contain custom themes here, relative to this directory.
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes.
+#
+import sphinx_rtd_theme
+
+html_theme = 'sphinx_rtd_theme'
+
+# Theme options
+html_theme_options = {
+        # included in the title
+        "display_version": False,
+        "collapse_navigation": True,
+        "navigation_depth": -1,
+        "body_max_width": "80%",
+    }
+
+extensions.append('sphinx_rtd_theme')
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ["static"]
+
+if html_theme == "sphinx_rtd_theme":
+    html_css_files = ["css/theme_overrides_upbge.css"]
 
 # The fallback to a built-in theme when `furo` is not found.
-html_theme = "default"
+#html_theme = "default"
 
 if has_module("furo"):
     html_theme = "furo"
@@ -100,8 +129,8 @@ if has_module("furo"):
 # Not helpful since the source is generated, adds to upload size.
 html_copy_source = False
 html_show_sphinx = False
-html_baseurl = "https://docs.blender.org/api/current/"
-html_use_opensearch = "https://docs.blender.org/api/current"
+html_baseurl = "https://upbge.org/docs/latest/api"
+html_use_opensearch = "https://upbge.org/docs/latest/api"
 html_show_search_summary = True
 html_split_index = True
 html_static_path = ["static"]
@@ -110,8 +139,8 @@ html_context = {
     "commit": "{:s} - {:s}".format(BLENDER_VERSION_HASH_HTML_LINK, BLENDER_VERSION_DATE),
 }
 html_extra_path = ["static"]
-html_favicon = "static/favicon.png"
-html_logo = "static/blender_logo.svg"
+html_favicon = "static/upbge_favicon.png"
+html_logo = "static/upbge_logo.png"
 # Disable default `last_updated` value, since this is the date of doc generation, not the one of the source commit.
 html_last_updated_fmt = None
 if html_theme == "furo":
