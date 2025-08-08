@@ -278,7 +278,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
     m_shader = nullptr;
   }
   if (ssbo_in_idx) {
-    // 11. Nettoyage (optionnel, selon la gestion mémoire de ton moteur)
     GPU_storagebuf_free(ssbo_in_idx);
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_pose_mat);
@@ -529,7 +528,7 @@ void BL_ArmatureObject::InitSkinningBuffers()
     auto corner_verts = mesh->corner_verts();
     int num_corners = mesh->corners_num;
 
-    // Prépare les bones et groupes
+    // Prepare bones and groups
     std::vector<bPoseChannel *> bone_channels;
     int num_bones = (m_objArma && m_objArma->pose) ?
                         BLI_listbase_count(&m_objArma->pose->chanbase) :
@@ -549,7 +548,7 @@ void BL_ArmatureObject::InitSkinningBuffers()
       group_names.push_back(dg->name);
     }
 
-    // Remplissage des buffers
+    // Fill in_indices and in_weights ssbos for compute shader
     in_indices.resize(num_corners * 4, 0);
     in_weights.resize(num_corners * 4, 0.0f);
 
@@ -605,7 +604,7 @@ void BL_ArmatureObject::InitSkinningBuffers()
       }
     });
 
-    // Met à jour les buffers GPU une seule fois
+    // Update in_indices and in_weights ssbos only 1 time
     if (!ssbo_in_idx) {
       ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
     }
@@ -647,6 +646,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
+  /* TODO: Add a condition to run only when on GPU */
   if (!m_deformedObj) {
     std::vector<KX_GameObject *> children = GetChildren();
     for (KX_GameObject *child : children) {
@@ -668,6 +668,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     return;
   }
 
+  /* TODO: Add a condition to run only when on GPU */
   if (m_refPositions.is_empty()) {
     capture_rest_positions_and_normals(m_deformedObj,
                                        m_refPositions,
@@ -683,6 +684,8 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   // 2. update pose
   ApplyPose();
+
+  /* IF CPU ARMATURE STOP HERE */
 
   if (m_deformedObj && m_modifiersListbackup.empty()) {
     DisableArmatureModifiers(m_deformedObj, m_modifiersListbackup);
