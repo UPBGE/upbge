@@ -89,9 +89,9 @@ void DisableArmatureModifiers(Object *ob, std::vector<ModifierStackBackup> &back
   DEG_relations_tag_update(CTX_data_main(C));
 }
 
-void BL_ArmatureObject::RestoreArmatureModifierModes(Object *ob)
+void BL_ArmatureObject::RestoreArmatureModifierList(Object *ob)
 {
-  for (const ModifierStackBackup &backup : backups) {
+  for (const ModifierStackBackup &backup : m_modifiersListbackup) {
     ModifierData *md = backup.modifier;
     ModifierData *iter = (ModifierData *)ob->modifiers.first;
     int idx = 0;
@@ -115,7 +115,7 @@ void BL_ArmatureObject::RestoreArmatureModifierModes(Object *ob)
   bContext *C = KX_GetActiveEngine()->GetContext();
   DEG_relations_tag_update(CTX_data_main(C));
   BKE_scene_graph_update_tagged(CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C));
-  backups.clear();
+  m_modifiersListbackup.clear();
 }
 
 bPose *BGE_pose_copy_and_capture_rest(bPose *src,
@@ -259,7 +259,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_refNormals = {};
   in_indices = {};
   in_weights = {};
-  backups = {};
+  m_modifiersListbackup = {};
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -267,15 +267,15 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_poseChannels->Release();
   m_controlledConstraints->Release();
   if (m_isReplica) {
-    for (const ModifierStackBackup &backup : backups) {
+    for (const ModifierStackBackup &backup : m_modifiersListbackup) {
       BKE_modifier_free(backup.modifier);
     }
-    backups.clear();
+    m_modifiersListbackup.clear();
   }
   if (m_deformedObj) {
-    RestoreArmatureModifierModes(m_deformedObj);
+    RestoreArmatureModifierList(m_deformedObj);
   }
-  backups.clear();
+  m_modifiersListbackup.clear();
   m_deformedObj = nullptr;
 
   if (m_shader) {
@@ -455,7 +455,7 @@ KX_PythonProxy *BL_ArmatureObject::NewInstance()
 
 void BL_ArmatureObject::ProcessReplica()
 {
-  RestoreArmatureModifierModes(m_deformedObj);
+  RestoreArmatureModifierList(m_deformedObj);
   KX_GameObject::ProcessReplica();
 
   // Replicate each constraints.
@@ -689,8 +689,8 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   // 2. Mettre à jour la pose et le mesh
   ApplyPose();
 
-  if (m_deformedObj && backups.empty()) {
-    DisableArmatureModifiers(m_deformedObj, backups);
+  if (m_deformedObj && m_modifiersListbackup.empty()) {
+    DisableArmatureModifiers(m_deformedObj, m_modifiersListbackup);
   }
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);

@@ -67,7 +67,7 @@ class BL_ArmatureObject : public KX_GameObject {
   class blender::Array<blender::float4> m_refPositions;
   class blender::Array<blender::float4> m_refNormals;
   struct GPUShader *m_shader;
-  std::vector<ModifierStackBackup> backups;
+  std::vector<ModifierStackBackup> m_modifiersListbackup;
 
   std::vector<int> in_indices;
   std::vector<float> in_weights;
@@ -112,7 +112,7 @@ class BL_ArmatureObject : public KX_GameObject {
 
   bool UpdateTimestep(double curtime);
 
-  void RestoreArmatureModifierModes(Object *ob);
+  void RestoreArmatureModifierList(Object *ob);
   Object *GetArmatureObject();
   Object *GetOrigArmatureObject();
   bool GetDrawDebug() const;
