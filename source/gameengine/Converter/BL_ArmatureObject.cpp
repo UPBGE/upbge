@@ -266,7 +266,12 @@ BL_ArmatureObject::~BL_ArmatureObject()
 {
   m_poseChannels->Release();
   m_controlledConstraints->Release();
-
+  if (m_isReplica) {
+    for (const ModifierStackBackup &backup : backups) {
+      BKE_modifier_free(backup.modifier);
+    }
+    backups.clear();
+  }
   if (m_deformedObj) {
     RestoreArmatureModifierModes(m_deformedObj);
   }
