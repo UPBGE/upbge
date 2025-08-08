@@ -108,6 +108,7 @@ class KX_GameObject : public SCA_IObject {
   bool m_isReplica;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
+  KX_GameObject *m_armatureObject;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -165,6 +166,8 @@ class KX_GameObject : public SCA_IObject {
   void SetIsReplicaObject();
   float *GetPrevObjectMatToWorld();
   BL_ActionManager *GetActionManagerNoCreate();
+  void SetArmatureObject(KX_GameObject *armature);
+  KX_GameObject *GetArmatureObject();
   /* END OF EEVEE INTEGRATION */
 
   /**

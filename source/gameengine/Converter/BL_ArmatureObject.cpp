@@ -44,7 +44,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 #include "DNA_mesh_types.h"
-#include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
@@ -67,22 +66,59 @@
 #include "KX_Globals.h"
 #include "KX_Camera.h"
 
-void RemoveArmatureModifiers(Object *obj)
+void DisableArmatureModifiers(Object *ob, std::vector<ModifierStackBackup> &backups)
 {
-  if (obj) {
-    ModifierData *md = (ModifierData *)obj->modifiers.first;
-    while (md) {
-      ModifierData *next = md->next;
-      if (md->type == eModifierType_Armature) {
-        BLI_remlink(&obj->modifiers, md);
-        BKE_modifier_free(md);
-      }
-      md = next;
-    }
+  if (!ob) {
+    return;
   }
+  int idx = 0;
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;) {
+    ModifierData *next = md->next;
+    if (md->type == eModifierType_Armature) {
+      backups.push_back({md, idx});
+      BKE_modifier_remove_from_list(ob, md);
+      // Ne pas libérer md ici !
+    }
+    else {
+      ++idx;
+    }
+    md = next;
+  }
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  DEG_relations_tag_update(CTX_data_main(C));
 }
 
-bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
+void BL_ArmatureObject::RestoreArmatureModifierModes(Object *ob)
+{
+  for (const ModifierStackBackup &backup : backups) {
+    ModifierData *md = backup.modifier;
+    ModifierData *iter = (ModifierData *)ob->modifiers.first;
+    int idx = 0;
+    if (backup.position == 0 || !iter) {
+      BLI_addhead(&ob->modifiers, md);
+    }
+    else {
+      while (iter && idx < backup.position - 1) {
+        iter = iter->next;
+        ++idx;
+      }
+      if (iter) {
+        BLI_insertlinkafter(&ob->modifiers, iter, md);
+      }
+      else {
+        BLI_addtail(&ob->modifiers, md);
+      }
+    }
+  }
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  DEG_relations_tag_update(CTX_data_main(C));
+  BKE_scene_graph_update_tagged(CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C));
+  backups.clear();
+}
+
+bPose *BGE_pose_copy_and_capture_rest(bPose *src,
                                       bool copy_constraints,
                                       Object *runtime_obj,
                                       Object *deformed_obj,
@@ -137,53 +173,7 @@ bPose *BGE_pose_copy_and_capture_rest(const bPose *src,
     }
   });
 
-  // 2. Créer la copie "clean" de la pose (optionnel : copy_constraints)
-  bPose *out = (bPose *)MEM_callocN(sizeof(bPose), "BGE_pose_copy_clean");
-  out->flag = src->flag;
-  out->ctime = src->ctime;
-  BLI_duplicatelist(&out->chanbase, &src->chanbase);
-
-  // Remap parent/child pointers
-  GHash *ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "BGE_pose_copy_clean");
-  bPoseChannel *src_pchan = (bPoseChannel *)src->chanbase.first;
-  bPoseChannel *out_pchan = (bPoseChannel *)out->chanbase.first;
-  for (; src_pchan; src_pchan = src_pchan->next, out_pchan = out_pchan->next) {
-    BLI_ghash_insert(ghash, src_pchan, out_pchan);
-  }
-  for (out_pchan = (bPoseChannel *)out->chanbase.first; out_pchan; out_pchan = out_pchan->next) {
-    out_pchan->parent = (bPoseChannel *)BLI_ghash_lookup(ghash, out_pchan->parent);
-    out_pchan->child = (bPoseChannel *)BLI_ghash_lookup(ghash, out_pchan->child);
-
-    // Contraintes
-    if (copy_constraints) {
-      ListBase listb;
-      BKE_constraints_copy(&listb, &out_pchan->constraints, false);
-      out_pchan->constraints = listb;
-    }
-    else {
-      BLI_listbase_clear(&out_pchan->constraints);
-    }
-
-    // Nettoyage des propriétés custom
-    out_pchan->prop = nullptr;
-    out_pchan->system_properties = nullptr;
-
-    // Gestion du custom object (pour le skinning custom)
-    if (out_pchan->custom) {
-      id_us_plus(&out_pchan->custom->id);
-    }
-  }
-  BLI_ghash_free(ghash, nullptr, nullptr);
-
-  // Nettoyage global
-  out->chanhash = nullptr;
-  out->agroups.first = out->agroups.last = nullptr;
-  out->ikdata = nullptr;
-  out->ikparam = nullptr;
-
-  BKE_pose_channels_hash_ensure(out);
-
-  return out;
+  return src;
 }
 
 // Only allowed for Poses with identical channels.
@@ -256,6 +246,7 @@ BL_ArmatureObject::BL_ArmatureObject()
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_deformedObj = nullptr;
+  m_deformedReplicaData = nullptr;
   m_shader = nullptr;
   ssbo_in_idx = nullptr;
   ssbo_in_wgt = nullptr;
@@ -268,6 +259,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_refNormals = {};
   in_indices = {};
   in_weights = {};
+  backups = {};
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -275,9 +267,11 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_poseChannels->Release();
   m_controlledConstraints->Release();
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-
-  BKE_id_delete(CTX_data_main(C), m_runtime_obj);
+  if (m_deformedObj) {
+    RestoreArmatureModifierModes(m_deformedObj);
+  }
+  backups.clear();
+  m_deformedObj = nullptr;
 
   if (m_shader) {
     GPU_shader_free(m_shader);
@@ -299,67 +293,26 @@ BL_ArmatureObject::~BL_ArmatureObject()
     ssbo_postmat = nullptr;
     ssbo_rest_pose = nullptr;
     ssbo_rest_normals = nullptr;
+    m_refPositions = {};
+    m_refNormals = {};
+  }
+  if (m_deformedReplicaData) {
+    bContext *C = KX_GetActiveEngine()->GetContext(); 
+    BKE_id_delete(CTX_data_main(C), &m_deformedReplicaData->id);
+    m_deformedReplicaData = nullptr;
   }
 }
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
 {
-  m_origObjArma = obj;
-  m_objArma = m_origObjArma;
-
+  m_objArma = obj;
 
   if (m_objArma) {
     memcpy(m_object_to_world, m_objArma->object_to_world().ptr(), sizeof(m_object_to_world));
     LoadChannels();
   }
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  m_runtime_obj = (Object *)BKE_id_copy_ex(
-      CTX_data_main(C), &obj->id, nullptr, LIB_ID_CREATE_NO_DEG_TAG);
-
-  bArmature *orig_arm = (bArmature *)m_origObjArma->data;
-  bArmature *runtime_arm = (bArmature *)BKE_id_copy_ex(
-      CTX_data_main(C),
-      &orig_arm->id,
-      nullptr,
-      LIB_ID_CREATE_NO_DEG_TAG  // ou LIB_ID_CREATE_LOCALIZE
-  );
-  m_runtime_obj->data = runtime_arm;
-
-  Main *bmain = CTX_data_main(C);
-  LISTBASE_FOREACH(Object *, ob, &bmain->objects) {
-    if (ob->parent == m_origObjArma && ob->type == OB_MESH) {
-      m_deformedObj = ob;
-      break;
-    }
-  }
-
-  RemoveArmatureModifiers(m_deformedObj);
-
-  BKE_constraints_free(&m_runtime_obj->constraints);
-
-  // Supprimer les contraintes sur chaque pose channel
-  if (m_runtime_obj->pose) {
-    for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
-         pchan = pchan->next)
-    {
-      BKE_constraints_free(&pchan->constraints);
-    }
-  }
-
-  if (m_runtime_obj->pose) {
-    BKE_pose_free(m_runtime_obj->pose);
-  }
-  m_runtime_obj->pose = BGE_pose_copy_and_capture_rest(m_origObjArma->pose,
-                                                       /*copy_constraints=*/false,
-                                                       m_runtime_obj,
-                                                       m_deformedObj,
-                                                       m_refPositions,
-                                                       m_refNormals);
-
-  m_objArma = m_runtime_obj;
-
-  KX_GameObject::SetBlenderObject(m_runtime_obj);
+  KX_GameObject::SetBlenderObject(m_objArma);
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
@@ -497,6 +450,7 @@ KX_PythonProxy *BL_ArmatureObject::NewInstance()
 
 void BL_ArmatureObject::ProcessReplica()
 {
+  RestoreArmatureModifierModes(m_deformedObj);
   KX_GameObject::ProcessReplica();
 
   // Replicate each constraints.
@@ -548,10 +502,10 @@ void BL_ArmatureObject::ApplyPose()
       constraint->UpdateTarget();
     }
     // update ourself
-    UpdateBlenderObjectMatrix(m_runtime_obj);
+    UpdateBlenderObjectMatrix(m_objArma);
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_runtime_obj);
+    BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
 
     m_lastapplyframe = m_lastframe;
   }
@@ -577,11 +531,11 @@ void BL_ArmatureObject::InitSkinningBuffers()
 
     // Prépare les bones et groupes
     std::vector<bPoseChannel *> bone_channels;
-    int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
-                        BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
+    int num_bones = (m_objArma && m_objArma->pose) ?
+                        BLI_listbase_count(&m_objArma->pose->chanbase) :
                         0;
     bone_channels.reserve(num_bones);
-    for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
+    for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
          pchan = pchan->next)
     {
       bone_channels.push_back(pchan);
@@ -688,32 +642,79 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 {
   using namespace blender::gpu::shader;
   using namespace blender::draw;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+  if (!m_deformedObj) {
+    std::vector<KX_GameObject *> children = GetChildren();
+    for (KX_GameObject *child : children) {
+      m_deformedObj = child->GetBlenderObject();
+      LISTBASE_FOREACH (ModifierData *, md, &m_deformedObj->modifiers) {
+        if (md->type == eModifierType_Armature) {
+          ((ArmatureModifierData *)md)->object = child->GetBlenderObject()->parent;
+        }
+      }
+      if (child->IsReplica()) {
+        if (!m_deformedReplicaData) {
+          Mesh *orig = (Mesh *)m_deformedObj->data;
+          m_deformedReplicaData = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr, 0);
+          m_deformedObj->data = m_deformedReplicaData;
+        }
+      }
+    }
+    return;
+  }
+
+  if (m_refPositions.is_empty()) {
+    m_objArma->pose = BGE_pose_copy_and_capture_rest(m_objArma->pose,
+                                                     /*copy_constraints=*/false,
+                                                     m_objArma,
+                                                     m_deformedObj,
+                                                     m_refPositions,
+                                                     m_refNormals);
+    BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
+  }
 
   // 1. Appliquer l'action à l'armature
-  PointerRNA ptrrna = RNA_id_pointer_create(&m_runtime_obj->id);
+  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  BKE_pose_rest(m_runtime_obj->pose, false);
+  BKE_pose_rest(m_objArma->pose, false);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
 
   // 2. Mettre à jour la pose et le mesh
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ApplyPose();
+
+  if (m_deformedObj && backups.empty()) {
+    DisableArmatureModifiers(m_deformedObj, backups);
+  }
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
 
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
-  blender::gpu::VertBuf *vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get();
-  blender::gpu::VertBuf *vbo_nor = cache->final.buff.vbos.lookup(VBOType::CornerNormal).get();
+  MeshBatchCache *cache = nullptr;
+  if (mesh->runtime && mesh->runtime->batch_cache) {
+    cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  }
+
+  blender::gpu::VertBuf *vbo_pos = nullptr;
+  blender::gpu::VertBuf *vbo_nor = nullptr;
+
+  if (cache) {
+    vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get();
+    vbo_nor = cache->final.buff.vbos.lookup(VBOType::CornerNormal).get();
+  }
+
+  if (!vbo_pos || !vbo_nor) {
+    return;
+  }
 
   blender::Span<MDeformVert> dverts = mesh->deform_verts();
   blender::Span<blender::float3> vert_positions = mesh->vert_positions();
   int num_corners = mesh->corner_verts().size();
 
   // 3. Préparer les matrices des bones
-  const int num_bones = (m_runtime_obj && m_runtime_obj->pose) ?
-                            BLI_listbase_count(&m_runtime_obj->pose->chanbase) :
+  const int num_bones = (m_objArma && m_objArma->pose) ?
+                            BLI_listbase_count(&m_objArma->pose->chanbase) :
                             0;
 
   if (!ssbo_bone_pose_mat) {
@@ -724,7 +725,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   std::vector<bPoseChannel *> bone_channels;
   bone_channels.reserve(num_bones);
-  for (bPoseChannel *pchan = (bPoseChannel *)m_runtime_obj->pose->chanbase.first; pchan;
+  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
        pchan = pchan->next)
   {
     bone_channels.push_back(pchan);
@@ -749,7 +750,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   float premat[4][4], postmat[4][4], obinv[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
-  mul_m4_m4m4(postmat, obinv, m_runtime_obj->object_to_world().ptr());
+  mul_m4_m4m4(postmat, obinv, m_objArma->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
   if (!ssbo_premat) {
@@ -906,7 +907,7 @@ void main() {
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
 {
-  game_blend_poses(m_runtime_obj->pose, blend_pose, weight, mode);
+  game_blend_poses(m_objArma->pose, blend_pose, weight, mode);
 }
 
 bool BL_ArmatureObject::UpdateTimestep(double curtime)
@@ -915,7 +916,7 @@ bool BL_ArmatureObject::UpdateTimestep(double curtime)
     /* Compute the timestep for the underlying IK algorithm,
      * in the GE, we use ctime to store the timestep.
      */
-    m_runtime_obj->pose->ctime = (float)(curtime - m_lastframe);
+    m_objArma->pose->ctime = (float)(curtime - m_lastframe);
     m_lastframe = curtime;
   }
 
@@ -928,7 +929,7 @@ Object *BL_ArmatureObject::GetArmatureObject()
 }
 Object *BL_ArmatureObject::GetOrigArmatureObject()
 {
-  return m_origObjArma;
+  return m_objArma;
 }
 
 void BL_ArmatureObject::GetPose(bPose **pose) const
@@ -942,15 +943,15 @@ void BL_ArmatureObject::GetPose(bPose **pose) const
      * a crash and memory leakage when
      * &SCA_ActionActuator::m_pose is freed
      */
-    BKE_pose_copy_data(pose, m_runtime_obj->pose, 1);
+    BKE_pose_copy_data(pose, m_objArma->pose, 1);
   }
   else {
-    if (*pose == m_runtime_obj->pose) {
+    if (*pose == m_objArma->pose) {
       // no need to copy if the pointers are the same
       return;
     }
 
-    extract_pose_from_pose(*pose, m_runtime_obj->pose);
+    extract_pose_from_pose(*pose, m_objArma->pose);
   }
 }
 

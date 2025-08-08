@@ -89,6 +89,7 @@ KX_GameObject::KX_GameObject()
       m_isReplica(false),            // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
+      m_armatureObject(nullptr),
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -807,6 +808,16 @@ BL_ActionManager *KX_GameObject::GetActionManager()
 BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
 {
   return m_actionManager;
+}
+
+void KX_GameObject::SetArmatureObject(KX_GameObject* armature)
+{
+  m_armatureObject = armature;
+}
+
+KX_GameObject* KX_GameObject::GetArmatureObject()
+{
+  return m_armatureObject;
 }
 
 bool KX_GameObject::PlayAction(const std::string &name,
