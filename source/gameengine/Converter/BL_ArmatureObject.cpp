@@ -77,7 +77,7 @@ void DisableArmatureModifiers(Object *ob, std::vector<ModifierStackBackup> &back
     if (md->type == eModifierType_Armature) {
       backups.push_back({md, idx});
       BKE_modifier_remove_from_list(ob, md);
-      // Ne pas libérer md ici !
+      // Don't free original armature modifier
     }
     else {
       ++idx;
