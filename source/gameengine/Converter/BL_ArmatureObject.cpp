@@ -118,15 +118,12 @@ void BL_ArmatureObject::RestoreArmatureModifierList(Object *ob)
   m_modifiersListbackup.clear();
 }
 
-bPose *BGE_pose_copy_and_capture_rest(bPose *src,
-                                      bool copy_constraints,
-                                      Object *runtime_obj,
-                                      Object *deformed_obj,
-                                      blender::Array<blender::float4> &restPositions,
-                                      blender::Array<blender::float4> &restNormals)
+static void capture_rest_positions_and_normals(Object *deformed_obj,
+                                               blender::Array<blender::float4> &restPositions,
+                                               blender::Array<blender::float4> &restNormals)
 {
-  if (!src || !deformed_obj) {
-    return nullptr;
+  if (!deformed_obj) {
+    return;
   }
 
   // 1. Récupérer les positions de repos directement depuis le mesh original
@@ -172,8 +169,6 @@ bPose *BGE_pose_copy_and_capture_rest(bPose *src,
       }
     }
   });
-
-  return src;
 }
 
 // Only allowed for Poses with identical channels.
@@ -622,27 +617,29 @@ void BL_ArmatureObject::InitSkinningBuffers()
   }
 }
 
+/* Debugging tool to unpack normals on the cpu */
 void unpack_normal(uint32_t packed, float &x, float &y, float &z)
 {
-  // Extraire les composants 10-bit
   int ix = int((packed >> 0) & 0x3FF);
   int iy = int((packed >> 10) & 0x3FF);
   int iz = int((packed >> 20) & 0x3FF);
 
-  // Gérer le complément à 2 pour les valeurs signées 10-bit
   if (ix >= 512)
-    ix -= 1024;  // Convertir de unsigned vers signed
+    ix -= 1024;
   if (iy >= 512)
     iy -= 1024;
   if (iz >= 512)
     iz -= 1024;
 
-  // Normaliser dans la plage [-1.0, 1.0]
   x = float(ix) / 511.0f;
   y = float(iy) / 511.0f;
   z = float(iz) / 511.0f;
 }
 
+/* For gpu sknning, we delay many variables initialisation here to have "up to date" informations.
+ * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
+ * a render cache for the deformed object....
+ */
 void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
   using namespace blender::gpu::shader;
@@ -660,6 +657,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
         }
       }
       if (child->IsReplica()) {
+        /* We need to replicate Mesh for deformation on GPU */
         if (!m_deformedReplicaData) {
           Mesh *orig = (Mesh *)m_deformedObj->data;
           m_deformedReplicaData = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr, 0);
@@ -671,22 +669,19 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
 
   if (m_refPositions.is_empty()) {
-    m_objArma->pose = BGE_pose_copy_and_capture_rest(m_objArma->pose,
-                                                     /*copy_constraints=*/false,
-                                                     m_objArma,
-                                                     m_deformedObj,
-                                                     m_refPositions,
-                                                     m_refNormals);
+    capture_rest_positions_and_normals(m_deformedObj,
+                                       m_refPositions,
+                                       m_refNormals);
     BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
   }
 
-  // 1. Appliquer l'action à l'armature
+  // 1. apply action to armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   BKE_pose_rest(m_objArma->pose, false);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
 
-  // 2. Mettre à jour la pose et le mesh
+  // 2. update pose
   ApplyPose();
 
   if (m_deformedObj && m_modifiersListbackup.empty()) {
@@ -717,7 +712,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   blender::Span<blender::float3> vert_positions = mesh->vert_positions();
   int num_corners = mesh->corner_verts().size();
 
-  // 3. Préparer les matrices des bones
+  // 3. Prepare bone matrices
   const int num_bones = (m_objArma && m_objArma->pose) ?
                             BLI_listbase_count(&m_objArma->pose->chanbase) :
                             0;
@@ -751,7 +746,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   InitSkinningBuffers();
 
-  // 5. Préparer les matrices de transformation
+  // 4. Prepare transform matrices
   float premat[4][4], postmat[4][4], obinv[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
@@ -767,7 +762,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
   GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
-  // 6. Préparer les positions de repos (vec4, alignées sur les sommets)
+  // 5. Prepare rest positions and normals
   if (!ssbo_rest_pose) {
     ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
     GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
@@ -777,7 +772,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     GPU_storagebuf_update(ssbo_rest_normals, m_refNormals.data());
   }
 
-  // 8. Créer et compiler le compute shader si besoin
+  // 6. Compile skinning shader
   if (!m_shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
@@ -876,7 +871,7 @@ void main() {
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
-  // 9. Dispatch du compute shader
+  // 7. Dispatch compute shader
   GPUShader *shader = m_shader;
   GPU_shader_bind(shader);
   vbo_pos->bind_as_ssbo(0);
@@ -907,7 +902,6 @@ void main() {
   // This updates the object_to_world matrices used by EEVEE without invalidating
   // render caches, ensuring correct shading after GPU skinning.
   DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
-  //DEG_id_tag_update(&m_runtime_obj->id, ID_RECALC_TRANSFORM);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
