@@ -247,8 +247,8 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_in_idx = nullptr;
   ssbo_in_wgt = nullptr;
   ssbo_bone_pose_mat = nullptr;
-  ssbo_premat = nullptr;
-  ssbo_postmat = nullptr;
+  ssbo_bone_normal_mat = nullptr;
+  ssbo_prepost_mat = nullptr;
   ssbo_rest_pose = nullptr;
   ssbo_rest_normals = nullptr;
   m_refPositions = {};
@@ -282,15 +282,15 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_in_idx);
     GPU_storagebuf_free(ssbo_in_wgt);
     GPU_storagebuf_free(ssbo_bone_pose_mat);
-    GPU_storagebuf_free(ssbo_premat);
-    GPU_storagebuf_free(ssbo_postmat);
+    GPU_storagebuf_free(ssbo_bone_normal_mat);
+    GPU_storagebuf_free(ssbo_prepost_mat);
     GPU_storagebuf_free(ssbo_rest_pose);
     GPU_storagebuf_free(ssbo_rest_normals);
     ssbo_in_idx = nullptr;
     ssbo_in_wgt = nullptr;
     ssbo_bone_pose_mat = nullptr;
-    ssbo_premat = nullptr;
-    ssbo_postmat = nullptr;
+    ssbo_bone_normal_mat = nullptr;
+    ssbo_prepost_mat = nullptr;
     ssbo_rest_pose = nullptr;
     ssbo_rest_normals = nullptr;
     m_refPositions = {};
@@ -593,6 +593,8 @@ void BL_ArmatureObject::InitSkinningBuffers()
       float total = 0.0f;
       for (const auto &inf : influences)
         total += inf.weight;
+
+      /* weight normalization */
       if (total > 1.0f && total > 0.0f) {
         for (auto &inf : influences)
           inf.weight /= total;
@@ -729,7 +731,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   blender::Span<blender::float3> vert_positions = mesh->vert_positions();
   int num_corners = mesh->corner_verts().size();
 
-  // 3. Prepare bone matrices
+  // 3. Prepare bone and normal matrices
   const int num_bones = (m_objArma && m_objArma->pose) ?
                             BLI_listbase_count(&m_objArma->pose->chanbase) :
                             0;
@@ -738,7 +740,12 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
   }
 
+  if (!ssbo_bone_normal_mat) {
+      ssbo_bone_normal_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 9);
+  }
+
   std::vector<float> bone_pose_matrices(num_bones * 16, 0.0f);
+  std::vector<float> bone_normal_matrices(num_bones * 9, 0.0f);
 
   std::vector<bPoseChannel *> bone_channels;
   bone_channels.reserve(num_bones);
@@ -758,26 +765,35 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
         bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
       }
     }
+    /* precalc normal matrix */
+    float normal_mat[3][3];
+    copy_m3_m4(normal_mat, bone_deform);       // Extract submatrix 3x3
+    invert_m3_m3(normal_mat, normal_mat);      // Invert
+    transpose_m3(normal_mat);                  // Transpose
+
+    for (int row = 0; row < 3; ++row) {
+      for (int col = 0; col < 3; ++col) {
+        bone_normal_matrices[b * 9 + row * 3 + col] = normal_mat[row][col];
+      }
+    }
   }
   GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
+  GPU_storagebuf_update(ssbo_bone_normal_mat, bone_normal_matrices.data());
 
   InitSkinningBuffers();
 
   // 4. Prepare transform matrices
-  float premat[4][4], postmat[4][4], obinv[4][4];
+  float premat[4][4], postmat[4][4], obinv[4][4], prepost_mat[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
   mul_m4_m4m4(postmat, obinv, m_objArma->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
+  mul_m4_m4m4(prepost_mat, postmat, premat);
 
-  if (!ssbo_premat) {
-    ssbo_premat = GPU_storagebuf_create(sizeof(float) * 16);
+  if (!ssbo_prepost_mat) {
+      ssbo_prepost_mat = GPU_storagebuf_create(sizeof(float) * 16);
   }
-  GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
-  if (!ssbo_postmat) {
-    ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
-  }
-  GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
+  GPU_storagebuf_update(ssbo_prepost_mat, &prepost_mat[0][0]);
 
   // 5. Prepare rest positions and normals
   if (!ssbo_rest_pose) {
@@ -799,10 +815,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     info.storage_buf(2, Qualifier::read, "ivec4", "in_idx[]");
     info.storage_buf(3, Qualifier::read, "vec4", "in_wgt[]");
     info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
-    info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
+    info.storage_buf(5, Qualifier::read, "mat4", "prepost_mat[]");
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
     info.storage_buf(7, Qualifier::read, "vec4", "rest_normals[]");
-    info.storage_buf(8, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(8, Qualifier::read, "mat4", "bone_normal_mat[]");
     info.compute_source_generated = R"(
 uint normal_pack(vec3 normal)
 {
@@ -826,7 +842,7 @@ vec3 safe_normalize(vec3 v)
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
-  vec4 rest_pos = premat[0] * rest_positions[v];
+  vec4 rest_pos = prepost_mat * rest_positions[v];
   vec4 skinned = vec4(0.0);
   float total_weight = 0.0;
   for (int i = 0; i < 4; ++i) {
@@ -834,35 +850,27 @@ void main() {
     float w = in_wgt[v][i];
     if (w > 0.0) {
       mat4 deform_mat = bone_pose_mat[bone_idx];
-      vec4 transformed = deform_mat * rest_pos;
-      skinned += transformed * w;
+      skinned += (deform_mat * rest_pos) * w;
       total_weight += w;
     }
   }
   // Correction Blender-like :
-  vec4 finalpos = skinned + rest_pos * (1.0 - total_weight);
-  positions[v] = postmat[0] * finalpos;
+  positions[v] = skinned + rest_pos * (1.0 - total_weight);
   // Calcul du skinning des normales avec la même matrice
-  vec4 n4 = premat[0] * rest_normals[v];
-  vec3 n = n4.xyz;
+  vec3 n = rest_normals[v].xyz;
   vec3 skinned_n = vec3(0.0);
   float total_weight_n = 0.0;
   for (int i = 0; i < 4; ++i) {
     int bone_idx = in_idx[v][i];
     float w = in_wgt[v][i];
     if (w > 0.0) {
-      mat3 rot = mat3(bone_pose_mat[bone_idx]);
-      mat3 normal_matrix = transpose(inverse(rot));
+      mat3 normal_matrix = mat3(bone_normal_mat[bone_idx]);
       skinned_n += (normal_matrix * n) * w;
       total_weight_n += w;
     }
   }
-  if (total_weight_n < 1.0) {
-    skinned_n += n * (1.0 - total_weight_n);
-  }
-  skinned_n = normalize(skinned_n);
-  vec4 finalnor = postmat[0] * vec4(skinned_n, 0.0);
-  normals[v] = normal_pack(finalnor.xyz);
+  skinned_n += n * (1.0 - total_weight_n);
+  normals[v] = normal_pack(normalize(skinned_n));
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
