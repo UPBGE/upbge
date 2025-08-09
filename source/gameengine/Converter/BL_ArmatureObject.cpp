@@ -241,6 +241,7 @@ BL_ArmatureObject::BL_ArmatureObject()
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_deformedObj = nullptr;
+  m_useGPUDeform = false;
   m_deformedReplicaData = nullptr;
   m_shader = nullptr;
   ssbo_in_idx = nullptr;
@@ -267,7 +268,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     }
     m_modifiersListbackup.clear();
   }
-  if (m_deformedObj) {
+  if (m_deformedObj && m_useGPUDeform) {
     RestoreArmatureModifierList(m_deformedObj);
   }
   m_modifiersListbackup.clear();
@@ -312,6 +313,11 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   }
 
   KX_GameObject::SetBlenderObject(m_objArma);
+}
+
+bool BL_ArmatureObject::GetUseGPUDeform()
+{
+  return m_useGPUDeform;
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
@@ -646,17 +652,23 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  /* TODO: Add a condition to run only when on GPU */
+  /* Do the remapping parent/child both for cpu/gpu deform,
+   * but don't duplicate mesh or alloc any ssbos or ssbos data
+   * when running on CPU */
   if (!m_deformedObj) {
     std::vector<KX_GameObject *> children = GetChildren();
     for (KX_GameObject *child : children) {
       m_deformedObj = child->GetBlenderObject();
       LISTBASE_FOREACH (ModifierData *, md, &m_deformedObj->modifiers) {
         if (md->type == eModifierType_Armature) {
-          ((ArmatureModifierData *)md)->object = child->GetBlenderObject()->parent;
+          ArmatureModifierData *amd = (ArmatureModifierData *)md;
+          if (amd) {
+            amd->object = child->GetBlenderObject()->parent;
+            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0;
+          }
         }
       }
-      if (child->IsReplica()) {
+      if (child->IsReplica() && m_useGPUDeform) {
         /* We need to replicate Mesh for deformation on GPU */
         if (!m_deformedReplicaData) {
           Mesh *orig = (Mesh *)m_deformedObj->data;
@@ -665,11 +677,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
         }
       }
     }
-    return;
   }
 
-  /* TODO: Add a condition to run only when on GPU */
-  if (m_refPositions.is_empty()) {
+  /* Don't fill ssbos and ssbos data when running on CPU */
+  if (m_refPositions.is_empty() && m_useGPUDeform) {
     capture_rest_positions_and_normals(m_deformedObj,
                                        m_refPositions,
                                        m_refNormals);
@@ -686,6 +697,9 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   ApplyPose();
 
   /* IF CPU ARMATURE STOP HERE */
+  if (!m_useGPUDeform) {
+    return;
+  }
 
   if (m_deformedObj && m_modifiersListbackup.empty()) {
     DisableArmatureModifiers(m_deformedObj, m_modifiersListbackup);

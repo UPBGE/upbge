@@ -3308,6 +3308,20 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  /* UPBGE */
+  prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "upbge_deformflag", ARM_DEF_GPU);
+  RNA_def_property_ui_text(prop,
+                           "Enable GPU Skinning (Experimental)",
+                           "Deform mesh vertices using the GPU instead of the CPU.\n"
+                           "Limitations:\n"
+                           "- Only one Armature modifier is supported per mesh.\n"
+                           "- The Armature must have a single child mesh.\n"
+                           "- Only position and normal vertex buffers are updated.\n"
+                           "- GPU skinning is highly simplified compared to the CPU pipeline and "
+                           "may produce incorrect deformations.");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   RNA_define_lib_overridable(false);
 }
 

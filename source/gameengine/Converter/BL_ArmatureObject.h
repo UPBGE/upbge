@@ -60,6 +60,7 @@ class BL_ArmatureObject : public KX_GameObject {
   EXP_ListValue<BL_ArmatureChannel> *m_poseChannels;
   Object *m_objArma;
   Object *m_deformedObj;
+  bool m_useGPUDeform;
 
   /* If using gpu deform, mesh has to be replicated because Armature modifier is disabled
    * it needs unique data to be deformed by shader */
@@ -112,6 +113,7 @@ class BL_ArmatureObject : public KX_GameObject {
 
   bool UpdateTimestep(double curtime);
 
+  bool GetUseGPUDeform();
   void RestoreArmatureModifierList(Object *ob);
   Object *GetArmatureObject();
   Object *GetOrigArmatureObject();
