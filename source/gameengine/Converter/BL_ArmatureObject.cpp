@@ -780,35 +780,15 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
-    info.typedef_source_generated = R"(
-layout(std430, binding = 0) buffer PositionBuf {
-  vec4 positions[];
-};
-layout(std430, binding = 1) buffer NormalBuf {
-  uint normals[];
-};
-layout(std430, binding = 2) buffer InIdx {
-  ivec4 in_idx[];
-};
-layout(std430, binding = 3) buffer InWgt {
-  vec4 in_wgt[];
-};
-layout(std430, binding = 4) buffer BonePoseMat {
-  mat4 bone_pose_mat[];
-};
-layout(std430, binding = 5) buffer PreMat {
-  mat4 premat;
-};
-layout(std430, binding = 6) buffer RestPositions {
-  vec4 rest_positions[];
-};
-layout(std430, binding = 7) buffer RestNormals {
-  vec4 rest_normals[];
-};
-layout(std430, binding = 8) buffer PostMat {
-  mat4 postmat;
-};
-)";
+    info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
+    info.storage_buf(1, Qualifier::write, "uint", "normals[]");
+    info.storage_buf(2, Qualifier::read, "ivec4", "in_idx[]");
+    info.storage_buf(3, Qualifier::read, "vec4", "in_wgt[]");
+    info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
+    info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
+    info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
+    info.storage_buf(7, Qualifier::read, "vec4", "rest_normals[]");
+    info.storage_buf(8, Qualifier::read, "mat4", "postmat[]");
     info.compute_source_generated = R"(
 uint normal_pack(vec3 normal)
 {
@@ -832,7 +812,7 @@ vec3 safe_normalize(vec3 v)
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
-  vec4 rest_pos = premat * rest_positions[v];
+  vec4 rest_pos = premat[0] * rest_positions[v];
   vec4 skinned = vec4(0.0);
   float total_weight = 0.0;
   for (int i = 0; i < 4; ++i) {
@@ -847,9 +827,9 @@ void main() {
   }
   // Correction Blender-like :
   vec4 finalpos = skinned + rest_pos * (1.0 - total_weight);
-  positions[v] = postmat * finalpos;
+  positions[v] = postmat[0] * finalpos;
   // Calcul du skinning des normales avec la même matrice
-  vec4 n4 = premat * rest_normals[v];
+  vec4 n4 = premat[0] * rest_normals[v];
   vec3 n = n4.xyz;
   vec3 skinned_n = vec3(0.0);
   float total_weight_n = 0.0;
@@ -867,7 +847,7 @@ void main() {
     skinned_n += n * (1.0 - total_weight_n);
   }
   skinned_n = normalize(skinned_n);
-  vec4 finalnor = postmat * vec4(skinned_n, 0.0);
+  vec4 finalnor = postmat[0] * vec4(skinned_n, 0.0);
   normals[v] = normal_pack(finalnor.xyz);
 }
     )";
