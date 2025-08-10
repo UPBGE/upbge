@@ -437,8 +437,8 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 2)) {
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        ArmatureModifierData *amd = (ArmatureModifierData *)md;
-        if (amd) {
+        if (md->type == eModifierType_Armature) {
+          ArmatureModifierData *amd = (ArmatureModifierData *)md;
           amd->upbge_deformflag |= ARM_DEF_CPU;
         }
       }
