@@ -249,6 +249,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   ssbo_bone_pose_mat = nullptr;
   ssbo_bone_normal_mat = nullptr;
   ssbo_prepost_mat = nullptr;
+  ssbo_prepost_normal_mat_packet = nullptr;
   ssbo_rest_pose = nullptr;
   ssbo_rest_normals = nullptr;
   m_refPositions = {};
@@ -284,6 +285,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_storagebuf_free(ssbo_bone_pose_mat);
     GPU_storagebuf_free(ssbo_bone_normal_mat);
     GPU_storagebuf_free(ssbo_prepost_mat);
+    GPU_storagebuf_free(ssbo_prepost_normal_mat_packet);
     GPU_storagebuf_free(ssbo_rest_pose);
     GPU_storagebuf_free(ssbo_rest_normals);
     ssbo_in_idx = nullptr;
@@ -291,6 +293,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
     ssbo_bone_pose_mat = nullptr;
     ssbo_bone_normal_mat = nullptr;
     ssbo_prepost_mat = nullptr;
+    ssbo_prepost_normal_mat_packet = nullptr;
     ssbo_rest_pose = nullptr;
     ssbo_rest_normals = nullptr;
     m_refPositions = {};
@@ -741,11 +744,11 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
 
   if (!ssbo_bone_normal_mat) {
-      ssbo_bone_normal_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 9);
+      ssbo_bone_normal_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
   }
 
   std::vector<float> bone_pose_matrices(num_bones * 16, 0.0f);
-  std::vector<float> bone_normal_matrices(num_bones * 9, 0.0f);
+  std::vector<float> bone_normal_matrices(num_bones * 16, 0.0f);
 
   std::vector<bPoseChannel *> bone_channels;
   bone_channels.reserve(num_bones);
@@ -760,22 +763,42 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     invert_m4_m4(bone_rest_inv, pchan->bone->arm_mat);
     float bone_deform[4][4];
     mul_m4_m4m4(bone_deform, pchan->pose_mat, bone_rest_inv);
+
     for (int row = 0; row < 4; ++row) {
       for (int col = 0; col < 4; ++col) {
         bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
       }
     }
+    //memcpy(&bone_pose_matrices[b * 16], bone_deform, 16 * sizeof(float));
+
     /* precalc normal matrix */
     float normal_mat[3][3];
     copy_m3_m4(normal_mat, bone_deform);       // Extract submatrix 3x3
     invert_m3_m3(normal_mat, normal_mat);      // Invert
     transpose_m3(normal_mat);                  // Transpose
 
+    // pack into a mat4 in COLUMN-MAJOR order (GLSL expects column-major).
+    // layout in memory: col0(4), col1(4), col2(4), col3(4)
+    int base = b * 16;
+    // vector already zero-inited, but ensure explicitly:
+    for (int i = 0; i < 16; ++i) {
+        bone_normal_matrices[base + i] = 0.0f;
+    }
+    // fill 3x3 into the top-left corner (col-major)
+
     for (int row = 0; row < 3; ++row) {
       for (int col = 0; col < 3; ++col) {
-        bone_normal_matrices[b * 9 + row * 3 + col] = normal_mat[row][col];
+        bone_normal_matrices[base + col * 4 + row] = normal_mat[row][col];
       }
     }
+
+    // set homogeneous bottom-right to 1.0 (safe)
+    bone_normal_matrices[base + 15] = 1.0f;
+
+    /* Almacenamiento seguro
+    for (int i = 0; i < 9; ++i) {
+        bone_normal_matrices[b * 9 + i] = ((float*)normal_mat)[i];
+    }*/
   }
   GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
   GPU_storagebuf_update(ssbo_bone_normal_mat, bone_normal_matrices.data());
@@ -783,17 +806,42 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   InitSkinningBuffers();
 
   // 4. Prepare transform matrices
+  /*
   float premat[4][4], postmat[4][4], obinv[4][4], prepost_mat[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
   mul_m4_m4m4(postmat, obinv, m_objArma->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
-  mul_m4_m4m4(prepost_mat, postmat, premat);
+  mul_m4_m4m4(prepost_mat, postmat, premat);*/
+  float prepost_mat[4][4];
+  float inv_arm[4][4];
+  invert_m4_m4(inv_arm, m_objArma->object_to_world().ptr());
+  mul_m4_m4m4(prepost_mat, inv_arm, m_deformedObj->object_to_world().ptr());
 
   if (!ssbo_prepost_mat) {
       ssbo_prepost_mat = GPU_storagebuf_create(sizeof(float) * 16);
   }
   GPU_storagebuf_update(ssbo_prepost_mat, &prepost_mat[0][0]);
+
+  float prepost_normal_mat[3][3];
+  copy_m3_m4(prepost_normal_mat, prepost_mat);
+  invert_m3_m3(prepost_normal_mat, prepost_normal_mat);
+  transpose_m3(prepost_normal_mat);
+
+  // pack into mat4 (column-major)
+  float prepost_normal_mat_packed[16];
+  for (int i = 0; i < 16; ++i) prepost_normal_mat_packed[i] = 0.0f;
+  for (int row = 0; row < 3; ++row) {
+      for (int col = 0; col < 3; ++col) {
+          prepost_normal_mat_packed[col * 4 + row] = prepost_normal_mat[row][col];
+      }
+  }
+  prepost_normal_mat_packed[15] = 1.0f;
+
+  if (!ssbo_prepost_normal_mat_packet) {
+      ssbo_prepost_normal_mat_packet = GPU_storagebuf_create(sizeof(float) * 16);
+  }
+  GPU_storagebuf_update(ssbo_prepost_normal_mat_packet, &prepost_normal_mat_packed);
 
   // 5. Prepare rest positions and normals
   if (!ssbo_rest_pose) {
@@ -819,6 +867,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
     info.storage_buf(7, Qualifier::read, "vec4", "rest_normals[]");
     info.storage_buf(8, Qualifier::read, "mat4", "bone_normal_mat[]");
+    info.storage_buf(9, Qualifier::read, "mat4", "prepost_normal_mat_packet[]");
     info.compute_source_generated = R"(
 uint normal_pack(vec3 normal)
 {
@@ -842,35 +891,28 @@ vec3 safe_normalize(vec3 v)
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
-  vec4 rest_pos = prepost_mat * rest_positions[v];
+  vec4 rest_pos = prepost_mat[0] * rest_positions[v];
+  vec3 n = mat3(prepost_normal_mat_packet[0]) * rest_normals[v].xyz;
   vec4 skinned = vec4(0.0);
+  vec3 skinned_n = vec3(0.0);
   float total_weight = 0.0;
   for (int i = 0; i < 4; ++i) {
     int bone_idx = in_idx[v][i];
     float w = in_wgt[v][i];
-    if (w > 0.0) {
+    //if (w > 0.0) {
       mat4 deform_mat = bone_pose_mat[bone_idx];
+      //mat3 rot = mat3(bone_pose_mat[bone_idx]);
+      //mat3 normal_matrix_gpu = transpose(inverse(rot));
+      mat3 normal_matrix_cpu = mat3(bone_normal_mat[bone_idx]);
       skinned += (deform_mat * rest_pos) * w;
+      skinned_n += (normal_matrix_cpu * n) * w;
       total_weight += w;
-    }
+    //}
   }
   // Correction Blender-like :
   positions[v] = skinned + rest_pos * (1.0 - total_weight);
-  // Calcul du skinning des normales avec la même matrice
-  vec3 n = rest_normals[v].xyz;
-  vec3 skinned_n = vec3(0.0);
-  float total_weight_n = 0.0;
-  for (int i = 0; i < 4; ++i) {
-    int bone_idx = in_idx[v][i];
-    float w = in_wgt[v][i];
-    if (w > 0.0) {
-      mat3 normal_matrix = mat3(bone_normal_mat[bone_idx]);
-      skinned_n += (normal_matrix * n) * w;
-      total_weight_n += w;
-    }
-  }
-  skinned_n += n * (1.0 - total_weight_n);
-  normals[v] = normal_pack(normalize(skinned_n));
+  skinned_n = skinned_n + n * (1.0 - total_weight);
+  normals[v] = normal_pack(normalize(mat3(prepost_mat[0]) * skinned_n));
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
@@ -884,10 +926,11 @@ void main() {
   GPU_storagebuf_bind(ssbo_in_idx, 2);
   GPU_storagebuf_bind(ssbo_in_wgt, 3);
   GPU_storagebuf_bind(ssbo_bone_pose_mat, 4);
-  GPU_storagebuf_bind(ssbo_premat, 5);
+  GPU_storagebuf_bind(ssbo_prepost_mat, 5);
   GPU_storagebuf_bind(ssbo_rest_pose, 6);
   GPU_storagebuf_bind(ssbo_rest_normals, 7);
-  GPU_storagebuf_bind(ssbo_postmat, 8);
+  GPU_storagebuf_bind(ssbo_bone_normal_mat, 8);
+  GPU_storagebuf_bind(ssbo_prepost_normal_mat_packet, 9);
 
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
@@ -897,10 +940,11 @@ void main() {
   GPU_storagebuf_unbind(ssbo_in_idx);
   GPU_storagebuf_unbind(ssbo_in_wgt);
   GPU_storagebuf_unbind(ssbo_bone_pose_mat);
-  GPU_storagebuf_unbind(ssbo_premat);
+  GPU_storagebuf_unbind(ssbo_prepost_mat);
   GPU_storagebuf_unbind(ssbo_rest_pose);
   GPU_storagebuf_unbind(ssbo_rest_normals);
-  GPU_storagebuf_unbind(ssbo_postmat);
+  GPU_storagebuf_unbind(ssbo_bone_normal_mat);
+  GPU_storagebuf_unbind(ssbo_prepost_normal_mat_packet);
   GPU_shader_unbind();
 
   // Notify the dependency graph that the deformed mesh's transform has changed.
