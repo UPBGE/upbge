@@ -66,7 +66,7 @@
 #include "KX_Globals.h"
 #include "KX_Camera.h"
 
-void DisableArmatureModifiers(Object *ob, std::vector<ModifierStackBackup> &backups)
+static void disable_armature_modifiers(Object *ob, std::vector<ModifierStackBackup> &backups)
 {
   if (!ob) {
     return;
@@ -128,7 +128,6 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
 
   // 1. Récupérer les positions de repos directement depuis le mesh original
   Mesh *orig_mesh = static_cast<Mesh *>(deformed_obj->data);
-  blender::Span<blender::float3> vert_positions = orig_mesh->vert_positions();
 
   const int num_corners = orig_mesh->corners_num;
   auto corner_verts = orig_mesh->corner_verts();
@@ -240,6 +239,7 @@ BL_ArmatureObject::BL_ArmatureObject()
     : KX_GameObject(), m_lastframe(0.0), m_drawDebug(false), m_lastapplyframe(0.0)
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
+  m_poseChannels = nullptr;
   m_deformedObj = nullptr;
   m_useGPUDeform = false;
   m_deformedReplicaData = nullptr;
@@ -262,6 +262,7 @@ BL_ArmatureObject::BL_ArmatureObject()
 BL_ArmatureObject::~BL_ArmatureObject()
 {
   m_poseChannels->Release();
+  m_poseChannels = nullptr;
   m_controlledConstraints->Release();
   if (m_isReplica) {
     for (const ModifierStackBackup &backup : m_modifiersListbackup) {
@@ -519,13 +520,6 @@ void BL_ArmatureObject::ApplyPose()
   }
 }
 
-void print_matrix(const float m[4][4])
-{
-  for (int i = 0; i < 4; ++i) {
-    printf("[%.4f %.4f %.4f %.4f]\n", m[i][0], m[i][1], m[i][2], m[i][3]);
-  }
-}
-
 void BL_ArmatureObject::InitSkinningBuffers()
 {
   if (in_indices.empty()) {
@@ -627,25 +621,6 @@ void BL_ArmatureObject::InitSkinningBuffers()
   }
 }
 
-/* Debugging tool to unpack normals on the cpu */
-void unpack_normal(uint32_t packed, float &x, float &y, float &z)
-{
-  int ix = int((packed >> 0) & 0x3FF);
-  int iy = int((packed >> 10) & 0x3FF);
-  int iz = int((packed >> 20) & 0x3FF);
-
-  if (ix >= 512)
-    ix -= 1024;
-  if (iy >= 512)
-    iy -= 1024;
-  if (iz >= 512)
-    iz -= 1024;
-
-  x = float(ix) / 511.0f;
-  y = float(iy) / 511.0f;
-  z = float(iz) / 511.0f;
-}
-
 /* For gpu sknning, we delay many variables initialisation here to have "up to date" informations.
  * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
  * a render cache for the deformed object....
@@ -707,7 +682,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
 
   if (m_deformedObj && m_modifiersListbackup.empty()) {
-    DisableArmatureModifiers(m_deformedObj, m_modifiersListbackup);
+    disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
   }
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
