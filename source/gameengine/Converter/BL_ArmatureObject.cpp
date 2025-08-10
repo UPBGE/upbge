@@ -306,14 +306,13 @@ BL_ArmatureObject::~BL_ArmatureObject()
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
 {
+  KX_GameObject::SetBlenderObject(obj);
   m_objArma = obj;
 
   if (m_objArma) {
     memcpy(m_object_to_world, m_objArma->object_to_world().ptr(), sizeof(m_object_to_world));
     LoadChannels();
   }
-
-  KX_GameObject::SetBlenderObject(m_objArma);
 }
 
 bool BL_ArmatureObject::GetUseGPUDeform()
