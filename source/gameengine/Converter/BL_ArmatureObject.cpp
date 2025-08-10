@@ -126,7 +126,8 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
     return;
   }
 
-  // 1. Récupérer les positions de repos directement depuis le mesh original
+  // Get rest positions from original mesh directly
+  // (easier this way but can cause issues if it has modifiers)
   Mesh *orig_mesh = static_cast<Mesh *>(deformed_obj->data);
 
   const int num_corners = orig_mesh->corners_num;
@@ -137,7 +138,6 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
     const blender::float3 &pos = orig_mesh->vert_positions()[vert_idx];
     restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
   });
-  restNormals = blender::Array<blender::float4>(num_corners);
   using namespace blender::bke;
   auto faces = orig_mesh->faces();
   auto face_normals = orig_mesh->face_normals();
@@ -151,7 +151,7 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
   tbb::parallel_for(0, orig_mesh->faces_num, [&](int face) {
     auto face_range = faces[face];
     if (sharp_faces && sharp_faces[face]) {
-      // Flat: normale de face pour tous les coins
+      // Flat: face normal for each corner
       const blender::float3 &nor = face_normals[face];
       blender::float3 safe_nor = normalize(nor);
       for (int corner : face_range) {
@@ -159,7 +159,7 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
       }
     }
     else {
-      // Smooth: normale de sommet pour chaque coin
+      // Smooth: vert normal for each corner
       for (int corner : face_range) {
         int vert = corner_verts[corner];
         const blender::float3 &nor = vert_normals[vert];
