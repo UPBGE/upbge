@@ -483,10 +483,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   const Span<float3> vertex_normals = final_me->vert_normals();
   const Span<float3> face_normals = final_me->face_normals();
-  const Span<int> corner_edges = final_me->corner_edges();
-  const Span<int2> edges = final_me->edges();
-
-  const OffsetIndices polys = final_me->faces();
 
   // --- New version using modern triangulation ---
   const blender::Span<blender::int3> tris = final_me->corner_tris();

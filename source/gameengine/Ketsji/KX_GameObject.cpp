@@ -339,6 +339,24 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
   }
 }
 
+static bool is_realtime_compositor_enabled(bContext *C)
+{
+  bool is_realtime_compositor_enabled = false;
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Scene *scene = CTX_data_scene(C);
+  if (v3d && scene) {
+    if (v3d->shading.use_compositor != V3D_SHADING_USE_COMPOSITOR_DISABLED &&
+        v3d->shading.type >= OB_MATERIAL && scene->compositing_node_group && rv3d &&
+        !(v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
+          rv3d->persp != RV3D_CAMOB))
+    {
+      is_realtime_compositor_enabled = true;
+    }
+  }
+  return is_realtime_compositor_enabled;
+}
+
 void KX_GameObject::ReplicateBlenderObject()
 {
   Object *ob = GetBlenderObject();
@@ -372,12 +390,7 @@ void KX_GameObject::ReplicateBlenderObject()
      * See: https://github.com/UPBGE/upbge/issues/1818 - Would maybe need more investigations
      * for a better fix... */
     if (GetScene()->GetOverlayCamera()) {
-      View3D *v3d = CTX_wm_view3d(C);
-      bool is_realtime_compositor_enabled = scene->use_nodes && scene->nodetree &&
-                                            v3d->shading.use_compositor !=
-                                                V3D_SHADING_USE_COMPOSITOR_DISABLED &&
-                                            v3d->shading.type >= OB_MATERIAL;
-      if (is_realtime_compositor_enabled) {
+      if (is_realtime_compositor_enabled(C)) {
         GetScene()->AppendToIdsToUpdate(&scene->id, ID_RECALC_EDITORS, true);
       }
     }
