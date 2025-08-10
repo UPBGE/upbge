@@ -783,15 +783,6 @@ uint normal_pack(vec3 normal)
   return x | (y << 10) | (z << 20);
 }
 
-vec3 safe_normalize(vec3 v)
-{
-  float len = length(v);
-  if (len > 1e-8)
-    return v / len;
-  else
-    return vec3(0.0, 0.0, 1.0);
-}
-
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
