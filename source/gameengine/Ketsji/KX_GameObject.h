@@ -165,7 +165,6 @@ class KX_GameObject : public SCA_IObject {
   void SetIsReplicaObject();
   float *GetPrevObjectMatToWorld();
   BL_ActionManager *GetActionManagerNoCreate();
-  void SetArmatureObject(KX_GameObject *armature);
   /* END OF EEVEE INTEGRATION */
 
   /**
