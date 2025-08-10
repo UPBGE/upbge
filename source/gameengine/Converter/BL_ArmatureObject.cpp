@@ -700,8 +700,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     return;
   }
 
-  blender::Span<MDeformVert> dverts = mesh->deform_verts();
-  blender::Span<blender::float3> vert_positions = mesh->vert_positions();
   int num_corners = mesh->corner_verts().size();
 
   // 3. Prepare bone matrices
