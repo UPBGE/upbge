@@ -453,7 +453,6 @@ KX_PythonProxy *BL_ArmatureObject::NewInstance()
 
 void BL_ArmatureObject::ProcessReplica()
 {
-  RestoreArmatureModifierList(m_deformedObj);
   KX_GameObject::ProcessReplica();
 
   // Replicate each constraints.
