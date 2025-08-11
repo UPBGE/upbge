@@ -661,7 +661,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   // 1. apply action to armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  BKE_pose_rest(m_objArma->pose, false);
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
 
   // 2. update pose
