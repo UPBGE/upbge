@@ -1356,15 +1356,4 @@ const VKShaderInterface &VKShader::interface_get() const
   return *static_cast<const VKShaderInterface *>(interface);
 }
 
-/*****************UPBGE****************/
-char *VKShader::shader_validate()
-{
-  return nullptr;
-}
-
-//void VKShader::shader_bind_attributes(int * /*locations*/, const char ** /*names*/, int /*len*/)
-//{
-//}
-/**************End of UPBGE************/
-
 }  // namespace blender::gpu

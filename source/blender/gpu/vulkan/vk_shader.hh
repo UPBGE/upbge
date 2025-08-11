@@ -90,10 +90,6 @@ class VKShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  /* UPBGE */
-  char *shader_validate() override;
-  /*********/
-
   VkPipeline ensure_and_get_compute_pipeline(
       const shader::SpecializationConstants &constants_state);
   VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,

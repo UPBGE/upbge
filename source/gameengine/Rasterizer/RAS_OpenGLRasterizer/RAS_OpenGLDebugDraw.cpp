@@ -81,7 +81,7 @@ void RAS_OpenGLDebugDraw::DrawDebugLinesBatch(const std::vector<RAS_DebugDraw::L
   }
 
   Batch *batch = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_FLAT_COLOR);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_FLAT_COLOR);
   GPU_batch_set_shader(batch, shader);
   GPU_batch_draw(batch);
   GPU_batch_discard(batch);

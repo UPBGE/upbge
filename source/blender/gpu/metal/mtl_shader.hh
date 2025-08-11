@@ -283,10 +283,6 @@ class MTLShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  /* UPBGE */
-  char *shader_validate() override;
-  /*********/
-
   void bind(const shader::SpecializationConstants *constants_state) override;
   void unbind() override;
 

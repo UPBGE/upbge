@@ -117,15 +117,8 @@ class Shader {
     return parent_shader_;
   }
 
-  static void set_srgb_uniform(Context *ctx, GPUShader *shader);
+  static void set_srgb_uniform(Context *ctx, gpu::Shader *shader);
   static void set_framebuffer_srgb_target(int use_srgb_to_linear);
-
-  /* UPBGE */
-  virtual char *shader_validate() = 0;
-  //virtual void shader_bind_attributes(int *locations, const char **names, int len) = 0;
-  /* GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
-     bgl_TextureCoordinateOffset[9]; */
-  /*********/
 
  protected:
   void print_log(Span<StringRefNull> sources,
@@ -134,20 +127,6 @@ class Shader {
                  bool error,
                  GPULogParser *parser);
 };
-
-/* Syntactic sugar. */
-static inline GPUShader *wrap(Shader *vert)
-{
-  return reinterpret_cast<GPUShader *>(vert);
-}
-static inline Shader *unwrap(GPUShader *vert)
-{
-  return reinterpret_cast<Shader *>(vert);
-}
-static inline const Shader *unwrap(const GPUShader *vert)
-{
-  return reinterpret_cast<const Shader *>(vert);
-}
 
 class ShaderCompiler {
   struct Sources {
@@ -181,7 +160,7 @@ class ShaderCompiler {
     {
       for (Shader *shader : shaders) {
         if (shader) {
-          GPU_shader_free(wrap(shader));
+          GPU_shader_free(shader);
         }
       }
       shaders.clear();
@@ -359,4 +338,4 @@ void printf_end(Context *ctx);
 }  // namespace blender::gpu
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
-GPUShader *immGetShader();
+blender::gpu::Shader *immGetShader();

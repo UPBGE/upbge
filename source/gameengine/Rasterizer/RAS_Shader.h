@@ -20,7 +20,6 @@
 using namespace blender::gpu::shader;
 
 class RAS_Rasterizer;
-struct GPUShader;
 
 typedef struct UniformConstant {
   Type type;
@@ -110,7 +109,7 @@ class RAS_Shader {
   typedef std::vector<RAS_Uniform *> RAS_UniformVec;
   typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
-  GPUShader *m_shader;
+  blender::gpu::Shader *m_shader;
   bool m_use;
   std::string m_progs[MAX_PROGRAM];
   bool m_error;
@@ -126,7 +125,7 @@ class RAS_Shader {
     float coo_offset[9][4];
   };
   bgl_Data m_uboData;
-  GPUUniformBuf *m_ubo;
+  blender::gpu::UniformBuf *m_ubo;
 
   std::vector<UniformConstant> m_constantUniforms;
   std::vector<std::pair<int, std::string>> m_samplerUniforms;
@@ -154,7 +153,7 @@ class RAS_Shader {
 
   bool GetError();
   bool Ok() const;
-  GPUShader *GetGPUShader();
+  blender::gpu::Shader *GetGPUShader();
 
   unsigned int GetProg();
   virtual void SetProg(bool enable);
