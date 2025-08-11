@@ -130,41 +130,18 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
 
   const int num_corners = orig_mesh->corners_num;
   auto corner_verts = orig_mesh->corner_verts();
+  auto corner_normals = orig_mesh->corner_normals();
   restPositions = blender::Array<blender::float4>(num_corners);
   tbb::parallel_for(0, num_corners, [&](int i) {
     int vert_idx = corner_verts[i];
     const blender::float3 &pos = orig_mesh->vert_positions()[vert_idx];
     restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
   });
-  using namespace blender::bke;
-  auto faces = orig_mesh->faces();
-  auto face_normals = orig_mesh->face_normals();
-  auto vert_normals = orig_mesh->vert_normals();
-  auto sharp_faces = orig_mesh->attributes()
-                         .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
-                         .varray;
 
   restNormals = blender::Array<blender::float4>(num_corners);
-  using namespace blender::math;
-  tbb::parallel_for(0, orig_mesh->faces_num, [&](int face) {
-    auto face_range = faces[face];
-    if (sharp_faces && sharp_faces[face]) {
-      // Flat: face normal for each corner
-      const blender::float3 &nor = face_normals[face];
-      blender::float3 safe_nor = normalize(nor);
-      for (int corner : face_range) {
-        restNormals[corner] = blender::float4(safe_nor.x, safe_nor.y, safe_nor.z, 0.0f);
-      }
-    }
-    else {
-      // Smooth: vert normal for each corner
-      for (int corner : face_range) {
-        int vert = corner_verts[corner];
-        const blender::float3 &nor = vert_normals[vert];
-        blender::float3 safe_nor = normalize(nor);
-        restNormals[corner] = blender::float4(safe_nor.x, safe_nor.y, safe_nor.z, 0.0f);
-      }
-    }
+  tbb::parallel_for(0, orig_mesh->corners_num, [&](int i) {
+    restNormals[i] = blender::float4(
+        corner_normals[i].x, corner_normals[i].y, corner_normals[i].z, 0.0f);
   });
 }
 
