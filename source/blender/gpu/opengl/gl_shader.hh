@@ -171,11 +171,6 @@ class GLShader : public Shader {
 
   GLSourcesBaked get_sources();
 
-  /******************************************UPBGE*****************************************/
-  char *shader_validate() override;
-  //void shader_bind_attributes(int *locations, const char **names, int len) override;
-  /****************************************End of UPBGE************************************/
-
  private:
   StringRefNull glsl_patch_get(GLenum gl_stage);
 

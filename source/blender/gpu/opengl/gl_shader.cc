@@ -1679,36 +1679,6 @@ GLSourcesBaked GLShader::get_sources()
   return result;
 }
 
-/****************UPBGE*************************/
-char *GLShader::shader_validate()
-{
-  GLint success;
-  glValidateProgram(main_program_->program_id);
-  glGetProgramiv(main_program_->program_id, GL_VALIDATE_STATUS, &success);
-
-  if (success > 0) {
-    GLsizei charlen;
-    char *log = (char *)MEM_mallocN(success, "GPU_shader_validate");
-
-    glGetProgramInfoLog(main_program_->program_id, success, &charlen, log);
-
-    return log;
-  }
-  return NULL;
-}
-
-//void GLShader::shader_bind_attributes(int *locations, const char **names, int len)
-//{
-//  if (interface) {
-//    delete interface;
-//  }
-//  for (unsigned short i = 0; i < len; ++i) {
-//    glBindAttribLocation(program_active_->program_id, locations[i], names[i]);
-//  }
-//  interface = new GLShaderInterface();
-//}
-/**************End of UPBGE*************/
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

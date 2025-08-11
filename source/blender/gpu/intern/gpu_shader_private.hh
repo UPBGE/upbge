@@ -120,13 +120,6 @@ class Shader {
   static void set_srgb_uniform(Context *ctx, gpu::Shader *shader);
   static void set_framebuffer_srgb_target(int use_srgb_to_linear);
 
-  /* UPBGE */
-  virtual char *shader_validate() = 0;
-  //virtual void shader_bind_attributes(int *locations, const char **names, int len) = 0;
-  /* GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
-     bgl_TextureCoordinateOffset[9]; */
-  /*********/
-
  protected:
   void print_log(Span<StringRefNull> sources,
                  const char *log,

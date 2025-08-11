@@ -61,7 +61,7 @@ void RAS_Shader::RAS_Uniform::Apply(RAS_Shader *shader)
     return;
   }
 
-  GPUShader *gpushader = shader->GetGPUShader();
+  blender::gpu::Shader *gpushader = shader->GetGPUShader();
   switch (m_type) {
     case UNI_FLOAT: {
       float *f = (float *)m_data;
@@ -554,11 +554,6 @@ program_error : {
 
 void RAS_Shader::ValidateProgram()
 {
-  char *log = GPU_shader_validate(m_shader);
-  if (log) {
-    CM_Debug("---- GLSL Validation ----\n" << log);
-    MEM_freeN(log);
-  }
 }
 
 bool RAS_Shader::GetError()
@@ -566,7 +561,7 @@ bool RAS_Shader::GetError()
   return m_error;
 }
 
-GPUShader *RAS_Shader::GetGPUShader()
+blender::gpu::Shader *RAS_Shader::GetGPUShader()
 {
   return m_shader;
 }

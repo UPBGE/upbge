@@ -1587,15 +1587,4 @@ void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 
 /** \} */
 
-/*****************UPBGE****************/
-char *MTLShader::shader_validate()
-{
-  return nullptr;
-}
-
-//void MTLShader::shader_bind_attributes(int *locations, const char **names, int len)
-//{
-//}
-/**************End of UPBGE************/
-
 }  // namespace blender::gpu

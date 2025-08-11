@@ -1234,14 +1234,3 @@ void GPU_shader_force_unbind(void)
   }
   ctx->shader = nullptr;
 }
-
-char *GPU_shader_validate(GPUShader *shader)
-{
-  return unwrap(shader)->shader_validate();
-}
-
-//void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
-//{
-//  unwrap(shader)->shader_bind_attributes(locations, names, len);
-//}
-/**********************End of UPBGE*******************************/
