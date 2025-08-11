@@ -8130,7 +8130,7 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
 /**
  * \return borrowed reference.
  */
-static PyObject *pyrna_srna_PyBase(StructRNA *srna)  //, PyObject *bpy_types_dict)
+static PyObject *pyrna_srna_PyBase(StructRNA *srna)
 {
   /* Assume RNA_struct_py_type_get(srna) was already checked. */
   StructRNA *base;
@@ -8153,9 +8153,15 @@ static PyObject *pyrna_srna_PyBase(StructRNA *srna)  //, PyObject *bpy_types_dic
   return py_base;
 }
 
-/* Check if we have a native Python subclass, use it when it exists
- * return a borrowed reference. */
+/**
+ * Check if we have a native Python subclass, use it when it exists
+ * return a borrowed reference.
+ */
 static PyObject *bpy_types_dict = nullptr;
+void BPY_rna_types_dict_set(PyObject *dict)
+{
+  bpy_types_dict = dict; /* Borrow. */
+}
 
 /**
  * Return the #PyTypeObject or null,
@@ -8164,22 +8170,10 @@ static PyObject *bpy_types_dict = nullptr;
  */
 static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
 {
+  BLI_assert(bpy_types_dict);
+
   const char *idname = RNA_struct_identifier(srna);
-  PyObject *newclass;
-
-  if (bpy_types_dict == nullptr) {
-    PyObject *bpy_types = PyImport_ImportModuleLevel("bpy_types", nullptr, nullptr, nullptr, 0);
-
-    if (bpy_types == nullptr) {
-      PyErr_Print();
-      CLOG_ERROR(BPY_LOG_RNA, "failed to find 'bpy_types' module");
-      return nullptr;
-    }
-    bpy_types_dict = PyModule_GetDict(bpy_types); /* Borrow. */
-    Py_DECREF(bpy_types);                         /* Fairly safe to assume the dict is kept. */
-  }
-
-  newclass = PyDict_GetItemString(bpy_types_dict, idname);
+  PyObject *newclass = PyDict_GetItemString(bpy_types_dict, idname);
 
   /* Sanity check, could skip this unless in debug mode. */
   if (newclass) {
@@ -8194,7 +8188,7 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
 
     if (tp_slots == nullptr) {
       CLOG_ERROR(
-          BPY_LOG_RNA, "expected class '%s' to have __slots__ defined, see bpy_types.py", idname);
+          BPY_LOG_RNA, "expected class '%s' to have __slots__ defined, see _bpy_types.py", idname);
       newclass = nullptr;
     }
     else if (PyTuple_GET_SIZE(tp_bases)) {
@@ -8204,7 +8198,7 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
         char pyob_info[256];
         PyC_ObSpitStr(pyob_info, sizeof(pyob_info), base_compare);
         CLOG_ERROR(BPY_LOG_RNA,
-                   "incorrect subclassing of SRNA '%s', expected '%s', see bpy_types.py",
+                   "incorrect subclassing of SRNA '%s', expected '%s', see _bpy_types.py",
                    idname,
                    pyob_info);
         newclass = nullptr;
@@ -8234,7 +8228,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
   else if ((newclass = static_cast<PyObject *>(RNA_struct_py_type_get(srna)))) {
     /* Add a reference for the return value. */
     Py_INCREF(newclass);
-  } /* Check if `bpy_types.py` module has the class defined in it. */
+  } /* Check if `_bpy_types.py` module has the class defined in it. */
   else if ((newclass = pyrna_srna_ExternalType(srna))) {
     pyrna_subtype_set_rna(newclass, srna);
     /* Add a reference for the return value. */
@@ -8851,13 +8845,13 @@ void BPY_rna_types_finalize_external_types(PyObject *submodule)
 
     BLI_assert_msg(
         PyObject_IsSubclass(arg_value, (PyObject *)&pyrna_struct_Type),
-        "Members of bpy_types.py which are not StructRNA sub-classes must use a \"_\" prefix!");
+        "Members of _bpy_types.py which are not StructRNA sub-classes must use a \"_\" prefix!");
 
     PointerRNA newptr;
     if (RNA_property_collection_lookup_string(&state->ptr.value(), state->prop, key_str, &newptr))
     {
       StructRNA *srna = srna_from_ptr(&newptr);
-      /* Within the Python logic of `./scripts/modules/bpy_types.py`
+      /* Within the Python logic of `./scripts/modules/_bpy_types.py`
        * it's possible this was already initialized. */
       if (RNA_struct_py_type_get(srna) == nullptr) {
         pyrna_subtype_set_rna(arg_value, srna);
@@ -8872,7 +8866,7 @@ void BPY_rna_types_finalize_external_types(PyObject *submodule)
       }
 #  endif
       CLOG_WARN(
-          BPY_LOG_RNA, "bpy_types.py defines \"%.200s\" which is not a known RNA type!", key_str);
+          BPY_LOG_RNA, "_bpy_types.py defines \"%.200s\" which is not a known RNA type!", key_str);
     }
 #endif
   }
@@ -9977,7 +9971,7 @@ void pyrna_alloc_types()
 {
   /* NOTE: This isn't essential to run on startup, since sub-types will lazy initialize.
    * But keep running in debug mode so we get immediate notification of bad class hierarchy
-   * or any errors in "bpy_types.py" at load time, so errors don't go unnoticed. */
+   * or any errors in `_bpy_types.py` at load time, so errors don't go unnoticed. */
 
 #ifndef NDEBUG
   PyGILState_STATE gilstate = PyGILState_Ensure();

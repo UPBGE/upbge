@@ -841,7 +841,8 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
+static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
+                                        VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
 {
@@ -849,6 +850,23 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
+
+  if (ghost_vsync_string) {
+    bool vsync_off = atoi(ghost_vsync_string) == 0;
+    if (vsync_off) {
+      for (auto present_mode : presents) {
+        if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+          *r_presentMode = present_mode;
+          return GHOST_kSuccess;
+        }
+      }
+      CLOG_WARN(&LOG,
+                "Vulkan: Vsync off was requested via BLENDER_VSYNC, but "
+                "VK_PRESENT_MODE_IMMEDIATE_KHR is not "
+                "supported.");
+    }
+  }
+
   /* MAILBOX is the lowest latency V-Sync enabled mode. We will use it if available as it fixes
    * some lag on NVIDIA/Intel GPUs. */
   /* TODO: select the correct presentation mode based on the actual being performed by the user.
@@ -950,7 +968,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
 
   VkPresentModeKHR present_mode;
-  if (!selectPresentMode(physical_device, m_surface, &present_mode)) {
+  if (!selectPresentMode(getEnvVarVsyncString(), physical_device, m_surface, &present_mode)) {
     return GHOST_kFailure;
   }
 
