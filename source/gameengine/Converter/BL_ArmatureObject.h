@@ -37,6 +37,11 @@
 #include "BL_ArmatureConstraint.h"
 #include "KX_GameObject.h"
 
+namespace blender::gpu {
+ class Shader;
+ class StorageBuf;
+}  // namespace blender::gpu
+
 struct AnimationEvalContext;
 struct Bone;
 struct bPose;
@@ -67,18 +72,18 @@ class BL_ArmatureObject : public KX_GameObject {
   Mesh *m_deformedReplicaData;
   class blender::Array<blender::float4> m_refPositions;
   class blender::Array<blender::float4> m_refNormals;
-  struct GPUShader *m_shader;
+  blender::gpu::Shader *m_shader;
   std::vector<ModifierStackBackup> m_modifiersListbackup;
 
   std::vector<int> in_indices;
   std::vector<float> in_weights;
-  struct GPUStorageBuf *ssbo_in_idx;
-  struct GPUStorageBuf *ssbo_in_wgt;
-  struct GPUStorageBuf *ssbo_bone_pose_mat;
-  struct GPUStorageBuf *ssbo_premat;
-  struct GPUStorageBuf *ssbo_postmat;
-  struct GPUStorageBuf *ssbo_rest_pose;
-  struct GPUStorageBuf *ssbo_rest_normals;
+  blender::gpu::StorageBuf *ssbo_in_idx;
+  blender::gpu::StorageBuf *ssbo_in_wgt;
+  blender::gpu::StorageBuf *ssbo_bone_pose_mat;
+  blender::gpu::StorageBuf *ssbo_premat;
+  blender::gpu::StorageBuf *ssbo_postmat;
+  blender::gpu::StorageBuf *ssbo_rest_pose;
+  blender::gpu::StorageBuf *ssbo_rest_normals;
 
   double m_lastframe;
   size_t m_constraintNumber;

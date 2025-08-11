@@ -829,8 +829,7 @@ void main() {
   }
 
   // 7. Dispatch compute shader
-  GPUShader *shader = m_shader;
-  GPU_shader_bind(shader);
+  GPU_shader_bind(m_shader);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
   GPU_storagebuf_bind(ssbo_in_idx, 2);
@@ -843,7 +842,7 @@ void main() {
 
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(shader, num_groups, 1, 1);
+  GPU_compute_dispatch(m_shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
   GPU_storagebuf_unbind(ssbo_in_idx);
