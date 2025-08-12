@@ -92,13 +92,17 @@ GHOST_TSuccess GHOST_System::disposeWindow(GHOST_IWindow *window)
    * Remove all pending events for the window.
    */
   if (m_windowManager->getWindowFound(window)) {
-    m_eventManager->removeWindowEvents(window);
-  }
-  if (window == m_windowManager->getFullScreenWindow()) {
-    success = endFullScreen();
+    m_eventManager->removeWindowEvents(window);  
+    success = m_windowManager->removeWindow(window);
+    if (success) {
+      delete window;
+    }
   }
   else {
-    if (m_windowManager->getWindowFound(window)) {
+    if (window == m_windowManager->getFullScreenWindow()) {
+      success = endFullScreen();
+    }
+    else if (m_windowManager->getWindowFound(window)) {
       success = m_windowManager->removeWindow(window);
       if (success) {
         delete window;
@@ -348,7 +352,8 @@ GHOST_TSuccess GHOST_System::exit()
   if (getFullScreen()) {
     endFullScreen();
   }
-
+  /** WARNING: exit() may run more than once, since it may need to be called from a derived class
+   * destructor. Take it into account when modifying this function. */
   delete m_windowManager;
   m_windowManager = nullptr;
 
