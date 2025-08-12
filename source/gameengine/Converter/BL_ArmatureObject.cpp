@@ -248,6 +248,13 @@ BL_ArmatureObject::~BL_ArmatureObject()
     RestoreArmatureModifierList(m_deformedObj);
   }
   m_modifiersListbackup.clear();
+
+  /* Restore orig_mesh->is_using_skinning = 0,
+   * to extract positions on float3 next time mesh will be reconstructed */
+  if (m_deformedObj && !m_isReplica) {
+    Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
+    orig_mesh->is_using_skinning = 0;
+  }
   m_deformedObj = nullptr;
 
   if (m_shader) {
@@ -654,6 +661,9 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
+
+  Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
+  orig_mesh->is_using_skinning = 1;
 
   MeshBatchCache *cache = nullptr;
   if (mesh->runtime && mesh->runtime->batch_cache) {
