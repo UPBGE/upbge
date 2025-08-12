@@ -663,11 +663,12 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   blender::gpu::VertBuf *vbo_pos = nullptr;
   blender::gpu::VertBuf *vbo_nor = nullptr;
 
-  if (cache) {
-    vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get();
-    vbo_nor = cache->final.buff.vbos.lookup(VBOType::CornerNormal).get();
+  if (cache && cache->final.buff.vbos.size() > 0) {
+    auto pos_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
+    vbo_pos = pos_vbo_it ? pos_vbo_it->get() : nullptr;
+    auto nor_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
+    vbo_nor = nor_vbo_it ? nor_vbo_it->get() : nullptr;
   }
-
   if (!vbo_pos || !vbo_nor) {
     return;
   }
