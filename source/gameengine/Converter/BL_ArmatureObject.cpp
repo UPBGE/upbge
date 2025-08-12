@@ -750,14 +750,11 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     info.storage_buf(7, Qualifier::read, "vec4", "rest_normals[]");
     info.storage_buf(8, Qualifier::read, "mat4", "postmat[]");
     info.compute_source_generated = R"(
-uint normal_pack(vec3 normal)
-{
-  normal = normalize(normal);
-  ivec3 enc = ivec3(clamp(round(normal * 511.0), -512.0, 511.0));
-  uint x = uint(enc.x) & 0x3FFu;
-  uint y = uint(enc.y) & 0x3FFu;
-  uint z = uint(enc.z) & 0x3FFu;
-  return x | (y << 10) | (z << 20);
+int convert_normalized_f32_to_i10(float x) {
+  const int signed_int_10_max = 511;
+  const int signed_int_10_min = -512;
+  int qx = int(x * float(signed_int_10_max));
+  return clamp(qx, signed_int_10_min, signed_int_10_max);
 }
 
 void main() {
@@ -799,7 +796,14 @@ void main() {
   }
   skinned_n = normalize(skinned_n);
   vec4 finalnor = postmat[0] * vec4(skinned_n, 0.0);
-  normals[v] = normal_pack(finalnor.xyz);
+
+  // Conversion exactement comme Blender
+  int x = convert_normalized_f32_to_i10(finalnor.x);
+  int y = convert_normalized_f32_to_i10(finalnor.y);
+  int z = convert_normalized_f32_to_i10(finalnor.z);
+  int w = 0;
+  // Packing en format 10+10+10+2 avec gestion correcte du signe
+  normals[v] = uint((x & 0x3FF) | ((y & 0x3FF) << 10) | ((z & 0x3FF) << 20) | ((w & 0x3) << 30));
 }
     )";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
