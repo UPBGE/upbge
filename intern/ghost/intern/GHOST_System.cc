@@ -349,15 +349,11 @@ GHOST_TSuccess GHOST_System::init()
 
 GHOST_TSuccess GHOST_System::exit()
 {
-<<<<<<< HEAD
   if (getFullScreen()) {
     endFullScreen();
   }
-=======
   /** WARNING: exit() may run more than once, since it may need to be called from a derived class
    * destructor. Take it into account when modifying this function. */
->>>>>>> b/main
-
   delete m_windowManager;
   m_windowManager = nullptr;
 
