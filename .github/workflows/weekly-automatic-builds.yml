@@ -45,7 +45,29 @@ jobs:
           git clone https://github.com/UPBGE/upbge.git
         env:
           GIT_LFS_SKIP_SMUDGE: 1
-        
+
+      - name: Update submodules manually
+        env:
+          GIT_LFS_SKIP_SMUDGE: 1
+        run: |
+          cd upbge/scripts/addons_core
+          git submodule update --init --recursive --remote .
+          cd bge_netlogic
+          git checkout main || git checkout master
+          git pull --rebase origin main || git pull --rebase origin master
+
+          cd ../bge_bricknodes
+          git checkout main || git checkout master
+          git pull --rebase origin main || git pull --rebase origin master
+
+          cd ../bge_easyonline
+          git checkout main || git checkout master
+          git pull --rebase origin main || git pull --rebase origin master
+
+          cd ../bge_thelightmapper
+          git checkout main || git checkout master
+          git pull --rebase origin main || git pull --rebase origin master
+          
       - name: Setup Python
         uses: actions/setup-python@v5
         with: 
