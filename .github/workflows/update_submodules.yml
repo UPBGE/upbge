@@ -2,8 +2,8 @@ name: Update submodules weekly
 
 on:
   schedule:
-    # Every Monday at 03:00 UTC
-    - cron: "0 3 * * 1"
+    # Every day at 03:00 UTC
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        env:
+          GIT_LFS_SKIP_SMUDGE: 1
         with:
           fetch-depth: 0
           submodules: recursive
@@ -45,5 +47,5 @@ jobs:
       - name: Commit changes if any
         run: |
           git add .
-          git diff --cached --quiet || git commit -m "UPBGE: Weekly submodule update"
+          git diff --cached --quiet || git commit -m "UPBGE: Daily submodule update"
           git push origin HEAD

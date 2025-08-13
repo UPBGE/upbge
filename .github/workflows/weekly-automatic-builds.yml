@@ -146,6 +146,20 @@ jobs:
         if: matrix.os != 'windows'
         run: make -C build install
 
+      - name: Install PyPI package into UPBGE's Python (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          $pybin = Get-ChildItem -Recurse -Path "build/bin/Release" -Filter "python.exe" | Select-Object -First 1 | ForEach-Object { $_.FullName }
+          & $pybin -m ensurepip
+          & $pybin -m pip install uplogic
+
+      - name: Install PyPI package into UPBGE's Python (Linux/macOS)
+        if: matrix.os != 'windows'
+        run: |
+          PY_BIN=$(find build/bin -path "*/python/bin/python3.*" | head -n 1)
+          "$PY_BIN" -m ensurepip
+          "$PY_BIN" -m pip install uplogic
+
       - name: Archive Build (Linux/macOS)
         if: matrix.os != 'windows'
         run: |
