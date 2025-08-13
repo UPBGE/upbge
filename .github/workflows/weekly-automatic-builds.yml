@@ -53,20 +53,20 @@ jobs:
           cd upbge/scripts/addons_core
           git submodule update --init --recursive --remote .
           cd bge_netlogic
-          git checkout main || git checkout master
-          git pull --rebase origin main || git pull --rebase origin master
+          git checkout master
+          git pull --rebase origin master
 
           cd ../bge_bricknodes
-          git checkout main || git checkout master
-          git pull --rebase origin main || git pull --rebase origin master
+          git checkout master
+          git pull --rebase origin master
 
           cd ../bge_easyonline
-          git checkout main || git checkout master
-          git pull --rebase origin main || git pull --rebase origin master
+          git checkout master
+          git pull --rebase origin master
 
           cd ../bge_thelightmapper
-          git checkout main || git checkout master
-          git pull --rebase origin main || git pull --rebase origin master
+          git checkout master
+          git pull --rebase origin master
           
       - name: Setup Python
         uses: actions/setup-python@v5
