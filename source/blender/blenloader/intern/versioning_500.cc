@@ -1250,15 +1250,13 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
 
   LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
     bool found_incompatible_cache = false;
-    if (pid->cache->compression == PTCACHE_COMPRESS_LZO_DEPRECATED) {
-      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FAST;
+    if (ELEM(pid->cache->compression,
+             PTCACHE_COMPRESS_LZO_DEPRECATED,
+             PTCACHE_COMPRESS_LZMA_DEPRECATED))
+    {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FILTERED;
       found_incompatible_cache = true;
     }
-    else if (pid->cache->compression == PTCACHE_COMPRESS_LZMA_DEPRECATED) {
-      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_SLOW;
-      found_incompatible_cache = true;
-    }
-
     if (pid->type == PTCACHE_TYPE_DYNAMICPAINT) {
       /* Dynamicpaint was hardcoded to use LZO. */
       found_incompatible_cache = true;
@@ -2256,6 +2254,20 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
+          do_version_file_output_node(*node);
+        }
+      }
+      FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 58)) {
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
       LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
         if (modifier->type != eModifierType_GreasePencilLineart) {
@@ -2269,18 +2281,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         lmd->radius = float(lmd->thickness_legacy) *
                       bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
       }
-    }
-
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-        if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
-          do_version_file_output_node(*node);
-        }
-      }
-      FOREACH_NODETREE_END;
     }
   }
 
