@@ -130,11 +130,12 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
 
   const int num_corners = orig_mesh->corners_num;
   auto corner_verts = orig_mesh->corner_verts();
+  auto vert_positions = orig_mesh->vert_positions();
   auto corner_normals = orig_mesh->corner_normals();
   restPositions = blender::Array<blender::float4>(num_corners);
   tbb::parallel_for(0, num_corners, [&](int i) {
     int vert_idx = corner_verts[i];
-    const blender::float3 &pos = orig_mesh->vert_positions()[vert_idx];
+    const blender::float3 &pos = vert_positions[vert_idx];
     restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
   });
 
