@@ -162,6 +162,11 @@ typedef struct Mesh {
   /** Mostly more flags used when editing or displaying the mesh. */
   uint16_t flag;
 
+  /* UPBGE: Use this flag to switch between float3/float4
+   * vbo_pos extraction */
+  int is_using_skinning;
+  int _pad2;
+
   float smoothresh_legacy DNA_DEPRECATED;
 
   /** Per-mesh settings for voxel remesh. */

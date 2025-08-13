@@ -1818,18 +1818,10 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
 
 static void remap_parents_recursive(KX_GameObject *parent)
 {
-  std::vector<KX_GameObject *>children = parent->GetChildren();
+  std::vector<KX_GameObject *> children = parent->GetChildren();
   for (KX_GameObject *child : children) {
     child->GetBlenderObject()->parent = parent->GetBlenderObject();
-    if (parent->GetBlenderObject()->type == OB_ARMATURE) {
-      ModifierData *mod;
-      for (mod = (ModifierData *)child->GetBlenderObject()->modifiers.first; mod; mod = mod->next)
-      {
-        if (mod->type == eModifierType_Armature) {
-          ((ArmatureModifierData *)mod)->object = child->GetBlenderObject()->parent;
-        }
-      }
-    }
+
     remap_parents_recursive(child);
   }
 }
