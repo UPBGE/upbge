@@ -7,6 +7,7 @@
 
 
 #include "Texture.h"
+#include "KX_PythonInit.h"
 #include "VideoBase.h"
 
 #include "IMB_imbuf.hh"
