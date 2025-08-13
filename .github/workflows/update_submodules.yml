@@ -1,0 +1,49 @@
+name: Update submodules weekly
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  update-submodules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update all submodules to latest master
+        env:
+          GIT_LFS_SKIP_SMUDGE: 1
+        run: |
+          cd upbge/scripts/addons_core
+          git submodule update --init --recursive --remote .
+          cd bge_netlogic
+          git checkout master
+          git pull --rebase origin master
+          cd ../bge_bricknodes
+          git checkout master
+          git pull --rebase origin master
+          cd ../bge_easyonline
+          git checkout master
+          git pull --rebase origin master
+          cd ../bge_thelightmapper
+          git checkout master
+          git pull --rebase origin master
+          cd ../../..
+
+      - name: Commit changes if any
+        run: |
+          git add .
+          git diff --cached --quiet || git commit -m "UPBGE: Weekly submodule update"
+          git push origin HEAD
