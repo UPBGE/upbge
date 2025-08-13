@@ -2158,7 +2158,7 @@ void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
   DRWDebugText2D *text = (DRWDebugText2D *)MEM_mallocN(sizeof(DRWDebugText2D), "DRWDebugText2D");
   text->xco = xco;
   text->yco = yco;
-  strncpy(text->text, str, 64);
+  STRNCPY(text->text, str);
   BLI_LINKS_PREPEND(debug_bge->texts, text);
 }
 

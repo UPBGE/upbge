@@ -85,7 +85,11 @@ bool KX_BlenderCanvas::GetSwapInterval(int &intervalOut)
 
 void KX_BlenderCanvas::GetDisplayDimensions(blender::int2 &scr_size)
 {
-  wm_get_screensize(scr_size);
+  int size[2];
+  if (wm_get_screensize(size)) {
+    scr_size[0] = size[0];
+    scr_size[1] = size[1];
+  }
 }
 
 void KX_BlenderCanvas::ResizeWindow(int width, int height)
@@ -148,11 +152,11 @@ void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bo
 
   /* Before https://github.com/UPBGE/upbge/commit/fc78182cc84ef45aa2f2d303a887419a39e9d2c2
    * it was following commented code.
-   * but bug here: https://github.com/UPBGE/upbge/issues/1851
+   * but bug here: https://github.com/UPBGE/upbge/issues/1851 */
   //r_x = x - m_viewportArea.GetLeft() - 1;
   //r_y = -y + m_viewportArea.GetTop() - 1;
 
-  /* After, attempt to fix: */
+  // After, attempt to fix
   wmEvent event;
   int xy[2] = {x, y};
   copy_v2_v2_int(event.xy, xy);

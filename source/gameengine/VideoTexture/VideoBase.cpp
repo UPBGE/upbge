@@ -126,7 +126,6 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
 {
   Py_buffer buffer;
   char *mode = nullptr;
-  blender::gpu::TextureFormat format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
   double ts = -1.0;
 
   memset(&buffer, 0, sizeof(buffer));
@@ -147,8 +146,8 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
       else {
         // ready to get the image into our buffer
         try {
-          if (mode == nullptr || !strcmp(mode, "RGBA"))
-            format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
+          if (mode == nullptr || !strcmp(mode, "RGBA")) {
+          }
           else
             THRWEXCP(InvalidImageMode, S_OK);
 

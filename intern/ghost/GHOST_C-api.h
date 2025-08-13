@@ -237,6 +237,7 @@ extern bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandl
  *         This window is invalid after full screen has been ended.
  */
 extern GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
+                                                const GHOST_DisplaySettings &setting,
                                                 const bool stereoVisual);
 
 /**

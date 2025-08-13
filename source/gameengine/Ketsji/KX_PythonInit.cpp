@@ -518,7 +518,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
   }
 
   while ((dirp = readdir(dp)) != nullptr) {
-    if (BLI_path_extension_check_n(dirp->d_name, ".blend")) {
+    if (BLI_path_extension_check_n(dirp->d_name, ".blend", nullptr)) {
       value = PyC_UnicodeFromBytes(dirp->d_name);
       PyList_Append(list, value);
       Py_DECREF(value);
@@ -1938,10 +1938,6 @@ PyMODINIT_FUNC initBGE()
   return mod;
 }
 
-void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
-{
-}
-
 void InitGamePlayerPythonScripting(
     Main *maggie, int argc, char **argv, bContext *C, bool *audioDeviceIsInitialized)
 {
@@ -2603,7 +2599,7 @@ std::string pathGamePythonConfig()
   int len = path.size();
 
   /* replace extension */
-  if (BLI_path_extension_check_n(path.c_str(), ".blend")) {
+  if (BLI_path_extension_check_n(path.c_str(), ".blend", nullptr)) {
     path = path.substr(0, len - 6) + std::string(".bgeconf");
   }
   else {

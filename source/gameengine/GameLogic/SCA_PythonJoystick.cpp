@@ -227,7 +227,7 @@ PyObject *SCA_PythonJoystick::pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
 
-  if (!(self->m_joystick) && !(self->m_joystick->GetRumbleSupport())) {
+  if (!(self->m_joystick) || !(self->m_joystick->GetRumbleSupport())) {
     return Py_False;
   }
 
