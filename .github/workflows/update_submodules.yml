@@ -28,8 +28,7 @@ jobs:
         env:
           GIT_LFS_SKIP_SMUDGE: 1
         run: |
-          ls -laR .
-          cd upbge/scripts/addons_core
+          cd scripts/addons_core
           git submodule update --init --recursive --remote .
           cd bge_netlogic
           git checkout master
