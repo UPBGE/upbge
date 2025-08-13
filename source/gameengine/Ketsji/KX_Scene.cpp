@@ -62,7 +62,6 @@
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"
 
-#include "BL_ArmatureObject.h"
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
 #include "BL_SceneConverter.h"
