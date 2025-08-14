@@ -777,6 +777,8 @@ int convert_normalized_f32_to_i10(float x) {
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= rest_positions.length()) return;
+
+  // Positions
   vec4 rest_pos = premat[0] * rest_positions[v];
   vec4 skinned = vec4(0.0);
   float total_weight = 0.0;
@@ -793,7 +795,8 @@ void main() {
   // Correction Blender-like :
   vec4 finalpos = skinned + rest_pos * (1.0 - total_weight);
   positions[v] = postmat[0] * finalpos;
-  // Calcul du skinning des normales avec la même matrice
+
+  // Normals
   vec4 n4 = premat[0] * rest_normals[v];
   vec3 n = n4.xyz;
   vec3 skinned_n = vec3(0.0);
@@ -814,12 +817,12 @@ void main() {
   skinned_n = normalize(skinned_n);
   vec4 finalnor = postmat[0] * vec4(skinned_n, 0.0);
 
-  // Conversion exactement comme Blender
+  // Same conversion than in Blender
   int x = convert_normalized_f32_to_i10(finalnor.x);
   int y = convert_normalized_f32_to_i10(finalnor.y);
   int z = convert_normalized_f32_to_i10(finalnor.z);
   int w = 0;
-  // Packing en format 10+10+10+2 avec gestion correcte du signe
+  // Packing in format 10+10+10+2 with correct sign gestion
   normals[v] = uint((x & 0x3FF) | ((y & 0x3FF) << 10) | ((z & 0x3FF) << 20) | ((w & 0x3) << 30));
 }
     )";
