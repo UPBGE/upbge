@@ -15,6 +15,81 @@
 
 namespace blender::draw {
 
+// === Utilitary function for FLOAT4 (GPU SKINNING) ===
+
+static void extract_positions_mesh_float4(const MeshRenderData &mr, MutableSpan<float4> vbo_data)
+{
+  MutableSpan corners_data = vbo_data.take_front(mr.corners_num);
+  MutableSpan loose_edge_data = vbo_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
+  MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
+
+  threading::memory_bandwidth_bound_task(
+      mr.vert_positions.size_in_bytes() + mr.corner_verts.size_in_bytes() +
+          vbo_data.size_in_bytes() + mr.loose_edges.size(),
+      [&]() {
+        for (int i = 0; i < corners_data.size(); ++i) {
+          const float3 &pos = mr.vert_positions[mr.corner_verts[i]];
+          corners_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
+        }
+        // Loose edges
+        for (int i = 0; i < mr.loose_edges.size(); ++i) {
+          const int2 &edge = mr.edges[mr.loose_edges[i]];
+          const float3 &pos0 = mr.vert_positions[edge[0]];
+          const float3 &pos1 = mr.vert_positions[edge[1]];
+          loose_edge_data[i * 2 + 0] = float4(pos0.x, pos0.y, pos0.z, 1.0f);
+          loose_edge_data[i * 2 + 1] = float4(pos1.x, pos1.y, pos1.z, 1.0f);
+        }
+        // Loose vertices
+        for (int i = 0; i < mr.loose_verts.size(); ++i) {
+          const float3 &pos = mr.vert_positions[mr.loose_verts[i]];
+          loose_vert_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
+        }
+      });
+}
+
+static void extract_positions_bm_float4(const MeshRenderData &mr, MutableSpan<float4> vbo_data)
+{
+  const BMesh &bm = *mr.bm;
+  MutableSpan corners_data = vbo_data.take_front(mr.corners_num);
+  MutableSpan loose_edge_data = vbo_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
+  MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
+
+  threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
+    for (const int face_index : range) {
+      const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
+      const BMLoop *loop = BM_FACE_FIRST_LOOP(&face);
+      for ([[maybe_unused]] const int i : IndexRange(face.len)) {
+        const int index = BM_elem_index_get(loop);
+        const float3 pos = bm_vert_co_get(mr, loop->v);
+        corners_data[index] = float4(pos.x, pos.y, pos.z, 1.0f);
+        loop = loop->next;
+      }
+    }
+  });
+
+  const Span<int> loose_edges = mr.loose_edges;
+  threading::parallel_for(loose_edges.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      const BMEdge &edge = *BM_edge_at_index(&const_cast<BMesh &>(bm), loose_edges[i]);
+      const float3 pos0 = bm_vert_co_get(mr, edge.v1);
+      const float3 pos1 = bm_vert_co_get(mr, edge.v2);
+      loose_edge_data[i * 2 + 0] = float4(pos0.x, pos0.y, pos0.z, 1.0f);
+      loose_edge_data[i * 2 + 1] = float4(pos1.x, pos1.y, pos1.z, 1.0f);
+    }
+  });
+
+  const Span<int> loose_verts = mr.loose_verts;
+  threading::parallel_for(loose_verts.index_range(), 2048, [&](const IndexRange range) {
+    for (const int i : range) {
+      const BMVert &vert = *BM_vert_at_index(&const_cast<BMesh &>(bm), loose_verts[i]);
+      const float3 pos = bm_vert_co_get(mr, &vert);
+      loose_vert_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
+    }
+  });
+}
+
+/* Original Blender code */
+
 static void extract_positions_mesh(const MeshRenderData &mr, MutableSpan<float3> vbo_data)
 {
   MutableSpan corners_data = vbo_data.take_front(mr.corners_num);
@@ -70,17 +145,38 @@ static void extract_positions_bm(const MeshRenderData &mr, MutableSpan<float3> v
 
 gpu::VertBufPtr extract_positions(const MeshRenderData &mr)
 {
-  static const GPUVertFormat format = GPU_vertformat_from_attribute(
+  // Check if mesh is using GPU skinning
+  bool use_gpu_skinning = mr.mesh && mr.mesh->is_using_skinning;
+
+  // Choose appropriate format
+  static const GPUVertFormat format_standard = GPU_vertformat_from_attribute(
       "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  static const GPUVertFormat format_skinning = GPU_vertformat_from_attribute(
+      "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+  const GPUVertFormat &format = use_gpu_skinning ? format_skinning : format_standard;
+
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
   GPU_vertbuf_data_alloc(*vbo, mr.corners_num + mr.loose_indices_num);
 
-  MutableSpan vbo_data = vbo->data<float3>();
-  if (mr.extract_type == MeshExtractType::Mesh) {
-    extract_positions_mesh(mr, vbo_data);
+  if (use_gpu_skinning) {
+    // Path GPU skinning : use float4
+    MutableSpan vbo_data = vbo->data<float4>();
+    if (mr.extract_type == MeshExtractType::Mesh) {
+      extract_positions_mesh_float4(mr, vbo_data);
+    }
+    else {
+      extract_positions_bm_float4(mr, vbo_data);
+    }
   }
   else {
-    extract_positions_bm(mr, vbo_data);
+    MutableSpan vbo_data = vbo->data<float3>();
+    if (mr.extract_type == MeshExtractType::Mesh) {
+      extract_positions_mesh(mr, vbo_data);
+    }
+    else {
+      extract_positions_bm(mr, vbo_data);
+    }
   }
 
   return vbo;

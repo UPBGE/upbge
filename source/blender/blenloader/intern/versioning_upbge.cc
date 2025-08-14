@@ -54,6 +54,7 @@
 #undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_main.hh"
+#include "BKE_modifier.hh"
 #include "BKE_node.hh"
 
 #include "BLI_listbase.h"
@@ -430,6 +431,16 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       if (ob->body_type == OB_BOUND_EMPTY) {
         ob->body_type = OB_BOUND_BOX;
+      }
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 2)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_Armature) {
+          ArmatureModifierData *amd = (ArmatureModifierData *)md;
+          amd->upbge_deformflag |= ARM_DEF_CPU;
+        }
       }
     }
   }

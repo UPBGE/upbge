@@ -423,16 +423,24 @@ void BL_Action::Update(float curtime, bool applyToObject)
                                                                                m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-    scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
-
+    bool gpu_deform = false;
+    if (obj && obj->GetUseGPUDeform()) {
+      gpu_deform = true;
+    }
+    if (!gpu_deform) {
+      scene->AppendToIdsToUpdate(
+          &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+    }
     if (m_layer_weight >= 0)
       obj->GetPose(&m_blendpose);
 
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, &animEvalContext);
 
-    m_obj->ForceIgnoreParentTx();
+    if (!gpu_deform) {
+      m_obj->ForceIgnoreParentTx();
+    }
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {

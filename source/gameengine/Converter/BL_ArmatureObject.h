@@ -31,9 +31,16 @@
 
 #pragma once
 
+#include "BKE_modifier.hh"
+
 #include "BL_ArmatureChannel.h"
 #include "BL_ArmatureConstraint.h"
 #include "KX_GameObject.h"
+
+namespace blender::gpu {
+ class Shader;
+ class StorageBuf;
+}  // namespace blender::gpu
 
 struct AnimationEvalContext;
 struct Bone;
@@ -43,16 +50,40 @@ class MT_Matrix4x4;
 class BL_SceneConverter;
 class RAS_DebugDraw;
 
+struct ModifierStackBackup {
+  ModifierData *modifier;
+  int position;
+};
+
 class BL_ArmatureObject : public KX_GameObject {
   Py_Header
 
-      protected :
-      /// List element: BL_ArmatureConstraint.
-      EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
+  protected :
+  /// List element: BL_ArmatureConstraint.
+  EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
   /// List element: BL_ArmatureChannel.
   EXP_ListValue<BL_ArmatureChannel> *m_poseChannels;
   Object *m_objArma;
-  Object *m_origObjArma;
+  Object *m_deformedObj;
+  bool m_useGPUDeform;
+
+  /* If using gpu deform, mesh has to be replicated because Armature modifier is disabled
+   * it needs unique data to be deformed by shader */
+  Mesh *m_deformedReplicaData;
+  class blender::Array<blender::float4> m_refPositions;
+  class blender::Array<blender::float4> m_refNormals;
+  blender::gpu::Shader *m_shader;
+  std::vector<ModifierStackBackup> m_modifiersListbackup;
+
+  std::vector<int> in_indices;
+  std::vector<float> in_weights;
+  blender::gpu::StorageBuf *ssbo_in_idx;
+  blender::gpu::StorageBuf *ssbo_in_wgt;
+  blender::gpu::StorageBuf *ssbo_bone_pose_mat;
+  blender::gpu::StorageBuf *ssbo_premat;
+  blender::gpu::StorageBuf *ssbo_postmat;
+  blender::gpu::StorageBuf *ssbo_rest_pose;
+  blender::gpu::StorageBuf *ssbo_rest_normals;
 
   double m_lastframe;
   size_t m_constraintNumber;
@@ -81,11 +112,14 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Never edit this, only for accessing names.
   bPose *GetPose() const;
   void ApplyPose();
+  void InitSkinningBuffers();
   void SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx);
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);
 
+  bool GetUseGPUDeform();
+  void RestoreArmatureModifierList(Object *ob);
   Object *GetArmatureObject();
   Object *GetOrigArmatureObject();
   bool GetDrawDebug() const;

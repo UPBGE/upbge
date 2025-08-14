@@ -224,6 +224,11 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
+  /* UPBGE */
+  layout->prop(
+      ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Skinning (Experimental)"), ICON_NONE);
+
+
   col = &layout->column(true);
   col->prop(ptr, "use_deform_preserve_volume", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "use_multi_modifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);

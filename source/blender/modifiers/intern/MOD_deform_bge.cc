@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include <tbb/parallel_for.h>
+
 #include "BLI_math_vector.h"
 
 #include "BLT_translation.hh"
@@ -27,9 +29,17 @@ static void deform_verts(ModifierData *md,
                          blender::MutableSpan<blender::float3> positions)
 {
   SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
-  for (int i = 0; i < positions.size(); i++) {
-    copy_v3_v3(positions[i], smd->vertcoos[i]);
+  if (!smd->vertcoos) {
+    printf("SimpleDeformBGE: vertcoos is nullptr !\n");
+    return;
   }
+  if (positions.size() > 0 && !smd->vertcoos) {
+    printf("SimpleDeformBGE: vertcoos is nullptr whereas positions.size()=%d\n",
+           int(positions.size()));
+    return;
+  }
+  tbb::parallel_for(
+      0, int(positions.size()), [&](int i) { copy_v3_v3(positions[i], smd->vertcoos[i]); });
 }
 
 /* SimpleDeform */
