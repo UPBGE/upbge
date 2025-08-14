@@ -32,6 +32,7 @@
 #include "KX_BlenderCanvas.h"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BLI_math_vector.h"
@@ -68,6 +69,7 @@ void KX_BlenderCanvas::SwapBuffers()
     GPU_context_end_frame((GPUContext *)m_win->gpuctx);
     GPU_render_end();
     GPU_context_main_unlock();
+    G.is_rendering = false;
   }
 
   wm_window_swap_buffers(m_win);
@@ -118,6 +120,7 @@ void KX_BlenderCanvas::BeginDraw()
   wm_window_make_drawable(m_wm, m_win);
 
   if (!m_useViewportRender) {
+    G.is_rendering = true;
     GPU_context_main_lock();
     GPU_render_begin();
     GPU_render_step();
