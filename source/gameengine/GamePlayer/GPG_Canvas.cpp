@@ -32,6 +32,7 @@
 #include "GPG_Canvas.h"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "DNA_windowmanager_types.h"
@@ -71,6 +72,7 @@ void GPG_Canvas::BeginDraw()
 {
   if (!m_useViewportRender) {
     wmWindow *win = CTX_wm_window(m_context);
+    G.is_rendering = true;
     GPU_context_main_lock();
     GPU_render_begin();
     GPU_render_step();
@@ -172,6 +174,7 @@ void GPG_Canvas::SwapBuffers()
       GPU_context_end_frame((GPUContext *)win->gpuctx);
       GPU_render_end();
       GPU_context_main_unlock();
+      G.is_rendering = false;
     }
     m_window->swapBuffers();
   }
