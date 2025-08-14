@@ -615,9 +615,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     std::vector<KX_GameObject *> children = GetChildren();
     for (KX_GameObject *child : children) {
       bool is_bone_parented = child->GetBlenderObject()->partype == PARBONE;
-      if (!is_bone_parented) {
-        m_deformedObj = child->GetBlenderObject();
+      if (is_bone_parented || child->GetBlenderObject()->type != OB_MESH) {
+        continue;
       }
+      m_deformedObj = child->GetBlenderObject();
       LISTBASE_FOREACH (ModifierData *, md, &child->GetBlenderObject()->modifiers) {
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
@@ -627,7 +628,8 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           }
         }
       }
-      if (child->IsReplica() && m_useGPUDeform && !is_bone_parented) {
+      if (child->IsReplica() && m_useGPUDeform)
+      {
         /* We need to replicate Mesh for deformation on GPU */
         if (!m_deformedReplicaData) {
           Mesh *orig = (Mesh *)m_deformedObj->data;
@@ -635,6 +637,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           m_deformedObj->data = m_deformedReplicaData;
         }
       }
+      break;
     }
   }
 
