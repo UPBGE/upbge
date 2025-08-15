@@ -319,51 +319,12 @@ extern "C" void StartKetsjiShell(struct bContext *C,
                          (Scene *)BLI_findstring(
                              &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
 
-    RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
-    if (scene) {
-      // Quad buffered needs a special window.
-      if (scene->gm.stereoflag == STEREO_ENABLED) {
-        if (scene->gm.stereomode != RAS_Rasterizer::RAS_STEREO_QUADBUFFERED) {
-          switch (scene->gm.stereomode) {
-            case STEREO_QUADBUFFERED: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_QUADBUFFERED;
-              break;
-            }
-            case STEREO_ABOVEBELOW: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_ABOVEBELOW;
-              break;
-            }
-            case STEREO_INTERLACED: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_INTERLACED;
-              break;
-            }
-            case STEREO_ANAGLYPH: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
-              break;
-            }
-            case STEREO_SIDEBYSIDE: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_SIDEBYSIDE;
-              break;
-            }
-            case STEREO_VINTERLACE: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_VINTERLACE;
-              break;
-            }
-            case STEREO_3DTVTOPBOTTOM: {
-              stereoMode = RAS_Rasterizer::RAS_STEREO_3DTVTOPBOTTOM;
-              break;
-            }
-          }
-        }
-      }
-    }
-
     GHOST_ISystem *system = GHOST_ISystem::getSystem();
     LA_BlenderLauncher launcher = LA_BlenderLauncher(system,
                                                      blenderdata,
                                                      scene,
                                                      &gs,
-                                                     stereoMode,
+                                                     RAS_Rasterizer::RAS_STEREO_NOSTEREO,
                                                      0,
                                                      nullptr,
                                                      C,
