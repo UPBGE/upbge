@@ -138,6 +138,22 @@ static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *
   }
 }
 
+static Main *BKE_blender_globals_main_replace_no_free(Main *bmain)
+{
+  Main *old_main = G_MAIN;
+
+  if (old_main != nullptr) {
+    BLI_assert(old_main->is_global_main);
+    old_main->is_global_main = false;
+  }
+
+  BLI_assert(!bmain->is_global_main);
+  bmain->is_global_main = true;
+  G_MAIN = bmain;
+
+  return old_main;
+}
+
 extern "C" void StartKetsjiShell(struct bContext *C,
                                  struct ARegion *ar,
                                  rcti *cam_frame,
@@ -225,6 +241,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         /* Hack to not free wm->message_bus when we restart/load new .blend */
         CTX_wm_manager(C)->message_bus = nullptr;
         BLO_blendfiledata_free(bfd);
+        BKE_blender_globals_main_replace_no_free(maggie1);
       }
 
       char basedpath[FILE_MAX];
@@ -258,7 +275,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         startscenename = bfd->curscene->id.name + 2;
 
         /* If we don't change G_MAIN, bpy won't work in loaded .blends */
-        G_MAIN = G.main = bfd->main;
+        BKE_blender_globals_main_replace_no_free(bfd->main);
         CTX_data_main_set(C, bfd->main);
         wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
         wmWindow *win = (wmWindow *)wm->windows.first;
@@ -396,7 +413,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     BLO_blendfiledata_free(bfd);
 
     /* Restore Main and Scene used before ge start */
-    G_MAIN = G.main = maggie1;
+    BKE_blender_globals_main_replace_no_free(maggie1);
     CTX_data_main_set(C, maggie1);
     CTX_wm_manager_set(C, wm_backup);
     win_backup->ghostwin = ghostwin_backup;
