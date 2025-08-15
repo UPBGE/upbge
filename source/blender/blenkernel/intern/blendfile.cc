@@ -1515,6 +1515,9 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         "cycles",
         "pose_library",
         "bl_pkg",
+        "bge_netlogic",
+        "bge_bricknodes",
+        "game_engine_save_as_runtime_eevee",
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {
       bAddon *addon = BKE_addon_new();
