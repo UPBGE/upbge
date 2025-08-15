@@ -765,6 +765,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 {
 /* #UserDef & #Main happen to have the same struct member. */
 #define USER_VERSION_ATLEAST(ver, subver) MAIN_VERSION_FILE_ATLEAST(userdef, ver, subver)
+#define USER_UPBGE_VERSION_ATLEAST(ver, subver) MAIN_VERSION_UPBGE_ATLEAST(userdef, ver, subver)
 
   /* the UserDef struct is not corrected with do_versions() .... ugh! */
   if (userdef->menuthreshold1 == 0) {
@@ -1643,6 +1644,12 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
+  }
+
+  if (!USER_UPBGE_VERSION_ATLEAST(50, 3)) {
+    BKE_addon_ensure(&userdef->addons, "bge_netlogic");
+    BKE_addon_ensure(&userdef->addons, "bge_bricknodes");
+    BKE_addon_ensure(&userdef->addons, "game_engine_save_as_runtime_eevee");
   }
 
   /**

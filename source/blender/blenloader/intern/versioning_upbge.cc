@@ -444,4 +444,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       }
     }
   }
+  /* Currently, UPBGE_FILE_SUBVERSION 3, check versioning_userdef.c. If you need
+   * to evolve the UPBGE_FILE_SUBVERSION, uses UPBGE_FILE_SUBVERSION 4 and remove
+   * this comment. */
 }

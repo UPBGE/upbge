@@ -235,6 +235,9 @@ const UserDef U_default = {
 
     .sequencer_editor_flag = USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT,
 
+    .upbgeversionfile = UPBGE_FILE_VERSION,
+    .upbgesubversionfile = UPBGE_FILE_SUBVERSION,
+
     .runtime =
         {
             .is_dirty = 0,

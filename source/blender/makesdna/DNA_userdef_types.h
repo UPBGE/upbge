@@ -616,6 +616,10 @@ typedef struct UserDef {
 
   UserDef_Experimental experimental;
 
+  /** UPBGE */
+  /** UserDef has separate do-version handling, and can be read from other files. */
+  int upbgeversionfile, upbgesubversionfile;
+
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;
 } UserDef;
