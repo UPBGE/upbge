@@ -133,7 +133,7 @@ jobs:
     - name: Install Python Dependencies
       run: | 
         curl https://bootstrap.pypa.io/get-pip.py | python && \
-        python -m pip install sphinx furo yapf tqdm numpy sphinx_rtd_theme
+        python -m pip install sphinx yapf tqdm numpy sphinx_rtd_theme
 
     - name: Setup Python Path
       run: |
