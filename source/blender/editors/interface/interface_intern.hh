@@ -600,6 +600,8 @@ struct uiBlockDynamicListener {
   void (*listener_func)(const wmRegionListenerParams *params);
 };
 
+enum class uiBlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
+
 struct uiBlock {
   uiBlock *next, *prev;
 
@@ -630,6 +632,8 @@ struct uiBlock {
 
   rctf rect;
   float aspect;
+
+  uiBlockAlertLevel alert_level = uiBlockAlertLevel::None;
 
   /** Unique hash used to implement popup menu memory. */
   uint puphash;

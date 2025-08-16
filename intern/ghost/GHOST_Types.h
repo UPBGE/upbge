@@ -12,11 +12,7 @@
 #include <string>
 
 #ifdef WITH_VULKAN_BACKEND
-#  ifdef __APPLE__
-#    include <MoltenVK/vk_mvk_moltenvk.h>
-#  else
-#    include <vulkan/vulkan_core.h>
-#  endif
+#  include <vulkan/vulkan_core.h>
 #endif
 
 /* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
@@ -826,19 +822,19 @@ typedef struct {
     /*is_stereo_visual*/ false, /*is_debug*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
-#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings) \
+#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpu_settings) \
   { \
     /*is_stereo_visual*/ false, \
-        /*is_debug*/ (((gpuSettings).flags & GHOST_gpuDebugContext) != 0), \
+        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
         /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
-#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings) \
+#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpu_settings) \
   { \
-    /*is_stereo_visual*/ (((gpuSettings).flags & GHOST_gpuStereoVisual) != 0), \
-        /*is_debug*/ (((gpuSettings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
-        (((gpuSettings).flags & GHOST_gpuVSyncIsOverridden) ? (gpuSettings).vsync : \
-                                                              GHOST_kVSyncModeUnset), \
+    /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
+        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
+        (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
+                                                               GHOST_kVSyncModeUnset), \
   }
 
 typedef struct {

@@ -15,12 +15,9 @@
 #include "GHOST_Window.hh"
 #include <algorithm>
 
-GHOST_WindowManager::GHOST_WindowManager()
-    : m_fullScreenWindow(nullptr), m_activeWindow(nullptr), m_activeWindowBeforeFullScreen(nullptr)
-{
-}
+GHOST_WindowManager::GHOST_WindowManager() : m_fullScreenWindow(nullptr), active_window_(nullptr), m_activeWindowBeforeFullScreen(nullptr) {}
 
-/* m_windows is freed by GHOST_System::disposeWindow */
+/* windows_ is freed by GHOST_System::disposeWindow */
 GHOST_WindowManager::~GHOST_WindowManager() = default;
 
 GHOST_TSuccess GHOST_WindowManager::addWindow(GHOST_IWindow *window)
@@ -29,7 +26,7 @@ GHOST_TSuccess GHOST_WindowManager::addWindow(GHOST_IWindow *window)
   if (window) {
     if (!getWindowFound(window)) {
       /* Store the pointer to the window. */
-      m_windows.push_back(window);
+      windows_.push_back(window);
       success = GHOST_kSuccess;
     }
   }
@@ -44,11 +41,10 @@ GHOST_TSuccess GHOST_WindowManager::removeWindow(const GHOST_IWindow *window)
       endFullScreen();
     }
     else {
-      std::vector<GHOST_IWindow *>::iterator result = find(
-          m_windows.begin(), m_windows.end(), window);
-      if (result != m_windows.end()) {
+      std::vector<GHOST_IWindow *>::iterator result = find(windows_.begin(), windows_.end(), window);
+      if (result != windows_.end()) {
         setWindowInactive(window);
-        m_windows.erase(result);
+        windows_.erase(result);
         success = GHOST_kSuccess;
       }
     }
@@ -65,8 +61,8 @@ bool GHOST_WindowManager::getWindowFound(const GHOST_IWindow *window) const
     }
     else {
       std::vector<GHOST_IWindow *>::const_iterator result = find(
-          m_windows.begin(), m_windows.end(), window);
-      if (result != m_windows.end()) {
+          windows_.begin(), windows_.end(), window);
+      if (result != windows_.end()) {
         found = true;
       }
     }
@@ -123,9 +119,9 @@ GHOST_TSuccess GHOST_WindowManager::endFullScreen()
 GHOST_TSuccess GHOST_WindowManager::setActiveWindow(GHOST_IWindow *window)
 {
   GHOST_TSuccess success = GHOST_kSuccess;
-  if (window != m_activeWindow) {
+  if (window != active_window_) {
     if (getWindowFound(window)) {
-      m_activeWindow = window;
+      active_window_ = window;
     }
     else {
       success = GHOST_kFailure;
@@ -136,26 +132,26 @@ GHOST_TSuccess GHOST_WindowManager::setActiveWindow(GHOST_IWindow *window)
 
 GHOST_IWindow *GHOST_WindowManager::getActiveWindow() const
 {
-  return m_activeWindow;
+  return active_window_;
 }
 
 void GHOST_WindowManager::setWindowInactive(const GHOST_IWindow *window)
 {
-  if (window == m_activeWindow) {
-    m_activeWindow = nullptr;
+  if (window == active_window_) {
+    active_window_ = nullptr;
   }
 }
 
 const std::vector<GHOST_IWindow *> &GHOST_WindowManager::getWindows() const
 {
-  return m_windows;
+  return windows_;
 }
 
 GHOST_IWindow *GHOST_WindowManager::getWindowAssociatedWithOSWindow(const void *osWindow)
 {
   std::vector<GHOST_IWindow *>::iterator iter;
 
-  for (iter = m_windows.begin(); iter != m_windows.end(); ++iter) {
+  for (iter = windows_.begin(); iter != windows_.end(); ++iter) {
     if ((*iter)->getOSWindow() == osWindow) {
       return *iter;
     }
