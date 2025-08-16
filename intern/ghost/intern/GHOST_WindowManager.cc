@@ -103,7 +103,7 @@ GHOST_TSuccess GHOST_WindowManager::endFullScreen()
       // GHOST_PRINT("GHOST_WindowManager::endFullScreen(): deleting full-screen window\n");
       setWindowInactive(m_fullScreenWindow);
       m_fullScreenWindow->endFullScreen();
-      m_windows.erase(std::find(m_windows.begin(), m_windows.end(), m_fullScreenWindow));
+      windows_.erase(std::find(windows_.begin(), windows_.end(), m_fullScreenWindow));
       delete m_fullScreenWindow;
       // GHOST_PRINT("GHOST_WindowManager::endFullScreen(): done\n");
       m_fullScreenWindow = nullptr;

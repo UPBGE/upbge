@@ -99,11 +99,11 @@ GHOST_TSuccess GHOST_System::disposeWindow(GHOST_IWindow *window)
     }
   }
   else {
-    if (window == m_windowManager->getFullScreenWindow()) {
+    if (window == window_manager_->getFullScreenWindow()) {
       success = endFullScreen();
     }
-    else if (m_windowManager->getWindowFound(window)) {
-      success = m_windowManager->removeWindow(window);
+    else if (window_manager_->getWindowFound(window)) {
+      success = window_manager_->removeWindow(window);
       if (success) {
         delete window;
       }
@@ -125,11 +125,11 @@ GHOST_TSuccess GHOST_System::beginFullScreen(GHOST_IWindow **window,
                                              const GHOST_GPUSettings &gpu_settings)
 {
   GHOST_TSuccess success = GHOST_kFailure;
-  GHOST_ASSERT(m_windowManager, "GHOST_System::beginFullScreen(): invalid window manager");
-  if (!m_windowManager->getFullScreen()) {
+  GHOST_ASSERT(window_manager_, "GHOST_System::beginFullScreen(): invalid window manager");
+  if (!window_manager_->getFullScreen()) {
     success = createFullScreenWindow((GHOST_Window **)window, settings, gpu_settings);
     if (success == GHOST_kSuccess) {
-      m_windowManager->beginFullScreen(*window, (gpu_settings.flags & GHOST_gpuStereoVisual) != 0);
+      window_manager_->beginFullScreen(*window, (gpu_settings.flags & GHOST_gpuStereoVisual) != 0);
     }
     else {
       /*m_displayManager->setCurrentDisplaySetting(GHOST_DisplayManager::kMainDisplay,
@@ -156,8 +156,8 @@ GHOST_TSuccess GHOST_System::endFullScreen()
 bool GHOST_System::getFullScreen()
 {
   bool fullScreen;
-  if (m_windowManager) {
-    fullScreen = m_windowManager->getFullScreen();
+  if (window_manager_) {
+    fullScreen = window_manager_->getFullScreen();
   }
   else {
     fullScreen = false;
