@@ -484,7 +484,6 @@ KX_Scene::~KX_Scene()
 
 void KX_Scene::AddDupliObjectToList(KX_GameObject *gameobj)
 {
-  // Vérifier si l'objet n'est pas déjà dans la liste
   auto it = std::find(m_duplilist.begin(), m_duplilist.end(), gameobj);
   if (it == m_duplilist.end()) {
     m_duplilist.push_back(gameobj);
