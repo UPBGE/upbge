@@ -154,7 +154,7 @@ KX_GameObject::~KX_GameObject()
   }
 
   if (m_pSGNode) {
-    //RemoveOrHideBlenderObject();
+    RemoveOrHideBlenderObject();
 
     /* At KX_Scene exit */
     KX_Scene *scene = GetScene();
@@ -383,6 +383,10 @@ void KX_GameObject::ReplicateBlenderObject()
 {
   Object *ob = GetBlenderObject();
 
+  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+    return;
+  }
+
   if (ob) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
@@ -426,6 +430,11 @@ void KX_GameObject::ReplicateBlenderObject()
 void KX_GameObject::RemoveOrHideBlenderObject()
 {
   Object *ob = GetBlenderObject();
+
+  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+    return;
+  }
+
   if (ob) {
     PHY_IPhysicsController *ctrl = GetPhysicsController();
     if (ctrl) {
@@ -979,7 +988,7 @@ void KX_GameObject::ProcessReplica()
 {
   KX_PythonProxy::ProcessReplica();
 
-  //ReplicateBlenderObject();
+  ReplicateBlenderObject();
 
   m_dupli_object = nullptr;
   m_is_dupli_instance = false;
@@ -1144,6 +1153,9 @@ void KX_GameObject::ApplyRotation(const MT_Vector3 &drot, bool local)
 
 void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
 {
+  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE)) {
+    return;
+  }
   if (!blendobj)
     blendobj = m_pBlenderObject;
   if (blendobj) {
@@ -1342,6 +1354,11 @@ static void setVisible_recursive(SG_Node *node, bool v)
 void KX_GameObject::SetVisible(bool v, bool recursive)
 {
   Object *ob = GetBlenderObject();
+
+  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+    return;
+  }
+
   if (ob) {
     Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
     GetScene()->TagForCollectionRemap();
@@ -1455,6 +1472,9 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
   Object *ob_orig = GetBlenderObject();
+  if (ob_orig && ob_orig->gameflag & OB_DUPLI_UPBGE) {
+    return;
+  }
   if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
       ELEM(ob_orig->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());

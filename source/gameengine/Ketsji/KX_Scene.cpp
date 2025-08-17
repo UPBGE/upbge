@@ -1432,6 +1432,9 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
 
 void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
 {
+  if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
+    return;
+  }
   /* Optionally handle Blender Physics simulation at bge runtime when supported */
   bool use_interactive_dynapaint = scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
   if (use_interactive_dynapaint) {
@@ -1463,6 +1466,9 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
                                           float lifespan)
 {
   Object *ob = gameobj->GetBlenderObject();
+  if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
+    return;
+  }
   if (ob) {
     if (ob->instance_collection) {
       CM_Warning("Warning: Full duplication of an instance collection is not supported: " << ob->id.name + 2);
