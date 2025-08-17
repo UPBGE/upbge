@@ -855,6 +855,9 @@ BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
 
 DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
 {
+  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
+    return nullptr;
+  }
   if (m_dupli_object || !m_pBlenderObject) {
     return m_dupli_object;
   }
