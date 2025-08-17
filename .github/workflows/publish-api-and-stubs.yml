@@ -107,8 +107,8 @@ jobs:
 
     - name: Setup APT
       run: |
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03oracular.list \
-          -o /etc/apt/sources.list.d/03oracular.list && \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03noble.list \
+          -o /etc/apt/sources.list.d/03noble.list && \
         sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
           -o /etc/apt/apt.conf.d/03ubuntu
 
