@@ -1502,7 +1502,7 @@ GHOST_TSuccess GHOST_WindowX11::beginFullScreen() const
                  &border_w_return,
                  &depth_return);
 
-    m_system->setCursorPosition(w_return / 2, h_return / 2);
+    system_->setCursorPosition(w_return / 2, h_return / 2);
   }
 
   /* Grab Keyboard & Mouse */
