@@ -1467,7 +1467,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
 {
   Object *ob = gameobj->GetBlenderObject();
   if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
-    return;
+    return nullptr;
   }
   if (ob) {
     if (ob->instance_collection) {
