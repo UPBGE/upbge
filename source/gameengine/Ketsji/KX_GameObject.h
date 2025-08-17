@@ -62,7 +62,7 @@ class BL_ActionManager;
 struct Object;
 class KX_CollisionContactPointList;
 struct bAction;
-
+struct DupliObject;
 struct Mesh;
 
 #ifdef WITH_PYTHON
@@ -108,6 +108,8 @@ class KX_GameObject : public SCA_IObject {
   bool m_isReplica;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
+  DupliObject *m_dupli_object;
+  bool m_is_dupli_instance;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -165,6 +167,34 @@ class KX_GameObject : public SCA_IObject {
   void SetIsReplicaObject();
   float *GetPrevObjectMatToWorld();
   BL_ActionManager *GetActionManagerNoCreate();
+  /**
+   * Créer un DupliObject basé sur l'objet Blender existant (pour les répliques).
+   * Cette méthode ne duplique PAS l'objet Blender, elle crée seulement la structure DupliObject
+   * qui référence l'objet Blender déjà configuré lors de la conversion initiale.
+   */
+  DupliObject *CreateDupliObjectFromExisting();
+
+  /**
+   * Obtenir le DupliObject associé à ce GameObject (peut être nullptr).
+   */
+  DupliObject *GetDupliObject() const
+  {
+    return m_dupli_object;
+  }
+
+  /**
+   * Vérifier si ce GameObject est une instance dupli.
+   */
+  bool IsDupliInstance() const
+  {
+    return m_is_dupli_instance;
+  }
+
+  /**
+   * Mettre à jour la matrice du DupliObject depuis les transformations du SceneGraph.
+   * Cette méthode synchronise automatiquement les transformations BGE avec le système de rendu.
+   */
+  void UpdateDupliMatrix();
   /* END OF EEVEE INTEGRATION */
 
   /**

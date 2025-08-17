@@ -171,6 +171,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   EXP_ListValue<KX_Camera> *m_cameralist;
   /// The set of fonts for this scene
   EXP_ListValue<KX_FontObject> *m_fontlist;
+  std::vector<KX_GameObject *> m_duplilist;
 
   SG_QList m_sghead;  // list of nodes that needs scenegraph update
                       // the Dlist is not object that must be updated
@@ -381,6 +382,12 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void OverlayPassDisableEffects(struct Depsgraph *depsgraph,
                                  KX_Camera *kxcam,
                                  bool isOverlayPass);
+  const std::vector<KX_GameObject *> &GetDupliListVector() const
+  {
+    return m_duplilist;
+  }
+  void AddDupliObjectToList(KX_GameObject *gameobj);
+  void RemoveDupliObjectFromList(KX_GameObject *gameobj);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

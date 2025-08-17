@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -89,6 +89,8 @@ KX_GameObject::KX_GameObject()
       m_isReplica(false),            // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
+      m_dupli_object(nullptr),
+      m_is_dupli_instance(false),
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -152,7 +154,7 @@ KX_GameObject::~KX_GameObject()
   }
 
   if (m_pSGNode) {
-    RemoveOrHideBlenderObject();
+    //RemoveOrHideBlenderObject();
 
     /* At KX_Scene exit */
     KX_Scene *scene = GetScene();
@@ -202,6 +204,18 @@ KX_GameObject::~KX_GameObject()
     m_pDupliGroupObject->Release();
   }
 
+  if (m_is_dupli_instance) {
+    if (GetScene()) {
+      GetScene()->RemoveDupliObjectFromList(this);
+    }
+    m_is_dupli_instance = false;
+  }
+
+  if (m_dupli_object) {
+    MEM_freeN(m_dupli_object);
+    m_dupli_object = nullptr;
+  }
+
   if (m_pInstanceObjects) {
     m_pInstanceObjects->Release();
   }
@@ -240,6 +254,10 @@ void KX_GameObject::ForceIgnoreParentTx()
 
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
+  if (m_is_dupli_instance) {
+    UpdateDupliMatrix();
+    return;
+  }
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   bool staticObject = true;
@@ -318,6 +336,10 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
 void KX_GameObject::TagForTransformUpdateEvaluated()
 {
+  if (m_is_dupli_instance) {
+    UpdateDupliMatrix();
+    return;
+  }
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
@@ -822,6 +844,74 @@ BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
   return m_actionManager;
 }
 
+DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
+{
+  if (m_dupli_object || !m_pBlenderObject) {
+    return m_dupli_object;
+  }
+
+  m_dupli_object = (DupliObject *)MEM_callocN(sizeof(DupliObject),
+                                              "BGE DupliObject from Existing");
+
+  // CRITICAL FIX: Use the evaluated object from the depsgraph
+  Object *ob_to_use = m_pBlenderObject;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  if (C) {
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    if (depsgraph) {
+      // IMPORTANT: Get the evaluated object from the depsgraph
+      Object *ob_eval = DEG_get_evaluated(depsgraph, m_pBlenderObject);
+      if (ob_eval) {
+        ob_to_use = ob_eval;
+
+        // Verify that the object is properly evaluated
+        if (!DEG_is_evaluated(ob_to_use)) {
+          printf("WARNING: BGE DupliObject - object is not evaluated!\n");
+          // If the object is not evaluated, use the original
+          ob_to_use = m_pBlenderObject;
+        }
+      }
+    }
+  }
+
+  m_dupli_object->ob = ob_to_use;
+  m_dupli_object->ob_data = static_cast<ID *>(ob_to_use->data);
+  m_dupli_object->no_draw = false;
+
+  static int next_persistent_id = 1000;
+  m_dupli_object->persistent_id[0] = next_persistent_id++;
+  for (int i = 1; i < MAX_DUPLI_RECUR; i++) {
+    m_dupli_object->persistent_id[i] = std::numeric_limits<int>::max();
+  }
+
+  static unsigned int next_random_id = 1000;
+  m_dupli_object->random_id = next_random_id++;
+
+  UpdateDupliMatrix();
+  m_is_dupli_instance = true;
+
+  GetScene()->AddDupliObjectToList(this);
+
+  return m_dupli_object;
+}
+
+void KX_GameObject::UpdateDupliMatrix()
+{
+  if (!m_dupli_object) {
+    return;
+  }
+
+  // Get the world transformation from the BGE SceneGraph
+  MT_Transform world_transform = NodeGetWorldTransform();
+
+  // Convert to Blender 4x4 matrix
+  float bge_matrix[4][4];
+  world_transform.getValue(&bge_matrix[0][0]);
+
+  // Update the DupliObject matrix
+  copy_m4_m4(m_dupli_object->mat, bge_matrix);
+}
+
 bool KX_GameObject::PlayAction(const std::string &name,
                                float start,
                                float end,
@@ -901,8 +991,13 @@ void KX_GameObject::ProcessReplica()
 {
   KX_PythonProxy::ProcessReplica();
 
-  ReplicateBlenderObject();
+  //ReplicateBlenderObject();
+
+  m_dupli_object = nullptr;
+  m_is_dupli_instance = false;
+
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
+  CreateDupliObjectFromExisting();
 
   if (m_lodManager) {
     m_lodManager->AddRef();

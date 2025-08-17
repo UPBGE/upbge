@@ -50,6 +50,98 @@ namespace deg = blender::deg;
 
 /* ************************ DEG ITERATORS ********************* */
 
+/* UPBGE specific iterator stuff for duplis */
+namespace {
+// Provider global for BGE objects
+static BGEObjectProvider g_bge_object_provider = nullptr;
+
+// Structure to store temp BGE objects
+struct BGEObjectData {
+  Object temp_object;                        // Stack-allocated object copy
+  blender::bke::ObjectRuntime temp_runtime;  // Stack-allocated runtime copy
+  float mat[4][4];
+
+  // Optimized constructor - zero dynamic allocations
+  BGEObjectData(Object *source_ob, float source_mat[4][4])
+      : temp_object(blender::dna::shallow_copy(*source_ob)), temp_runtime(*source_ob->runtime)
+  {
+    // Connect runtime to object
+    temp_object.runtime = &temp_runtime;
+
+    // Copy transformation matrix
+    copy_m4_m4(mat, source_mat);
+
+    // Configure visibility flags for rendering
+    temp_object.base_flag = BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                            BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT | BASE_FROM_DUPLI;
+    temp_object.visibility_flag &= ~OB_HIDE_VIEWPORT;
+
+    // Update runtime transformation matrices
+    copy_m4_m4(temp_object.runtime->object_to_world.ptr(), mat);
+    invert_m4_m4(temp_object.runtime->world_to_object.ptr(), mat);
+  }
+
+  // Prevent copying
+  BGEObjectData(const BGEObjectData &) = delete;
+  BGEObjectData &operator=(const BGEObjectData &) = delete;
+
+  // Allow moving
+  BGEObjectData(BGEObjectData &&) = default;
+  BGEObjectData &operator=(BGEObjectData &&) = default;
+};
+
+// Use unique_ptr to avoid copy issues entirely
+static std::vector<std::unique_ptr<BGEObjectData>> g_bge_objects;
+
+// Callback called by BGE to add objects
+void add_bge_object_callback(Object *ob, float mat[4][4])
+{
+  if (!ob)
+    return;
+
+  // Create unique_ptr - no copy operations involved
+  g_bge_objects.emplace_back(std::make_unique<BGEObjectData>(ob, mat));
+}
+
+// Iterator for BGE objects
+bool deg_iterator_bge_objects_step(DEGObjectIterData *data)
+{
+  static size_t bge_object_index = 0;
+
+  // Always try to collect BGE objects if index is 0 and provider exists
+  if (bge_object_index == 0 && g_bge_object_provider) {
+    g_bge_objects.clear();
+    g_bge_object_provider(add_bge_object_callback);
+  }
+
+  // Return next BGE object if available
+  if (bge_object_index < g_bge_objects.size()) {
+    data->next_object = &g_bge_objects[bge_object_index]->temp_object;
+    bge_object_index++;
+    return true;
+  }
+
+  // Reset index when no more objects (will trigger collection next time)
+  bge_object_index = 0;
+  g_bge_objects.clear();
+  return false;
+}
+
+}  // namespace
+
+void DEG_register_bge_object_provider(BGEObjectProvider provider)
+{
+  g_bge_object_provider = provider;
+}
+
+void DEG_unregister_bge_object_provider()
+{
+  g_bge_object_provider = nullptr;
+  g_bge_objects.clear();
+}
+
+/* End of UPBGE stuff */
+
 namespace {
 
 void deg_invalidate_iterator_work_data(DEGObjectIterData *data)
@@ -414,6 +506,10 @@ void DEG_iterator_objects_next(BLI_Iterator *iter)
       continue;
     }
     if (deg_iterator_objects_step(data)) {
+      continue;
+    }
+    /* UPBGE stuff */
+    if (deg_iterator_bge_objects_step(data)) {
       continue;
     }
     iter->valid = false;

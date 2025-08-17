@@ -743,6 +743,35 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
 }
 #endif
 
+static void EnsureObjectVisibleAndEvaluated(Object *ob,
+                                            Depsgraph *depsgraph,
+                                            Scene *scene,
+                                            ViewLayer *view_layer)
+{
+  if (!ob || !depsgraph || !scene || !view_layer)
+    return;
+
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Base *base = BKE_view_layer_base_find(view_layer, ob);
+
+  short visibility_backup = ob->visibility_flag;
+  short base_flag_backup = base->flag;
+  short ob_base_flag_backup = ob->base_flag;
+
+  ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+  ob->visibility_flag &= ~OB_HIDE_RENDER;
+  base->flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
+  base->flag |= BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT;
+  base->flag &= ~BASE_HIDDEN;
+
+  Main *bmain = DEG_get_bmain(depsgraph);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  ob->visibility_flag = visibility_backup;
+  ob->base_flag = ob_base_flag_backup;
+  base->flag = base_flag_backup;
+}
+
 static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
@@ -1323,6 +1352,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // no conflicting name for Object, Object data and Action.
   for (SETLOOPER(blenderscene, sce_iter, base)) {
     Object *blenderobject = base->object;
+    Scene *blenderscene = kxscene->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
+
+    EnsureObjectVisibleAndEvaluated(blenderobject, depsgraph, blenderscene, view_layer);
 
     if (converter->FindGameObject(blenderobject) != nullptr) {
       if (single_object && single_object == blenderobject) {

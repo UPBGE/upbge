@@ -98,6 +98,30 @@
 #  include "bpy_rna.hh"
 #endif
 
+void bge_dupli_provider(void (*add_object_callback)(Object *ob, float mat[4][4]))
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (!engine || !engine->CurrentScenes()) {
+    return;
+  }
+
+  KX_Scene *kx_scene = engine->CurrentScenes()->GetFront();
+  const std::vector<KX_GameObject *> &dupli_list = kx_scene->GetDupliListVector();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+  for (KX_GameObject *game_obj : dupli_list) {
+    if (game_obj && game_obj->IsDupliInstance()) {
+      Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
+      DupliObject *dupli_obj = game_obj->GetDupliObject();
+
+      if (blender_obj && dupli_obj) {
+        add_object_callback(blender_obj, dupli_obj->mat);
+      }
+    }
+  }
+}
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
   KX_GameObject *replica =
@@ -167,6 +191,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_inactivelist = new EXP_ListValue<KX_GameObject>();
   m_cameralist = new EXP_ListValue<KX_Camera>();
   m_fontlist = new EXP_ListValue<KX_FontObject>();
+  m_duplilist.clear();
 
   m_filterManager = new KX_2DFilterManager();
   m_logicmgr = new SCA_LogicManager();
@@ -279,6 +304,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * (viewport render or not) and (blenderplayer or not)
    */
   CTX_wm_view3d(C)->shading.type = KX_GetActiveEngine()->ShadingTypeRuntime();
+
+  DEG_register_bge_object_provider(bge_dupli_provider);
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
@@ -408,6 +435,8 @@ KX_Scene::~KX_Scene()
     m_fontlist->Release();
   }
 
+  m_duplilist.clear();
+
   if (m_filterManager) {
     delete m_filterManager;
   }
@@ -427,6 +456,8 @@ KX_Scene::~KX_Scene()
   if (m_sceneConverter) {
     delete m_sceneConverter;
   }
+
+  DEG_unregister_bge_object_provider();
 
   RestoreVisibilityFlag();
 
@@ -450,6 +481,23 @@ KX_Scene::~KX_Scene()
 }
 
 /*******************EEVEE INTEGRATION******************/
+
+void KX_Scene::AddDupliObjectToList(KX_GameObject *gameobj)
+{
+  // Vérifier si l'objet n'est pas déjà dans la liste
+  auto it = std::find(m_duplilist.begin(), m_duplilist.end(), gameobj);
+  if (it == m_duplilist.end()) {
+    m_duplilist.push_back(gameobj);
+  }
+}
+
+void KX_Scene::RemoveDupliObjectFromList(KX_GameObject *gameobj)
+{
+  auto it = std::find(m_duplilist.begin(), m_duplilist.end(), gameobj);
+  if (it != m_duplilist.end()) {
+    m_duplilist.erase(it);
+  }
+}
 
 void KX_Scene::ReinitBlenderContextVariables()
 {
