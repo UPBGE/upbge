@@ -893,6 +893,11 @@ void KX_GameObject::UpdateDupliMatrix()
 
   // Update the DupliObject matrix
   copy_m4_m4(m_dupli_object->mat, bge_matrix);
+
+  // Tag a random object to reset taa samples
+  if (GetScene()->GetBlenderScene()->id.recalc == 0) {
+    DEG_id_tag_update(&GetScene()->GetBlenderScene()->id, ID_RECALC_TRANSFORM);
+  }
 }
 
 bool KX_GameObject::PlayAction(const std::string &name,
