@@ -38,17 +38,25 @@ jobs:
           #- os: macos
           #  arch: arm64
           #  runner: macos-14
-      
+
     steps:
+      - name: Setup APT
+        if: matrix.os == 'linux'
+        run: |
+          sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03noble.list \
+          -o /etc/apt/sources.list.d/03noble.list && \
+          sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
+          -o /etc/apt/apt.conf.d/03ubuntu
+
       - name: Checkout sources
         run: |
           git clone https://github.com/UPBGE/upbge.git
         env:
           GIT_LFS_SKIP_SMUDGE: 1
-          
+
       - name: Setup Python
         uses: actions/setup-python@v5
-        with: 
+        with:
           python-version: '${{env.PYTHON_VERSION}}'
 
       - name: Install Python Dependencies (Linux/macOS)
@@ -137,7 +145,7 @@ jobs:
       - name: Build UPBGE (macOS)
         if: matrix.os == 'macOS'
         run: make -C build
-        
+
       - name: Build UPBGE (Windows)
         if: matrix.os == 'windows'
         run: cmake --build build --target install --config Release
