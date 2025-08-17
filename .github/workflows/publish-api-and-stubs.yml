@@ -30,10 +30,8 @@ jobs:
       run: | 
         sudo apt update && \
         sudo apt dist-upgrade && \
-        sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
-          patch libx11-dev \
-          libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
-          libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
+        sudo apt install -y build-essential git-lfs git subversion cmake \
+        pkg-config ccache
 
     - name: Install Python
       uses: actions/setup-python@v5
