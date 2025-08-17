@@ -1492,8 +1492,8 @@ GHOST_TSuccess GHOST_WindowX11::beginFullScreen() const
     int x_return, y_return;
     uint w_return, h_return, border_w_return, depth_return;
 
-    XGetGeometry(m_display,
-                 m_window,
+    XGetGeometry(display_,
+                 window_,
                  &root_return,
                  &x_return,
                  &y_return,
@@ -1508,18 +1508,18 @@ GHOST_TSuccess GHOST_WindowX11::beginFullScreen() const
   /* Grab Keyboard & Mouse */
   int err;
 
-  err = XGrabKeyboard(m_display, m_window, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+  err = XGrabKeyboard(display_, window_, False, GrabModeAsync, GrabModeAsync, CurrentTime);
   if (err != GrabSuccess) {
     printf("XGrabKeyboard failed %d\n", err);
   }
 
-  err = XGrabPointer(m_display,
-                     m_window,
+  err = XGrabPointer(display_,
+                     window_,
                      False,
                      PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
                      GrabModeAsync,
                      GrabModeAsync,
-                     m_window,
+                     window_,
                      None,
                      CurrentTime);
   if (err != GrabSuccess) {
@@ -1531,8 +1531,8 @@ GHOST_TSuccess GHOST_WindowX11::beginFullScreen() const
 
 GHOST_TSuccess GHOST_WindowX11::endFullScreen() const
 {
-  XUngrabKeyboard(m_display, CurrentTime);
-  XUngrabPointer(m_display, CurrentTime);
+  XUngrabKeyboard(display_, CurrentTime);
+  XUngrabPointer(display_, CurrentTime);
 
   return GHOST_kSuccess;
 }
