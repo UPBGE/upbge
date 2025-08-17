@@ -255,8 +255,10 @@ void KX_GameObject::ForceIgnoreParentTx()
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
   if (m_is_dupli_instance) {
-    UpdateDupliMatrix();
-    return;
+    if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+      UpdateDupliMatrix();
+      return;
+    }
   }
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
@@ -337,7 +339,6 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 void KX_GameObject::TagForTransformUpdateEvaluated()
 {
   if (m_is_dupli_instance) {
-    UpdateDupliMatrix();
     return;
   }
   float object_to_world[4][4];
@@ -882,7 +883,6 @@ DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
   static unsigned int next_random_id = 1000;
   m_dupli_object->random_id = next_random_id++;
 
-  UpdateDupliMatrix();
   m_is_dupli_instance = true;
 
   GetScene()->AddDupliObjectToList(this);
