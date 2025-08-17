@@ -755,7 +755,6 @@ static void EnsureObjectVisibleAndEvaluated(Object *ob,
   Base *base = BKE_view_layer_base_find(view_layer, ob);
 
   short visibility_backup = ob->visibility_flag;
-  short base_flag_backup = base->flag;
   short ob_base_flag_backup = ob->base_flag;
 
   ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
@@ -767,9 +766,10 @@ static void EnsureObjectVisibleAndEvaluated(Object *ob,
   Main *bmain = DEG_get_bmain(depsgraph);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
+  /* Restore backup visibility flags for ob but not for base
+   * in order to have right logic/physics conversion */
   ob->visibility_flag = visibility_backup;
   ob->base_flag = ob_base_flag_backup;
-  base->flag = base_flag_backup;
 }
 
 static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,

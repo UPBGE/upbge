@@ -853,26 +853,7 @@ DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
   m_dupli_object = (DupliObject *)MEM_callocN(sizeof(DupliObject),
                                               "BGE DupliObject from Existing");
 
-  // CRITICAL FIX: Use the evaluated object from the depsgraph
   Object *ob_to_use = m_pBlenderObject;
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  if (C) {
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    if (depsgraph) {
-      // IMPORTANT: Get the evaluated object from the depsgraph
-      Object *ob_eval = DEG_get_evaluated(depsgraph, m_pBlenderObject);
-      if (ob_eval) {
-        ob_to_use = ob_eval;
-
-        // Verify that the object is properly evaluated
-        if (!DEG_is_evaluated(ob_to_use)) {
-          printf("WARNING: BGE DupliObject - object is not evaluated!\n");
-          // If the object is not evaluated, use the original
-          ob_to_use = m_pBlenderObject;
-        }
-      }
-    }
-  }
 
   m_dupli_object->ob = ob_to_use;
   m_dupli_object->ob_data = static_cast<ID *>(ob_to_use->data);
