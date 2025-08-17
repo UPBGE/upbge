@@ -89,8 +89,8 @@ KX_GameObject::KX_GameObject()
       m_isReplica(false),            // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
-      m_dupli_object(nullptr),
-      m_is_dupli_instance(false),
+      m_dupli_object(nullptr),       // eevee
+      m_is_dupli_instance(false),    // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -853,7 +853,9 @@ DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
   m_dupli_object = (DupliObject *)MEM_callocN(sizeof(DupliObject),
                                               "BGE DupliObject from Existing");
 
-  Object *ob_to_use = m_pBlenderObject;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *ob_to_use = DEG_get_evaluated(depsgraph, m_pBlenderObject);
 
   m_dupli_object->ob = ob_to_use;
   m_dupli_object->ob_data = static_cast<ID *>(ob_to_use->data);
