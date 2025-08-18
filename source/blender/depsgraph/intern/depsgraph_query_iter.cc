@@ -68,17 +68,14 @@ struct BGEObjectData {
     // Connect runtime to object
     temp_object.runtime = &temp_runtime;
 
-    // Copy transformation matrix
-    copy_m4_m4(mat, source_mat);
-
     // Configure visibility flags for rendering
     temp_object.base_flag = BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT | BASE_FROM_DUPLI;
     temp_object.visibility_flag &= ~OB_HIDE_VIEWPORT;
 
     // Update runtime transformation matrices
-    copy_m4_m4(temp_object.runtime->object_to_world.ptr(), mat);
-    invert_m4_m4(temp_object.runtime->world_to_object.ptr(), mat);
+    copy_m4_m4(temp_object.runtime->object_to_world.ptr(), source_mat);
+    invert_m4_m4(temp_object.runtime->world_to_object.ptr(), source_mat);
   }
 
   // Prevent copying
