@@ -130,12 +130,13 @@ class GAME_MT_component_context_menu(Menu):
         layout = self.layout
 
         components = context.active_object.game.components
-        index = components.find(context.component.name)  # FIXME: Should not use component.name as a key.
+        # Use RNA identity instead of the (non-unique) name. This ensures we act on the exact instance.
+        comp_ptr = context.component.as_pointer()
+        index = next((i for i, comp in enumerate(components)
+                    if comp.as_pointer() == comp_ptr), -1)
 
         layout.operator("logic.python_component_reload", icon="RECOVER_LAST").index = index
-
         layout.separator()
-
         layout.operator("logic.python_component_move_up", icon="TRIA_UP").index = index
         layout.operator("logic.python_component_move_down", icon="TRIA_DOWN").index = index
 
