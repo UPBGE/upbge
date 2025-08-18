@@ -233,6 +233,7 @@ option(WITH_INTERNATIONAL "Enable I18N (International fonts and text)" ON)
 
 option(WITH_PYTHON "Enable Embedded Python API (only disable for development)" ON)
 option(WITH_PYTHON_SECURITY "Disables execution of scripts within blend files by default" ON)
+option(WITH_PYTHON_C_API "Enable enhanced Python C API integration for game engine" ON)
 # Don't want people disabling this unless they really know what they are doing.
 mark_as_advanced(WITH_PYTHON)
 # Some distributions see this as a security issue, rather than have them patch it,
@@ -466,6 +467,7 @@ endif()
 option(WITH_MOD_FLUID "Enable Mantaflow Fluid Simulation Framework" ON)
 option(WITH_MOD_REMESH "Enable Remesh Modifier" ON)
 option(WITH_MOD_OCEANSIM "Enable Ocean Modifier" ON)
+option(WITH_MANIFOLD "Enable Manifold 3D geometry operations library" ON)
 
 # UV solvers.
 option(WITH_UV_SLIM "SLIM UV unwrapping solver" ON)
@@ -2947,6 +2949,9 @@ if(FIRST_RUN)
   info_cfg_option(WITH_MOD_FLUID)
   info_cfg_option(WITH_MOD_OCEANSIM)
   info_cfg_option(WITH_MOD_REMESH)
+
+  info_cfg_text("3D Geometry:")
+  info_cfg_option(WITH_MANIFOLD)
 
   info_cfg_text("Rendering:")
   info_cfg_option(WITH_HYDRA)

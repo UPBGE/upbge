@@ -13,4 +13,9 @@ if(WITH_GTESTS)
 
   # Build utility library used by test executables
   add_subdirectory(testing)
+  
+  # Manifold 3D geometry integration tests
+  if(WITH_MANIFOLD)
+    add_subdirectory(manifold)
+  endif()
 endif()

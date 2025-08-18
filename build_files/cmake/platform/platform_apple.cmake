@@ -347,6 +347,12 @@ if(WITH_TBB)
 endif()
 add_bundled_libraries(tbb/lib)
 
+if(WITH_MANIFOLD)
+  find_package(Manifold REQUIRED)
+  set_and_warn_library_found("MANIFOLD" Manifold_FOUND WITH_MANIFOLD)
+endif()
+add_bundled_libraries(manifold/lib)
+
 if(WITH_POTRACE)
   find_package(Potrace REQUIRED)
 endif()

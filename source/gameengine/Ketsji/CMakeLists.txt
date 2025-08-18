@@ -253,6 +253,32 @@ if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
+if(WITH_PYTHON_C_API)
+  list(APPEND SRC
+    KX_PythonCAPI.cpp
+    KX_PythonCAPI.h
+  )
+  add_definitions(-DWITH_PYTHON_C_API)
+endif()
+
+if(WITH_MANIFOLD)
+  list(APPEND SRC
+    KX_ManifoldWrapper.cpp
+    KX_ManifoldWrapper.h
+  )
+  add_definitions(-DWITH_MANIFOLD)
+  if(MANIFOLD_INCLUDE_DIRS)
+    list(APPEND INC_SYS
+      ${MANIFOLD_INCLUDE_DIRS}
+    )
+  endif()
+  if(MANIFOLD_LIBRARIES)
+    list(APPEND LIB
+      ${MANIFOLD_LIBRARIES}
+    )
+  endif()
+endif()
+
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
 endif()
