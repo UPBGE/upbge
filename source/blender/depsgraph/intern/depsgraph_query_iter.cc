@@ -102,23 +102,21 @@ void add_bge_object_callback(Object *ob, float mat[4][4])
 // Iterator for BGE objects
 bool deg_iterator_bge_objects_step(DEGObjectIterData *data)
 {
-  static size_t bge_object_index = 0;
-
   // Always try to collect BGE objects if index is 0 and provider exists
-  if (bge_object_index == 0 && g_bge_object_provider) {
+  if (data->bge_object_index == 0 && g_bge_object_provider) {
     g_bge_objects.clear();
     g_bge_object_provider(add_bge_object_callback);
   }
 
   // Return next BGE object if available
-  if (bge_object_index < g_bge_objects.size()) {
-    data->next_object = &g_bge_objects[bge_object_index]->temp_object;
-    bge_object_index++;
+  if (data->bge_object_index < g_bge_objects.size()) {
+    data->next_object = &g_bge_objects[data->bge_object_index]->temp_object;
+    data->bge_object_index++;
     return true;
   }
 
   // Reset index when no more objects (will trigger collection next time)
-  bge_object_index = 0;
+  data->bge_object_index = 0;
   g_bge_objects.clear();
   return false;
 }

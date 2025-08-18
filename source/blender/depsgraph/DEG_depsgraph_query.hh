@@ -283,6 +283,9 @@ struct DEGObjectIterData {
   size_t id_node_index;
   size_t num_id_nodes;
 
+  /* upbge duplis */
+  size_t bge_object_index = 0;
+
   /* Copy the current/next data and move the DupliList. */
   void transfer_from(DEGObjectIterData &other);
 };
