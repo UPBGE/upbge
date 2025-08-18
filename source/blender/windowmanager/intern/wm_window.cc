@@ -3201,12 +3201,12 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 
   if (first_time_window) {
     win->gpuctx = GPU_context_create(ghostwin, nullptr);
-    wm->message_bus = WM_msgbus_create();
-    runtime_msgbus = wm->message_bus;
+    wm->runtime->message_bus = WM_msgbus_create();
+    runtime_msgbus = wm->runtime->message_bus;
   }
   else {
     win->gpuctx = GPU_context_active_get();
-    wm->message_bus = (wmMsgBus *)runtime_msgbus;
+    wm->runtime->message_bus = (wmMsgBus *)runtime_msgbus;
   }
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */

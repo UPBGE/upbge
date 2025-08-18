@@ -1412,7 +1412,7 @@ int main(int argc,
                * .blend */
               CTX_wm_window(C)->ghostwin = nullptr;
               /* Hack to not free wm->message_bus when we restart/load new .blend */
-              CTX_wm_manager(C)->message_bus = nullptr;
+              CTX_wm_manager(C)->runtime->message_bus = nullptr;
 
               //BLO_blendfiledata_free(bfd);
               if (bfd->user) {
