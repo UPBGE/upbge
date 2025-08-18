@@ -50,74 +50,38 @@ namespace deg = blender::deg;
 
 /* ************************ DEG ITERATORS ********************* */
 
-/* UPBGE specific iterator stuff for duplis (adds bge duplis to drawing pass) */
+/* UPBGE specific iterator stuff for duplis (adds BGE duplis to drawing pass) */
+// Add a BGE object to the iterator's vector
+void add_bge_object(DEGObjectIterData *data, Object *ob, float mat[4][4])
+{
+  if (!ob)
+    return;
+  data->bge_objects.emplace_back(std::make_unique<BGEObjectData>(ob, mat));
+}
+
 namespace {
 // Provider global for BGE objects
 static BGEObjectProvider g_bge_object_provider = nullptr;
 
-// Structure to store temp BGE objects
-struct BGEObjectData {
-  Object temp_object;                        // Stack-allocated object copy
-  blender::bke::ObjectRuntime temp_runtime;  // Stack-allocated runtime copy
-
-  // Optimized constructor - zero dynamic allocations
-  BGEObjectData(Object *source_ob, float source_mat[4][4])
-      : temp_object(blender::dna::shallow_copy(*source_ob)), temp_runtime(*source_ob->runtime)
-  {
-    // Connect runtime to object
-    temp_object.runtime = &temp_runtime;
-
-    // Configure visibility flags for rendering
-    temp_object.base_flag = BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                            BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT | BASE_FROM_DUPLI;
-    temp_object.visibility_flag &= ~OB_HIDE_VIEWPORT;
-
-    // Update runtime transformation matrices
-    copy_m4_m4(temp_object.runtime->object_to_world.ptr(), source_mat);
-    invert_m4_m4(temp_object.runtime->world_to_object.ptr(), source_mat);
-  }
-
-  // Prevent copying
-  BGEObjectData(const BGEObjectData &) = delete;
-  BGEObjectData &operator=(const BGEObjectData &) = delete;
-
-  // Allow moving
-  BGEObjectData(BGEObjectData &&) = default;
-  BGEObjectData &operator=(BGEObjectData &&) = default;
-};
-
-// Use unique_ptr to avoid copy issues entirely
-static std::vector<std::unique_ptr<BGEObjectData>> g_bge_objects;
-
-// Callback called by BGE to add objects
-void add_bge_object_callback(Object *ob, float mat[4][4])
-{
-  if (!ob)
-    return;
-
-  // Create unique_ptr - no copy operations involved
-  g_bge_objects.emplace_back(std::make_unique<BGEObjectData>(ob, mat));
-}
-
 // Iterator for BGE objects
 bool deg_iterator_bge_objects_step(DEGObjectIterData *data)
 {
-  // Always try to collect BGE objects if index is 0 and provider exists
+  // Collect BGE objects if index is 0 and provider exists
   if (data->bge_object_index == 0 && g_bge_object_provider) {
-    g_bge_objects.clear();
-    g_bge_object_provider(add_bge_object_callback);
+    data->bge_objects.clear();
+    g_bge_object_provider(data);  // Provider must fill data->bge_objects via add_bge_object
   }
 
   // Return next BGE object if available
-  if (data->bge_object_index < g_bge_objects.size()) {
-    data->next_object = &g_bge_objects[data->bge_object_index]->temp_object;
+  if (data->bge_object_index < data->bge_objects.size()) {
+    data->next_object = &data->bge_objects[data->bge_object_index]->temp_object;
     data->bge_object_index++;
     return true;
   }
 
   // Reset index when no more objects (will trigger collection next time)
   data->bge_object_index = 0;
-  g_bge_objects.clear();
+  data->bge_objects.clear();
   return false;
 }
 
@@ -131,7 +95,6 @@ void DEG_register_bge_object_provider(BGEObjectProvider provider)
 void DEG_unregister_bge_object_provider()
 {
   g_bge_object_provider = nullptr;
-  g_bge_objects.clear();
 }
 
 /* End of UPBGE stuff */

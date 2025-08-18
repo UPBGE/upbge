@@ -98,7 +98,7 @@
 #  include "bpy_rna.hh"
 #endif
 
-void bge_dupli_provider(void (*add_object_callback)(Object *ob, float mat[4][4]))
+void bge_dupli_provider(DEGObjectIterData *data)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   if (!engine || !engine->CurrentScenes()) {
@@ -119,7 +119,7 @@ void bge_dupli_provider(void (*add_object_callback)(Object *ob, float mat[4][4])
       DupliObject *dupli_obj = game_obj->GetDupliObject();
 
       if (blender_obj && dupli_obj) {
-        add_object_callback(blender_obj, dupli_obj->mat);
+        add_bge_object(data, blender_obj, dupli_obj->mat);
       }
     }
   }
