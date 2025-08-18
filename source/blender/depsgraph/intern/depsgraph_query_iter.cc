@@ -59,7 +59,6 @@ static BGEObjectProvider g_bge_object_provider = nullptr;
 struct BGEObjectData {
   Object temp_object;                        // Stack-allocated object copy
   blender::bke::ObjectRuntime temp_runtime;  // Stack-allocated runtime copy
-  float mat[4][4];
 
   // Optimized constructor - zero dynamic allocations
   BGEObjectData(Object *source_ob, float source_mat[4][4])
