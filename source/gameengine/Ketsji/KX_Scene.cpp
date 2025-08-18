@@ -1463,9 +1463,9 @@ void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
   }
 }
 
-KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
-                                          KX_GameObject *reference,
-                                          float lifespan)
+KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
+                                           KX_GameObject *reference,
+                                           float lifespan)
 {
   Object *ob = gameobj->GetBlenderObject();
   if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
@@ -3345,7 +3345,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   }
   bool dupli = duplicate == 1;
   KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) :
-                                    AddDuplicaObject(ob, reference, time);
+                                    AddFullCopyObject(ob, reference, time);
 
   /* Can happen when trying to Duplicate an instance_collection */
   if (replica == nullptr) {
