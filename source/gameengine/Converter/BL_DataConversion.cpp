@@ -1323,7 +1323,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // no conflicting name for Object, Object data and Action.
   for (SETLOOPER(blenderscene, sce_iter, base)) {
     Object *blenderobject = base->object;
-    Scene *blenderscene = kxscene->GetBlenderScene();
 
     if (converter->FindGameObject(blenderobject) != nullptr) {
       if (single_object && single_object == blenderobject) {
