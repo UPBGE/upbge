@@ -1359,6 +1359,10 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
   Object *ob = GetBlenderObject();
 
   if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+    m_bVisible = v;
+    if (recursive) {
+      setVisible_recursive(GetSGNode(), v);
+    }
     return;
   }
 

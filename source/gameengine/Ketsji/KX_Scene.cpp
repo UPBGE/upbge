@@ -112,6 +112,9 @@ void bge_dupli_provider(void (*add_object_callback)(Object *ob, float mat[4][4])
 
   for (KX_GameObject *game_obj : dupli_list) {
     if (game_obj && game_obj->IsDupliInstance()) {
+      if (!game_obj->GetVisible()) {
+        continue;
+      }
       Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
       DupliObject *dupli_obj = game_obj->GetDupliObject();
 
