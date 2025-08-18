@@ -1469,11 +1469,12 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
 {
   Object *ob = gameobj->GetBlenderObject();
   if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
+    CM_Warning("Full duplication of an UPBGE dupli base is not supported");
     return nullptr;
   }
   if (ob) {
     if (ob->instance_collection) {
-      CM_Warning("Warning: Full duplication of an instance collection is not supported: " << ob->id.name + 2);
+      CM_Warning("Full duplication of an instance collection is not supported: " << ob->id.name + 2);
       return nullptr;
     }
     bContext *C = KX_GetActiveEngine()->GetContext();
