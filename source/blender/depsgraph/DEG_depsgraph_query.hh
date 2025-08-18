@@ -373,11 +373,32 @@ void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
 
 void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
 
-// Callback pour fournir des objets BGE additionnels au système de rendu
+
+/* UPBGE stuff */
+/**
+ * BGE-specific object iteration is implemented using a dedicated iterator,
+ * rather than adding BGE dupli objects directly to Blender's native ob->duplilist.
+ *
+ * This approach is safer and avoids conflicts because:
+ * - BGE dupli objects are managed separately from Blender's internal duplilist,
+ *   ensuring that game engine instances do not interfere with Blender's own
+ *   duplication and rendering logic.
+ * - The native Blender iterators only traverse objects present in ob->duplilist,
+ *   so BGE dupli objects will never be processed by Blender's core systems
+ *   (render, export, etc.) unless explicitly intended.
+ * - Memory management and lifecycle of BGE dupli objects remain under control
+ *   of the game engine, preventing issues such as double-free or invalid pointers.
+ * - This separation allows both systems to evolve independently and maintain
+ *   compatibility, without risk of side effects or unexpected behavior.
+ *
+ * In summary, using a dedicated iterator for BGE objects guarantees that
+ * BGE dupli instances are isolated from Blender's native object iteration,
+ * making the integration robust and maintainable.
+ */
+// Callback add BGE objects to drawing pass
 using BGEObjectProvider = void (*)(void (*add_object_callback)(struct Object *ob,
                                                                float mat[4][4]));
 
-/* UPBGE stuff */
 // Register a provider to add BGE objects to drawing pass (called from game engine)
 void DEG_register_bge_object_provider(BGEObjectProvider provider);
 
