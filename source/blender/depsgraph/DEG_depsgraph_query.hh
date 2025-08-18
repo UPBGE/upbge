@@ -377,11 +377,13 @@ void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
 using BGEObjectProvider = void (*)(void (*add_object_callback)(struct Object *ob,
                                                                float mat[4][4]));
 
-// Enregistrer un provider d'objets BGE (appelé depuis le game engine)
+/* UPBGE stuff */
+// Register a provider to add BGE objects to drawing pass (called from game engine)
 void DEG_register_bge_object_provider(BGEObjectProvider provider);
 
-// Supprimer le provider BGE
+// Unregister BGE provider
 void DEG_unregister_bge_object_provider();
+/***************/
 
 
 /** \} */

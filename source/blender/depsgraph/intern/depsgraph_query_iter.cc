@@ -50,7 +50,7 @@ namespace deg = blender::deg;
 
 /* ************************ DEG ITERATORS ********************* */
 
-/* UPBGE specific iterator stuff for duplis */
+/* UPBGE specific iterator stuff for duplis (adds bge duplis to drawing pass) */
 namespace {
 // Provider global for BGE objects
 static BGEObjectProvider g_bge_object_provider = nullptr;
