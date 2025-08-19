@@ -3625,6 +3625,8 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
   /* User struct has separate do-version handling */
   user->versionfile = bfd->main->versionfile;
   user->subversionfile = bfd->main->subversionfile;
+  user->upbgeversionfile = bfd->main->upbgeversionfile;
+  user->upbgesubversionfile = bfd->main->upbgesubversionfile;
 
   /* read all data into fd->datamap */
   bhead = read_data_into_datamap(fd, bhead, "Data for User Def", INDEX_ID_NULL);
