@@ -308,8 +308,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    */
   CTX_wm_view3d(C)->shading.type = KX_GetActiveEngine()->ShadingTypeRuntime();
 
-  DEG_register_bge_object_provider(bge_dupli_provider);
-
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
@@ -329,6 +327,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   else {
     scene->flag |= SCE_INTERACTIVE_VIEWPORT;
   }
+
+  DEG_register_bge_object_provider(bge_dupli_provider);
 
   /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */
   GPU_shader_force_unbind();
