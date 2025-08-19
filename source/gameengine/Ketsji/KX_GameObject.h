@@ -104,7 +104,6 @@ class KX_GameObject : public SCA_IObject {
 
  protected:
   /* EEVEE INTEGRATION */
-  float m_prevobject_to_world[4][4];
   bool m_isReplica;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
@@ -163,7 +162,6 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
-  float *GetPrevObjectMatToWorld();
   BL_ActionManager *GetActionManagerNoCreate();
   /* END OF EEVEE INTEGRATION */
 

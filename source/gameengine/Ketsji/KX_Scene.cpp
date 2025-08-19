@@ -1329,18 +1329,6 @@ void KX_Scene::TagForObjectsMatToWorldRestore()
   }
 }
 
-bool KX_Scene::SomethingIsMoving()
-{
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObjectMatToWorld()),
-                       gameobj->GetBlenderObject()->object_to_world().ptr(),
-                       FLT_MIN))) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void KX_Scene::AppendToIdsToUpdate(ID *id, IDRecalcFlag flag, bool in_overlay_collection_only)
 {
   std::pair<ID *, IDRecalcFlag> it = {id, flag};

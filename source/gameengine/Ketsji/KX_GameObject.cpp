@@ -112,8 +112,6 @@ KX_GameObject::KX_GameObject()
 #endif
 {
   m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
-
-  unit_m4(m_prevobject_to_world);  // eevee
 };
 
 KX_GameObject::~KX_GameObject()
@@ -251,7 +249,6 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
      */
     if (is_last_render_pass) {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      copy_m4_m4(m_prevobject_to_world, object_to_world);
     }
   }
 
@@ -598,11 +595,6 @@ bool KX_GameObject::IsReplica()
 void KX_GameObject::SetIsReplicaObject()
 {
   m_isReplica = true;
-}
-
-float *KX_GameObject::GetPrevObjectMatToWorld()
-{
-  return (float *)m_prevobject_to_world;
 }
 
 /********************End of EEVEE INTEGRATION*********************/

@@ -343,11 +343,9 @@ bool ImageRender::Render()
 
   m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
 
-  if (m_scene->SomethingIsMoving()) {
-    /* Add a depsgraph notifier to trigger
-     * update on next draw loop. */
-    DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-  }
+  /* Add a depsgraph notifier to trigger
+   * update on next draw loop. */
+  DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 
   m_scene->TagForExtraIdsUpdate(bmain, m_camera);
   /* We need the changes to be flushed before each draw loop! */
