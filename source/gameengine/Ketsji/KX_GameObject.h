@@ -107,7 +107,6 @@ class KX_GameObject : public SCA_IObject {
   bool m_isReplica;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
-  DupliObject *m_dupli_object;
   bool m_is_dupli_instance;
   /* END OF EEVEE INTEGRATION */
 
@@ -167,19 +166,10 @@ class KX_GameObject : public SCA_IObject {
   BL_ActionManager *GetActionManagerNoCreate();
   /**
    * Create a DupliObject based on the existing Blender object (for replicas).
-   * This method does NOT duplicate the Blender object, it only creates the DupliObject
-   * structure which references the Blender object already configured during the initial
-   * conversion.
+   * This method does NOT duplicate the Blender object, it only adds the KX_GameObject
+   * to m_duplilist. All the replicas will point to the same BlenderObject.
    */
-  DupliObject *CreateDupliObjectFromExisting();
-
-  /**
-   * Get the DupliObject associated with this GameObject (may be nullptr).
-   */
-  DupliObject *GetDupliObject() const
-  {
-    return m_dupli_object;
-  }
+  void CreateDupliObjectFromExisting();
 
   /**
    * Check if this GameObject is a dupli instance.
@@ -188,12 +178,7 @@ class KX_GameObject : public SCA_IObject {
   {
     return m_is_dupli_instance;
   }
-
-  /**
-   * Update the DupliObject matrix from the SceneGraph transformations.
-   * This method automatically synchronizes BGE transformations with the rendering system (no depsgraph).
-   */
-  void UpdateDupliMatrix();
+  void TagDupliForTaaReset();
   /* END OF EEVEE INTEGRATION */
 
   /**

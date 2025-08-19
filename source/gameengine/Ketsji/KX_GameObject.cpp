@@ -89,7 +89,6 @@ KX_GameObject::KX_GameObject()
       m_isReplica(false),            // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
-      m_dupli_object(nullptr),       // eevee
       m_is_dupli_instance(false),    // eevee
       m_layer(0),
       m_lodManager(nullptr),
@@ -209,11 +208,6 @@ KX_GameObject::~KX_GameObject()
     m_is_dupli_instance = false;
   }
 
-  if (m_dupli_object) {
-    MEM_freeN(m_dupli_object);
-    m_dupli_object = nullptr;
-  }
-
   if (m_pInstanceObjects) {
     m_pInstanceObjects->Release();
   }
@@ -254,7 +248,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 {
   if (m_is_dupli_instance) {
     if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-      UpdateDupliMatrix();
+      TagDupliForTaaReset();
       if (is_last_render_pass) {
         GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
       }
@@ -849,57 +843,21 @@ BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
   return m_actionManager;
 }
 
-DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
+void KX_GameObject::CreateDupliObjectFromExisting()
 {
   if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
-    return nullptr;
+    return;
   }
-  if (m_dupli_object || !m_pBlenderObject) {
-    return m_dupli_object;
-  }
-
-  m_dupli_object = (DupliObject *)MEM_callocN(sizeof(DupliObject),
-                                              "BGE DupliObject from Existing");
-
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object *ob_to_use = DEG_get_evaluated(depsgraph, m_pBlenderObject);
-
-  m_dupli_object->ob = ob_to_use;
-  m_dupli_object->ob_data = static_cast<ID *>(ob_to_use->data);
-  m_dupli_object->no_draw = false;
-
-  static int next_persistent_id = 1000;
-  m_dupli_object->persistent_id[0] = next_persistent_id++;
-  for (int i = 1; i < MAX_DUPLI_RECUR; i++) {
-    m_dupli_object->persistent_id[i] = std::numeric_limits<int>::max();
-  }
-
-  static unsigned int next_random_id = 1000;
-  m_dupli_object->random_id = next_random_id++;
-
   m_is_dupli_instance = true;
 
   GetScene()->AddDupliObjectToList(this);
-
-  return m_dupli_object;
 }
 
-void KX_GameObject::UpdateDupliMatrix()
+void KX_GameObject::TagDupliForTaaReset()
 {
-  if (!m_dupli_object) {
+  if (!m_is_dupli_instance) {
     return;
   }
-
-  // Get the world transformation from the BGE SceneGraph
-  MT_Transform world_transform = NodeGetWorldTransform();
-
-  // Convert to Blender 4x4 matrix
-  float bge_matrix[4][4];
-  world_transform.getValue(&bge_matrix[0][0]);
-
-  // Update the DupliObject matrix
-  copy_m4_m4(m_dupli_object->mat, bge_matrix);
 
   // Tag a random object to reset taa samples
   if (GetScene()->GetBlenderScene()->id.recalc == 0) {
@@ -988,7 +946,6 @@ void KX_GameObject::ProcessReplica()
 
   ReplicateBlenderObject();
 
-  m_dupli_object = nullptr;
   m_is_dupli_instance = false;
 
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);

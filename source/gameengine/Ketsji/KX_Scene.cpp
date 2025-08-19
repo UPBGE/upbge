@@ -116,10 +116,11 @@ void bge_dupli_provider(DEGObjectIterData *data)
         continue;
       }
       Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
-      DupliObject *dupli_obj = game_obj->GetDupliObject();
+      float mat[4][4];
+      game_obj->NodeGetWorldTransform().getValue(&mat[0][0]);
 
-      if (blender_obj && dupli_obj) {
-        add_bge_object(data, blender_obj, dupli_obj->mat);
+      if (blender_obj) {
+        add_bge_object(data, blender_obj, mat);
       }
     }
   }
