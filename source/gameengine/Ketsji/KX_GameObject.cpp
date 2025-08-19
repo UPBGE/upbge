@@ -257,6 +257,9 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   if (m_is_dupli_instance) {
     if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
       UpdateDupliMatrix();
+      if (is_last_render_pass) {
+        GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      }
       return;
     }
   }
