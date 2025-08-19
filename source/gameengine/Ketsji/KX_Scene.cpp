@@ -98,6 +98,33 @@
 #  include "bpy_rna.hh"
 #endif
 
+void bge_dupli_provider(DEGObjectIterData *data)
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (!engine || !engine->CurrentScenes()) {
+    return;
+  }
+
+  KX_Scene *kx_scene = engine->CurrentScenes()->GetFront();
+  const std::vector<KX_GameObject *> &dupli_list = kx_scene->GetDupliListVector();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+  for (KX_GameObject *game_obj : dupli_list) {
+    if (game_obj && game_obj->IsDupliInstance()) {
+      if (!game_obj->GetVisible()) {
+        continue;
+      }
+      Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
+      DupliObject *dupli_obj = game_obj->GetDupliObject();
+
+      if (blender_obj && dupli_obj) {
+        add_bge_object(data, blender_obj, dupli_obj->mat);
+      }
+    }
+  }
+}
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
   KX_GameObject *replica =
@@ -167,6 +194,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_inactivelist = new EXP_ListValue<KX_GameObject>();
   m_cameralist = new EXP_ListValue<KX_Camera>();
   m_fontlist = new EXP_ListValue<KX_FontObject>();
+  m_duplilist.clear();
 
   m_filterManager = new KX_2DFilterManager();
   m_logicmgr = new SCA_LogicManager();
@@ -279,6 +307,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * (viewport render or not) and (blenderplayer or not)
    */
   CTX_wm_view3d(C)->shading.type = KX_GetActiveEngine()->ShadingTypeRuntime();
+
+  DEG_register_bge_object_provider(bge_dupli_provider);
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
@@ -408,6 +438,8 @@ KX_Scene::~KX_Scene()
     m_fontlist->Release();
   }
 
+  m_duplilist.clear();
+
   if (m_filterManager) {
     delete m_filterManager;
   }
@@ -427,6 +459,8 @@ KX_Scene::~KX_Scene()
   if (m_sceneConverter) {
     delete m_sceneConverter;
   }
+
+  DEG_unregister_bge_object_provider();
 
   RestoreVisibilityFlag();
 
@@ -450,6 +484,22 @@ KX_Scene::~KX_Scene()
 }
 
 /*******************EEVEE INTEGRATION******************/
+
+void KX_Scene::AddDupliObjectToList(KX_GameObject *gameobj)
+{
+  auto it = std::find(m_duplilist.begin(), m_duplilist.end(), gameobj);
+  if (it == m_duplilist.end()) {
+    m_duplilist.push_back(gameobj);
+  }
+}
+
+void KX_Scene::RemoveDupliObjectFromList(KX_GameObject *gameobj)
+{
+  auto it = std::find(m_duplilist.begin(), m_duplilist.end(), gameobj);
+  if (it != m_duplilist.end()) {
+    m_duplilist.erase(it);
+  }
+}
 
 void KX_Scene::ReinitBlenderContextVariables()
 {
@@ -1372,6 +1422,9 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
 
 void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
 {
+  if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
+    return;
+  }
   /* Optionally handle Blender Physics simulation at bge runtime when supported */
   bool use_interactive_dynapaint = scene->gm.flag & GAME_USE_INTERACTIVE_DYNAPAINT;
   if (use_interactive_dynapaint) {
@@ -1398,14 +1451,18 @@ void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
   }
 }
 
-KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
-                                          KX_GameObject *reference,
-                                          float lifespan)
+KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
+                                           KX_GameObject *reference,
+                                           float lifespan)
 {
   Object *ob = gameobj->GetBlenderObject();
+  if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
+    CM_Warning("Full duplication of an UPBGE dupli base is not supported");
+    return nullptr;
+  }
   if (ob) {
     if (ob->instance_collection) {
-      CM_Warning("Warning: Full duplication of an instance collection is not supported: " << ob->id.name + 2);
+      CM_Warning("Full duplication of an instance collection is not supported: " << ob->id.name + 2);
       return nullptr;
     }
     bContext *C = KX_GetActiveEngine()->GetContext();
@@ -3276,7 +3333,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   }
   bool dupli = duplicate == 1;
   KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) :
-                                    AddDuplicaObject(ob, reference, time);
+                                    AddFullCopyObject(ob, reference, time);
 
   /* Can happen when trying to Duplicate an instance_collection */
   if (replica == nullptr) {

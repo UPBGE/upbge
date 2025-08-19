@@ -1352,7 +1352,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
      * unless blenderobject is a lodlevel because we want to be abled to get
      * evaluated meshes from lodlevels and restrict viewport prevents meshes to be evaluated
      */
-    if (!isInActiveLayer && !is_lod_level(lod_objects, blenderobject)) {
+    bool hide = !isInActiveLayer;
+    hide = hide && !is_lod_level(lod_objects, blenderobject);
+    hide = hide && (blenderobject->gameflag & OB_DUPLI_UPBGE) == 0;
+    if (hide) {
       blenderobject->visibility_flag |= OB_HIDE_VIEWPORT;
       BKE_main_collection_sync_remap(maggie);
       DEG_relations_tag_update(maggie);

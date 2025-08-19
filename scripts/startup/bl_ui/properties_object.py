@@ -92,6 +92,7 @@ class OBJECT_PT_transform_game(ObjectButtonsPanel, Panel):
         ob = context.object
 
         col = layout.column()
+        col.active = not (ob and ob.game and ob.game.use_upbge_dupli_base)
         col.prop(ob, "override_game_transform_priority", text="Override logic transform priority")
 
 

@@ -3185,6 +3185,15 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
                            "Swept Sphere Radius",
                            "The radius of the sphere that is used to check for "
                            "possible collisions when ccd is actived");
+
+  prop = RNA_def_property(srna, "use_upbge_dupli_base", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gameflag", OB_DUPLI_UPBGE);
+  RNA_def_property_ui_text(
+      prop,
+      "UPBGE Dupli Base",
+      "Mark this object as a base for runtime dupli creation in BGE. "
+      "It will not be transformed by the depsgraph, but passed directly to the rendering system.");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
 }
 
 static void rna_def_object_constraints(BlenderRNA *brna, PropertyRNA *cprop)

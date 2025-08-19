@@ -846,6 +846,7 @@ enum {
   OB_OVERLAY_COLLECTION = 1 << 24,
 
   OB_LOD_UPDATE_PHYSICS = 1 << 25,
+  OB_DUPLI_UPBGE = 1 << 26,
 };
 
 /* ob->gameflag2 */

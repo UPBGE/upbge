@@ -814,6 +814,22 @@ class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
         sub.active = activity.use_logic
         sub.prop(activity, "logic_radius")
 
+class OBJECT_PT_upbge_dupli_base(ObjectButtonsPanel, Panel):
+    bl_label = "UPBGE Dupli Base"
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return ob and ob.game and context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+        layout.prop(ob.game, "use_upbge_dupli_base")
+
 class OBJECT_MT_lod_tools(Menu):
     bl_label = "Level Of Detail Tools"
 
@@ -890,6 +906,7 @@ classes = (
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_console,
     OBJECT_MT_lod_tools,
+    OBJECT_PT_upbge_dupli_base,
     OBJECT_PT_activity_culling,
     OBJECT_PT_levels_of_detail,
 )

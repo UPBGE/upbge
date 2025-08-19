@@ -285,7 +285,7 @@ void SCA_AddObjectActuator::InstantAddObject()
           m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
     }
     else {
-      replica = m_scene->AddDuplicaObject(
+      replica = m_scene->AddFullCopyObject(
           m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
     }
 

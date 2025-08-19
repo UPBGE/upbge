@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -89,6 +89,8 @@ KX_GameObject::KX_GameObject()
       m_isReplica(false),            // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
+      m_dupli_object(nullptr),       // eevee
+      m_is_dupli_instance(false),    // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -200,6 +202,18 @@ KX_GameObject::~KX_GameObject()
     m_pDupliGroupObject->Release();
   }
 
+  if (m_is_dupli_instance) {
+    if (GetScene()) {
+      GetScene()->RemoveDupliObjectFromList(this);
+    }
+    m_is_dupli_instance = false;
+  }
+
+  if (m_dupli_object) {
+    MEM_freeN(m_dupli_object);
+    m_dupli_object = nullptr;
+  }
+
   if (m_pInstanceObjects) {
     m_pInstanceObjects->Release();
   }
@@ -238,6 +252,15 @@ void KX_GameObject::ForceIgnoreParentTx()
 
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
+  if (m_is_dupli_instance) {
+    if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+      UpdateDupliMatrix();
+      if (is_last_render_pass) {
+        GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      }
+      return;
+    }
+  }
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   bool staticObject = true;
@@ -315,6 +338,9 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
 void KX_GameObject::TagForTransformUpdateEvaluated()
 {
+  if (m_is_dupli_instance) {
+    return;
+  }
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
@@ -357,6 +383,10 @@ static bool is_realtime_compositor_enabled(bContext *C)
 void KX_GameObject::ReplicateBlenderObject()
 {
   Object *ob = GetBlenderObject();
+
+  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+    return;
+  }
 
   if (ob) {
     bContext *C = KX_GetActiveEngine()->GetContext();
@@ -401,6 +431,11 @@ void KX_GameObject::ReplicateBlenderObject()
 void KX_GameObject::RemoveOrHideBlenderObject()
 {
   Object *ob = GetBlenderObject();
+
+  if (m_is_dupli_instance) {
+    return;
+  }
+
   if (ob) {
     PHY_IPhysicsController *ctrl = GetPhysicsController();
     if (ctrl) {
@@ -814,6 +849,64 @@ BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
   return m_actionManager;
 }
 
+DupliObject *KX_GameObject::CreateDupliObjectFromExisting()
+{
+  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
+    return nullptr;
+  }
+  if (m_dupli_object || !m_pBlenderObject) {
+    return m_dupli_object;
+  }
+
+  m_dupli_object = (DupliObject *)MEM_callocN(sizeof(DupliObject),
+                                              "BGE DupliObject from Existing");
+
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *ob_to_use = DEG_get_evaluated(depsgraph, m_pBlenderObject);
+
+  m_dupli_object->ob = ob_to_use;
+  m_dupli_object->ob_data = static_cast<ID *>(ob_to_use->data);
+  m_dupli_object->no_draw = false;
+
+  static int next_persistent_id = 1000;
+  m_dupli_object->persistent_id[0] = next_persistent_id++;
+  for (int i = 1; i < MAX_DUPLI_RECUR; i++) {
+    m_dupli_object->persistent_id[i] = std::numeric_limits<int>::max();
+  }
+
+  static unsigned int next_random_id = 1000;
+  m_dupli_object->random_id = next_random_id++;
+
+  m_is_dupli_instance = true;
+
+  GetScene()->AddDupliObjectToList(this);
+
+  return m_dupli_object;
+}
+
+void KX_GameObject::UpdateDupliMatrix()
+{
+  if (!m_dupli_object) {
+    return;
+  }
+
+  // Get the world transformation from the BGE SceneGraph
+  MT_Transform world_transform = NodeGetWorldTransform();
+
+  // Convert to Blender 4x4 matrix
+  float bge_matrix[4][4];
+  world_transform.getValue(&bge_matrix[0][0]);
+
+  // Update the DupliObject matrix
+  copy_m4_m4(m_dupli_object->mat, bge_matrix);
+
+  // Tag a random object to reset taa samples
+  if (GetScene()->GetBlenderScene()->id.recalc == 0) {
+    DEG_id_tag_update(&GetScene()->GetBlenderScene()->id, ID_RECALC_TRANSFORM);
+  }
+}
+
 bool KX_GameObject::PlayAction(const std::string &name,
                                float start,
                                float end,
@@ -894,7 +987,12 @@ void KX_GameObject::ProcessReplica()
   KX_PythonProxy::ProcessReplica();
 
   ReplicateBlenderObject();
+
+  m_dupli_object = nullptr;
+  m_is_dupli_instance = false;
+
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
+  CreateDupliObjectFromExisting();
 
   if (m_lodManager) {
     m_lodManager->AddRef();
@@ -1053,6 +1151,9 @@ void KX_GameObject::ApplyRotation(const MT_Vector3 &drot, bool local)
 
 void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
 {
+  if (m_is_dupli_instance) {
+    return;
+  }
   if (!blendobj)
     blendobj = m_pBlenderObject;
   if (blendobj) {
@@ -1251,6 +1352,15 @@ static void setVisible_recursive(SG_Node *node, bool v)
 void KX_GameObject::SetVisible(bool v, bool recursive)
 {
   Object *ob = GetBlenderObject();
+
+  if (m_is_dupli_instance) {
+    m_bVisible = v;
+    if (recursive) {
+      setVisible_recursive(GetSGNode(), v);
+    }
+    return;
+  }
+
   if (ob) {
     Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
     GetScene()->TagForCollectionRemap();
@@ -1364,6 +1474,9 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
   Object *ob_orig = GetBlenderObject();
+  if (m_is_dupli_instance) {
+    return;
+  }
   if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
       ELEM(ob_orig->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());

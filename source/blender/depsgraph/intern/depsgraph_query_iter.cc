@@ -50,6 +50,55 @@ namespace deg = blender::deg;
 
 /* ************************ DEG ITERATORS ********************* */
 
+/* UPBGE specific iterator stuff for duplis (adds BGE duplis to drawing pass) */
+// Add a BGE object to the iterator's vector
+void add_bge_object(DEGObjectIterData *data, Object *ob, float mat[4][4])
+{
+  if (!ob)
+    return;
+  data->bge_objects.emplace_back(std::make_unique<BGEObjectData>(ob, mat));
+}
+
+namespace {
+// Provider global for BGE objects
+static BGEObjectProvider g_bge_object_provider = nullptr;
+
+// Iterator for BGE objects
+bool deg_iterator_bge_objects_step(DEGObjectIterData *data)
+{
+  // Collect BGE objects if index is 0 and provider exists
+  if (data->bge_object_index == 0 && g_bge_object_provider) {
+    data->bge_objects.clear();
+    g_bge_object_provider(data);  // Provider must fill data->bge_objects via add_bge_object
+  }
+
+  // Return next BGE object if available
+  if (data->bge_object_index < data->bge_objects.size()) {
+    data->next_object = &data->bge_objects[data->bge_object_index]->temp_object;
+    data->bge_object_index++;
+    return true;
+  }
+
+  // Reset index when no more objects (will trigger collection next time)
+  data->bge_object_index = 0;
+  data->bge_objects.clear();
+  return false;
+}
+
+}  // namespace
+
+void DEG_register_bge_object_provider(BGEObjectProvider provider)
+{
+  g_bge_object_provider = provider;
+}
+
+void DEG_unregister_bge_object_provider()
+{
+  g_bge_object_provider = nullptr;
+}
+
+/* End of UPBGE stuff */
+
 namespace {
 
 void deg_invalidate_iterator_work_data(DEGObjectIterData *data)
@@ -414,6 +463,10 @@ void DEG_iterator_objects_next(BLI_Iterator *iter)
       continue;
     }
     if (deg_iterator_objects_step(data)) {
+      continue;
+    }
+    /* UPBGE stuff */
+    if (deg_iterator_bge_objects_step(data)) {
       continue;
     }
     iter->valid = false;
