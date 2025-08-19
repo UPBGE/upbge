@@ -252,8 +252,8 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
       if (is_last_render_pass) {
         GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
       }
-      return;
     }
+    return;
   }
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
