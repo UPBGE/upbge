@@ -157,6 +157,7 @@ bool Light::has_contribution(const Scene *scene, const Object *object)
     return false;
   }
   if (light_type == LIGHT_BACKGROUND) {
+    /* Will be determined after finishing processing all the lights. */
     return true;
   }
   if (light_type == LIGHT_AREA) {
@@ -264,10 +265,6 @@ void LightManager::test_enabled_lights(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    if (!light->is_enabled) {
-      continue;
-    }
-
     light->is_enabled = light->has_contribution(scene, object);
     has_portal |= light->is_portal;
 
@@ -275,7 +272,7 @@ void LightManager::test_enabled_lights(Scene *scene)
       background_lights.push_back(light);
     }
 
-    num_lights++;
+    num_lights += light->is_enabled;
   }
 
   LOG_INFO << "Total " << num_lights << " lights.";
@@ -289,14 +286,16 @@ void LightManager::test_enabled_lights(Scene *scene)
      * - If we don't need it (no HDRs etc.)
      */
     Shader *shader = scene->background->get_shader(scene);
-    const bool disable_mis = !(has_portal || shader->has_surface_spatial_varying);
-    if (disable_mis) {
-      LOG_INFO << "Background MIS has been disabled.";
-    }
     for (Light *light : background_lights) {
-      light->is_enabled = !disable_mis;
-      background_enabled = !disable_mis;
-      background_resolution = light->map_resolution;
+      light->is_enabled = has_portal || (light->use_mis && shader->has_surface_spatial_varying);
+      if (light->is_enabled) {
+        background_enabled = true;
+        background_resolution = light->map_resolution;
+      }
+    }
+
+    if (!background_enabled) {
+      LOG_INFO << "Background MIS has been disabled.";
     }
   }
 
