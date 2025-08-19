@@ -432,7 +432,7 @@ void KX_GameObject::RemoveOrHideBlenderObject()
 {
   Object *ob = GetBlenderObject();
 
-  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+  if (m_is_dupli_instance) {
     return;
   }
 
@@ -1156,7 +1156,7 @@ void KX_GameObject::ApplyRotation(const MT_Vector3 &drot, bool local)
 
 void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
 {
-  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE)) {
+  if (m_is_dupli_instance) {
     return;
   }
   if (!blendobj)
@@ -1358,7 +1358,7 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
 {
   Object *ob = GetBlenderObject();
 
-  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+  if (m_is_dupli_instance) {
     m_bVisible = v;
     if (recursive) {
       setVisible_recursive(GetSGNode(), v);
@@ -1479,7 +1479,7 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
   Object *ob_orig = GetBlenderObject();
-  if (ob_orig && ob_orig->gameflag & OB_DUPLI_UPBGE) {
+  if (m_is_dupli_instance) {
     return;
   }
   if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
