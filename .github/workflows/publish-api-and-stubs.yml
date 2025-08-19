@@ -3,10 +3,10 @@ name: publish-api-and-stubs
 on:
   schedule:
     - cron: "0 1 * * 0" # Execute Sundays at 1 AM UTC
-  
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-  
+
 permissions:
   contents: read
 
@@ -19,29 +19,22 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    - name: Setup APT
-      run: |
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03oracular.list \
-          -o /etc/apt/sources.list.d/03oracular.list && \
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
-          -o /etc/apt/apt.conf.d/03ubuntu
 
     - name: Install Tools
-      run: | 
+      run: |
         sudo apt update && \
-        sudo apt dist-upgrade && \
-        sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
-          cmake-curses-gui cmake-gui patch libx11-dev \
-          libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
-          libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
+        sudo apt install -y build-essential git-lfs git subversion cmake \
+        patch libx11-dev \
+        libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
+        libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev
 
     - name: Install Python
       uses: actions/setup-python@v5
-      with: 
+      with:
         python-version: '${{env.PYTHON_VERSION}}'
 
     - name: Install Python Dependencies
-      run: | 
+      run: |
         curl https://bootstrap.pypa.io/get-pip.py | python && \
         python -m pip install numpy requests cython idna charset-normalizer urllib3 certifi zstandard pybind11
 
@@ -55,12 +48,12 @@ jobs:
         git clone https://github.com/UPBGE/upbge.git
       env:
         GIT_LFS_SKIP_SMUDGE: 1
-        
+
     - name: Download Precompiled Libs
       run: |
         cd upbge && \
         ./build_files/utils/make_update.py --use-linux-libraries
-        
+
     - name: Configure CMake
       run: |
         cmake -S upbge -B build \
@@ -83,7 +76,7 @@ jobs:
 
     - name: Copy Release Scripts
       run: make -C build install
-      
+
     - name: Archive Build
       if: ${{ !env.ACT }}
       run: tar zcvf build.tar.gz build
@@ -114,24 +107,23 @@ jobs:
 
     - name: Setup APT
       run: |
-        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03oracular.list \
-          -o /etc/apt/sources.list.d/03oracular.list && \
+        sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03noble.list \
+          -o /etc/apt/sources.list.d/03noble.list && \
         sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
           -o /etc/apt/apt.conf.d/03ubuntu
 
     - name: Install Tools
-      run: | 
+      run: |
         sudo apt update && \
-        sudo apt dist-upgrade && \
         sudo apt install -y libxi6 libxxf86vm1 libxfixes3 libgl1 libx11-dev wayland-protocols
 
     - name: Install Python
       uses: actions/setup-python@v5
-      with: 
+      with:
         python-version: '${{env.PYTHON_VERSION}}'
 
     - name: Install Python Dependencies
-      run: | 
+      run: |
         curl https://bootstrap.pypa.io/get-pip.py | python && \
         python -m pip install sphinx yapf tqdm numpy sphinx_rtd_theme
 
@@ -209,11 +201,11 @@ jobs:
 
     - name: Install Python
       uses: actions/setup-python@v5
-      with: 
+      with:
         python-version: '${{env.PYTHON_VERSION}}'
 
     - name: Install Python Dependencies
-      run: | 
+      run: |
         curl https://bootstrap.pypa.io/get-pip.py | python && \
         python -m pip install bpystubgen
 

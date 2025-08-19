@@ -1,0 +1,5 @@
+deb http://archive.ubuntu.com/ubuntu/ noble main restricted
+deb http://archive.ubuntu.com/ubuntu/ noble-updates main restricted
+
+deb http://archive.ubuntu.com/ubuntu/ noble universe
+deb http://archive.ubuntu.com/ubuntu/ noble-updates universe

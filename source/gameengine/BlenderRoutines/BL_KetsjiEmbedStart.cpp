@@ -199,10 +199,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   gs.glslflag = startscene->gm.flag;
 
   if (startscene->gm.flag & GAME_USE_UNDO) {
-    BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
+    BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "bge_start");
     /* Temp hack to fix issue with undo https://github.com/UPBGE/upbge/issues/1516 */
     /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
-    BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "pre");
+    BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "pre");
   }
 
   /* Make sure we'll use old undo at bge exit to properly restore scene
@@ -212,7 +212,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   wmWindowManager *wm_backup = CTX_wm_manager(C);
   wmWindow *win_backup = CTX_wm_window(C);
-  void *msgbus_backup = wm_backup->message_bus;
+  void *msgbus_backup = wm_backup->runtime->message_bus;
   void *gpuctx_backup = win_backup->gpuctx;
   void *ghostwin_backup = win_backup->ghostwin;
 
@@ -239,7 +239,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
          * .blend */
         CTX_wm_window(C)->ghostwin = nullptr;
         /* Hack to not free wm->message_bus when we restart/load new .blend */
-        CTX_wm_manager(C)->message_bus = nullptr;
+        CTX_wm_manager(C)->runtime->message_bus = nullptr;
         BLO_blendfiledata_free(bfd);
         BKE_blender_globals_main_replace_no_free(maggie1);
       }
@@ -283,11 +283,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         CTX_wm_window_set(C, win);
         win->ghostwin = ghostwin_backup;
         win->gpuctx = gpuctx_backup;
-        wm->message_bus = (wmMsgBus *)msgbus_backup;
+        wm->runtime->message_bus = (wmMsgBus *)msgbus_backup;
 
-        wm->defaultconf = wm_backup->defaultconf;
-        wm->addonconf = wm_backup->addonconf;
-        wm->userconf = wm_backup->userconf;
+        wm->runtime->defaultconf = wm_backup->runtime->defaultconf;
+        wm->runtime->addonconf = wm_backup->runtime->addonconf;
+        wm->runtime->userconf = wm_backup->runtime->userconf;
         wm->init_flag |= WM_INIT_FLAG_KEYCONFIG;
 
         wm_window_ghostwindow_embedded_ensure(wm, win);
@@ -370,7 +370,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
      * .blend */
     CTX_wm_window(C)->ghostwin = nullptr;
     /* Hack to not free wm->message_bus when we restart/load new .blend */
-    CTX_wm_manager(C)->message_bus = nullptr;
+    CTX_wm_manager(C)->runtime->message_bus = nullptr;
     BLO_blendfiledata_free(bfd);
 
     /* Restore Main and Scene used before ge start */
@@ -379,7 +379,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     CTX_wm_manager_set(C, wm_backup);
     win_backup->ghostwin = ghostwin_backup;
     win_backup->gpuctx = gpuctx_backup;
-    wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
+    wm_backup->runtime->message_bus = (wmMsgBus *)msgbus_backup;
   }
   CTX_wm_window_set(C, win_backup);  // Fix for crash at exit when we have preferences window open
 
@@ -401,13 +401,14 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   /* Undo System */
   if (startscene->gm.flag & GAME_USE_UNDO) {
     UndoStep *step_data_from_name = NULL;
-    step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
+    step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->runtime->undo_stack,
                                                         "bge_start");
     if (step_data_from_name) {
-      BKE_undosys_step_undo_with_data(CTX_wm_manager(C)->undo_stack, C, step_data_from_name);
+      BKE_undosys_step_undo_with_data(
+          CTX_wm_manager(C)->runtime->undo_stack, C, step_data_from_name);
     }
     else {
-      BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
+      BKE_undosys_step_undo(CTX_wm_manager(C)->runtime->undo_stack, C);
     }
   }
 
