@@ -600,7 +600,7 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
     /* Handle the case of replicas added */
     for (KX_GameObject *gameobj : GetObjectList()) {
       if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
-        if (gameobj->IsReplica()) {
+        if (gameobj->IsReplica() || gameobj->IsDupliInstance()) {
           bContext *C = KX_GetActiveEngine()->GetContext();
           Main *bmain = CTX_data_main(C);
           BKE_collection_object_remove(bmain, collection, gameobj->GetBlenderObject(), false);
