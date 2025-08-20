@@ -72,6 +72,9 @@ void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject,
  * m_map_blender_to_gameobject is freed after conversion (not anymore in 0.3) */
 void BL_SceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 {
+  if (gameobject->IsDupliInstance()) {
+    return; // We want blenderObject dupli Base to remain accessible
+  }
   Object *bobp = gameobject->GetBlenderObject();
   if (bobp) {
     std::map<Object *, KX_GameObject *>::iterator it = m_map_blender_to_gameobject.find(bobp);
