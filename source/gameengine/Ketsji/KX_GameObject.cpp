@@ -1311,16 +1311,15 @@ static void setVisible_recursive(SG_Node *node, bool v)
 
 void KX_GameObject::SetVisible(bool v, bool recursive)
 {
-  Object *ob = GetBlenderObject();
-
   if (m_is_dupli_instance) {
-    m_bVisible = v;
     if (recursive) {
       setVisible_recursive(GetSGNode(), v);
     }
+    m_bVisible = v;
     return;
   }
 
+  Object *ob = GetBlenderObject();
   if (ob) {
     Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
     GetScene()->TagForCollectionRemap();
