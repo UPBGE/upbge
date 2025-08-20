@@ -31,8 +31,6 @@
 
 #include "BL_ArmatureObject.h"
 
-#include <tbb/parallel_for.h>
-
 #include "ANIM_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
@@ -44,6 +42,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_threads.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -128,17 +127,23 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
   auto vert_positions = orig_mesh->vert_positions();
   auto corner_normals = orig_mesh->corner_normals();
   restPositions = blender::Array<blender::float4>(num_corners);
-  tbb::parallel_for(0, num_corners, [&](int i) {
-    int vert_idx = corner_verts[i];
-    const blender::float3 &pos = vert_positions[vert_idx];
-    restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
-  });
+  blender::threading::parallel_for(
+      blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+        for (int i : range) {
+          int vert_idx = corner_verts[i];
+          const blender::float3 &pos = vert_positions[vert_idx];
+          restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
+        }
+      });
 
   restNormals = blender::Array<blender::float4>(num_corners);
-  tbb::parallel_for(0, orig_mesh->corners_num, [&](int i) {
-    restNormals[i] = blender::float4(
-        corner_normals[i].x, corner_normals[i].y, corner_normals[i].z, 0.0f);
-  });
+  blender::threading::parallel_for(
+      blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+        for (int i : range) {
+          restNormals[i] = blender::float4(
+              corner_normals[i].x, corner_normals[i].y, corner_normals[i].z, 0.0f);
+        }
+      });
 }
 
 // Only allowed for Poses with identical channels.
@@ -528,57 +533,60 @@ void BL_ArmatureObject::InitSkinningBuffers()
     in_indices.resize(num_corners * 4, 0);
     in_weights.resize(num_corners * 4, 0.0f);
 
-    tbb::parallel_for(0, num_corners, [&](int v) {
-      int vert_idx = corner_verts[v];
-      const MDeformVert &dvert = dverts[vert_idx];
-      struct Influence {
-        int bone_idx;
-        float weight;
-      };
-      std::vector<Influence> influences;
+    blender::threading::parallel_for(
+        blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+          for (int v : range) {
+            int vert_idx = corner_verts[v];
+            const MDeformVert &dvert = dverts[vert_idx];
+            struct Influence {
+              int bone_idx;
+              float weight;
+            };
+            std::vector<Influence> influences;
 
-      for (int j = 0; j < dvert.totweight; ++j) {
-        int def_nr = dvert.dw[j].def_nr;
-        if (def_nr >= 0 && def_nr < group_names.size()) {
-          const char *group_name = group_names[def_nr];
-          auto it = group_to_bone.find(std::string(group_name ? group_name : ""));
-          if (it != group_to_bone.end()) {
-            influences.push_back({it->second, dvert.dw[j].weight});
+            for (int j = 0; j < dvert.totweight; ++j) {
+              int def_nr = dvert.dw[j].def_nr;
+              if (def_nr >= 0 && def_nr < group_names.size()) {
+                const char *group_name = group_names[def_nr];
+                auto it = group_to_bone.find(std::string(group_name ? group_name : ""));
+                if (it != group_to_bone.end()) {
+                  influences.push_back({it->second, dvert.dw[j].weight});
+                }
+              }
+            }
+
+            if (influences.empty()) {
+              for (int j = 0; j < 4; ++j) {
+                in_indices[v * 4 + j] = 0;
+                in_weights[v * 4 + j] = 0.0f;
+              }
+              return;
+            }
+
+            std::sort(influences.begin(),
+                      influences.end(),
+                      [](const Influence &a, const Influence &b) { return a.weight > b.weight; });
+
+            float total = 0.0f;
+            for (const auto &inf : influences)
+              total += inf.weight;
+            if (total > 1.0f && total > 0.0f) {
+              for (auto &inf : influences)
+                inf.weight /= total;
+            }
+
+            for (int j = 0; j < 4; ++j) {
+              if (j < influences.size()) {
+                in_indices[v * 4 + j] = influences[j].bone_idx;
+                in_weights[v * 4 + j] = influences[j].weight;
+              }
+              else {
+                in_indices[v * 4 + j] = 0;
+                in_weights[v * 4 + j] = 0.0f;
+              }
+            }
           }
-        }
-      }
-
-      if (influences.empty()) {
-        for (int j = 0; j < 4; ++j) {
-          in_indices[v * 4 + j] = 0;
-          in_weights[v * 4 + j] = 0.0f;
-        }
-        return;
-      }
-
-      std::sort(influences.begin(), influences.end(), [](const Influence &a, const Influence &b) {
-        return a.weight > b.weight;
-      });
-
-      float total = 0.0f;
-      for (const auto &inf : influences)
-        total += inf.weight;
-      if (total > 1.0f && total > 0.0f) {
-        for (auto &inf : influences)
-          inf.weight /= total;
-      }
-
-      for (int j = 0; j < 4; ++j) {
-        if (j < influences.size()) {
-          in_indices[v * 4 + j] = influences[j].bone_idx;
-          in_weights[v * 4 + j] = influences[j].weight;
-        }
-        else {
-          in_indices[v * 4 + j] = 0;
-          in_weights[v * 4 + j] = 0.0f;
-        }
-      }
-    });
+        });
 
     // Update in_indices and in_weights ssbos only 1 time
     if (!ssbo_in_idx) {
