@@ -867,7 +867,9 @@ void KX_GameObject::TagDupliForTaaReset()
 
   // Tag a random object to reset taa samples
   if (GetScene()->GetBlenderScene()->id.recalc == 0) {
-    DEG_id_tag_update(&GetScene()->GetBlenderScene()->id, ID_RECALC_TRANSFORM);
+    GetScene()->AppendToIdsToUpdate(&GetScene()->GetBlenderScene()->id,
+                                    ID_RECALC_TRANSFORM,
+                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
   }
 }
 
