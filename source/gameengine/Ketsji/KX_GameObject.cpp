@@ -145,13 +145,13 @@ KX_GameObject::~KX_GameObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
-    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-      ob->gameflag &= ~OB_OVERLAY_COLLECTION;
-    }
+    /* Potential issue here with duplis instances pointing to the same Object */
+    ob->gameflag &= ~OB_OVERLAY_COLLECTION;
   }
 
   if (m_pSGNode) {
-    RemoveOrHideBlenderObject();
+    /* Discard rendered Object */
+    DiscardRenderedObject();
 
     /* At KX_Scene exit */
     KX_Scene *scene = GetScene();
@@ -199,13 +199,6 @@ KX_GameObject::~KX_GameObject()
 
   if (m_pDupliGroupObject) {
     m_pDupliGroupObject->Release();
-  }
-
-  if (m_is_dupli_instance) {
-    if (GetScene()) {
-      GetScene()->RemoveDupliObjectFromList(this);
-    }
-    m_is_dupli_instance = false;
   }
 
   if (m_pInstanceObjects) {
@@ -422,29 +415,37 @@ void KX_GameObject::ReplicateBlenderObject()
     m_isReplica = true;
   }
 }
-void KX_GameObject::RemoveOrHideBlenderObject()
+void KX_GameObject::DiscardRenderedObject()
 {
   Object *ob = GetBlenderObject();
-
-  if (m_is_dupli_instance) {
-    return;
-  }
-
   if (ob) {
     PHY_IPhysicsController *ctrl = GetPhysicsController();
     if (ctrl) {
       ctrl->RemoveSoftBodyModifier(ob);
     }
+    /* 1. Rendered Object is a dupli instance, just erase it from duplis list */
+    if (m_is_dupli_instance) {
+      if (GetScene()) {
+        GetScene()->RemoveDupliObjectFromList(this);
+      }
+      m_is_dupli_instance = false;
+      return;
+    }
+    /* 2. Rendered Object is a Replica (m_isReplica = true).
+     * As we created a new Object during KX_GameObject::ProcessReplica,
+     * we need to remove it with BKE_id_delete */
     if (m_isReplica) {
       bContext *C = KX_GetActiveEngine()->GetContext();
       Main *bmain = CTX_data_main(C);
       BKE_id_delete(bmain, ob);
       SetBlenderObject(nullptr);
       DEG_relations_tag_update(bmain);
+      return;
     }
-    else {
-      SetVisible(false, false);
-    }
+    /* 3. The Object is not a Replica nor a dupli Instance,
+     * just hide the Original Object. Its visibility flags will
+     * be restored at KX_Scene exit */
+    SetVisible(false, false);
   }
 }
 

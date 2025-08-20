@@ -153,7 +153,7 @@ class KX_GameObject : public SCA_IObject {
   void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
   void TagForTransformUpdateEvaluated();
   void ReplicateBlenderObject();
-  void RemoveOrHideBlenderObject();
+  void DiscardRenderedObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
   void SuspendLogicAndActions(bool childrenRecursive);
