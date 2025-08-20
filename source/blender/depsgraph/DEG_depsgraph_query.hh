@@ -273,7 +273,9 @@ struct BGEObjectData {
       blender::bke::GeometrySet *geom_set = (blender::bke::GeometrySet *)
                                                 temp_object.runtime->geometry_set_eval;
       ID *data = (ID *)geom_set->get_mesh();
-      BKE_object_replace_data_on_shallow_copy(&temp_object, data);
+      if (data) {
+        BKE_object_replace_data_on_shallow_copy(&temp_object, data);
+      }
     }
 
     // Update runtime transformation matrices
