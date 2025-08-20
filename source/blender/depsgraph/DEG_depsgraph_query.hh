@@ -22,6 +22,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_duplilist.hh"
+#include "BKE_object.hh" // UPBGE
 #include "BKE_object_types.hh"
 
 struct BLI_Iterator;
@@ -266,6 +267,14 @@ struct BGEObjectData {
     temp_object.base_flag = BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT | BASE_FROM_DUPLI;
     temp_object.visibility_flag &= ~OB_HIDE_VIEWPORT;
+
+    // Handle Text and potentially other types
+    if (temp_object.runtime->geometry_set_eval) {
+      blender::bke::GeometrySet *geom_set = (blender::bke::GeometrySet *)
+                                                temp_object.runtime->geometry_set_eval;
+      ID *data = (ID *)geom_set->get_mesh();
+      BKE_object_replace_data_on_shallow_copy(&temp_object, data);
+    }
 
     // Update runtime transformation matrices
     copy_m4_m4(temp_object.runtime->object_to_world.ptr(), source_mat);
