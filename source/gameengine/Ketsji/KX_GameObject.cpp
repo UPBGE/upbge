@@ -372,6 +372,8 @@ void KX_GameObject::ReplicateBlenderObject()
   Object *ob = GetBlenderObject();
 
   if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
+    /* Don't do a new copy of the Object if the gameobj is a dupli Base or a dupli instances
+     * All dupli instances will point to the same Object (m_pBlenderObject) */
     return;
   }
 
