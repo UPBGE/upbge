@@ -30,6 +30,7 @@
 
 extern "C" {
 #  include <libavutil/imgutils.h>
+#  include <libavcodec/avcodec.h>
 }
 
 // default framerate
@@ -373,11 +374,6 @@ void *VideoFFmpeg::cacheThread(void *data)
       // free packet => packet cache is not full yet, just read more
       if (av_read_frame(video->m_formatCtx, &cachePacket->packet) >= 0) {
         if (cachePacket->packet.stream_index == video->m_videoStream) {
-          // make sure fresh memory is allocated for the packet and move it to queue
-          AVPacket newPacket;
-          av_packet_ref(&newPacket, &cachePacket->packet);
-          cachePacket->packet = newPacket;
-
           BLI_remlink(&video->m_packetCacheFree, cachePacket);
           BLI_addtail(&video->m_packetCacheBase, cachePacket);
           break;
@@ -449,6 +445,7 @@ void *VideoFFmpeg::cacheThread(void *data)
             pthread_mutex_unlock(&video->m_cacheMutex);
             currentFrame = nullptr;
           }
+          av_frame_unref(video->m_frame);
         }
         av_packet_unref(&cachePacket->packet);
         BLI_addtail(&video->m_packetCacheFree, cachePacket);
@@ -510,13 +507,13 @@ void VideoFFmpeg::stopCache()
     while ((frame = (CacheFrame *)m_frameCacheBase.first) != nullptr) {
       BLI_remlink(&m_frameCacheBase, frame);
       MEM_freeN(frame->frame->data[0]);
-      av_free(frame->frame);
+      av_frame_free(&frame->frame);
       delete frame;
     }
     while ((frame = (CacheFrame *)m_frameCacheFree.first) != nullptr) {
       BLI_remlink(&m_frameCacheFree, frame);
       MEM_freeN(frame->frame->data[0]);
-      av_free(frame->frame);
+      av_frame_free(&frame->frame);
       delete frame;
     }
     while ((packet = (CachePacket *)m_packetCacheBase.first) != nullptr) {
@@ -928,6 +925,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 
           if (frameFinished) {
             m_curPosition = (long)((packet.dts - startTs) * (m_baseFrameRate * timeBase) + 0.5);
+            av_frame_unref(m_frame);
           }
         }
         av_packet_unref(&packet);
@@ -1021,6 +1019,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
         if (input->data[0] == 0 && input->data[1] == 0 && input->data[2] == 0 &&
             input->data[3] == 0) {
           av_packet_unref(&packet);
+          av_frame_unref(m_frame);
           break;
         }
 
@@ -1042,8 +1041,12 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
                   m_frameRGB->data,
                   m_frameRGB->linesize);
         av_packet_unref(&packet);
+        av_frame_unref(m_frame);
         frameLoaded = true;
         break;
+      }
+      else if (frameFinished) {
+        av_frame_unref(m_frame);
       }
     }
     av_packet_unref(&packet);
