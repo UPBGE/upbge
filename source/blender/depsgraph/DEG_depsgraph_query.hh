@@ -268,11 +268,24 @@ struct BGEObjectData {
                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT | BASE_FROM_DUPLI;
     temp_object.visibility_flag &= ~OB_HIDE_VIEWPORT;
 
-    // Handle Text and potentially other types
+    // Handle some types which need their data to be "replaced on_shallow_copy"
     if (temp_object.runtime->geometry_set_eval) {
       blender::bke::GeometrySet *geom_set = (blender::bke::GeometrySet *)
                                                 temp_object.runtime->geometry_set_eval;
       ID *data = (ID *)geom_set->get_mesh();
+      if (!data) {
+        data = (ID *)geom_set->get_curves();
+      }
+      if (!data) {
+        data = (ID *)geom_set->get_pointcloud();
+      }
+      if (!data) {
+        data = (ID *)geom_set->get_volume();
+      }
+      if (!data) {
+        data = (ID *)geom_set->get_grease_pencil();
+      }
+
       if (data) {
         BKE_object_replace_data_on_shallow_copy(&temp_object, data);
       }
