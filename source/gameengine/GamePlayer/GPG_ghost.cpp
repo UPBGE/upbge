@@ -281,21 +281,19 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
     int windowWidth = rc.right - rc.left;
     int windowHeight = rc.bottom - rc.top;
     const char *title = "";
-    GHOST_GPUSettings glSettings = {0};
-
-    if (stereoVisual) {
-      glSettings.flags |= GHOST_gpuStereoVisual;
-    }
+    GHOST_GPUSettings gpu_settings = {0};
     const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-    glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+    gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+    gpu_settings.preferred_device.index = U.gpu_preferred_index;
+    gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+    gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+    if (GPU_backend_vsync_is_overridden()) {
+      gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+      gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+    }
 
-    GHOST_IWindow *window = system->createWindow(title,
-                                                 0,
-                                                 0,
-                                                 windowWidth,
-                                                 windowHeight,
-                                                 GHOST_kWindowStateMinimized,
-                                                 glSettings);
+    GHOST_IWindow *window = system->createWindow(
+        title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized, gpu_settings);
     if (!window) {
       CM_Error("could not create main window");
       exit(-1);
@@ -357,12 +355,15 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   settings.yPixels = (useDesktop) ? sysHeight : height;
 
   GHOST_GPUSettings gpu_settings = {0};
-  if (stereoVisual) {
-    gpu_settings.flags |= GHOST_gpuStereoVisual;
-  }
-
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   GHOST_IWindow *window = nullptr;
   system->beginFullScreen(&window, settings, gpu_settings);
@@ -406,14 +407,16 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
                                   const bool stereoVisual,
                                   const int alphaBackground)
 {
-  GHOST_GPUSettings glSettings = {0};
-  // Create the main window
-  // std::string title ("Blender Player - GHOST");
-  if (stereoVisual)
-    glSettings.flags |= GHOST_gpuStereoVisual;
-
+  GHOST_GPUSettings gpu_settings = {0};
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   GHOST_IWindow *window = system->createWindow(title,
                                                windowLeft,
@@ -421,7 +424,7 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
                                                windowWidth,
                                                windowHeight,
                                                GHOST_kWindowStateNormal,
-                                               glSettings);
+                                               gpu_settings);
   if (!window) {
     CM_Error("could not create main window");
     exit(-1);
@@ -444,19 +447,19 @@ static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
                                           const int alphaBackground)
 {
   GHOST_TWindowState state = GHOST_kWindowStateNormal;
-  GHOST_GPUSettings glSettings = {0};
-
-  if (stereoVisual)
-    glSettings.flags |= GHOST_gpuStereoVisual;
-
-  /*if (parentWindow != 0)
-    state = GHOST_kWindowStateEmbedded;*/
-
+  GHOST_GPUSettings gpu_settings = {0};
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  glSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   GHOST_IWindow *window = system->createWindow(
-      title, 0, 0, 0, 0, state, glSettings, false, parentWindow);
+      title, 0, 0, 0, 0, state, gpu_settings, false, parentWindow);
 
   if (!window) {
     CM_Error("could not create main window");
