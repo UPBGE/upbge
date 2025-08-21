@@ -380,7 +380,7 @@ PyAttributeDef SCA_SoundActuator::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION("volume", SCA_SoundActuator, pyattr_get_gain, pyattr_set_gain),
     EXP_PYATTRIBUTE_RW_FUNCTION("pitch", SCA_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
 
-    // New toggle to control RAM buffering (default True).
+    // New toggle to control RAM buffering (default False).
     EXP_PYATTRIBUTE_BOOL_RW("preload", SCA_SoundActuator, m_preload),
 
     EXP_PYATTRIBUTE_ENUM_RW("mode",
