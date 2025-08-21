@@ -58,6 +58,9 @@ BL_SceneConverter::~BL_SceneConverter()
 void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject,
                                                   Object *for_blenderobject)
 {
+  if (gameobject->IsDupliInstance()) {
+    return;
+  }
   // 	CM_FunctionDebug("object name: " << gameobject->GetName());
   // only maintained while converting, freed during game runtime (not anymore in 0.3)
   std::map<Object *, KX_GameObject *>::iterator it = m_map_blender_to_gameobject.find(for_blenderobject);

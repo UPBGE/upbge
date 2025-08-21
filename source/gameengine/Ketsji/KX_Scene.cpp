@@ -3635,6 +3635,12 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   Object *ob = (Object *)id;
   if (ob) {
     KX_GameObject *gameobj = GetGameObjectFromObject(ob);
+    if (gameobj->IsDupliInstance()) {
+      PyErr_Format(PyExc_ValueError,
+                   "getGameObjectFromObject can't be used with a dupli instance of dupli Base %s: ",
+                   ob->id.name + 2);
+      Py_RETURN_NONE;
+    }
     if (gameobj) {
       return gameobj->GetProxy();
     }
