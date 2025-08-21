@@ -3430,13 +3430,13 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *bl_object = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &bl_object)) {
-    std::cout << "Expected a bpy.types.Object." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "convertBlenderObject: Expected a bpy.types.Object.");
     return nullptr;
   }
 
   ID *id;
   if (!pyrna_id_FromPyObject(bl_object, &id)) {
-    std::cout << "Failed to convert object." << std::endl;
+    PyErr_SetString(PyExc_RuntimeError, "convertBlenderObject: Failed to convert object.");
     return nullptr;
   }
   Object *ob = (Object *)id;
@@ -3445,7 +3445,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   if (!newgameobj) {
     /* It can happen for example if we are trying to convert the same object several times
      * or if we are trying to convert game_default_cam https://github.com/UPBGE/upbge/issues/1847 */
-    CM_Warning("Scene converter failed to convert: " << ob->id.name + 2);
+    PyErr_Format(PyExc_RuntimeError, "convertBlenderObject: Scene converter failed to convert %s: ", ob->id.name + 2);
     Py_RETURN_NONE;
   }
   return newgameobj->GetProxy();
@@ -3460,7 +3460,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   int asynchronous = 0;
 
   if (!PyArg_ParseTuple(args, "O!i:", &PyList_Type, &list, &asynchronous)) {
-    std::cout << "Expected a bpy.types.Object list." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList: Expected a bpy.types.Object list.");
     return nullptr;
   }
 
@@ -3472,7 +3472,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
     ID *id;
     if (!pyrna_id_FromPyObject(bl_object, &id)) {
-      std::cout << "Failed to convert object." << std::endl;
+      PyErr_SetString(PyExc_RuntimeError, "convertBlenderObjectsList: Failed to convert object.");
       return nullptr;
     }
 
@@ -3493,13 +3493,13 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   int asynchronous;
 
   if (!PyArg_ParseTuple(args, "Oi:", &bl_collection, &asynchronous)) {
-    std::cout << "Expected a bpy.types.Collection." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection: Expected a bpy.types.Collection.");
     return nullptr;
   }
 
   ID *id;
   if (!pyrna_id_FromPyObject(bl_collection, &id)) {
-    std::cout << "Failed to convert collection." << std::endl;
+    PyErr_SetString(PyExc_RuntimeError, "convertBlenderCollection: Failed to convert collection.");
     return nullptr;
   }
 
@@ -3516,13 +3516,13 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *bl_action = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &bl_action)) {
-    std::cout << "Expected a bpy.types.Action." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "convertBlenderAction: Expected a bpy.types.Action.");
     return nullptr;
   }
 
   ID *id;
   if (!pyrna_id_FromPyObject(bl_action, &id)) {
-    std::cout << "Failed to convert action." << std::endl;
+    PyErr_SetString(PyExc_RuntimeError, "convertBlenderAction: Failed to convert action.");
     return nullptr;
   }
 
@@ -3539,13 +3539,14 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *bl_action = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &bl_action)) {
-    std::cout << "Expected a bpy.types.Action." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "unregisterBlenderAction: Expected a bpy.types.Action.");
     return nullptr;
   }
 
   ID *id;
   if (!pyrna_id_FromPyObject(bl_action, &id)) {
-    std::cout << "Failed to find action to unregister." << std::endl;
+    PyErr_SetString(PyExc_RuntimeError,
+                    "unregisterBlenderAction: Failed to find action to unregister.");
     return nullptr;
   }
 
@@ -3569,19 +3570,19 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *pyCollection = Py_None;
 
   if (!PyArg_ParseTuple(args, "OO:", &pyCamera, &pyCollection)) {
-    std::cout << "Expected a KX_Camera and a bpy.types.Collection." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "addOverlayCollection: Expected a KX_Camera and a bpy.types.Collection.");
     return nullptr;
   }
 
   KX_Camera *kxCam = nullptr;
   if (!(ConvertPythonToCamera(this, pyCamera, &kxCam, false, nullptr))) {
-    std::cout << "Failed to convert KX_Camera" << std::endl;
+    PyErr_SetString(PyExc_RuntimeError, "addOverlayCollection: Failed to convert KX_Camera");
     return nullptr;
   }
 
   ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyCollection, &id)) {
-    std::cout << "Failed to convert collection." << std::endl;
+    PyErr_SetString(PyExc_RuntimeError, "addOverlayCollection: Failed to convert collection.");
     return nullptr;
   }
 
@@ -3598,13 +3599,13 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *pyCollection = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &pyCollection)) {
-    std::cout << "Expected a bpy.types.Collection." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "removeOverlayCollection: Expected a bpy.types.Collection.");
     return nullptr;
   }
 
   ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyCollection, &id)) {
-    std::cout << "Failed to convert collection." << std::endl;
+    PyErr_SetString(PyExc_RuntimeError, "removeOverlayCollection: Failed to convert collection.");
     return nullptr;
   }
 
@@ -3621,14 +3622,15 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *pyBlenderObject = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &pyBlenderObject)) {
-    std::cout << "getGameObjectFromObject: Expected a bpy.types.Object." << std::endl;
+    PyErr_SetString(PyExc_TypeError, "getGameObjectFromObject: Expected a bpy.types.Object.");
     return nullptr;
   }
 
   ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyBlenderObject, &id)) {
-    std::cout << "getGameObjectFromObject: Failed to convert Object " << id->name + 2
-              << std::endl;
+    PyErr_Format(PyExc_RuntimeError,
+                 "getGameObjectFromObject: Failed to convert Object %s: ",
+                 id->name + 2);
     return nullptr;
   }
 
@@ -3637,14 +3639,14 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     KX_GameObject *gameobj = GetGameObjectFromObject(ob);
     if (gameobj->IsDupliInstance()) {
       PyErr_Format(PyExc_ValueError,
-                   "getGameObjectFromObject can't be used with a dupli instance of dupli Base %s: ",
+                   "getGameObjectFromObject: Can't be used with a dupli instance of dupli Base %s: ",
                    ob->id.name + 2);
       Py_RETURN_NONE;
     }
     if (gameobj) {
       return gameobj->GetProxy();
     }
-    std::cout << "getGameObjectFromObject: No KX_GameObject found for this Object " << ob->id.name + 2 << std::endl;
+    PyErr_Format(PyExc_ValueError, "getGameObjectFromObject: No KX_GameObject found for this Object %s ", ob->id.name + 2);
     Py_RETURN_NONE;
   }
 
