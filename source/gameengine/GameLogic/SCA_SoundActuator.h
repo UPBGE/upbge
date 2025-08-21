@@ -52,15 +52,20 @@ typedef struct KX_3DSoundSettings {
 } KX_3DSoundSettings;
 
 class SCA_SoundActuator : public SCA_IActuator {
-  Py_Header bool m_isplaying;
+  Py_Header
+  bool m_isplaying;
 #ifdef WITH_AUDASPACE
   AUD_Sound *m_sound;
   AUD_Handle *m_handle;
+  // Cached, pre-buffered sound data to avoid re-decoding on repeated play.
+  AUD_Sound *m_prepared;
 #endif  // WITH_AUDASPACE
   float m_volume;
   float m_pitch;
   bool m_is3d;
   KX_3DSoundSettings m_3d;
+  // Control whether to keep a RAM-buffered copy for fast re-triggers.
+  bool m_preload;
 
   void play();
 
@@ -85,6 +90,7 @@ class SCA_SoundActuator : public SCA_IActuator {
                     float volume,
                     float pitch,
                     bool is3d,
+                    bool preload,
                     KX_3DSoundSettings settings,
                     KX_SOUNDACT_TYPE type);
 

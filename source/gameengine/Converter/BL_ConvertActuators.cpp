@@ -294,6 +294,7 @@ void BL_ConvertActuators(const char *maggiename,
         if (soundActuatorType != SCA_SoundActuator::KX_SOUNDACT_NODEF) {
           bSound *sound = soundact->sound;
           bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
+          bool preload = soundact->flag & ACT_SND_PRELOAD ? true : false;
 #ifdef WITH_AUDASPACE
           AUD_Sound *snd_sound = nullptr;
 #endif  // WITH_AUDASPACE
@@ -332,6 +333,7 @@ void BL_ConvertActuators(const char *maggiename,
               soundact->volume,
               (float)(expf((soundact->pitch / 12.0f) * (float)M_LN2)),
               is3d,
+              preload,
               settings,
               soundActuatorType);
 

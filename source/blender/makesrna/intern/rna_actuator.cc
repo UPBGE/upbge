@@ -1167,6 +1167,11 @@ static void rna_def_sound_actuator(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ACT_SND_3D_SOUND);
   RNA_def_property_ui_text(prop, "3D Sound", "Enable/Disable 3D Sound");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_preload", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ACT_SND_PRELOAD);
+  RNA_def_property_ui_text(prop, "Buffer Sound", "Preload sound. Improves playing for small/medium repetitive sounds");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 
 static void rna_def_property_actuator(BlenderRNA *brna)

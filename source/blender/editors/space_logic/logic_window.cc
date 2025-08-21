@@ -2358,7 +2358,9 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
   row->prop(ptr, "volume", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row->prop(ptr, "pitch", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "use_sound_3d", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row = &layout->row(false);
+  row->prop(ptr, "use_sound_3d", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_preload", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = &layout->column(false);
   col->active_set(RNA_boolean_get(ptr, "use_sound_3d") == true);

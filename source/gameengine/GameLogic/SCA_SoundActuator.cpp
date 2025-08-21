@@ -57,6 +57,7 @@ SCA_SoundActuator::SCA_SoundActuator(SCA_IObject *gameobj,
                                      float volume,
                                      float pitch,
                                      bool is3d,
+                                     bool preload,
                                      KX_3DSoundSettings settings,
                                      KX_SOUNDACT_TYPE type)  //,
     : SCA_IActuator(gameobj, KX_ACT_SOUND)
@@ -64,13 +65,26 @@ SCA_SoundActuator::SCA_SoundActuator(SCA_IObject *gameobj,
 #ifdef WITH_AUDASPACE
   m_sound = sound ? AUD_Sound_copy(sound) : nullptr;
   m_handle = nullptr;
+  // No prepared buffer yet; will be built if m_preload is true.
+  m_prepared = nullptr;
 #endif  // WITH_AUDASPACE
+
   m_volume = volume;
   m_pitch = pitch;
   m_is3d = is3d;
   m_3d = settings;
   m_type = type;
   m_isplaying = false;
+
+  // Default: enable RAM buffering for snappy repeated triggers.
+  m_preload = preload;
+
+#ifdef WITH_AUDASPACE
+  if (m_preload && m_sound) {
+    // Buffer the whole sound in memory for fast replay.
+    m_prepared = AUD_Sound_cache(m_sound);
+  }
+#endif
 }
 
 SCA_SoundActuator::~SCA_SoundActuator()
@@ -78,6 +92,11 @@ SCA_SoundActuator::~SCA_SoundActuator()
 #ifdef WITH_AUDASPACE
   if (m_handle) {
     AUD_Handle_stop(m_handle);
+  }
+
+  if (m_prepared) {
+    AUD_Sound_free(m_prepared);
+    m_prepared = nullptr;
   }
 
   if (m_sound) {
@@ -94,18 +113,22 @@ void SCA_SoundActuator::play()
     m_handle = nullptr;
   }
 
-  if (!m_sound)
+  // If nothing to play, bail early.
+  if (!m_sound && !m_prepared)
     return;
 
-  // this is the sound that will be played and not deleted afterwards
-  AUD_Sound *sound = m_sound;
+  // Base sound used for playback. Prefer the pre-buffered version.
+  AUD_Sound *base = m_prepared ? m_prepared : m_sound;
+  // This is the sound actually passed to the device (may be wrapped).
+  AUD_Sound *sound = base;
 
   bool loop = false;
 
   switch (m_type) {
     case KX_SOUNDACT_LOOPBIDIRECTIONAL:
     case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
-      sound = AUD_Sound_pingpong(sound);
+      // Wrap the base into a pingpong sound; free after play if wrapped.
+      sound = AUD_Sound_pingpong(base);
       ATTR_FALLTHROUGH;
     case KX_SOUNDACT_LOOPEND:
     case KX_SOUNDACT_LOOPSTOP:
@@ -121,8 +144,8 @@ void SCA_SoundActuator::play()
   m_handle = AUD_Device_play(device, sound, false);
   AUD_Device_free(device);
 
-  // in case of pingpong, we have to free the sound
-  if (sound != m_sound)
+  // If we created a temporary pingpong wrapper, free it now.
+  if (sound != base)
     AUD_Sound_free(sound);
 
   if (m_handle != nullptr) {
@@ -161,6 +184,15 @@ void SCA_SoundActuator::ProcessReplica()
 #ifdef WITH_AUDASPACE
   m_handle = nullptr;
   m_sound = m_sound ? AUD_Sound_copy(m_sound) : nullptr;
+
+  // Rebuild buffered copy for the replica if needed.
+  if (m_prepared) {
+    AUD_Sound_free(m_prepared);
+    m_prepared = nullptr;
+  }
+  if (m_preload && m_sound) {
+    m_prepared = AUD_Sound_cache(m_sound);
+  }
 #endif  // WITH_AUDASPACE
 }
 
@@ -177,7 +209,8 @@ bool SCA_SoundActuator::Update(double curtime)
   RemoveAllEvents();
 
 #ifdef WITH_AUDASPACE
-  if (!m_sound)
+  // Guard: if we have neither original sound nor prepared buffer, nothing to do.
+  if (!m_sound && !m_prepared)
     return false;
 
   // actual audio device playing state
@@ -321,6 +354,8 @@ PyMethodDef SCA_SoundActuator::Methods[] = {
 
 PyAttributeDef SCA_SoundActuator::Attributes[] = {
     EXP_PYATTRIBUTE_BOOL_RO("is3D", SCA_SoundActuator, m_is3d),
+
+    // 3D properties
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "volume_maximum", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
     EXP_PYATTRIBUTE_RW_FUNCTION(
@@ -337,12 +372,17 @@ PyAttributeDef SCA_SoundActuator::Attributes[] = {
         "cone_angle_outer", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "cone_volume_outer", SCA_SoundActuator, pyattr_get_3d_property, pyattr_set_3d_property),
-    EXP_PYATTRIBUTE_RW_FUNCTION("sound", SCA_SoundActuator, pyattr_get_sound, pyattr_set_sound),
 
+    // Sound handle / playback properties
+    EXP_PYATTRIBUTE_RW_FUNCTION("sound", SCA_SoundActuator, pyattr_get_sound, pyattr_set_sound),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "time", SCA_SoundActuator, pyattr_get_audposition, pyattr_set_audposition),
     EXP_PYATTRIBUTE_RW_FUNCTION("volume", SCA_SoundActuator, pyattr_get_gain, pyattr_set_gain),
     EXP_PYATTRIBUTE_RW_FUNCTION("pitch", SCA_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
+
+    // New toggle to control RAM buffering (default True).
+    EXP_PYATTRIBUTE_BOOL_RW("preload", SCA_SoundActuator, m_preload),
+
     EXP_PYATTRIBUTE_ENUM_RW("mode",
                             SCA_SoundActuator::KX_SOUNDACT_NODEF + 1,
                             SCA_SoundActuator::KX_SOUNDACT_MAX - 1,
@@ -504,7 +544,7 @@ int SCA_SoundActuator::pyattr_set_3d_property(EXP_PyObjectPlus *self,
   if (!PyArg_Parse(value, "f", &prop_value))
     return PY_SET_ATTR_FAIL;
 
-  // if sound is working and 3D, set the new setting
+  // If sound is working and 3D, set the new setting.
   if (!actuator->m_is3d)
     return PY_SET_ATTR_FAIL;
 
@@ -644,8 +684,18 @@ int SCA_SoundActuator::pyattr_set_sound(EXP_PyObjectPlus *self,
     return PY_SET_ATTR_FAIL;
   }
 
+  // Replace original sound.
   AUD_Sound_free(actuator->m_sound);
   actuator->m_sound = snd;
+
+  // Rebuild pre-buffer if enabled.
+  if (actuator->m_prepared) {
+    AUD_Sound_free(actuator->m_prepared);
+    actuator->m_prepared = nullptr;
+  }
+  if (actuator->m_preload && actuator->m_sound) {
+    actuator->m_prepared = AUD_Sound_cache(actuator->m_sound);
+  }
 #  endif  // WITH_AUDASPACE
 
   return PY_SET_ATTR_SUCCESS;

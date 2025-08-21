@@ -523,6 +523,7 @@ typedef struct bActuator {
 
 /* SoundActuator->flag */
 #define ACT_SND_3D_SOUND 1
+#define ACT_SND_PRELOAD 2
 
 /*  SoundActuator->type */
 #define ACT_SND_PLAY_STOP_SOUND 0
