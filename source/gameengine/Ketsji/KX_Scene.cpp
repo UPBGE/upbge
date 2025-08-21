@@ -236,8 +236,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_obstacleSimulation = nullptr;
   }
 
-  m_animationPool = BLI_task_pool_create(&m_animationPoolData, TASK_PRIORITY_LOW);
-
 #ifdef WITH_PYTHON
   m_attr_dict = nullptr;
   m_removeCallbacks = nullptr;
@@ -359,7 +357,6 @@ KX_Scene::~KX_Scene()
     RestoreObjectsMatToWorld();
     TagForObjectsMatToWorldRestore();
   }
-  /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
@@ -405,11 +402,8 @@ KX_Scene::~KX_Scene()
     BKE_view_layer_synced_ensure(scene, BKE_view_layer_default_view(scene));
   }
 
-  if (m_obstacleSimulation)
+  if (m_obstacleSimulation) {
     delete m_obstacleSimulation;
-
-  if (m_animationPool) {
-    BLI_task_pool_free(m_animationPool);
   }
 
   if (m_objectlist)
@@ -2442,68 +2436,13 @@ void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
   CM_ListAddIfNotFound(m_animatedlist, gameobj);
 }
 
-// static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
-//{
-//  KX_GameObject *gameobj, *parent;
-//  bool needs_update;
-//  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData
-//  *)BLI_task_pool_user_data(pool); double curtime = data->curtime;
-
-//  gameobj = (KX_GameObject *)taskdata;
-
-//  // Non-armature updates are fast enough, so just update them
-//  needs_update = gameobj->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE;
-
-//  if (!needs_update) {
-//    // If we got here, we're looking to update an armature, so check its children meshes
-//    // to see if we need to bother with a more expensive pose update
-//    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
-
-//    bool has_mesh = false, has_non_mesh = false;
-
-//    // Check for meshes that haven't been culled
-//    for (KX_GameObject *child : children) {
-//      // if (!child->GetCulled()) { // eevee disable armature animation culling
-//      needs_update = true;
-//      break;
-//      //}
-
-//      if (child->GetMeshCount() == 0)
-//        has_non_mesh = true;
-//      else
-//        has_mesh = true;
-//    }
-
-//    // If we didn't find a non-culled mesh, check to see
-//    // if we even have any meshes, and update if this
-//    // armature has only non-mesh children.
-//    if (!needs_update && !has_mesh && has_non_mesh)
-//      needs_update = true;
-//  }
-
-//  // If the object is a culled armature, then we manage only the animation time and end of its
-//  // animations.
-//  gameobj->UpdateActionManager(curtime, needs_update);
-
-//  if (needs_update) {
-//    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
-//    parent = gameobj->GetParent();
-//  }
-//}
-
 void KX_Scene::UpdateAnimations(double curtime)
 {
-  // m_animationPoolData.curtime = curtime;
-
   for (KX_GameObject *gameobj : m_animatedlist) {
-    // BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false,
-    // TASK_PRIORITY_LOW);
     if (!gameobj->IsActionsSuspended()) {
       gameobj->UpdateActionManager(curtime, true);
     }
   }
-
-  // BLI_task_pool_work_and_wait(m_animationPool);
 }
 
 void KX_Scene::LogicUpdateFrame(double curtime)

@@ -104,10 +104,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
  public:
   enum DrawingCallbackType { PRE_DRAW = 0, POST_DRAW, PRE_DRAW_SETUP, MAX_DRAW_CALLBACK };
 
-  struct AnimationPoolData {
-    double curtime;
-  };
-
  private:
   Py_Header
 
@@ -297,9 +293,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   KX_2DFilterManager *m_filterManager;
 
   KX_ObstacleSimulation *m_obstacleSimulation;
-
-  AnimationPoolData m_animationPoolData;
-  TaskPool *m_animationPool;
 
   /**
    * LOD Hysteresis settings

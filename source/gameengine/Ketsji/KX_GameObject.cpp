@@ -452,6 +452,32 @@ void KX_GameObject::DiscardRenderedObject()
   }
 }
 
+void KX_GameObject::CreateDupliObjectFromExisting()
+{
+  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
+    return;
+  }
+  m_is_dupli_instance = true;
+
+  TagDupliForTaaReset();
+
+  GetScene()->AddDupliObjectToList(this);
+}
+
+void KX_GameObject::TagDupliForTaaReset()
+{
+  if (!m_is_dupli_instance) {
+    return;
+  }
+
+  // Tag a random object to reset taa samples
+  if (GetScene()->GetBlenderScene()->id.recalc == 0) {
+    GetScene()->AppendToIdsToUpdate(&GetScene()->GetBlenderScene()->id,
+                                    ID_RECALC_TRANSFORM,
+                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
+  }
+}
+
 void KX_GameObject::Dispose()
 {
 #ifdef WITH_PYTHON
@@ -845,32 +871,6 @@ BL_ActionManager *KX_GameObject::GetActionManager()
 BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
 {
   return m_actionManager;
-}
-
-void KX_GameObject::CreateDupliObjectFromExisting()
-{
-  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
-    return;
-  }
-  m_is_dupli_instance = true;
-
-  TagDupliForTaaReset();
-
-  GetScene()->AddDupliObjectToList(this);
-}
-
-void KX_GameObject::TagDupliForTaaReset()
-{
-  if (!m_is_dupli_instance) {
-    return;
-  }
-
-  // Tag a random object to reset taa samples
-  if (GetScene()->GetBlenderScene()->id.recalc == 0) {
-    GetScene()->AppendToIdsToUpdate(&GetScene()->GetBlenderScene()->id,
-                                    ID_RECALC_TRANSFORM,
-                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
-  }
 }
 
 bool KX_GameObject::PlayAction(const std::string &name,
@@ -1854,35 +1854,6 @@ void KX_GameObject::RunOnRemoveCallbacks()
   EXP_RunPythonCallBackList(list, args, 0, 1);
 #endif  // WITH PYTHON
 }
-
-/* Suspend/ resume: for the dynamic behavior, there is a simple
- * method. For the residual motion, there is not. I wonder what the
- * correct solution is for Sumo. Remove from the motion-update tree?
- *
- * So far, only switch the physics and logic.
- * */
-
-// void KX_GameObject::ResumeDynamics(void)
-//{
-//  if (m_logicSuspended) {
-//    SCA_IObject::ResumeLogic();
-//    // Child objects must be static, so we block changing to dynamic
-//    if (GetPhysicsController() && !GetParent())
-//      GetPhysicsController()->RestoreDynamics();
-//
-//    m_logicSuspended = false;
-//  }
-//}
-//
-// void KX_GameObject::SuspendDynamics()
-//{
-//  if (!m_logicSuspended) {
-//    SCA_IObject::SuspendLogic();
-//    if (GetPhysicsController())
-//      GetPhysicsController()->SuspendDynamics();
-//    m_logicSuspended = true;
-//  }
-//}
 
 template<bool recursive>
 static void walk_children(const SG_Node *node, std::vector<KX_GameObject *> &list)

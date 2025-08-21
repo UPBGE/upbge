@@ -165,9 +165,9 @@ class KX_GameObject : public SCA_IObject {
   void SetIsReplicaObject();
   BL_ActionManager *GetActionManagerNoCreate();
   /**
-   * Create a DupliObject based on the existing Blender object (for replicas).
+   * Create a dupli based on the existing Blender object.
    * This method does NOT duplicate the Blender object, it only adds the KX_GameObject
-   * to m_duplilist. All the replicas will point to the same BlenderObject.
+   * to m_duplilist. All the duplis will point to the same BlenderObject.
    */
   void CreateDupliObjectFromExisting();
 
@@ -753,16 +753,6 @@ class KX_GameObject : public SCA_IObject {
 
   /* Run the registered python callbacks when the KX_GameObject is removed. */
   void RunOnRemoveCallbacks();
-
-  /**
-   * Stop making progress
-   */
-  void SuspendDynamics(void);
-
-  /**
-   * Resume making progress
-   */
-  void ResumeDynamics(void);
 
   /**
    * add debug object to the debuglist.
