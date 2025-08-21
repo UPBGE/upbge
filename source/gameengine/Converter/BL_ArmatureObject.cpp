@@ -627,7 +627,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd) {
             amd->object = child->GetBlenderObject()->parent;
-            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0;
+            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance();
           }
         }
       }
