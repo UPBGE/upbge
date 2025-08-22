@@ -47,6 +47,12 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       :type: boolean
 
+   .. attribute:: preload
+
+      Control whether to keep a RAM-buffered copy for fast re-triggers
+
+      :type: boolean
+
    .. attribute:: volume_maximum
 
       The maximum gain of the sound, no matter how near it is.
