@@ -53,6 +53,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_context.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_sca.hh"
@@ -496,6 +497,9 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  /* Add view_layer_synced_ensure here just in case,
+   * before iteration on view_layer->object_bases */
+  BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob, *obt, *obact = CTX_data_active_object(C);
   ID **idar;
   bSensor *sens;
