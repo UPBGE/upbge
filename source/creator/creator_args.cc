@@ -765,6 +765,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu");
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
   if (defs.with_renderdoc) {
     BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
@@ -1275,10 +1276,10 @@ static const char arg_handle_log_set_doc[] =
     "\tEnable logging categories, taking a single comma separated argument.\n"
     "\n"
     "\t--log \"*\": log everything\n"
-    "\t--log \"event\": logs every category starting with \"event\"\n"
-    "\t--log \"render,cycles\": log both render and cycles messages\n"
-    "\t--log \"*mesh*\": log every category containing \"mesh\" sub-string\n"
-    "\t--log \"*,^operator\": log everything except operators, with ^prefix to exclude";
+    "\t--log \"event\": logs every category starting with 'event'.\n"
+    "\t--log \"render,cycles\": log both render and cycles messages.\n"
+    "\t--log \"*mesh*\": log every category containing 'mesh' sub-string.\n"
+    "\t--log \"*,^operator\": log everything except operators, with '^prefix' to exclude.";
 static int arg_handle_log_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "--log";
@@ -1653,7 +1654,7 @@ static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/
   }
   else {
     fprintf(stderr, "\nError: expected a value in [on, off, auto] '%s %s'.\n", arg_id, argv[1]);
-    return 0;
+    return 1;
   }
 
   GPU_backend_vsync_set_override(vsync);
@@ -1681,7 +1682,7 @@ static int arg_handle_gpu_compilation_subprocesses_set(int argc,
               argv[1],
               min,
               max);
-      return 0;
+      return 1;
     }
 
 #  ifdef WITH_OPENGL_BACKEND
