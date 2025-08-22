@@ -291,6 +291,9 @@ struct BGEObjectData {
       }
     }
 
+    bool is_neg_scale = is_negative_m4(source_mat);
+    SET_FLAG_FROM_TEST(temp_object.transflag, is_neg_scale, OB_NEG_SCALE);
+
     // Update runtime transformation matrices
     copy_m4_m4(temp_object.runtime->object_to_world.ptr(), source_mat);
     invert_m4_m4(temp_object.runtime->world_to_object.ptr(), source_mat);
