@@ -230,8 +230,10 @@ GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
   /* temp: upbge, hardcoded because unused */
 #if defined(__APPLE__) && defined(WITH_METAL_BACKEND)
   gpu_settings.context_type = GHOST_kDrawingContextTypeMetal;
-#else
+#elseif defined(WITH_OPENGL_BACKEND)
   gpu_settings.context_type = GHOST_kDrawingContextTypeOpenGL;
+#elseif defined(WITH_VULKAN_BACKEND)
+  gpu_settings.context_type = GHOST_kDrawingContextTypeVulkan;
 #endif
 
   system->beginFullScreen(&window, setting, gpu_settings);

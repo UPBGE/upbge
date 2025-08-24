@@ -41,7 +41,6 @@ if(WITH_TBB)
   list(INSERT LIB 0 bf_blenkernel)
 endif()
 
-
 # Compatibility with Windows 7
 if(WIN32 AND WITH_WINDOWS_7)
   list(INSERT LIB 0 ${BCOMPAT7_LIBRARIES})
@@ -131,6 +130,12 @@ if(WITH_GAMEENGINE)
 endif()
 
 if(WITH_SDL)
+  list(APPEND INC_SYS
+    ${SDL_INCLUDE_DIR}
+  )
+  list(APPEND LIB
+    ${SDL_LIBRARY}
+  )
   add_definitions(-DWITH_SDL)
 endif()
 

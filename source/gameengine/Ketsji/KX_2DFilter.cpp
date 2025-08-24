@@ -26,7 +26,9 @@
 
 #include "KX_2DFilter.h"
 
+#ifdef WITH_PYTHON
 #include "../python/gpu/gpu_py_texture.hh"
+#endif
 
 #include "KX_2DFilterFrameBuffer.h"
 

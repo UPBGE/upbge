@@ -31,8 +31,9 @@
 KX_PythonProxy::KX_PythonProxy()
     : EXP_Value(),
       m_init(false),
-      m_pp(nullptr),
+      m_pp(nullptr)
 #ifdef WITH_PYTHON
+      ,
       m_update(nullptr),
       m_dispose(nullptr),
       m_logger(nullptr)

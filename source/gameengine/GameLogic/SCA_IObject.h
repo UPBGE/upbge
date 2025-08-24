@@ -35,6 +35,7 @@
 
 #include <vector>
 
+#include "BLI_compiler_attrs.h"
 #include "KX_PythonProxy.h"
 #include "SG_QList.h"
 

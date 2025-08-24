@@ -174,7 +174,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
 data_to_c_simple(../../../../release/datafiles/bfont.pfb SRC)
 
 
-if(WITH_BLENDER)
+if(WITH_BLENDER OR WITH_PLAYER)
   # Blender only (not Cycles stand-alone).
 
   if(NOT WITH_HEADLESS)

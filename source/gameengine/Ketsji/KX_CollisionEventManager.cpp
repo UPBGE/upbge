@@ -87,9 +87,6 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
   KX_ClientObjectInfo *info1 = (ctrl1) ?
                                    static_cast<KX_ClientObjectInfo *>(ctrl1->GetNewClientInfo()) :
                                    nullptr;
-  KX_ClientObjectInfo *info2 = (ctrl2) ?
-                                   static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo()) :
-                                   nullptr;
 
   // This call back should only be called for controllers of Near and Radar sensor
   if (!info1) {
@@ -98,6 +95,10 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
   bool has_py_callbacks = false;
 
 #ifdef WITH_PYTHON
+  KX_ClientObjectInfo *info2 = (ctrl2) ?
+                                   static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo()) :
+                                   nullptr;
+
   // Get KX_GameObjects for callbacks
   KX_GameObject *gobj1 = info1->m_gameobject;
   KX_GameObject *gobj2 = (info2) ? info2->m_gameobject : nullptr;

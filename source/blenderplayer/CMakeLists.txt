@@ -57,6 +57,16 @@ if(WIN32 AND NOT UNIX)
   )
 endif()
 
+if(WITH_SDL)
+  list(APPEND INC_SYS
+    ${SDL_INCLUDE_DIR}
+  )
+  list(APPEND LIB
+    ${SDL_LIBRARY}
+  )
+  add_definitions(-DWITH_SDL)
+endif()
+
 if(WITH_BUILDINFO)
   add_definitions(-DWITH_BUILDINFO)
   # --------------------------------------------------------------------------
@@ -207,19 +217,23 @@ endif()
 # Apple treats both executables in a self-contained manner.
 # Therefore we have to copy all the resources for the blenderplayer as well
 if(APPLE)
-
   set(PLAYER_TARGETDIR_VER Blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
   set(PLAYER_TARGETDIR_LIB Blenderplayer.app/Contents/Resources/lib)
   set(PLAYER_TARGETDIR_TEXT Blenderplayer.app/Contents/Resources/text)
-
+  set(PLAYER_TARGETDIR_SITE_PACKAGES "${PLAYER_TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages")
   # Skip relinking on cpack / install
   set_target_properties(blenderplayer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
 
   set(PLAYER_TEXT_FILES
-    ${CMAKE_SOURCE_DIR}/release/text/copyright.txt
-    # generate this file
-    # ${CMAKE_SOURCE_DIR}/release/text/readme.html
+    # Generate this file:
+    # `${CMAKE_SOURCE_DIR}/release/text/readme.html`
   )
+
+  if(WITH_INSTALL_COPYRIGHT)
+    list(APPEND PLAYER_TEXT_FILES
+      ${CMAKE_SOURCE_DIR}/release/text/copyright.txt
+    )
+  endif()
 
   # -----------------------------------------------------------------------------
   # Install Targets (Generic, All Platforms)
@@ -230,15 +244,7 @@ if(APPLE)
   )
 
   if(WITH_PYTHON)
-    # install(CODE "message(\"copying blender scripts...\")")
-
-    # exclude addons_contrib if release
-    if("${BLENDER_VERSION_CYCLE}" STREQUAL "release" OR
-       "${BLENDER_VERSION_CYCLE}" STREQUAL "rc")
-      set(ADDON_EXCLUDE_CONDITIONAL "addons_contrib/*")
-    else()
-      set(ADDON_EXCLUDE_CONDITIONAL "_addons_contrib/*")  # dummy, wont do anything
-    endif()
+    # install(CODE "message(\"copying blenderplayer scripts...\")")
 
     # do not install freestyle dir if disabled
     if(NOT WITH_FREESTYLE)
@@ -252,15 +258,33 @@ if(APPLE)
       DESTINATION ${PLAYER_TARGETDIR_VER}
       PATTERN ".git" EXCLUDE
       PATTERN ".gitignore" EXCLUDE
+      PATTERN ".gitea" EXCLUDE
+      PATTERN ".github" EXCLUDE
       PATTERN ".arcconfig" EXCLUDE
       PATTERN "__pycache__" EXCLUDE
       PATTERN "site" EXCLUDE
-      PATTERN "${ADDON_EXCLUDE_CONDITIONAL}" EXCLUDE
       PATTERN "${FREESTYLE_EXCLUDE_CONDITIONAL}" EXCLUDE
+
+      # Exclude extensions development files.
+      PATTERN "addons_core/bl_pkg/Makefile" EXCLUDE
+      PATTERN "addons_core/bl_pkg/tests" EXCLUDE
+      PATTERN "addons_core/bl_pkg/example_extension" EXCLUDE
     )
 
-    unset(ADDON_EXCLUDE_CONDITIONAL)
+    if(WITH_PYTHON_INSTALL)
+      install(
+        FILES ${CMAKE_SOURCE_DIR}/scripts/site/sitecustomize.py
+        DESTINATION ${PLAYER_TARGETDIR_SITE_PACKAGES}
+      )
+    endif()
     unset(FREESTYLE_EXCLUDE_CONDITIONAL)
+
+    if(WITH_DRACO)
+      install(
+        PROGRAMS $<TARGET_FILE:extern_draco>
+        DESTINATION ${PLAYER_TARGETDIR_VER}/scripts/addons_core/io_scene_gltf2
+      )
+    endif()
   endif()
 
   # fonts
@@ -297,7 +321,9 @@ if(APPLE)
       DIRECTORY ${from}
       DESTINATION ${to}
       PATTERN ".git" EXCLUDE
-      PATTERN ".svn" EXCLUDE
+      PATTERN ".gitignore" EXCLUDE
+      PATTERN ".gitea" EXCLUDE
+      PATTERN ".github" EXCLUDE
       PATTERN "*.pyc" EXCLUDE
       PATTERN "*.pyo" EXCLUDE
       PATTERN "*.orig" EXCLUDE
@@ -305,6 +331,7 @@ if(APPLE)
       PATTERN "__pycache__" EXCLUDE
       PATTERN "__MACOSX" EXCLUDE
       PATTERN ".DS_Store" EXCLUDE
+      # Unneeded Python files.
       PATTERN "config-${PYTHON_VERSION}/*.a" EXCLUDE  # static lib
       PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
       PATTERN "tkinter" EXCLUDE                   # ./tkinter
@@ -351,12 +378,12 @@ if(APPLE)
 
   install(
     FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
-    DESTINATION Blenderplayer.app/Contents
+    DESTINATION "Blenderplayer.app/Contents"
   )
 
   install_dir(
     ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
-    Blenderplayer.app/Contents/
+    "Blenderplayer.app/Contents"
   )
 
   if(PLATFORM_BUNDLED_LIBRARIES AND PLAYER_TARGETDIR_LIB)
@@ -368,7 +395,7 @@ if(APPLE)
 
   if(WITH_VULKAN_BACKEND)
     install(
-      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY}
+      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY} #Check if it necessary MoltenVK
       DESTINATION ${PLAYER_TARGETDIR_LIB}
     )
   endif()
@@ -397,10 +424,17 @@ if(APPLE)
     unset(_py_inc_suffix)
   endif()
 
-  if(WITH_DRACO)
+  if(NOT WITH_PYTHON_MODULE AND WITH_PYTHON AND WITH_PYTHON_INSTALL)
+    get_filename_component(PYTHON_EXECUTABLE_NAME_ONLY ${PYTHON_EXECUTABLE} NAME)
+    configure_file(
+      ${CMAKE_SOURCE_DIR}/release/darwin/scripts/blender-system-info.sh.in
+      ${CMAKE_BINARY_DIR}/release/darwin/scripts/blender-system-info.sh
+      @ONLY
+    )
+    unset(PYTHON_EXECUTABLE_NAME_ONLY)
     install(
-      PROGRAMS $<TARGET_FILE:extern_draco>
-      DESTINATION ${PLAYER_TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+      PROGRAMS ${CMAKE_BINARY_DIR}/release/darwin/scripts/blender-system-info.sh
+      DESTINATION "Blenderplayer.app/Contents/Resources"
     )
   endif()
 
@@ -428,6 +462,13 @@ if(APPLE)
       DESTINATION "${PLAYER_TARGETDIR_TEXT}"
   )
   endif()
+
+  # Create a system extensions directory (users or administrators may populate this).
+  # This only contains a `readme.txt` explaining it's purpose.
+  install(
+    DIRECTORY ${CMAKE_SOURCE_DIR}/release/extensions
+    DESTINATION ${PLAYER_TARGETDIR_VER}
+  )
 
   # install more files specified elsewhere
   delayed_do_install(${PLAYER_TARGETDIR_VER})

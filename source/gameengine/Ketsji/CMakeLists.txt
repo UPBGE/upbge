@@ -191,8 +191,14 @@ set(LIB
   ge_device
   extern_recastnavigation
   ge_rasterizer
-  ge_videotexture
 )
+
+if(WITH_PYTHON)
+  list(APPEND LIB
+    ge_videotexture
+  )
+endif()
+
 
 add_definitions(${GL_DEFINITIONS})
 

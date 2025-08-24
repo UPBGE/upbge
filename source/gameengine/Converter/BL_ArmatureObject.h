@@ -32,6 +32,7 @@
 #pragma once
 
 #include "BKE_modifier.hh"
+#include "BLI_array.hh"
 
 #include "BL_ArmatureChannel.h"
 #include "BL_ArmatureConstraint.h"

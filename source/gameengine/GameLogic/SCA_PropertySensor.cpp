@@ -32,6 +32,7 @@
  *  \ingroup gamelogic
  */
 
+#include <algorithm>
 #include "SCA_PropertySensor.h"
 
 #include "CM_Format.h"

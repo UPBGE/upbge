@@ -26,7 +26,9 @@
 
 #include "RAS_FrameBuffer.h"
 
+#ifdef WITH_PYTHON
 #include "../../blender/python/gpu/gpu_py_texture.hh"
+#endif
 
 #include "GPU_framebuffer.hh"
 

@@ -26,7 +26,9 @@
 
 #include "KX_2DFilterFrameBuffer.h"
 
+#ifdef WITH_PYTHON
 #include "../../blender/python/gpu/gpu_py_texture.hh"
+#endif
 
 KX_2DFilterFrameBuffer::KX_2DFilterFrameBuffer(unsigned short colorSlots,
                                                Flag flag,

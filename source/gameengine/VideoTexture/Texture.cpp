@@ -15,7 +15,9 @@
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 #include "GPU_viewport.hh"
+#ifdef WITH_PYTHON
 #include "../python/gpu/gpu_py_texture.hh"
+#endif
 
 #include "ImageRender.h"
 #include "KX_GameObject.h"
