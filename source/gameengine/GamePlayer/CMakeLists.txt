@@ -73,7 +73,6 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::draw
-  bf_editor_screen
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
