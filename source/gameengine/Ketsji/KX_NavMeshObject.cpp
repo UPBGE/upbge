@@ -189,7 +189,11 @@ static int buildRawVertIndicesData(Mesh *me,
     trisToFacesMap[triIdx] = tri_faces[triIdx];
   }
 
-  *recastData = (int *)CustomData_get_layer(&me->face_data, CD_RECAST);
+  using namespace blender;
+  using namespace blender::bke;
+  const AttributeAccessor attributes = me->attributes();
+  GVArray recast_array = *attributes.lookup(".recast_data", AttrDomain::Face);
+  *recastData = (int *)recast_array.get_internal_span().data();
 
   *nverts_r = nverts;
   *verts_r = verts;
@@ -601,7 +605,17 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
   CustomData *pdata = &final_me->face_data;
-  int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
+  int *recastData = nullptr;
+  using namespace blender;
+  using namespace blender::bke;
+  const AttributeAccessor attributes = final_me->attributes();
+  if (attributes.contains(".recast_data")) {
+    GVArray recast_array = *attributes.lookup(".recast_data", AttrDomain::Face);
+    recastData = (int *)recast_array.get_internal_span().data();
+  }
+  else {
+    recastData = nullptr;
+  }
   if (recastData) {
     int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
     int nAllVerts = 0;

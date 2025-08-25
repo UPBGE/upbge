@@ -2657,3 +2657,32 @@ void BKE_mesh_calc_edges_tessface(Mesh *mesh)
   mesh->edge_data = edgeData;
   mesh->edges_num = numEdges;
 }
+
+/* UPBGE */
+void BKE_mesh_legacy_recast_to_generic(Mesh *mesh)
+{
+  using namespace blender;
+  if (mesh->attributes().contains(".recast_data")) {
+    return;
+  }
+  int *data = nullptr;
+  const ImplicitSharingInfo *sharing_info = nullptr;
+  for (const int i : IndexRange(mesh->face_data.totlayer)) {
+    CustomDataLayer &layer = mesh->face_data.layers[i];
+    if (layer.type == CD_RECAST) {
+      data = static_cast<int *>(layer.data);
+      sharing_info = layer.sharing_info;
+      layer.data = nullptr;
+      layer.sharing_info = nullptr;
+      CustomData_free_layer(&mesh->face_data, CD_RECAST, i);
+      break;
+    }
+  }
+  if (data != nullptr) {
+    CustomData_add_layer_named_with_data(
+        &mesh->face_data, CD_PROP_INT32, data, mesh->faces_num, ".recast_data", sharing_info);
+  }
+  if (sharing_info != nullptr) {
+    sharing_info->remove_user_and_delete_if_last();
+  }
+}

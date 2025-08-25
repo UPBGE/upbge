@@ -641,7 +641,7 @@ static bool navmesh_obmode_data_poll(bContext *C)
   Object *ob = blender::ed::object::context_active_object(C);
   if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
     Mesh *me = (Mesh *)ob->data;
-    return CustomData_has_layer(&me->face_data, CD_RECAST);
+    return me->attributes().contains(".recast_data");
   }
   return false;
 }
@@ -660,7 +660,7 @@ static wmOperatorStatus navmesh_reset_exec(bContext *C, wmOperator */*op*/)
   Object *ob = blender::ed::object::context_active_object(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->face_data, CD_RECAST);
+  me->attributes_for_write().remove(".recast_data");
 
   BKE_mesh_ensure_navmesh(me);
 
@@ -690,7 +690,7 @@ static wmOperatorStatus navmesh_clear_exec(bContext *C, wmOperator */*op*/)
   Object *ob = blender::ed::object::context_active_object(C);
   Mesh *me = (Mesh *)ob->data;
 
-  CustomData_free_layers(&me->face_data, CD_RECAST);
+  me->attributes_for_write().remove(".recast_data");
   ob->gameflag &= ~OB_NAVMESH;
 
   DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);

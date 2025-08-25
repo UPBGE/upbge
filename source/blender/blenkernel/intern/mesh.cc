@@ -2066,16 +2066,27 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
 /****************UPBGE****************/
 void BKE_mesh_ensure_navmesh(Mesh *me)
 {
-  if (!CustomData_has_layer(&me->face_data, CD_RECAST)) {
-    int i;
-    int faces_len = me->faces_num;
-    int *recastData;
-    recastData = (int *)MEM_malloc_arrayN(faces_len, sizeof(int), __func__);
-    for (i = 0; i < faces_len; i++) {
-      recastData[i] = i + 1;
+  using namespace blender;
+  using namespace blender::bke;
+
+  const int faces_len = me->faces_num;
+  if (faces_len == 0) {
+    return;
+  }
+
+  MutableAttributeAccessor attributes = me->attributes_for_write();
+  if (!attributes.contains(".recast_data")) {
+    AttributeInitConstruct attribute_init;
+    attributes.add(".recast_data", AttrDomain::Face, AttrType::Int32, attribute_init);
+
+    GSpanAttributeWriter writer = attributes.lookup_for_write_span(".recast_data");
+    if (writer) {
+      MutableSpan<int> recast_span = writer.span.typed<int>();
+      for (int i = 0; i < faces_len; ++i) {
+        recast_span[i] = i + 1;
+      }
+      writer.finish();
     }
-    CustomData_add_layer_named_with_data(
-        &me->face_data, CD_RECAST, recastData, faces_len, "recastData", nullptr);
   }
 }
 /************************************/
