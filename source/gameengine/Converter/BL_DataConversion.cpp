@@ -861,6 +861,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     case OB_MBALL:
     case OB_SURF:
     case OB_GREASE_PENCIL:
+    case OB_POINTCLOUD:
+    case OB_VOLUME:
+    case OB_CURVES:
     case OB_SPEAKER: {
 #ifdef WITH_PYTHON
       gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
