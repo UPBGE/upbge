@@ -1442,7 +1442,7 @@ static blender::gpu::Texture *create_texture(const ImBuf &ibuf)
 static const char *get_texture_colorspace_name(const ImBuf &ibuf)
 {
   if (ibuf.float_buffer.data) {
-    if (ibuf.byte_buffer.colorspace) {
+    if (ibuf.float_buffer.colorspace) {
       return IMB_colormanagement_colorspace_get_name(ibuf.float_buffer.colorspace);
     }
     return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
@@ -1566,7 +1566,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
     GPU_blend(GPU_BLEND_OVERLAY_MASK_FROM_ALPHA);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformColor3f(-.0f, 1.0f, 1.0f);
+    immUniformColor3f(1.0f, 1.0f, 1.0f);
     immRectf(pos, position.xmin, position.ymin, position.xmax, position.ymax);
     immUnbindProgram();
 
@@ -1644,7 +1644,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   const SpaceSeq &space_sequencer = *static_cast<const SpaceSeq *>(area->spacedata.first);
   const Scene *scene = CTX_data_sequencer_scene(C);
 
-  if (!scene->ed || space_sequencer.render_size == SEQ_RENDER_SIZE_NONE) {
+  if (!scene || !scene->ed || space_sequencer.render_size == SEQ_RENDER_SIZE_NONE) {
     sequencer_preview_draw_empty(*region);
     return;
   }

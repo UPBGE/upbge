@@ -4632,6 +4632,9 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
   uiBlockHandleCreateFunc handlefunc = nullptr;
   uiMenuCreateFunc menufunc = nullptr;
   uiMenuCreateFunc popoverfunc = nullptr;
+  /* The checks for the panel type being null are for exceptional cases where script
+   * authors intentionally unregister built-in panels for example.
+   * While this should only ever happen rarely, it shouldn't crash, see #144716. */
   PanelType *popover_panel_type = nullptr;
   void *arg = nullptr;
 
@@ -4656,9 +4659,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
     case ButType::Menu:
       BLI_assert(but->menu_create_func);
       if (ui_but_menu_draw_as_popover(but)) {
-        popoverfunc = but->menu_create_func;
         const char *idname = static_cast<const char *>(but->func_argN);
         popover_panel_type = WM_paneltype_find(idname, false);
+      }
+
+      if (popover_panel_type) {
+        popoverfunc = but->menu_create_func;
       }
       else {
         menufunc = but->menu_create_func;
@@ -4676,9 +4682,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
       but->editvec = data->vec;
 
       if (ui_but_menu_draw_as_popover(but)) {
-        popoverfunc = but->menu_create_func;
         const char *idname = static_cast<const char *>(but->func_argN);
         popover_panel_type = WM_paneltype_find(idname, false);
+      }
+
+      if (popover_panel_type) {
+        popoverfunc = but->menu_create_func;
       }
       else {
         handlefunc = ui_block_func_COLOR;

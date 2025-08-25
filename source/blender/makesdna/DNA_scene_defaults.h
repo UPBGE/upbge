@@ -29,6 +29,7 @@
   { \
     .im_format = _DNA_DEFAULT_ImageFormatData, \
     .filepath = "//", \
+    .type = R_BAKE_NORMALS, \
     .flag = R_BAKE_CLEAR, \
     .pass_filter = R_BAKE_PASS_FILTER_ALL, \
     .width = 512, \
@@ -37,6 +38,7 @@
     .margin_type = R_BAKE_ADJACENT_FACES, \
     .normal_space = R_BAKE_SPACE_TANGENT, \
     .normal_swizzle = {R_BAKE_POSX, R_BAKE_POSY, R_BAKE_POSZ}, \
+    .displacement_space = R_BAKE_SPACE_OBJECT, \
   }
 
 #define _DNA_DEFAULT_FFMpegCodecData \
@@ -89,13 +91,6 @@
  \
     .gauss = 1.5, \
     .dither_intensity = 1.0f, \
- \
-    .bake_mode = 0, \
-    .bake_margin = 16, \
-    .bake_margin_type = R_BAKE_ADJACENT_FACES, \
-    .bake_flag = R_BAKE_CLEAR, \
-    .bake_samples = 256, \
-    .bake_biasdist = 0.001f, \
  \
     /* BakeData */ \
     .bake = _DNA_DEFAULT_BakeData, \
@@ -449,6 +444,7 @@
     .snap_angle_increment_3d_precision = DEG2RADF(1.0f), \
     .snap_angle_increment_2d_precision = DEG2RADF(1.0f), \
  \
+    .snap_flag_seq = SCE_SNAP, \
     /* Weight Paint */ \
     .weightuser = OB_DRAW_GROUPUSER_ACTIVE, \
  \

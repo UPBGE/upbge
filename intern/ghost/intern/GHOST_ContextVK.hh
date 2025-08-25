@@ -127,7 +127,8 @@ class GHOST_ContextVK : public GHOST_Context {
 #endif
                   int contextMajorVersion,
                   int contextMinorVersion,
-                  const GHOST_GPUDevice &preferred_device);
+                  const GHOST_GPUDevice &preferred_device,
+                  const GHOST_WindowHDRInfo *hdr_info_ = nullptr);
 
   /**
    * Destructor.
@@ -230,8 +231,8 @@ class GHOST_ContextVK : public GHOST_Context {
   const int context_minor_version_;
   const GHOST_GPUDevice preferred_device_;
 
-  VkQueue graphic_queue_;
-  VkQueue present_queue_;
+  /* Optional HDR info updated by window. */
+  const GHOST_WindowHDRInfo *hdr_info_;
 
   /* For display only. */
   VkSurfaceKHR surface_;

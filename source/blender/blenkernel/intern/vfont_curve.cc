@@ -297,7 +297,7 @@ static VChar *vfont_char_find_or_placeholder(const VFontData *vfd,
  * \return The shape used for the underline which may be passed in
  * as the `ul_prev_nu` in future calls to this function.
  */
-static Nurb *build_underline(Curve *cu,
+static Nurb *build_underline(const Curve *cu,
                              ListBase *nubase,
                              const rctf *rect,
                              float yofs,
@@ -371,10 +371,11 @@ static Nurb *build_underline(Curve *cu,
   return nu;
 }
 
-static void vfont_char_build_impl(Curve *cu,
+static void vfont_char_build_impl(const Curve *cu,
                                   ListBase *nubase,
                                   const VChar *che,
                                   const CharInfo *info,
+                                  const bool is_smallcaps,
                                   float ofsx,
                                   float ofsy,
                                   float rot,
@@ -452,7 +453,7 @@ static void vfont_char_build_impl(Curve *cu,
       }
       bezt = nu->bezt;
 
-      if (info->flag & CU_CHINFO_SMALLCAPS_CHECK) {
+      if (is_smallcaps) {
         const float sca = cu->smallcaps_scale;
         for (int i = nu->pntsu; i > 0; i--) {
           float *fp = bezt->vec[0];
@@ -489,6 +490,7 @@ void BKE_vfont_char_build(Curve *cu,
                           ListBase *nubase,
                           uint charcode,
                           const CharInfo *info,
+                          const bool is_smallcaps,
                           float ofsx,
                           float ofsy,
                           float rot,
@@ -501,25 +503,25 @@ void BKE_vfont_char_build(Curve *cu,
   }
   VChar *che;
   vfont_char_find(vfd, charcode, &che);
-  vfont_char_build_impl(cu, nubase, che, info, ofsx, ofsy, rot, charidx, fsize);
+  vfont_char_build_impl(cu, nubase, che, info, is_smallcaps, ofsx, ofsy, rot, charidx, fsize);
 }
 
-static float vfont_char_width(Curve *cu, VChar *che, const CharInfo *info)
+static float vfont_char_width(const Curve *cu, VChar *che, const bool is_smallcaps)
 {
   /* The character wasn't found, probably `charcode = 0`, then the width shall be 0 as well. */
   if (che == nullptr) {
     return 0.0f;
   }
-  if (info->flag & CU_CHINFO_SMALLCAPS_CHECK) {
+  if (is_smallcaps) {
     return che->width * cu->smallcaps_scale;
   }
 
   return che->width;
 }
 
-static char32_t vfont_char_apply_smallcaps(char32_t charcode, const CharInfo *info)
+static char32_t vfont_char_apply_smallcaps(char32_t charcode, const bool is_smallcaps)
 {
-  if (UNLIKELY(info->flag & CU_CHINFO_SMALLCAPS_CHECK)) {
+  if (UNLIKELY(is_smallcaps)) {
     return toupper(charcode);
   }
   return charcode;
@@ -666,7 +668,7 @@ struct TempLineInfo {
  * with font styles, text boxes as well as text cursor placement.
  */
 static bool vfont_to_curve(Object *ob,
-                           Curve *cu,
+                           const Curve *cu,
                            const eEditFontMode mode,
                            VFontToCurveIter *iter_data,
                            VFontCursor_Params *cursor_params,
@@ -674,11 +676,12 @@ static bool vfont_to_curve(Object *ob,
                            const char32_t **r_text,
                            int *r_text_len,
                            bool *r_text_free,
-                           CharTrans **r_chartransdata)
+                           CharTrans **r_chartransdata,
+                           float *r_font_size_eval)
 {
   EditFont *ef = cu->editfont;
   EditFontSelBox *selboxes = nullptr;
-  CharInfo *info = nullptr, *custrinfo;
+  const CharInfo *info = nullptr, *custrinfo;
   TextBox tb_scale;
   bool use_textbox;
   VChar *che;
@@ -692,6 +695,7 @@ static bool vfont_to_curve(Object *ob,
   int selstart = 0, selend = 0;
   int cnr = 0, lnr = 0, wsnr = 0;
   const char32_t *mem = nullptr;
+  bool mem_alloc = false;
   const float font_size = cu->fsize * iter_data->scale_to_fit;
   /* Shift down vertically to be 25% below & 75% above baseline (before font scale is applied). */
   const float font_select_y_offset = 0.25;
@@ -715,7 +719,9 @@ static bool vfont_to_curve(Object *ob,
 
   BLI_assert(ob == nullptr || ob->type == OB_FONT);
 
-  if (cu->str == nullptr) {
+  /* Read-file ensures non-null, must have become null at run-time, this is a bug! */
+  if (UNLIKELY(!(cu->str && cu->tb && (ef ? ef->textbufinfo : cu->strinfo)))) {
+    BLI_assert(0);
     return false;
   }
 
@@ -757,28 +763,40 @@ static bool vfont_to_curve(Object *ob,
 
     BLI_str_utf8_as_utf32(mem_tmp, cu->str, slen + 1);
 
-    if (cu->strinfo == nullptr) { /* Should only ever happen with old files. */
-      cu->strinfo = MEM_calloc_arrayN<CharInfo>(size_t(slen) + 4, "strinfo compat");
-    }
-    custrinfo = cu->strinfo;
-    if (!custrinfo) {
-      MEM_freeN(mem_tmp);
-      return false;
-    }
-
     mem = mem_tmp;
+    mem_alloc = true;
+    custrinfo = cu->strinfo;
   }
 
-  if (cu->tb == nullptr) {
-    cu->tb = MEM_calloc_arrayN<TextBox>(MAXTEXTBOX, "TextBox compat");
+  /* Only manipulate the edit-font if this object is in edit-mode, otherwise it's unnecessary
+   * as well as crashing since manipulating the #EditFont here isn't thread-safe, see: #144970.
+   *
+   * NOTE(@ideasman42): Relying on the objects mode here isn't as fool-proof as I'd like,
+   * however, even in cases where object data is shared between two different objects,
+   * both active in different windows - it's not possible to enter edit on both at the same time.
+   * If problems are found with this method, other checks could be investigated. */
+  if (ef) {
+    if (ob && (ob->mode & OB_MODE_EDIT)) {
+      /* Pass. */
+    }
+    else {
+      /* Other modes manipulate `ef->pos` which must only be done when this object is in edit-mode.
+       * Not when a curve that happens to have edit-mode data is evaluated
+       * (typically a linked duplicate). */
+      BLI_assert(!FO_CURS_IS_MOTION(mode));
+
+      /* Since all data has been accessed that's needed, set as null since it's
+       * important never to manipulate this data from multiple threads at once. */
+      ef = nullptr;
+    }
   }
 
-  if (ef != nullptr && ob != nullptr) {
+  if (ef != nullptr) {
     if (ef->selboxes) {
       MEM_freeN(ef->selboxes);
     }
 
-    if (BKE_vfont_select_get(ob, &selstart, &selend)) {
+    if (BKE_vfont_select_get(cu, &selstart, &selend)) {
       ef->selboxes_len = (selend - selstart) + 1;
       ef->selboxes = MEM_calloc_arrayN<EditFontSelBox>(ef->selboxes_len, "font selboxes");
     }
@@ -807,10 +825,6 @@ static bool vfont_to_curve(Object *ob,
 
   xtrax = 0.5f * cu->spacing - 0.5f;
 
-  for (i = 0; i < slen; i++) {
-    custrinfo[i].flag &= ~(CU_CHINFO_WRAP | CU_CHINFO_SMALLCAPS_CHECK | CU_CHINFO_OVERFLOW);
-  }
-
   TextBoxBounds_ForCursor *tb_bounds_for_cursor = nullptr;
   if (cursor_params != nullptr) {
     if (cu->textoncurve == nullptr && (cu->totbox > 1) && (slen > 0)) {
@@ -836,7 +850,8 @@ static bool vfont_to_curve(Object *ob,
     if (info->flag & CU_CHINFO_SMALLCAPS) {
       charcode = towupper(charcode);
       if (mem[i] != charcode) {
-        info->flag |= CU_CHINFO_SMALLCAPS_CHECK;
+        BLI_assert(ct == &chartransdata[i]);
+        ct->is_smallcaps = true;
       }
     }
     /* The #vfont_char_apply_smallcaps function can be used from now on. */
@@ -853,7 +868,7 @@ static bool vfont_to_curve(Object *ob,
       che = nullptr;
     }
 
-    twidth = vfont_char_width(cu, che, info);
+    twidth = vfont_char_width(cu, che, ct->is_smallcaps);
 
     /* Calculate positions. */
 
@@ -902,8 +917,9 @@ static bool vfont_to_curve(Object *ob,
             }
             i = j - 1;
             xof = ct->xof;
+            BLI_assert(&ct[1] == &chartransdata[i + 1]);
             ct[1].dobreak = 1;
-            custrinfo[i + 1].flag |= CU_CHINFO_WRAP;
+            ct[1].is_wrap = 1;
             dobreak = true;
             break;
           }
@@ -913,7 +929,8 @@ static bool vfont_to_curve(Object *ob,
         if (dobreak) {
           if (tb_scale.h == 0.0f) {
             /* NOTE: If underlined text is truncated away, the extra space is also truncated. */
-            custrinfo[i + 1].flag |= CU_CHINFO_OVERFLOW;
+            BLI_assert(&chartransdata[i + 1] == &ct[1]);
+            ct[1].is_overflow = 1;
           }
           /* Since a break was added, re-run this loop with `i` at it's new value. */
           continue;
@@ -949,7 +966,7 @@ static bool vfont_to_curve(Object *ob,
         }
         else if (last_line == -1) {
           last_line = lnr + 1;
-          info->flag |= CU_CHINFO_OVERFLOW;
+          ct->is_overflow = 1;
         }
       }
 
@@ -1004,7 +1021,7 @@ static bool vfont_to_curve(Object *ob,
       }
 
       /* Set the width of the character. */
-      twidth = vfont_char_width(cu, che, info);
+      twidth = vfont_char_width(cu, che, ct->is_smallcaps);
 
       xof += (twidth * wsfac * (1.0f + (info->kern / 40.0f))) + xtrax;
 
@@ -1018,15 +1035,6 @@ static bool vfont_to_curve(Object *ob,
 
   current_line_length += xof + twidth - MARGIN_X_MIN;
   longest_line_length = std::max(current_line_length, longest_line_length);
-
-  cu->lines = 1;
-  for (i = 0; i <= slen; i++) {
-    const char32_t charcode = mem[i];
-    ct = &chartransdata[i];
-    if (charcode == '\n' || ct->dobreak) {
-      cu->lines++;
-    }
-  }
 
   if (ef && selboxes) {
     /* Set combined style flags for the selected string. Start with all styles then
@@ -1314,12 +1322,13 @@ static bool vfont_to_curve(Object *ob,
 
         /* Rotate around center character. */
         info = &custrinfo[i];
-        const char32_t charcode = vfont_char_apply_smallcaps(mem[i], info);
+        BLI_assert(ct == &chartransdata[i]);
+        const char32_t charcode = vfont_char_apply_smallcaps(mem[i], ct->is_smallcaps);
 
         vfont_info_context_update(&vfinfo_ctx, cu, info);
         che = vfont_char_find_or_placeholder(vfinfo_ctx.vfd, charcode, che_placeholder);
 
-        twidth = vfont_char_width(cu, che, info);
+        twidth = vfont_char_width(cu, che, ct->is_smallcaps);
 
         dtime = distfac * 0.5f * twidth;
 
@@ -1374,7 +1383,7 @@ static bool vfont_to_curve(Object *ob,
     }
   }
 
-  if (ELEM(mode, FO_CURSUP, FO_CURSDOWN, FO_PAGEUP, FO_PAGEDOWN) &&
+  if (ELEM(mode, FO_CURSUP, FO_CURSDOWN, FO_PAGEUP, FO_PAGEDOWN, FO_LINE_BEGIN, FO_LINE_END) &&
       iter_data->status == VFONT_TO_CURVE_INIT)
   {
     ct = &chartransdata[ef->pos];
@@ -1384,6 +1393,18 @@ static bool vfont_to_curve(Object *ob,
     }
     else if (ELEM(mode, FO_CURSDOWN, FO_PAGEDOWN) && ct->linenr == lnr) {
       /* Pass. */
+    }
+    else if (mode == FO_LINE_BEGIN) {
+      /* Line wrap aware line beginning. */
+      while ((ef->pos > 0) && (chartransdata[ef->pos - 1].linenr == ct->linenr)) {
+        ef->pos -= 1;
+      }
+    }
+    else if (mode == FO_LINE_END) {
+      /* Line wrap aware line end. */
+      while ((ef->pos + 1 < slen) && (chartransdata[ef->pos + 1].linenr == ct->linenr)) {
+        ef->pos += 1;
+      }
     }
     else {
       switch (mode) {
@@ -1404,6 +1425,8 @@ static bool vfont_to_curve(Object *ob,
         case FO_CURS:
         case FO_DUPLI:
         case FO_SELCHANGE:
+        case FO_LINE_BEGIN:
+        case FO_LINE_END:
           break;
       }
       cnr = ct->charnr;
@@ -1496,23 +1519,15 @@ static bool vfont_to_curve(Object *ob,
 
     ct = chartransdata;
     for (i = 0; i < slen; i++) {
-      info = &(custrinfo[i]);
 
       if ((cu->overflow == CU_OVERFLOW_TRUNCATE) && (ob && ob->mode != OB_MODE_EDIT) &&
-          (info->flag & CU_CHINFO_OVERFLOW))
+          ct->is_overflow)
       {
         break;
       }
 
-      const char32_t charcode = vfont_char_apply_smallcaps(mem[i], info);
-
-      /* Only do that check in case we do have an object, otherwise all materials get erased every
-       * time that code is called without an object. */
-      if (ob != nullptr && (info->mat_nr > (ob->totcol))) {
-        // CLOG_ERROR(
-        //     &LOG, "Illegal material index (%d) in text object, setting to 0", info->mat_nr);
-        info->mat_nr = 0;
-      }
+      info = &(custrinfo[i]);
+      const char32_t charcode = vfont_char_apply_smallcaps(mem[i], ct->is_smallcaps);
       /* We don't want to see any character for `\n`. */
       if (charcode != '\n') {
 
@@ -1520,20 +1535,22 @@ static bool vfont_to_curve(Object *ob,
         /* Find the character, the characters has to be in the memory already
          * since character checking has been done earlier already. */
         che = vfont_char_find_or_placeholder(vfinfo_ctx.vfd, charcode, che_placeholder);
-        vfont_char_build_impl(cu, r_nubase, che, info, ct->xof, ct->yof, ct->rot, i, font_size);
+        vfont_char_build_impl(
+            cu, r_nubase, che, info, ct->is_smallcaps, ct->xof, ct->yof, ct->rot, i, font_size);
 
         if (info->flag & CU_CHINFO_UNDERLINE) {
           float ulwidth, uloverlap = 0.0f;
           rctf rect;
 
+          BLI_assert(&ct[1] == &chartransdata[i + 1]);
           if ((i < (slen - 1)) && (mem[i + 1] != '\n') &&
               ((mem[i + 1] != ' ') || (custrinfo[i + 1].flag & CU_CHINFO_UNDERLINE)) &&
-              ((custrinfo[i + 1].flag & CU_CHINFO_WRAP) == 0))
+              ((ct[1].is_wrap) == 0))
           {
             uloverlap = xtrax;
           }
 
-          twidth = vfont_char_width(cu, che, info);
+          twidth = vfont_char_width(cu, che, ct->is_smallcaps);
           ulwidth = (twidth * (1.0f + (info->kern / 40.0f))) + uloverlap;
 
           rect.xmin = ct->xof;
@@ -1782,7 +1799,7 @@ static bool vfont_to_curve(Object *ob,
       MEM_freeN(chartransdata);
     }
 
-    if (ef == nullptr) {
+    if (mem_alloc) {
       MEM_freeN(mem);
     }
     return true;
@@ -1791,10 +1808,10 @@ static bool vfont_to_curve(Object *ob,
   if (r_text) {
     *r_text = mem;
     *r_text_len = slen;
-    *r_text_free = (ef == nullptr);
+    *r_text_free = mem_alloc;
   }
   else {
-    if (ef == nullptr) {
+    if (mem_alloc) {
       MEM_freeN(mem);
     }
   }
@@ -1809,8 +1826,12 @@ static bool vfont_to_curve(Object *ob,
   }
 
   /* Store the effective scale, to use for the text-box lines. */
-  cu->fsize_realtime = font_size;
-
+  if (ef != nullptr) {
+    ef->font_size_eval = font_size;
+  }
+  if (r_font_size_eval) {
+    *r_font_size_eval = font_size;
+  }
   return true;
 
 #undef MARGIN_X_MIN
@@ -1832,7 +1853,8 @@ bool BKE_vfont_to_curve_ex(Object *ob,
                            const char32_t **r_text,
                            int *r_text_len,
                            bool *r_text_free,
-                           CharTrans **r_chartransdata)
+                           CharTrans **r_chartransdata,
+                           float *r_font_size_eval)
 {
   VFontToCurveIter data = {};
   data.iteraction = cu->totbox * FONT_TO_CURVE_SCALE_ITERATIONS;
@@ -1842,8 +1864,17 @@ bool BKE_vfont_to_curve_ex(Object *ob,
   data.status = VFONT_TO_CURVE_INIT;
 
   do {
-    data.ok &= vfont_to_curve(
-        ob, cu, mode, &data, nullptr, r_nubase, r_text, r_text_len, r_text_free, r_chartransdata);
+    data.ok &= vfont_to_curve(ob,
+                              cu,
+                              mode,
+                              &data,
+                              nullptr,
+                              r_nubase,
+                              r_text,
+                              r_text_len,
+                              r_text_free,
+                              r_chartransdata,
+                              r_font_size_eval);
   } while (data.ok && ELEM(data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT));
 
   return data.ok;
@@ -1868,8 +1899,17 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float cursor_location[2])
   cursor_params.r_string_offset = -1;
 
   do {
-    data.ok &= vfont_to_curve(
-        ob, cu, FO_CURS, &data, &cursor_params, r_nubase, nullptr, nullptr, nullptr, nullptr);
+    data.ok &= vfont_to_curve(ob,
+                              cu,
+                              FO_CURS,
+                              &data,
+                              &cursor_params,
+                              r_nubase,
+                              nullptr,
+                              nullptr,
+                              nullptr,
+                              nullptr,
+                              nullptr);
   } while (data.ok && ELEM(data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT));
 
   return cursor_params.r_string_offset;
@@ -1882,16 +1922,30 @@ bool BKE_vfont_to_curve_nubase(Object *ob, const eEditFontMode mode, ListBase *r
 {
   BLI_assert(ob->type == OB_FONT);
 
-  return BKE_vfont_to_curve_ex(
-      ob, static_cast<Curve *>(ob->data), mode, r_nubase, nullptr, nullptr, nullptr, nullptr);
+  return BKE_vfont_to_curve_ex(ob,
+                               static_cast<Curve *>(ob->data),
+                               mode,
+                               r_nubase,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               nullptr);
 }
 
 bool BKE_vfont_to_curve(Object *ob, const eEditFontMode mode)
 {
   Curve *cu = static_cast<Curve *>(ob->data);
 
-  return BKE_vfont_to_curve_ex(
-      ob, static_cast<Curve *>(ob->data), mode, &cu->nurb, nullptr, nullptr, nullptr, nullptr);
+  return BKE_vfont_to_curve_ex(ob,
+                               static_cast<Curve *>(ob->data),
+                               mode,
+                               &cu->nurb,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               nullptr);
 }
 
 /** \} */

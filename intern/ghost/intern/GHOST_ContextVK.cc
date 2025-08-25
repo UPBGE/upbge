@@ -163,6 +163,7 @@ class GHOST_DeviceVK {
   VkDevice device = VK_NULL_HANDLE;
 
   uint32_t generic_queue_family = 0;
+  VkQueue generic_queue = VK_NULL_HANDLE;
 
   VkPhysicalDeviceProperties2 properties = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -243,7 +244,6 @@ class GHOST_DeviceVK {
     if (device != VK_NULL_HANDLE) {
       return;
     }
-    init_generic_queue_family();
 
     vector<VkDeviceQueueCreateInfo> queue_create_infos;
     vector<const char *> device_extensions(required_extensions);
@@ -412,6 +412,9 @@ class GHOST_DeviceVK {
 
     device_create_info.pNext = feature_struct_ptr[0];
     vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+
+    init_generic_queue_family();
+    init_generic_queue();
   }
 
   void init_generic_queue_family()
@@ -435,6 +438,11 @@ class GHOST_DeviceVK {
       }
       generic_queue_family++;
     }
+  }
+
+  void init_generic_queue()
+  {
+    vkGetDeviceQueue(device, generic_queue_family, 0, &generic_queue);
   }
 };
 
@@ -566,7 +574,8 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #endif
                                  int contextMajorVersion,
                                  int contextMinorVersion,
-                                 const GHOST_GPUDevice &preferred_device)
+                                 const GHOST_GPUDevice &preferred_device,
+                                 const GHOST_WindowHDRInfo *hdr_info)
     : GHOST_Context(context_params),
 #ifdef _WIN32
       hwnd_(hwnd),
@@ -585,6 +594,7 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
       context_major_version_(contextMajorVersion),
       context_minor_version_(contextMinorVersion),
       preferred_device_(preferred_device),
+      hdr_info_(hdr_info),
       surface_(VK_NULL_HANDLE),
       swapchain_(VK_NULL_HANDLE),
       frame_data_(GHOST_FRAMES_IN_FLIGHT),
@@ -636,7 +646,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
    * has been signaled and waited for. */
   vkWaitForFences(device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   submission_frame_data.discard_pile.destroy(device);
-  bool use_hdr_swapchain = false;
+  bool use_hdr_swapchain = true;
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
    * swap-chain needs to be recreated. But as a side effect we can recreate the swap-chain before
@@ -712,6 +722,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.submission_fence = submission_frame_data.submission_fence;
   swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
   swap_chain_data.present_semaphore = swapchain_image.present_semaphore;
+  swap_chain_data.sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
 
   vkResetFences(device, 1, &submission_frame_data.submission_fence);
   if (swap_buffers_pre_callback_) {
@@ -730,7 +741,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(vulkan_device->queue_mutex);
-    present_result = vkQueuePresentKHR(present_queue_, &present_info);
+    present_result = vkQueuePresentKHR(vulkan_device->generic_queue, &present_info);
   }
 
   if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
@@ -759,6 +770,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanSwapChainFormat(
   r_swap_chain_data->image = VK_NULL_HANDLE;
   r_swap_chain_data->surface_format = surface_format_;
   r_swap_chain_data->extent = render_extent_;
+  r_swap_chain_data->sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
 
   return GHOST_kSuccess;
 }
@@ -780,7 +792,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
         vulkan_device->physical_device,
         vulkan_device->device,
         vulkan_device->generic_queue_family,
-        graphic_queue_,
+        vulkan_device->generic_queue,
         &vulkan_device->queue_mutex,
     };
   }
@@ -907,7 +919,7 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
   array<pair<VkColorSpaceKHR, VkFormat>, 4> selection_order = {
-      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
@@ -1111,7 +1123,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   create_info.imageColorSpace = surface_format_.colorSpace;
   create_info.imageExtent = render_extent_;
   create_info.imageArrayLayers = 1;
-  create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
   create_info.preTransform = capabilities.currentTransform;
   create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   create_info.presentMode = present_mode;
@@ -1218,6 +1230,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   bool use_hdr_swapchain = false;
 #ifdef _WIN32
   const bool use_window_surface = (hwnd_ != nullptr);
+  use_hdr_swapchain = true;
 #elif defined(__APPLE__)
   const bool use_window_surface = (metal_layer_ != nullptr);
 #else /* UNIX/Linux */
@@ -1272,6 +1285,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
                        extensions_enabled,
                        VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
       optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+    }
+
+    const bool use_swapchain_colorspace = contains_extension(
+        extensions_available, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+    if (use_swapchain_colorspace) {
+      requireExtension(
+          extensions_available, extensions_enabled, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
     }
   }
 
@@ -1379,11 +1399,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vulkan_device->users++;
   vulkan_device->ensure_device(required_device_extensions, optional_device_extensions);
 
-  vkGetDeviceQueue(vulkan_device->device, vulkan_device->generic_queue_family, 0, &graphic_queue_);
-
   if (use_window_surface) {
-    vkGetDeviceQueue(
-        vulkan_device->device, vulkan_device->generic_queue_family, 0, &present_queue_);
     recreateSwapchain(use_hdr_swapchain);
   }
 

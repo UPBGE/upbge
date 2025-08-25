@@ -136,7 +136,9 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_user_map_doc,
-    ".. method:: user_map(subset, key_types, value_types)\n"
+    /* NOTE: These documented default values (None) are here just to signal that these parameters
+     * are optional. Explicitly passing None is not valid, and will raise a TypeError. */
+    ".. method:: user_map(*, subset=None, key_types=None, value_types=None)\n"
     "\n"
     "   Returns a mapping of all ID data-blocks in current ``bpy.data`` to a set of all "
     "data-blocks using them.\n"
@@ -368,7 +370,7 @@ PyDoc_STRVAR(
     "   :type subset: sequence\n"
     "   :arg key_types: When given, filter the keys mapped by ID types. Ignored if ``subset`` is "
     "also given.\n"
-    "   :type key_types: set of strings\n"
+    "   :type key_types: set[str]\n"
     "   :arg include_libraries: Include library file paths of linked data. False by default.\n"
     "   :type include_libraries: bool\n"
     "   :return: dictionary of :class:`bpy.types.ID` instances, with sets of file path "

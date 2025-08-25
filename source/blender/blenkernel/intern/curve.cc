@@ -229,6 +229,14 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   else {
     cu->nurb.first = cu->nurb.last = nullptr;
 
+    if (UNLIKELY(cu->str == nullptr)) {
+      cu->len_char32 = 0;
+      cu->str = MEM_calloc_arrayN<char>(cu->len_char32 + 1, "str new");
+    }
+    if (UNLIKELY(cu->strinfo == nullptr)) {
+      cu->strinfo = MEM_calloc_arrayN<CharInfo>(cu->len_char32 + 1, "strinfo new");
+    }
+
     TextBox *tb = MEM_calloc_arrayN<TextBox>(MAXTEXTBOX, "TextBoxread");
     if (cu->tb) {
       memcpy(tb, cu->tb, cu->totbox * sizeof(TextBox));
@@ -5093,6 +5101,7 @@ std::optional<blender::Bounds<blender::float3>> BKE_curve_minmax(const Curve *cu
                           const_cast<Curve *>(cu),
                           FO_EDIT,
                           &temp_nurb_lb,
+                          nullptr,
                           nullptr,
                           nullptr,
                           nullptr,

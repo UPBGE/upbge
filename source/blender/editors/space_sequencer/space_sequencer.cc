@@ -26,6 +26,7 @@
 #include "BLF_api.hh"
 
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
@@ -321,7 +322,7 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
 
 /* DO NOT make this static, this hides the symbol and breaks API generation script. */
 extern "C" const char *sequencer_context_dir[]; /* Quiet warning. */
-const char *sequencer_context_dir[] = {"edit_mask", nullptr};
+const char *sequencer_context_dir[] = {"edit_mask", "tool_settings", nullptr};
 
 static int /*eContextResult*/ sequencer_context(const bContext *C,
                                                 const char *member,
@@ -334,12 +335,20 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
 
     return CTX_RESULT_OK;
   }
-  if (CTX_data_equals(member, "edit_mask")) {
-    Mask *mask = seq::active_mask_get(scene);
-    if (mask) {
-      CTX_data_id_pointer_set(result, &mask->id);
+  if (CTX_data_equals(member, "tool_settings")) {
+    if (scene) {
+      CTX_data_pointer_set(result, &scene->id, &RNA_ToolSettings, scene->toolsettings);
+      return CTX_RESULT_OK;
     }
-    return CTX_RESULT_OK;
+  }
+  if (CTX_data_equals(member, "edit_mask")) {
+    if (scene) {
+      Mask *mask = seq::active_mask_get(scene);
+      if (mask) {
+        CTX_data_id_pointer_set(result, &mask->id);
+      }
+      return CTX_RESULT_OK;
+    }
   }
 
   return CTX_RESULT_MEMBER_NOT_FOUND;
@@ -476,6 +485,9 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
 
   View2D *v2d = &region->v2d;
   Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return;
+  }
 
   /* Transformation uses edge panning to move view. Also if smooth view is running, don't apply
    * clamping to prevent overriding this functionality. */
@@ -661,9 +673,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   int wmcursor = WM_CURSOR_DEFAULT;
 
   const bToolRef *tref = area->runtime.tool;
-  if (tref == nullptr ||
-      !(STRPREFIX(tref->idname, "builtin.select") || STREQ(tref->idname, "builtin.blade")))
-  {
+  if (tref == nullptr) {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -687,15 +697,27 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   UI_view2d_region_to_view(
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
 
-  const Scene *scene = win->scene;
+  const WorkSpace *workspace = WM_window_get_active_workspace(win);
+  const Scene *scene = workspace->sequencer_scene;
+  if (!scene) {
+    WM_cursor_set(win, wmcursor);
+    return;
+  }
   const Editing *ed = seq::editing_get(scene);
 
-  if (STREQ(tref->idname, "builtin.blade")) {
+  if (STREQ(tref->idname, "builtin.blade") || STREQ(tref->idname, "builtin.slip")) {
     int mval[2] = {int(mouse_co_region[0]), int(mouse_co_region[1])};
     Strip *strip = strip_under_mouse_get(scene, v2d, mval);
-    ListBase *channels = seq::channels_displayed_get(ed);
     if (strip != nullptr) {
-      wmcursor = seq::transform_is_locked(channels, strip) ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      ListBase *channels = seq::channels_displayed_get(ed);
+      const bool locked = seq::transform_is_locked(channels, strip);
+      if (STREQ(tref->idname, "builtin.blade")) {
+        wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      }
+      else if (STREQ(tref->idname, "builtin.slip")) {
+        wmcursor = (locked || seq::transform_single_image_check(strip)) ? WM_CURSOR_STOP :
+                                                                          WM_CURSOR_SLIP;
+      }
     }
     WM_cursor_set(win, wmcursor);
     return;
