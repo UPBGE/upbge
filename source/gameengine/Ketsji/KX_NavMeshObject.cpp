@@ -604,17 +604,13 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
   Mesh *final_me = (Mesh *)ob_eval->data;
-  CustomData *pdata = &final_me->face_data;
-  int *recastData = nullptr;
   using namespace blender;
   using namespace blender::bke;
   const AttributeAccessor attributes = final_me->attributes();
+  int *recastData = nullptr;
   if (attributes.contains(".recast_data")) {
     GVArray recast_array = *attributes.lookup(".recast_data", AttrDomain::Face);
     recastData = (int *)recast_array.get_internal_span().data();
-  }
-  else {
-    recastData = nullptr;
   }
   if (recastData) {
     int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
