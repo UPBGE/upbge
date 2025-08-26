@@ -18,10 +18,10 @@ struct VFont;
 
 struct CharTrans {
   float xof, yof;
-  float rot;
+  float rotate;
   short linenr, charnr;
 
-  uint dobreak : 1;
+  uint do_break : 1;
   uint is_overflow : 1;
   uint is_wrap : 1;
   uint is_smallcaps : 1;
@@ -29,7 +29,7 @@ struct CharTrans {
 
 struct EditFontSelBox {
   float x, y, w, h;
-  float rot;
+  float rotate;
 };
 
 /**
@@ -135,7 +135,7 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float cursor_location[2]);
  * \warning Expects to have access to evaluated data (i.e. passed object should be evaluated one).
  */
 bool BKE_vfont_to_curve(Object *ob, eEditFontMode mode);
-void BKE_vfont_char_build(Curve *cu,
+void BKE_vfont_char_build(const Curve &cu,
                           ListBase *nubase,
                           unsigned int charcode,
                           const CharInfo *info,
@@ -147,7 +147,7 @@ void BKE_vfont_char_build(Curve *cu,
                           float fsize);
 
 bool BKE_vfont_to_curve_ex(Object *ob,
-                           Curve *cu,
+                           const Curve &cu,
                            eEditFontMode mode,
                            ListBase *r_nubase,
                            const char32_t **r_text,

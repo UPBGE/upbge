@@ -1368,6 +1368,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     ed->runtime.intra_frame_cache = nullptr;
     ed->runtime.source_image_cache = nullptr;
     ed->runtime.final_image_cache = nullptr;
+    ed->runtime.preview_cache = nullptr;
 
     /* recursive link sequences, lb will be correctly initialized */
     link_recurs_seq(reader, &ed->seqbase);
@@ -1584,7 +1585,7 @@ static void scene_undo_preserve(BlendLibReader *reader, ID *id_new, ID *id_old)
      * (like object ones). */
     scene_foreach_toolsettings(
         nullptr, scene_new->toolsettings, true, reader, scene_old->toolsettings);
-    std::swap(*scene_old->toolsettings, *scene_new->toolsettings);
+    blender::dna::shallow_swap(*scene_old->toolsettings, *scene_new->toolsettings);
   }
 }
 

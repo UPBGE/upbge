@@ -44,6 +44,7 @@
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
+#include "SEQ_preview_cache.hh"
 #include "SEQ_proxy.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
@@ -274,7 +275,7 @@ void seq_free_strip_recurse(Scene *scene, Strip *strip, const bool do_id_user)
 
 Editing *editing_get(const Scene *scene)
 {
-  return scene->ed;
+  return scene ? scene->ed : nullptr;
 }
 
 Editing *editing_ensure(Scene *scene)
@@ -310,11 +311,12 @@ void editing_free(Scene *scene, const bool do_id_user)
 
   BLI_freelistN(&ed->metastack);
   strip_lookup_free(ed);
-  blender::seq::media_presence_free(scene);
-  blender::seq::thumbnail_cache_destroy(scene);
-  blender::seq::intra_frame_cache_destroy(scene);
-  blender::seq::source_image_cache_destroy(scene);
-  blender::seq::final_image_cache_destroy(scene);
+  seq::media_presence_free(scene);
+  seq::thumbnail_cache_destroy(scene);
+  seq::intra_frame_cache_destroy(scene);
+  seq::source_image_cache_destroy(scene);
+  seq::final_image_cache_destroy(scene);
+  seq::preview_cache_destroy(scene);
   channels_free(&ed->channels);
 
   MEM_freeN(ed);
@@ -422,11 +424,7 @@ int tool_settings_pivot_point_get(Scene *scene)
 
 ListBase *active_seqbase_get(const Editing *ed)
 {
-  if (ed == nullptr) {
-    return nullptr;
-  }
-
-  return ed->current_strips();
+  return ed ? ed->current_strips() : nullptr;
 }
 
 void active_seqbase_set(Editing *ed, ListBase *seqbase)
