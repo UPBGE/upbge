@@ -1462,7 +1462,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
     if (do_populate_loop) {
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         /* UPBGE */
-        update_lods(depsgraph, ob_ref.ob, draw_ctx.rv3d->viewinv[3]);
+        update_lods(depsgraph, ob_ref.object, draw_ctx.rv3d->viewinv[3]);
         /* End of UPBGE */
         drw_engines_cache_populate(ob_ref, duplis, extraction);
       });
@@ -2567,50 +2567,27 @@ void DRW_game_render_loop(bContext *C,
   }
   view_data.compositor.set_used(draw_ctx.is_viewport_compositor_enabled());
 
-  const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
+  auto should_draw_object = [&](Object &ob) -> bool {
+    return BKE_object_is_visible_in_viewport(v3d, &ob);
+  };
 
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     if (is_overlay_pass) {
-      DEGObjectIterSettings deg_iter_settings = {nullptr};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-          continue;
-        }
-        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-          continue;
-        }
-        Object *orig_ob = DEG_get_original(ob);
-
+      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+        Object *orig_ob = DEG_get_original(ob_ref.object);
         if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
-          blender::draw::ObjectRef ob_ref(data_, ob);
           drw_engines_cache_populate(ob_ref, duplis, extraction);
         }
-      }
-      DEG_OBJECT_ITER_END;
+      });
     }
     else {
-      DEGObjectIterSettings deg_iter_settings = {0};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-          continue;
-        }
-        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-          continue;
-        }
-
-        Object *orig_ob = DEG_get_original(ob);
+      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+        Object *orig_ob = DEG_get_original(ob_ref.object);
         /* Don't render objects in overlay collections in main pass */
-        if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
-          continue;
+        if ((orig_ob->gameflag & OB_OVERLAY_COLLECTION) == 0) {
+          drw_engines_cache_populate(ob_ref, duplis, extraction);
         }
-        blender::draw::ObjectRef ob_ref(data_, ob);
-        drw_engines_cache_populate(ob_ref, duplis, extraction);
-      }
-      DEG_OBJECT_ITER_END;
+      });
     }
   });
 
