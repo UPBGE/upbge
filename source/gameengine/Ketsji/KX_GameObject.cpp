@@ -470,11 +470,11 @@ void KX_GameObject::TagDupliForTaaReset()
     return;
   }
 
-  // Tag a random object to reset taa samples
-  if (GetScene()->GetBlenderScene()->id.recalc == 0) {
-    GetScene()->AppendToIdsToUpdate(&GetScene()->GetBlenderScene()->id,
-                                    ID_RECALC_TRANSFORM,
-                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
+  /* Tag dupli Base object to reset taa samples +
+   * update last_transform_update i guess - no noticeable
+   * performances loss */
+  if (GetBlenderObject()->id.recalc == 0) {
+    DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_TRANSFORM);
   }
 }
 
