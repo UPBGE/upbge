@@ -474,7 +474,9 @@ void KX_GameObject::TagDupliForTaaReset()
    * update last_transform_update i guess - no noticeable
    * performances loss */
   if (GetBlenderObject()->id.recalc == 0) {
-    DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+    GetScene()->AppendToIdsToUpdate(&GetBlenderObject()->id,
+                                    ID_RECALC_TRANSFORM,
+                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
   }
 }
 
