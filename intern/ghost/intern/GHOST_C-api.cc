@@ -217,6 +217,12 @@ bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windo
   return system->validWindow(window);
 }
 
+GHOST_WindowHDRInfo GHOST_WindowGetHDRInfo(GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->getHDRInfo();
+}
+
 GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
                                          const GHOST_DisplaySettings &setting,
                                          const bool stereoVisual)

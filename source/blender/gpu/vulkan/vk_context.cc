@@ -85,8 +85,8 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       vk_extent_.height = max_uu(vk_extent_.height, 1u);
       surface_texture_ = GPU_texture_create_2d(
           "back-left",
-          swap_chain_data.extent.width,
-          swap_chain_data.extent.height,
+          vk_extent_.width,
+          vk_extent_.height,
           1,
           to_gpu_format(swap_chain_data.surface_format.format),
           GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ,
@@ -393,6 +393,12 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
     Shader *shader = device.vk_backbuffer_blit_sh_get();
     GPU_shader_bind(shader);
     GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
+    /* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+#if defined(_WIN32) || defined(__APPLE__)
+    GPU_shader_uniform_1b(shader, "use_gamma22", false);
+#else
+    GPU_shader_uniform_1b(shader, "use_gamma22", true);
+#endif
     VKStateManager &state_manager = state_manager_get();
     state_manager.image_bind(color_attachment, 0);
     state_manager.image_bind(&swap_chain_texture, 1);
