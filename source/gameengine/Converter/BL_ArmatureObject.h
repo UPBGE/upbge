@@ -68,8 +68,12 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_deformedObj;
   bool m_useGPUDeform;
 
-  /* If using gpu deform, mesh has to be replicated because Armature modifier is disabled
-   * it needs unique data to be deformed by shader */
+  /* Used to suspend ApplyPose while GPU pipeline
+   * is getting ready */
+  bool m_suspendPose;
+
+  /* If using gpu deform, mesh has to be replicated to ensure
+   * unique data to be deformed by shader */
   Mesh *m_deformedReplicaData;
   class blender::Array<blender::float4> m_refPositions;
   class blender::Array<blender::float4> m_refNormals;

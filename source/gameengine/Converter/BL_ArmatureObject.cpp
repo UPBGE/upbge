@@ -232,6 +232,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   in_indices = {};
   in_weights = {};
   m_modifiersListbackup = {};
+  m_suspendPose = false;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -628,52 +629,64 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           if (amd) {
             amd->object = child->GetBlenderObject()->parent;
             m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance();
+            if (m_useGPUDeform) {
+              /* Suspend apply pose waiting GPU pipeline is ready */
+              m_suspendPose = true;
+            }
           }
-        }
-      }
-      if (child->IsReplica() && m_useGPUDeform)
-      {
-        /* We need to replicate Mesh for deformation on GPU */
-        if (!m_deformedReplicaData) {
-          Mesh *orig = (Mesh *)m_deformedObj->data;
-          m_deformedReplicaData = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr, 0);
-          m_deformedObj->data = m_deformedReplicaData;
         }
       }
       break;
     }
   }
 
-  /* Don't fill ssbos and ssbos data when running on CPU */
-  if (m_refPositions.is_empty() && m_useGPUDeform) {
-    capture_rest_positions_and_normals(m_deformedObj,
-                                       m_refPositions,
-                                       m_refNormals);
-    BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
-  }
-
   // 1. apply action to armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
+  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, true);
 
   // 2. update pose
-  ApplyPose();
+  if (!m_suspendPose) {
+    ApplyPose();
+  }
 
   /* IF CPU ARMATURE STOP HERE */
   if (!m_useGPUDeform) {
     return;
   }
 
-  if (m_deformedObj && m_modifiersListbackup.empty()) {
-    disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
+  if (m_isReplica) {
+    /* We need to replicate Mesh for deformation on GPU in some files and not in others...
+     * It ensures data to be deformed will be unique */
+    if (!m_deformedReplicaData) {
+      Mesh *orig = (Mesh *)m_deformedObj->data;
+      m_deformedReplicaData = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr, 0);
+      m_deformedObj->data = m_deformedReplicaData;
+      DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_GEOMETRY);
+    }
+  }
+
+  /* Capture rest positions and rest normals from orig object (to simplify) */
+  if (m_refPositions.is_empty()) {
+    capture_rest_positions_and_normals(m_deformedObj, m_refPositions, m_refNormals);
   }
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
 
   Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
+
+  /* Set this variable to extract vbo_pos with float4 */
   orig_mesh->is_using_skinning = 1;
+
+  if (m_modifiersListbackup.empty()) {
+    disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
+    /* Wait the next frame that we have vbos_pos on float4 in render cache.
+     * (Disable_armature_modifiers tags m_deformedObj for geometry recalc, with the new
+     * assigned mesh, with float4) */
+    m_suspendPose = true;
+    return;
+  }
 
   MeshBatchCache *cache = nullptr;
   if (mesh->runtime && mesh->runtime->batch_cache) {
@@ -690,6 +703,8 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     vbo_nor = nor_vbo_it ? nor_vbo_it->get() : nullptr;
   }
   if (!vbo_pos || !vbo_nor) {
+    /* GPU pipeline not ready */
+    m_suspendPose = true;
     return;
   }
 
@@ -862,6 +877,9 @@ void main() {
   // This updates the object_to_world matrices used by EEVEE without invalidating
   // render caches, ensuring correct shading after GPU skinning.
   DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
+
+  /* GPU pipeline ready, we can apply pose on the next frame */
+  m_suspendPose = false;
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
