@@ -674,9 +674,14 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
 
   if (m_modifiersListbackup.empty()) {
     disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
-    /* Wait the next frame that we have vbos_pos on float4 in render cache.
-     * (Disable_armature_modifiers tags m_deformedObj for geometry recalc, with the new
-     * assigned mesh, with float4) */
+    /* 1. Wait the next frame that we have vbos_pos on float4 in render cache.
+     * (Disable_armature_modifiers tags m_deformedObj for geometry recalc, with
+     * the newly assigned mesh, with float4).
+     * 2. Also Restore visibility for the next render frame (previously disabled
+     * in ReplicateBlenderObject to avoid seeing the mesh with wrong pose) */
+    m_deformedObj->visibility_flag &= ~OB_HIDE_VIEWPORT;
+    DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_SYNC_TO_EVAL);
+    GetScene()->TagForCollectionRemap();
     return;
   }
 

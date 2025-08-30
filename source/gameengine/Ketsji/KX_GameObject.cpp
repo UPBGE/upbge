@@ -42,9 +42,11 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mball.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
@@ -397,6 +399,17 @@ void KX_GameObject::ReplicateBlenderObject()
       newob->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                            BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
       newob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+    }
+
+    LISTBASE_FOREACH (ModifierData *, md, &newob->modifiers) {
+      if (md->type == eModifierType_Armature) {
+        ArmatureModifierData *amd = (ArmatureModifierData *)md;
+        if (amd && amd->upbge_deformflag & ARM_DEF_GPU) {
+          /* Disable visibility of newob waiting
+           * render cache is ready for GPU skinning */
+          newob->visibility_flag |= OB_HIDE_VIEWPORT;
+        }
+      }
     }
 
     /* This will call BKE_main_collection_sync_remap at frame end. */
