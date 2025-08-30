@@ -627,7 +627,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd) {
             amd->object = child->GetBlenderObject()->parent;
-            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance();
+            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance() && !m_is_dupli_instance;
           }
         }
       }
@@ -648,7 +648,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     return;
   }
 
-  if (m_isReplica) {
+  KX_GameObject *kx_deformedObj = GetScene()->GetBlenderSceneConverter()->FindGameObject(
+      m_deformedObj);
+
+  if (kx_deformedObj->IsReplica()) {
     /* We need to replicate Mesh for deformation on GPU in some files and not in others...
      * It ensures data to be deformed will be unique */
     if (!m_deformedReplicaData) {
@@ -678,12 +681,10 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
      * (Disable_armature_modifiers tags m_deformedObj for geometry recalc, with
      * the newly assigned mesh, with float4).
      * 2. Also Restore visibility for the next render frame (previously disabled
-     * in ReplicateBlenderObject to avoid seeing the mesh with wrong pose) if m_isReplica */
-    if (m_isReplica) {
-      GetScene()
-          ->GetBlenderSceneConverter()
-          ->FindGameObject(m_deformedObj)
-          ->SetVisible(true, false);
+     * in ReplicateBlenderObject to avoid seeing the mesh with wrong pose) if m_deformedObj
+     * is a replica */
+    if (kx_deformedObj->IsReplica()) {
+      kx_deformedObj->SetVisible(true, false);
     }
     return;
   }
