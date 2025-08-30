@@ -232,7 +232,6 @@ BL_ArmatureObject::BL_ArmatureObject()
   in_indices = {};
   in_weights = {};
   m_modifiersListbackup = {};
-  m_suspendPose = false;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -629,10 +628,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           if (amd) {
             amd->object = child->GetBlenderObject()->parent;
             m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance();
-            if (m_useGPUDeform) {
-              /* Suspend apply pose waiting GPU pipeline is ready */
-              m_suspendPose = true;
-            }
           }
         }
       }
@@ -646,9 +641,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
 
   // 2. update pose
-  if (!m_suspendPose) {
-    ApplyPose();
-  }
+  ApplyPose();
 
   /* IF CPU ARMATURE STOP HERE */
   if (!m_useGPUDeform) {
@@ -684,7 +677,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     /* Wait the next frame that we have vbos_pos on float4 in render cache.
      * (Disable_armature_modifiers tags m_deformedObj for geometry recalc, with the new
      * assigned mesh, with float4) */
-    m_suspendPose = true;
     return;
   }
 
@@ -704,7 +696,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   }
   if (!vbo_pos || !vbo_nor) {
     /* GPU pipeline not ready */
-    m_suspendPose = true;
     return;
   }
 
@@ -877,9 +868,6 @@ void main() {
   // This updates the object_to_world matrices used by EEVEE without invalidating
   // render caches, ensuring correct shading after GPU skinning.
   DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
-
-  /* GPU pipeline ready, we can apply pose on the next frame */
-  m_suspendPose = false;
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

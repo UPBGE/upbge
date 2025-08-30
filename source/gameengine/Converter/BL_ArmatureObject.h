@@ -68,10 +68,6 @@ class BL_ArmatureObject : public KX_GameObject {
   Object *m_deformedObj;
   bool m_useGPUDeform;
 
-  /* Used to suspend ApplyPose while GPU pipeline
-   * is getting ready */
-  bool m_suspendPose;
-
   /* If using gpu deform, mesh has to be replicated to ensure
    * unique data to be deformed by shader */
   Mesh *m_deformedReplicaData;
