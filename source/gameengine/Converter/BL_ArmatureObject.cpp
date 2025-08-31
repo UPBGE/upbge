@@ -491,7 +491,7 @@ void BL_ArmatureObject::ApplyPose()
     // update ourself
     UpdateBlenderObjectMatrix(m_objArma);
     bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
 
     m_lastapplyframe = m_lastframe;
@@ -509,27 +509,29 @@ void BL_ArmatureObject::InitSkinningBuffers()
     auto corner_verts = mesh->corner_verts();
     int num_corners = mesh->corners_num;
 
-    // Prepare bones and groups
-    std::vector<bPoseChannel *> bone_channels;
-    int num_bones = (m_objArma && m_objArma->pose) ?
-                        BLI_listbase_count(&m_objArma->pose->chanbase) :
-                        0;
-    bone_channels.reserve(num_bones);
-    for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-         pchan = pchan->next)
-    {
-      bone_channels.push_back(pchan);
+    // 1. Build the ordered list of deforming bones
+    std::vector<std::string> bone_names;
+    std::map<std::string, int> bone_name_to_index;
+    if (m_objArma && m_objArma->pose) {
+      int idx = 0;
+      for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+           pchan = pchan->next)
+      {
+        if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
+          std::string name(pchan->name);
+          bone_names.push_back(name);
+          bone_name_to_index[name] = idx++;
+        }
+      }
     }
-    std::map<std::string, int> group_to_bone;
-    for (int b = 0; b < num_bones; ++b) {
-      group_to_bone[std::string(bone_channels[b]->name)] = b;
-    }
-    std::vector<const char *> group_names;
+
+    // 2. Get the vertex group names in mesh order
+    std::vector<std::string> group_names;
     for (bDeformGroup *dg = (bDeformGroup *)mesh->vertex_group_names.first; dg; dg = dg->next) {
       group_names.push_back(dg->name);
     }
 
-    // Fill in_indices and in_weights ssbos for compute shader
+    // 3. Fill index and weight buffers
     in_indices.resize(num_corners * 4, 0);
     in_weights.resize(num_corners * 4, 0.0f);
 
@@ -542,39 +544,48 @@ void BL_ArmatureObject::InitSkinningBuffers()
               int bone_idx;
               float weight;
             };
-            std::vector<Influence> influences;
 
+            // Aggregate weights per bone index
+            std::map<int, float> bone_weight_map;
             for (int j = 0; j < dvert.totweight; ++j) {
               int def_nr = dvert.dw[j].def_nr;
               if (def_nr >= 0 && def_nr < group_names.size()) {
-                const char *group_name = group_names[def_nr];
-                auto it = group_to_bone.find(std::string(group_name ? group_name : ""));
-                if (it != group_to_bone.end()) {
-                  influences.push_back({it->second, dvert.dw[j].weight});
+                const std::string &group_name = group_names[def_nr];
+                auto it = bone_name_to_index.find(group_name);
+                if (it != bone_name_to_index.end()) {
+                  bone_weight_map[it->second] += dvert.dw[j].weight;
                 }
               }
             }
+            // Sort and normalize influences
+            std::vector<Influence> influences;
+            for (const auto &kv : bone_weight_map) {
+              influences.push_back({kv.first, kv.second});
+            }
 
             if (influences.empty()) {
+              // No influences: fill with zeros
               for (int j = 0; j < 4; ++j) {
                 in_indices[v * 4 + j] = 0;
                 in_weights[v * 4 + j] = 0.0f;
               }
-              return;
+              continue;
             }
 
             std::sort(influences.begin(),
                       influences.end(),
                       [](const Influence &a, const Influence &b) { return a.weight > b.weight; });
 
+            // Normalize weights so their sum is 1.0
             float total = 0.0f;
             for (const auto &inf : influences)
               total += inf.weight;
-            if (total > 1.0f && total > 0.0f) {
+            if (total > 0.0f) {
               for (auto &inf : influences)
                 inf.weight /= total;
             }
 
+            // Fill up to 4 influences per vertex
             for (int j = 0; j < 4; ++j) {
               if (j < influences.size()) {
                 in_indices[v * 4 + j] = influences[j].bone_idx;
@@ -588,7 +599,7 @@ void BL_ArmatureObject::InitSkinningBuffers()
           }
         });
 
-    // Update in_indices and in_weights ssbos only 1 time
+    // 4. Update SSBOs
     if (!ssbo_in_idx) {
       ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
     }
@@ -600,7 +611,7 @@ void BL_ArmatureObject::InitSkinningBuffers()
   }
 }
 
-/* For gpu sknning, we delay many variables initialisation here to have "up to date" informations.
+/* For gpu skinning, we delay many variables initialisation here to have "up to date" informations.
  * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
  * a render cache for the deformed object....
  */
@@ -708,41 +719,64 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
     return;
   }
 
+  InitSkinningBuffers();
+
   int num_corners = mesh->corner_verts().size();
 
-  // 3. Prepare bone matrices
-  const int num_bones = (m_objArma && m_objArma->pose) ?
-                            BLI_listbase_count(&m_objArma->pose->chanbase) :
-                            0;
+  // 3. Prepare bone matrices for GPU skinning
+  // Build a list of deforming bone names and a mapping from name to index
+  std::vector<std::string> bone_names;
+  if (m_objArma && m_objArma->pose) {
+    for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+         pchan = pchan->next)
+    {
+      // Only include bones marked as deforming
+      if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
+        std::string name(pchan->name);
+        bone_names.push_back(name);
+      }
+    }
+  }
+  const int num_deform_bones = bone_names.size();
 
+  // Allocate storage buffer for bone matrices if needed
   if (!ssbo_bone_pose_mat) {
-    ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_bones * 16);
+    ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_deform_bones * 16);
   }
 
-  std::vector<float> bone_pose_matrices(num_bones * 16, 0.0f);
+  // Prepare the array of bone matrices (flattened 4x4 matrices)
+  std::vector<float> bone_pose_matrices(num_deform_bones * 16, 0.0f);
 
+  // Build a list of pose channels for deforming bones
   std::vector<bPoseChannel *> bone_channels;
-  bone_channels.reserve(num_bones);
+  bone_channels.reserve(num_deform_bones);
   for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
        pchan = pchan->next)
   {
+    if (pchan->bone->flag & BONE_NO_DEFORM) {
+      continue;
+    }
     bone_channels.push_back(pchan);
   }
-  for (int b = 0; b < num_bones; ++b) {
+
+  // For each deforming bone, compute the skinning matrix and store it
+  for (int b = 0; b < num_deform_bones; ++b) {
     bPoseChannel *pchan = bone_channels[b];
     float bone_rest_inv[4][4];
+    // Compute the inverse of the rest pose matrix
     invert_m4_m4(bone_rest_inv, pchan->bone->arm_mat);
     float bone_deform[4][4];
+    // Compute the skinning matrix: pose_mat * inverse(rest_mat)
     mul_m4_m4m4(bone_deform, pchan->pose_mat, bone_rest_inv);
+    // Flatten and store the matrix in the buffer
     for (int row = 0; row < 4; ++row) {
       for (int col = 0; col < 4; ++col) {
         bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
       }
     }
   }
+  // Upload bone matrices to the GPU buffer
   GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
-
-  InitSkinningBuffers();
 
   // 4. Prepare transform matrices
   float premat[4][4], postmat[4][4], obinv[4][4];
