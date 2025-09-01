@@ -864,17 +864,39 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
             btScalar i_spring = spring_extent * hitObjShapeProps.m_fh_spring;
             btScalar i_damp = rel_vel_ray * hitObjShapeProps.m_fh_damping;
 
-            cl_object->setLinearVelocity(cl_object->getLinearVelocity() +
-                                         (-(i_spring + i_damp) * ray_dir) * step);
-            if (hitObjShapeProps.m_fh_normal) {
+            // The direction of the spring and damping force is chosen based on the hit normal
+            // when m_fh_normal is enabled and the hit shape is a mesh. This allows the force to be
+            // applied along the surface normal.
+            // Otherwise, the force is applied along the negative ray direction, which is a generic
+            // fallback for non-mesh shapes or when normal information is not available.
+            // This distinction helps to avoid unwanted sliding or instability on sloped or uneven
+            // surfaces.
+            btVector3 force_dir = btVector3(0.0, 0.0, 0.0);
+            if (hitObjShapeProps.m_fh_normal && controller->GetShapeInfo() &&
+                controller->GetShapeInfo()->m_shapeType == PHY_SHAPE_MESH)
+            {
+              force_dir = normal;
               cl_object->setLinearVelocity(cl_object->getLinearVelocity() +
-                                           (i_spring + i_damp) *
-                                               (normal - normal.dot(ray_dir) * ray_dir) * step);
+                                           ((i_spring + i_damp) * force_dir) * step);
+            }
+            else {
+              force_dir = -ray_dir;
+              cl_object->setLinearVelocity(cl_object->getLinearVelocity() +
+                                           ((i_spring + i_damp) * force_dir) * step);
             }
 
-            btVector3 lateral = rel_vel - rel_vel_ray * ray_dir;
+            btVector3 lateral = rel_vel - rel_vel_ray * -force_dir;
 
-            if (ctrl->GetConstructionInfo().m_do_anisotropic) {
+            /* Friction / anistropic friction is only applied when the object is in contact with
+               the surface.
+               This avoids unrealistic friction forces when the object is airborne (not touching
+               the ground). In Bullet, friction should only act when there is a physical contact
+               manifold. Here, we use a rough approximation: contact is considered if the ray test
+               distance computed above is less than the collision margin. If the object is "in the
+               air" (distance > margin), friction is not applied. */
+            bool contact_between_surfaces = distance < ctrl->GetConstructionInfo().m_margin;
+
+            if (ctrl->GetConstructionInfo().m_do_anisotropic && contact_between_surfaces) {
               // Bullet basis contains no scaling/shear etc.
               const btMatrix3x3 &lcs = cl_object->getCenterOfMassTransform().getBasis();
               btVector3 loc_lateral = lateral * lcs;
@@ -885,7 +907,7 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 
             btScalar rel_vel_lateral = lateral.length();
 
-            if (rel_vel_lateral > SIMD_EPSILON) {
+            if (rel_vel_lateral > SIMD_EPSILON && contact_between_surfaces) {
               btScalar friction_factor = hit_object->getFriction();  // cl_object->getFriction();
 
               btScalar max_friction = friction_factor * btMax(btScalar(0.0), i_spring);
