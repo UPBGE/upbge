@@ -216,6 +216,7 @@ BL_ArmatureObject::BL_ArmatureObject()
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = nullptr;
+  m_previousArmature = nullptr;
   m_deformedObj = nullptr;
   m_useGPUDeform = false;
   m_deformedReplicaData = nullptr;
@@ -438,6 +439,8 @@ KX_PythonProxy *BL_ArmatureObject::NewInstance()
 
 void BL_ArmatureObject::ProcessReplica()
 {
+  m_previousArmature = m_objArma;
+
   KX_GameObject::ProcessReplica();
 
   // Replicate each constraints.
@@ -622,27 +625,41 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  /* Do the remapping parent/child both for cpu/gpu deform,
-   * but don't duplicate mesh or alloc any ssbos or ssbos data
-   * when running on CPU */
+  /* Remapping parent/children */
   if (!m_deformedObj) {
+    for (KX_GameObject *child : GetChildren()) {
+      Object *child_ob = child->GetBlenderObject();
+      if (!child_ob) {
+        continue;
+      }
+      LISTBASE_FOREACH (ModifierData *, md, &child_ob->modifiers) {
+        if (md->type == eModifierType_Armature) {
+          ArmatureModifierData *amd = (ArmatureModifierData *)md;
+          if (amd && amd->object == m_previousArmature) {
+            amd->object = m_objArma;
+          }
+        }
+      }
+    }
+    /* Get Armature modifier deformedObj */
     std::vector<KX_GameObject *> children = GetChildren();
     for (KX_GameObject *child : children) {
       bool is_bone_parented = child->GetBlenderObject()->partype == PARBONE;
       if (is_bone_parented || child->GetBlenderObject()->type != OB_MESH) {
         continue;
       }
-      m_deformedObj = child->GetBlenderObject();
       LISTBASE_FOREACH (ModifierData *, md, &child->GetBlenderObject()->modifiers) {
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
-          if (amd) {
-            amd->object = child->GetBlenderObject()->parent;
+          if (amd && amd->object == this->GetBlenderObject()) {
+            m_deformedObj = child->GetBlenderObject();
             m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance() && !m_is_dupli_instance;
           }
         }
       }
-      break;
+      if (m_deformedObj) {
+        break;
+      }
     }
   }
 

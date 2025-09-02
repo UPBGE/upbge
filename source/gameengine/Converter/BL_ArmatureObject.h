@@ -65,6 +65,10 @@ class BL_ArmatureObject : public KX_GameObject {
   /// List element: BL_ArmatureChannel.
   EXP_ListValue<BL_ArmatureChannel> *m_poseChannels;
   Object *m_objArma;
+  /* Used to do the remapping between Parent (armature) and children
+   * after ProcessReplica */
+  Object *m_previousArmature;
+
   Object *m_deformedObj;
   bool m_useGPUDeform;
 
