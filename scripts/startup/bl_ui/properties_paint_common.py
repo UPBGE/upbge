@@ -562,6 +562,9 @@ class StrokePanel(BrushPanel):
                 row.prop(brush, "jitter_absolute")
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
             col.row().prop(brush, "jitter_unit", expand=True)
+            # Pen pressure mapping curve for Jitter.
+            if brush.use_pressure_jitter and self.is_popover is False:
+                col.template_curve_mapping(brush, "curve_jitter", brush=True, use_negative_slope=True)
 
         col.separator()
         UnifiedPaintPanel.prop_unified(
@@ -654,13 +657,13 @@ class FalloffPanel(BrushPanel):
             row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
             row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
-        show_fallof_shape = False
+        show_falloff_shape = False
         if mode in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT'} and brush.sculpt_brush_type != 'POSE':
-            show_fallof_shape = True
-        if not show_fallof_shape and mode == 'SCULPT_CURVES' and context.space_data.type == 'PROPERTIES':
-            show_fallof_shape = True
+            show_falloff_shape = True
+        if not show_falloff_shape and mode == 'SCULPT_CURVES' and context.space_data.type == 'PROPERTIES':
+            show_falloff_shape = True
 
-        if show_fallof_shape:
+        if show_falloff_shape:
             col.separator()
             row = col.row(align=True)
             row.use_property_split = True
@@ -1156,6 +1159,9 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 text="Size",
                 slider=True,
             )
+        if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
+            if brush.use_pressure_size:
+                layout.template_curve_mapping(brush, "curve_size", brush=True, use_negative_slope=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
@@ -1171,6 +1177,9 @@ def brush_shared_settings(layout, context, brush, popover=False):
             pressure_name=pressure_name,
             slider=True,
         )
+        if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
+            if brush.use_pressure_strength:
+                layout.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
         layout.separator()
 
     if direction:

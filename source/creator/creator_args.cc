@@ -89,6 +89,12 @@
 /**
  * Support extracting arguments for all platforms (for documentation purposes).
  * These names match the upper case defines.
+ *
+ * \note these build-defines should only be used to exclude arguments
+ * from `--help` when those arguments are not handled at all.
+ * Where using them would be the same as passing in an unknown argument.
+ * It's possible scripts are shared between platforms,
+ * so it's preferable that known arguments are documented.
  */
 struct BuildDefs {
   bool win32;
@@ -829,9 +835,8 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
   BLI_args_print_arg_doc(ba, "--unregister-allusers");
-  if (defs.win32 || all) {
-    BLI_args_print_arg_doc(ba, "--qos");
-  }
+  /* Windows only.  */
+  BLI_args_print_arg_doc(ba, "--qos");
 
   BLI_args_print_arg_doc(ba, "--version");
 
