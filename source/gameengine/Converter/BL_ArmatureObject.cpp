@@ -883,7 +883,6 @@ void main() {
   if (total_weight_n < 1.0) {
     skinned_n += n * (1.0 - total_weight_n);
   }
-  vec4 finalnor = postmat[0] * vec4(skinned_n, 0.0);
 
   vec3 finaln = normalize((postmat[0] * vec4(skinned_n, 0.0)).xyz);
 
