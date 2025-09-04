@@ -883,13 +883,14 @@ void main() {
   if (total_weight_n < 1.0) {
     skinned_n += n * (1.0 - total_weight_n);
   }
-  skinned_n = normalize(skinned_n);
   vec4 finalnor = postmat[0] * vec4(skinned_n, 0.0);
 
+  vec3 finaln = normalize((postmat[0] * vec4(skinned_n, 0.0)).xyz);
+
   // Same conversion than in Blender
-  int x = convert_normalized_f32_to_i10(finalnor.x);
-  int y = convert_normalized_f32_to_i10(finalnor.y);
-  int z = convert_normalized_f32_to_i10(finalnor.z);
+  int x = convert_normalized_f32_to_i10(finaln.x);
+  int y = convert_normalized_f32_to_i10(finaln.y);
+  int z = convert_normalized_f32_to_i10(finaln.z);
   int w = 0;
   // Packing in format 10+10+10+2 with correct sign gestion
   normals[v] = uint((x & 0x3FF) | ((y & 0x3FF) << 10) | ((z & 0x3FF) << 20) | ((w & 0x3) << 30));
