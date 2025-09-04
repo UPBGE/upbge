@@ -5425,6 +5425,14 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
     }
   }
 
+  /* UPBGE */
+  if (ob->type == OB_MESH) {
+    Mesh *me = (Mesh *)ob->data;
+    if (me && me->is_using_skinning) {
+      flag |= eModifierMode_Realtime;
+    }
+  }
+
   return flag;
 }
 
