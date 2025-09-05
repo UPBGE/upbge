@@ -744,7 +744,7 @@ void KX_Scene::UpdateDepsgraph(Main *bmain,
 {
   if (m_collectionRemap) {
     /* check 68589a31ebfb79165f99a979357d237e5413e904 for potential issue or improvement? */
-    /* If problem with ReplicateBlenderObject, see other occurences of
+    /* If problem with ReplicateBlenderObject, see other occurrences of
      * BKE_collection_object_add_from*/
     BKE_main_collection_sync_remap(bmain);
     m_collectionRemap = false;
@@ -1910,7 +1910,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       if ((blenderobj->lay & groupobj->GetLayer()) == 0) {
         // Object is not visible in the 3D view, will not be instantiated. ??
         /* 3 remarks:
-         * - The comment souldn't be: "if blenderobj not in same layer than groupobj, don't convert
+         * - The comment shouldn't be: "if blenderobj not in same layer than groupobj, don't convert
          * it as gameobj"?
          * - The code was using blenderobj->lay & group->layer but group->layer is deprecated.
          * - Maybe it shouldn't be in an else statement. */
@@ -2217,7 +2217,7 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
   }
 
   // if the object is the dupligroup proxy, you have to cleanup all m_pDupliGroupObject's in all
-  // instances refering to this group
+  // instances referring to this group
   if (gameobj->GetInstanceObjects()) {
     for (KX_GameObject *instance : gameobj->GetInstanceObjects()) {
       instance->RemoveDupliGroupObject();

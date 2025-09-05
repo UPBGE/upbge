@@ -147,9 +147,9 @@ void BL_ConvertControllers(struct Object *blenderobject,
                   ->module); /* will be something like module.func so using it as the name is OK */
 
           if (pycont->flag & CONT_PY_DEBUG) {
-            CM_Warning("debuging \"" << pycont->module << "\", module for object "
-                                     << blenderobject->id.name + 2
-                                     << " expect worse performance.");
+            CM_Warning("debugging \"" << pycont->module << "\", module for object "
+                                      << blenderobject->id.name + 2
+                                      << " expect worse performance.");
             pyctrl->SetDebug(true);
           }
         }

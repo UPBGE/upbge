@@ -153,15 +153,15 @@ class PHY_IPhysicsEnvironment {
     return 0;
   }
   /// setDeactivationTime sets the minimum time that an objects has to stay within the velocity
-  /// tresholds until it gets fully deactivated
+  /// thresholds until it gets fully deactivated
   virtual void SetDeactivationTime(float dTime)
   {
   }
-  /// setDeactivationLinearTreshold sets the linear velocity treshold, see setDeactivationTime
+  /// setDeactivationLinearTreshold sets the linear velocity threshold, see setDeactivationTime
   virtual void SetDeactivationLinearTreshold(float linTresh)
   {
   }
-  /// setDeactivationAngularTreshold sets the angular velocity treshold, see setDeactivationTime
+  /// setDeactivationAngularTreshold sets the angular velocity threshold, see setDeactivationTime
   virtual void SetDeactivationAngularTreshold(float angTresh)
   {
   }
@@ -178,7 +178,7 @@ class PHY_IPhysicsEnvironment {
   virtual void SetCFM(float cfm)
   {
   }
-  /// setContactBreakingTreshold sets tresholds to do with contact point management
+  /// setContactBreakingTreshold sets thresholds to do with contact point management
   virtual void SetContactBreakingTreshold(float contactBreakingTreshold)
   {
   }
@@ -242,7 +242,7 @@ class PHY_IPhysicsEnvironment {
                                           float toZ) = 0;
 
   // culling based on physical broad phase
-  // the plane number must be set as follow: near, far, left, right, top, botton
+  // the plane number must be set as follow: near, far, left, right, top, bottom
   // the near plane must be the first one and must always be present, it is used to get the
   // direction of the view
   virtual bool CullingTest(PHY_CullingCallback callback,

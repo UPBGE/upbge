@@ -447,7 +447,7 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   //// Else in case of fixed framerate, try to sleep until the next frame.
   // else if (m_flags & FIXED_FRAMERATE) {
   //  const double sleeptime = timestep - dt - 1.0e-3;
-  //  /* If the remaining time is greather than 1ms (sleep resolution) sleep this thread.
+  //  /* If the remaining time is greater than 1ms (sleep resolution) sleep this thread.
   //   * The other 1ms will be busy wait.
   //   */
   //  if (sleeptime > 0.0) {
@@ -472,7 +472,7 @@ bool KX_KetsjiEngine::NextFrame()
 
   const FrameTimes times = GetFrameTimes();
 
-  // Exit if zero frame is sheduled.
+  // Exit if zero frame is scheduled.
   if (times.frames == 0) {
     // Start logging time spent outside main loop
     m_logger.StartLog(tc_outside);
@@ -1372,7 +1372,7 @@ void KX_KetsjiEngine::RemoveScene(const std::string &scenename)
 {
   /****************EEVEE INTEGRATION*****************/
   // DISABLE REMOVE SCENES FOR NOW
-  std::cout << "KX_KetsjiEngine::RemoveScene: Remove Scenes is temporarly disabled during eevee "
+  std::cout << "KX_KetsjiEngine::RemoveScene: Remove Scenes is temporarily disabled during eevee "
                "integration"
             << std::endl;
   return;
@@ -1426,7 +1426,7 @@ bool KX_KetsjiEngine::ReplaceScene(const std::string &oldscene, const std::strin
 {
   // Don't allow replacement if the new scene doesn't exist.
   // Allows smarter game design (used to have no check here).
-  // Note that it creates a small backward compatbility issue
+  // Note that it creates a small backward compatibility issue
   // for a game that did a replace followed by a lib load with the
   // new scene in the lib => it won't work anymore, the lib
   // must be loaded before doing the replace.

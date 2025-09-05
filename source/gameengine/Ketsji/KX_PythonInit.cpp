@@ -715,7 +715,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
         }
       }
       else {
-        PyErr_Clear(); /* wasnt a string, ignore for now */
+        PyErr_Clear(); /* wasn't a string, ignore for now */
       }
     }
 
@@ -865,7 +865,7 @@ static struct PyMethodDef game_methods[] = {
      METH_NOARGS,
      (const char *)"Get the last BGE render time. "
                    "The BGE render time is the simulated time corresponding to the next scene "
-                   "that will be renderered"},
+                   "that will be rendered"},
     {"setClockTime",
      (PyCFunction)gPySetClockTime,
      METH_VARARGS,
@@ -1795,7 +1795,7 @@ static void backupPySysObjects(void)
 
   if (bpy_sys_module_backup) {
     PyDict_Clear(sys_mods);
-    // Load a clean generated modules dict from the blender begining.
+    // Load a clean generated modules dict from the blender beginning.
     PyDict_Update(sys_mods, bpy_sys_module_backup);
   }
 }

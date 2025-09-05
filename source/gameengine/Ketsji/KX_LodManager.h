@@ -98,7 +98,7 @@ class KX_LodManager : public EXP_Value {
    */
   KX_LodLevel *GetLevel(unsigned int index) const;
 
-  /** Get lod level cooresponding to distance and previous level.
+  /** Get lod level corresponding to distance and previous level.
    * \param scene Scene used to get default hysteresis.
    * \param previouslod Previous lod computed by this function before.
    *   Use -1 to disable the hysteresis when the lod manager has changed.

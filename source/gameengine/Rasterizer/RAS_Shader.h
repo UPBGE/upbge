@@ -161,7 +161,7 @@ class RAS_Shader {
   void SetEnabled(bool enabled);
   bool GetEnabled() const;
 
-  // Apply methods : sets colected uniforms
+  // Apply methods : sets collected uniforms
   void ApplyShader();
   void UnloadShader();
   void DeleteShader();
@@ -180,7 +180,7 @@ class RAS_Shader {
 
   /** Return uniform location in the shader.
    * \param name The uniform name.
-   * \param debug Print message for unfound coresponding uniform name.
+   * \param debug Print message for unfound corresponding uniform name.
    */
   int GetUniformLocation(const std::string &name, bool debug = true);
 
