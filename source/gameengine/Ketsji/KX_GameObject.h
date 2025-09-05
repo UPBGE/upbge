@@ -455,12 +455,12 @@ class KX_GameObject : public SCA_IObject {
     return false;
   }
 
-  /** Set the object's collison group
+  /** Set the object's collision group
    * \param filter The group bitfield
    */
   void SetCollisionGroup(unsigned short filter);
 
-  /** Set the object's collison mask
+  /** Set the object's collision mask
    * \param filter The mask bitfield
    */
   void SetCollisionMask(unsigned short mask);
