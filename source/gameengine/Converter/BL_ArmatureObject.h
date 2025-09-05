@@ -118,7 +118,7 @@ class BL_ArmatureObject : public KX_GameObject {
   bPose *GetPose() const;
   void ApplyPose();
   void InitSkinningBuffers();
-  void SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx);
+  void ApplyGpuSkinning();
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);

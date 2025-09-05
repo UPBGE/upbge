@@ -424,38 +424,43 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
-    bool gpu_deform = false;
-    if (obj && obj->GetUseGPUDeform()) {
-      gpu_deform = true;
-    }
-    if (!gpu_deform) {
-      scene->AppendToIdsToUpdate(
-          &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-    }
-    if (m_layer_weight >= 0)
+    bool gpu_deform = obj && obj->GetUseGPUDeform();
+
+    if (m_layer_weight >= 0) {
       obj->GetPose(&m_blendpose);
-
-    // Extract the pose from the action
-    obj->SetPoseByAction(m_action, &animEvalContext);
-
-    if (!gpu_deform) {
-      m_obj->ForceIgnoreParentTx();
     }
 
-    // Handle blending between armature actions
+    // Apply action to armature (common for both CPU and GPU)
+    PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+    const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+        *m_action);
+    animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+
+    // Apply blending (common for both CPU and GPU)
     if (m_blendin && m_blendframe < m_blendin) {
       IncrementBlending(curtime);
-
-      // Calculate weight
       float weight = 1.f - (m_blendframe / m_blendin);
-
-      // Blend the poses
       obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
     }
 
-    // Handle layer blending
-    if (m_layer_weight >= 0)
+    if (m_layer_weight >= 0) {
       obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
+    }
+
+    if (gpu_deform) {
+      // === GPU PIPELINE ===
+      // For GPU: Apply GPU skinning after blending (to capture stable matrices)
+      obj->ApplyGpuSkinning();
+    }
+    else {
+      // === CPU PIPELINE ===
+      scene->AppendToIdsToUpdate(
+          &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+
+      // For CPU: Final ApplyPose() after blending
+      obj->ApplyPose();
+      m_obj->ForceIgnoreParentTx();
+    }
 
     obj->UpdateTimestep(curtime);
   }
