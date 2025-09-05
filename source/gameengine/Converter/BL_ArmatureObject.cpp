@@ -779,16 +779,9 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
   // For each deforming bone, compute the skinning matrix and store it
   for (int b = 0; b < num_deform_bones; ++b) {
     bPoseChannel *pchan = bone_channels[b];
-    float bone_rest_inv[4][4];
-    // Compute the inverse of the rest pose matrix
-    invert_m4_m4(bone_rest_inv, pchan->bone->arm_mat);
-    float bone_deform[4][4];
-    // Compute the skinning matrix: pose_mat * inverse(rest_mat)
-    mul_m4_m4m4(bone_deform, pchan->pose_mat, bone_rest_inv);
-    // Flatten and store the matrix in the buffer
     for (int row = 0; row < 4; ++row) {
       for (int col = 0; col < 4; ++col) {
-        bone_pose_matrices[b * 16 + row * 4 + col] = bone_deform[row][col];
+        bone_pose_matrices[b * 16 + row * 4 + col] = pchan->chan_mat[row][col];
       }
     }
   }
