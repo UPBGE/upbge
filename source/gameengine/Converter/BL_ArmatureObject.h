@@ -120,7 +120,7 @@ class BL_ArmatureObject : public KX_GameObject {
   void GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode);
   void RemapParentChildren();
   void GetGpuDeformedObj();
-  void ApplyAction(bAction *action, AnimationEvalContext *evalCtx);
+  void ApplyAction(bAction *action, const AnimationEvalContext &evalCtx);
   void InitSkinningBuffers();
   void DoGpuSkinning();
   void BlendInPose(bPose *blend_pose, float weight, short mode);

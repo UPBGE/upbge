@@ -675,12 +675,12 @@ void BL_ArmatureObject::GetGpuDeformedObj()
   }
 }
 
-void BL_ArmatureObject::ApplyAction(bAction *action, AnimationEvalContext *evalCtx)
+void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext &evalCtx)
 {
   // Apply action to armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, true);
+  animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
 }
 
 /* For gpu skinning, we delay many variables initialisation here to have "up to date" informations.

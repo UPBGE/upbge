@@ -31,6 +31,11 @@
 
 #include "BKE_animsys.h"
 
+class BL_ArmatureObject;
+class KX_Scene;
+struct bNodeTree;
+struct Object;
+
 class BL_Action {
  private:
   struct bAction *m_action;
@@ -88,6 +93,39 @@ class BL_Action {
  public:
   BL_Action(class KX_GameObject *gameobj);
   ~BL_Action();
+
+  bool ShouldSkipUpdate(float curtime, bool applyToObject);
+  void UpdateActionTiming(float curtime);
+  void HandleFrameWrapping(float curtime);
+  void UpdateControllersAndAnimation(float curtime);
+  void UpdateSpatialControllers();
+  void UpdateArmatureAnimation(float curtime,
+                               Object *ob,
+                               const AnimationEvalContext &animEvalContext);
+  void ProcessGPUPipeline(BL_ArmatureObject *armatureObj,
+                          const AnimationEvalContext &animEvalContext);
+  void ProcessCPUPipeline(BL_ArmatureObject *armatureObj,
+                          Object *ob,
+                          KX_Scene *scene,
+                          const AnimationEvalContext &animEvalContext);
+  void ProcessArmatureBlending(BL_ArmatureObject *armatureObj, float curtime);
+  void UpdateObjectAnimation(Object *ob, const AnimationEvalContext &animEvalContext);
+  bool TryUpdateModifierActions(Object *ob,
+                                KX_Scene *scene,
+                                const AnimationEvalContext &animEvalContext);
+  bool TryUpdateConstraintActions(Object *ob,
+                                  KX_Scene *scene,
+                                  const AnimationEvalContext &animEvalContext);
+  bool TryUpdateIDPropertyActions(Object *ob,
+                                  KX_Scene *scene,
+                                  const AnimationEvalContext &animEvalContext);
+  bool TryUpdateNodeTreeActions(KX_Scene *scene, const AnimationEvalContext &animEvalContext);
+  bool TryUpdateShapeKeyActions(Object *ob,
+                                KX_Scene *scene,
+                                const AnimationEvalContext &animEvalContext);
+  bool IsNodeTreeActionMatch(bNodeTree *nodetree);
+  bool IsNLAShapeKeyActionMatch(Key *key);
+  void ProcessShapeKeyBlending(Key *key);
 
   /**
    * Play an action

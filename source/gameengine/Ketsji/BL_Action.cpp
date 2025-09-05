@@ -357,20 +357,52 @@ void BL_Action::Update(float curtime, bool applyToObject)
    * object. of if the animation made a double update for the same time and that it was applied to
    * the object.
    */
-  if ((m_done || m_prevUpdate == curtime) && m_appliedToObject) {
+  if (ShouldSkipUpdate(curtime, applyToObject)) {
     return;
   }
+
   m_prevUpdate = curtime;
 
-  KX_Scene *scene = m_obj->GetScene();
+  // Update timing
+  UpdateActionTiming(curtime);
 
-  if (m_calc_localtime)
+  // Handle frame wrapping based on play mode
+  HandleFrameWrapping(curtime);
+
+  m_appliedToObject = applyToObject;
+
+  // In case of culled armatures (doesn't requesting to transform the object) we only manages time.
+  if (!applyToObject) {
+    return;
+  }
+
+  // Update controllers and apply animation
+  UpdateControllersAndAnimation(curtime);
+
+  // If the action is done we can remove its scene graph IPO controller.
+  if (m_done) {
+    ClearControllerList();
+  }
+}
+
+bool BL_Action::ShouldSkipUpdate(float curtime, bool applyToObject)
+{
+  return ((m_done || m_prevUpdate == curtime) && m_appliedToObject);
+}
+
+void BL_Action::UpdateActionTiming(float curtime)
+{
+  if (m_calc_localtime) {
     SetLocalTime(curtime);
+  }
   else {
     ResetStartTime(curtime);
     m_calc_localtime = true;
   }
+}
 
+void BL_Action::HandleFrameWrapping(float curtime)
+{
   // Compute minimum and maximum action frame.
   const float minFrame = std::min(m_startframe, m_endframe);
   const float maxFrame = std::max(m_startframe, m_endframe);
@@ -391,29 +423,19 @@ void BL_Action::Update(float curtime, bool applyToObject)
       case ACT_MODE_PING_PONG:
         m_localframe = m_endframe;
         m_starttime = curtime;
-
         // Swap the start and end frames
-        float temp = m_startframe;
-        m_startframe = m_endframe;
-        m_endframe = temp;
+        std::swap(m_startframe, m_endframe);
         break;
     }
   }
 
   BLI_assert(m_localframe >= minFrame && m_localframe <= maxFrame);
+}
 
-  m_appliedToObject = applyToObject;
-  // In case of culled armatures (doesn't requesting to transform the object) we only manages time.
-  if (!applyToObject) {
-    return;
-  }
-
-  // Update controllers time. The controllers list is cleared when action is done
-  for (SG_Controller *cont : m_sg_contr_list) {
-    cont->SetSimulatedTime(m_localframe);  // update spatial controllers
-    cont->Update(m_localframe);
-    m_requestIpo = true;
-  }
+void BL_Action::UpdateControllersAndAnimation(float curtime)
+{
+  // Update spatial controllers
+  UpdateSpatialControllers();
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
@@ -423,212 +445,314 @@ void BL_Action::Update(float curtime, bool applyToObject)
                                                                                m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-    BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
-
-    obj->RemapParentChildren();
-
-    obj->GetGpuDeformedObj();
-
-    bool gpu_deform = obj && obj->GetUseGPUDeform();
-
-    if (m_layer_weight >= 0) {
-      obj->GetPose(&m_blendpose);
-    }
-
-    // === GPU PIPELINE ===
-    if (gpu_deform) {
-      /* Do the gpu skinning from the infos gathered on previous frame for now */
-      obj->DoGpuSkinning();
-      obj->ApplyAction(m_action, &animEvalContext);
-      obj->ApplyPose();
-    }
-
-    // === CPU PIPELINE ===
-    if (!gpu_deform) {
-      scene->AppendToIdsToUpdate(
-          &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-      m_obj->ForceIgnoreParentTx();
-      obj->ApplyAction(m_action, &animEvalContext);
-      obj->ApplyPose();
-    }
-    // Handle blending between armature actions
-    if (m_blendin && m_blendframe < m_blendin) {
-      IncrementBlending(curtime);
-
-      // Calculate weight
-      float weight = 1.f - (m_blendframe / m_blendin);
-
-      // Blend the poses
-      obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
-    }
-
-    // Handle layer blending
-    if (m_layer_weight >= 0) {
-      obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
-    }
-
-    obj->UpdateTimestep(curtime);
+    UpdateArmatureAnimation(curtime, ob, animEvalContext);
   }
   else {
-    /* To skip some code if not needed */
-    bool actionIsUpdated = false;
+    UpdateObjectAnimation(ob, animEvalContext);
+  }
+}
 
-    /* WARNING: The check to be sure the right action is played (to know if the action
-     * which is in the actuator will be the one which will be played)
-     * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
-     * because WE MIGHT NEED TO CHANGE OB->ADT->ACTION DURING RUNTIME
-     * then another check should be found to ensure to play the right action.
-     */
-    // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
-    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-      bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
-      // TODO: We need to find the good notifier per action
-      if (isRightAction) {
-        IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
-                                                                  ID_RECALC_GEOMETRY;
-        scene->AppendToIdsToUpdate(
-            &ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
-        PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
-        const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
-            *m_action);
-        animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
-        actionIsUpdated = true;
-        break;
+void BL_Action::UpdateSpatialControllers()
+{
+  // Update controllers time. The controllers list is cleared when action is done
+  for (SG_Controller *cont : m_sg_contr_list) {
+    cont->SetSimulatedTime(m_localframe);  // update spatial controllers
+    cont->Update(m_localframe);
+    m_requestIpo = true;
+  }
+}
+
+void BL_Action::UpdateArmatureAnimation(float curtime,
+                                        Object *ob,
+                                        const AnimationEvalContext &animEvalContext)
+{
+  BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
+  KX_Scene *scene = m_obj->GetScene();
+
+  obj->RemapParentChildren();
+  obj->GetGpuDeformedObj();
+
+  bool gpu_deform = obj && obj->GetUseGPUDeform();
+
+  if (m_layer_weight >= 0) {
+    obj->GetPose(&m_blendpose);
+  }
+
+  if (gpu_deform) {
+    ProcessGPUPipeline(obj, animEvalContext);
+  }
+  else {
+    ProcessCPUPipeline(obj, ob, scene, animEvalContext);
+  }
+
+  ProcessArmatureBlending(obj, curtime);
+  obj->UpdateTimestep(curtime);
+}
+
+void BL_Action::ProcessGPUPipeline(BL_ArmatureObject *obj,
+                                   const AnimationEvalContext &animEvalContext)
+{
+  // === GPU PIPELINE ===
+  /* Do the gpu skinning from the infos gathered on previous frame for now */
+  obj->DoGpuSkinning();
+  obj->ApplyAction(m_action, animEvalContext);
+  obj->ApplyPose();
+}
+
+void BL_Action::ProcessCPUPipeline(BL_ArmatureObject *obj,
+                                   Object *ob,
+                                   KX_Scene *scene,
+                                   const AnimationEvalContext &animEvalContext)
+{
+  // === CPU PIPELINE ===
+  scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+  m_obj->ForceIgnoreParentTx();
+  obj->ApplyAction(m_action, animEvalContext);
+  obj->ApplyPose();
+}
+
+void BL_Action::ProcessArmatureBlending(BL_ArmatureObject *obj, float curtime)
+{
+  // Handle blending between armature actions
+  if (m_blendin && m_blendframe < m_blendin) {
+    IncrementBlending(curtime);
+
+    // Calculate weight
+    float weight = 1.f - (m_blendframe / m_blendin);
+
+    // Blend the poses
+    obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
+  }
+
+  // Handle layer blending
+  if (m_layer_weight >= 0) {
+    obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
+  }
+}
+
+void BL_Action::UpdateObjectAnimation(Object *ob, const AnimationEvalContext &animEvalContext)
+{
+  KX_Scene *scene = m_obj->GetScene();
+  /* To skip some code if not needed */
+  bool actionIsUpdated = false;
+
+  /* WARNING: The check to be sure the right action is played (to know if the action
+   * which is in the actuator will be the one which will be played)
+   * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
+   * because WE MIGHT NEED TO CHANGE OB->ADT->ACTION DURING RUNTIME
+   * then another check should be found to ensure to play the right action.
+   */
+  // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
+  if (!actionIsUpdated) {
+    actionIsUpdated = TryUpdateModifierActions(ob, scene, animEvalContext);
+  }
+
+  if (!actionIsUpdated) {
+    // TEST FollowPath action
+    actionIsUpdated = TryUpdateConstraintActions(ob, scene, animEvalContext);
+  }
+
+  // TEST IDPROP ACTIONS
+  if (!actionIsUpdated) {
+    actionIsUpdated = TryUpdateIDPropertyActions(ob, scene, animEvalContext);
+  }
+
+  if (!actionIsUpdated) {
+    // Node Trees actions (Geometry one and Shader ones (material, world))
+    actionIsUpdated = TryUpdateNodeTreeActions(scene, animEvalContext);
+  }
+
+  if (!actionIsUpdated) {
+    // TEST Shapekeys action
+    TryUpdateShapeKeyActions(ob, scene, animEvalContext);
+  }
+}
+
+bool BL_Action::TryUpdateModifierActions(Object *ob,
+                                         KX_Scene *scene,
+                                         const AnimationEvalContext &animEvalContext)
+{
+  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+    bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
+    // TODO: We need to find the good notifier per action
+    if (isRightAction) {
+      IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
+                                                                ID_RECALC_GEOMETRY;
+      scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
+
+      PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+      const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+          *m_action);
+      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool BL_Action::TryUpdateConstraintActions(Object *ob,
+                                           KX_Scene *scene,
+                                           const AnimationEvalContext &animEvalContext)
+{
+  LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
+    if (ActionMatchesName(m_action, con->name, ACT_TYPE_CONSTRAINT)) {
+      if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
+        return false;
       }
+
+      scene->AppendToIdsToUpdate(
+          &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+      PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+      const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+          *m_action);
+      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+
+      m_obj->ForceIgnoreParentTx();
+      return true;
+      /* HERE we can add other constraint action types,
+       * if some actions require another notifier than ID_RECALC_TRANSFORM */
+    }
+  }
+  return false;
+}
+
+bool BL_Action::TryUpdateIDPropertyActions(Object *ob,
+                                           KX_Scene *scene,
+                                           const AnimationEvalContext &animEvalContext)
+{
+  if (!ob->id.properties) {
+    return false;
+  }
+
+  LISTBASE_FOREACH (IDProperty *, prop, &ob->id.properties->data.group) {
+    if (prop->type == IDP_GROUP) {
+      continue;
     }
 
-    if (!actionIsUpdated) {
-      // TEST FollowPath action
-      LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-        if (ActionMatchesName(m_action, con->name, ACT_TYPE_CONSTRAINT)) {
-          if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
-            break;
-          }
-          scene->AppendToIdsToUpdate(
-              &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-          PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
-          const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
-              *m_action);
-          animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+    if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
+      scene->AppendToIdsToUpdate(
+          &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+      PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+      const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+          *m_action);
+      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      return true;
+    }
+  }
+  return false;
+}
 
-          m_obj->ForceIgnoreParentTx();
-          actionIsUpdated = true;
+bool BL_Action::TryUpdateNodeTreeActions(KX_Scene *scene,
+                                         const AnimationEvalContext &animEvalContext)
+{
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+
+  FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
+    if (IsNodeTreeActionMatch(nodetree)) {
+      scene->AppendToIdsToUpdate(&nodetree->id, static_cast<IDRecalcFlag>(0), false);
+      PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
+      const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+          *m_action);
+      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      return true;
+    }
+  }
+  FOREACH_NODETREE_END;
+
+  return false;
+}
+
+bool BL_Action::IsNodeTreeActionMatch(bNodeTree *nodetree)
+{
+  bool isRightAction = false;
+  isRightAction = (nodetree->adt && nodetree->adt->action == m_action);
+  if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first) {
+    LISTBASE_FOREACH (NlaTrack *, track, &nodetree->adt->nla_tracks) {
+      LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
+        if (strip->act == m_action) {
+          isRightAction = true;
           break;
-          /* HERE we can add other constraint action types,
-           * if some actions require another notifier than ID_RECALC_TRANSFORM */
-        }
-      }
-    }
-
-    // TEST IDPROP ACTIONS
-    if (!actionIsUpdated) {
-      if (ob->id.properties) {
-        LISTBASE_FOREACH (IDProperty *, prop, &ob->id.properties->data.group) {
-          if (prop->type == IDP_GROUP) {
-            continue;
-          }
-          if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
-            scene->AppendToIdsToUpdate(
-                &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-            PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
-            const blender::animrig::slot_handle_t slot_handle =
-                blender::animrig::first_slot_handle(*m_action);
-            animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
-            actionIsUpdated = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!actionIsUpdated) {
-      // Node Trees actions (Geometry one and Shader ones (material, world))
-      Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-      FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
-        bool isRightAction = false;
-        isRightAction = (nodetree->adt && nodetree->adt->action == m_action);
-        if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first) {
-          LISTBASE_FOREACH (NlaTrack *, track, &nodetree->adt->nla_tracks) {
-            LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-              if (strip->act == m_action) {
-                isRightAction = true;
-                break;
-              }
-            }
-          }
-        }
-        if (isRightAction) {
-          scene->AppendToIdsToUpdate(&nodetree->id, (IDRecalcFlag)0, false);
-          PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
-          const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
-              *m_action);
-          animsys_evaluate_action(&ptrrna, m_action, slot_handle , &animEvalContext, false);
-          actionIsUpdated = true;
-          break;
-        }
-      }
-      FOREACH_NODETREE_END;
-    }
-
-    if (!actionIsUpdated) {
-      // TEST Shapekeys action
-      Mesh *me = (Mesh *)ob->data;
-      if (ob->type == OB_MESH && me) {
-        const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
-        bool has_animdata = bHasShapeKey && me->key->adt;
-        bool play_normal_key_action = has_animdata && me->key->adt->action == m_action;
-        bool play_nla_key_action = false;
-        if (!play_normal_key_action && has_animdata) {
-          LISTBASE_FOREACH (NlaTrack *, track, &me->key->adt->nla_tracks) {
-            LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-              if (strip->act == m_action) {
-                play_nla_key_action = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if (play_normal_key_action || play_nla_key_action) {
-          scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
-          Key *key = me->key;
-
-          PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
-          const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
-              *m_action);
-          animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
-
-          // Handle blending between shape actions
-          if (m_blendin && m_blendframe < m_blendin) {
-            IncrementBlending(curtime);
-
-            // float weight = 1.f - (m_blendframe / m_blendin);
-
-            // We go through and clear out the keyblocks so there isn't any interference
-            // from other shape actions
-            KeyBlock *kb;
-            for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
-              kb->curval = 0.f;
-            }
-
-            // Now blend the shape
-            // BlendShape(key, weight, m_blendinshape);
-          }
-          //// Handle layer blending
-          // if (m_layer_weight >= 0) {
-          //  shape_deformer->GetShape(m_blendshape);
-          //  BlendShape(key, m_layer_weight, m_blendshape);
-          //}
-
-          // shape_deformer->SetLastFrame(curtime);
         }
       }
     }
   }
-  // If the action is done we can remove its scene graph IPO controller.
-  if (m_done) {
-    ClearControllerList();
+  return isRightAction;
+}
+
+bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
+                                         KX_Scene *scene,
+                                         const AnimationEvalContext &animEvalContext)
+{
+  Mesh *me = (Mesh *)ob->data;
+  if (ob->type == OB_MESH && me) {
+    const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
+    bool has_animdata = bHasShapeKey && me->key->adt;
+    bool play_normal_key_action = has_animdata && me->key->adt->action == m_action;
+    bool play_nla_key_action = false;
+    if (!play_normal_key_action && has_animdata) {
+      LISTBASE_FOREACH (NlaTrack *, track, &me->key->adt->nla_tracks) {
+        LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
+          if (strip->act == m_action) {
+            play_nla_key_action = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (play_normal_key_action || play_nla_key_action) {
+      scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
+      Key *key = me->key;
+
+      PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
+      const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+          *m_action);
+      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+
+      ProcessShapeKeyBlending(key);
+      return true;
+    }
   }
+  return false;
+}
+
+bool BL_Action::IsNLAShapeKeyActionMatch(Key *key)
+{
+  LISTBASE_FOREACH (NlaTrack *, track, &key->adt->nla_tracks) {
+    LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
+      if (strip->act == m_action) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void BL_Action::ProcessShapeKeyBlending(Key *key)
+{
+  // Handle blending between shape actions
+  if (m_blendin && m_blendframe < m_blendin) {
+    IncrementBlending(KX_GetActiveEngine()->GetFrameTime());
+
+    // float weight = 1.f - (m_blendframe / m_blendin);
+
+    // We go through and clear out the keyblocks so there isn't any interference
+    // from other shape actions
+    KeyBlock *kb;
+    for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
+      kb->curval = 0.f;
+    }
+
+    // Now blend the shape
+    // BlendShape(key, weight, m_blendinshape);
+  }
+  //// Handle layer blending
+  // if (m_layer_weight >= 0) {
+  //  shape_deformer->GetShape(m_blendshape);
+  //  BlendShape(key, m_layer_weight, m_blendshape);
+  //}
+
+  // shape_deformer->SetLastFrame(curtime);
 }
 
 /* To sync m_obj and children in SceneGraph after potential m_obj transform update in SG_Controller actions */
