@@ -1018,7 +1018,7 @@ void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode)
 {
   if (!m_navMesh)
     return;
-  MT_Vector4 color(0.0f, 0.0f, 0.0f, 1.0f);
+  MT_Vector4 color(0.0f, 1.0f, 1.0f, 1.0f);
 
   switch (renderMode) {
     case RM_POLYS:

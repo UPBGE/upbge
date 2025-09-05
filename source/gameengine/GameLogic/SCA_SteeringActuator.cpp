@@ -242,6 +242,7 @@ bool SCA_SteeringActuator::Update(double curtime)
             // debug draw
             static const MT_Vector4 PATH_COLOR(1.0f, 0.0f, 0.0f, 1.0f);
             m_navmesh->DrawPath(m_path, m_pathLen, PATH_COLOR);
+            m_navmesh->DrawNavMesh(KX_NavMeshObject::NavMeshRenderMode::RM_WALLS);
           }
         }
       }
