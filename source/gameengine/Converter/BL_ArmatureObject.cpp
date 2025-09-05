@@ -35,6 +35,7 @@
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
+#include "BKE_deform.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
@@ -508,6 +509,16 @@ void BL_ArmatureObject::InitSkinningBuffers()
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
     Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
+
+    const ListBase *defbase = nullptr;
+    if (mesh) {
+      defbase = BKE_id_defgroup_list_get(&mesh->id);
+    }
+    const ID *id_target = static_cast<const ID *>(m_deformedObj->data);
+    if (BKE_id_supports_vertex_groups(id_target)) {
+      defbase = BKE_id_defgroup_list_get(id_target);
+    }
+
     blender::Span<MDeformVert> dverts = mesh->deform_verts();
     auto corner_verts = mesh->corner_verts();
     int num_corners = mesh->corners_num;
@@ -530,8 +541,10 @@ void BL_ArmatureObject::InitSkinningBuffers()
 
     // 2. Get the vertex group names in mesh order
     std::vector<std::string> group_names;
-    for (bDeformGroup *dg = (bDeformGroup *)mesh->vertex_group_names.first; dg; dg = dg->next) {
-      group_names.push_back(dg->name);
+    if (defbase) {
+      for (bDeformGroup *dg = (bDeformGroup *)defbase->first; dg; dg = dg->next) {
+        group_names.push_back(dg->name);
+      }
     }
 
     // 3. Fill index and weight buffers
