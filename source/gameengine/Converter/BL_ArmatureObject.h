@@ -117,8 +117,12 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Never edit this, only for accessing names.
   bPose *GetPose() const;
   void ApplyPose();
+  void GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode);
+  void RemapParentChildren();
+  void GetGpuDeformedObj();
+  void ApplyAction(bAction *action, AnimationEvalContext *evalCtx);
   void InitSkinningBuffers();
-  void SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx);
+  void DoGpuSkinning();
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);

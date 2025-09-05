@@ -424,24 +424,33 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
-    bool gpu_deform = false;
-    if (obj && obj->GetUseGPUDeform()) {
-      gpu_deform = true;
+
+    obj->RemapParentChildren();
+
+    obj->GetGpuDeformedObj();
+
+    bool gpu_deform = obj && obj->GetUseGPUDeform();
+
+    if (m_layer_weight >= 0) {
+      obj->GetPose(&m_blendpose);
     }
+
+    // === GPU PIPELINE ===
+    if (gpu_deform) {
+      /* Do the gpu skinning from the infos gathered on previous frame for now */
+      obj->DoGpuSkinning();
+      obj->ApplyAction(m_action, &animEvalContext);
+      obj->ApplyPose();
+    }
+
+    // === CPU PIPELINE ===
     if (!gpu_deform) {
       scene->AppendToIdsToUpdate(
           &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-    }
-    if (m_layer_weight >= 0)
-      obj->GetPose(&m_blendpose);
-
-    // Extract the pose from the action
-    obj->SetPoseByAction(m_action, &animEvalContext);
-
-    if (!gpu_deform) {
       m_obj->ForceIgnoreParentTx();
+      obj->ApplyAction(m_action, &animEvalContext);
+      obj->ApplyPose();
     }
-
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
       IncrementBlending(curtime);
@@ -454,8 +463,9 @@ void BL_Action::Update(float curtime, bool applyToObject)
     }
 
     // Handle layer blending
-    if (m_layer_weight >= 0)
+    if (m_layer_weight >= 0) {
       obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
+    }
 
     obj->UpdateTimestep(curtime);
   }

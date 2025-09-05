@@ -148,7 +148,7 @@ static void capture_rest_positions_and_normals(Object *deformed_obj,
 }
 
 // Only allowed for Poses with identical channels.
-static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
+void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode)
 {
   float dstweight;
 
@@ -627,17 +627,8 @@ void BL_ArmatureObject::InitSkinningBuffers()
   }
 }
 
-/* For gpu skinning, we delay many variables initialisation here to have "up to date" informations.
- * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
- * a render cache for the deformed object....
- */
-void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
+void BL_ArmatureObject::RemapParentChildren()
 {
-  using namespace blender::gpu::shader;
-  using namespace blender::draw;
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-
   /* Remapping parent/children */
   if (!m_deformedObj) {
     for (KX_GameObject *child : GetChildren()) {
@@ -654,6 +645,12 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
         }
       }
     }
+  }
+}
+
+void BL_ArmatureObject::GetGpuDeformedObj()
+{
+  if (!m_deformedObj) {
     /* Get Armature modifier deformedObj */
     std::vector<KX_GameObject *> children = GetChildren();
     for (KX_GameObject *child : children) {
@@ -666,7 +663,8 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd && amd->object == this->GetBlenderObject()) {
             m_deformedObj = child->GetBlenderObject();
-            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance() && !m_is_dupli_instance;
+            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 &&
+                             !child->IsDupliInstance() && !m_is_dupli_instance;
           }
         }
       }
@@ -675,19 +673,30 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *e
       }
     }
   }
+}
 
-  // 1. apply action to armature
+void BL_ArmatureObject::ApplyAction(bAction *action, AnimationEvalContext *evalCtx)
+{
+  // Apply action to armature
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
+  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, true);
+}
 
-  // 2. update pose
-  ApplyPose();
-
-  /* IF CPU ARMATURE STOP HERE */
+/* For gpu skinning, we delay many variables initialisation here to have "up to date" informations.
+ * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
+ * a render cache for the deformed object....
+ */
+void BL_ArmatureObject::DoGpuSkinning()
+{
   if (!m_useGPUDeform) {
     return;
   }
+  using namespace blender::gpu::shader;
+  using namespace blender::draw;
+
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   KX_GameObject *kx_deformedObj = GetScene()->GetBlenderSceneConverter()->FindGameObject(
       m_deformedObj);
@@ -938,7 +947,7 @@ void main() {
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
 {
-  game_blend_poses(m_objArma->pose, blend_pose, weight, mode);
+  GameBlendPose(m_objArma->pose, blend_pose, weight, mode);
 }
 
 bool BL_ArmatureObject::UpdateTimestep(double curtime)
