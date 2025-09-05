@@ -628,10 +628,10 @@ void BL_ArmatureObject::InitSkinningBuffers()
 }
 
 /* For gpu skinning, we delay many variables initialisation here to have "up to date" informations.
- * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child ->
- * armature/deformed object, a render cache for the deformed object....
+ * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
+ * a render cache for the deformed object....
  */
-void BL_ArmatureObject::ApplyGpuSkinning()
+void BL_ArmatureObject::SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx)
 {
   using namespace blender::gpu::shader;
   using namespace blender::draw;
@@ -666,8 +666,7 @@ void BL_ArmatureObject::ApplyGpuSkinning()
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd && amd->object == this->GetBlenderObject()) {
             m_deformedObj = child->GetBlenderObject();
-            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 &&
-                             !child->IsDupliInstance() && !m_is_dupli_instance;
+            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 && !child->IsDupliInstance() && !m_is_dupli_instance;
           }
         }
       }
@@ -677,7 +676,15 @@ void BL_ArmatureObject::ApplyGpuSkinning()
     }
   }
 
-  /* GPU-only logic - action application is now handled in BL_Action */
+  // 1. apply action to armature
+  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
+  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
+  animsys_evaluate_action(&ptrrna, action, slot_handle, evalCtx, false);
+
+  // 2. update pose
+  ApplyPose();
+
+  /* IF CPU ARMATURE STOP HERE */
   if (!m_useGPUDeform) {
     return;
   }
@@ -746,7 +753,7 @@ void BL_ArmatureObject::ApplyGpuSkinning()
 
   int num_corners = mesh->corner_verts().size();
 
-  // Prepare bone matrices for GPU skinning
+  // 3. Prepare bone matrices for GPU skinning
   // Build a list of deforming bone names and a mapping from name to index
   std::vector<std::string> bone_names;
   if (m_objArma && m_objArma->pose) {
@@ -794,7 +801,7 @@ void BL_ArmatureObject::ApplyGpuSkinning()
   // Upload bone matrices to the GPU buffer
   GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
 
-  // Prepare transform matrices
+  // 4. Prepare transform matrices
   float premat[4][4], postmat[4][4], obinv[4][4];
   copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
   invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
@@ -810,7 +817,7 @@ void BL_ArmatureObject::ApplyGpuSkinning()
   }
   GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
-  // Prepare rest positions and normals
+  // 5. Prepare rest positions and normals
   if (!ssbo_rest_pose) {
     ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
     GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
@@ -820,7 +827,7 @@ void BL_ArmatureObject::ApplyGpuSkinning()
     GPU_storagebuf_update(ssbo_rest_normals, m_refNormals.data());
   }
 
-  // Compile skinning shader
+  // 6. Compile skinning shader
   if (!m_shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
@@ -897,7 +904,7 @@ void main() {
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
-  // Dispatch compute shader
+  // 7. Dispatch compute shader
   GPU_shader_bind(m_shader);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
