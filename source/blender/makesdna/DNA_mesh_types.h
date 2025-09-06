@@ -165,7 +165,8 @@ typedef struct Mesh {
   /* UPBGE: Use this flag to switch between float3/float4
    * vbo_pos extraction */
   int is_using_skinning;
-  int _pad2;
+  /* To indicate that action is currently played */
+  int is_running_skinning;
 
   float smoothresh_legacy DNA_DEPRECATED;
 

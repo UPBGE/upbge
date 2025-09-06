@@ -716,12 +716,16 @@ void BL_ArmatureObject::DoGpuSkinning()
   }
 
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
-  Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
+  Mesh *mesh_eval = static_cast<Mesh *>(deformed_eval->data);
 
   Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
 
   /* Set this variable to extract vbo_pos with float4 */
   orig_mesh->is_using_skinning = 1;
+  /* Set this variable to indicate that the action is currently played.
+   * Will be reset in TagForTransFromUpdateEvaluated just after render.
+   * Place this flag on runtime/evaluated mesh (the one used for rendering) */
+  mesh_eval->is_running_skinning = 1;
 
   if (m_modifiersListbackup.empty()) {
     disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
@@ -738,8 +742,8 @@ void BL_ArmatureObject::DoGpuSkinning()
   }
 
   MeshBatchCache *cache = nullptr;
-  if (mesh->runtime && mesh->runtime->batch_cache) {
-    cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  if (mesh_eval->runtime && mesh_eval->runtime->batch_cache) {
+    cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   }
 
   blender::gpu::VertBuf *vbo_pos = nullptr;
@@ -758,7 +762,7 @@ void BL_ArmatureObject::DoGpuSkinning()
 
   InitSkinningBuffers();
 
-  int num_corners = mesh->corner_verts().size();
+  int num_corners = mesh_eval->corner_verts().size();
 
   // 3. Prepare bone matrices for GPU skinning
   // Build a list of deforming bone names and a mapping from name to index
@@ -926,7 +930,7 @@ void main() {
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(m_shader, num_groups, 1, 1);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
   GPU_storagebuf_unbind(ssbo_in_idx);
   GPU_storagebuf_unbind(ssbo_in_wgt);
