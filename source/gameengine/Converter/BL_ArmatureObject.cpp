@@ -742,7 +742,7 @@ void BL_ArmatureObject::DoGpuSkinning()
   /* Set this variable to extract vbo_pos with float4 */
   orig_mesh->is_using_skinning = 1;
   /* Set this variable to indicate that the action is currently played.
-   * Will be reset in TagForTransFromUpdateEvaluated just after render.
+   * Will be reset just after render.
    * Place this flag on runtime/evaluated mesh (the one used for rendering) */
   mesh_eval->is_running_skinning = 1;
 
