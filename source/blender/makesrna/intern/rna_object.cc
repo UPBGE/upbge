@@ -3100,7 +3100,8 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Align to Normal",
                            "Align dynamic game objects along the surface normal, "
-                           "when inside the physics distance area");
+                           "when inside the physics distance area. Physics Bounds "
+                           "must be set to Triangle Mesh");
 
   prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fh");

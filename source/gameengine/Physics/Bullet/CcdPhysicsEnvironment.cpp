@@ -864,13 +864,13 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
             btScalar i_spring = spring_extent * hitObjShapeProps.m_fh_spring;
             btScalar i_damp = rel_vel_ray * hitObjShapeProps.m_fh_damping;
 
-            // The direction of the spring and damping force is chosen based on the hit normal
-            // when m_fh_normal is enabled and the hit shape is a mesh. This allows the force to be
-            // applied along the surface normal.
-            // Otherwise, the force is applied along the negative ray direction, which is a generic
-            // fallback for non-mesh shapes or when normal information is not available.
-            // This distinction helps to avoid unwanted sliding or instability on sloped or uneven
-            // surfaces.
+            /* The direction of the spring and damping force is chosen based on the hit normal
+               when m_fh_normal is enabled and the hit shape is a mesh. This allows the force to be
+               applied along the surface normal.
+               Otherwise, the force is applied along the negative ray direction, which is a generic
+               fallback for non-mesh shapes or when normal information is not available.
+               This distinction helps to avoid unwanted sliding or instability on sloped or uneven
+               surfaces. */
             btVector3 force_dir = btVector3(0.0, 0.0, 0.0);
             if (hitObjShapeProps.m_fh_normal && controller->GetShapeInfo() &&
                 controller->GetShapeInfo()->m_shapeType == PHY_SHAPE_MESH)
