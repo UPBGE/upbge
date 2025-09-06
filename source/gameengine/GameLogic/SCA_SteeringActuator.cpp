@@ -39,6 +39,8 @@
 #include "KX_PyMath.h"
 #include "Recast.h"
 
+#include <algorithm>
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -57,7 +59,8 @@ SCA_SteeringActuator::SCA_SteeringActuator(SCA_IObject *gameobj,
                                            short facingmode,
                                            bool normalup,
                                            bool enableVisualization,
-                                           bool lockzvel)
+                                           bool lockzvel,
+                                           float pathLerpFactor)
     : SCA_IActuator(gameobj, KX_ACT_STEERING),
       m_target(target),
       m_mode(mode),
@@ -77,7 +80,11 @@ SCA_SteeringActuator::SCA_SteeringActuator(SCA_IObject *gameobj,
       m_pathUpdatePeriod(pathUpdatePeriod),
       m_lockzvel(lockzvel),
       m_wayPointIdx(-1),
-      m_steerVec(MT_Vector3(0, 0, 0))
+      m_steerVec(MT_Vector3(0, 0, 0)),
+      m_pathLerpFactor(pathLerpFactor),
+      m_lastSteerDir(MT_Vector3(0, 0, 0)),
+      m_oldDir(MT_Vector3(0, 0, 0)),
+      m_pathBlendTime(0.0f)
 {
   m_navmesh = static_cast<KX_NavMeshObject *>(navmesh);
   if (m_navmesh)
@@ -159,6 +166,44 @@ void SCA_SteeringActuator::Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_ma
   }
 }
 
+MT_Vector3 SCA_SteeringActuator::CalculateCurrentBlendDirection(const MT_Vector3& newTargetDir)
+{
+    MT_Vector3 currentBlendDir = m_lastSteerDir.safe_normalized();
+
+    if (m_pathBlendTime > 0.0f && !m_oldDir.fuzzyZero()) {
+        float blendFactor = 1.0f - (m_pathBlendTime / m_pathLerpFactor);
+        blendFactor = MT_clamp(blendFactor, 0.0f, 1.0f);
+
+        MT_Vector3 oldDirNorm = m_oldDir.normalized();
+        MT_Vector3 newDirNorm = newTargetDir.normalized();
+
+        MT_Scalar dot = oldDirNorm.dot(newDirNorm);
+        dot = MT_clamp(dot, -1.0f, 1.0f);
+
+        MT_Scalar angle = acos(dot);
+        if (angle > 0.001f) {
+            MT_Scalar sinAngle = sin(angle);
+            MT_Scalar invSinAngle = 1.0f / sinAngle;
+            MT_Scalar srcWeight = sin((1.0f - blendFactor) * angle) * invSinAngle;
+            MT_Scalar dstWeight = sin(blendFactor * angle) * invSinAngle;
+
+            currentBlendDir = (srcWeight * oldDirNorm + dstWeight * newDirNorm).safe_normalized();
+        }
+        else {
+            currentBlendDir = newDirNorm;
+        }
+    }
+
+    return currentBlendDir;
+}
+
+void SCA_SteeringActuator::StartNewBlend(const MT_Vector3& newTargetDir)
+{
+    MT_Vector3 currentBlendDir = CalculateCurrentBlendDirection(newTargetDir);
+    m_oldDir = currentBlendDir;
+    m_pathBlendTime = m_pathLerpFactor;
+}
+
 bool SCA_SteeringActuator::Update(double curtime)
 {
   double delta = curtime - m_updateTime;
@@ -169,10 +214,15 @@ bool SCA_SteeringActuator::Update(double curtime)
     m_pathUpdateTime = -1.0;
     m_updateTime = curtime;
     m_isActive = true;
+    // Reset the blending when activate
+    m_pathBlendTime = 0.0f;
+    m_lastSteerDir = MT_Vector3(0, 0, 0);
   }
   bool bNegativeEvent = IsNegativeEvent();
-  if (bNegativeEvent)
+  if (bNegativeEvent) {
     m_isActive = false;
+    m_pathBlendTime = 0.0f;  // Reset blending in negative event
+  }
 
   RemoveAllEvents();
 
@@ -221,6 +271,15 @@ bool SCA_SteeringActuator::Update(double curtime)
           m_pathUpdateTime = curtime;
           m_pathLen = m_navmesh->FindPath(mypos, targpos, m_path, MAX_PATH_LENGTH);
           m_wayPointIdx = m_pathLen > 1 ? 1 : -1;
+
+          /* Always do blending from current direction of unfinished blend (this way
+           * we can link a blend with another when we have new differents paths */
+          if (m_wayPointIdx > 0 && m_pathLerpFactor > 0.0f) {
+            MT_Vector3 firstCorner(&m_path[3 * m_wayPointIdx]);
+            MT_Vector3 newDir = (firstCorner - mypos).safe_normalized();
+
+            StartNewBlend(newDir);
+          }
         }
 
         if (m_wayPointIdx > 0) {
@@ -231,8 +290,12 @@ bool SCA_SteeringActuator::Update(double curtime)
               m_wayPointIdx = -1;
               terminate = true;
             }
-            else
+            else {
               waypoint.setValue(&m_path[3 * m_wayPointIdx]);
+              MT_Vector3 newWaypointDir = (waypoint - mypos).safe_normalized();
+
+              StartNewBlend(newWaypointDir);
+            }
           }
 
           m_steerVec = waypoint - mypos;
@@ -250,6 +313,45 @@ bool SCA_SteeringActuator::Update(double curtime)
   }
 
   if (apply_steerforce) {
+    // Apply direction smoothing if active.
+    if (m_pathLerpFactor > 0.0f && m_pathBlendTime > 0.0f && !m_oldDir.fuzzyZero()) {
+      float blendFactor = 1.0f - (m_pathBlendTime / m_pathLerpFactor);
+      blendFactor = MT_clamp(blendFactor, 0.0f, 1.0f);
+
+      // Normalize both directions
+      MT_Vector3 currentDir = m_steerVec;
+      if (!currentDir.fuzzyZero())
+        currentDir.normalize();
+
+      MT_Vector3 oldDirNorm = m_oldDir;
+      if (!oldDirNorm.fuzzyZero())
+        oldDirNorm.normalize();
+
+      // Interpolate using slerp for smooth rotation
+      if (!oldDirNorm.fuzzyZero() && !currentDir.fuzzyZero()) {
+        MT_Scalar dot = oldDirNorm.dot(currentDir);
+        dot = MT_clamp(dot, -1.0f, 1.0f);
+
+        MT_Scalar angle = acos(dot);
+        if (angle > 0.001f) {  // Avoid division by zero
+          MT_Scalar sinAngle = sin(angle);
+          MT_Scalar invSinAngle = 1.0f / sinAngle;
+          MT_Scalar srcWeight = sin((1.0f - blendFactor) * angle) * invSinAngle;
+          MT_Scalar dstWeight = sin(blendFactor * angle) * invSinAngle;
+
+          m_steerVec = (srcWeight * oldDirNorm + dstWeight * currentDir) * m_steerVec.length();
+        }
+      }
+
+      // Update blending time
+      m_pathBlendTime -= (float)delta;
+      if (m_pathBlendTime < 0.0f)
+        m_pathBlendTime = 0.0f;
+    }
+
+    // Save current direction for the next frame
+    m_lastSteerDir = m_steerVec;
+
     bool isdyna = obj->IsDynamic();
     if (isdyna)
       m_steerVec.z() = 0;
@@ -294,6 +396,9 @@ bool SCA_SteeringActuator::Update(double curtime)
       m_obstacle->dvel[0] = 0.f;
       m_obstacle->dvel[1] = 0.f;
     }
+    // Reset blending when no force is applied
+    m_pathBlendTime = 0.0f;
+    m_lastSteerDir = MT_Vector3(0, 0, 0);
   }
 
   if (terminate && m_isSelfTerminated)
@@ -555,6 +660,7 @@ PyAttributeDef SCA_SteeringActuator::Attributes[] = {
         "pathUpdatePeriod", -1, 100000, true, SCA_SteeringActuator, m_pathUpdatePeriod),
     EXP_PYATTRIBUTE_BOOL_RW("lockZVelocity", SCA_SteeringActuator, m_lockzvel),
     EXP_PYATTRIBUTE_RO_FUNCTION("path", SCA_SteeringActuator, pyattr_get_path),
+    EXP_PYATTRIBUTE_FLOAT_RW("pathLerpFactor", 0.0f, 10.0f, SCA_SteeringActuator, m_pathLerpFactor),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

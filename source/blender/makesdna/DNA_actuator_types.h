@@ -263,6 +263,8 @@ typedef struct bSteeringActuator {
   float acceleration;
   float turnspeed;
   int updateTime;
+  float pathlerpfactor;
+  float _pad1;
   struct Object *target;
   struct Object *navmesh;
 } bSteeringActuator;

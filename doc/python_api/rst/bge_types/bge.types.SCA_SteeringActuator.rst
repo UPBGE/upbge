@@ -63,11 +63,23 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       :type: boolean
 
+   .. attribute:: lockZVelocity
+
+      Disable simulation of linear motion along z axis
+
+      :type: boolean
+
    .. attribute:: pathUpdatePeriod
 
       Path update period
 
       :type: int
+
+   .. attribute:: pathLerpFactor
+
+      Interpolation to smooth steering when changing paths or between different directions of the same path
+
+      :type: float
 
    .. attribute:: path
 

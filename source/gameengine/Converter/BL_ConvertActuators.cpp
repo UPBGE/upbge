@@ -1017,7 +1017,8 @@ void BL_ConvertActuators(const char *maggiename,
                                                                   facingMode,
                                                                   normalup,
                                                                   enableVisualization,
-                                                                  lockzvel);
+                                                                  lockzvel,
+                                                                  stAct->pathlerpfactor);
         baseact = tmpstact;
         break;
       }

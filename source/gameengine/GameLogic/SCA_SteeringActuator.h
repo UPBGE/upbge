@@ -64,6 +64,10 @@ class SCA_SteeringActuator : public SCA_IActuator {
   int m_wayPointIdx;
   MT_Matrix3x3 m_parentlocalmat;
   MT_Vector3 m_steerVec;
+  float m_pathLerpFactor;  /* 0..2 */
+  MT_Vector3 m_lastSteerDir;  /* dir applied lastframe */
+  MT_Vector3 m_oldDir;
+  float m_pathBlendTime;  /* Blend left time in seconds */
   void HandleActorFace(MT_Vector3 &velocity);
 
  public:
@@ -89,7 +93,8 @@ class SCA_SteeringActuator : public SCA_IActuator {
                        short facingmode,
                        bool normalup,
                        bool enableVisualization,
-                       bool lockzvel);
+                       bool lockzvel,
+                       float pathLerpFactor);
   virtual ~SCA_SteeringActuator();
   virtual bool Update(double curtime);
 
@@ -99,6 +104,8 @@ class SCA_SteeringActuator : public SCA_IActuator {
   virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
   virtual bool UnlinkObject(SCA_IObject *clientobj);
   const MT_Vector3 &GetSteeringVec();
+  MT_Vector3 CalculateCurrentBlendDirection(const MT_Vector3& newTargetDir);
+  void StartNewBlend(const MT_Vector3& newTargetDir);
 
 #ifdef WITH_PYTHON
 

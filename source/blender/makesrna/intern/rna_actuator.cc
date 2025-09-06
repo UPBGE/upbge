@@ -2318,6 +2318,14 @@ static void rna_def_steering_actuator(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Lock Z velocity", "Disable simulation of linear motion along Z axis");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "path_lerp_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "pathlerpfactor");
+  RNA_def_property_range(prop, 0.0f, 2.0f);
+  RNA_def_property_ui_text(prop, "Path Lerp",
+                           "Interpolation to smooth steering when changing paths"
+                           "or between different directions of the same path.);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 
 static void rna_def_mouse_actuator(BlenderRNA *brna)

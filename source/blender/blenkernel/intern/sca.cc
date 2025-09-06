@@ -522,6 +522,7 @@ void BKE_sca_init_actuator(bActuator *act)
       sta->velocity = 3.f;
       sta->flag = ACT_STEERING_AUTOMATICFACING | ACT_STEERING_LOCKZVEL;
       sta->facingaxis = 1;
+      sta->pathlerpfactor = 0.15f;
       break;
     case ACT_MOUSE:
       act->data = MEM_callocN(sizeof(bMouseActuator), "mouse act");

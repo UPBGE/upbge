@@ -2441,16 +2441,17 @@ static void draw_actuator_steering(uiLayout *layout, PointerRNA *ptr)
   row = &layout->row(false);
   col = &row->column(false);
   col->prop(ptr, "self_terminated", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &row->column(false);
+  col->prop(ptr, "lock_z_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(ptr, "mode") == ACT_STEERING_PATHFOLLOWING) {
+    row = &layout->row(false);
     col = &row->column(false);
     col->prop(ptr, "update_period", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  row = &layout->row(false);
-  row->prop(ptr, "lock_z_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  row = &layout->row(false);
-  row->prop(ptr, "show_visualization", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (RNA_enum_get(ptr, "mode") != ACT_STEERING_PATHFOLLOWING) {
-    row->active_set(false);
+    col = &row->column(false);
+    col->prop(ptr, "show_visualization", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row = &layout->row(false);
+    col = &row->column(false);
+    col->prop(ptr, "path_lerp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
