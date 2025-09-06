@@ -492,8 +492,6 @@ void BL_ArmatureObject::ApplyPose()
     for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
       constraint->UpdateTarget();
     }
-    // update ourself
-    UpdateBlenderObjectMatrix(m_objArma);
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);

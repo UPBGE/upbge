@@ -478,6 +478,12 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
     obj->GetPose(&m_blendpose);
   }
 
+  obj->ApplyAction(m_action, animEvalContext);
+
+  ProcessArmatureBlending(obj, curtime);
+
+  obj->ApplyPose();
+
   if (gpu_deform) {
     ProcessGPUPipeline(obj, animEvalContext);
   }
@@ -485,7 +491,6 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
     ProcessCPUPipeline(obj, ob, scene, animEvalContext);
   }
 
-  ProcessArmatureBlending(obj, curtime);
   obj->UpdateTimestep(curtime);
 }
 
@@ -493,10 +498,7 @@ void BL_Action::ProcessGPUPipeline(BL_ArmatureObject *obj,
                                    const AnimationEvalContext &animEvalContext)
 {
   // === GPU PIPELINE ===
-  /* Do the gpu skinning from the infos gathered on previous frame for now */
   obj->DoGpuSkinning();
-  obj->ApplyAction(m_action, animEvalContext);
-  obj->ApplyPose();
 }
 
 void BL_Action::ProcessCPUPipeline(BL_ArmatureObject *obj,
@@ -507,8 +509,6 @@ void BL_Action::ProcessCPUPipeline(BL_ArmatureObject *obj,
   // === CPU PIPELINE ===
   scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
   m_obj->ForceIgnoreParentTx();
-  obj->ApplyAction(m_action, animEvalContext);
-  obj->ApplyPose();
 }
 
 void BL_Action::ProcessArmatureBlending(BL_ArmatureObject *obj, float curtime)
