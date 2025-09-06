@@ -549,6 +549,9 @@ void BL_ArmatureObject::InitSkinningBuffers()
     in_indices.resize(num_corners * 4, 0);
     in_weights.resize(num_corners * 4, 0.0f);
 
+    // Thresholds aligned with Blender CPU deform.
+    constexpr float kContribThreshold = 1e-4f;  // Skip corner if total contribution is too small.
+
     blender::threading::parallel_for(
         blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
           for (int v : range) {
@@ -575,6 +578,22 @@ void BL_ArmatureObject::InitSkinningBuffers()
             std::vector<Influence> influences;
             for (const auto &kv : bone_weight_map) {
               influences.push_back({kv.first, kv.second});
+            }
+
+            // Total raw contribution (before normalization).
+            float total_raw = 0.0f;
+            for (const auto &kv : bone_weight_map) {
+              total_raw += kv.second;
+            }
+
+            // Skip very small total contributions.
+            if (total_raw <= kContribThreshold) {
+              // No influences: fill with zeros
+              for (int j = 0; j < 4; ++j) {
+                in_indices[v * 4 + j] = 0;
+                in_weights[v * 4 + j] = 0.0f;
+              }
+              continue;
             }
 
             if (influences.empty()) {
@@ -843,6 +862,7 @@ void BL_ArmatureObject::DoGpuSkinning()
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
+    info.compute_source("gpu_shader_math_vector_lib.glsl");
     info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
     info.storage_buf(1, Qualifier::write, "uint", "normals[]");
     info.storage_buf(2, Qualifier::read, "ivec4", "in_idx[]");
@@ -852,7 +872,18 @@ void BL_ArmatureObject::DoGpuSkinning()
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
     info.storage_buf(7, Qualifier::read, "vec4", "rest_normals[]");
     info.storage_buf(8, Qualifier::read, "mat4", "postmat[]");
-    info.compute_source_generated = R"(
+
+    info.compute_source_generated = R"GLSL(
+#ifndef CONTRIB_THRESHOLD
+// Match BKE armature_deform contrib threshold (1e-4).
+#define CONTRIB_THRESHOLD 1e-4
+#endif
+
+#ifndef NORMAL_EPSILON
+// Minimum bone weight to contribute to normal skinning.
+#define NORMAL_EPSILON 1e-4
+#endif
+
 int convert_normalized_f32_to_i10(float x) {
   const int signed_int_10_max = 511;
   const int signed_int_10_min = -512;
@@ -861,57 +892,61 @@ int convert_normalized_f32_to_i10(float x) {
 }
 
 void main() {
-  uint v = gl_GlobalInvocationID.x;
-  if (v >= rest_positions.length()) return;
+  uint corner_index = gl_GlobalInvocationID.x;
+  if (corner_index >= rest_positions.length()) {
+    return;
+  }
 
-  // Positions
-  vec4 rest_pos = premat[0] * rest_positions[v];
-  vec4 skinned = vec4(0.0);
+  // Positions: LBS with Blender-like complement (rest_pos * (1 - total_weight)).
+  vec4 rest_pos_object = premat[0] * rest_positions[corner_index];
+
+  vec4 accumulated_pos = vec4(0.0);
   float total_weight = 0.0;
   for (int i = 0; i < 4; ++i) {
-    int bone_idx = in_idx[v][i];
-    float w = in_wgt[v][i];
-    if (w > 0.0) {
-      mat4 deform_mat = bone_pose_mat[bone_idx];
-      vec4 transformed = deform_mat * rest_pos;
-      skinned += transformed * w;
-      total_weight += w;
+    int   bone_index = in_idx[corner_index][i];
+    float weight     = in_wgt[corner_index][i];
+    if (weight > 0.0) {
+      accumulated_pos += (bone_pose_mat[bone_index] * rest_pos_object) * weight;
+      total_weight    += weight;
     }
   }
-  // Correction Blender-like :
-  vec4 finalpos = skinned + rest_pos * (1.0 - total_weight);
-  positions[v] = postmat[0] * finalpos;
 
-  // Normals
-  vec4 n4 = premat[0] * rest_normals[v];
-  vec3 n = n4.xyz;
-  vec3 skinned_n = vec3(0.0);
-  float total_weight_n = 0.0;
+  vec4 skinned_pos_object = (total_weight <= CONTRIB_THRESHOLD)
+                                ? rest_pos_object
+                                : (accumulated_pos + rest_pos_object * (1.0 - total_weight));
+  positions[corner_index] = postmat[0] * skinned_pos_object;
+
+  // Normals: per-bone inverse-transpose blend (simple IT, no TBN or adaptive mixing).
+  // Transform rest normal into armature/object space, apply bone IT, then back to target space.
+  mat3 pre_normal   = transpose(inverse(mat3(premat[0])));
+  mat3 post_normal  = transpose(inverse(mat3(postmat[0])));
+  vec3 rest_n_object = pre_normal * rest_normals[corner_index].xyz;
+
+  vec3 accumulated_n = vec3(0.0);
+  float total_normal_weight = 0.0;
   for (int i = 0; i < 4; ++i) {
-    int bone_idx = in_idx[v][i];
-    float w = in_wgt[v][i];
-    if (w > 0.0) {
-      mat3 rot = mat3(bone_pose_mat[bone_idx]);
-      mat3 normal_matrix = transpose(inverse(rot));
-      skinned_n += (normal_matrix * n) * w;
-      total_weight_n += w;
+    int   bone_index = in_idx[corner_index][i];
+    float weight     = in_wgt[corner_index][i];
+    if (weight > NORMAL_EPSILON) {
+      mat3 bone_normal_mat = transpose(inverse(mat3(bone_pose_mat[bone_index])));
+      accumulated_n       += (bone_normal_mat * rest_n_object) * weight;
+      total_normal_weight += weight;
     }
   }
-  if (total_weight_n < 1.0) {
-    skinned_n += n * (1.0 - total_weight_n);
+  if (total_normal_weight < 1.0) {
+    accumulated_n += rest_n_object * (1.0 - total_normal_weight);
   }
 
-  vec3 finaln = normalize((postmat[0] * vec4(skinned_n, 0.0)).xyz);
+  // Normalize in a numerically robust way using the shared math library.
+  vec3 final_n = safe_normalize(post_normal * accumulated_n);
 
-  // Same conversion than in Blender
-  int x = convert_normalized_f32_to_i10(finaln.x);
-  int y = convert_normalized_f32_to_i10(finaln.y);
-  int z = convert_normalized_f32_to_i10(finaln.z);
-  int w = 0;
-  // Packing in format 10+10+10+2 with correct sign gestion
-  normals[v] = uint((x & 0x3FF) | ((y & 0x3FF) << 10) | ((z & 0x3FF) << 20) | ((w & 0x3) << 30));
+  // Pack to 10_10_10_2 SNORM (W ignored).
+  int nx = convert_normalized_f32_to_i10(final_n.x);
+  int ny = convert_normalized_f32_to_i10(final_n.y);
+  int nz = convert_normalized_f32_to_i10(final_n.z);
+  normals[corner_index] = uint((nx & 0x3FF) | ((ny & 0x3FF) << 10) | ((nz & 0x3FF) << 20));
 }
-    )";
+)GLSL";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
