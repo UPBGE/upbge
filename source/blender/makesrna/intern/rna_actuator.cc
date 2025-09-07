@@ -2324,7 +2324,7 @@ static void rna_def_steering_actuator(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 2.0f);
   RNA_def_property_ui_text(prop, "Path Lerp",
                            "Interpolation to smooth steering when changing paths"
-                           "or between different directions of the same path.);
+                           "or between different directions of the same path.");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 
