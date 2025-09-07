@@ -97,12 +97,12 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     return;
   }
 
-  /* UPBGE: For GPU skinning */
+  /* UPBGE shadows artifacts GPU skinning fix */
   if (ob->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob->data;
     if (me_eval->is_running_skinning) {
-      // Reset to avoid shadow artifacts.
-      inst_.shadows.reset();
+      // Clear to avoid shadow artifacts.
+      inst_.shadows.mark_gpu_skinning_clear_needed();
     }
   }
 
