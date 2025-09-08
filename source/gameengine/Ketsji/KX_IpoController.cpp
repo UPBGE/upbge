@@ -44,9 +44,8 @@ typedef unsigned long uint_ptr;
 
 #include "KX_IpoController.h"
 
-#include "DNA_ipo_types.h"
-
 #include "KX_GameObject.h"
+#include "KX_IpoChannels.h"
 #include "KX_ScalarInterpolator.h"
 #include "PHY_IPhysicsController.h"
 
