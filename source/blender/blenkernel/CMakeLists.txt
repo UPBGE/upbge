@@ -162,7 +162,6 @@ set(SRC
   intern/image_save.cc
   intern/instances.cc
   intern/instances_attributes.cc
-  intern/ipo.cc
   intern/kelvinlet.cc
   intern/key.cc
   intern/keyconfig.cc
@@ -434,7 +433,6 @@ set(SRC
   BKE_image_save.hh
   BKE_image_wrappers.hh
   BKE_instances.hh
-  BKE_ipo.h
   BKE_kelvinlet.h
   BKE_key.hh
   BKE_keyconfig.h

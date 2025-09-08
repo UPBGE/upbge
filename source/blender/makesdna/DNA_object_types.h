@@ -43,7 +43,6 @@ struct Collection;
 struct Curve;
 struct FluidsimSettings;
 struct ImageUser;
-struct Ipo;
 struct LightgroupMembership;
 struct Material;
 struct Object;
@@ -236,10 +235,7 @@ typedef struct Object {
   struct Object *proxy DNA_DEPRECATED;
   struct Object *proxy_group DNA_DEPRECATED;
   struct Object *proxy_from DNA_DEPRECATED;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
   // struct Path *path;
-  struct bAction *action DNA_DEPRECATED;  /* XXX deprecated... old animation system */
   struct bAction *poselib DNA_DEPRECATED; /* Pre-Blender 3.0 pose library, deprecated in 3.5. */
   /** Pose data, armature objects only. */
   struct bPose *pose;
@@ -256,10 +252,9 @@ typedef struct Object {
   bMotionPath *mpath;
   void *_pad0;
 
-  ListBase constraintChannels DNA_DEPRECATED; /* XXX deprecated... old animation system */
-  ListBase effect DNA_DEPRECATED;             /* XXX deprecated... keep for readfile */
-  ListBase defbase DNA_DEPRECATED;            /* Only for versioning, moved to object data. */
-  ListBase fmaps DNA_DEPRECATED;              /* For versioning, moved to generic attributes. */
+  ListBase effect DNA_DEPRECATED;  /* XXX deprecated... keep for readfile */
+  ListBase defbase DNA_DEPRECATED; /* Only for versioning, moved to object data. */
+  ListBase fmaps DNA_DEPRECATED;   /* For versioning, moved to generic attributes. */
   /** List of ModifierData structures. */
   ListBase modifiers;
   /** List of GpencilModifierData structures. */
@@ -373,8 +368,7 @@ typedef struct Object {
 
   /** Object constraints. */
   ListBase constraints;
-  ListBase nlastrips DNA_DEPRECATED; /* XXX deprecated... old animation system */
-  ListBase hooks DNA_DEPRECATED;     /* XXX deprecated... old animation system */
+  ListBase hooks DNA_DEPRECATED;
   /** Particle systems. */
   ListBase particlesystem;
 

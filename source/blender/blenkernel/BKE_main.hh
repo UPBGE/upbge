@@ -290,8 +290,6 @@ struct Main : blender::NonCopyable, blender::NonMovable {
   ListBase lattices = {};
   ListBase lights = {};
   ListBase cameras = {};
-  /** Deprecated (only for versioning). */
-  ListBase ipo = {};
   ListBase shapekeys = {};
   ListBase worlds = {};
   ListBase screens = {};
