@@ -19,6 +19,7 @@ struct ColorManagedColorspaceSettings;
 struct ColorManagedDisplaySettings;
 struct ColorManagedViewSettings;
 struct ColormanageProcessor;
+struct ID;
 struct EnumPropertyItem;
 struct ImBuf;
 struct ImageFormatData;
@@ -110,6 +111,14 @@ BLI_INLINE void IMB_colormanagement_aces_to_scene_linear(float scene_linear[3],
                                                          const float aces[3]);
 BLI_INLINE void IMB_colormanagement_scene_linear_to_aces(float aces[3],
                                                          const float scene_linear[3]);
+BLI_INLINE void IMB_colormanagement_acescg_to_scene_linear(float scene_linear[3],
+                                                           const float acescg[3]);
+BLI_INLINE void IMB_colormanagement_scene_linear_to_acescg(float acescg[3],
+                                                           const float scene_linear[3]);
+BLI_INLINE void IMB_colormanagement_rec2020_to_scene_linear(float scene_linear[3],
+                                                            const float rec2020[3]);
+BLI_INLINE void IMB_colormanagement_scene_linear_to_rec2020(float rec2020[3],
+                                                            const float scene_linear[3]);
 blender::float3x3 IMB_colormanagement_get_xyz_to_scene_linear();
 blender::float3x3 IMB_colormanagement_get_scene_linear_to_xyz();
 
@@ -381,6 +390,35 @@ const char *IMB_colormanagement_view_get_raw_or_default_name(const char *display
 
 void IMB_colormanagement_colorspace_from_ibuf_ftype(
     ColorManagedColorspaceSettings *colorspace_settings, ImBuf *ibuf);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Working Space Functions
+ * \{ */
+
+const char *IMB_colormanagement_working_space_get_default();
+const char *IMB_colormanagement_working_space_get();
+
+bool IMB_colormanagement_working_space_set_from_name(const char *name);
+void IMB_colormanagement_working_space_check(Main *bmain,
+                                             const bool for_undo,
+                                             const bool have_editable_assets);
+
+void IMB_colormanagement_working_space_init_default(Main *bmain);
+void IMB_colormanagement_working_space_init_startup(Main *bmain);
+void IMB_colormanagement_working_space_convert(
+    Main *bmain,
+    const blender::float3x3 &current_scene_linear_to_xyz,
+    const blender::float3x3 &new_xyz_to_scene_linear,
+    const bool depsgraph_tag = false,
+    const bool linked_only = false,
+    const bool editable_assets_only = false);
+void IMB_colormanagement_working_space_convert(Main *bmain, const Main *reference_bmain);
+
+int IMB_colormanagement_working_space_get_named_index(const char *name);
+const char *IMB_colormanagement_working_space_get_indexed_name(int index);
+void IMB_colormanagement_working_space_items_add(EnumPropertyItem **items, int *totitem);
 
 /** \} */
 

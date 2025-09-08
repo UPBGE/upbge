@@ -25,6 +25,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector_set.hh"
@@ -140,11 +141,27 @@ enum {
   MAINIDRELATIONS_INCLUDE_UI = 1 << 0,
 };
 
+struct MainColorspace {
+  /*
+   * File working colorspace for all scene linear colors.
+   * The name is only for the user interface and is not a unique identifier, the matrix is
+   * the XYZ colorspace is the source of truth.
+   * */
+  char scene_linear_name[64 /*MAX_COLORSPACE_NAME*/] = "";
+  blender::float3x3 scene_linear_to_xyz = blender::float3x3::zero();
+
+  /*
+   * A colorspace, view or display was not found, which likely means the OpenColorIO config
+   * used to create this blend file is missing.
+   */
+  bool is_missing_opencolorio_config = false;
+};
+
 struct Main : blender::NonCopyable, blender::NonMovable {
   /**
    * Runtime vector storing all split Mains (one Main for each library data), during readfile or
    * linking process.
-   * Shared accross all of the split mains when defined.
+   * Shared across all of the split mains when defined.
    */
   std::shared_ptr<blender::VectorSet<Main *>> split_mains = {};
   /**
@@ -253,6 +270,11 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * isolate and process all linked IDs from a single library.
    */
   Library *curlib = nullptr;
+
+  /*
+   * Colorspace information for this file.
+   */
+  MainColorspace colorspace;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 

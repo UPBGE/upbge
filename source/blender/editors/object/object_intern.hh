@@ -103,8 +103,8 @@ void OBJECT_OT_game_physics_copy(wmOperatorType *ot);
 
 void OBJECT_OT_move_to_collection(wmOperatorType *ot);
 void OBJECT_OT_link_to_collection(wmOperatorType *ot);
-void move_to_colletion_menu_register();
-void link_to_colletion_menu_register();
+void move_to_collection_menu_register();
+void link_to_collection_menu_register();
 
 void OBJECT_OT_transfer_mode(wmOperatorType *ot);
 

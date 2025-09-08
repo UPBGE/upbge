@@ -112,6 +112,8 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_utils.hh"
 
+#include "IMB_colormanagement.hh"
+
 #include "readfile.hh"
 #include "versioning_common.hh"
 
@@ -448,6 +450,7 @@ void blo_split_main(Main *bmain)
     libmain->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
         libmain, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
     libmain->is_asset_edit_file = (lib->runtime->tag & LIBRARY_IS_ASSET_EDIT_FILE) != 0;
+    libmain->colorspace = lib->runtime->colorspace;
     bmain->split_mains->add_new(libmain);
     libmain->split_mains = bmain->split_mains;
     lib->runtime->temp_index = i;
@@ -468,7 +471,7 @@ void blo_split_main(Main *bmain)
   MEM_freeN(lib_main_array);
 }
 
-static void read_file_version(FileData *fd, Main *main)
+static void read_file_version_and_colorspace(FileData *fd, Main *main)
 {
   BHead *bhead;
 
@@ -486,11 +489,14 @@ static void read_file_version(FileData *fd, Main *main)
         main->subversionfile = fg->subversion;
         main->minversionfile = fg->minversion;
         main->minsubversionfile = fg->minsubversion;
+        main->upbgeversionfile = fg->upbgeversion;
+        main->upbgesubversionfile = fg->upbgesubversion;
         main->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
             main, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
         main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
-        main->upbgeversionfile = fg->upbgeversion;
-        main->upbgesubversionfile = fg->upbgesubversion;
+        STRNCPY(main->colorspace.scene_linear_name, fg->colorspace_scene_linear_name);
+        main->colorspace.scene_linear_to_xyz = blender::float3x3(
+            fg->colorspace_scene_linear_to_xyz);
         MEM_freeN(fg);
       }
       else if (bhead->code == BLO_CODE_ENDB) {
@@ -503,6 +509,7 @@ static void read_file_version(FileData *fd, Main *main)
     main->curlib->runtime->subversionfile = main->subversionfile;
     SET_FLAG_FROM_TEST(
         main->curlib->runtime->tag, main->is_asset_edit_file, LIBRARY_IS_ASSET_EDIT_FILE);
+    main->curlib->runtime->colorspace = main->colorspace;
   }
 }
 
@@ -594,7 +601,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 
   m->curlib = lib;
 
-  read_file_version(fd, m);
+  read_file_version_and_colorspace(fd, m);
 
   if (G.debug & G_DEBUG) {
     CLOG_DEBUG(&LOG, "Added new lib %s", filepath);
@@ -3256,6 +3263,10 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
   STRNCPY(bfd->main->build_hash, fg->build_hash);
   bfd->main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
 
+  STRNCPY(bfd->main->colorspace.scene_linear_name, fg->colorspace_scene_linear_name);
+  bfd->main->colorspace.scene_linear_to_xyz = blender::float3x3(
+      fg->colorspace_scene_linear_to_xyz);
+
   bfd->fileflags = fg->fileflags;
   bfd->globalf = fg->globalf;
 
@@ -4037,6 +4048,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
                                       mainvar->curlib->runtime->filedata :
                                       fd,
                                   mainvar);
+        IMB_colormanagement_working_space_convert(mainvar, bfd->main);
       }
       blo_join_main(bfd->main);
 
@@ -4630,7 +4642,7 @@ static Main *library_link_begin(Main *mainvar,
 
   /* needed for do_version */
   mainl->versionfile = short(fd->fileversion);
-  read_file_version(fd, mainl);
+  read_file_version_and_colorspace(fd, mainl);
   read_file_bhead_idname_map_create(fd);
 
   return mainl;
@@ -4679,6 +4691,7 @@ static void split_main_newid(Main *mainptr, Main *main_newid)
   main_newid->subversionfile = mainptr->subversionfile;
   STRNCPY(main_newid->filepath, mainptr->filepath);
   main_newid->curlib = mainptr->curlib;
+  main_newid->colorspace = mainptr->colorspace;
 
   MainListsArray lbarray = BKE_main_lists_get(*mainptr);
   MainListsArray lbarray_newid = BKE_main_lists_get(*main_newid);
@@ -4761,6 +4774,7 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportL
                                   main_newid->curlib->runtime->filedata :
                                   *fd,
                               main_newid);
+    IMB_colormanagement_working_space_convert(main_newid, mainvar);
 
     add_main_to_main(mainlib, main_newid);
 
@@ -5070,7 +5084,7 @@ static FileData *read_library_file_data(FileData *basefd, Main *bmain, Main *lib
     lib_bmain->versionfile = fd->fileversion;
 
     /* subversion */
-    read_file_version(fd, lib_bmain);
+    read_file_version_and_colorspace(fd, lib_bmain);
     read_file_bhead_idname_map_create(fd);
   }
   else {
@@ -5080,6 +5094,7 @@ static FileData *read_library_file_data(FileData *basefd, Main *bmain, Main *lib
     /* Set lib version to current main one... Makes assert later happy. */
     lib_bmain->versionfile = lib_bmain->curlib->runtime->versionfile = bmain->versionfile;
     lib_bmain->subversionfile = lib_bmain->curlib->runtime->subversionfile = bmain->subversionfile;
+    lib_bmain->colorspace = lib_bmain->curlib->runtime->colorspace = bmain->colorspace;
   }
 
   if (fd == nullptr) {

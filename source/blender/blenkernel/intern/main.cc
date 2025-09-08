@@ -38,6 +38,7 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_report.hh"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -88,6 +89,7 @@ Main::~Main()
 Main *BKE_main_new()
 {
   Main *bmain = MEM_new<Main>(__func__);
+  IMB_colormanagement_working_space_init_default(bmain);
   return bmain;
 }
 
@@ -472,12 +474,14 @@ bool BKE_main_is_empty(Main *bmain)
 
 bool BKE_main_has_issues(const Main *bmain)
 {
-  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file ||
+         bmain->colorspace.is_missing_opencolorio_config;
 }
 
 bool BKE_main_needs_overwrite_confirm(const Main *bmain)
 {
-  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file ||
+         bmain->colorspace.is_missing_opencolorio_config;
 }
 
 void BKE_main_lock(Main *bmain)

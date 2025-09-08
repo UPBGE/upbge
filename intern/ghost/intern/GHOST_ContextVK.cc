@@ -455,8 +455,8 @@ struct GHOST_InstanceVK {
   }
 
   bool create_device(const bool use_vk_ext_swapchain_maintenance1,
-                     vector<const char *> required_device_extensions,
-                     vector<const char *> optional_device_extensions)
+                     vector<const char *> &required_device_extensions,
+                     vector<const char *> &optional_device_extensions)
   {
     device.emplace(vk_physical_device, use_vk_ext_swapchain_maintenance1);
     GHOST_DeviceVK &device = *this->device;
@@ -1183,7 +1183,8 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   create_info.imageColorSpace = surface_format_.colorSpace;
   create_info.imageExtent = render_extent_;
   create_info.imageArrayLayers = 1;
-  create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+  create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                           (use_hdr_swapchain ? VK_IMAGE_USAGE_STORAGE_BIT : 0);
   create_info.preTransform = capabilities.currentTransform;
   create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   create_info.presentMode = present_mode;
@@ -1334,7 +1335,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       instance_vk.extensions.enable(native_surface_extension_name);
       /* X11 doesn't use the correct swapchain offset, flipping can squash the first frames. */
       const bool use_vk_ext_swapchain_maintenance1 =
-#if WITH_GHOST_X11
+#ifdef WITH_GHOST_X11
           platform_ != GHOST_kVulkanPlatformX11 &&
 #endif
           instance_vk.extensions.is_supported(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
