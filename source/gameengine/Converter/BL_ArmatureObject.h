@@ -58,7 +58,8 @@ struct ModifierStackBackup {
 
 /* Used to share resources used by several replicas */
 struct BGE_SkinStaticBuffers {
-  blender::gpu::Shader *shader = nullptr;
+  blender::gpu::Shader *shader_scatter_to_corners = nullptr;
+  blender::gpu::Shader *shader_skin_vertices = nullptr;
 
   std::vector<int> in_indices = {};
   std::vector<float> in_weights = {};
@@ -66,12 +67,15 @@ struct BGE_SkinStaticBuffers {
   blender::gpu::StorageBuf *ssbo_in_wgt = nullptr;
   blender::gpu::StorageBuf *ssbo_rest_positions = nullptr;
   blender::gpu::StorageBuf *ssbo_topology = nullptr;
+  blender::gpu::StorageBuf *ssbo_face_normals = nullptr;
+  blender::gpu::StorageBuf *ssbo_skinned_vert_positions = nullptr;
 
   int face_offsets_offset = 0;
   int corner_to_face_offset = 0;
   int corner_verts_offset = 0;
   int vert_to_face_offsets_offset = 0;
   int vert_to_face_offset = 0;
+  int vert_first_corner_map_offset = 0;
 
   int ref_count = 1;
 };

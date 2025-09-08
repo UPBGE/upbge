@@ -218,14 +218,18 @@ BL_ArmatureObject::~BL_ArmatureObject()
 
   if (m_skinStatic) {
     if (--m_skinStatic->ref_count == 0) {
-      if (m_skinStatic->shader) {
-        GPU_shader_free(m_skinStatic->shader);
+      if (m_skinStatic->shader_skin_vertices) {
+        GPU_shader_free(m_skinStatic->shader_skin_vertices);
+      }
+      if (m_skinStatic->shader_scatter_to_corners) {
+        GPU_shader_free(m_skinStatic->shader_scatter_to_corners);
       }
       if (m_skinStatic->ssbo_in_idx) {
         GPU_storagebuf_free(m_skinStatic->ssbo_in_idx);
         GPU_storagebuf_free(m_skinStatic->ssbo_in_wgt);
         GPU_storagebuf_free(m_skinStatic->ssbo_topology);
         GPU_storagebuf_free(m_skinStatic->ssbo_rest_positions);
+        GPU_storagebuf_free(m_skinStatic->ssbo_skinned_vert_positions);
       }
       delete m_skinStatic;
     }
@@ -654,6 +658,15 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
           }
         });
 
+    // Build vert -> first_corner map
+    std::vector<int> vert_first_corner_map(verts_num, -1);
+    for (int c = 0; c < num_corners; ++c) {
+      const int v_idx = corner_verts[c];
+      if (vert_first_corner_map[v_idx] == -1) {
+        vert_first_corner_map[v_idx] = c;
+      }
+    }
+
     // Offsets for each sub-array in the packed buffer.
     m_skinStatic->face_offsets_offset = 0;
     m_skinStatic->corner_to_face_offset = m_skinStatic->face_offsets_offset +
@@ -664,7 +677,10 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
                                                 int(corner_verts_vec.size());
     m_skinStatic->vert_to_face_offset = m_skinStatic->vert_to_face_offsets_offset +
                                         int(v2f_offsets.size());
-    int topo_total_size = m_skinStatic->vert_to_face_offset + int(v2f_indices.size());
+    m_skinStatic->vert_first_corner_map_offset = m_skinStatic->vert_to_face_offset +
+                                                 int(v2f_indices.size());
+    int topo_total_size = m_skinStatic->vert_first_corner_map_offset +
+                          int(vert_first_corner_map.size());
 
     // Final packing.
     std::vector<int> topo;
@@ -674,6 +690,7 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     topo.insert(topo.end(), corner_verts_vec.begin(), corner_verts_vec.end());
     topo.insert(topo.end(), v2f_offsets.begin(), v2f_offsets.end());
     topo.insert(topo.end(), v2f_indices.begin(), v2f_indices.end());
+    topo.insert(topo.end(), vert_first_corner_map.begin(), vert_first_corner_map.end());
 
     // Create and upload the unique SSBO.
     if (!m_skinStatic->ssbo_topology) {
@@ -697,6 +714,10 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
                                                                 num_corners);
     }
     GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
+    if (!m_skinStatic->ssbo_skinned_vert_positions) {
+      m_skinStatic->ssbo_skinned_vert_positions = GPU_storagebuf_create(sizeof(blender::float4) *
+                                                                        verts_num);
+    }
   }
 }
 
@@ -899,65 +920,32 @@ void BL_ArmatureObject::DoGpuSkinning()
   }
   GPU_storagebuf_update(m_ssbo_postmat, &postmat[0][0]);
 
-  // 5. Compile skinning shader
-  if (!m_skinStatic->shader) {
-    ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
+  const int verts_num = mesh_eval->verts_num;
+
+  // 5. Compile skinning shaders
+  if (!m_skinStatic->shader_skin_vertices) {
+    ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
     info.local_group_size(256, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
-    info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
-    info.storage_buf(1, Qualifier::write, "uint", "normals[]");
-    info.storage_buf(2, Qualifier::read, "ivec4", "in_idx[]");
-    info.storage_buf(3, Qualifier::read, "vec4", "in_wgt[]");
-    info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
-    info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(6, Qualifier::read, "mat4", "postmat[]");
-    info.storage_buf(7, Qualifier::read, "int", "topo[]");
-    info.storage_buf(8, Qualifier::read, "vec4", "rest_positions[]");
-    info.push_constant(Type::int_t, "face_offsets_offset");
-    info.push_constant(Type::int_t, "corner_to_face_offset");
-    info.push_constant(Type::int_t, "corner_verts_offset");
-    info.push_constant(Type::int_t, "vert_to_face_offsets_offset");
-    info.push_constant(Type::int_t, "vert_to_face_offset");
-    info.push_constant(Type::int_t, "normals_domain");
+    info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
+    info.storage_buf(1, Qualifier::read, "ivec4", "in_idx[]");
+    info.storage_buf(2, Qualifier::read, "vec4", "in_wgt[]");
+    info.storage_buf(3, Qualifier::read, "mat4", "bone_pose_mat[]");
+    info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
+    info.storage_buf(5, Qualifier::read, "int", "topo[]");
+    info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
+    info.push_constant(Type::int_t, "vert_first_corner_map_offset");
 
     info.compute_source_generated = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
 #define CONTRIB_THRESHOLD 1e-4
 #endif
-#ifndef NORMAL_EPSILON
-#define NORMAL_EPSILON 1e-4
-#endif
 
-// Utility accessors for the packed buffer.
-int face_offsets(int i) { return topo[face_offsets_offset + i]; }
-int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
-int corner_verts(int i) { return topo[corner_verts_offset + i]; }
-int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
-int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
-
-// 10_10_10_2 packing utility (W is ignored).
-int pack_i10_trunc(float x)
-{
-  const int signed_int_10_max = 511;
-  const int signed_int_10_min = -512;
-  float s = x * float(signed_int_10_max);
-  int q = int(s); // truncate towards zero
-  q = clamp(q, signed_int_10_min, signed_int_10_max);
-  return q & 0x3FF;
+int get_first_corner_for_vert(int v_idx) {
+  return topo[vert_first_corner_map_offset + v_idx];
 }
 
-uint pack_norm(vec3 n)
-{
-  int nx = pack_i10_trunc(n.x);
-  int ny = pack_i10_trunc(n.y);
-  int nz = pack_i10_trunc(n.z);
-  // W=0 to match the C++ PackedNormal.
-  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
-}
-
-// Reskin a corner in armature-object space for local reuse.
-vec4 skin_corner_pos_object(int corner) {
-  // Replace rest_positions[corner] with positions[corner] if you use the positions VBO as input.
+vec4 skin_pos_object(int corner) {
   vec4 rest_pos_object = premat[0] * rest_positions[corner];
   vec4 acc = vec4(0.0);
   float tw = 0.0;
@@ -972,30 +960,76 @@ vec4 skin_corner_pos_object(int corner) {
   return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
 }
 
-// Face normal (Newell) calculated on skinned positions (final space).
-vec3 newell_face_normal_skinned(int f){
+void main() {
+  uint v = gl_GlobalInvocationID.x;
+  if (v >= skinned_vert_positions.length()) {
+    return;
+  }
+  int c = get_first_corner_for_vert(int(v));
+  skinned_vert_positions[v] = skin_pos_object(c);
+}
+)GLSL";
+    m_skinStatic->shader_skin_vertices = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  }
+
+  if (!m_skinStatic->shader_scatter_to_corners) {
+    ShaderCreateInfo info("BGE_Armature_Scatter_Pass");
+    info.local_group_size(256, 1, 1);
+    info.compute_source("draw_colormanagement_lib.glsl");
+    info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
+    info.storage_buf(1, Qualifier::write, "uint", "normals[]");
+    info.storage_buf(2, Qualifier::read, "vec4", "skinned_vert_positions[]");
+    info.storage_buf(3, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(4, Qualifier::read, "int", "topo[]");
+    info.push_constant(Type::int_t, "face_offsets_offset");
+    info.push_constant(Type::int_t, "corner_to_face_offset");
+    info.push_constant(Type::int_t, "corner_verts_offset");
+    info.push_constant(Type::int_t, "vert_to_face_offsets_offset");
+    info.push_constant(Type::int_t, "vert_to_face_offset");
+    info.push_constant(Type::int_t, "normals_domain");
+
+    info.compute_source_generated = R"GLSL(
+// Utility accessors
+int face_offsets(int i) { return topo[face_offsets_offset + i]; }
+int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
+int corner_verts(int i) { return topo[corner_verts_offset + i]; }
+int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
+int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
+
+// 10_10_10_2 packing utility
+int pack_i10_trunc(float x) {
+  const int signed_int_10_max = 511;
+  const int signed_int_10_min = -512;
+  float s = x * float(signed_int_10_max);
+  int q = int(s);
+  q = clamp(q, signed_int_10_min, signed_int_10_max);
+  return q & 0x3FF;
+}
+
+uint pack_norm(vec3 n) {
+  int nx = pack_i10_trunc(n.x);
+  int ny = pack_i10_trunc(n.y);
+  int nz = pack_i10_trunc(n.z);
+  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
+}
+
+vec3 newell_face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
   vec3 n = vec3(0.0);
-  vec3 v_prev = (postmat[0] * skin_corner_pos_object(end - 1)).xyz;
+  int v_prev_idx = corner_verts(end - 1);
+  vec3 v_prev = skinned_vert_positions[v_prev_idx].xyz;
   for (int i = beg; i < end; ++i) {
-    vec3 v_curr = (postmat[0] * skin_corner_pos_object(i)).xyz;
+    int v_curr_idx = corner_verts(i);
+    vec3 v_curr = skinned_vert_positions[v_curr_idx].xyz;
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
-  return normalize(n);
+  return n;
 }
 
-vec3 smooth_point_normal_skinned(int corner) {
-  int v = corner_verts(corner);
-  int beg = vert_to_face_offsets(v);
-  int end = vert_to_face_offsets(v + 1);
-  vec3 n = vec3(0.0);
-  for (int i = beg; i < end; ++i) {
-    int f = vert_to_face(i);
-    n += newell_face_normal_skinned(f);
-  }
-  return normalize(n);
+vec3 transform_normal(vec3 n, mat4 m) {
+  return transpose(inverse(mat3(m))) * n;
 }
 
 void main() {
@@ -1004,67 +1038,87 @@ void main() {
     return;
   }
 
-  // 1) Skinned position (write to VBO).
-  vec4 p_obj = skin_corner_pos_object(int(c));
-  vec3 p     = (postmat[0] * p_obj).xyz;
-  positions[c] = vec4(p, 1.0);
+  int v = corner_verts(int(c));
 
-  // 2) Normal calculation.
-  vec3 n;
-  if (normals_domain == 1) {
-    // Face: flat normal for all corners of the face.
+  // 1) Scatter position
+  vec4 p_obj = skinned_vert_positions[v];
+  positions[c] = postmat[0] * p_obj;
+
+  // 2) Calculate and scatter normal
+  vec3 n_obj;
+  if (normals_domain == 1) { // Face
     int f = corner_to_face(int(c));
-    n = newell_face_normal_skinned(f);
+    n_obj = newell_face_normal_object(f);
   }
-  else {
-    // Point: average all incident faces' normals (true smooth, Blender style).
-    n = smooth_point_normal_skinned(int(c));
+  else { // Point
+    int beg = vert_to_face_offsets(v);
+    int end = vert_to_face_offsets(v + 1);
+    vec3 n_accum = vec3(0.0);
+    for (int i = beg; i < end; ++i) {
+      int f = vert_to_face(i);
+      n_accum += newell_face_normal_object(f);
+    }
+    n_obj = n_accum;
   }
 
-  normals[c] = pack_norm(n);
+  vec3 n_world = transform_normal(n_obj, postmat[0]);
+  normals[c] = pack_norm(normalize(n_world));
 }
 )GLSL";
-    m_skinStatic->shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+    m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info(
+        (GPUShaderCreateInfo *)&info);
   }
 
-  // 6. Dispatch compute shader
-  GPU_shader_bind(m_skinStatic->shader);
+  const int group_size = 256;
+
+  // 6. Pass 1: Skin vertices
+  GPU_shader_bind(m_skinStatic->shader_skin_vertices);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 0);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_in_idx, 1);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 2);
+  GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 3);
+  GPU_storagebuf_bind(m_ssbo_premat, 4);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 5);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 6);
+  GPU_shader_uniform_1i(m_skinStatic->shader_skin_vertices,
+                        "vert_first_corner_map_offset",
+                        m_skinStatic->vert_first_corner_map_offset);
+
+  const int num_groups_verts = (verts_num + group_size - 1) / group_size;
+  GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+
+  // 7. Pass 2: Scatter to corners and calculate normals
+  GPU_shader_bind(m_skinStatic->shader_scatter_to_corners);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_in_idx, 2);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 3);
-  GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 4);
-  GPU_storagebuf_bind(m_ssbo_premat, 5);
-  GPU_storagebuf_bind(m_ssbo_postmat, 6);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 7);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 8);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "face_offsets_offset", m_skinStatic->face_offsets_offset);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "corner_to_face_offset", m_skinStatic->corner_to_face_offset);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "corner_verts_offset", m_skinStatic->corner_verts_offset);
-  GPU_shader_uniform_1i(m_skinStatic->shader,
+  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 2);
+  GPU_storagebuf_bind(m_ssbo_postmat, 3);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 4);
+
+  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
+                        "face_offsets_offset",
+                        m_skinStatic->face_offsets_offset);
+  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
+                        "corner_to_face_offset",
+                        m_skinStatic->corner_to_face_offset);
+  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
+                        "corner_verts_offset",
+                        m_skinStatic->corner_verts_offset);
+  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
                         "vert_to_face_offsets_offset",
                         m_skinStatic->vert_to_face_offsets_offset);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "vert_to_face_offset", m_skinStatic->vert_to_face_offset);
+  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
+                        "vert_to_face_offset",
+                        m_skinStatic->vert_to_face_offset);
 
   int domain = mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
-  GPU_shader_uniform_1i(m_skinStatic->shader, "normals_domain", domain);
+  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners, "normals_domain", domain);
 
-  const int group_size = 256;
-  const int num_groups = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(m_skinStatic->shader, num_groups, 1, 1);
+  const int num_groups_corners = (num_corners + group_size - 1) / group_size;
+  GPU_compute_dispatch(m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_in_idx);
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_in_wgt);
-  GPU_storagebuf_unbind(m_ssbo_bone_pose_mat);
-  GPU_storagebuf_unbind(m_ssbo_premat);
-  GPU_storagebuf_unbind(m_ssbo_postmat);
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_topology);
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_rest_positions);
   GPU_shader_unbind();
 
   // Notify the dependency graph that the deformed mesh's transform has changed.
