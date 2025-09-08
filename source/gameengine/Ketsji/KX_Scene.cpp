@@ -38,6 +38,7 @@
 
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BLI_math_base.h"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
