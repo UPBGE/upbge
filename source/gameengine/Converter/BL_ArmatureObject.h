@@ -56,6 +56,26 @@ struct ModifierStackBackup {
   int position;
 };
 
+/* Used to share resources used by several replicas */
+struct BGE_SkinStaticBuffers {
+  blender::gpu::Shader *shader = nullptr;
+
+  std::vector<int> in_indices = {};
+  std::vector<float> in_weights = {};
+  blender::gpu::StorageBuf *ssbo_in_idx = nullptr;
+  blender::gpu::StorageBuf *ssbo_in_wgt = nullptr;
+  blender::gpu::StorageBuf *ssbo_rest_positions = nullptr;
+  blender::gpu::StorageBuf *ssbo_topology = nullptr;
+
+  int face_offsets_offset = 0;
+  int corner_to_face_offset = 0;
+  int corner_verts_offset = 0;
+  int vert_to_face_offsets_offset = 0;
+  int vert_to_face_offset = 0;
+
+  int ref_count = 1;
+};
+
 class BL_ArmatureObject : public KX_GameObject {
   Py_Header
 
@@ -75,24 +95,12 @@ class BL_ArmatureObject : public KX_GameObject {
   /* If using gpu deform, mesh has to be replicated to ensure
    * unique data to be deformed by shader */
   Mesh *m_deformedReplicaData;
-  blender::gpu::Shader *m_shader;
+  BGE_SkinStaticBuffers *m_skinStatic;
   std::vector<ModifierStackBackup> m_modifiersListbackup;
 
-  std::vector<int> m_in_indices;
-  std::vector<float> m_in_weights;
-  blender::gpu::StorageBuf *m_ssbo_in_idx;
-  blender::gpu::StorageBuf *m_ssbo_in_wgt;
   blender::gpu::StorageBuf *m_ssbo_bone_pose_mat;
   blender::gpu::StorageBuf *m_ssbo_premat;
   blender::gpu::StorageBuf *m_ssbo_postmat;
-  blender::gpu::StorageBuf *m_ssbo_rest_positions;
-  blender::gpu::StorageBuf *m_ssbo_topology;
-
-  int m_face_offsets_offset;
-  int m_corner_to_face_offset;
-  int m_corner_verts_offset;
-  int m_vert_to_face_offsets_offset;
-  int m_vert_to_face_offset;
 
   double m_lastframe;
   size_t m_constraintNumber;
@@ -125,7 +133,8 @@ class BL_ArmatureObject : public KX_GameObject {
   void RemapParentChildren();
   void GetGpuDeformedObj();
   void ApplyAction(bAction *action, const AnimationEvalContext &evalCtx);
-  void InitSkinningBuffers();
+  // Initialize resources which can be shared between replicas (shader, some ssbos...)
+  void InitStaticSkinningBuffers();
   void DoGpuSkinning();
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 

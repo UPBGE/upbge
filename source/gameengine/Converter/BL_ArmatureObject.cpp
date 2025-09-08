@@ -185,21 +185,10 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_deformedObj = nullptr;
   m_useGPUDeform = false;
   m_deformedReplicaData = nullptr;
-  m_shader = nullptr;
-  m_ssbo_in_idx = nullptr;
-  m_ssbo_in_wgt = nullptr;
+  m_skinStatic = nullptr;
   m_ssbo_bone_pose_mat = nullptr;
   m_ssbo_premat = nullptr;
   m_ssbo_postmat = nullptr;
-  m_ssbo_topology = nullptr;
-  m_ssbo_rest_positions = nullptr;
-  m_face_offsets_offset = 0;
-  m_corner_to_face_offset = 0;
-  m_corner_verts_offset = 0;
-  m_vert_to_face_offsets_offset = 0;
-  m_vert_to_face_offset = 0;
-  m_in_indices = {};
-  m_in_weights = {};
   m_modifiersListbackup = {};
 }
 
@@ -227,33 +216,33 @@ BL_ArmatureObject::~BL_ArmatureObject()
   }
   m_deformedObj = nullptr;
 
-  if (m_shader) {
-    GPU_shader_free(m_shader);
-    m_shader = nullptr;
+  if (m_skinStatic) {
+    if (--m_skinStatic->ref_count == 0) {
+      if (m_skinStatic->shader) {
+        GPU_shader_free(m_skinStatic->shader);
+      }
+      if (m_skinStatic->ssbo_in_idx) {
+        GPU_storagebuf_free(m_skinStatic->ssbo_in_idx);
+        GPU_storagebuf_free(m_skinStatic->ssbo_in_wgt);
+        GPU_storagebuf_free(m_skinStatic->ssbo_topology);
+        GPU_storagebuf_free(m_skinStatic->ssbo_rest_positions);
+      }
+      delete m_skinStatic;
+    }
+    m_skinStatic = nullptr;
   }
-  if (m_ssbo_in_idx) {
-    GPU_storagebuf_free(m_ssbo_in_idx);
-    GPU_storagebuf_free(m_ssbo_in_wgt);
+
+  if (m_ssbo_bone_pose_mat) {
     GPU_storagebuf_free(m_ssbo_bone_pose_mat);
     GPU_storagebuf_free(m_ssbo_premat);
     GPU_storagebuf_free(m_ssbo_postmat);
-    GPU_storagebuf_free(m_ssbo_topology);
-    GPU_storagebuf_free(m_ssbo_rest_positions);
-    m_ssbo_in_idx = nullptr;
-    m_ssbo_in_wgt = nullptr;
     m_ssbo_bone_pose_mat = nullptr;
     m_ssbo_premat = nullptr;
     m_ssbo_postmat = nullptr;
-    m_ssbo_topology = nullptr;
-    m_ssbo_rest_positions = nullptr;
-    m_face_offsets_offset = 0;
-    m_corner_to_face_offset = 0;
-    m_corner_verts_offset = 0;
-    m_vert_to_face_offsets_offset = 0;
-    m_vert_to_face_offset = 0;
   }
+
   if (m_deformedReplicaData) {
-    bContext *C = KX_GetActiveEngine()->GetContext(); 
+    bContext *C = KX_GetActiveEngine()->GetContext();
     BKE_id_delete(CTX_data_main(C), &m_deformedReplicaData->id);
     m_deformedReplicaData = nullptr;
   }
@@ -420,6 +409,10 @@ void BL_ArmatureObject::ProcessReplica()
 
   m_objArma = m_pBlenderObject;
 
+  if (m_skinStatic) {
+    m_skinStatic->ref_count++;
+  }
+
   LoadChannels();
 }
 
@@ -470,9 +463,12 @@ void BL_ArmatureObject::ApplyPose()
   }
 }
 
-void BL_ArmatureObject::InitSkinningBuffers()
+void BL_ArmatureObject::InitStaticSkinningBuffers()
 {
-  if (m_in_indices.empty()) {
+  if (!m_skinStatic) {
+    m_skinStatic = new BGE_SkinStaticBuffers();
+  }
+  if (m_skinStatic->in_indices.empty()) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
@@ -517,8 +513,8 @@ void BL_ArmatureObject::InitSkinningBuffers()
     }
 
     // 3) Fill index and weight buffers (max 4 influences per corner) in parallel.
-    m_in_indices.resize(num_corners * 4, 0);
-    m_in_weights.resize(num_corners * 4, 0.0f);
+    m_skinStatic->in_indices.resize(num_corners * 4, 0);
+    m_skinStatic->in_weights.resize(num_corners * 4, 0.0f);
     constexpr float kContribThreshold = 1e-4f;
 
     blender::threading::parallel_for(
@@ -553,8 +549,8 @@ void BL_ArmatureObject::InitSkinningBuffers()
 
             if (total_raw <= kContribThreshold || influences.empty()) {
               for (int j = 0; j < 4; ++j) {
-                m_in_indices[v * 4 + j] = 0;
-                m_in_weights[v * 4 + j] = 0.0f;
+                m_skinStatic->in_indices[v * 4 + j] = 0;
+                m_skinStatic->in_weights[v * 4 + j] = 0.0f;
               }
               continue;
             }
@@ -575,26 +571,26 @@ void BL_ArmatureObject::InitSkinningBuffers()
 
             for (int j = 0; j < 4; ++j) {
               if (j < (int)influences.size()) {
-                m_in_indices[v * 4 + j] = influences[j].bone_idx;
-                m_in_weights[v * 4 + j] = influences[j].weight;
+                m_skinStatic->in_indices[v * 4 + j] = influences[j].bone_idx;
+                m_skinStatic->in_weights[v * 4 + j] = influences[j].weight;
               }
               else {
-                m_in_indices[v * 4 + j] = 0;
-                m_in_weights[v * 4 + j] = 0.0f;
+                m_skinStatic->in_indices[v * 4 + j] = 0;
+                m_skinStatic->in_weights[v * 4 + j] = 0.0f;
               }
             }
           }
         });
 
     // 4) Upload SSBOs for influences.
-    if (!m_ssbo_in_idx) {
-      m_ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
+    if (!m_skinStatic->ssbo_in_idx) {
+      m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
     }
-    if (!m_ssbo_in_wgt) {
-      m_ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
+    if (!m_skinStatic->ssbo_in_wgt) {
+      m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
     }
-    GPU_storagebuf_update(m_ssbo_in_idx, m_in_indices.data());
-    GPU_storagebuf_update(m_ssbo_in_wgt, m_in_weights.data());
+    GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
+    GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
 
     // 5) Pack topology into a single buffer.
     const auto faces = mesh->faces();
@@ -659,12 +655,16 @@ void BL_ArmatureObject::InitSkinningBuffers()
         });
 
     // Offsets for each sub-array in the packed buffer.
-    m_face_offsets_offset = 0;
-    m_corner_to_face_offset = m_face_offsets_offset + int(face_offsets.size());
-    m_corner_verts_offset = m_corner_to_face_offset + int(corner_to_face.size());
-    m_vert_to_face_offsets_offset = m_corner_verts_offset + int(corner_verts_vec.size());
-    m_vert_to_face_offset = m_vert_to_face_offsets_offset + int(v2f_offsets.size());
-    int topo_total_size = m_vert_to_face_offset + int(v2f_indices.size());
+    m_skinStatic->face_offsets_offset = 0;
+    m_skinStatic->corner_to_face_offset = m_skinStatic->face_offsets_offset +
+                                          int(face_offsets.size());
+    m_skinStatic->corner_verts_offset = m_skinStatic->corner_to_face_offset +
+                                        int(corner_to_face.size());
+    m_skinStatic->vert_to_face_offsets_offset = m_skinStatic->corner_verts_offset +
+                                                int(corner_verts_vec.size());
+    m_skinStatic->vert_to_face_offset = m_skinStatic->vert_to_face_offsets_offset +
+                                        int(v2f_offsets.size());
+    int topo_total_size = m_skinStatic->vert_to_face_offset + int(v2f_indices.size());
 
     // Final packing.
     std::vector<int> topo;
@@ -676,10 +676,10 @@ void BL_ArmatureObject::InitSkinningBuffers()
     topo.insert(topo.end(), v2f_indices.begin(), v2f_indices.end());
 
     // Create and upload the unique SSBO.
-    if (!m_ssbo_topology) {
-      m_ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
+    if (!m_skinStatic->ssbo_topology) {
+      m_skinStatic->ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
     }
-    GPU_storagebuf_update(m_ssbo_topology, topo.data());
+    GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
 
     blender::Span<blender::float3> vert_positions = mesh->vert_positions();
     blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(num_corners);
@@ -692,10 +692,11 @@ void BL_ArmatureObject::InitSkinningBuffers()
           }
         });
 
-    if (!m_ssbo_rest_positions) {
-      m_ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) * num_corners);
+    if (!m_skinStatic->ssbo_rest_positions) {
+      m_skinStatic->ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) *
+                                                                num_corners);
     }
-    GPU_storagebuf_update(m_ssbo_rest_positions, rest_positions.data());
+    GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
   }
 }
 
@@ -829,8 +830,8 @@ void BL_ArmatureObject::DoGpuSkinning()
     return;
   }
 
-  // Prepare skinning fixed ssbos
-  InitSkinningBuffers();
+  // Prepare skinning Static resources (shared between replicas)
+  InitStaticSkinningBuffers();
 
   int num_corners = mesh_eval->corner_verts().size();
 
@@ -899,7 +900,7 @@ void BL_ArmatureObject::DoGpuSkinning()
   GPU_storagebuf_update(m_ssbo_postmat, &postmat[0][0]);
 
   // 5. Compile skinning shader
-  if (!m_shader) {
+  if (!m_skinStatic->shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
@@ -1023,41 +1024,47 @@ void main() {
   normals[c] = pack_norm(n);
 }
 )GLSL";
-    m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+    m_skinStatic->shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
   // 6. Dispatch compute shader
-  GPU_shader_bind(m_shader);
+  GPU_shader_bind(m_skinStatic->shader);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
-  GPU_storagebuf_bind(m_ssbo_in_idx, 2);
-  GPU_storagebuf_bind(m_ssbo_in_wgt, 3);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_in_idx, 2);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 3);
   GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 4);
   GPU_storagebuf_bind(m_ssbo_premat, 5);
   GPU_storagebuf_bind(m_ssbo_postmat, 6);
-  GPU_storagebuf_bind(m_ssbo_topology, 7);
-  GPU_storagebuf_bind(m_ssbo_rest_positions, 8);
-  GPU_shader_uniform_1i(m_shader, "face_offsets_offset", m_face_offsets_offset);
-  GPU_shader_uniform_1i(m_shader, "corner_to_face_offset", m_corner_to_face_offset);
-  GPU_shader_uniform_1i(m_shader, "corner_verts_offset", m_corner_verts_offset);
-  GPU_shader_uniform_1i(m_shader, "vert_to_face_offsets_offset", m_vert_to_face_offsets_offset);
-  GPU_shader_uniform_1i(m_shader, "vert_to_face_offset", m_vert_to_face_offset);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 7);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 8);
+  GPU_shader_uniform_1i(
+      m_skinStatic->shader, "face_offsets_offset", m_skinStatic->face_offsets_offset);
+  GPU_shader_uniform_1i(
+      m_skinStatic->shader, "corner_to_face_offset", m_skinStatic->corner_to_face_offset);
+  GPU_shader_uniform_1i(
+      m_skinStatic->shader, "corner_verts_offset", m_skinStatic->corner_verts_offset);
+  GPU_shader_uniform_1i(m_skinStatic->shader,
+                        "vert_to_face_offsets_offset",
+                        m_skinStatic->vert_to_face_offsets_offset);
+  GPU_shader_uniform_1i(
+      m_skinStatic->shader, "vert_to_face_offset", m_skinStatic->vert_to_face_offset);
 
   int domain = mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
-  GPU_shader_uniform_1i(m_shader, "normals_domain", domain);
+  GPU_shader_uniform_1i(m_skinStatic->shader, "normals_domain", domain);
 
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(m_shader, num_groups, 1, 1);
+  GPU_compute_dispatch(m_skinStatic->shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
-  GPU_storagebuf_unbind(m_ssbo_in_idx);
-  GPU_storagebuf_unbind(m_ssbo_in_wgt);
+  GPU_storagebuf_unbind(m_skinStatic->ssbo_in_idx);
+  GPU_storagebuf_unbind(m_skinStatic->ssbo_in_wgt);
   GPU_storagebuf_unbind(m_ssbo_bone_pose_mat);
   GPU_storagebuf_unbind(m_ssbo_premat);
   GPU_storagebuf_unbind(m_ssbo_postmat);
-  GPU_storagebuf_unbind(m_ssbo_topology);
-  GPU_storagebuf_unbind(m_ssbo_rest_positions);
+  GPU_storagebuf_unbind(m_skinStatic->ssbo_topology);
+  GPU_storagebuf_unbind(m_skinStatic->ssbo_rest_positions);
   GPU_shader_unbind();
 
   // Notify the dependency graph that the deformed mesh's transform has changed.
