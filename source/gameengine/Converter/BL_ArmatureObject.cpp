@@ -111,42 +111,6 @@ void BL_ArmatureObject::RestoreArmatureModifierList(Object *ob)
   m_modifiersListbackup.clear();
 }
 
-static void capture_rest_positions_and_normals(Object *deformed_obj,
-                                               blender::Array<blender::float4> &restPositions,
-                                               blender::Array<blender::float4> &restNormals)
-{
-  if (!deformed_obj) {
-    return;
-  }
-
-  // Get rest positions from original mesh directly
-  // (easier this way but can cause issues if it has modifiers)
-  Mesh *orig_mesh = static_cast<Mesh *>(deformed_obj->data);
-
-  const int num_corners = orig_mesh->corners_num;
-  auto corner_verts = orig_mesh->corner_verts();
-  auto vert_positions = orig_mesh->vert_positions();
-  auto corner_normals = orig_mesh->corner_normals();
-  restPositions = blender::Array<blender::float4>(num_corners);
-  blender::threading::parallel_for(
-      blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
-        for (int i : range) {
-          int vert_idx = corner_verts[i];
-          const blender::float3 &pos = vert_positions[vert_idx];
-          restPositions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
-        }
-      });
-
-  restNormals = blender::Array<blender::float4>(num_corners);
-  blender::threading::parallel_for(
-      blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
-        for (int i : range) {
-          restNormals[i] = blender::float4(
-              corner_normals[i].x, corner_normals[i].y, corner_normals[i].z, 0.0f);
-        }
-      });
-}
-
 // Only allowed for Poses with identical channels.
 void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode)
 {
@@ -222,17 +186,20 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_useGPUDeform = false;
   m_deformedReplicaData = nullptr;
   m_shader = nullptr;
-  ssbo_in_idx = nullptr;
-  ssbo_in_wgt = nullptr;
-  ssbo_bone_pose_mat = nullptr;
-  ssbo_premat = nullptr;
-  ssbo_postmat = nullptr;
-  ssbo_rest_pose = nullptr;
-  ssbo_rest_normals = nullptr;
-  m_refPositions = {};
-  m_refNormals = {};
-  in_indices = {};
-  in_weights = {};
+  m_ssbo_in_idx = nullptr;
+  m_ssbo_in_wgt = nullptr;
+  m_ssbo_bone_pose_mat = nullptr;
+  m_ssbo_premat = nullptr;
+  m_ssbo_postmat = nullptr;
+  m_ssbo_topology = nullptr;
+  m_ssbo_rest_positions = nullptr;
+  m_face_offsets_offset = 0;
+  m_corner_to_face_offset = 0;
+  m_corner_verts_offset = 0;
+  m_vert_to_face_offsets_offset = 0;
+  m_vert_to_face_offset = 0;
+  m_in_indices = {};
+  m_in_weights = {};
   m_modifiersListbackup = {};
 }
 
@@ -264,23 +231,26 @@ BL_ArmatureObject::~BL_ArmatureObject()
     GPU_shader_free(m_shader);
     m_shader = nullptr;
   }
-  if (ssbo_in_idx) {
-    GPU_storagebuf_free(ssbo_in_idx);
-    GPU_storagebuf_free(ssbo_in_wgt);
-    GPU_storagebuf_free(ssbo_bone_pose_mat);
-    GPU_storagebuf_free(ssbo_premat);
-    GPU_storagebuf_free(ssbo_postmat);
-    GPU_storagebuf_free(ssbo_rest_pose);
-    GPU_storagebuf_free(ssbo_rest_normals);
-    ssbo_in_idx = nullptr;
-    ssbo_in_wgt = nullptr;
-    ssbo_bone_pose_mat = nullptr;
-    ssbo_premat = nullptr;
-    ssbo_postmat = nullptr;
-    ssbo_rest_pose = nullptr;
-    ssbo_rest_normals = nullptr;
-    m_refPositions = {};
-    m_refNormals = {};
+  if (m_ssbo_in_idx) {
+    GPU_storagebuf_free(m_ssbo_in_idx);
+    GPU_storagebuf_free(m_ssbo_in_wgt);
+    GPU_storagebuf_free(m_ssbo_bone_pose_mat);
+    GPU_storagebuf_free(m_ssbo_premat);
+    GPU_storagebuf_free(m_ssbo_postmat);
+    GPU_storagebuf_free(m_ssbo_topology);
+    GPU_storagebuf_free(m_ssbo_rest_positions);
+    m_ssbo_in_idx = nullptr;
+    m_ssbo_in_wgt = nullptr;
+    m_ssbo_bone_pose_mat = nullptr;
+    m_ssbo_premat = nullptr;
+    m_ssbo_postmat = nullptr;
+    m_ssbo_topology = nullptr;
+    m_ssbo_rest_positions = nullptr;
+    m_face_offsets_offset = 0;
+    m_corner_to_face_offset = 0;
+    m_corner_verts_offset = 0;
+    m_vert_to_face_offsets_offset = 0;
+    m_vert_to_face_offset = 0;
   }
   if (m_deformedReplicaData) {
     bContext *C = KX_GetActiveEngine()->GetContext(); 
@@ -502,7 +472,7 @@ void BL_ArmatureObject::ApplyPose()
 
 void BL_ArmatureObject::InitSkinningBuffers()
 {
-  if (in_indices.empty()) {
+  if (m_in_indices.empty()) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
@@ -518,10 +488,11 @@ void BL_ArmatureObject::InitSkinningBuffers()
     }
 
     blender::Span<MDeformVert> dverts = mesh->deform_verts();
-    auto corner_verts = mesh->corner_verts();
-    int num_corners = mesh->corners_num;
+    const auto corner_verts = mesh->corner_verts();
+    const int num_corners = mesh->corners_num;
+    const int verts_num = mesh->verts_num;
 
-    // 1. Build the ordered list of deforming bones
+    // 1) Build the ordered list of deforming bones and a name->index map.
     std::vector<std::string> bone_names;
     std::map<std::string, int> bone_name_to_index;
     if (m_objArma && m_objArma->pose) {
@@ -537,7 +508,7 @@ void BL_ArmatureObject::InitSkinningBuffers()
       }
     }
 
-    // 2. Get the vertex group names in mesh order
+    // 2) Get the vertex group names in mesh order.
     std::vector<std::string> group_names;
     if (defbase) {
       for (bDeformGroup *dg = (bDeformGroup *)defbase->first; dg; dg = dg->next) {
@@ -545,28 +516,25 @@ void BL_ArmatureObject::InitSkinningBuffers()
       }
     }
 
-    // 3. Fill index and weight buffers
-    in_indices.resize(num_corners * 4, 0);
-    in_weights.resize(num_corners * 4, 0.0f);
-
-    // Thresholds aligned with Blender CPU deform.
-    constexpr float kContribThreshold = 1e-4f;  // Skip corner if total contribution is too small.
+    // 3) Fill index and weight buffers (max 4 influences per corner) in parallel.
+    m_in_indices.resize(num_corners * 4, 0);
+    m_in_weights.resize(num_corners * 4, 0.0f);
+    constexpr float kContribThreshold = 1e-4f;
 
     blender::threading::parallel_for(
         blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
           for (int v : range) {
-            int vert_idx = corner_verts[v];
+            const int vert_idx = corner_verts[v];
             const MDeformVert &dvert = dverts[vert_idx];
+
             struct Influence {
               int bone_idx;
               float weight;
             };
-
-            // Aggregate weights per bone index
             std::map<int, float> bone_weight_map;
             for (int j = 0; j < dvert.totweight; ++j) {
-              int def_nr = dvert.dw[j].def_nr;
-              if (def_nr >= 0 && def_nr < group_names.size()) {
+              const int def_nr = dvert.dw[j].def_nr;
+              if (def_nr >= 0 && def_nr < (int)group_names.size()) {
                 const std::string &group_name = group_names[def_nr];
                 auto it = bone_name_to_index.find(group_name);
                 if (it != bone_name_to_index.end()) {
@@ -574,33 +542,19 @@ void BL_ArmatureObject::InitSkinningBuffers()
                 }
               }
             }
-            // Sort and normalize influences
-            std::vector<Influence> influences;
-            for (const auto &kv : bone_weight_map) {
-              influences.push_back({kv.first, kv.second});
-            }
 
-            // Total raw contribution (before normalization).
+            std::vector<Influence> influences;
+            influences.reserve(bone_weight_map.size());
             float total_raw = 0.0f;
             for (const auto &kv : bone_weight_map) {
+              influences.push_back({kv.first, kv.second});
               total_raw += kv.second;
             }
 
-            // Skip very small total contributions.
-            if (total_raw <= kContribThreshold) {
-              // No influences: fill with zeros
+            if (total_raw <= kContribThreshold || influences.empty()) {
               for (int j = 0; j < 4; ++j) {
-                in_indices[v * 4 + j] = 0;
-                in_weights[v * 4 + j] = 0.0f;
-              }
-              continue;
-            }
-
-            if (influences.empty()) {
-              // No influences: fill with zeros
-              for (int j = 0; j < 4; ++j) {
-                in_indices[v * 4 + j] = 0;
-                in_weights[v * 4 + j] = 0.0f;
+                m_in_indices[v * 4 + j] = 0;
+                m_in_weights[v * 4 + j] = 0.0f;
               }
               continue;
             }
@@ -609,38 +563,139 @@ void BL_ArmatureObject::InitSkinningBuffers()
                       influences.end(),
                       [](const Influence &a, const Influence &b) { return a.weight > b.weight; });
 
-            // Normalize weights so their sum is 1.0
             float total = 0.0f;
-            for (const auto &inf : influences)
+            for (const auto &inf : influences) {
               total += inf.weight;
+            }
             if (total > 0.0f) {
-              for (auto &inf : influences)
+              for (auto &inf : influences) {
                 inf.weight /= total;
+              }
             }
 
-            // Fill up to 4 influences per vertex
             for (int j = 0; j < 4; ++j) {
-              if (j < influences.size()) {
-                in_indices[v * 4 + j] = influences[j].bone_idx;
-                in_weights[v * 4 + j] = influences[j].weight;
+              if (j < (int)influences.size()) {
+                m_in_indices[v * 4 + j] = influences[j].bone_idx;
+                m_in_weights[v * 4 + j] = influences[j].weight;
               }
               else {
-                in_indices[v * 4 + j] = 0;
-                in_weights[v * 4 + j] = 0.0f;
+                m_in_indices[v * 4 + j] = 0;
+                m_in_weights[v * 4 + j] = 0.0f;
               }
             }
           }
         });
 
-    // 4. Update SSBOs
-    if (!ssbo_in_idx) {
-      ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
+    // 4) Upload SSBOs for influences.
+    if (!m_ssbo_in_idx) {
+      m_ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
     }
-    if (!ssbo_in_wgt) {
-      ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
+    if (!m_ssbo_in_wgt) {
+      m_ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
     }
-    GPU_storagebuf_update(ssbo_in_idx, in_indices.data());
-    GPU_storagebuf_update(ssbo_in_wgt, in_weights.data());
+    GPU_storagebuf_update(m_ssbo_in_idx, m_in_indices.data());
+    GPU_storagebuf_update(m_ssbo_in_wgt, m_in_weights.data());
+
+    // 5) Pack topology into a single buffer.
+    const auto faces = mesh->faces();
+    const int faces_num = faces.size();
+
+    // face_offsets
+    std::vector<int> face_sizes(faces_num, 0);
+    blender::threading::parallel_for(
+        blender::IndexRange(faces_num), 4096, [&](const blender::IndexRange range) {
+          for (int f : range) {
+            face_sizes[f] = (int)faces[f].size();
+          }
+        });
+
+    std::vector<int> face_offsets(faces_num + 1, 0);
+    {
+      int ofs = 0;
+      for (int f = 0; f < faces_num; ++f) {
+        face_offsets[f] = ofs;
+        ofs += face_sizes[f];
+      }
+      face_offsets[faces_num] = ofs;
+    }
+
+    // corner_to_face
+    std::vector<int> corner_to_face(num_corners, 0);
+    blender::threading::parallel_for(
+        blender::IndexRange(faces_num), 4096, [&](const blender::IndexRange range) {
+          for (int f : range) {
+            const int beg = face_offsets[f];
+            const int cnt = face_sizes[f];
+            for (int i = 0; i < cnt; ++i) {
+              corner_to_face[beg + i] = f;
+            }
+          }
+        });
+
+    // corner_verts
+    std::vector<int> corner_verts_vec(corner_verts.begin(), corner_verts.end());
+
+    // vert_to_face_offsets and vert_to_face (CSR)
+    const blender::OffsetIndices<int> v2f_off = mesh->vert_to_face_map_offsets();
+    const blender::GroupedSpan<int> v2f = mesh->vert_to_face_map();
+
+    std::vector<int> v2f_offsets(verts_num + 1, 0);
+    for (int v = 0; v < verts_num + 1; ++v) {
+      v2f_offsets[v] = v2f_off[v].start();
+    }
+    const int total_v2f = v2f_offsets[verts_num];
+
+    std::vector<int> v2f_indices;
+    v2f_indices.resize(std::max(total_v2f, 0));
+    blender::threading::parallel_for(
+        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
+          for (int v : range) {
+            const blender::Span<int> faces_v = v2f[v];
+            const int dst = v2f_offsets[v];
+            if (!faces_v.is_empty()) {
+              std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
+            }
+          }
+        });
+
+    // Offsets for each sub-array in the packed buffer.
+    m_face_offsets_offset = 0;
+    m_corner_to_face_offset = m_face_offsets_offset + int(face_offsets.size());
+    m_corner_verts_offset = m_corner_to_face_offset + int(corner_to_face.size());
+    m_vert_to_face_offsets_offset = m_corner_verts_offset + int(corner_verts_vec.size());
+    m_vert_to_face_offset = m_vert_to_face_offsets_offset + int(v2f_offsets.size());
+    int topo_total_size = m_vert_to_face_offset + int(v2f_indices.size());
+
+    // Final packing.
+    std::vector<int> topo;
+    topo.reserve(topo_total_size);
+    topo.insert(topo.end(), face_offsets.begin(), face_offsets.end());
+    topo.insert(topo.end(), corner_to_face.begin(), corner_to_face.end());
+    topo.insert(topo.end(), corner_verts_vec.begin(), corner_verts_vec.end());
+    topo.insert(topo.end(), v2f_offsets.begin(), v2f_offsets.end());
+    topo.insert(topo.end(), v2f_indices.begin(), v2f_indices.end());
+
+    // Create and upload the unique SSBO.
+    if (!m_ssbo_topology) {
+      m_ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
+    }
+    GPU_storagebuf_update(m_ssbo_topology, topo.data());
+
+    blender::Span<blender::float3> vert_positions = mesh->vert_positions();
+    blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(num_corners);
+    blender::threading::parallel_for(
+        blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+          for (int i : range) {
+            int vert_idx = corner_verts[i];
+            const blender::float3 &pos = vert_positions[vert_idx];
+            rest_positions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
+          }
+        });
+
+    if (!m_ssbo_rest_positions) {
+      m_ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) * num_corners);
+    }
+    GPU_storagebuf_update(m_ssbo_rest_positions, rest_positions.data());
   }
 }
 
@@ -729,11 +784,6 @@ void BL_ArmatureObject::DoGpuSkinning()
     }
   }
 
-  /* Capture rest positions and rest normals from orig object (to simplify) */
-  if (m_refPositions.is_empty()) {
-    capture_rest_positions_and_normals(m_deformedObj, m_refPositions, m_refNormals);
-  }
-
   Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
   Mesh *mesh_eval = static_cast<Mesh *>(deformed_eval->data);
 
@@ -779,6 +829,7 @@ void BL_ArmatureObject::DoGpuSkinning()
     return;
   }
 
+  // Prepare skinning fixed ssbos
   InitSkinningBuffers();
 
   int num_corners = mesh_eval->corner_verts().size();
@@ -800,8 +851,8 @@ void BL_ArmatureObject::DoGpuSkinning()
   const int num_deform_bones = bone_names.size();
 
   // Allocate storage buffer for bone matrices if needed
-  if (!ssbo_bone_pose_mat) {
-    ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_deform_bones * 16);
+  if (!m_ssbo_bone_pose_mat) {
+    m_ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_deform_bones * 16);
   }
 
   // Prepare the array of bone matrices (flattened 4x4 matrices)
@@ -829,7 +880,7 @@ void BL_ArmatureObject::DoGpuSkinning()
     }
   }
   // Upload bone matrices to the GPU buffer
-  GPU_storagebuf_update(ssbo_bone_pose_mat, bone_pose_matrices.data());
+  GPU_storagebuf_update(m_ssbo_bone_pose_mat, bone_pose_matrices.data());
 
   // 4. Prepare transform matrices
   float premat[4][4], postmat[4][4], obinv[4][4];
@@ -838,142 +889,175 @@ void BL_ArmatureObject::DoGpuSkinning()
   mul_m4_m4m4(postmat, obinv, m_objArma->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
-  if (!ssbo_premat) {
-    ssbo_premat = GPU_storagebuf_create(sizeof(float) * 16);
+  if (!m_ssbo_premat) {
+    m_ssbo_premat = GPU_storagebuf_create(sizeof(float) * 16);
   }
-  GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
-  if (!ssbo_postmat) {
-    ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
+  GPU_storagebuf_update(m_ssbo_premat, &premat[0][0]);
+  if (!m_ssbo_postmat) {
+    m_ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
   }
-  GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
+  GPU_storagebuf_update(m_ssbo_postmat, &postmat[0][0]);
 
-  // 5. Prepare rest positions and normals
-  if (!ssbo_rest_pose) {
-    ssbo_rest_pose = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
-    GPU_storagebuf_update(ssbo_rest_pose, m_refPositions.data());
-  }
-  if (!ssbo_rest_normals) {
-    ssbo_rest_normals = GPU_storagebuf_create(sizeof(float) * 4 * num_corners);
-    GPU_storagebuf_update(ssbo_rest_normals, m_refNormals.data());
-  }
-
-  // 6. Compile skinning shader
+  // 5. Compile skinning shader
   if (!m_shader) {
     ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
     info.local_group_size(256, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
-    info.compute_source("gpu_shader_math_vector_lib.glsl");
     info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
     info.storage_buf(1, Qualifier::write, "uint", "normals[]");
     info.storage_buf(2, Qualifier::read, "ivec4", "in_idx[]");
     info.storage_buf(3, Qualifier::read, "vec4", "in_wgt[]");
     info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
     info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
-    info.storage_buf(7, Qualifier::read, "vec4", "rest_normals[]");
-    info.storage_buf(8, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(6, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(7, Qualifier::read, "int", "topo[]");
+    info.storage_buf(8, Qualifier::read, "vec4", "rest_positions[]");
+    info.push_constant(Type::int_t, "face_offsets_offset");
+    info.push_constant(Type::int_t, "corner_to_face_offset");
+    info.push_constant(Type::int_t, "corner_verts_offset");
+    info.push_constant(Type::int_t, "vert_to_face_offsets_offset");
+    info.push_constant(Type::int_t, "vert_to_face_offset");
+    info.push_constant(Type::int_t, "normals_domain");
 
     info.compute_source_generated = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
-// Match BKE armature_deform contrib threshold (1e-4).
 #define CONTRIB_THRESHOLD 1e-4
 #endif
-
 #ifndef NORMAL_EPSILON
-// Minimum bone weight to contribute to normal skinning.
 #define NORMAL_EPSILON 1e-4
 #endif
 
-int convert_normalized_f32_to_i10(float x) {
+// Utility accessors for the packed buffer.
+int face_offsets(int i) { return topo[face_offsets_offset + i]; }
+int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
+int corner_verts(int i) { return topo[corner_verts_offset + i]; }
+int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
+int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
+
+// 10_10_10_2 packing utility (W is ignored).
+int pack_i10_trunc(float x)
+{
   const int signed_int_10_max = 511;
   const int signed_int_10_min = -512;
-  int qx = int(x * float(signed_int_10_max));
-  return clamp(qx, signed_int_10_min, signed_int_10_max);
+  float s = x * float(signed_int_10_max);
+  int q = int(s); // truncate towards zero
+  q = clamp(q, signed_int_10_min, signed_int_10_max);
+  return q & 0x3FF;
+}
+
+uint pack_norm(vec3 n)
+{
+  int nx = pack_i10_trunc(n.x);
+  int ny = pack_i10_trunc(n.y);
+  int nz = pack_i10_trunc(n.z);
+  // W=0 to match the C++ PackedNormal.
+  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
+}
+
+// Reskin a corner in armature-object space for local reuse.
+vec4 skin_corner_pos_object(int corner) {
+  // Replace rest_positions[corner] with positions[corner] if you use the positions VBO as input.
+  vec4 rest_pos_object = premat[0] * rest_positions[corner];
+  vec4 acc = vec4(0.0);
+  float tw = 0.0;
+  for (int i = 0; i < 4; ++i) {
+    int   b = in_idx[corner][i];
+    float w = in_wgt[corner][i];
+    if (w > 0.0) {
+      acc += (bone_pose_mat[b] * rest_pos_object) * w;
+      tw  += w;
+    }
+  }
+  return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
+}
+
+// Face normal (Newell) calculated on skinned positions (final space).
+vec3 newell_face_normal_skinned(int f){
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  vec3 n = vec3(0.0);
+  vec3 v_prev = (postmat[0] * skin_corner_pos_object(end - 1)).xyz;
+  for (int i = beg; i < end; ++i) {
+    vec3 v_curr = (postmat[0] * skin_corner_pos_object(i)).xyz;
+    n += cross(v_prev, v_curr);
+    v_prev = v_curr;
+  }
+  return normalize(n);
+}
+
+vec3 smooth_point_normal_skinned(int corner) {
+  int v = corner_verts(corner);
+  int beg = vert_to_face_offsets(v);
+  int end = vert_to_face_offsets(v + 1);
+  vec3 n = vec3(0.0);
+  for (int i = beg; i < end; ++i) {
+    int f = vert_to_face(i);
+    n += newell_face_normal_skinned(f);
+  }
+  return normalize(n);
 }
 
 void main() {
-  uint corner_index = gl_GlobalInvocationID.x;
-  if (corner_index >= rest_positions.length()) {
+  uint c = gl_GlobalInvocationID.x;
+  if (c >= positions.length()) {
     return;
   }
 
-  // Positions: LBS with Blender-like complement (rest_pos * (1 - total_weight)).
-  vec4 rest_pos_object = premat[0] * rest_positions[corner_index];
+  // 1) Skinned position (write to VBO).
+  vec4 p_obj = skin_corner_pos_object(int(c));
+  vec3 p     = (postmat[0] * p_obj).xyz;
+  positions[c] = vec4(p, 1.0);
 
-  vec4 accumulated_pos = vec4(0.0);
-  float total_weight = 0.0;
-  for (int i = 0; i < 4; ++i) {
-    int   bone_index = in_idx[corner_index][i];
-    float weight     = in_wgt[corner_index][i];
-    if (weight > 0.0) {
-      accumulated_pos += (bone_pose_mat[bone_index] * rest_pos_object) * weight;
-      total_weight    += weight;
-    }
+  // 2) Normal calculation.
+  vec3 n;
+  if (normals_domain == 1) {
+    // Face: flat normal for all corners of the face.
+    int f = corner_to_face(int(c));
+    n = newell_face_normal_skinned(f);
+  }
+  else {
+    // Point: average all incident faces' normals (true smooth, Blender style).
+    n = smooth_point_normal_skinned(int(c));
   }
 
-  vec4 skinned_pos_object = (total_weight <= CONTRIB_THRESHOLD)
-                                ? rest_pos_object
-                                : (accumulated_pos + rest_pos_object * (1.0 - total_weight));
-  positions[corner_index] = postmat[0] * skinned_pos_object;
-
-  // Normals: per-bone inverse-transpose blend (simple IT, no TBN or adaptive mixing).
-  // Transform rest normal into armature/object space, apply bone IT, then back to target space.
-  mat3 pre_normal   = transpose(inverse(mat3(premat[0])));
-  mat3 post_normal  = transpose(inverse(mat3(postmat[0])));
-  vec3 rest_n_object = pre_normal * rest_normals[corner_index].xyz;
-
-  vec3 accumulated_n = vec3(0.0);
-  float total_normal_weight = 0.0;
-  for (int i = 0; i < 4; ++i) {
-    int   bone_index = in_idx[corner_index][i];
-    float weight     = in_wgt[corner_index][i];
-    if (weight > NORMAL_EPSILON) {
-      mat3 bone_normal_mat = transpose(inverse(mat3(bone_pose_mat[bone_index])));
-      accumulated_n       += (bone_normal_mat * rest_n_object) * weight;
-      total_normal_weight += weight;
-    }
-  }
-  if (total_normal_weight < 1.0) {
-    accumulated_n += rest_n_object * (1.0 - total_normal_weight);
-  }
-
-  // Normalize in a numerically robust way using the shared math library.
-  vec3 final_n = safe_normalize(post_normal * accumulated_n);
-
-  // Pack to 10_10_10_2 SNORM (W ignored).
-  int nx = convert_normalized_f32_to_i10(final_n.x);
-  int ny = convert_normalized_f32_to_i10(final_n.y);
-  int nz = convert_normalized_f32_to_i10(final_n.z);
-  normals[corner_index] = uint((nx & 0x3FF) | ((ny & 0x3FF) << 10) | ((nz & 0x3FF) << 20));
+  normals[c] = pack_norm(n);
 }
 )GLSL";
     m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
-  // 7. Dispatch compute shader
+  // 6. Dispatch compute shader
   GPU_shader_bind(m_shader);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
-  GPU_storagebuf_bind(ssbo_in_idx, 2);
-  GPU_storagebuf_bind(ssbo_in_wgt, 3);
-  GPU_storagebuf_bind(ssbo_bone_pose_mat, 4);
-  GPU_storagebuf_bind(ssbo_premat, 5);
-  GPU_storagebuf_bind(ssbo_rest_pose, 6);
-  GPU_storagebuf_bind(ssbo_rest_normals, 7);
-  GPU_storagebuf_bind(ssbo_postmat, 8);
+  GPU_storagebuf_bind(m_ssbo_in_idx, 2);
+  GPU_storagebuf_bind(m_ssbo_in_wgt, 3);
+  GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 4);
+  GPU_storagebuf_bind(m_ssbo_premat, 5);
+  GPU_storagebuf_bind(m_ssbo_postmat, 6);
+  GPU_storagebuf_bind(m_ssbo_topology, 7);
+  GPU_storagebuf_bind(m_ssbo_rest_positions, 8);
+  GPU_shader_uniform_1i(m_shader, "face_offsets_offset", m_face_offsets_offset);
+  GPU_shader_uniform_1i(m_shader, "corner_to_face_offset", m_corner_to_face_offset);
+  GPU_shader_uniform_1i(m_shader, "corner_verts_offset", m_corner_verts_offset);
+  GPU_shader_uniform_1i(m_shader, "vert_to_face_offsets_offset", m_vert_to_face_offsets_offset);
+  GPU_shader_uniform_1i(m_shader, "vert_to_face_offset", m_vert_to_face_offset);
+
+  int domain = mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
+  GPU_shader_uniform_1i(m_shader, "normals_domain", domain);
 
   const int group_size = 256;
   const int num_groups = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(m_shader, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
-  GPU_storagebuf_unbind(ssbo_in_idx);
-  GPU_storagebuf_unbind(ssbo_in_wgt);
-  GPU_storagebuf_unbind(ssbo_bone_pose_mat);
-  GPU_storagebuf_unbind(ssbo_premat);
-  GPU_storagebuf_unbind(ssbo_rest_pose);
-  GPU_storagebuf_unbind(ssbo_rest_normals);
-  GPU_storagebuf_unbind(ssbo_postmat);
+  GPU_storagebuf_unbind(m_ssbo_in_idx);
+  GPU_storagebuf_unbind(m_ssbo_in_wgt);
+  GPU_storagebuf_unbind(m_ssbo_bone_pose_mat);
+  GPU_storagebuf_unbind(m_ssbo_premat);
+  GPU_storagebuf_unbind(m_ssbo_postmat);
+  GPU_storagebuf_unbind(m_ssbo_topology);
+  GPU_storagebuf_unbind(m_ssbo_rest_positions);
   GPU_shader_unbind();
 
   // Notify the dependency graph that the deformed mesh's transform has changed.
