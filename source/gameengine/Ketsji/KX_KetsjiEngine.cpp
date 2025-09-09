@@ -144,6 +144,12 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
       m_anim_framerate(25.0),
+      m_physicsAccumulator(0.0),
+      m_useFixedPhysicsTimestep(false),
+      m_physicsTickRate(60),
+      m_fixedPhysicsTimestep(1.0 / 60.0),
+      m_useFixedFPSCap(false),
+      m_fixedFPSCap(60),
       m_doRender(true),
       m_exitkey(130),
       m_exitcode(KX_ExitRequest::NO_REQUEST),
@@ -413,47 +419,75 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 
   // Time of a frame (without scale).
   double timestep;
-  if (m_flags & FIXED_FRAMERATE) {
-    // Normal time step for fixed frame.
-    timestep = 1.0 / m_ticrate;
-  }
-  else {
-    // The frame is the smallest as possible.
-    timestep = dt;
-  }
-
-  // Number of frames to proceed.
   int frames;
-  if (m_flags & FIXED_FRAMERATE) {
-    // As many as possible for the elapsed time.
-    frames = int(dt * m_ticrate);
+  int physicsFrames = 0;
+  double physicsTimestep = 0.0;
+  double interpolationAlpha = 0.0;
+  bool useFixedPhysicsTimestep = false;
+
+  if (m_useFixedPhysicsTimestep) {
+    // Fixed physics timestep mode with accumulator pattern
+    useFixedPhysicsTimestep = true;
+    physicsTimestep = m_fixedPhysicsTimestep;
+    
+    // Add frame time to physics accumulator
+    m_physicsAccumulator += dt;
+    
+    // Calculate how many physics steps to perform
+    physicsFrames = 0;
+    while (m_physicsAccumulator >= m_fixedPhysicsTimestep && physicsFrames < m_maxPhysicsFrame) {
+      physicsFrames++;
+      m_physicsAccumulator -= m_fixedPhysicsTimestep;
+    }
+    
+    // Calculate interpolation alpha for smooth rendering
+    interpolationAlpha = m_physicsAccumulator / m_fixedPhysicsTimestep;
+    
+    // Logic still follows the original logic for compatibility
+    if (m_flags & FIXED_FRAMERATE) {
+      timestep = 1.0 / m_ticrate;
+      frames = int(dt * m_ticrate);
+    }
+    else {
+      timestep = dt;
+      frames = 1;
+    }
+    
+    // Limit logic frames
+    if (frames > m_maxLogicFrame) {
+      timestep = dt / m_maxLogicFrame;
+      frames = m_maxLogicFrame;
+    }
   }
   else {
-    // Proceed always one frame in non-fixed framerate.
-    frames = 1;
-  }
+    // Original variable timestep mode - unchanged for backward compatibility
+    if (m_flags & FIXED_FRAMERATE) {
+      // Normal time step for fixed frame.
+      timestep = 1.0 / m_ticrate;
+      frames = int(dt * m_ticrate);
+    }
+    else {
+      // The frame is the smallest as possible.
+      timestep = dt;
+      frames = 1;
+    }
 
-  // Fix timestep to not exceed max physics and logic frames.
-  int maxFrames = max_ii(m_maxLogicFrame, m_maxPhysicsFrame);
-  if (frames > maxFrames) {
-    timestep = dt / maxFrames;
-    frames = maxFrames;
+    // Fix timestep to not exceed max physics and logic frames.
+    int maxFrames = max_ii(m_maxLogicFrame, m_maxPhysicsFrame);
+    if (frames > maxFrames) {
+      timestep = dt / maxFrames;
+      frames = maxFrames;
+    }
+    
+    // In variable mode, physics frames = logic frames for compatibility
+    physicsFrames = frames;
+    physicsTimestep = timestep;
   }
 
   // If the number of frame is non-zero, update previous time.
-  if (frames > 0) {
+  if (frames > 0 || physicsFrames > 0) {
     m_previousRealTime = m_clockTime;
   }
-  //// Else in case of fixed framerate, try to sleep until the next frame.
-  // else if (m_flags & FIXED_FRAMERATE) {
-  //  const double sleeptime = timestep - dt - 1.0e-3;
-  //  /* If the remaining time is greater than 1ms (sleep resolution) sleep this thread.
-  //   * The other 1ms will be busy wait.
-  //   */
-  //  if (sleeptime > 0.0) {
-  //    std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
-  //  }
-  //}
 
   // Frame time with time scale.
   const double framestep = timestep * m_timescale;
@@ -462,6 +496,10 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   times.frames = frames;
   times.timestep = timestep;
   times.framestep = framestep;
+  times.useFixedPhysicsTimestep = useFixedPhysicsTimestep;
+  times.physicsFrames = physicsFrames;
+  times.physicsTimestep = physicsTimestep;
+  times.interpolationAlpha = interpolationAlpha;
 
   return times;
 }
@@ -470,6 +508,7 @@ bool KX_KetsjiEngine::NextFrame()
 {
   m_logger.StartLog(tc_services);
 
+  const double frameStartTime = m_clock.GetTimeSecond();
   const FrameTimes times = GetFrameTimes();
 
   // Exit if zero frame is scheduled.
@@ -547,12 +586,27 @@ bool KX_KetsjiEngine::NextFrame()
 
       // Perform physics calculations on the scene. This can involve
       // many iterations of the physics solver.
-      scene->GetPhysicsEnvironment()->ProceedDeltaTime(
-          m_frameTime, times.timestep, times.framestep);  // m_deltatimerealDeltaTime);
-
-      /* No need to call sofbody update more than 1 time */
-      if (i == times.frames - 1) {
-        scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+      if (times.useFixedPhysicsTimestep) {
+        // Fixed timestep mode: perform multiple physics steps if needed
+        for (int physicsStep = 0; physicsStep < times.physicsFrames; physicsStep++) {
+          scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+              m_frameTime, times.physicsTimestep, times.physicsTimestep * m_timescale);
+          
+          // Update soft bodies only on the last physics step
+          if (physicsStep == times.physicsFrames - 1 && i == times.frames - 1) {
+            scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+          }
+        }
+      }
+      else {
+        // Variable timestep mode: original behavior preserved
+        scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+            m_frameTime, times.timestep, times.framestep);
+        
+        /* No need to call sofbody update more than 1 time */
+        if (i == times.frames - 1) {
+          scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+        }
       }
 
       m_logger.StartLog(tc_scenegraph);
@@ -574,6 +628,18 @@ bool KX_KetsjiEngine::NextFrame()
 
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
+
+  // Cap render FPS only in fixed physics mode when enabled
+  if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
+    /* Use scene FPS (ticrate) as the render cap when fixed physics is on. */
+    const double target = 1.0 / (double)m_ticrate;
+    const double frameEnd = m_clock.GetTimeSecond();
+    const double elapsed = frameEnd - frameStartTime;
+    const double sleeptime = target - elapsed - 1.0e-3;  // ~1ms slack for jitter
+    if (sleeptime > 0.0) {
+      std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
+    }
+  }
 
   return m_doRender;
 }
@@ -1511,9 +1577,60 @@ void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
   m_maxPhysicsFrame = frame;
 }
 
+bool KX_KetsjiEngine::GetUseFixedPhysicsTimestep()
+{
+  return m_useFixedPhysicsTimestep;
+}
+
+void KX_KetsjiEngine::SetUseFixedPhysicsTimestep(bool useFixed)
+{
+  m_useFixedPhysicsTimestep = useFixed;
+  if (useFixed) {
+    // Reset accumulator when switching to fixed timestep
+    m_physicsAccumulator = 0.0;
+  }
+}
+
+int KX_KetsjiEngine::GetPhysicsTickRate()
+{
+  return m_physicsTickRate;
+}
+
+void KX_KetsjiEngine::SetPhysicsTickRate(int tickRate)
+{
+  if (tickRate > 0) {
+    m_physicsTickRate = tickRate;
+    m_fixedPhysicsTimestep = 1.0 / static_cast<double>(tickRate);
+    // Reset accumulator when changing tick rate
+    m_physicsAccumulator = 0.0;
+  }
+}
+
 double KX_KetsjiEngine::GetAnimFrameRate()
 {
   return m_anim_framerate;
+}
+
+bool KX_KetsjiEngine::GetUseFixedFPSCap()
+{
+  return m_useFixedFPSCap;
+}
+
+void KX_KetsjiEngine::SetUseFixedFPSCap(bool useFixed)
+{
+  m_useFixedFPSCap = useFixed;
+}
+
+int KX_KetsjiEngine::GetFixedFPSCap()
+{
+  return m_fixedFPSCap;
+}
+
+void KX_KetsjiEngine::SetFixedFPSCap(int fps)
+{
+  if (fps > 0) {
+    m_fixedFPSCap = fps;
+  }
 }
 
 bool KX_KetsjiEngine::GetFlag(FlagType flag) const

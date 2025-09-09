@@ -869,6 +869,18 @@ typedef struct GameData {
   /* Scene LoD */
   short lodflag = SCE_LOD_USE_HYST, _pad3 = 0;
   int scehysteresis = 10;
+
+  /* Fixed physics timestep settings (UPBGE) */
+  char use_fixed_physics_timestep = 0;
+  char _pad_fixed[3] = {};
+  short physics_tick_rate = 60;
+  short _pad_physics = 0;
+
+  /* Fixed physics render FPS cap (only in fixed physics mode) (UPBGE) */
+  char use_fixed_fps_cap = 0;
+  char _pad_fixedfps[3] = {};
+  int fixed_fps_cap = 60;
+
   void *_pad10 = nullptr;
 } GameData;
 
