@@ -152,6 +152,14 @@ class KX_KetsjiEngine {
     double timestep;
     // Scaled duration of a frame.
     double framestep;
+    // Fixed physics timestep mode enabled
+    bool useFixedPhysicsTimestep;
+    // Number of physics steps to perform
+    int physicsFrames;
+    // Physics timestep duration
+    double physicsTimestep;
+    // Interpolation alpha for rendering (0.0 to 1.0)
+    double interpolationAlpha;
   };
 
   CM_Clock m_clock;
@@ -191,6 +199,16 @@ class KX_KetsjiEngine {
   double m_ticrate;
   /// for animation playback only - ipo and action
   double m_anim_framerate;
+
+  /// Fixed physics timestep support
+  double m_physicsAccumulator;
+  bool m_useFixedPhysicsTimestep;
+  int m_physicsTickRate;
+  double m_fixedPhysicsTimestep;
+
+  /// Fixed-physics render FPS cap
+  bool m_useFixedFPSCap;
+  int m_fixedFPSCap;
 
   bool m_doRender; /* whether or not the scene should be rendered after the logic frame */
 
@@ -433,6 +451,29 @@ class KX_KetsjiEngine {
    * Sets the maximum number of physics frame before render frame
    */
   void SetMaxPhysicsFrame(int frame);
+
+  /**
+   * Gets whether fixed physics timestep is enabled
+   */
+  bool GetUseFixedPhysicsTimestep();
+  /**
+   * Sets whether to use fixed physics timestep
+   */
+  void SetUseFixedPhysicsTimestep(bool useFixed);
+  /**
+   * Gets the physics tick rate for fixed timestep mode
+   */
+  int GetPhysicsTickRate();
+  /**
+   * Sets the physics tick rate for fixed timestep mode
+   */
+  void SetPhysicsTickRate(int tickRate);
+
+  /* Fixed-physics render cap */
+  bool GetUseFixedFPSCap();
+  void SetUseFixedFPSCap(bool useFixed);
+  int GetFixedFPSCap();
+  void SetFixedFPSCap(int fps);
 
   /**
    * Gets the framerate for playing animations. (actions and ipos)
