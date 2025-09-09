@@ -127,6 +127,7 @@ set(SRC
   KX_GameObject.h
   KX_Globals.h
   KX_IInterpolator.h
+  KX_IpoChannels.h
   KX_IpoTransform.h
   KX_IpoController.h
   KX_IScalarInterpolator.h
