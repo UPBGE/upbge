@@ -1025,7 +1025,7 @@ vec3 newell_face_normal_object(int f) {
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
-  return n;
+  return normalize(n);
 }
 
 vec3 transform_normal(vec3 n, mat4 m) {
