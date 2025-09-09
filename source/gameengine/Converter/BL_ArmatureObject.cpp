@@ -597,40 +597,12 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
 
     // 5) Pack topology into a single buffer.
-    const auto faces = mesh->faces();
-    const int faces_num = faces.size();
 
     // face_offsets
-    std::vector<int> face_sizes(faces_num, 0);
-    blender::threading::parallel_for(
-        blender::IndexRange(faces_num), 4096, [&](const blender::IndexRange range) {
-          for (int f : range) {
-            face_sizes[f] = (int)faces[f].size();
-          }
-        });
-
-    std::vector<int> face_offsets(faces_num + 1, 0);
-    {
-      int ofs = 0;
-      for (int f = 0; f < faces_num; ++f) {
-        face_offsets[f] = ofs;
-        ofs += face_sizes[f];
-      }
-      face_offsets[faces_num] = ofs;
-    }
+    auto face_offsets = mesh->face_offsets();
 
     // corner_to_face
-    std::vector<int> corner_to_face(num_corners, 0);
-    blender::threading::parallel_for(
-        blender::IndexRange(faces_num), 4096, [&](const blender::IndexRange range) {
-          for (int f : range) {
-            const int beg = face_offsets[f];
-            const int cnt = face_sizes[f];
-            for (int i = 0; i < cnt; ++i) {
-              corner_to_face[beg + i] = f;
-            }
-          }
-        });
+    auto corner_to_face = mesh->corner_to_face_map();
 
     // corner_verts
     std::vector<int> corner_verts_vec(corner_verts.begin(), corner_verts.end());
@@ -659,11 +631,11 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
         });
 
     // Build vert -> first_corner map
+    auto vert_to_corner = mesh->vert_to_corner_map();
     std::vector<int> vert_first_corner_map(verts_num, -1);
-    for (int c = 0; c < num_corners; ++c) {
-      const int v_idx = corner_verts[c];
-      if (vert_first_corner_map[v_idx] == -1) {
-        vert_first_corner_map[v_idx] = c;
+    for (int v = 0; v < verts_num; ++v) {
+      if (!vert_to_corner[v].is_empty()) {
+        vert_first_corner_map[v] = vert_to_corner[v][0];
       }
     }
 
