@@ -566,13 +566,35 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             layout.prop(gs, "physics_solver")
             layout.prop(gs, "physics_gravity", text="Gravity")
 
+            # Fixed Physics Timestep controls
+            layout.separator()
+            row = layout.row()
+            row.label(text="Physics Timestep Method")
+            row.prop(gs, "physics_timestep_method", text="")
+            if gs.physics_timestep_method == 'FIXED':
+                layout.prop(gs, "physics_tick_rate", text="Physics Steps")
+
             split = layout.split()
 
             col = split.column()
             col.label(text="Physics Steps:")
             sub = col.column(align=True)
             sub.prop(gs, "physics_step_max", text="Max")
-            sub.prop(gs, "physics_step_sub", text="Substeps")
+            # Show/disable substeps depending on method
+            if gs.physics_timestep_method != 'FIXED':
+                sub.prop(gs, "physics_step_sub", text="Substeps")
+            else:
+                sub_row = sub.row()
+                sub_row.enabled = False
+                sub_row.prop(gs, "physics_step_sub", text="Substeps (Variable Mode Only)")
+            #   Insert FPS Limit toggle here: switches between Variable and Fixed bindings
+            row_ufr = col.row()
+            if gs.physics_timestep_method == 'FIXED':
+                # Fixed physics: use fixed cap toggle (uses FPS value)
+                row_ufr.prop(gs, "use_fixed_fps_cap", text="FPS Limit ( Fixed )")
+            else:
+                # Variable physics: use legacy engine FPS cap
+                row_ufr.prop(gs, "use_frame_rate", text="FPS Limit ( Variable )")
 
             col = split.column()
             col.label(text="Logic Steps:")

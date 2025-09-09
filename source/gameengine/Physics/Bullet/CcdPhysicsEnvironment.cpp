@@ -734,8 +734,18 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
   }
 
   float subStep = timeStep / float(m_numTimeSubSteps);
-  i = m_dynamicsWorld->stepSimulation(
-      interval, 25, subStep);  // perform always a full simulation step
+  
+  // When using engine-level fixed timestep, disable Bullet's internal substepping
+  // by setting maxSubSteps to 0, since we're already providing fixed timesteps
+  if (timeStep == interval && timeStep > 0.0f) {
+    // This indicates we're being called from fixed timestep mode
+    // Use single step with no internal substepping
+    i = m_dynamicsWorld->stepSimulation(timeStep, 0, timeStep);
+  }
+  else {
+    // Original variable timestep mode with Bullet substepping
+    i = m_dynamicsWorld->stepSimulation(interval, 25, subStep);
+  }
   // uncomment next line to see where Bullet spend its time (printf in console)
   // CProfileManager::dumpAll();
 
