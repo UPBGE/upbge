@@ -239,7 +239,7 @@ class NodeAddZoneOperator(NodeAddOperator):
         input_node.location -= Vector(self.offset)
         output_node.location += Vector(self.offset)
 
-        if self.add_default_geometry_link:
+        if tree.type == "GEOMETRY" and self.add_default_geometry_link:
             # Connect geometry sockets by default if available.
             # Get the sockets by their types, because the name is not guaranteed due to i18n.
             from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
@@ -368,15 +368,18 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def get_items(_self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
-        interface = tree.interface
-
         items = [
             ('INPUT', "Input", ""),
             ('OUTPUT', "Output", ""),
             ('PANEL', "Panel", ""),
         ]
+
+        if context is None:
+            return items
+
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
 
         active_item = interface.active
         # Panels have the extra option to add a toggle.
