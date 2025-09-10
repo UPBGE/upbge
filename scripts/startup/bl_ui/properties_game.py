@@ -569,7 +569,7 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             # Fixed Physics Timestep controls
             layout.separator()
             row = layout.row()
-            row.label(text="Physics Timestep Method")
+            row.label(text="Physics Timestep Method:")
             row.prop(gs, "physics_timestep_method", text="")
             if gs.physics_timestep_method == 'FIXED':
                 layout.prop(gs, "physics_tick_rate", text="Physics Steps")

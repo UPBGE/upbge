@@ -36,6 +36,9 @@
 
 #include "KX_KetsjiEngine.h"
 
+#include <chrono>
+#include <thread>
+
 #include <fmt/format.h>
 
 #include "BLI_rect.h"
@@ -508,7 +511,20 @@ bool KX_KetsjiEngine::NextFrame()
 {
   m_logger.StartLog(tc_services);
 
-  const double frameStartTime = m_clock.GetTimeSecond();
+  // Record a steady-clock timestamp for precise deadline pacing (fixed mode cap only)
+  m_frameStartSteady = std::chrono::steady_clock::now();
+  // Initialize persistent deadline when entering a capped sequence
+  if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
+    using clock = std::chrono::steady_clock;
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)m_ticrate));
+    if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+      m_nextFrameDeadline = m_frameStartSteady + period;
+    }
+  } else {
+    // Reset when cap is not active to avoid stale deadlines
+    m_nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
   const FrameTimes times = GetFrameTimes();
 
   // Exit if zero frame is scheduled.
@@ -629,16 +645,28 @@ bool KX_KetsjiEngine::NextFrame()
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
 
-  // Cap render FPS only in fixed physics mode when enabled
+  // Cap render FPS only in fixed physics mode when enabled (absolute deadline + short spin)
   if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
-    /* Use scene FPS (ticrate) as the render cap when fixed physics is on. */
-    const double target = 1.0 / (double)m_ticrate;
-    const double frameEnd = m_clock.GetTimeSecond();
-    const double elapsed = frameEnd - frameStartTime;
-    const double sleeptime = target - elapsed - 1.0e-3;  // ~1ms slack for jitter
-    if (sleeptime > 0.0) {
-      std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
+    using clock = std::chrono::steady_clock;
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)m_ticrate));
+    // Persistent absolute deadline pacing
+    auto now = clock::now();
+    if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+      m_nextFrameDeadline = now + period;
     }
+    // Widened safety window to reduce oversleep
+    constexpr auto safety = std::chrono::microseconds(2000); // ~2.0ms
+    auto remaining = m_nextFrameDeadline - now;
+    if (remaining > safety) {
+      std::this_thread::sleep_until(m_nextFrameDeadline - safety);
+    }
+    // Short spin for precision
+    while (clock::now() < m_nextFrameDeadline) {
+      // busy wait
+    }
+    // Advance the next deadline by exactly one period
+    m_nextFrameDeadline += period;
   }
 
   return m_doRender;
