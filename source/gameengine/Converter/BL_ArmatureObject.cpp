@@ -587,12 +587,12 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     // 4) Upload SSBOs for influences.
     if (!m_skinStatic->ssbo_in_idx) {
       m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * verts_num * 4);
+      GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
     }
     if (!m_skinStatic->ssbo_in_wgt) {
       m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * verts_num * 4);
+      GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
     }
-    GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
-    GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
 
     // 5) Pack topology into a single buffer.
 
@@ -652,8 +652,8 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     // Create and upload the unique SSBO.
     if (!m_skinStatic->ssbo_topology) {
       m_skinStatic->ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
+      GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
     }
-    GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
 
     blender::Span<blender::float3> vert_positions = mesh->vert_positions();
     blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(verts_num);
@@ -668,8 +668,8 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     if (!m_skinStatic->ssbo_rest_positions) {
       m_skinStatic->ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) *
                                                                 verts_num);
+      GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
     }
-    GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
     if (!m_skinStatic->ssbo_skinned_vert_positions) {
       m_skinStatic->ssbo_skinned_vert_positions = GPU_storagebuf_create(sizeof(blender::float4) *
                                                                         verts_num);
