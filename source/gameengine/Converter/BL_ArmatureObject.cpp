@@ -489,7 +489,6 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
 
     blender::Span<MDeformVert> dverts = mesh->deform_verts();
     const auto corner_verts = mesh->corner_verts();
-    const int num_corners = mesh->corners_num;
     const int verts_num = mesh->verts_num;
 
     // 1) Build the ordered list of deforming bones and a name->index map.
@@ -517,15 +516,14 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     }
 
     // 3) Fill index and weight buffers (max 4 influences per corner) in parallel.
-    m_skinStatic->in_indices.resize(num_corners * 4, 0);
-    m_skinStatic->in_weights.resize(num_corners * 4, 0.0f);
+    m_skinStatic->in_indices.resize(verts_num * 4, 0);
+    m_skinStatic->in_weights.resize(verts_num * 4, 0.0f);
     constexpr float kContribThreshold = 1e-4f;
 
     blender::threading::parallel_for(
-        blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
           for (int v : range) {
-            const int vert_idx = corner_verts[v];
-            const MDeformVert &dvert = dverts[vert_idx];
+            const MDeformVert &dvert = dverts[v];
 
             struct Influence {
               int bone_idx;
@@ -588,10 +586,10 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
 
     // 4) Upload SSBOs for influences.
     if (!m_skinStatic->ssbo_in_idx) {
-      m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
+      m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * verts_num * 4);
     }
     if (!m_skinStatic->ssbo_in_wgt) {
-      m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
+      m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * verts_num * 4);
     }
     GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
     GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
@@ -630,15 +628,6 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
           }
         });
 
-    // Build vert -> first_corner map
-    auto vert_to_corner = mesh->vert_to_corner_map();
-    std::vector<int> vert_first_corner_map(verts_num, -1);
-    for (int v = 0; v < verts_num; ++v) {
-      if (!vert_to_corner[v].is_empty()) {
-        vert_first_corner_map[v] = vert_to_corner[v][0];
-      }
-    }
-
     // Offsets for each sub-array in the packed buffer.
     m_skinStatic->face_offsets_offset = 0;
     m_skinStatic->corner_to_face_offset = m_skinStatic->face_offsets_offset +
@@ -649,10 +638,7 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
                                                 int(corner_verts_vec.size());
     m_skinStatic->vert_to_face_offset = m_skinStatic->vert_to_face_offsets_offset +
                                         int(v2f_offsets.size());
-    m_skinStatic->vert_first_corner_map_offset = m_skinStatic->vert_to_face_offset +
-                                                 int(v2f_indices.size());
-    int topo_total_size = m_skinStatic->vert_first_corner_map_offset +
-                          int(vert_first_corner_map.size());
+    int topo_total_size = m_skinStatic->vert_to_face_offset + v2f_indices.size();
 
     // Final packing.
     std::vector<int> topo;
@@ -662,7 +648,6 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     topo.insert(topo.end(), corner_verts_vec.begin(), corner_verts_vec.end());
     topo.insert(topo.end(), v2f_offsets.begin(), v2f_offsets.end());
     topo.insert(topo.end(), v2f_indices.begin(), v2f_indices.end());
-    topo.insert(topo.end(), vert_first_corner_map.begin(), vert_first_corner_map.end());
 
     // Create and upload the unique SSBO.
     if (!m_skinStatic->ssbo_topology) {
@@ -671,19 +656,18 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
 
     blender::Span<blender::float3> vert_positions = mesh->vert_positions();
-    blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(num_corners);
+    blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(verts_num);
     blender::threading::parallel_for(
-        blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
           for (int i : range) {
-            int vert_idx = corner_verts[i];
-            const blender::float3 &pos = vert_positions[vert_idx];
+            const blender::float3 &pos = vert_positions[i];
             rest_positions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
           }
         });
 
     if (!m_skinStatic->ssbo_rest_positions) {
       m_skinStatic->ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) *
-                                                                num_corners);
+                                                                verts_num);
     }
     GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
     if (!m_skinStatic->ssbo_skinned_vert_positions) {
@@ -906,24 +890,19 @@ void BL_ArmatureObject::DoGpuSkinning()
     info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
     info.storage_buf(5, Qualifier::read, "int", "topo[]");
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
-    info.push_constant(Type::int_t, "vert_first_corner_map_offset");
 
     info.compute_source_generated = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
 #define CONTRIB_THRESHOLD 1e-4
 #endif
 
-int get_first_corner_for_vert(int v_idx) {
-  return topo[vert_first_corner_map_offset + v_idx];
-}
-
-vec4 skin_pos_object(int corner) {
-  vec4 rest_pos_object = premat[0] * rest_positions[corner];
+vec4 skin_pos_object(int v_idx) {
+  vec4 rest_pos_object = premat[0] * rest_positions[v_idx];
   vec4 acc = vec4(0.0);
   float tw = 0.0;
   for (int i = 0; i < 4; ++i) {
-    int   b = in_idx[corner][i];
-    float w = in_wgt[corner][i];
+    int   b = in_idx[v_idx][i];
+    float w = in_wgt[v_idx][i];
     if (w > 0.0) {
       acc += (bone_pose_mat[b] * rest_pos_object) * w;
       tw  += w;
@@ -937,8 +916,7 @@ void main() {
   if (v >= skinned_vert_positions.length()) {
     return;
   }
-  int c = get_first_corner_for_vert(int(v));
-  skinned_vert_positions[v] = skin_pos_object(c);
+  skinned_vert_positions[v] = skin_pos_object(int(v));
 }
 )GLSL";
     m_skinStatic->shader_skin_vertices = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
@@ -1052,9 +1030,6 @@ void main() {
   GPU_storagebuf_bind(m_ssbo_premat, 4);
   GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 5);
   GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 6);
-  GPU_shader_uniform_1i(m_skinStatic->shader_skin_vertices,
-                        "vert_first_corner_map_offset",
-                        m_skinStatic->vert_first_corner_map_offset);
 
   const int num_groups_verts = (verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1);

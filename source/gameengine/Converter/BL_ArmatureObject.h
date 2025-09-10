@@ -75,7 +75,6 @@ struct BGE_SkinStaticBuffers {
   int corner_verts_offset = 0;
   int vert_to_face_offsets_offset = 0;
   int vert_to_face_offset = 0;
-  int vert_first_corner_map_offset = 0;
 
   int ref_count = 1;
 };
