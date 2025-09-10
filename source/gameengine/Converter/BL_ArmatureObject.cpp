@@ -878,10 +878,13 @@ void BL_ArmatureObject::DoGpuSkinning()
 
   const int verts_num = mesh_eval->verts_num;
 
+  /* We can test different group sizes if it has an influence on some hardwares */
+  const int group_size = 256;
+
   // 5. Compile skinning shaders
   if (!m_skinStatic->shader_skin_vertices) {
     ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
-    info.local_group_size(256, 1, 1);
+    info.local_group_size(group_size, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
     info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
     info.storage_buf(1, Qualifier::read, "ivec4", "in_idx[]");
@@ -924,7 +927,7 @@ void main() {
 
   if (!m_skinStatic->shader_scatter_to_corners) {
     ShaderCreateInfo info("BGE_Armature_Scatter_Pass");
-    info.local_group_size(256, 1, 1);
+    info.local_group_size(group_size, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
     info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
     info.storage_buf(1, Qualifier::write, "uint", "normals[]");
@@ -1018,8 +1021,6 @@ void main() {
     m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info(
         (GPUShaderCreateInfo *)&info);
   }
-
-  const int group_size = 256;
 
   // 6. Pass 1: Skin vertices
   GPU_shader_bind(m_skinStatic->shader_skin_vertices);
