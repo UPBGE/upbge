@@ -1,3 +1,4 @@
+#include <chrono>
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -209,6 +210,11 @@ class KX_KetsjiEngine {
   /// Fixed-physics render FPS cap
   bool m_useFixedFPSCap;
   int m_fixedFPSCap;
+
+  // Frame start timestamp for precise cap (steady clock)
+  std::chrono::steady_clock::time_point m_frameStartSteady;
+  // Persistent next deadline for render pacing (fixed mode cap only)
+  std::chrono::steady_clock::time_point m_nextFrameDeadline;
 
   bool m_doRender; /* whether or not the scene should be rendered after the logic frame */
 
