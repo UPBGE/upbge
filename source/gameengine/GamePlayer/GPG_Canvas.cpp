@@ -70,6 +70,7 @@ void GPG_Canvas::EndFrame()
 
 void GPG_Canvas::BeginDraw()
 {
+  m_window->swapBufferAcquire();
   if (!m_useViewportRender) {
     wmWindow *win = CTX_wm_window(m_context);
     G.is_rendering = true;
@@ -176,7 +177,7 @@ void GPG_Canvas::SwapBuffers()
       GPU_context_main_unlock();
       G.is_rendering = false;
     }
-    m_window->swapBuffers();
+    m_window->swapBufferRelease();
   }
 }
 
