@@ -8,6 +8,8 @@
  * language.
  */
 
+#pragma once
+
 /* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
 #if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
 #  define IS_CPP 0
@@ -16,12 +18,10 @@
 #endif
 
 #if IS_CPP || defined(GLSL_CPP_STUBS)
-#  pragma once
-
 #  include "eevee_defines.hh"
 #endif
 
-#if IS_CPP
+#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
 #  include "BLI_math_bits.h"
 #  include "BLI_memory_utils.hh"
 
@@ -31,6 +31,9 @@
 #  include "draw_pass.hh"
 
 #  include "GPU_shader_shared.hh"
+#endif
+
+#if IS_CPP
 
 namespace blender::eevee {
 
@@ -1930,34 +1933,6 @@ enum eClosureBits : uint32_t {
   CLOSURE_CLEARCOAT = (1u << 14u),
 
   CLOSURE_TRANSMISSION = CLOSURE_SSS | CLOSURE_REFRACTION | CLOSURE_TRANSLUCENT,
-};
-
-enum GBufferMode : uint32_t {
-  /** None mode for pixels not rendered. */
-  GBUF_NONE = 0u,
-
-  /* Reflection. */
-  GBUF_DIFFUSE = 1u,
-  GBUF_REFLECTION = 2u,
-  GBUF_REFLECTION_COLORLESS = 3u,
-  /** Used for surfaces that have no lit closure and just encode a normal layer. */
-  GBUF_UNLIT = 4u,
-
-  /**
-   * Special bit that marks all closures with refraction.
-   * Allows to detect the presence of transmission more easily.
-   * Note that this left only 2^3 values (minus 0) for encoding the BSDF.
-   * Could be removed if that's too cumbersome to add more BSDF.
-   */
-  GBUF_TRANSMISSION_BIT = 1u << 3u,
-
-  /* Transmission. */
-  GBUF_REFRACTION = 0u | GBUF_TRANSMISSION_BIT,
-  GBUF_REFRACTION_COLORLESS = 1u | GBUF_TRANSMISSION_BIT,
-  GBUF_TRANSLUCENT = 2u | GBUF_TRANSMISSION_BIT,
-  GBUF_SUBSURFACE = 3u | GBUF_TRANSMISSION_BIT,
-
-  /** IMPORTANT: Needs to be less than 16 for correct packing in g-buffer header. */
 };
 
 struct RayTraceData {

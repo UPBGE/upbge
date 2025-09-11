@@ -157,9 +157,9 @@ void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id);
  *
  * \return Total memory usage in bytes, or 0 if no undo stack is available.
  */
-size_t ED_get_total_undo_memory();
+size_t ED_undosys_total_memory_calc(UndoStack *ustack);
+
 
 /* UPBGE */
 void ED_undo_push_old(bContext *C, const char *str);
 /*********/
-

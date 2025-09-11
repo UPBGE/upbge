@@ -796,6 +796,7 @@ static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent
     return (seq::transform_single_image_check(strip) || seq::transform_is_locked(channels, strip));
   });
   if (strips.is_empty()) {
+    MEM_SAFE_DELETE(data);
     return nullptr;
   }
   data->strips = strips;
@@ -1833,6 +1834,13 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
     UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
     if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
       split_frame = round_fl_to_int(mouseloc[0]);
+      Strip *strip = strip_under_mouse_get(scene, v2d, event->mval);
+      if (strip == nullptr || split_frame == seq::time_left_handle_frame_get(scene, strip) ||
+          split_frame == seq::time_right_handle_frame_get(scene, strip))
+      {
+        /* Do not pass through to selection. */
+        return OPERATOR_CANCELLED;
+      }
     }
     RNA_int_set(op->ptr, "channel", mouseloc[1]);
   }
