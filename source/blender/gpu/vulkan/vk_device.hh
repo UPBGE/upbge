@@ -22,6 +22,7 @@
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
+#include "vk_memory_pool.hh"
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
@@ -247,13 +248,7 @@ class VKDevice : public NonCopyable {
 
   } functions;
 
-  struct {
-    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating from
-     * `external_memory` pool. */
-    VkExportMemoryAllocateInfoKHR external_memory_info = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    VmaPool external_memory = VK_NULL_HANDLE;
-  } vma_pools;
+  VKMemoryPools vma_pools;
 
   const char *extension_name_get(int index) const
   {
@@ -317,7 +312,7 @@ class VKDevice : public NonCopyable {
     return vk_queue_family_;
   }
 
-  VmaAllocator mem_allocator_get() const
+  inline VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
   }
@@ -456,9 +451,12 @@ class VKDevice : public NonCopyable {
 
   Shader *vk_backbuffer_blit_sh_get()
   {
-    if (vk_backbuffer_blit_sh_ == nullptr) {
-      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
-    }
+    /* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+#if defined(_WIN32) || defined(__APPLE__)
+    vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+#else
+    vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit_gamma22");
+#endif
     return vk_backbuffer_blit_sh_;
   }
 

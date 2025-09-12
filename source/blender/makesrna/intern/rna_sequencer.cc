@@ -3698,6 +3698,7 @@ static void rna_def_color_mix(StructRNA *srna)
   RNA_def_property_enum_items(prop, blend_color_items);
   RNA_def_property_ui_text(
       prop, "Blending Mode", "Method for controlling how the strip combines with other strips");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_FACTOR);
@@ -3835,7 +3836,7 @@ static void rna_def_modifier(BlenderRNA *brna)
   prop = RNA_def_property(srna, "enable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", STRIP_MODIFIER_FLAG_MUTE);
   RNA_def_property_ui_text(prop, "Enable", "Enable this modifier");
-  RNA_def_property_ui_icon(prop, ICON_HIDE_ON, 1);
+  RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_ON, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);

@@ -705,7 +705,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     typedefs.append(info.typedef_source_generated);
   }
   for (auto filename : info.typedef_sources_) {
-    typedefs.append(gpu_shader_dependency_get_source(filename));
+    typedefs.extend_non_duplicates(
+        gpu_shader_dependency_get_resolved_source(filename, info.generated_sources));
   }
 
   if (!info.vertex_source_.is_empty()) {
@@ -724,7 +725,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.vertex_source_generated);
 
     if (info.vertex_entry_fn_ != "main") {
@@ -752,7 +752,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.fragment_source_generated);
 
     if (info.fragment_entry_fn_ != "main") {
@@ -803,7 +802,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(layout);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.compute_source_generated);
 
     if (info.compute_entry_fn_ != "main") {
