@@ -697,8 +697,6 @@ const bTheme U_theme_default = {
     .header = RGBA(0x1d1d1db3),
     .header_text = RGBA(0xeeeeeeff),
     .header_text_hi = RGBA(0xffffffff),
-    .tab_back = RGBA(0x181818ff),
-    .button = RGBA(0x30303000),
   },
   .space_preferences = {
     .back = RGBA(0x30303000),
