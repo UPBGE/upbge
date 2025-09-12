@@ -1107,6 +1107,17 @@ typedef struct GameData {
   /* Scene LoD */
   short lodflag, _pad3;
   int scehysteresis;
+  /* Fixed physics timestep settings */
+  char use_fixed_physics_timestep;
+  char _pad_fixed[3];
+  short physics_tick_rate;
+  short _pad_physics;
+
+  /* Fixed physics render FPS cap (only in fixed physics mode) */
+  char use_fixed_fps_cap;
+  char _pad_fixedfps[3];
+  int fixed_fps_cap;
+
   void *_pad10;
 } GameData;
 

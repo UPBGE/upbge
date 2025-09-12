@@ -6527,6 +6527,56 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "higher value give better physics precision");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
+  prop = RNA_def_property(srna, "use_fixed_physics_timestep", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_fixed_physics_timestep", 1);
+  RNA_def_property_ui_text(prop,
+                           "Fixed Physics Timestep",
+                           "Use fixed physics timestep for consistent simulation, "
+                           "otherwise use variable timestep with bullet substepping");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Physics timestep method enum (Variable/Fixed), mapped to the same SDNA flag. */
+  static const EnumPropertyItem rna_enum_physics_timestep_method_items[] = {
+      {0, "VARIABLE", 0, "Variable", "Variable dt with Bullet substepping"},
+      {1, "FIXED", 0, "Fixed", "Fixed physics timestep"},
+      {0, NULL, 0, NULL, NULL},
+  };
+  prop = RNA_def_property(srna, "physics_timestep_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "use_fixed_physics_timestep");
+  RNA_def_property_enum_items(prop, rna_enum_physics_timestep_method_items);
+  RNA_def_property_ui_text(prop,
+                           "Physics Timestep Method",
+                           "Choose physics timestep method: Variable or Fixed");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "physics_tick_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "physics_tick_rate");
+  /* Allow up to 480 Hz hard limit; default remains 60 via DNA defaults */
+  RNA_def_property_range(prop, 10, 480);
+  /* Soft slider max 480 */
+  RNA_def_property_ui_range(prop, 30, 480, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Physics Steps",
+                           "Number of physics steps per second when using fixed timestep");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Fixed physics render cap */
+  prop = RNA_def_property(srna, "use_fixed_fps_cap", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_fixed_fps_cap", 1);
+  RNA_def_property_ui_text(prop,
+                           "Cap Render FPS (Fixed Physics)",
+                           "Limit render FPS when Fixed Physics Timestep is enabled");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "fixed_fps_cap", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "fixed_fps_cap");
+  RNA_def_property_range(prop, 10, 240);
+  /* Soft slider max 240 */
+  RNA_def_property_ui_range(prop, 30, 240, 1, 1);
+  RNA_def_property_ui_text(
+      prop, "Fixed FPS Cap", "Target render FPS when using fixed physics");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
   prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "timeScale");
   RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
@@ -6652,9 +6702,9 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_frame_rate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_ENABLE_ALL_FRAMES);
   RNA_def_property_ui_text(prop,
-                           "Use Frame Rate",
+                           "FPS Limit",
                            "Respect the frame rate from the Physics panel in the world properties "
-                           "rather than rendering as many frames as possible");
+                           "rather than rendering as many frames as possible. (Only meaningful for Variable Physics Timestep Method)");
 
   prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);

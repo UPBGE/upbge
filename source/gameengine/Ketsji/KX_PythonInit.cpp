@@ -424,6 +424,41 @@ static PyObject *gPyGetPhysicsTicRate(PyObject *)
   return PyFloat_FromDouble(KX_GetPhysicsEnvironment()->GetFixedTimeStep());
 }
 
+static PyObject *gPySetUseFixedPhysicsTimestep(PyObject *, PyObject *args)
+{
+  int useFixed;
+  if (!PyArg_ParseTuple(args, "p:setUseFixedPhysicsTimestep", &useFixed))
+    return nullptr;
+
+  KX_GetActiveEngine()->SetUseFixedPhysicsTimestep((bool)useFixed);
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPyGetUseFixedPhysicsTimestep(PyObject *)
+{
+  return PyBool_FromLong(KX_GetActiveEngine()->GetUseFixedPhysicsTimestep());
+}
+
+static PyObject *gPySetPhysicsTickRate(PyObject *, PyObject *args)
+{
+  int tickRate;
+  if (!PyArg_ParseTuple(args, "i:setPhysicsTickRate", &tickRate))
+    return nullptr;
+
+  if (tickRate <= 0) {
+    PyErr_SetString(PyExc_ValueError, "Physics tick rate must be greater than 0");
+    return nullptr;
+  }
+
+  KX_GetActiveEngine()->SetPhysicsTickRate(tickRate);
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPyGetPhysicsTickRate(PyObject *)
+{
+  return PyLong_FromLong(KX_GetActiveEngine()->GetPhysicsTickRate());
+}
+
 static PyObject *gPyGetAverageFrameRate(PyObject *)
 {
   return PyFloat_FromDouble(KX_GetActiveEngine()->GetAverageFrameRate());
@@ -836,6 +871,22 @@ static struct PyMethodDef game_methods[] = {
      (PyCFunction)gPySetPhysicsTicRate,
      METH_VARARGS,
      (const char *)"Sets the physics tic rate"},
+    {"setUseFixedPhysicsTimestep",
+     (PyCFunction)gPySetUseFixedPhysicsTimestep,
+     METH_VARARGS,
+     (const char *)"Sets whether to use fixed physics timestep"},
+    {"getUseFixedPhysicsTimestep",
+     (PyCFunction)gPyGetUseFixedPhysicsTimestep,
+     METH_NOARGS,
+     (const char *)"Gets whether fixed physics timestep is enabled"},
+    {"setPhysicsTickRate",
+     (PyCFunction)gPySetPhysicsTickRate,
+     METH_VARARGS,
+     (const char *)"Sets the physics tick rate for fixed timestep mode"},
+    {"getPhysicsTickRate",
+     (PyCFunction)gPyGetPhysicsTickRate,
+     METH_NOARGS,
+     (const char *)"Gets the physics tick rate for fixed timestep mode"},
     {"getExitKey",
      (PyCFunction)gPyGetExitKey,
      METH_NOARGS,
