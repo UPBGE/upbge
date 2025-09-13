@@ -934,12 +934,20 @@ void main() {
     info.storage_buf(2, Qualifier::read, "vec4", "skinned_vert_positions[]");
     info.storage_buf(3, Qualifier::read, "mat4", "postmat[]");
     info.storage_buf(4, Qualifier::read, "int", "topo[]");
-    info.push_constant(Type::int_t, "face_offsets_offset");
-    info.push_constant(Type::int_t, "corner_to_face_offset");
-    info.push_constant(Type::int_t, "corner_verts_offset");
-    info.push_constant(Type::int_t, "vert_to_face_offsets_offset");
-    info.push_constant(Type::int_t, "vert_to_face_offset");
-    info.push_constant(Type::int_t, "normals_domain");
+    info.specialization_constant(
+        Type::int_t, "face_offsets_offset", m_skinStatic->face_offsets_offset);
+    info.specialization_constant(
+        Type::int_t, "corner_to_face_offset", m_skinStatic->corner_to_face_offset);
+    info.specialization_constant(
+        Type::int_t, "corner_verts_offset", m_skinStatic->corner_verts_offset);
+    info.specialization_constant(
+        Type::int_t, "vert_to_face_offsets_offset", m_skinStatic->vert_to_face_offsets_offset);
+    info.specialization_constant(
+        Type::int_t, "vert_to_face_offset", m_skinStatic->vert_to_face_offset);
+    info.specialization_constant(
+        Type::int_t,
+        "normals_domain",
+        mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0);
 
     info.compute_source_generated = R"GLSL(
 // Utility accessors
@@ -1043,25 +1051,6 @@ void main() {
   GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 2);
   GPU_storagebuf_bind(m_ssbo_postmat, 3);
   GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 4);
-
-  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
-                        "face_offsets_offset",
-                        m_skinStatic->face_offsets_offset);
-  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
-                        "corner_to_face_offset",
-                        m_skinStatic->corner_to_face_offset);
-  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
-                        "corner_verts_offset",
-                        m_skinStatic->corner_verts_offset);
-  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
-                        "vert_to_face_offsets_offset",
-                        m_skinStatic->vert_to_face_offsets_offset);
-  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners,
-                        "vert_to_face_offset",
-                        m_skinStatic->vert_to_face_offset);
-
-  int domain = mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
-  GPU_shader_uniform_1i(m_skinStatic->shader_scatter_to_corners, "normals_domain", domain);
 
   const int num_groups_corners = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1);
