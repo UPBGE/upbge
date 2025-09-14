@@ -215,6 +215,9 @@ class KX_KetsjiEngine {
   std::chrono::steady_clock::time_point m_frameStartSteady;
   // Persistent next deadline for render pacing (fixed mode cap only)
   std::chrono::steady_clock::time_point m_nextFrameDeadline;
+  // Adaptive oversleep compensation (EMA of overshoot) for wait-to-deadline pacing
+  std::chrono::steady_clock::duration m_sleepOvershootEMA;
+  bool m_sleepEMAInitialized;
 
   bool m_doRender; /* whether or not the scene should be rendered after the logic frame */
 
