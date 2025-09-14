@@ -881,7 +881,15 @@ void BL_ArmatureObject::DoGpuSkinning()
   /* We can test different group sizes if it has an influence on some hardwares */
   const int group_size = 256;
 
-  // 5. Compile skinning shaders
+  // 5. Compile skinning shaders.
+  /* Note: While it is possible to perform all skinning operations in a single shader,
+   * here the process is intentionally split into two separate passes:
+   * - First pass: skinning is applied to vertices only,
+   *   using SSBOs sized to the number of vertices, for efficient bone deformation computation.
+   * - Second pass: the skinned positions are scattered to all corners,
+   *   and normals are computed from these positions. This approach produces
+   *   shading results very similar to the CPU pipeline.
+   */
   if (!m_skinStatic->shader_skin_vertices) {
     ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
     info.local_group_size(group_size, 1, 1);
