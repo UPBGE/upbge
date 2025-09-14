@@ -240,6 +240,10 @@ void LA_Launcher::InitEngine()
 
   // Initialize fixed physics render cap settings (cap uses scene FPS)
   m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
+  if (gm.use_fixed_fps_cap) {
+    // Use the scene FPS (ticrate) as the render cap in fixed physics mode
+    m_ketsjiEngine->SetFixedFPSCap(gm.ticrate);
+  }
 
   // Set the global settings (carried over if restart/load new files).
   m_ketsjiEngine->SetGlobalSettings(m_globalSettings);

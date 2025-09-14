@@ -38,6 +38,7 @@
 
 #include <chrono>
 #include <thread>
+#include <algorithm>
 
 #include <fmt/format.h>
 
@@ -176,6 +177,9 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
 
   m_scenes = new EXP_ListValue<KX_Scene>();
   m_renderingCameras = {};
+  // Initialize pacing state
+  m_sleepOvershootEMA = std::chrono::steady_clock::duration::zero();
+  m_sleepEMAInitialized = false;
 }
 
 /**
@@ -510,14 +514,16 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 bool KX_KetsjiEngine::NextFrame()
 {
   m_logger.StartLog(tc_services);
+  bool shouldRender = true;
 
   // Record a steady-clock timestamp for precise deadline pacing (fixed mode cap only)
   m_frameStartSteady = std::chrono::steady_clock::now();
   // Initialize persistent deadline when entering a capped sequence
   if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
     using clock = std::chrono::steady_clock;
+    const int capFps = (m_fixedFPSCap > 0) ? m_fixedFPSCap : (int)m_ticrate;
     const auto period = std::chrono::duration_cast<clock::duration>(
-        std::chrono::duration<double>(1.0 / (double)m_ticrate));
+        std::chrono::duration<double>(1.0 / (double)capFps));
     if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
       m_nextFrameDeadline = m_frameStartSteady + period;
     }
@@ -531,7 +537,46 @@ bool KX_KetsjiEngine::NextFrame()
   if (times.frames == 0) {
     // Start logging time spent outside main loop
     m_logger.StartLog(tc_outside);
-
+    // In fixed-physics pacing mode, still wait to the render deadline to keep cadence even
+    if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
+      using clock = std::chrono::steady_clock;
+      const int capFps = (m_fixedFPSCap > 0) ? m_fixedFPSCap : (int)m_ticrate;
+      const auto period = std::chrono::duration_cast<clock::duration>(
+          std::chrono::duration<double>(1.0 / (double)capFps));
+      int swapInterval = 0;
+      bool hasSwap = m_canvas && m_canvas->GetSwapInterval(swapInterval);
+      if (!(hasSwap && swapInterval != 0)) {
+        auto now = clock::now();
+        if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+          m_nextFrameDeadline = now + period;
+        }
+        auto ema_us = std::chrono::duration_cast<std::chrono::microseconds>(m_sleepOvershootEMA).count();
+        if (!m_sleepEMAInitialized) {
+          ema_us = 800;
+        }
+        ema_us = std::max<long long>(200, std::min<long long>(ema_us, 2000));
+        auto safety = std::chrono::microseconds(ema_us);
+        auto remaining = m_nextFrameDeadline - now;
+        if (remaining > safety) {
+          std::this_thread::sleep_until(m_nextFrameDeadline - safety);
+        }
+        while (clock::now() < m_nextFrameDeadline) {
+          // busy wait
+        }
+        auto after = clock::now();
+        auto overshoot = after - m_nextFrameDeadline;
+        const double alpha = 0.1;
+        if (!m_sleepEMAInitialized) {
+          m_sleepOvershootEMA = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+          m_sleepEMAInitialized = true;
+        } else {
+          auto overshoot_pos = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+          m_sleepOvershootEMA = clock::duration(
+              (clock::duration::rep)((1.0 - alpha) * (double)m_sleepOvershootEMA.count() + alpha * (double)overshoot_pos.count()));
+        }
+        m_nextFrameDeadline += period;
+      }
+    }
     return false;
   }
 
@@ -645,31 +690,72 @@ bool KX_KetsjiEngine::NextFrame()
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
 
-  // Cap render FPS only in fixed physics mode when enabled (absolute deadline + short spin)
+  // Cap render FPS only in fixed physics mode when enabled (adaptive absolute deadline + short spin)
   if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
     using clock = std::chrono::steady_clock;
+    const int capFps = (m_fixedFPSCap > 0) ? m_fixedFPSCap : (int)m_ticrate;
     const auto period = std::chrono::duration_cast<clock::duration>(
-        std::chrono::duration<double>(1.0 / (double)m_ticrate));
-    // Persistent absolute deadline pacing
-    auto now = clock::now();
-    if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
-      m_nextFrameDeadline = now + period;
+        std::chrono::duration<double>(1.0 / (double)capFps));
+
+    // If vsync is enabled at the canvas level, avoid double-pacing (let swap interval drive cadence)
+    int swapInterval = 0;
+    bool hasSwap = m_canvas && m_canvas->GetSwapInterval(swapInterval);
+    if (!(hasSwap && swapInterval != 0)) {
+      // Persistent absolute deadline pacing
+      auto now = clock::now();
+      if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+        m_nextFrameDeadline = now + period;
+      }
+
+      // Compute adaptive safety window from oversleep EMA (in microseconds), clamp to [200us, 2000us]
+      auto ema_us = std::chrono::duration_cast<std::chrono::microseconds>(m_sleepOvershootEMA).count();
+      if (!m_sleepEMAInitialized) {
+        ema_us = 800; // initial safety guess
+      }
+      ema_us = std::max<long long>(200, std::min<long long>(ema_us, 2000));
+      auto safety = std::chrono::microseconds(ema_us);
+
+      auto remaining = m_nextFrameDeadline - now;
+      if (remaining > safety) {
+        std::this_thread::sleep_until(m_nextFrameDeadline - safety);
+      }
+
+      // Short spin for precision (<= ~200-300us)
+      while (clock::now() < m_nextFrameDeadline) {
+        // busy wait
+      }
+
+      // Measure overshoot and update EMA
+      auto after = clock::now();
+      auto overshoot = after - m_nextFrameDeadline;
+      // Use only positive overshoot to tune safety; decay otherwise
+      const double alpha = 0.1; // EMA smoothing factor
+      if (!m_sleepEMAInitialized) {
+        m_sleepOvershootEMA = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+        m_sleepEMAInitialized = true;
+      } else {
+        auto overshoot_pos = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+        m_sleepOvershootEMA = clock::duration(
+            (clock::duration::rep)((1.0 - alpha) * (double)m_sleepOvershootEMA.count() + alpha * (double)overshoot_pos.count()));
+      }
+
+      // Advance deadline by exact multiples of period; if far behind, drop render to catch up
+      m_nextFrameDeadline += period;
+
+      // If we are behind by more than two periods, resync by skipping renders
+      auto lag = after - m_nextFrameDeadline;
+      if (lag > 2 * period) {
+        auto skip = lag / period;
+        if (skip > 0) {
+          m_nextFrameDeadline += skip * period;
+          // Drop this render to catch up pacing (logic/physics already executed)
+          shouldRender = false;
+        }
+      }
     }
-    // Widened safety window to reduce oversleep
-    constexpr auto safety = std::chrono::microseconds(2000); // ~2.0ms
-    auto remaining = m_nextFrameDeadline - now;
-    if (remaining > safety) {
-      std::this_thread::sleep_until(m_nextFrameDeadline - safety);
-    }
-    // Short spin for precision
-    while (clock::now() < m_nextFrameDeadline) {
-      // busy wait
-    }
-    // Advance the next deadline by exactly one period
-    m_nextFrameDeadline += period;
   }
 
-  return m_doRender;
+  return (shouldRender && m_doRender);
 }
 
 KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
