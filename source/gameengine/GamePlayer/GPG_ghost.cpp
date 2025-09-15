@@ -282,7 +282,7 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
     int windowHeight = rc.bottom - rc.top;
     const char *title = "";
     GHOST_GPUSettings gpu_settings = {0};
-    const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+    const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
     gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
     gpu_settings.preferred_device.index = U.gpu_preferred_index;
     gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -355,7 +355,7 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   settings.yPixels = (useDesktop) ? sysHeight : height;
 
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -408,7 +408,7 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
                                   const int alphaBackground)
 {
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -448,7 +448,7 @@ static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
 {
   GHOST_TWindowState state = GHOST_kWindowStateNormal;
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -1062,7 +1062,7 @@ int main(int argc,
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
 
-  GPU_backend_type_selection_set(eGPUBackendType(U.gpu_backend));
+  GPU_backend_type_selection_set(GPUBackendType(U.gpu_backend));
 
   /* Call again to set from userpreferences... */
   BLT_lang_set("");
