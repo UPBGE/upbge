@@ -345,8 +345,8 @@ class VKDevice : public NonCopyable {
     return is_initialized_;
   }
 
-  eGPUDeviceType device_type() const;
-  eGPUDriverType driver_type() const;
+  GPUDeviceType device_type() const;
+  GPUDriverType driver_type() const;
   std::string vendor_name() const;
   std::string driver_version() const;
 
@@ -367,11 +367,11 @@ class VKDevice : public NonCopyable {
     return extensions_;
   }
 
-  const char *glsl_vertex_patch_get() const;
-  const char *glsl_geometry_patch_get() const;
-  const char *glsl_fragment_patch_get() const;
-  const char *glsl_compute_patch_get() const;
-  void init_glsl_patch();
+  std::string glsl_vertex_patch_get() const;
+  std::string glsl_geometry_patch_get() const;
+  std::string glsl_fragment_patch_get() const;
+  std::string glsl_compute_patch_get() const;
+  shader::GeneratedSource extensions_define(StringRefNull stage_define) const;
 
   /* -------------------------------------------------------------------- */
   /** \name Render graph
@@ -451,12 +451,14 @@ class VKDevice : public NonCopyable {
 
   Shader *vk_backbuffer_blit_sh_get()
   {
-    /* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+    if (vk_backbuffer_blit_sh_ == nullptr) {
+/* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
 #if defined(_WIN32) || defined(__APPLE__)
-    vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
 #else
-    vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit_gamma22");
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit_gamma22");
 #endif
+    }
     return vk_backbuffer_blit_sh_;
   }
 

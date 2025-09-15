@@ -3186,9 +3186,9 @@ static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMen
 static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
-  PointerRNA r_ptr = RNA_pointer_create_with_parent(
+  PointerRNA ptr_result = RNA_pointer_create_with_parent(
       iter->parent, &RNA_FileBrowserFSMenuEntry, internal->link);
-  return r_ptr;
+  return ptr_result;
 }
 
 static void rna_FileBrowser_FSMenu_end(CollectionPropertyIterator * /*iter*/) {}
@@ -7713,6 +7713,8 @@ static void rna_def_space_userpref(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceUserPref");
   RNA_def_struct_ui_text(srna, "Space Preferences", "Blender preferences space data");
 
+  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
+
   prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "filter_type");
   RNA_def_property_enum_items(prop, filter_type_items);
@@ -7894,12 +7896,12 @@ static void rna_def_space_node(BlenderRNA *brna)
   static const EnumPropertyItem geometry_nodes_type_items[] = {
       {SNODE_GEOMETRY_MODIFIER,
        "MODIFIER",
-       0,
+       ICON_MODIFIER_DATA,
        "Modifier",
        "Edit node group from active object's active modifier"},
       {SNODE_GEOMETRY_TOOL,
        "TOOL",
-       0,
+       ICON_TOOL_SETTINGS,
        "Tool",
        "Edit any geometry node group for use as an operator"},
       {0, nullptr, 0, nullptr, nullptr},

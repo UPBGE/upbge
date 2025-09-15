@@ -4,7 +4,7 @@
 
 #ifdef GPU_SHADER
 #  pragma once
-#  include "gpu_glsl_cpp_stubs.hh"
+#  include "gpu_shader_compat.hh"
 
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
@@ -133,6 +133,15 @@ SPECIALIZATION_CONSTANT(bool, render_pass_specular_light_enabled, false)
 SPECIALIZATION_CONSTANT(bool, render_pass_normal_enabled, false)
 SPECIALIZATION_CONSTANT(bool, use_radiance_feedback, false)
 SPECIALIZATION_CONSTANT(bool, use_split_radiance, true)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(eevee_deferred_aov_clear)
+/* Early fragment test is needed to avoid processing fragments without correct GBuffer data. */
+EARLY_FRAGMENT_TEST(true)
+ADDITIONAL_INFO(eevee_render_pass_out)
+ADDITIONAL_INFO(gpu_fullscreen)
+FRAGMENT_SOURCE("eevee_deferred_aov_clear_frag.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

@@ -449,10 +449,6 @@ if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
 
-set(GLSL_SRC_RAW
-  shaders/opengl/glsl_shader_defines.glsl
-)
-
 set(GLSL_SRC
   GPU_shader_shared.hh
 
@@ -527,20 +523,39 @@ set(GLSL_SRC
   shaders/common/gpu_shader_common_color_utils.glsl
   shaders/common/gpu_shader_common_curves.glsl
   shaders/common/gpu_shader_common_hash.glsl
-  shaders/common/gpu_shader_common_math.glsl
   shaders/common/gpu_shader_common_math_utils.glsl
+  shaders/common/gpu_shader_common_math.glsl
   shaders/common/gpu_shader_common_mix_rgb.glsl
   shaders/common/gpu_shader_debug_gradients_lib.glsl
   shaders/common/gpu_shader_fullscreen_vert.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
   shaders/common/gpu_shader_index_range_lib.glsl
+  shaders/common/gpu_shader_math_angle_lib.glsl
+  shaders/common/gpu_shader_math_axis_angle_lib.glsl
   shaders/common/gpu_shader_math_base_lib.glsl
+  shaders/common/gpu_shader_math_constants_lib.glsl
+  shaders/common/gpu_shader_math_euler_lib.glsl
   shaders/common/gpu_shader_math_fast_lib.glsl
+  shaders/common/gpu_shader_math_matrix_adjoint_lib.glsl
+  shaders/common/gpu_shader_math_matrix_compare_lib.glsl
+  shaders/common/gpu_shader_math_matrix_construct_lib.glsl
+  shaders/common/gpu_shader_math_matrix_conversion_lib.glsl
+  shaders/common/gpu_shader_math_matrix_interpolate_lib.glsl
   shaders/common/gpu_shader_math_matrix_lib.glsl
+  shaders/common/gpu_shader_math_matrix_normalize_lib.glsl
+  shaders/common/gpu_shader_math_matrix_projection_lib.glsl
+  shaders/common/gpu_shader_math_matrix_transform_lib.glsl
+  shaders/common/gpu_shader_math_quaternion_lib.glsl
+  shaders/common/gpu_shader_math_rotation_conversion_lib.glsl
   shaders/common/gpu_shader_math_rotation_lib.glsl
+  shaders/common/gpu_shader_math_safe_lib.glsl
+  shaders/common/gpu_shader_math_vector_compare_lib.glsl
   shaders/common/gpu_shader_math_vector_lib.glsl
+  shaders/common/gpu_shader_math_vector_reduce_lib.glsl
+  shaders/common/gpu_shader_math_vector_safe_lib.glsl
   shaders/common/gpu_shader_offset_indices_lib.glsl
   shaders/common/gpu_shader_print_lib.glsl
+  shaders/common/gpu_shader_ray_utils_lib.glsl
   shaders/common/gpu_shader_sequencer_lib.glsl
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
@@ -649,6 +664,10 @@ set(GLSL_SRC
   shaders/gpu_shader_index_2d_array_lines.glsl
   shaders/gpu_shader_index_2d_array_tris.glsl
 
+  shaders/gpu_shader_compat_glsl.glsl
+
+  shaders/gpu_shader_glsl_extension.glsl
+
   GPU_shader_shared_utils.hh
 )
 
@@ -674,6 +693,17 @@ set(MTL_BACKEND_GLSL_SRC
   metal/kernels/depth_2d_update_vert.glsl
   metal/kernels/gpu_shader_fullscreen_blit_vert.glsl
   metal/kernels/gpu_shader_fullscreen_blit_frag.glsl
+
+  shaders/gpu_shader_msl_atomic.msl
+  shaders/gpu_shader_msl_attribute.msl
+  shaders/gpu_shader_msl_builtin.msl
+  shaders/gpu_shader_msl_image.msl
+  shaders/gpu_shader_msl_matrix_legacy.msl
+  shaders/gpu_shader_msl_matrix.msl
+  shaders/gpu_shader_msl_sampler.msl
+  shaders/gpu_shader_msl_types_legacy.msl
+  shaders/gpu_shader_msl_defines.msl
+  shaders/gpu_shader_compat_msl.msl
 )
 
 set(MSL_SRC
@@ -681,9 +711,6 @@ set(MSL_SRC
 
   metal/kernels/compute_texture_update.msl
   metal/kernels/compute_texture_read.msl
-
-  shaders/metal/mtl_shader_defines.msl
-  shaders/metal/mtl_shader_common.msl
 )
 
 set(VULKAN_BACKEND_GLSL_SRC
@@ -712,10 +739,6 @@ endif()
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C)
-endforeach()
-
-foreach(GLSL_FILE ${GLSL_SRC_RAW})
-  data_to_c_simple(${GLSL_FILE} GLSL_C)
 endforeach()
 
 set(SHADER_C)

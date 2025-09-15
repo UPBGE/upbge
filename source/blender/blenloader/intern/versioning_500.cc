@@ -16,6 +16,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -2010,6 +2011,248 @@ static void initialize_missing_closure_and_bundle_node_storage(bNodeTree &ntree)
   }
 }
 
+static void do_version_material_remove_use_nodes(Main *bmain, Material *material)
+{
+  if (material->use_nodes) {
+    return;
+  }
+
+  /* Users defined a material node tree, but deactivated it by disabling "Use Nodes". So we
+   * simulate the same effect by creating a new Material Output node and setting it to active. */
+  bNodeTree *ntree = material->nodetree;
+  if (ntree == nullptr) {
+    /* In case the material was created in Python API it might have been missing a node tree. */
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        bmain, &material->id, "Material Node Tree Versioning", "ShaderNodeTree");
+  }
+
+  bNode *old_output = nullptr;
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (STREQ(node->idname, "ShaderNodeOutputMaterial") && (node->flag & NODE_DO_OUTPUT)) {
+      old_output = node;
+      old_output->flag &= ~NODE_DO_OUTPUT;
+    }
+  }
+
+  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  STRNCPY(frame->label, RPT_("Versioning: Use Nodes was removed"));
+
+  {
+    /* For EEVEE, we use a principled BSDF shader because we need to recreate the metallic,
+     * specular and roughness properties of the material for use_nodes = false.*/
+    bNode &new_output_eevee = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
+    bNodeSocket &output_surface_input = version_node_add_socket(
+        *ntree, new_output_eevee, SOCK_IN, "NodeSocketShader", "Surface");
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketShader", "Volume");
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketVector", "Displacement");
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketFloat", "Thickness");
+
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketShader", "Volume");
+    new_output_eevee.flag |= NODE_DO_OUTPUT;
+    new_output_eevee.custom1 = SHD_OUTPUT_EEVEE;
+
+    bNode &shader_eevee = *blender::bke::node_add_static_node(
+        nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
+    bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_OUT, "BSDF");
+    bNodeSocket &shader_color_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Base Color");
+    bNodeSocket &specular_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Specular IOR Level");
+    bNodeSocket &metallic_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Metallic");
+    bNodeSocket &roughness_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Roughness");
+
+    version_node_add_link(
+        *ntree, shader_eevee, shader_bsdf_output, new_output_eevee, output_surface_input);
+
+    bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
+    rgba->value[0] = material->r;
+    rgba->value[1] = material->g;
+    rgba->value[2] = material->b;
+    rgba->value[3] = material->a;
+    roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
+    metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
+    specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
+
+    if (old_output != nullptr) {
+      /* Position the newly created node after the old output. Assume the old output node is at
+       * the far right of the node tree. */
+      shader_eevee.location[0] = old_output->location[0] + 1.5f * old_output->width;
+      shader_eevee.location[1] = old_output->location[1];
+    }
+
+    new_output_eevee.location[0] = shader_eevee.location[0] + 2.0f * shader_eevee.width;
+    new_output_eevee.location[1] = shader_eevee.location[1];
+
+    shader_eevee.parent = frame;
+    new_output_eevee.parent = frame;
+  }
+
+  {
+    /* For Cycles, a simple diffuse BSDF is sufficient. */
+    bNode &new_output_cycles = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
+    bNodeSocket &output_surface_input = version_node_add_socket(
+        *ntree, new_output_cycles, SOCK_IN, "NodeSocketShader", "Surface");
+    version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketShader", "Volume");
+    version_node_add_socket(
+        *ntree, new_output_cycles, SOCK_IN, "NodeSocketVector", "Displacement");
+    version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketFloat", "Thickness");
+    /* We don't activate the output explicitly to avoid having two active outputs. We assume
+     * `node_tree.get_output_node('Cycles')` will return this node.  */
+    new_output_cycles.custom1 = SHD_OUTPUT_CYCLES;
+
+    bNode &shader_cycles = *blender::bke::node_add_static_node(
+        nullptr, *ntree, SH_NODE_BSDF_DIFFUSE);
+    bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(
+        shader_cycles, SOCK_OUT, "BSDF");
+    bNodeSocket &shader_color_input = *blender::bke::node_find_socket(
+        shader_cycles, SOCK_IN, "Color");
+
+    version_node_add_link(
+        *ntree, shader_cycles, shader_bsdf_output, new_output_cycles, output_surface_input);
+
+    bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
+    rgba->value[0] = material->r;
+    rgba->value[1] = material->g;
+    rgba->value[2] = material->b;
+    rgba->value[3] = material->a;
+
+    if (old_output != nullptr) {
+      shader_cycles.location[0] = old_output->location[0] + 1.5f * old_output->width;
+      shader_cycles.location[1] = old_output->location[1] + 2.0f * old_output->height;
+    }
+
+    new_output_cycles.location[0] = shader_cycles.location[0] + 3.0f * shader_cycles.width;
+    new_output_cycles.location[1] = shader_cycles.location[1];
+
+    shader_cycles.parent = frame;
+    new_output_cycles.parent = frame;
+  }
+}
+
+static void do_version_set_alpha_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
+    return;
+  }
+
+  const auto &storage = *static_cast<NodeSetAlpha *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
+static void do_version_channel_matte_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Color Space")) {
+    return;
+  }
+
+  const auto &storage = *static_cast<NodeChroma *>(node.storage);
+  bNodeSocket &color_space_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Color Space");
+  color_space_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1 - 1;
+  bNodeSocket &rgb_key_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "RGB Key Channel");
+  rgb_key_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2 - 1;
+  bNodeSocket &hsv_key_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "HSV Key Channel");
+  hsv_key_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2 - 1;
+  bNodeSocket &yuv_key_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "YUV Key Channel");
+  yuv_key_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2 - 1;
+  bNodeSocket &ycc_key_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "YCbCr Key Channel");
+  ycc_key_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2 - 1;
+
+  bNodeSocket &limit_method_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Limit Method");
+  limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.algorithm;
+  bNodeSocket &rgb_limit_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "RGB Limit Channel");
+  rgb_limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel -
+                                                                                1;
+  bNodeSocket &hsv_limit_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "HSV Limit Channel");
+  hsv_limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel -
+                                                                                1;
+  bNodeSocket &yuv_limit_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "YUV Limit Channel");
+  yuv_limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel -
+                                                                                1;
+  bNodeSocket &ycc_limit_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "YCbCr Limit Channel");
+  ycc_limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel -
+                                                                                1;
+}
+
+static void do_version_color_balance_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
+    return;
+  }
+
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_convert_alpha_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
+    return;
+  }
+
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_distance_matte_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Color Space")) {
+    return;
+  }
+
+  auto &storage = *static_cast<NodeChroma *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Color Space");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel - 1;
+}
+
+static void do_version_color_spill_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Spill Channel")) {
+    return;
+  }
+
+  bNodeSocket &spill_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Spill Channel");
+  spill_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1 - 1;
+  bNodeSocket &limit_method_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Limit Method");
+  limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+
+  auto &storage = *static_cast<NodeColorspill *>(node.storage);
+  bNodeSocket &limit_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Limit Channel");
+  limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.limchan;
+}
+
+static void do_version_double_edge_mask_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Image Edges")) {
+    return;
+  }
+
+  bNodeSocket &image_edges_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketBool", "Image Edges");
+  image_edges_socket.default_value_typed<bNodeSocketValueBoolean>()->value = bool(node.custom2);
+  bNodeSocket &only_inside_outer_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketBool", "Only Inside Outer");
+  only_inside_outer_socket.default_value_typed<bNodeSocketValueBoolean>()->value = bool(
+      node.custom1);
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -3045,6 +3288,75 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 81)) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      do_version_material_remove_use_nodes(bmain, material);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 82)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_SETALPHA) {
+          do_version_set_alpha_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
+          do_version_channel_matte_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+          do_version_color_balance_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_PREMULKEY) {
+          do_version_convert_alpha_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+          do_version_distance_matte_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_COLOR_SPILL) {
+          do_version_color_spill_menus_to_inputs(*node_tree, *node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 83)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_DOUBLEEDGEMASK) {
+          do_version_double_edge_mask_options_to_inputs(*node_tree, *node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 84)) {
+    /* Add sidebar to the preferences editor. */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_USERPREF) {
+            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                   &sl->regionbase;
+            ARegion *new_sidebar = do_versions_add_region_if_not_found(
+                regionbase, RGN_TYPE_UI, "sidebar for preferences", RGN_TYPE_HEADER);
+            if (new_sidebar != nullptr) {
+              new_sidebar->alignment = RGN_ALIGN_LEFT;
+              new_sidebar->flag &= ~RGN_FLAG_HIDDEN;
+            }
+          }
+        }
+      }
+    }
   }
 
   /**

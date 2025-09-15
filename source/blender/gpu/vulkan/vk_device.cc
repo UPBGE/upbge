@@ -6,6 +6,7 @@
  * \ingroup gpu
  */
 
+#include <fmt/format.h>
 #include <sstream>
 
 #include "CLG_log.h"
@@ -18,13 +19,13 @@
 #include "vk_texture.hh"
 #include "vk_vertex_buffer.hh"
 
+#include "gpu_shader_dependency_private.hh"
+
 #include "GPU_capabilities.hh"
 
 #include "BLI_math_matrix_types.hh"
 
 #include "GHOST_C-api.h"
-
-extern "C" char datatoc_glsl_shader_defines_glsl[];
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
@@ -142,7 +143,6 @@ void VKDevice::init(void *ghost_context)
 
   debug::object_label(vk_handle(), "LogicalDevice");
   debug::object_label(vk_queue_, "GenericQueue");
-  init_glsl_patch();
 
   resources.use_dynamic_rendering_local_read = extensions_.dynamic_rendering_local_read;
   orphaned_data.timeline_ = 0;
@@ -271,9 +271,7 @@ void VKDevice::init_memory_allocator()
   info.physicalDevice = vk_physical_device_;
   info.device = vk_device_;
   info.instance = vk_instance_;
-  if (extensions_.descriptor_buffer) {
-    info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-  }
+  info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   if (extensions_.memory_priority) {
     info.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
   }
@@ -295,7 +293,7 @@ void VKDevice::init_dummy_buffer()
                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                       VkMemoryPropertyFlags(0),
-                      VmaAllocationCreateFlags(0),
+                      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                       1.0f);
   debug::object_label(dummy_buffer.vk_handle(), "DummyBuffer");
   /* Default dummy buffer. Set the 4th element to 1 to fix missing orcos. */
@@ -304,7 +302,7 @@ void VKDevice::init_dummy_buffer()
   dummy_buffer.update_immediately(static_cast<void *>(data));
 }
 
-void VKDevice::init_glsl_patch()
+shader::GeneratedSource VKDevice::extensions_define(StringRefNull stage_define) const
 {
   std::stringstream ss;
 
@@ -331,37 +329,37 @@ void VKDevice::init_glsl_patch()
     ss << "#define gpu_BaryCoord gl_BaryCoordEXT\n";
     ss << "#define gpu_BaryCoordNoPersp gl_BaryCoordNoPerspEXT\n";
   }
+  ss << stage_define;
 
-  /* GLSL Backend Lib. */
-
-  glsl_vert_patch_ = ss.str() + "#define GPU_VERTEX_SHADER\n" + datatoc_glsl_shader_defines_glsl;
-  glsl_geom_patch_ = ss.str() + "#define GPU_GEOMETRY_SHADER\n" + datatoc_glsl_shader_defines_glsl;
-  glsl_frag_patch_ = ss.str() + "#define GPU_FRAGMENT_SHADER\n" + datatoc_glsl_shader_defines_glsl;
-  glsl_comp_patch_ = ss.str() + "#define GPU_COMPUTE_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  return shader::GeneratedSource{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
 }
 
-const char *VKDevice::glsl_vertex_patch_get() const
+std::string VKDevice::glsl_vertex_patch_get() const
 {
-  BLI_assert(!glsl_vert_patch_.empty());
-  return glsl_vert_patch_.c_str();
+  shader::GeneratedSourceList sources{extensions_define("#define GPU_VERTEX_SHADER\n")};
+  return fmt::to_string(fmt::join(
+      gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
 }
 
-const char *VKDevice::glsl_geometry_patch_get() const
+std::string VKDevice::glsl_geometry_patch_get() const
 {
-  BLI_assert(!glsl_geom_patch_.empty());
-  return glsl_geom_patch_.c_str();
+  shader::GeneratedSourceList sources{extensions_define("#define GPU_GEOMETRY_SHADER\n")};
+  return fmt::to_string(fmt::join(
+      gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
 }
 
-const char *VKDevice::glsl_fragment_patch_get() const
+std::string VKDevice::glsl_fragment_patch_get() const
 {
-  BLI_assert(!glsl_frag_patch_.empty());
-  return glsl_frag_patch_.c_str();
+  shader::GeneratedSourceList sources{extensions_define("#define GPU_FRAGMENT_SHADER\n")};
+  return fmt::to_string(fmt::join(
+      gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
 }
 
-const char *VKDevice::glsl_compute_patch_get() const
+std::string VKDevice::glsl_compute_patch_get() const
 {
-  BLI_assert(!glsl_comp_patch_.empty());
-  return glsl_comp_patch_.c_str();
+  shader::GeneratedSourceList sources{extensions_define("#define GPU_COMPUTE_SHADER\n")};
+  return fmt::to_string(fmt::join(
+      gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
 }
 
 /* -------------------------------------------------------------------- */
@@ -374,7 +372,7 @@ constexpr int32_t PCI_ID_AMD = 0x1002;
 constexpr int32_t PCI_ID_ATI = 0x1022;
 constexpr int32_t PCI_ID_APPLE = 0x106b;
 
-eGPUDeviceType VKDevice::device_type() const
+GPUDeviceType VKDevice::device_type() const
 {
   switch (vk_physical_device_driver_properties_.driverID) {
     case VK_DRIVER_ID_AMD_PROPRIETARY:
@@ -406,7 +404,7 @@ eGPUDeviceType VKDevice::device_type() const
   return GPU_DEVICE_UNKNOWN;
 }
 
-eGPUDriverType VKDevice::driver_type() const
+GPUDriverType VKDevice::driver_type() const
 {
   switch (vk_physical_device_driver_properties_.driverID) {
     case VK_DRIVER_ID_AMD_PROPRIETARY:
