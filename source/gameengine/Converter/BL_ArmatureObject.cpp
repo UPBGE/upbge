@@ -609,19 +609,21 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     const blender::OffsetIndices<int> v2f_off = mesh->vert_to_face_map_offsets();
     const blender::GroupedSpan<int> v2f = mesh->vert_to_face_map();
 
-    std::vector<int> v2f_offsets(verts_num + 1, 0);
-    for (int v = 0; v < verts_num + 1; ++v) {
-      v2f_offsets[v] = v2f_off[v].start();
+    const int v2f_offsets_size = v2f_off.size();
+    std::vector<int> v2f_offsets(v2f_offsets_size, 0);
+
+    for (int v = 0; v < v2f_offsets_size; ++v) {
+      v2f_offsets[v] = v2f_off.data()[v];
     }
-    const int total_v2f = v2f_offsets[verts_num];
+    const int total_v2f = v2f_offsets.back();
 
     std::vector<int> v2f_indices;
     v2f_indices.resize(std::max(total_v2f, 0));
     blender::threading::parallel_for(
-        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
+        blender::IndexRange(v2f_offsets_size - 1), 4096, [&](const blender::IndexRange range) {
           for (int v : range) {
             const blender::Span<int> faces_v = v2f[v];
-            const int dst = v2f_offsets[v];
+            const int dst = v2f_off.data()[v];
             if (!faces_v.is_empty()) {
               std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
             }
@@ -1053,7 +1055,9 @@ void main() {
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
   // 7. Pass 2: Scatter to corners and calculate normals
-  GPU_shader_bind(m_skinStatic->shader_scatter_to_corners);
+  const blender::gpu::shader::SpecializationConstants *constants_state =
+      &GPU_shader_get_default_constant_state(m_skinStatic->shader_scatter_to_corners);
+  GPU_shader_bind(m_skinStatic->shader_scatter_to_corners, constants_state);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
   GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 2);
@@ -1061,7 +1065,8 @@ void main() {
   GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 4);
 
   const int num_groups_corners = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1);
+  GPU_compute_dispatch(
+      m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1, constants_state);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
   GPU_shader_unbind();
