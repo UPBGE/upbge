@@ -942,8 +942,12 @@ void DeferredPipeline::begin_sync()
 
 void DeferredPipeline::end_sync()
 {
+  Instance &inst = opaque_layer_.inst_;
+
   opaque_layer_.end_sync(true, refraction_layer_.is_empty(), refraction_layer_.has_transmission());
   refraction_layer_.end_sync(opaque_layer_.is_empty(), true, false);
+
+  inst.pipelines.data.gbuffer_additional_data_layer_id = this->normal_layer_count() - 1;
 
   debug_pass_sync();
 }
@@ -967,7 +971,7 @@ void DeferredPipeline::debug_pass_sync()
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void DeferredPipeline::debug_draw(draw::View &view, GPUFrameBuffer *combined_fb)
+void DeferredPipeline::debug_draw(draw::View &view, gpu::FrameBuffer *combined_fb)
 {
   Instance &inst = opaque_layer_.inst_;
   if (!ELEM(inst.debug_mode,
