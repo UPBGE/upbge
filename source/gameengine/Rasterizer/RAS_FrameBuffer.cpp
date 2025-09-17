@@ -86,7 +86,7 @@ RAS_FrameBuffer::~RAS_FrameBuffer()
 #endif
 }
 
-GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()
+blender::gpu::FrameBuffer *RAS_FrameBuffer::GetFrameBuffer()
 {
   return m_frameBuffer;
 }

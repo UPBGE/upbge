@@ -68,7 +68,7 @@ unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int 
 
   if (width && height) {
     pixeldata = (unsigned int *)malloc(sizeof(unsigned int) * width * height);
-    GPUFrameBuffer *read_fb = GPU_framebuffer_back_get();
+    blender::gpu::FrameBuffer *read_fb = GPU_framebuffer_back_get();
     GPU_framebuffer_read_color(read_fb,
                                x,
                                y,

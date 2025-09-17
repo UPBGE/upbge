@@ -617,10 +617,10 @@ void GPU_framebuffer_blit(blender::gpu::FrameBuffer *fb_read,
                           GPUFrameBufferBits blit_buffers);
 
 /********************UPBGE*******************/
-blender::gpu::Texture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb);
-blender::gpu::Texture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb);
-void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
-void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
+blender::gpu::Texture *GPU_framebuffer_color_texture(blender::gpu::FrameBuffer *fb);
+blender::gpu::Texture *GPU_framebuffer_depth_texture(blender::gpu::FrameBuffer *fb);
+void GPU_framebuffer_mipmap_texture(blender::gpu::FrameBuffer *fb);
+void GPU_framebuffer_unmipmap_texture(blender::gpu::FrameBuffer *fb);
 /****************End of UPBGE****************/
 /** \} */
 

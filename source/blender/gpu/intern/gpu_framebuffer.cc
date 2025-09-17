@@ -832,26 +832,26 @@ void GPU_offscreen_viewport_data_get(GPUOffScreen *offscreen,
 }
 
 /**************UPBGE****************/
-blender::gpu::Texture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb)
+blender::gpu::Texture *GPU_framebuffer_color_texture(blender::gpu::FrameBuffer *fb)
 {
   FrameBuffer *f = reinterpret_cast<FrameBuffer *>(fb);
   return f->color_tex(0);
 }
 
-blender::gpu::Texture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb)
+blender::gpu::Texture *GPU_framebuffer_depth_texture(blender::gpu::FrameBuffer *fb)
 {
   FrameBuffer *f = reinterpret_cast<FrameBuffer *>(fb);
   return f->depth_tex();
 }
 
-void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)
+void GPU_framebuffer_mipmap_texture(blender::gpu::FrameBuffer *fb)
 {
   blender::gpu::Texture *tex = GPU_framebuffer_color_texture(fb);
   GPU_texture_mipmap_mode(tex, true, false);
   GPU_texture_update_mipmap_chain(tex);
 }
 
-void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)
+void GPU_framebuffer_unmipmap_texture(blender::gpu::FrameBuffer *fb)
 {
   blender::gpu::Texture *tex = GPU_framebuffer_color_texture(fb);
   GPU_texture_mipmap_mode(tex, false, false);

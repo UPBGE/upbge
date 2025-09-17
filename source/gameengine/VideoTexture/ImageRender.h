@@ -16,7 +16,10 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
 
-struct GPUFrameBuffer;
+namespace blender::gpu {
+class FrameBuffer;
+} // namespace blender::gpu
+
 class Texture;
 
 /// class for render 3d scene
@@ -87,7 +90,7 @@ class ImageRender : public ImageViewport {
   bool m_owncamera;
 
   /// Used to make color and depth textures availables in ImageViewport::calcViewport
-  GPUFrameBuffer *m_targetfb;
+  blender::gpu::FrameBuffer *m_targetfb;
 
   /// for mirror operation
   KX_GameObject *m_observer;
