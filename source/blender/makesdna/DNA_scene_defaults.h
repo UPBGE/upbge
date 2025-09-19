@@ -223,6 +223,10 @@
     .flag = GAME_USE_UNDO, \
     .lodflag = SCE_LOD_USE_HYST, \
     .scehysteresis = 10, \
+    .use_fixed_physics_timestep = 0, \
+    .physics_tick_rate = 60, \
+    .use_fixed_fps_cap = 1, \
+    .fixed_fps_cap = 60, \
     .pythonkeys = {212, 217, 213, 116}, \
     .recastData = _DNA_DEFAULT_RecastData, \
   }

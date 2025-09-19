@@ -543,6 +543,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.maxlogicstep = 5;
     sce->gm.physubstep = 1;
     sce->gm.maxphystep = 5;
+    sce->gm.use_fixed_physics_timestep = 0;
+    sce->gm.physics_tick_rate = 60;
     sce->gm.lineardeactthreshold = 0.8f;
     sce->gm.angulardeactthreshold = 1.0f;
     sce->gm.deactivationtime = 2.0f;

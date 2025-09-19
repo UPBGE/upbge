@@ -91,6 +91,8 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       sce->gm.maxlogicstep = 5;
       sce->gm.physubstep = 1;
       sce->gm.maxphystep = 5;
+      sce->gm.use_fixed_physics_timestep = 0;
+      sce->gm.physics_tick_rate = 60;
       sce->gm.lineardeactthreshold = 0.8f;
       sce->gm.angulardeactthreshold = 1.0f;
       sce->gm.deactivationtime = 2.0f;
@@ -448,6 +450,12 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       BKE_mesh_legacy_recast_to_generic(mesh);
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 5)) {
+    LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
+      sce->gm.use_fixed_fps_cap = 1;
+      sce->gm.physics_tick_rate = 60;
     }
   }
 }

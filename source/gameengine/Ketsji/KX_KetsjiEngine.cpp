@@ -36,6 +36,10 @@
 
 #include "KX_KetsjiEngine.h"
 
+#include <chrono>
+#include <thread>
+#include <algorithm>
+
 #include <fmt/format.h>
 
 #include "BLI_rect.h"
@@ -144,6 +148,12 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
       m_anim_framerate(25.0),
+      m_physicsAccumulator(0.0),
+      m_useFixedPhysicsTimestep(false),
+      m_physicsTickRate(60),
+      m_fixedPhysicsTimestep(1.0 / 60.0),
+      m_useFixedFPSCap(false),
+      m_fixedFPSCap(60),
       m_doRender(true),
       m_exitkey(130),
       m_exitcode(KX_ExitRequest::NO_REQUEST),
@@ -167,6 +177,9 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
 
   m_scenes = new EXP_ListValue<KX_Scene>();
   m_renderingCameras = {};
+  // Initialize pacing state
+  m_sleepOvershootEMA = std::chrono::steady_clock::duration::zero();
+  m_sleepEMAInitialized = false;
 }
 
 /**
@@ -413,47 +426,75 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 
   // Time of a frame (without scale).
   double timestep;
-  if (m_flags & FIXED_FRAMERATE) {
-    // Normal time step for fixed frame.
-    timestep = 1.0 / m_ticrate;
-  }
-  else {
-    // The frame is the smallest as possible.
-    timestep = dt;
-  }
-
-  // Number of frames to proceed.
   int frames;
-  if (m_flags & FIXED_FRAMERATE) {
-    // As many as possible for the elapsed time.
-    frames = int(dt * m_ticrate);
+  int physicsFrames = 0;
+  double physicsTimestep = 0.0;
+  double interpolationAlpha = 0.0;
+  bool useFixedPhysicsTimestep = false;
+
+  if (m_useFixedPhysicsTimestep) {
+    // Fixed physics timestep mode with accumulator pattern
+    useFixedPhysicsTimestep = true;
+    physicsTimestep = m_fixedPhysicsTimestep;
+    
+    // Add frame time to physics accumulator
+    m_physicsAccumulator += dt;
+    
+    // Calculate how many physics steps to perform
+    physicsFrames = 0;
+    while (m_physicsAccumulator >= m_fixedPhysicsTimestep && physicsFrames < m_maxPhysicsFrame) {
+      physicsFrames++;
+      m_physicsAccumulator -= m_fixedPhysicsTimestep;
+    }
+    
+    // Calculate interpolation alpha for smooth rendering
+    interpolationAlpha = m_physicsAccumulator / m_fixedPhysicsTimestep;
+    
+    // Logic still follows the original logic for compatibility
+    if (m_flags & FIXED_FRAMERATE) {
+      timestep = 1.0 / m_ticrate;
+      frames = int(dt * m_ticrate);
+    }
+    else {
+      timestep = dt;
+      frames = 1;
+    }
+    
+    // Limit logic frames
+    if (frames > m_maxLogicFrame) {
+      timestep = dt / m_maxLogicFrame;
+      frames = m_maxLogicFrame;
+    }
   }
   else {
-    // Proceed always one frame in non-fixed framerate.
-    frames = 1;
-  }
+    // Original variable timestep mode - unchanged for backward compatibility
+    if (m_flags & FIXED_FRAMERATE) {
+      // Normal time step for fixed frame.
+      timestep = 1.0 / m_ticrate;
+      frames = int(dt * m_ticrate);
+    }
+    else {
+      // The frame is the smallest as possible.
+      timestep = dt;
+      frames = 1;
+    }
 
-  // Fix timestep to not exceed max physics and logic frames.
-  int maxFrames = max_ii(m_maxLogicFrame, m_maxPhysicsFrame);
-  if (frames > maxFrames) {
-    timestep = dt / maxFrames;
-    frames = maxFrames;
+    // Fix timestep to not exceed max physics and logic frames.
+    int maxFrames = max_ii(m_maxLogicFrame, m_maxPhysicsFrame);
+    if (frames > maxFrames) {
+      timestep = dt / maxFrames;
+      frames = maxFrames;
+    }
+    
+    // In variable mode, physics frames = logic frames for compatibility
+    physicsFrames = frames;
+    physicsTimestep = timestep;
   }
 
   // If the number of frame is non-zero, update previous time.
-  if (frames > 0) {
+  if (frames > 0 || physicsFrames > 0) {
     m_previousRealTime = m_clockTime;
   }
-  //// Else in case of fixed framerate, try to sleep until the next frame.
-  // else if (m_flags & FIXED_FRAMERATE) {
-  //  const double sleeptime = timestep - dt - 1.0e-3;
-  //  /* If the remaining time is greater than 1ms (sleep resolution) sleep this thread.
-  //   * The other 1ms will be busy wait.
-  //   */
-  //  if (sleeptime > 0.0) {
-  //    std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
-  //  }
-  //}
 
   // Frame time with time scale.
   const double framestep = timestep * m_timescale;
@@ -462,6 +503,10 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   times.frames = frames;
   times.timestep = timestep;
   times.framestep = framestep;
+  times.useFixedPhysicsTimestep = useFixedPhysicsTimestep;
+  times.physicsFrames = physicsFrames;
+  times.physicsTimestep = physicsTimestep;
+  times.interpolationAlpha = interpolationAlpha;
 
   return times;
 }
@@ -469,14 +514,69 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 bool KX_KetsjiEngine::NextFrame()
 {
   m_logger.StartLog(tc_services);
+  bool shouldRender = true;
 
+  // Record a steady-clock timestamp for precise deadline pacing (fixed mode cap only)
+  m_frameStartSteady = std::chrono::steady_clock::now();
+  // Initialize persistent deadline when entering a capped sequence
+  if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
+    using clock = std::chrono::steady_clock;
+    const int capFps = (m_fixedFPSCap > 0) ? m_fixedFPSCap : (int)m_ticrate;
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)capFps));
+    if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+      m_nextFrameDeadline = m_frameStartSteady + period;
+    }
+  } else {
+    // Reset when cap is not active to avoid stale deadlines
+    m_nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
   const FrameTimes times = GetFrameTimes();
 
   // Exit if zero frame is scheduled.
   if (times.frames == 0) {
     // Start logging time spent outside main loop
     m_logger.StartLog(tc_outside);
-
+    // In fixed-physics pacing mode, still wait to the render deadline to keep cadence even
+    if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
+      using clock = std::chrono::steady_clock;
+      const int capFps = (m_fixedFPSCap > 0) ? m_fixedFPSCap : (int)m_ticrate;
+      const auto period = std::chrono::duration_cast<clock::duration>(
+          std::chrono::duration<double>(1.0 / (double)capFps));
+      int swapInterval = 0;
+      bool hasSwap = m_canvas && m_canvas->GetSwapInterval(swapInterval);
+      if (!(hasSwap && swapInterval != 0)) {
+        auto now = clock::now();
+        if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+          m_nextFrameDeadline = now + period;
+        }
+        auto ema_us = std::chrono::duration_cast<std::chrono::microseconds>(m_sleepOvershootEMA).count();
+        if (!m_sleepEMAInitialized) {
+          ema_us = 800;
+        }
+        ema_us = std::max<long long>(200, std::min<long long>(ema_us, 2000));
+        auto safety = std::chrono::microseconds(ema_us);
+        auto remaining = m_nextFrameDeadline - now;
+        if (remaining > safety) {
+          std::this_thread::sleep_until(m_nextFrameDeadline - safety);
+        }
+        while (clock::now() < m_nextFrameDeadline) {
+          // busy wait
+        }
+        auto after = clock::now();
+        auto overshoot = after - m_nextFrameDeadline;
+        const double alpha = 0.1;
+        if (!m_sleepEMAInitialized) {
+          m_sleepOvershootEMA = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+          m_sleepEMAInitialized = true;
+        } else {
+          auto overshoot_pos = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+          m_sleepOvershootEMA = clock::duration(
+              (clock::duration::rep)((1.0 - alpha) * (double)m_sleepOvershootEMA.count() + alpha * (double)overshoot_pos.count()));
+        }
+        m_nextFrameDeadline += period;
+      }
+    }
     return false;
   }
 
@@ -547,12 +647,27 @@ bool KX_KetsjiEngine::NextFrame()
 
       // Perform physics calculations on the scene. This can involve
       // many iterations of the physics solver.
-      scene->GetPhysicsEnvironment()->ProceedDeltaTime(
-          m_frameTime, times.timestep, times.framestep);  // m_deltatimerealDeltaTime);
-
-      /* No need to call sofbody update more than 1 time */
-      if (i == times.frames - 1) {
-        scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+      if (times.useFixedPhysicsTimestep) {
+        // Fixed timestep mode: perform multiple physics steps if needed
+        for (int physicsStep = 0; physicsStep < times.physicsFrames; physicsStep++) {
+          scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+              m_frameTime, times.physicsTimestep, times.physicsTimestep * m_timescale);
+          
+          // Update soft bodies only on the last physics step
+          if (physicsStep == times.physicsFrames - 1 && i == times.frames - 1) {
+            scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+          }
+        }
+      }
+      else {
+        // Variable timestep mode: original behavior preserved
+        scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+            m_frameTime, times.timestep, times.framestep);
+        
+        /* No need to call sofbody update more than 1 time */
+        if (i == times.frames - 1) {
+          scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+        }
       }
 
       m_logger.StartLog(tc_scenegraph);
@@ -575,7 +690,72 @@ bool KX_KetsjiEngine::NextFrame()
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
 
-  return m_doRender;
+  // Cap render FPS only in fixed physics mode when enabled (adaptive absolute deadline + short spin)
+  if (m_useFixedPhysicsTimestep && m_useFixedFPSCap) {
+    using clock = std::chrono::steady_clock;
+    const int capFps = (m_fixedFPSCap > 0) ? m_fixedFPSCap : (int)m_ticrate;
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)capFps));
+
+    // If vsync is enabled at the canvas level, avoid double-pacing (let swap interval drive cadence)
+    int swapInterval = 0;
+    bool hasSwap = m_canvas && m_canvas->GetSwapInterval(swapInterval);
+    if (!(hasSwap && swapInterval != 0)) {
+      // Persistent absolute deadline pacing
+      auto now = clock::now();
+      if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+        m_nextFrameDeadline = now + period;
+      }
+
+      // Compute adaptive safety window from oversleep EMA (in microseconds), clamp to [200us, 2000us]
+      auto ema_us = std::chrono::duration_cast<std::chrono::microseconds>(m_sleepOvershootEMA).count();
+      if (!m_sleepEMAInitialized) {
+        ema_us = 800; // initial safety guess
+      }
+      ema_us = std::max<long long>(200, std::min<long long>(ema_us, 2000));
+      auto safety = std::chrono::microseconds(ema_us);
+
+      auto remaining = m_nextFrameDeadline - now;
+      if (remaining > safety) {
+        std::this_thread::sleep_until(m_nextFrameDeadline - safety);
+      }
+
+      // Short spin for precision (<= ~200-300us)
+      while (clock::now() < m_nextFrameDeadline) {
+        // busy wait
+      }
+
+      // Measure overshoot and update EMA
+      auto after = clock::now();
+      auto overshoot = after - m_nextFrameDeadline;
+      // Use only positive overshoot to tune safety; decay otherwise
+      const double alpha = 0.1; // EMA smoothing factor
+      if (!m_sleepEMAInitialized) {
+        m_sleepOvershootEMA = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+        m_sleepEMAInitialized = true;
+      } else {
+        auto overshoot_pos = (overshoot > clock::duration::zero()) ? overshoot : clock::duration::zero();
+        m_sleepOvershootEMA = clock::duration(
+            (clock::duration::rep)((1.0 - alpha) * (double)m_sleepOvershootEMA.count() + alpha * (double)overshoot_pos.count()));
+      }
+
+      // Advance deadline by exact multiples of period; if far behind, drop render to catch up
+      m_nextFrameDeadline += period;
+
+      // If we are behind by more than two periods, resync by skipping renders
+      auto lag = after - m_nextFrameDeadline;
+      if (lag > 2 * period) {
+        auto skip = lag / period;
+        if (skip > 0) {
+          m_nextFrameDeadline += skip * period;
+          // Drop this render to catch up pacing (logic/physics already executed)
+          shouldRender = false;
+        }
+      }
+    }
+  }
+
+  return (shouldRender && m_doRender);
 }
 
 KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
@@ -1515,9 +1695,60 @@ void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
   m_maxPhysicsFrame = frame;
 }
 
+bool KX_KetsjiEngine::GetUseFixedPhysicsTimestep()
+{
+  return m_useFixedPhysicsTimestep;
+}
+
+void KX_KetsjiEngine::SetUseFixedPhysicsTimestep(bool useFixed)
+{
+  m_useFixedPhysicsTimestep = useFixed;
+  if (useFixed) {
+    // Reset accumulator when switching to fixed timestep
+    m_physicsAccumulator = 0.0;
+  }
+}
+
+int KX_KetsjiEngine::GetPhysicsTickRate()
+{
+  return m_physicsTickRate;
+}
+
+void KX_KetsjiEngine::SetPhysicsTickRate(int tickRate)
+{
+  if (tickRate > 0) {
+    m_physicsTickRate = tickRate;
+    m_fixedPhysicsTimestep = 1.0 / static_cast<double>(tickRate);
+    // Reset accumulator when changing tick rate
+    m_physicsAccumulator = 0.0;
+  }
+}
+
 double KX_KetsjiEngine::GetAnimFrameRate()
 {
   return m_anim_framerate;
+}
+
+bool KX_KetsjiEngine::GetUseFixedFPSCap()
+{
+  return m_useFixedFPSCap;
+}
+
+void KX_KetsjiEngine::SetUseFixedFPSCap(bool useFixed)
+{
+  m_useFixedFPSCap = useFixed;
+}
+
+int KX_KetsjiEngine::GetFixedFPSCap()
+{
+  return m_fixedFPSCap;
+}
+
+void KX_KetsjiEngine::SetFixedFPSCap(int fps)
+{
+  if (fps > 0) {
+    m_fixedFPSCap = fps;
+  }
 }
 
 bool KX_KetsjiEngine::GetFlag(FlagType flag) const
