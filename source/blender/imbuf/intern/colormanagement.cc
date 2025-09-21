@@ -780,14 +780,6 @@ void IMB_colormanagement_display_settings_from_ctx(
   }
 }
 
-static const ColorSpace *get_display_colorspace(
-    const ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings)
-{
-  return g_config->get_display_view_color_space(display_settings->display_device,
-                                                view_settings->view_transform);
-}
-
 static const ColorSpace *get_untonemapped_display_colorspace(
     const ColorManagedDisplaySettings *display_settings)
 {
@@ -829,13 +821,14 @@ static std::shared_ptr<const ocio::CPUProcessor> get_display_buffer_processor(
   return g_config->get_display_cpu_processor(display_parameters);
 }
 
-void IMB_colormanagement_init_untonemapped_view_settings(
-    ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings)
+static const ocio::View *imb_get_untonemapped_view(
+    const ColorManagedDisplaySettings *display_settings)
 {
   const ocio::Display *display = g_config->get_display_by_name(display_settings->display_device);
   if (!display) {
-    return;
+    return nullptr;
   }
+
   /* Try to guess what the untonemapped view is. */
   const ocio::View *default_view = display->get_untonemapped_view();
   /* If that fails, we fall back to the default view transform of the display
@@ -843,6 +836,15 @@ void IMB_colormanagement_init_untonemapped_view_settings(
   if (default_view == nullptr) {
     default_view = display->get_default_view();
   }
+
+  return default_view;
+}
+
+void IMB_colormanagement_init_untonemapped_view_settings(
+    ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings)
+{
+  /* Try to guess what the untonemapped view is. */
+  const ocio::View *default_view = imb_get_untonemapped_view(display_settings);
   if (default_view != nullptr) {
     STRNCPY_UTF8(view_settings->view_transform, default_view->name().c_str());
   }
@@ -976,6 +978,17 @@ static StringRefNull colormanage_find_matching_view_name(const ocio::Display *di
     const ocio::View *view = display->get_view_by_index(view_index);
     if (view->name().startswith(view_name) || view_name.startswith(view->name())) {
       return view->name();
+    }
+  }
+
+  const int64_t separator_offset = view_name.find(" - ");
+  if (separator_offset != -1) {
+    const StringRef view_short_name = view_name.substr(0, separator_offset);
+    for (const int view_index : blender::IndexRange(display->get_num_views())) {
+      const ocio::View *view = display->get_view_by_index(view_index);
+      if (view->name().startswith(view_short_name)) {
+        return view->name();
+      }
     }
   }
 
@@ -1805,12 +1818,13 @@ static bool is_colorspace_same_as_display(const ColorSpace *colorspace,
     return false;
   }
 
-  const ColorSpace *display_colorspace = get_display_colorspace(view_settings, display_settings);
-  if (display_colorspace == colorspace) {
-    return true;
+  const ColorSpace *display_colorspace = get_untonemapped_display_colorspace(display_settings);
+  if (display_colorspace != colorspace) {
+    return false;
   }
 
-  return false;
+  const ocio::View *default_view = imb_get_untonemapped_view(display_settings);
+  return default_view && default_view->name() == view_settings->view_transform;
 }
 
 bool IMB_colormanagement_display_processor_needed(
@@ -3193,7 +3207,7 @@ static bool imb_colormanagement_working_space_set_from_matrix(
                               imb_working_space_compare_threshold))
   {
     /* Update scene linear name in case it is different for this config. */
-    STRNCPY(bmain->colorspace.scene_linear_name, global_role_scene_linear);
+    STRNCPY(bmain->colorspace.scene_linear_name, global_role_scene_linear_default);
     return IMB_colormanagement_working_space_set_from_name(global_role_scene_linear_default);
   }
 
@@ -3221,7 +3235,7 @@ static bool imb_colormanagement_working_space_set_from_matrix(
     const ColorSpace *colorspace = g_config->get_color_space_by_interop_id(interop_id);
     if (colorspace) {
       /* Update scene linear name in case it is different for this config. */
-      STRNCPY(bmain->colorspace.scene_linear_name, global_role_scene_linear);
+      STRNCPY(bmain->colorspace.scene_linear_name, colorspace->name().c_str());
       return IMB_colormanagement_working_space_set_from_name(colorspace->name().c_str());
     }
   }
@@ -3542,7 +3556,7 @@ void IMB_colormanagement_display_items_add(EnumPropertyItem **items, int *totite
       item.name = display->ui_name().c_str();
       item.identifier = display->name().c_str();
       item.icon = 0;
-      item.description = "";
+      item.description = display->description().c_str();
 
       RNA_enum_item_add(items, totitem, &item);
     }
@@ -3567,7 +3581,7 @@ void IMB_colormanagement_view_items_add(EnumPropertyItem **items,
     item.name = view->name().c_str();
     item.identifier = view->name().c_str();
     item.icon = 0;
-    item.description = "";
+    item.description = view->description().c_str();
 
     RNA_enum_item_add(items, totitem, &item);
   }
@@ -3591,7 +3605,7 @@ void IMB_colormanagement_look_items_add(EnumPropertyItem **items,
     item.name = look->ui_name().c_str();
     item.identifier = look->name().c_str();
     item.icon = 0;
-    item.description = "";
+    item.description = look->description().c_str();
 
     RNA_enum_item_add(items, totitem, &item);
   }
@@ -3984,7 +3998,7 @@ ColormanageProcessor *IMB_colormanagement_display_processor_new(
     applied_view_settings = &untonemapped_view_settings;
   }
 
-  display_colorspace = get_display_colorspace(applied_view_settings, display_settings);
+  display_colorspace = get_untonemapped_display_colorspace(display_settings);
   if (display_colorspace) {
     cm_processor->is_data_result = display_colorspace->is_data();
   }
