@@ -132,6 +132,7 @@ set(SRC
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
   intern/quadric.cc
+  intern/radial_tiling_shared.cc
   intern/rand.cc
   intern/rct.cc
   intern/resource_scope.cc
@@ -176,7 +177,7 @@ set(SRC
   # Header as source (included in C files above).
   intern/kdtree_impl.h
   intern/list_sort_impl.h
-
+  intern/radial_tiling_shared.hh
 
   BLI_alloca.h
   BLI_allocator.hh
@@ -358,6 +359,7 @@ set(SRC
   BLI_pool.hh
   BLI_probing_strategies.hh
   BLI_quadric.h
+  BLI_radial_tiling.hh
   BLI_rand.h
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh

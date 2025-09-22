@@ -694,8 +694,14 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_COAT)) {
     info.define("MAT_CLEARCOAT");
   }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED) == false) {
+    info.define("MAT_REFLECTION_COLORLESS");
+  }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFRACTION_MAYBE_COLORED) == false) {
+    info.define("MAT_REFRACTION_COLORLESS");
+  }
 
-  eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
+  const eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
 
   int32_t closure_bin_count = to_gbuffer_bin_count(closure_bits);
   switch (closure_bin_count) {
@@ -731,6 +737,38 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       default:
         BLI_assert_unreachable();
         break;
+    }
+
+    if (closure_bin_count == 2) {
+      /* In a lot of cases, we can predict that we do not need the extra GBuffer layers. This
+       * simplifies the shader code and improves compilation time (see #145347). */
+      const bool colorless_reflection = !GPU_material_flag_get(
+          gpumat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED);
+      const bool colorless_refraction = !GPU_material_flag_get(
+          gpumat, GPU_MATFLAG_REFRACTION_MAYBE_COLORED);
+      int closure_layer_count = 0;
+      if (closure_bits & CLOSURE_DIFFUSE) {
+        closure_layer_count += 1;
+      }
+      if (closure_bits & CLOSURE_SSS) {
+        closure_layer_count += 2;
+      }
+      if (closure_bits & CLOSURE_REFLECTION) {
+        closure_layer_count += colorless_reflection ? 1 : 2;
+      }
+      if (closure_bits & CLOSURE_REFRACTION) {
+        closure_layer_count += colorless_refraction ? 1 : 2;
+      }
+      if (closure_bits & CLOSURE_TRANSLUCENT) {
+        closure_layer_count += 1;
+      }
+      if (closure_bits & CLOSURE_CLEARCOAT) {
+        closure_layer_count += colorless_reflection ? 1 : 2;
+      }
+
+      if (closure_layer_count <= 2) {
+        info.define("GBUFFER_SIMPLE_CLOSURE_LAYOUT");
+      }
     }
   }
 
@@ -903,17 +941,26 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
     vert_gen << "float3 nodetree_displacement()\n";
     vert_gen << "{\n";
-    vert_gen << ((use_vertex_displacement) ? codegen.displacement : "return float3(0);\n");
+    vert_gen << ((use_vertex_displacement) ? codegen.displacement.serialized :
+                                             "return float3(0);\n");
     vert_gen << "}\n\n";
 
-    Vector<StringRefNull> dependencies = {"eevee_nodetree_lib.glsl"};
-    dependencies.extend(info.dependencies_generated);
+    Vector<StringRefNull> dependencies = {};
+    if (use_vertex_displacement) {
+      dependencies.append("eevee_nodetree_lib.glsl");
+      dependencies.extend(codegen.displacement.dependencies);
+    }
 
     info.generated_sources.append({"eevee_nodetree_vert_lib.glsl", dependencies, vert_gen.str()});
   }
 
   if (pipeline_type != MAT_PIPE_VOLUME_OCCUPANCY) {
-    frag_gen << (!codegen.material_functions.empty() ? codegen.material_functions : "\n");
+    Vector<StringRefNull> dependencies = {"eevee_nodetree_lib.glsl"};
+
+    for (const auto &graph : codegen.material_functions) {
+      frag_gen << graph.serialized;
+      dependencies.extend(graph.dependencies);
+    }
 
     if (!codegen.displacement.empty()) {
       /* Bump displacement. Needed to recompute normals after displacement. */
@@ -921,14 +968,16 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
       frag_gen << "float3 nodetree_displacement()\n";
       frag_gen << "{\n";
-      frag_gen << codegen.displacement;
+      frag_gen << codegen.displacement.serialized;
+      dependencies.extend(codegen.displacement.dependencies);
       frag_gen << "}\n\n";
     }
 
     frag_gen << "Closure nodetree_surface(float closure_rand)\n";
     frag_gen << "{\n";
     frag_gen << "  closure_weights_reset(closure_rand);\n";
-    frag_gen << (!codegen.surface.empty() ? codegen.surface : "return Closure(0);\n");
+    frag_gen << codegen.surface.serialized_or_default("return Closure(0);\n");
+    dependencies.extend(codegen.surface.dependencies);
     frag_gen << "}\n\n";
 
     /* TODO(fclem): Find a way to pass material parameters inside the material UBO. */
@@ -960,18 +1009,17 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       }
     }
     else {
-      frag_gen << codegen.thickness;
+      frag_gen << codegen.thickness.serialized;
+      dependencies.extend(codegen.thickness.dependencies);
     }
     frag_gen << "}\n\n";
 
     frag_gen << "Closure nodetree_volume()\n";
     frag_gen << "{\n";
     frag_gen << "  closure_weights_reset(0.0);\n";
-    frag_gen << (!codegen.volume.empty() ? codegen.volume : "return Closure(0);\n");
+    frag_gen << codegen.volume.serialized_or_default("return Closure(0);\n");
+    dependencies.extend(codegen.volume.dependencies);
     frag_gen << "}\n\n";
-
-    Vector<StringRefNull> dependencies = {"eevee_nodetree_lib.glsl"};
-    dependencies.extend(info.dependencies_generated);
 
     info.generated_sources.append({"eevee_nodetree_frag_lib.glsl", dependencies, frag_gen.str()});
   }
