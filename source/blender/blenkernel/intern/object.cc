@@ -5365,10 +5365,10 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 {
   int flag = 0;
 
-  /* UPBGE: For GPU skinning (on evaluated Object/Mesh) */
+  /* UPBGE: For GPU deform (on evaluated Object/Mesh) */
   if (ob->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob->data;
-    if (me_eval && me_eval->is_running_skinning) {
+    if (me_eval && me_eval->is_running_gpu_deform) {
       flag |= eModifierMode_Realtime;
     }
   }

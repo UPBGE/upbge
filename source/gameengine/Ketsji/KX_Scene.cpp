@@ -490,7 +490,7 @@ void KX_Scene::ResetGpuActionPlayingFlag(const Depsgraph *depsgraph)
         if (ob && ob->type == OB_MESH) {
           Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
           Mesh *me_eval = (Mesh *)ob_eval->data;
-          me_eval->is_running_skinning = 0;
+          me_eval->is_running_gpu_deform = 0;
         }
       }
     }

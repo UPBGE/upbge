@@ -357,12 +357,12 @@ class ShadowModule {
     GPU_BATCH_DISCARD_SAFE(box_batch_);
   }
 
-  /* UPBGE shadows artifacts GPU skinning fix */
-  bool need_gpu_skinning_clear_ = false;
-  void mark_gpu_skinning_clear_needed()
+  /* UPBGE: Shadows artifacts GPU deform fix */
+  bool need_gpu_deform_clear_ = false;
+  void mark_gpu_deform_clear_needed()
   {
     if (enabled_) {
-      need_gpu_skinning_clear_ = true;
+      need_gpu_deform_clear_ = true;
     }
   }
 

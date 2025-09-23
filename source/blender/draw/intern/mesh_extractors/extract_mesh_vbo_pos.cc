@@ -15,7 +15,7 @@
 
 namespace blender::draw {
 
-// === Utilitary function for FLOAT4 (GPU SKINNING) ===
+// === Utilitary function for FLOAT4 (GPU DEFORM) ===
 
 static void extract_positions_mesh_float4(const MeshRenderData &mr, MutableSpan<float4> vbo_data)
 {
@@ -145,22 +145,22 @@ static void extract_positions_bm(const MeshRenderData &mr, MutableSpan<float3> v
 
 gpu::VertBufPtr extract_positions(const MeshRenderData &mr)
 {
-  // Check if mesh is using GPU skinning
-  bool use_gpu_skinning = mr.mesh && mr.mesh->is_using_skinning;
+  // Check if mesh is using GPU deform
+  bool use_gpu_deform = mr.mesh && mr.mesh->is_using_gpu_deform;
 
   // Choose appropriate format
   static const GPUVertFormat format_standard = GPU_vertformat_from_attribute(
       "pos", gpu::VertAttrType::SFLOAT_32_32_32);
-  static const GPUVertFormat format_skinning = GPU_vertformat_from_attribute(
+  static const GPUVertFormat format_gpu_deform = GPU_vertformat_from_attribute(
       "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
-  const GPUVertFormat &format = use_gpu_skinning ? format_skinning : format_standard;
+  const GPUVertFormat &format = use_gpu_deform ? format_gpu_deform : format_standard;
 
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
   GPU_vertbuf_data_alloc(*vbo, mr.corners_num + mr.loose_indices_num);
 
-  if (use_gpu_skinning) {
-    // Path GPU skinning : use float4
+  if (use_gpu_deform) {
+    // Path GPU Deform : use float4
     MutableSpan vbo_data = vbo->data<float4>();
     if (mr.extract_type == MeshExtractType::Mesh) {
       extract_positions_mesh_float4(mr, vbo_data);

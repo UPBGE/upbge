@@ -212,7 +212,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
    * to extract positions on float3 next time mesh will be reconstructed */
   if (m_deformedObj && !m_isReplica) {
     Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
-    orig_mesh->is_using_skinning = 0;
+    orig_mesh->is_using_gpu_deform = 0;
   }
   m_deformedObj = nullptr;
 
@@ -770,11 +770,11 @@ void BL_ArmatureObject::DoGpuSkinning()
   Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
 
   /* Set this variable to extract vbo_pos with float4 */
-  orig_mesh->is_using_skinning = 1;
+  orig_mesh->is_using_gpu_deform = 1;
   /* Set this variable to indicate that the action is currently played.
    * Will be reset just after render.
    * Place this flag on runtime/evaluated mesh (the one used for rendering) */
-  mesh_eval->is_running_skinning = 1;
+  mesh_eval->is_running_gpu_deform = 1;
 
   if (m_modifiersListbackup.empty()) {
     disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
