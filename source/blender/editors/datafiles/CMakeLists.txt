@@ -788,7 +788,6 @@ if(WITH_BLENDER OR WITH_PLAYER)
       rigid_body
       rigid_body_constraint
       rna
-      rna_add
       rndcurve
       rootcurve
       scene
