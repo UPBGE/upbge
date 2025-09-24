@@ -22,6 +22,8 @@
 #include "DRW_engine.hh"
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
+#include "draw_cache_extract.hh" // UPBGE (for gpu deform)
+#include "draw_velocity_prev.hh" // UPBGE (for gpu deform)
 
 #include "eevee_instance.hh"
 // #include "eevee_renderpasses.hh"
@@ -189,6 +191,17 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
           data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);
           break;
         case OB_MESH:
+          Mesh *me = static_cast<Mesh *>(ob->data);
+          /* UPBGE: Use the previous VBO if the mesh is deformed by GPU */
+          if (me->is_running_gpu_deform) {
+            if (step_ == STEP_PREVIOUS) {
+              auto *prev_vbo = blender::draw::get_prev_pos_vbo(me);
+              if (prev_vbo) {
+                data.pos_buf = prev_vbo;
+                break;
+              }
+            }
+          }
           data.pos_buf = DRW_cache_mesh_surface_get(ob);
           break;
       }
