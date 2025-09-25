@@ -824,12 +824,12 @@ void BL_ArmatureObject::DoGpuSkinning()
     auto *existing_prev = blender::draw::get_prev_pos_vbo(orig_mesh);
     if (!existing_prev) {
       blender::draw::ensure_prev_pos_vbo(
-          orig_mesh, mesh_eval->verts_num, GPU_vertbuf_get_format(vbo_pos));
+          orig_mesh, mesh_eval->corners_num, GPU_vertbuf_get_format(vbo_pos));
     }
     m_prev_vbo_mesh_key = orig_mesh;
     blender::gpu::VertBuf *prev_vbo = blender::draw::get_prev_pos_vbo(orig_mesh);
     if (prev_vbo) {
-      blender::draw::copy_vertbuf_to_vertbuf(prev_vbo, vbo_pos, mesh_eval->verts_num);
+      blender::draw::copy_vertbuf_to_vertbuf(prev_vbo, vbo_pos, mesh_eval->corners_num);
     }
   }
   else {
