@@ -5369,7 +5369,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   if (ob->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob->data;
     if (me_eval && me_eval->is_running_gpu_deform) {
-      flag |= eModifierMode_Realtime | eModifierMode_Render;
+      flag |= eModifierMode_Realtime;
     }
   }
 
