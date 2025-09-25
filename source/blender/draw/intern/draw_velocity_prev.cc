@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2021 Blender Authors
  *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 /** \file
  * \ingroup eevee (UPBGE)
@@ -17,8 +18,8 @@
 
 namespace blender::draw {
 
-/* Warning: KEY on mesh orig and GPU format/vertices from mesh eval */
-static Map<Mesh *, gpu::VertBuf *> prev_vbo_map;
+/* Warning: KEY on original Object (ob_orig) — Mesh* can change between evaluations. */
+static Map<Object *, gpu::VertBuf *> prev_vbo_map;
 static blender::gpu::Shader *copy_shader = nullptr;
 /* Reference count for shader users. */
 static int copy_shader_refcount = 0;
@@ -74,14 +75,14 @@ static void release_copy_shader()
   }
 }
 
-/* Ensure prev VBO exists. */
-gpu::VertBuf *ensure_prev_pos_vbo(Mesh *me, int verts_num, const GPUVertFormat *format)
+/* Ensure prev VBO exists. Keyed by original Object pointer. */
+gpu::VertBuf *ensure_prev_pos_vbo(Object *ob, int verts_num, const GPUVertFormat *format)
 {
-  if (!me) {
+  if (!ob) {
     return nullptr;
   }
 
-  gpu::VertBuf *&vb = prev_vbo_map.lookup_or_add_default(me);
+  gpu::VertBuf *&vb = prev_vbo_map.lookup_or_add_default(ob);
   if (!vb) {
     /* Create a new vertbuf with same format and allocate vertices.
      * The shader is needed when a prev_vbo exists (to copy into it). */
@@ -92,25 +93,25 @@ gpu::VertBuf *ensure_prev_pos_vbo(Mesh *me, int verts_num, const GPUVertFormat *
   return vb;
 }
 
-gpu::VertBuf *get_prev_pos_vbo(Mesh *me)
+gpu::VertBuf *get_prev_pos_vbo(Object *ob)
 {
-  if (!me) {
+  if (!ob) {
     return nullptr;
   }
-  return prev_vbo_map.lookup_default(me, nullptr);
+  return prev_vbo_map.lookup_default(ob, nullptr);
 }
 
-void free_prev_pos_vbo(Mesh *me)
+void free_prev_pos_vbo(Object *ob)
 {
-  if (!me) {
+  if (!ob) {
     return;
   }
-  gpu::VertBuf *vb = prev_vbo_map.lookup_default(me, nullptr);
+  gpu::VertBuf *vb = prev_vbo_map.lookup_default(ob, nullptr);
   if (!vb) {
     return;
   }
   GPU_vertbuf_discard(vb);
-  prev_vbo_map.remove(me);
+  prev_vbo_map.remove(ob);
   /* Release shader ref held for this prev_vbo. */
   release_copy_shader();
 }
@@ -118,7 +119,7 @@ void free_prev_pos_vbo(Mesh *me)
 /* Optional: free all prev vbos and shader (call at shutdown). */
 void prev_vbo_shutdown()
 {
-  for (MapItem<Mesh *, gpu::VertBuf *> item : prev_vbo_map.items()) {
+  for (MapItem<Object *, gpu::VertBuf *> item : prev_vbo_map.items()) {
     gpu::VertBuf *vb = item.value;
     if (vb) {
       GPU_vertbuf_discard(vb);
@@ -162,7 +163,7 @@ void copy_vertbuf_to_vertbuf(gpu::VertBuf *dst, gpu::VertBuf *src, int verts)
   const int group_size = 256;
   const int groups = (verts + group_size - 1) / group_size;
   GPU_compute_dispatch(copy_shader, groups, 1, 1);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
   GPU_shader_unbind();
 }

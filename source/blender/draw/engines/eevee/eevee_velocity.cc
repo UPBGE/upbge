@@ -194,8 +194,8 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
           Mesh *me = static_cast<Mesh *>(ob->data);
           /* UPBGE: Use the previous VBO if the mesh is deformed by GPU */
           if (me->is_running_gpu_deform) {
-            if (step_ == STEP_PREVIOUS) {
-              auto *prev_vbo = blender::draw::get_prev_pos_vbo(me);
+            if (0) {
+              auto *prev_vbo = blender::draw::get_prev_pos_vbo(DEG_get_original(ob));
               if (prev_vbo) {
                 data.pos_buf = prev_vbo;
                 break;
