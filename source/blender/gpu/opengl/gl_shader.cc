@@ -1244,7 +1244,7 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
         sources[SOURCES_INDEX_SPECIALIZATION_CONSTANTS]);
   }
 
-  if (DEBUG_LOG_SHADER_SRC_ON_ERROR || (this->name_get().startswith("MADefault Surface"))) {
+  if (DEBUG_LOG_SHADER_SRC_ON_ERROR) {
     /* Store the generated source for printing in case the link fails. */
     StringRefNull source_type;
     switch (gl_stage) {
@@ -1266,12 +1266,6 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
     for (StringRefNull source : sources) {
       debug_source.append(source);
     }
-
-    std::mutex mutex;
-    std::scoped_lock lock(mutex);
-    std::ofstream out(source_type);
-    out << fmt::to_string(fmt::join(sources, ""));
-    out.close();
   }
 
   if (async_compilation_) {
@@ -1572,12 +1566,13 @@ size_t GLSourcesBaked::size()
 
 GLShader::GLProgram::~GLProgram()
 {
+  /* This can run from any thread even without a GLContext bound. */
   /* Invalid handles are silently ignored. */
-  glDeleteShader(vert_shader);
-  glDeleteShader(geom_shader);
-  glDeleteShader(frag_shader);
-  glDeleteShader(compute_shader);
-  glDeleteProgram(program_id);
+  GLContext::shader_free(vert_shader);
+  GLContext::shader_free(geom_shader);
+  GLContext::shader_free(frag_shader);
+  GLContext::shader_free(compute_shader);
+  GLContext::program_free(program_id);
 }
 
 void GLShader::GLProgram::program_link(StringRefNull shader_name)

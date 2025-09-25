@@ -47,11 +47,11 @@ const EnumPropertyItem rna_enum_node_socket_data_type_items[] = {
     {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", ""},
     {SOCK_BOOLEAN, "BOOLEAN", ICON_NODE_SOCKET_BOOLEAN, "Boolean", ""},
     {SOCK_VECTOR, "VECTOR", ICON_NODE_SOCKET_VECTOR, "Vector", ""},
+    {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "Color", ""},
     {SOCK_ROTATION, "ROTATION", ICON_NODE_SOCKET_ROTATION, "Rotation", ""},
     {SOCK_MATRIX, "MATRIX", ICON_NODE_SOCKET_MATRIX, "Matrix", ""},
     {SOCK_STRING, "STRING", ICON_NODE_SOCKET_STRING, "String", ""},
     {SOCK_MENU, "MENU", ICON_NODE_SOCKET_MENU, "Menu", ""},
-    {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "Color", ""},
     {SOCK_SHADER, "SHADER", ICON_NODE_SOCKET_SHADER, "Shader", ""},
     {SOCK_OBJECT, "OBJECT", ICON_NODE_SOCKET_OBJECT, "Object", ""},
     {SOCK_IMAGE, "IMAGE", ICON_NODE_SOCKET_IMAGE, "Image", ""},
@@ -2283,6 +2283,15 @@ static bool rna_GeometryNodeTree_is_type_grease_pencil_get(PointerRNA *ptr)
 static void rna_GeometryNodeTree_is_type_grease_pencil_set(PointerRNA *ptr, bool value)
 {
   geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_GREASE_PENCIL, value);
+}
+
+static bool rna_GeometryNodeTree_modifier_manage_panel_get(PointerRNA *ptr)
+{
+  return !geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL);
+}
+static void rna_GeometryNodeTree_modifier_manage_panel_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL, !value);
 }
 
 static bool random_value_type_supported(const EnumPropertyItem *item)
@@ -9536,6 +9545,18 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
                                  "rna_GeometryNodeTree_is_type_grease_pencil_get",
                                  "rna_GeometryNodeTree_is_type_grease_pencil_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+
+  prop = RNA_def_property(srna, "show_modifier_manage_panel", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GeometryNodeTree_modifier_manage_panel_get",
+                                 "rna_GeometryNodeTree_modifier_manage_panel_set");
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Show Manage Panel",
+      "Turn on the option to display the manage panel when creating a modifier");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
 }
 
 static StructRNA *define_specific_node(BlenderRNA *brna,

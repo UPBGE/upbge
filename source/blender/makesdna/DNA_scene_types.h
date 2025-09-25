@@ -330,39 +330,38 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_POSITION "Position"
 #define RE_PASSNAME_NORMAL "Normal"
 #define RE_PASSNAME_UV "UV"
-#define RE_PASSNAME_EMIT "Emit"
+#define RE_PASSNAME_EMIT "Emission"
 #define RE_PASSNAME_SHADOW "Shadow"
 
-#define RE_PASSNAME_AO "AO"
-#define RE_PASSNAME_ENVIRONMENT "Env"
-#define RE_PASSNAME_INDEXOB "IndexOB"
-#define RE_PASSNAME_INDEXMA "IndexMA"
+#define RE_PASSNAME_AO "Ambient Occlusion"
+#define RE_PASSNAME_ENVIRONMENT "Environment"
+#define RE_PASSNAME_INDEXOB "Object Index"
+#define RE_PASSNAME_INDEXMA "Material Index"
 #define RE_PASSNAME_MIST "Mist"
 
-#define RE_PASSNAME_DIFFUSE_DIRECT "DiffDir"
-#define RE_PASSNAME_DIFFUSE_INDIRECT "DiffInd"
-#define RE_PASSNAME_DIFFUSE_COLOR "DiffCol"
-#define RE_PASSNAME_GLOSSY_DIRECT "GlossDir"
-#define RE_PASSNAME_GLOSSY_INDIRECT "GlossInd"
-#define RE_PASSNAME_GLOSSY_COLOR "GlossCol"
-#define RE_PASSNAME_TRANSM_DIRECT "TransDir"
-#define RE_PASSNAME_TRANSM_INDIRECT "TransInd"
-#define RE_PASSNAME_TRANSM_COLOR "TransCol"
+#define RE_PASSNAME_DIFFUSE_DIRECT "Diffuse Direct"
+#define RE_PASSNAME_DIFFUSE_INDIRECT "Diffuse Indirect"
+#define RE_PASSNAME_DIFFUSE_COLOR "Diffuse Color"
+#define RE_PASSNAME_GLOSSY_DIRECT "Glossy Direct"
+#define RE_PASSNAME_GLOSSY_INDIRECT "Glossy Indirect"
+#define RE_PASSNAME_GLOSSY_COLOR "Glossy Color"
+#define RE_PASSNAME_TRANSM_DIRECT "Transmission Direct"
+#define RE_PASSNAME_TRANSM_INDIRECT "Transmission Indirect"
+#define RE_PASSNAME_TRANSM_COLOR "Transmission Color"
 
-#define RE_PASSNAME_SUBSURFACE_DIRECT "SubsurfaceDir"
-#define RE_PASSNAME_SUBSURFACE_INDIRECT "SubsurfaceInd"
-#define RE_PASSNAME_SUBSURFACE_COLOR "SubsurfaceCol"
+#define RE_PASSNAME_SUBSURFACE_DIRECT "Subsurface Direct"
+#define RE_PASSNAME_SUBSURFACE_INDIRECT "Subsurface Indirect"
+#define RE_PASSNAME_SUBSURFACE_COLOR "Subsurface Color"
 
 #define RE_PASSNAME_FREESTYLE "Freestyle"
-#define RE_PASSNAME_BLOOM "BloomCol"
-#define RE_PASSNAME_VOLUME_LIGHT "VolumeDir"
-#define RE_PASSNAME_TRANSPARENT "Transp"
+#define RE_PASSNAME_VOLUME_LIGHT "Volume Direct"
+#define RE_PASSNAME_TRANSPARENT "Transparent"
 
 #define RE_PASSNAME_CRYPTOMATTE_OBJECT "CryptoObject"
 #define RE_PASSNAME_CRYPTOMATTE_ASSET "CryptoAsset"
 #define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
 
-#define RE_PASSNAME_GREASE_PENCIL "GreasePencil"
+#define RE_PASSNAME_GREASE_PENCIL "Grease Pencil"
 
 /** \} */
 
@@ -482,6 +481,7 @@ typedef struct ImageFormatData {
 
   /** OpenEXR: R_IMF_EXR_CODEC_* values in low OPENEXR_CODEC_MASK bits. */
   char exr_codec;
+  char exr_flag;
 
   /** Jpeg2000. */
   char jp2_flag;
@@ -492,19 +492,18 @@ typedef struct ImageFormatData {
 
   /** CINEON. */
   char cineon_flag;
+  char _pad[3];
   short cineon_white, cineon_black;
   float cineon_gamma;
 
-  char _pad[3];
-
   /** Multi-view. */
-  char views_format;
   Stereo3dFormat stereo3d_format;
+  char views_format;
 
   /* Color management members. */
 
   char color_management;
-  char _pad1[7];
+  char _pad1[6];
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
   ColorManagedColorspaceSettings linear_colorspace_settings;
@@ -601,6 +600,11 @@ enum {
   R_IMF_EXR_CODEC_DWAA = 8,
   R_IMF_EXR_CODEC_DWAB = 9,
   R_IMF_EXR_CODEC_MAX = 10,
+};
+
+/** #ImageFormatData::exr_flag */
+enum {
+  R_IMF_EXR_FLAG_MULTIPART = 1 << 0,
 };
 
 /** #ImageFormatData::jp2_flag */

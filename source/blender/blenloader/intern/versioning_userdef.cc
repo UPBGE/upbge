@@ -367,6 +367,25 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker_selected);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 91)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.bevel);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.seam);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.sharp);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.crease);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.freestyle);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 93)) {
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.text);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.text_sel);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.item);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.inner);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.inner_sel);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.outline);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.outline_sel);
+    btheme->tui.wcol_curve.roundness = U_theme_default.tui.wcol_curve.roundness;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1645,6 +1664,31 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
       memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 90)) {
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Utilities");
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 94)) {
+    /* Force-reset file compression to ON, see #135735. */
+    userdef->flag |= USER_FILECOMPRESS;
   }
 
   /**

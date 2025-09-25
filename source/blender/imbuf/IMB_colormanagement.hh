@@ -78,6 +78,7 @@ blender::Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace 
  * For describing the colorspace of videos and high dynamic range image files. */
 bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
                                        const bool video,
+                                       const bool rgb_matrix,
                                        int cicp[4]);
 const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4], const bool video);
 
@@ -356,6 +357,7 @@ const char *IMB_colormanagement_display_get_default_view_transform_name(
     const ColorManagedDisplay *display);
 
 const ColorSpace *IMB_colormangement_display_get_color_space(
+    const ColorManagedViewSettings *view_settings,
     const ColorManagedDisplaySettings *display_settings);
 bool IMB_colormanagement_display_is_hdr(const ColorManagedDisplaySettings *display_settings,
                                         const char *view_name);

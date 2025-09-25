@@ -1755,7 +1755,8 @@ static size_t unit_as_string_split_pair(char *str,
 
   /* Check the 2 is a smaller unit. */
   if (unit_b > unit_a) {
-    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, do_rstrip_zero, usys, unit_a, '\0');
+    /* Always strip zeros for the larger unit, since it is truncated and won't ever "jitter". */
+    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, true, usys, unit_a, '\0');
 
     prec -= integer_digits_d(value_a / unit_b->scalar) -
             integer_digits_d(value_b / unit_b->scalar);
@@ -1855,7 +1856,7 @@ static size_t unit_as_string_main(char *str,
   if (split && unit_should_be_split(type)) {
     int length = unit_as_string_split_pair(
         str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit);
-    /* Failed when length is negative, fall back to no split. */
+    /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
     }

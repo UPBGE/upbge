@@ -156,14 +156,14 @@ typedef struct bNodeSocket {
   void *default_value;
 
   /** Local stack index for "node_exec". */
-  short stack_index;
+  int stack_index;
   char display_shape;
 
   /* #AttrDomain used when the geometry nodes modifier creates an attribute for a group
    * output. */
   char attribute_domain;
 
-  char _pad[4];
+  char _pad[2];
 
   /** Custom dynamic defined label. */
   char label[/*MAX_NAME*/ 64];
@@ -1068,8 +1068,9 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_GREASE_PENCIL = (1 << 9),
   /* Only used by Grease Pencil for now. */
   GEO_NODE_ASSET_PAINT = (1 << 10),
+  GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL = (1 << 11),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_PAINT);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL);
 
 /* Data structs, for `node->storage`. */
 

@@ -1008,6 +1008,12 @@ typedef struct SpaceUserPref {
 /** \name Motion Tracking
  * \{ */
 
+typedef struct SpaceClipOverlay {
+  /* eSpaceClipOverlay_Flag */
+  int flag;
+  char _pad0[4];
+} SpaceClipOverlay;
+
 /** Clip Editor. */
 typedef struct SpaceClip {
   SpaceLink *next, *prev;
@@ -1070,6 +1076,7 @@ typedef struct SpaceClip {
   float cursor[2];
 
   MaskSpaceInfo mask_info;
+  struct SpaceClipOverlay overlay;
 } SpaceClip;
 
 /** \} */

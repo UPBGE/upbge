@@ -235,7 +235,13 @@ typedef enum {
   eSubsurfModifierFlag_UseCrease = (1 << 4),
   eSubsurfModifierFlag_UseCustomNormals = (1 << 5),
   eSubsurfModifierFlag_UseRecursiveSubdivision = (1 << 6),
+  eSubsurfModifierFlag_UseAdaptiveSubdivision = (1 << 7),
 } SubsurfModifierFlag;
+
+typedef enum {
+  SUBSURF_ADAPTIVE_SPACE_PIXEL = 0,
+  SUBSURF_ADAPTIVE_SPACE_OBJECT = 1,
+} eSubsurfAdaptiveSpace;
 
 typedef enum {
   SUBSURF_TYPE_CATMULL_CLARK = 0,
@@ -269,7 +275,11 @@ typedef struct SubsurfModifierData {
   short quality;
   /** #eSubsurfBoundarySmooth. */
   short boundary_smooth;
-  char _pad[2];
+  /* Adaptive subdivision. */
+  /** #eSubsurfAdaptiveSpace */
+  short adaptive_space;
+  float adaptive_pixel_size;
+  float adaptive_object_edge_length;
 } SubsurfModifierData;
 
 typedef struct LatticeModifierData {
@@ -2578,6 +2588,7 @@ typedef struct NodesModifierData {
 
 typedef enum NodesModifierFlag {
   NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR = (1 << 0),
+  NODES_MODIFIER_HIDE_MANAGE_PANEL = (1 << 1),
 } NodesModifierFlag;
 
 typedef struct MeshToVolumeModifierData {

@@ -838,8 +838,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
   FOREACH_NODETREE_END;
 
   LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    if (brush->curve) {
-      callback(brush->curve);
+    if (brush->curve_distance_falloff) {
+      callback(brush->curve_distance_falloff);
     }
     if (brush->gpencil_settings) {
       if (brush->gpencil_settings->curve_sensitivity) {
@@ -4847,15 +4847,15 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
        * properly initialized previously. This is mere copy of #scene_init_data code. */
       if (scene->r.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
-        BKE_color_managed_view_settings_init_render(
+        BKE_color_managed_view_settings_init(
             &scene->r.im_format.view_settings, &scene->r.im_format.display_settings, "Filmic");
       }
 
       if (scene->r.bake.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.bake.im_format.display_settings);
-        BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
-                                                    &scene->r.bake.im_format.display_settings,
-                                                    "Filmic");
+        BKE_color_managed_view_settings_init(&scene->r.bake.im_format.view_settings,
+                                             &scene->r.bake.im_format.display_settings,
+                                             "Filmic");
       }
     }
   }

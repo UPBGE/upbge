@@ -2233,6 +2233,7 @@ def km_node_editor(params):
         ("node.link_make", {"type": 'J', "value": 'PRESS', "shift": True},
          {"properties": [("replace", True)]}),
         op_menu("NODE_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
+        op_menu("NODE_MT_swap", {"type": 'S', "value": 'PRESS', "shift": True}),
         ("node.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True},
          {"properties": [("NODE_OT_translate_attach", [("TRANSFORM_OT_translate", [("view2d_edge_pan", True)])])]}),
         ("node.duplicate_move_linked", {"type": 'D', "value": 'PRESS', "alt": True},
@@ -3564,6 +3565,8 @@ def km_clip_editor(params):
         ("clip.cursor_set", params.cursor_set_event, None),
         ("clip.copy_tracks", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("clip.paste_tracks", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
+         {"properties": [("data_path", "space_data.overlay.show_overlays")]}),
         *_template_items_context_menu("CLIP_MT_tracking_context_menu", params.context_menu_event),
     ])
 

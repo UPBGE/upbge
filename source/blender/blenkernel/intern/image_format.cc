@@ -28,19 +28,13 @@ namespace path_templates = blender::bke::path_templates;
 
 /* Init/Copy/Free */
 
-void BKE_image_format_init(ImageFormatData *imf, const bool render)
+void BKE_image_format_init(ImageFormatData *imf)
 {
   *imf = *DNA_struct_default_get(ImageFormatData);
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
-  if (render) {
-    BKE_color_managed_view_settings_init_render(
-        &imf->view_settings, &imf->display_settings, "Filmic");
-  }
-  else {
-    BKE_color_managed_view_settings_init_untonemapped(&imf->view_settings, &imf->display_settings);
-  }
+  BKE_color_managed_view_settings_init(&imf->view_settings, &imf->display_settings, "AgX");
 
   BKE_color_managed_colorspace_settings_init(&imf->linear_colorspace_settings);
 }
@@ -791,6 +785,9 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     }
     ibuf->foptions.flag |= (imf->exr_codec & OPENEXR_CODEC_MASK);
     ibuf->foptions.quality = quality;
+    if (imf->exr_flag & R_IMF_EXR_FLAG_MULTIPART) {
+      ibuf->foptions.flag |= OPENEXR_MULTIPART;
+    }
   }
 #endif
 #ifdef WITH_IMAGE_CINEON
@@ -931,7 +928,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   char quality = imbuf->foptions.quality;
   bool is_depth_set = false;
 
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
   im_format->media_type = MEDIA_TYPE_IMAGE;
 
   /* file type */
@@ -991,6 +988,9 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     }
     if (exr_codec < R_IMF_EXR_CODEC_MAX) {
       im_format->exr_codec = exr_codec;
+    }
+    if (custom_flags & OPENEXR_MULTIPART) {
+      im_format->exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
     }
   }
 #endif
