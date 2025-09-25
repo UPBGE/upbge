@@ -111,7 +111,7 @@ void GPG_Canvas::MakeScreenShot(const std::string &filename)
   // initialize image file format data
   ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
                                                               "im_format");
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
 
   // create file path
   char path[FILE_MAX];

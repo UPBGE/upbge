@@ -378,16 +378,15 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 ###########UPBGE###########
-class NODE_MT_category_shader_upbge(Menu):
-    bl_idname = "NODE_MT_category_shader_upbge"
+class NODE_MT_shader_node_upbge_base(Menu):
     bl_label = "UPBGE"
 
     def draw(self, _context):
         layout = self.layout
 
-        node_add_menu.add_node_type(layout, "ShaderNodeSpritesAnimation")
+        self.node_operator(layout, "ShaderNodeSpritesAnimation")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 ############################
 
 
@@ -438,6 +437,8 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         layout.separator()
         self.draw_menu(layout, "Script")
         layout.separator()
+        self.draw_menu(layout, "UPBGE")
+        layout.separator()
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
 
@@ -454,6 +455,7 @@ add_menus = {
     "NODE_MT_category_shader_texture": NODE_MT_shader_node_texture_base,
     "NODE_MT_category_shader_vector": NODE_MT_shader_node_vector_base,
     "NODE_MT_category_shader_script": NODE_MT_shader_node_script_base,
+    "NODE_MT_category_shader_upbge": NODE_MT_shader_node_upbge_base,
     "NODE_MT_category_shader_utilities": NODE_MT_shader_node_utilities_base,
     "NODE_MT_shader_node_add_all": NODE_MT_shader_node_all_base,
 }

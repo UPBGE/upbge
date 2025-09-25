@@ -218,7 +218,7 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
     *im_format = scene->r.im_format;
   }
   else {
-    BKE_image_format_init(im_format, false);
+    BKE_image_format_init(im_format);
   }
 
   // create file path
