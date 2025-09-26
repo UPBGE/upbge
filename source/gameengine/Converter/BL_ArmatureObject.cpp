@@ -815,6 +815,7 @@ void BL_ArmatureObject::DoGpuSkinning()
     /* GPU pipeline not ready */
     return;
   }
+#if 0 // temp tries to work on wrong velocity vectors for taa
   // Register previous position VBO to handle velocity vectors computation in shaders
   const GPUVertFormat *src_format = GPU_vertbuf_get_format(vbo_pos);
   BLI_assert(src_format->stride == 16);
@@ -830,6 +831,7 @@ void BL_ArmatureObject::DoGpuSkinning()
   if (prev_vbo) {
     blender::draw::copy_vertbuf_to_vertbuf(prev_vbo, vbo_pos, vbo_len);
   }
+#endif
 
   // Prepare skinning Static resources (shared between replicas)
   InitStaticSkinningBuffers();
