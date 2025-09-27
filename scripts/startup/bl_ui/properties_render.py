@@ -103,10 +103,7 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
 
         gs = context.scene.game_settings
 
-        col = layout.column()
-        row = col.row()
-        col = row.column()
-        col.prop(gs, "use_frame_rate")
+        # Use Frame Rate moved to Scene > Game Physics panel
 
         row = layout.row()
         row.prop(gs, "vsync")
