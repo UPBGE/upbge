@@ -59,7 +59,7 @@ class USERPREF_PT_navigation_bar(Panel):
     bl_label = "Preferences Navigation"
     bl_space_type = 'PREFERENCES'
     bl_region_type = 'UI'
-    bl_category = 'Navigation'
+    bl_category = "Navigation"
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
@@ -706,7 +706,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
     @classmethod
     def poll(cls, _context):
         import platform
-        return platform.system() != 'Darwin'
+        return platform.system() != "Darwin"
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
@@ -2888,6 +2888,7 @@ class USERPREF_PT_developer_tools(Panel):
                 ({"property": "use_viewport_debug"}, None),
                 ({"property": "use_eevee_debug"}, None),
                 ({"property": "use_extensions_debug"}, ("/blender/blender/issues/119521", "#119521")),
+                ({"property": "no_data_block_packing"}, ("/blender/blender/issues/132167", "#132167")),
             ),
         )
 

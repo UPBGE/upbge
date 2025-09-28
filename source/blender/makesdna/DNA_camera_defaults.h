@@ -42,6 +42,7 @@
     .passepartalpha = 0.5f, \
     .lodfactor = 1.0f, \
     .gameflag = GAME_CAM_OBJECT_ACTIVITY_CULLING, \
+    .composition_guide_color = {0.5f, 0.5f, 0.5f, 1.0f}, \
  \
     .panorama_type = CAM_PANORAMA_FISHEYE_EQUISOLID,\
     .fisheye_fov = M_PI,\
