@@ -381,7 +381,7 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 ###########UPBGE###########
-class NODE_MT_shader_node_upbge_base(Menu):
+class NODE_MT_shader_node_upbge_base(node_add_menu.NodeMenu):
     bl_label = "UPBGE"
 
     def draw(self, _context):
