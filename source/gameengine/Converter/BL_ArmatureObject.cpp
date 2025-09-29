@@ -925,8 +925,7 @@ void BL_ArmatureObject::DoGpuSkinning()
     info.storage_buf(2, Qualifier::read, "vec4", "in_wgt[]");
     info.storage_buf(3, Qualifier::read, "mat4", "bone_pose_mat[]");
     info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(5, Qualifier::read, "int", "topo[]");
-    info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
+    info.storage_buf(5, Qualifier::read, "vec4", "rest_positions[]");
 
     info.compute_source_generated = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
@@ -1071,8 +1070,7 @@ void main() {
   GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 2);
   GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 3);
   GPU_storagebuf_bind(m_ssbo_premat, 4);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 5);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 6);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 5);
 
   const int num_groups_verts = (verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1);
