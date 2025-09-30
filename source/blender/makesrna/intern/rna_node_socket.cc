@@ -72,7 +72,7 @@ static void rna_NodeSocket_draw(bContext *C,
                                 uiLayout *layout,
                                 PointerRNA *ptr,
                                 PointerRNA *node_ptr,
-                                const blender::StringRefNull text)
+                                const blender::StringRef text)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
   ParameterList list;
@@ -84,7 +84,9 @@ static void rna_NodeSocket_draw(bContext *C,
   RNA_parameter_set_lookup(&list, "context", &C);
   RNA_parameter_set_lookup(&list, "layout", &layout);
   RNA_parameter_set_lookup(&list, "node", node_ptr);
-  RNA_parameter_set_lookup(&list, "text", &text);
+  const std::string text_str = text;
+  const char *text_c_str = text_str.c_str();
+  RNA_parameter_set_lookup(&list, "text", &text_c_str);
   sock->typeinfo->ext_socket.call(C, ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -640,7 +642,7 @@ const EnumPropertyItem *RNA_node_enum_definition_itemf(
 
 const EnumPropertyItem *RNA_node_socket_menu_itemf(bContext * /*C*/,
                                                    PointerRNA *ptr,
-                                                   PropertyRNA * /*prop*/,
+                                                   PropertyRNA *prop,
                                                    bool *r_free)
 {
   const bNodeSocket *socket = static_cast<bNodeSocket *>(ptr->data);
@@ -653,6 +655,8 @@ const EnumPropertyItem *RNA_node_socket_menu_itemf(bContext * /*C*/,
     *r_free = false;
     return rna_enum_dummy_NULL_items;
   }
+  const char *socket_translation_context = blender::bke::node_socket_translation_context(*socket);
+  RNA_def_property_translation_context(prop, socket_translation_context);
   return RNA_node_enum_definition_itemf(*data->enum_items, r_free);
 }
 

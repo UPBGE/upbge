@@ -126,6 +126,11 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
     {FILTER_ID_CF, "filter_cachefile", ICON_FILE, "Cache Files", "Show Cache File data-blocks"},
     {FILTER_ID_CU_LEGACY, "filter_curve", ICON_CURVE_DATA, "Curves", "Show Curve data-blocks"},
     {FILTER_ID_GD_LEGACY,
+     "filter_annotations",
+     ICON_OUTLINER_DATA_GREASEPENCIL,
+     "Annotations",
+     "Show Annotation data-blocks"},
+    {FILTER_ID_GP,
      "filter_grease_pencil",
      ICON_GREASEPENCIL,
      "Grease Pencil",
@@ -390,7 +395,7 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_Annotation) {
     return ID_GD_LEGACY;
   }
-  if (base_type == &RNA_GreasePencilv3) {
+  if (base_type == &RNA_GreasePencil) {
     return ID_GP;
   }
   if (base_type == &RNA_Collection) {
@@ -510,7 +515,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
     case ID_GD_LEGACY:
       return &RNA_Annotation;
     case ID_GP:
-      return &RNA_GreasePencilv3;
+      return &RNA_GreasePencil;
     case ID_GR:
       return &RNA_Collection;
     case ID_CV:
