@@ -3357,9 +3357,12 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
                            "Enable GPU Skinning (Experimental)",
                            "Deform mesh vertices using the GPU instead of the CPU.\n"
                            "Limitations:\n"
-                           "- Only one Armature modifier is supported per mesh.\n"
+                           "- Using with other modifiers can cause issues.\n"
                            "- The Armature must have a single child mesh.\n"
                            "- Only position and normal vertex buffers are updated.\n"
+                           "- With Temporal Reprojection, procedural textures (Noise, Voronoi...)\n"
+                           "can appear blurred. Use a 'Texture Coordinate' node (UV mode)\n"
+                           "to stabilize the mapping.\n"
                            "- GPU skinning is highly simplified compared to the CPU pipeline and "
                            "may produce incorrect deformations.");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
