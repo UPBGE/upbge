@@ -67,9 +67,13 @@
 
 #include "BLO_read_write.hh"
 
+#include "SEQ_edit.hh"
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_utils.hh"
 
 #include "WM_api.hh"
 
@@ -2461,6 +2465,38 @@ static bool window_has_sequence_editor_open(const wmWindow *win)
   return false;
 }
 
+/* Merge transform effect properties with strip transform. Because this effect could use modifiers,
+ * change its type to gaussian blur with 0 radius. */
+static void sequencer_substitute_transform_effects(Scene *scene)
+{
+  blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->type == STRIP_TYPE_TRANSFORM_LEGACY && strip->effectdata != nullptr) {
+      TransformVarsLegacy *tv = static_cast<TransformVarsLegacy *>(strip->effectdata);
+      StripTransform *transform = strip->data->transform;
+      blender::float2 offset(tv->xIni, tv->yIni);
+      if (tv->percent == 1) {
+        blender::float2 scene_resolution(scene->r.xsch, scene->r.ysch);
+        offset *= scene_resolution;
+      }
+      transform->xofs += offset.x;
+      transform->yofs += offset.y;
+      transform->scale_x *= tv->ScalexIni;
+      transform->scale_y *= tv->ScaleyIni;
+      transform->rotation += tv->rotIni;
+      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
+      sh.free(strip, true);
+      strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
+      sh = blender::seq::strip_effect_handle_get(strip);
+      sh.init(strip);
+      GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
+      gv->size_x = gv->size_y = 0.0f;
+      blender::seq::edit_strip_name_set(scene, strip, "Transform Placeholder (Migrated)");
+      blender::seq::ensure_unique_name(strip, scene);
+    }
+    return true;
+  });
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2559,6 +2595,14 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
             workspace->sequencer_scene = scene;
           }
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 97)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->ed != nullptr) {
+        sequencer_substitute_transform_effects(scene);
       }
     }
   }
@@ -3691,6 +3735,46 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
       float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
       copy_v4_v4(camera->composition_guide_color, default_col);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 97)) {
+    /* Enable new "Optional Label" setting for all menu sockets. This was implicit before. */
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      tree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+        if (item.item_type != NODE_INTERFACE_SOCKET) {
+          return true;
+        }
+        auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+        if (!STREQ(socket.socket_type, "NodeSocketMenu")) {
+          return true;
+        }
+        socket.flag |= NODE_INTERFACE_SOCKET_OPTIONAL_LABEL;
+        return true;
+      });
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 98)) {
+    /* For a brief period of time, these values were not properly versioned, so it is possible for
+     * files to be in an odd state. This versioning was formerly run in 4.2 subversion 23. */
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      UvSculpt &uvsculpt = scene->toolsettings->uvsculpt;
+      if (uvsculpt.size == 0 || uvsculpt.curve_distance_falloff == nullptr) {
+        uvsculpt.size = 100;
+        uvsculpt.strength = 1.0f;
+        uvsculpt.curve_distance_falloff_preset = BRUSH_CURVE_SMOOTH;
+        if (uvsculpt.curve_distance_falloff == nullptr) {
+          uvsculpt.curve_distance_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 99)) {
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.fly_speed = 3.0f;
     }
   }
 
