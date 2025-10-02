@@ -453,10 +453,4 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       BKE_mesh_legacy_recast_to_generic(mesh);
     }
   }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 5)) {
-    LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
-      sce->gm.use_fixed_fps_cap = 1;
-      sce->gm.physics_tick_rate = 60;
-    }
-  }
 }
