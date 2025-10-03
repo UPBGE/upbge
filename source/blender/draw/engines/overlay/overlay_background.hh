@@ -32,7 +32,6 @@ class Background : Overlay {
     DRWState pass_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_BACKGROUND;
     float4 color_override(0.0f, 0.0f, 0.0f, 0.0f);
     int background_type;
-    const float vignette_aperture = state.v3d->vignette_aperture, vignette_falloff = 0.15f;
 
     if (state.is_viewport_image_render && !state.draw_background) {
       background_type = BG_SOLID;
@@ -102,6 +101,9 @@ class Background : Overlay {
     bg_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
     if (state.vignette_enabled) {
+      const float vignette_aperture = state.v3d ? state.v3d->vignette_aperture : 1.0f;
+      const float vignette_falloff = 0.15f;
+
       bg_vignette_ps_.init();
       bg_vignette_ps_.framebuffer_set(&framebuffer_ref_);
 

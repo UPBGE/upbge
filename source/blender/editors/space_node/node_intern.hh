@@ -436,6 +436,13 @@ void node_geometry_add_layer_search_button(const bContext &C,
                                            PointerRNA &socket_ptr,
                                            uiLayout &layout,
                                            StringRef placeholder = "");
+/* `node_geometry_volume_grid_search.cc` */
+
+void node_geometry_add_volume_grid_search_button(const bContext &C,
+                                                 const bNode &node,
+                                                 PointerRNA &socket_ptr,
+                                                 uiLayout &layout,
+                                                 StringRef placeholder = "");
 
 /* `node_context_path.cc` */
 
@@ -467,5 +474,9 @@ void build_socket_tooltip(uiTooltipData &tip_data,
                           uiBut *but,
                           const bNodeTree &tree,
                           const bNodeSocket &socket);
+
+/** node_tree_interface_ui.cc */
+
+void node_tree_interface_panel_register(ARegionType *art);
 
 }  // namespace blender::ed::space_node

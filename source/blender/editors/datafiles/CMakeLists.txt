@@ -812,6 +812,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       seq_splitview
       seq_strip_duplicate
       seq_strip_meta
+      seq_strip_modifier
       settings
       shaderfx
       shading_bbox

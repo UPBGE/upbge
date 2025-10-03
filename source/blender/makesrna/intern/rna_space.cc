@@ -210,44 +210,39 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
 };
 
 #define SACT_ITEM_DOPESHEET \
-  { \
-    SACTCONT_DOPESHEET, "DOPESHEET", ICON_ACTION, "Dope Sheet", "Edit all keyframes in scene" \
-  }
-#define SACT_ITEM_TIMELINE \
-  { \
-    SACTCONT_TIMELINE, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls" \
-  }
+  {SACTCONT_DOPESHEET, "DOPESHEET", ICON_ACTION, "Dope Sheet", "Edit all keyframes in scene"}
 #define SACT_ITEM_ACTION \
-  { \
-    SACTCONT_ACTION, "ACTION", ICON_OBJECT_DATA, "Action Editor", \
-        "Edit keyframes in active object's Object-level action" \
-  }
+  {SACTCONT_ACTION, \
+   "ACTION", \
+   ICON_OBJECT_DATA, \
+   "Action Editor", \
+   "Edit keyframes in active object's Object-level action"}
 #define SACT_ITEM_SHAPEKEY \
-  { \
-    SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "Shape Key Editor", \
-        "Edit keyframes in active object's Shape Keys action" \
-  }
+  {SACTCONT_SHAPEKEY, \
+   "SHAPEKEY", \
+   ICON_SHAPEKEY_DATA, \
+   "Shape Key Editor", \
+   "Edit keyframes in active object's Shape Keys action"}
 #define SACT_ITEM_GPENCIL \
-  { \
-    SACTCONT_GPENCIL, "GPENCIL", ICON_OUTLINER_OB_GREASEPENCIL, "Grease Pencil", \
-        "Edit timings for all Grease Pencil sketches in file" \
-  }
+  {SACTCONT_GPENCIL, \
+   "GPENCIL", \
+   ICON_OUTLINER_OB_GREASEPENCIL, \
+   "Grease Pencil", \
+   "Edit timings for all Grease Pencil sketches in file"}
 #define SACT_ITEM_MASK \
-  { \
-    SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Edit timings for Mask Editor splines" \
-  }
+  {SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Edit timings for Mask Editor splines"}
 #define SACT_ITEM_CACHEFILE \
-  { \
-    SACTCONT_CACHEFILE, "CACHEFILE", ICON_FILE, "Cache File", \
-        "Edit timings for Cache File data-blocks" \
-  }
+  {SACTCONT_CACHEFILE, \
+   "CACHEFILE", \
+   ICON_FILE, \
+   "Cache File", \
+   "Edit timings for Cache File data-blocks"}
 
 #ifndef RNA_RUNTIME
 /* XXX: action-editor is currently for object-level only actions,
  * so show that using object-icon hint */
 static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
     SACT_ITEM_DOPESHEET,
-    SACT_ITEM_TIMELINE,
     SACT_ITEM_ACTION,
     SACT_ITEM_SHAPEKEY,
     SACT_ITEM_GPENCIL,
@@ -257,7 +252,6 @@ static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
 };
 static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
     SACT_ITEM_DOPESHEET,
-    /* SACT_ITEM_TIMELINE, */
     SACT_ITEM_ACTION,
     SACT_ITEM_SHAPEKEY,
     SACT_ITEM_GPENCIL,
@@ -267,16 +261,7 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
 };
 #endif
 
-/* Expose as `ui_mode`. */
-
-const EnumPropertyItem rna_enum_space_action_mode_items[] = {
-    SACT_ITEM_DOPESHEET,
-    SACT_ITEM_TIMELINE,
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 #undef SACT_ITEM_DOPESHEET
-#undef SACT_ITEM_TIMELINE
 #undef SACT_ITEM_ACTION
 #undef SACT_ITEM_SHAPEKEY
 #undef SACT_ITEM_GPENCIL
@@ -284,21 +269,10 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 #undef SACT_ITEM_CACHEFILE
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
-  { \
-    SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results" \
-  }
-#define SI_ITEM_UV \
-  { \
-    SI_MODE_UV, "UV", ICON_UV, "UV Editor", "View and edit UVs" \
-  }
-#define SI_ITEM_PAINT \
-  { \
-    SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "Paint images in 2D" \
-  }
-#define SI_ITEM_MASK \
-  { \
-    SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "View and edit masks" \
-  }
+  {SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results"}
+#define SI_ITEM_UV {SI_MODE_UV, "UV", ICON_UV, "UV Editor", "View and edit UVs"}
+#define SI_ITEM_PAINT {SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "Paint images in 2D"}
+#define SI_ITEM_MASK {SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "View and edit masks"}
 
 const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
     SI_ITEM_VIEW("VIEW", "View", ICON_FILE_IMAGE),
@@ -1292,7 +1266,7 @@ static void rna_RegionView3D_view_matrix_set(PointerRNA *ptr, const float *value
 {
   RegionView3D *rv3d = (RegionView3D *)(ptr->data);
   float mat[4][4];
-  invert_m4_m4(mat, (float(*)[4])values);
+  invert_m4_m4(mat, (float (*)[4])values);
   ED_view3d_from_m4(mat, rv3d->ofs, rv3d->viewquat, &rv3d->dist);
   rna_RegionView3D_view_rotation_set_validate_view_axis(rv3d);
 }
@@ -2353,21 +2327,10 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
   SpaceAction *saction = (SpaceAction *)(ptr->data);
   ScrArea *area = CTX_wm_area(C);
 
-  /* Collapse (and show) summary channel and hide channel list for timeline */
-  if (saction->mode == SACTCONT_TIMELINE) {
-    saction->ads.flag |= ADS_FLAG_SUMMARY_COLLAPSED;
-    saction->ads.filterflag |= ADS_FILTER_SUMMARY;
-  }
-
   if (area && area->spacedata.first == saction) {
     ARegion *channels_region = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
     if (channels_region) {
-      if (saction->mode == SACTCONT_TIMELINE) {
-        channels_region->flag |= RGN_FLAG_HIDDEN;
-      }
-      else {
-        channels_region->flag &= ~RGN_FLAG_HIDDEN;
-      }
+      channels_region->flag &= ~RGN_FLAG_HIDDEN;
       ED_region_visibility_change_update(C, area, channels_region);
     }
   }
@@ -2377,9 +2340,7 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
 
   /* store current mode as "old mode",
    * so that returning from other editors doesn't always reset to "Action Editor" */
-  if (saction->mode != SACTCONT_TIMELINE) {
-    saction->mode_prev = saction->mode;
-  }
+  saction->mode_prev = saction->mode;
 }
 
 /* Space Graph Editor */
@@ -8867,6 +8828,11 @@ static void rna_def_spreadsheet_row_filter(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value_int2", PROP_INT, PROP_NONE);
   RNA_def_property_array(prop, 2);
   RNA_def_property_ui_text(prop, "2D Vector Value", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+
+  prop = RNA_def_property(srna, "value_int3", PROP_INT, PROP_NONE);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "3D Vector Value", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "value_boolean", PROP_BOOLEAN, PROP_NONE);
