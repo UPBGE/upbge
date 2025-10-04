@@ -580,13 +580,9 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             col.label(text="Physics Steps:")
             sub = col.column(align=True)
             sub.prop(gs, "physics_step_max", text="Max")
-            # Show/disable substeps depending on method
+            # Hide substeps when using fixed physics timestep
             if gs.physics_timestep_method != 'FIXED':
                 sub.prop(gs, "physics_step_sub", text="Substeps")
-            else:
-                sub_row = sub.row()
-                sub_row.enabled = False
-                sub_row.prop(gs, "physics_step_sub", text="Substeps (Variable Mode Only)")
             #   Insert FPS Limit toggle here: switches between Variable and Fixed bindings
             row_ufr = col.row()
             if gs.physics_timestep_method == 'FIXED':
