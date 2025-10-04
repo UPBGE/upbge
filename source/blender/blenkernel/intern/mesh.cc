@@ -1748,6 +1748,9 @@ std::optional<blender::Bounds<blender::float3>> Mesh::bounds_min_max() const
   if (verts_num == 0) {
     return std::nullopt;
   }
+  if (this->is_running_gpu_deform) {
+    return this->runtime->bounds_cache.data();
+  }
   this->runtime->bounds_cache.ensure([&](Bounds<float3> &r_bounds) {
     switch (this->runtime->wrapper_type) {
       case ME_WRAPPER_TYPE_BMESH:

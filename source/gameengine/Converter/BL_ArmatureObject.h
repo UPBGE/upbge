@@ -60,6 +60,7 @@ struct ModifierStackBackup {
 struct BGE_SkinStaticBuffers {
   blender::gpu::Shader *shader_scatter_to_corners = nullptr;
   blender::gpu::Shader *shader_skin_vertices = nullptr;
+  blender::gpu::Shader *shader_reduce_final = nullptr;
 
   std::vector<int> in_indices = {};
   std::vector<float> in_weights = {};
@@ -69,6 +70,7 @@ struct BGE_SkinStaticBuffers {
   blender::gpu::StorageBuf *ssbo_topology = nullptr;
   blender::gpu::StorageBuf *ssbo_face_normals = nullptr;
   blender::gpu::StorageBuf *ssbo_skinned_vert_positions = nullptr;
+  blender::gpu::StorageBuf *ssbo_final_bounds = nullptr;
 
   int face_offsets_offset = 0;
   int corner_to_face_offset = 0;

@@ -40,6 +40,7 @@
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_scene.hh"
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -226,12 +227,16 @@ BL_ArmatureObject::~BL_ArmatureObject()
       if (m_skinStatic->shader_scatter_to_corners) {
         GPU_shader_free(m_skinStatic->shader_scatter_to_corners);
       }
+      if (m_skinStatic->shader_reduce_final) {
+        GPU_shader_free(m_skinStatic->shader_reduce_final);
+      }
       if (m_skinStatic->ssbo_in_idx) {
         GPU_storagebuf_free(m_skinStatic->ssbo_in_idx);
         GPU_storagebuf_free(m_skinStatic->ssbo_in_wgt);
         GPU_storagebuf_free(m_skinStatic->ssbo_topology);
         GPU_storagebuf_free(m_skinStatic->ssbo_rest_positions);
         GPU_storagebuf_free(m_skinStatic->ssbo_skinned_vert_positions);
+        GPU_storagebuf_free(m_skinStatic->ssbo_final_bounds);
       }
       delete m_skinStatic;
     }
@@ -902,10 +907,36 @@ void BL_ArmatureObject::DoGpuSkinning()
   }
   GPU_storagebuf_update(m_ssbo_postmat, &postmat[0][0]);
 
-  const int verts_num = mesh_eval->verts_num;
-
   /* We can test different group sizes if it has an influence on some hardwares */
   const int group_size = 256;
+
+  const int verts_num = mesh_eval->verts_num;
+  const int num_groups_verts = (verts_num + group_size - 1) / group_size;
+
+  if (!m_skinStatic->ssbo_final_bounds) {
+    m_skinStatic->ssbo_final_bounds = GPU_storagebuf_create(sizeof(uint32_t) * 8);
+  }
+  auto float_bits = [](uint32_t u) -> uint32_t { return u; };
+  auto ordered_from_bits = [](uint32_t u) -> uint32_t {
+    return (u & 0x80000000u) ? ~u : (u ^ 0x80000000u);
+  };
+  const uint32_t POS_INF_BITS = 0x7F800000u;
+  const uint32_t NEG_INF_BITS = 0xFF800000u;
+  uint32_t init_final[8];
+  uint32_t ord_pos = ordered_from_bits(POS_INF_BITS);
+  uint32_t ord_neg = ordered_from_bits(NEG_INF_BITS);
+  // min.x,y,z,w = +INF (ord_pos)
+  init_final[0] = ord_pos;
+  init_final[1] = ord_pos;
+  init_final[2] = ord_pos;
+  init_final[3] = ord_pos;
+  // max.x,y,z,w = -INF (ord_neg)
+  init_final[4] = ord_neg;
+  init_final[5] = ord_neg;
+  init_final[6] = ord_neg;
+  init_final[7] = ord_neg;
+
+  GPU_storagebuf_update(m_skinStatic->ssbo_final_bounds, init_final);
 
   // 5. Compile skinning shaders.
   /* Note: While it is possible to perform all skinning operations in a single shader,
@@ -1062,6 +1093,91 @@ void main() {
     m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info(
         (GPUShaderCreateInfo *)&info);
   }
+  if (!m_skinStatic->shader_reduce_final) {
+    ShaderCreateInfo info_final("BGE_Armature_Reduce_Final_Pass");
+    info_final.local_group_size(group_size, 1, 1);
+    info_final.compute_source("draw_colormanagement_lib.glsl");
+    info_final.storage_buf(0, Qualifier::read, "vec4", "skinned_vert_positions[]");
+    info_final.storage_buf(1, Qualifier::write, "uint", "final_bounds_u[]");
+
+    info_final.compute_source_generated = R"GLSL(
+/* Per-workgroup reduction then single atomic update per group into final_bounds_u[].
+ * This réduit la contention sur les atomics et évite d'écrire de gros buffers intermédiaires. */
+
+uint float_to_ordered_uint(float f) {
+  uint u = floatBitsToUint(f);
+  return (u & 0x80000000u) != 0u ? ~u : (u ^ 0x80000000u);
+}
+
+bool is_finite_vec3(vec3 v) {
+  const float FINITE_LIMIT = 1e30;
+  return (v.x == v.x) && (v.y == v.y) && (v.z == v.z) &&
+         (abs(v.x) < FINITE_LIMIT) && (abs(v.y) < FINITE_LIMIT) && (abs(v.z) < FINITE_LIMIT);
+}
+
+// Shared arrays sized to local_group_size (must match info_final.local_group_size).
+shared vec4 local_min[256];
+shared vec4 local_max[256];
+
+void main() {
+  const uint gid = gl_GlobalInvocationID.x;
+  const uint lid = gl_LocalInvocationID.x;
+  const uint group_size = gl_WorkGroupSize.x;
+  const uint num_verts = skinned_vert_positions.length();
+  const uint stride = group_size * gl_NumWorkGroups.x;
+
+  // Per-thread local min/max
+  vec4 tmin = vec4( 1.0/0.0 ); // +INF
+  vec4 tmax = vec4(-1.0/0.0 ); // -INF
+
+  // Each thread processes a strided subset of vertices
+  for (uint i = gid; i < num_verts; i += stride) {
+    vec4 p = skinned_vert_positions[i];
+    if (is_finite_vec3(p.xyz)) {
+      tmin = min(tmin, p);
+      tmax = max(tmax, p);
+    }
+  }
+
+  // Store into shared memory
+  local_min[lid] = tmin;
+  local_max[lid] = tmax;
+
+  barrier();
+  memoryBarrierShared();
+
+  // Parallel reduction in shared memory
+  for (uint s = group_size >> 1; s > 0; s >>= 1) {
+    if (lid < s) {
+      local_min[lid] = min(local_min[lid], local_min[lid + s]);
+      local_max[lid] = max(local_max[lid], local_max[lid + s]);
+    }
+    barrier();
+    memoryBarrierShared();
+  }
+
+  // Single thread updates the global final bounds (few atomics per group)
+  if (lid == 0) {
+    vec4 gmin = local_min[0];
+    vec4 gmax = local_max[0];
+
+    // Ignore empty group
+    if (is_finite_vec3(gmin.xyz) && is_finite_vec3(gmax.xyz)) {
+      atomicMin(final_bounds_u[0], float_to_ordered_uint(gmin.x));
+      atomicMin(final_bounds_u[1], float_to_ordered_uint(gmin.y));
+      atomicMin(final_bounds_u[2], float_to_ordered_uint(gmin.z));
+
+      atomicMax(final_bounds_u[4], float_to_ordered_uint(gmax.x));
+      atomicMax(final_bounds_u[5], float_to_ordered_uint(gmax.y));
+      atomicMax(final_bounds_u[6], float_to_ordered_uint(gmax.z));
+    }
+  }
+}
+)GLSL";
+
+    m_skinStatic->shader_reduce_final = GPU_shader_create_from_info(
+        (GPUShaderCreateInfo *)&info_final);
+  }
 
   // 6. Pass 1: Skin vertices
   GPU_shader_bind(m_skinStatic->shader_skin_vertices);
@@ -1072,7 +1188,6 @@ void main() {
   GPU_storagebuf_bind(m_ssbo_premat, 4);
   GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 5);
 
-  const int num_groups_verts = (verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
@@ -1085,13 +1200,76 @@ void main() {
   GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 2);
   GPU_storagebuf_bind(m_ssbo_postmat, 3);
   GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 4);
-
   const int num_groups_corners = (num_corners + group_size - 1) / group_size;
   GPU_compute_dispatch(
       m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1, constants_state);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
+  // 8. Pass 3: Calculate bounds on GPU
+  GPU_shader_bind(m_skinStatic->shader_reduce_final);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 0);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_final_bounds, 1);
+  GPU_compute_dispatch(m_skinStatic->shader_reduce_final, num_groups_verts, 1, 1);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
+
+  // Read only 2 vec4 (min/max) from le GPU.
+  uint32_t final_u[8];
+  GPU_storagebuf_read(m_skinStatic->ssbo_final_bounds, final_u);
+
+  auto ordered_to_bits = [](uint32_t ou) -> uint32_t {
+    // inverse of float_to_ordered_uint :
+    return (ou & 0x80000000u) ? (ou ^ 0x80000000u) : ~ou;
+  };
+  auto uint_to_float = [](uint32_t b) -> float {
+    float f;
+    memcpy(&f, &b, sizeof(f));
+    return f;
+  };
+
+  blender::float3 pmin(uint_to_float(ordered_to_bits(final_u[0])),
+                       uint_to_float(ordered_to_bits(final_u[1])),
+                       uint_to_float(ordered_to_bits(final_u[2])));
+  blender::float3 pmax(uint_to_float(ordered_to_bits(final_u[4])),
+                       uint_to_float(ordered_to_bits(final_u[5])),
+                       uint_to_float(ordered_to_bits(final_u[6])));
+
+  if (std::isfinite(pmin.x) && std::isfinite(pmin.y) && std::isfinite(pmin.z) &&
+      std::isfinite(pmax.x) && std::isfinite(pmax.y) && std::isfinite(pmax.z) &&
+      !(pmin.x > pmax.x || pmin.y > pmax.y || pmin.z > pmax.z))
+  {
+    blender::Bounds<blender::float3> armature_space_bounds(pmin, pmax);
+
+    bool postmat_finite = true;
+    for (int r = 0; r < 4 && postmat_finite; ++r) {
+      for (int c = 0; c < 4; ++c) {
+        if (!std::isfinite(postmat[r][c])) {
+          postmat_finite = false;
+          break;
+        }
+      }
+    }
+
+    if (postmat_finite) {
+      const blender::Bounds<blender::float3> object_space_bounds =
+          blender::bounds::transform_bounds<float, 4>(blender::float4x4(postmat),
+                                                      armature_space_bounds);
+
+      const blender::float3 &mn = object_space_bounds.min;
+      const blender::float3 &mx = object_space_bounds.max;
+
+      if (std::isfinite(mn.x) && std::isfinite(mn.y) && std::isfinite(mn.z) &&
+          std::isfinite(mx.x) && std::isfinite(mx.y) && std::isfinite(mx.z))
+      {
+        mesh_eval->runtime->bounds_cache.tag_dirty();
+        mesh_eval->runtime->bounds_cache.ensure(
+            [&object_space_bounds](blender::Bounds<blender::float3> &r_data) {
+              r_data = object_space_bounds;
+            });
+        mesh_eval->texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO_EVALUATED;
+      }
+    }
+  }
 
   // Notify the dependency graph that the deformed mesh's transform has changed.
   // This updates the object_to_world matrices used by EEVEE without invalidating

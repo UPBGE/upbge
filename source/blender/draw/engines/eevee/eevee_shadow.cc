@@ -846,25 +846,6 @@ void ShadowModule::end_sync()
 
   curr_casters_.push_update();
 
-  /* UPBGE GPU deform shadow artifacts fix:
-   *
-   * Root cause: GPU deform changes mesh geometry on GPU but CPU-side object bounds
-   * remain based on the rest pose. EEVEE's shadow system uses these incorrect bounds
-   * to calculate directional shadow clip ranges (tilemaps_clip), leading to shadow
-   * artifacts for skinned meshes.
-   *
-   * Solution: Clear tilemaps_clip data when GPU deformed objects are detected,
-   * forcing EEVEE to recalculate clip ranges with current frame data. This ensures
-   * shadows consistency between CPU and GPU deform pipelines.
-   *
-   * Alternative approaches (expanding object bounds) cause visual discrepancies
-   * between CPU/GPU deform modes, making this targeted fix the preferred solution.
-   */
-  if (need_gpu_deform_clear_) {
-    tilemap_pool.tilemaps_clip.clear_to_zero();
-    need_gpu_deform_clear_ = false;
-  }
-
   if (do_full_update_) {
     do_full_update_ = false;
     /* Put all pages in the free heap. */
