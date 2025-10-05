@@ -36,8 +36,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
+  const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
-  if (!node) {
+  if (!node || !tree) {
     return;
   }
   const GeometryNodeFieldToGrid &storage = node_storage(*node);
@@ -52,7 +53,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string input_identifier = ItemsAccessor::input_socket_identifier_for_item(item);
     const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
 
-    b.add_input(data_type, item.name, input_identifier).supports_field();
+    b.add_input(data_type, item.name, input_identifier)
+        .supports_field()
+        .socket_name_ptr(&tree->id, FieldToGridItemsAccessor::item_srna, &item, "name");
     b.add_output(data_type, item.name, output_identifier)
         .structure_type(StructureType::Grid)
         .align_with_previous()
@@ -103,9 +106,6 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
-    return;
-  }
   const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
       params.other_socket());
   if (!data_type) {
@@ -302,8 +302,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<fn::GField> fields(required_items.size());
   for (const int i : required_items.index_range()) {
-    const int input_i = required_items[i];
-    const std::string identifier = ItemsAccessor::input_socket_identifier_for_item(items[input_i]);
+    const int item_i = required_items[i];
+    const std::string identifier = ItemsAccessor::input_socket_identifier_for_item(items[item_i]);
     fields[i] = params.extract_input<fn::GField>(identifier);
   }
 
@@ -313,7 +313,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<openvdb::GridBase::Ptr> output_grids(required_items.size());
   for (const int i : required_items.index_range()) {
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(items[i].data_type);
+    const int item_i = required_items[i];
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(items[item_i].data_type);
     const VolumeGridType grid_type = *bke::socket_type_to_grid_type(socket_type);
     output_grids[i] = grid::create_grid_with_topology(mask_tree, transform, grid_type);
   }
@@ -336,9 +337,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   process_background(fields, transform, output_grids);
 
   for (const int i : required_items.index_range()) {
-    const int output_i = required_items[i];
-    const std::string identifier = ItemsAccessor::output_socket_identifier_for_item(
-        items[output_i]);
+    const int item_i = required_items[i];
+    const std::string identifier = ItemsAccessor::output_socket_identifier_for_item(items[item_i]);
     params.set_output(identifier, bke::GVolumeGrid(std::move(output_grids[i])));
   }
 
@@ -347,13 +347,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 #endif
 }
 
-static void node_init(bNodeTree *tree, bNode *node)
+static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   GeometryNodeFieldToGrid *data = MEM_callocN<GeometryNodeFieldToGrid>(__func__);
   data->data_type = SOCK_FLOAT;
   node->storage = data;
-  socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
-      *tree, *node, SOCK_FLOAT, "Value");
 }
 
 static void node_free_storage(bNode *node)
