@@ -52,7 +52,6 @@
 #include "GPU_state.hh"
 #include "GPU_storage_buffer.hh"
 #include "../draw/intern/draw_cache_extract.hh"
-#include "../draw/intern/draw_velocity_prev.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 #include "RNA_access.hh"
 
@@ -190,7 +189,6 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_ssbo_bone_pose_mat = nullptr;
   m_ssbo_premat = nullptr;
   m_ssbo_postmat = nullptr;
-  m_prev_vbo_ob_key = nullptr;
   m_modifiersListbackup = {};
 }
 
@@ -245,11 +243,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
     m_ssbo_bone_pose_mat = nullptr;
     m_ssbo_premat = nullptr;
     m_ssbo_postmat = nullptr;
-  }
-
-  if (m_prev_vbo_ob_key) {
-    blender::draw::free_prev_pos_vbo(m_prev_vbo_ob_key);
-    m_prev_vbo_ob_key = nullptr;
   }
 
   if (m_deformedReplicaData) {

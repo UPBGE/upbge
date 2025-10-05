@@ -98,7 +98,6 @@ class BL_ArmatureObject : public KX_GameObject {
   /* If using gpu deform, mesh has to be replicated to ensure
    * unique data to be deformed by shader */
   Mesh *m_deformedReplicaData;
-  Object *m_prev_vbo_ob_key;
   BGE_SkinStaticBuffers *m_skinStatic;
   std::vector<ModifierStackBackup> m_modifiersListbackup;
 

@@ -22,8 +22,6 @@
 #include "DRW_engine.hh"
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
-#include "draw_cache_extract.hh" // UPBGE (for gpu deform)
-#include "draw_velocity_prev.hh" // UPBGE (for gpu deform)
 
 #include "eevee_instance.hh"
 // #include "eevee_renderpasses.hh"
