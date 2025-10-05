@@ -1267,6 +1267,8 @@ context_type_map = {
     "selected_visible_fcurves": [("FCurve", True)],
     "sequencer_scene": [("Scene", False)],
     "strips": [("Strip", True)],
+    "strip": [("Strip", False)],
+    "strip_modifier": [("StripModifier", False)],
     "soft_body": [("SoftBodyModifier", False)],
     "speaker": [("Speaker", False)],
     "texture": [("Texture", False)],

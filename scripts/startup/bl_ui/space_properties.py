@@ -33,7 +33,9 @@ class PROPERTIES_HT_header(Header):
                 space.show_properties_bone_constraints or
                 space.show_properties_game or
                 space.show_properties_material or
-                space.show_properties_texture
+                space.show_properties_texture or
+                space.show_properties_strip or
+                space.show_properties_strip_modifier
                 )
 
     def draw(self, context):
@@ -124,6 +126,8 @@ class PROPERTIES_PT_options(Panel):
             ("show_properties_game", "Game Components", 'SCRIPT'),
             ("show_properties_material", "Material", 'MATERIAL'),
             ("show_properties_texture", "Texture", 'TEXTURE'),
+            ("show_properties_strip", "Strip", 'SEQ_SEQUENCER'),
+            ("show_properties_strip_modifier", "Strip Modifiers", 'SEQ_STRIP_MODIFIER')
         ]
 
         col = layout.column(align=True)

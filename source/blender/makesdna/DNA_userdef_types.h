@@ -239,10 +239,9 @@ typedef struct UserDef_Experimental {
   char use_new_curves_tools;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
-  char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[5];
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -944,6 +943,12 @@ typedef enum eUserpref_Anim_Flags {
   USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS = (1 << 1),
   USER_ANIM_HIGH_QUALITY_DRAWING = (1 << 2),
 } eUserpref_Anim_Flags;
+
+typedef enum eFixToCam_Flags {
+  FIX_TO_CAM_FLAG_USE_LOC = (1 << 0),
+  FIX_TO_CAM_FLAG_USE_ROT = (1 << 1),
+  FIX_TO_CAM_FLAG_USE_SCALE = (1 << 2),
+} eFixToCam_Flags;
 
 /** #UserDef.transopts */
 typedef enum eUserpref_Translation_Flags {

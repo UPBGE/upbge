@@ -2,13 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma once
-
-#include "bmesh_class.hh"
-
 /** \file
  * \ingroup bmesh
  */
+
+#pragma once
+
+#include "bmesh_class.hh"
 
 struct BMEditSelection {
   struct BMEditSelection *next, *prev;
@@ -16,15 +16,28 @@ struct BMEditSelection {
   char htype;
 };
 
-enum eBMSelectionFlushFLags {
-  BM_SELECT_LEN_FLUSH_RECALC_NOTHING = 0,
-  BM_SELECT_LEN_FLUSH_RECALC_VERT = (1 << 0),
-  BM_SELECT_LEN_FLUSH_RECALC_EDGE = (1 << 1),
-  BM_SELECT_LEN_FLUSH_RECALC_FACE = (1 << 2),
-  BM_SELECT_LEN_FLUSH_RECALC_ALL = (BM_SELECT_LEN_FLUSH_RECALC_VERT |
-                                    BM_SELECT_LEN_FLUSH_RECALC_EDGE |
-                                    BM_SELECT_LEN_FLUSH_RECALC_FACE),
+enum class BMSelectFlushFlag : uint8_t {
+  None = 0,
+  RecalcLenVert = (1 << 0),
+  RecalcLenEdge = (1 << 1),
+  RecalcLenFace = (1 << 2),
+  /**
+   * Flush selection down, depending on the selection mode.
+   *
+   * Disabled by default as edge & face selection functions flush down:
+   * (functions #BM_edge_select_set & #BM_face_select_set).
+   * However selection logic needs to take care to perform de-selection *before* selection,
+   * otherwise flushing down *is* needed.
+   */
+  Down = (1 << 3),
 };
+ENUM_OPERATORS(BMSelectFlushFlag, BMSelectFlushFlag::Down)
+
+#define BMSelectFlushFlag_All \
+  (BMSelectFlushFlag::RecalcLenVert | BMSelectFlushFlag::RecalcLenEdge | \
+   BMSelectFlushFlag::RecalcLenFace)
+
+#define BMSelectFlushFlag_Default BMSelectFlushFlag_All
 
 /* Geometry hiding code. */
 
@@ -103,8 +116,11 @@ void BM_mesh_select_mode_set(BMesh *bm, int selectmode);
  * Makes sure to flush selections 'upwards'
  * (ie: all verts of an edge selects the edge and so on).
  * This should only be called by system and not tool authors.
+ *
+ * \note Flushing down can be enabled for edge/face modes
+ * by enabling #BMSelectFlushFlag:Down for `flag`.
  */
-void BM_mesh_select_mode_flush_ex(BMesh *bm, short selectmode, eBMSelectionFlushFLags flags);
+void BM_mesh_select_mode_flush_ex(BMesh *bm, short selectmode, BMSelectFlushFlag flag);
 void BM_mesh_select_mode_flush(BMesh *bm);
 
 /**
