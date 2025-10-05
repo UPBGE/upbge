@@ -857,8 +857,12 @@ void ShadowModule::end_sync()
    * forcing EEVEE to recalculate clip ranges with current frame data. This ensures
    * shadows consistency between CPU and GPU deform pipelines.
    *
-   * Alternative approaches (expanding object bounds) cause visual discrepancies
-   * between CPU/GPU deform modes, making this targeted fix the preferred solution.
+   * Alternative approaches:
+   *   a) Expanding object bounds cause visual discrepancies
+   *      between CPU/GPU deform modes.
+   *   b) Compute exact bounds from gpu deformed positions
+   *      with a dedicate compute pass costs too much performances, at
+   *      least with the tested method.
    */
   if (need_gpu_deform_clear_) {
     tilemap_pool.tilemaps_clip.clear_to_zero();
