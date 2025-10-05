@@ -52,7 +52,6 @@
 #include "GPU_state.hh"
 #include "GPU_storage_buffer.hh"
 #include "../draw/intern/draw_cache_extract.hh"
-#include "../draw/intern/draw_velocity_prev.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 #include "RNA_access.hh"
 
@@ -190,7 +189,6 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_ssbo_bone_pose_mat = nullptr;
   m_ssbo_premat = nullptr;
   m_ssbo_postmat = nullptr;
-  m_prev_vbo_ob_key = nullptr;
   m_modifiersListbackup = {};
 }
 
@@ -245,11 +243,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
     m_ssbo_bone_pose_mat = nullptr;
     m_ssbo_premat = nullptr;
     m_ssbo_postmat = nullptr;
-  }
-
-  if (m_prev_vbo_ob_key) {
-    blender::draw::free_prev_pos_vbo(m_prev_vbo_ob_key);
-    m_prev_vbo_ob_key = nullptr;
   }
 
   if (m_deformedReplicaData) {
@@ -815,23 +808,6 @@ void BL_ArmatureObject::DoGpuSkinning()
     /* GPU pipeline not ready */
     return;
   }
-#if 0 // temp tries to work on wrong velocity vectors for taa
-  // Register previous position VBO to handle velocity vectors computation in shaders
-  const GPUVertFormat *src_format = GPU_vertbuf_get_format(vbo_pos);
-  BLI_assert(src_format->stride == 16);
-
-  auto *existing_prev = blender::draw::get_prev_pos_vbo(m_deformedObj);
-  int vbo_len = GPU_vertbuf_get_vertex_len(vbo_pos);
-  if (!existing_prev) {
-    blender::draw::ensure_prev_pos_vbo(
-        m_deformedObj, vbo_len, GPU_vertbuf_get_format(vbo_pos));
-  }
-  m_prev_vbo_ob_key = m_deformedObj;
-  blender::gpu::VertBuf *prev_vbo = blender::draw::get_prev_pos_vbo(m_deformedObj);
-  if (prev_vbo) {
-    blender::draw::copy_vertbuf_to_vertbuf(prev_vbo, vbo_pos, vbo_len);
-  }
-#endif
 
   // Prepare skinning Static resources (shared between replicas)
   InitStaticSkinningBuffers();
