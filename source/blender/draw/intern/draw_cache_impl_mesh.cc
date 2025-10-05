@@ -1196,8 +1196,15 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       const Mesh *me_final = (mesh.runtime->edit_mesh) ? BKE_object_get_editmesh_eval_final(&ob) :
                                                          &mesh;
       if (CustomData_get_layer(&me_final->vert_data, CD_ORCO) == nullptr) {
-        /* Skip orco calculation */
-        cache.cd_needed.orco = 0;
+        /* If GPU deform is requested for this mesh (UPBGE flags), keep the request for Orco.
+         * We need Orco (or its fallback) for tangents/shading even when modifiers were removed
+         * to perform GPU skinning. Else the draw cache will drop Orco and shading breaks. */
+        const bool gpu_deform_requested = me_final->is_using_gpu_deform == 1;
+
+        if (!gpu_deform_requested) {
+          /* Skip orco calculation */
+          cache.cd_needed.orco = 0;
+        }
       }
     }
 
