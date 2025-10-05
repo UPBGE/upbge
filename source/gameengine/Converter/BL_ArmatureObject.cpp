@@ -1242,7 +1242,6 @@ void main() {
             [&object_space_bounds](blender::Bounds<blender::float3> &r_data) {
               r_data = object_space_bounds;
             });
-        mesh_eval->texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO_EVALUATED;
       }
     }
   }
