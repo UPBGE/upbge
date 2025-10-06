@@ -6621,13 +6621,32 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "Limit render FPS when Fixed Physics Timestep is enabled");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
-  prop = RNA_def_property(srna, "fixed_fps_cap", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, NULL, "fixed_fps_cap");
-  RNA_def_property_range(prop, 10, 240);
-  /* Soft slider max 240 */
+  /* Fixed physics mode specific rates */
+  prop = RNA_def_property(srna, "fixed_logic_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "fixed_logic_rate");
+  RNA_def_property_range(prop, 1, 480);
   RNA_def_property_ui_range(prop, 30, 240, 1, 1);
-  RNA_def_property_ui_text(
-      prop, "Fixed FPS Cap", "Target render FPS when using fixed physics");
+  RNA_def_property_ui_text(prop,
+                           "Fixed Mode Logic Rate",
+                           "Logic update rate (Hz) when using fixed physics timestep");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "fixed_render_cap_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "fixed_render_cap_rate");
+  RNA_def_property_range(prop, 1, 480);
+  RNA_def_property_ui_range(prop, 30, 240, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Fixed Mode Render Cap Rate",
+                           "Render FPS cap rate (Hz) when using fixed physics timestep and FPS cap is enabled");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "fixed_max_logic_step", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "fixed_max_logic_step");
+  RNA_def_property_range(prop, 1, 50);
+  RNA_def_property_ui_range(prop, 1, 20, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Fixed Mode Max Logic Steps",
+                           "Maximum logic frames per render frame when using fixed physics timestep");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);

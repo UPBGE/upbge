@@ -44,6 +44,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
@@ -451,6 +452,18 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       BKE_mesh_legacy_recast_to_generic(mesh);
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 5)) {
+    /* Migrate to mode-specific timing variables (Phase 2 refactoring) */
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "fixed_logic_rate")) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        /* Initialize fixed mode rates from legacy shared values
+         * This ensures old .blend files continue to work with same behavior */
+        scene->gm.fixed_logic_rate = scene->gm.ticrate;
+        scene->gm.fixed_render_cap_rate = scene->gm.ticrate;
+        scene->gm.fixed_max_logic_step = scene->gm.maxlogicstep;
+      }
     }
   }
 }

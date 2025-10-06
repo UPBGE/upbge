@@ -43,6 +43,7 @@
 
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
+#include "PhysicsStateFactory.h"
 #include "../draw/intern/draw_command.hh"
 #include "GPU_immediate.hh"
 #include "GPU_viewport.hh"
@@ -143,12 +144,9 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_previousRealTime(0.0f),
       m_previous_deltaTime(0.0f),
       m_firstEngineFrame(true),
-      m_maxLogicFrame(5),
-      m_ticrate(DEFAULT_LOGIC_TIC_RATE),
       m_anim_framerate(25.0),
       m_useFixedPhysicsTimestep(false),
-      m_fixedPhysicsState(nullptr),
-      m_variablePhysicsState(std::make_unique<VariablePhysicsState>()),
+      m_physicsState(std::make_unique<VariablePhysicsState>()),
       m_doRender(true),
       m_exitkey(130),
       m_exitcode(KX_ExitRequest::NO_REQUEST),
@@ -466,47 +464,53 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 
 KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
 {
-  // Fixed physics timestep mode with accumulator pattern ("Fix Your Timestep" algorithm)
-  BLI_assert(m_fixedPhysicsState != nullptr);
+  /* Fixed physics timestep mode with accumulator pattern ("Fix Your Timestep" algorithm).
+   * 
+   * PHYSICS TIMING: Uses accumulator to decouple physics from framerate.
+   * LOGIC TIMING: Delegated to CalculateLogicFrameTiming() - independent of physics.
+   */
+  
+  BLI_assert(m_physicsState != nullptr && m_physicsState->IsFixedMode());
+  
+  // Downcast to access fixed-mode specific members (accumulator, fixedTimestep)
+  auto* fixedState = static_cast<FixedPhysicsState*>(m_physicsState.get());
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHYSICS TIMING CALCULATION (Fixed Mode Specific - Accumulator Pattern)
+  // ═══════════════════════════════════════════════════════════════════════════
   
   // Add frame time to physics accumulator
-  m_fixedPhysicsState->accumulator += dt;
+  fixedState->accumulator += dt;
   
-  // Calculate how many physics steps to perform
+  // Calculate how many physics steps to perform this frame
+  // Physics runs at constant rate regardless of framerate
   int physicsFrames = 0;
-  while (m_fixedPhysicsState->accumulator >= m_fixedPhysicsState->fixedTimestep && 
-         physicsFrames < m_fixedPhysicsState->maxPhysicsStepsPerFrame) {
+  while (fixedState->accumulator >= fixedState->fixedTimestep && 
+         physicsFrames < fixedState->maxPhysicsStepsPerFrame) {
     physicsFrames++;
-    m_fixedPhysicsState->accumulator -= m_fixedPhysicsState->fixedTimestep;
+    fixedState->accumulator -= fixedState->fixedTimestep;
   }
   
-  // Logic timestep calculation (independent of physics in fixed mode)
-  double timestep;
-  int frames;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC TIMING CALCULATION (Shared - Independent of Physics Mode)
+  // ═══════════════════════════════════════════════════════════════════════════
   
-  if (m_flags & FIXED_FRAMERATE) {
-    timestep = 1.0 / m_ticrate;
-    frames = int(dt * m_ticrate);
-  }
-  else {
-    timestep = dt;
-    frames = 1;
-  }
+  // Logic timing is calculated independently from physics timing
+  // This allows Fixed Physics + Variable Logic, or Fixed Physics + Fixed Logic
+  auto logicTiming = CalculateLogicFrameTiming(
+      dt, fixedState->logicRate, fixedState->maxLogicFramesPerRender);
   
-  // Limit logic frames
-  if (frames > m_maxLogicFrame) {
-    timestep = dt / m_maxLogicFrame;
-    frames = m_maxLogicFrame;
-  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ASSEMBLE FRAME TIMING RESULTS
+  // ═══════════════════════════════════════════════════════════════════════════
   
-  // Assemble frame times for fixed physics mode
   FrameTimes times;
-  times.frames = frames;
-  times.timestep = timestep;
-  times.framestep = timestep * m_timescale;
+  times.frames = logicTiming.frames;
+  times.timestep = logicTiming.timestep;
+  times.framestep = logicTiming.timestep * m_timescale;
   times.useFixedPhysicsTimestep = true;
   times.physicsFrames = physicsFrames;
-  times.physicsTimestep = m_fixedPhysicsState->fixedTimestep;
+  times.physicsTimestep = fixedState->fixedTimestep;
   
   return times;
 }
@@ -515,39 +519,45 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
 
 KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesVariable(double dt)
 {
-  // Variable timestep mode - physics coupled to framerate (original BGE behavior)
-  // Preserved exactly for backward compatibility
+  /* Variable timestep mode - physics coupled to framerate (original BGE behavior).
+   * Preserved exactly for backward compatibility.
+   * 
+   * PHYSICS TIMING: Coupled to logic timing (no independent physics steps).
+   * LOGIC TIMING: Delegated to CalculateLogicFrameTiming() - same as fixed mode.
+   */
   
-  double timestep;
-  int frames;
+  BLI_assert(m_physicsState != nullptr && !m_physicsState->IsFixedMode());
   
-  if (m_flags & FIXED_FRAMERATE) {
-    // Normal time step for fixed frame.
-    timestep = 1.0 / m_ticrate;
-    frames = int(dt * m_ticrate);
-  }
-  else {
-    // The frame is the smallest as possible.
-    timestep = dt;
-    frames = 1;
-  }
-
-  // Fix timestep to not exceed max logic frames
-  // (In variable mode, physics is coupled to logic, so no separate physics limit needed)
-  if (frames > m_maxLogicFrame) {
-    timestep = dt / m_maxLogicFrame;
-    frames = m_maxLogicFrame;
-  }
+  // Downcast to access variable-mode specific members
+  auto* varState = static_cast<VariablePhysicsState*>(m_physicsState.get());
   
-  // In variable mode, physics frames = logic frames (coupled)
-  int physicsFrames = frames;
-  double physicsTimestep = timestep;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC TIMING CALCULATION (Shared - Independent of Physics Mode)
+  // ═══════════════════════════════════════════════════════════════════════════
   
-  // Assemble frame times for variable physics mode
+  // Calculate logic timing using the shared function
+  // This ensures consistent behavior with fixed physics mode
+  auto logicTiming = CalculateLogicFrameTiming(
+      dt, varState->logicRate, varState->maxLogicFrames);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHYSICS TIMING (Variable Mode - Coupled to Logic)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // In variable mode, physics is tightly coupled to logic:
+  // - Physics frames = Logic frames (no independent physics steps)
+  // - Physics timestep = Logic timestep (varies with framerate)
+  int physicsFrames = logicTiming.frames;
+  double physicsTimestep = logicTiming.timestep;
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ASSEMBLE FRAME TIMING RESULTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   FrameTimes times;
-  times.frames = frames;
-  times.timestep = timestep;
-  times.framestep = timestep * m_timescale;
+  times.frames = logicTiming.frames;
+  times.timestep = logicTiming.timestep;
+  times.framestep = logicTiming.timestep * m_timescale;
   times.useFixedPhysicsTimestep = false;
   times.physicsFrames = physicsFrames;
   times.physicsTimestep = physicsTimestep;
@@ -586,110 +596,171 @@ void KX_KetsjiEngine::ExecutePhysicsVariable(KX_Scene *scene,
   }
 }
 
-bool KX_KetsjiEngine::NextFrame()
-{
-  m_logger.StartLog(tc_services);
+/********** SHARED FRAME HELPERS **********/
 
-  /********** FIXED PHYSICS MODE: FPS CAP INITIALIZATION **********/
-  if (m_useFixedPhysicsTimestep && m_fixedPhysicsState) {
-    // Record a steady-clock timestamp for precise deadline pacing (fixed mode cap only)
-    m_fixedPhysicsState->frameStartSteady = std::chrono::steady_clock::now();
-    
-    // Initialize persistent deadline when entering a capped sequence
-    if (m_fixedPhysicsState->useFPSCap) {
-      using clock = std::chrono::steady_clock;
-      const auto period = std::chrono::duration_cast<clock::duration>(
-          std::chrono::duration<double>(1.0 / (double)m_ticrate));
-      if (m_fixedPhysicsState->nextFrameDeadline.time_since_epoch().count() == 0) {
-        m_fixedPhysicsState->nextFrameDeadline = m_fixedPhysicsState->frameStartSteady + period;
-      }
-    } else {
-      // Reset when cap is not active to avoid stale deadlines
-      m_fixedPhysicsState->nextFrameDeadline = std::chrono::steady_clock::time_point{};
+void KX_KetsjiEngine::ProcessInputDevices()
+{
+  m_converter->MergeAsyncLoads();
+  m_inputDevice->ReleaseMoveEvent();
+
+#ifdef WITH_SDL
+  // Handle all SDL Joystick events here to share them for all scenes properly.
+  short addrem[JOYINDEX_MAX] = {0};
+  if (DEV_Joystick::HandleEvents(addrem)) {
+#  ifdef WITH_PYTHON
+    updatePythonJoysticks(addrem);
+#  endif  // WITH_PYTHON
+  }
+
+  // Process Joystick force feedback duration
+  for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
+    DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
+    if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
+      joy->ProcessRumbleStatus();
     }
   }
-  const FrameTimes times = GetFrameTimes();
+#endif  // WITH_SDL
+}
 
-  // Exit if zero frame is scheduled.
-  if (times.frames == 0) {
-    // Start logging time spent outside main loop
-    m_logger.StartLog(tc_outside);
+void KX_KetsjiEngine::ProcessSceneLogic(KX_Scene *scene, const FrameTimes &times, int frameIndex)
+{
+  /* Suspension holds the physics and logic processing for an
+   * entire scene. Objects can be suspended individually, and
+   * the settings for that precede the logic and physics
+   * update. */
+  m_logger.StartLog(tc_logic);
 
-    return false;
+  if (frameIndex == 0) {  // No need to UpdateObjectActivity several times
+    scene->UpdateObjectActivity();
   }
 
+  m_logger.StartLog(tc_physics);
+
+  // set Python hooks for each scene
+  KX_SetActiveScene(scene);
+
+  // Process sensors, and controllers
+  m_logger.StartLog(tc_logic);
+  scene->LogicBeginFrame(m_frameTime, times.framestep);
+
+  // Scenegraph needs to be updated again, because Logic Controllers
+  // can affect the local matrices.
+  m_logger.StartLog(tc_scenegraph);
+  scene->UpdateParents(m_frameTime);
+
+  // Process actuators
+
+  // Do some cleanup work for this logic frame
+  m_logger.StartLog(tc_logic);
+  scene->LogicUpdateFrame(m_frameTime);
+
+  scene->LogicEndFrame();
+
+  // Actuators can affect the scenegraph
+  m_logger.StartLog(tc_scenegraph);
+  scene->UpdateParents(m_frameTime);
+
+  m_logger.StartLog(tc_physics);
+}
+
+void KX_KetsjiEngine::FinalizeFrame()
+{
+  m_logger.StartLog(tc_network);
+  m_networkMessageManager->ClearMessages();
+
+  // update system devices
+  m_logger.StartLog(tc_logic);
+  m_inputDevice->ClearInputs();
+
+  // scene management
+  ProcessScheduledScenes();
+}
+
+/********** LOGIC TIMING CALCULATION (SHARED BY BOTH PHYSICS MODES) **********/
+
+KX_KetsjiEngine::LogicFrameTiming KX_KetsjiEngine::CalculateLogicFrameTiming(
+    double dt, double logicRate, int maxLogicFrames)
+{
+  /* Logic frame timing calculation - independent of physics mode.
+   * 
+   * This function handles the FIXED_FRAMERATE flag, which controls whether
+   * logic updates run at a fixed rate or variable rate (once per frame).
+   * 
+   * IMPORTANT: This is a separate concern from physics timestep mode.
+   * - FIXED_FRAMERATE = flag controlling logic update frequency
+   * - Fixed Physics Mode = using accumulator pattern for physics
+   * 
+   * These are orthogonal concepts:
+   * - You can have Fixed Physics + Variable Logic
+   * - You can have Variable Physics + Fixed Logic
+   * - etc.
+   */
+  
+  LogicFrameTiming result;
+  
+  // Check if logic updates should run at fixed rate or variable rate
+  if (m_flags & FIXED_FRAMERATE) {
+    // Fixed logic rate: Decouple logic from framerate
+    // Run multiple logic updates per frame if needed to maintain target rate
+    result.timestep = 1.0 / logicRate;
+    result.frames = int(dt * logicRate);
+  }
+  else {
+    // Variable logic rate: One update per render frame
+    // Logic timestep varies with frame duration
+    result.timestep = dt;
+    result.frames = 1;
+  }
+  
+  // Limit logic frames to prevent falling too far behind
+  // If we've exceeded the max, increase timestep to "skip" some updates
+  if (result.frames > maxLogicFrames) {
+    result.timestep = dt / maxLogicFrames;
+    result.frames = maxLogicFrames;
+  }
+  
+  return result;
+}
+
+/********** FIXED PHYSICS MODE: COMPLETE FRAME EXECUTION **********/
+
+bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
+{
+  BLI_assert(m_useFixedPhysicsTimestep && m_physicsState && m_physicsState->IsFixedMode());
+  
+  // Downcast to access fixed-mode specific members (timing deadlines, FPS cap)
+  auto* fixedState = static_cast<FixedPhysicsState*>(m_physicsState.get());
+  
+  /********** FPS CAP INITIALIZATION **********/
+  // Record steady-clock timestamp for precise deadline pacing
+  fixedState->frameStartSteady = std::chrono::steady_clock::now();
+  
+  // Initialize persistent deadline when entering a capped sequence
+  if (fixedState->useFPSCap) {
+    using clock = std::chrono::steady_clock;
+    // Use renderCapRate to control rendering rate in fixed mode
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)fixedState->renderCapRate));
+    if (fixedState->nextFrameDeadline.time_since_epoch().count() == 0) {
+      fixedState->nextFrameDeadline = fixedState->frameStartSteady + period;
+    }
+  } else {
+    // Reset when cap is not active to avoid stale deadlines
+    fixedState->nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
+  
+  /********** LOGIC AND PHYSICS LOOP **********/
   for (unsigned short i = 0; i < times.frames; ++i) {
     m_frameTime += times.framestep;
 
-    m_converter->MergeAsyncLoads();
-
-    m_inputDevice->ReleaseMoveEvent();
-
-#ifdef WITH_SDL
-    // Handle all SDL Joystick events here to share them for all scenes properly.
-    short addrem[JOYINDEX_MAX] = {0};
-    if (DEV_Joystick::HandleEvents(addrem)) {
-#  ifdef WITH_PYTHON
-      updatePythonJoysticks(addrem);
-#  endif  // WITH_PYTHON
-    }
-
-    // Process Joystick force feedback duration
-    for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
-      DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
-      if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
-        joy->ProcessRumbleStatus();
-      }
-    }
-#endif  // WITH_SDL
+    ProcessInputDevices();
 
     // for each scene, call the proceed functions
     for (KX_Scene *scene : m_scenes) {
-      /* Suspension holds the physics and logic processing for an
-       * entire scene. Objects can be suspended individually, and
-       * the settings for that precede the logic and physics
-       * update. */
-      m_logger.StartLog(tc_logic);
+      ProcessSceneLogic(scene, times, i);
 
-      if (i == 0) {  // No need to UpdateObjectActivity several times
-        scene->UpdateObjectActivity();
-      }
-
-      m_logger.StartLog(tc_physics);
-
-      // set Python hooks for each scene
-      KX_SetActiveScene(scene);
-
-      // Process sensors, and controllers
-      m_logger.StartLog(tc_logic);
-      scene->LogicBeginFrame(m_frameTime, times.framestep);
-
-      // Scenegraph needs to be updated again, because Logic Controllers
-      // can affect the local matrices.
-      m_logger.StartLog(tc_scenegraph);
-      scene->UpdateParents(m_frameTime);
-
-      // Process actuators
-
-      // Do some cleanup work for this logic frame
-      m_logger.StartLog(tc_logic);
-      scene->LogicUpdateFrame(m_frameTime);
-
-      scene->LogicEndFrame();
-
-      // Actuators can affect the scenegraph
-      m_logger.StartLog(tc_scenegraph);
-      scene->UpdateParents(m_frameTime);
-
-      m_logger.StartLog(tc_physics);
-
-      // Perform physics calculations on the scene
-      if (times.useFixedPhysicsTimestep) {
-        ExecutePhysicsFixed(scene, times, i);
-      }
-      else {
-        ExecutePhysicsVariable(scene, times, i);
-      }
+      // Perform physics calculations (fixed mode)
+      ExecutePhysicsFixed(scene, times, i);
 
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
@@ -697,46 +768,99 @@ bool KX_KetsjiEngine::NextFrame()
       m_logger.StartLog(tc_services);
     }
 
-    m_logger.StartLog(tc_network);
-    m_networkMessageManager->ClearMessages();
-
-    // update system devices
-    m_logger.StartLog(tc_logic);
-    m_inputDevice->ClearInputs();
-
-    // scene management
-    ProcessScheduledScenes();
+    FinalizeFrame();
   }
 
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
 
-  /********** FIXED PHYSICS MODE: FPS CAP ENFORCEMENT **********/
-  // Cap render FPS only in fixed physics mode when enabled (absolute deadline + short spin)
-  if (m_useFixedPhysicsTimestep && m_fixedPhysicsState && m_fixedPhysicsState->useFPSCap) {
+  /********** FPS CAP ENFORCEMENT **********/
+  // Cap render FPS when enabled (absolute deadline + short spin)
+  if (fixedState->useFPSCap) {
     using clock = std::chrono::steady_clock;
+    // Use renderCapRate to control rendering rate
     const auto period = std::chrono::duration_cast<clock::duration>(
-        std::chrono::duration<double>(1.0 / (double)m_ticrate));
+        std::chrono::duration<double>(1.0 / (double)fixedState->renderCapRate));
     // Persistent absolute deadline pacing
     auto now = clock::now();
-    if (m_fixedPhysicsState->nextFrameDeadline.time_since_epoch().count() == 0) {
-      m_fixedPhysicsState->nextFrameDeadline = now + period;
+    if (fixedState->nextFrameDeadline.time_since_epoch().count() == 0) {
+      fixedState->nextFrameDeadline = now + period;
     }
     // Widened safety window to reduce oversleep
     constexpr auto safety = std::chrono::microseconds(2000); // ~2.0ms
-    auto remaining = m_fixedPhysicsState->nextFrameDeadline - now;
+    auto remaining = fixedState->nextFrameDeadline - now;
     if (remaining > safety) {
-      std::this_thread::sleep_until(m_fixedPhysicsState->nextFrameDeadline - safety);
+      std::this_thread::sleep_until(fixedState->nextFrameDeadline - safety);
     }
     // Short spin for precision
-    while (clock::now() < m_fixedPhysicsState->nextFrameDeadline) {
+    while (clock::now() < fixedState->nextFrameDeadline) {
       // busy wait
     }
     // Advance the next deadline by exactly one period
-    m_fixedPhysicsState->nextFrameDeadline += period;
+    fixedState->nextFrameDeadline += period;
   }
 
   return m_doRender;
+}
+
+/********** VARIABLE PHYSICS MODE: COMPLETE FRAME EXECUTION **********/
+
+bool KX_KetsjiEngine::NextFrameVariable(const FrameTimes &times)
+{
+  BLI_assert(!m_useFixedPhysicsTimestep);
+  
+  // Variable mode has no FPS cap - runs uncapped
+  
+  /********** LOGIC AND PHYSICS LOOP **********/
+  for (unsigned short i = 0; i < times.frames; ++i) {
+    m_frameTime += times.framestep;
+
+    ProcessInputDevices();
+
+    // for each scene, call the proceed functions
+    for (KX_Scene *scene : m_scenes) {
+      ProcessSceneLogic(scene, times, i);
+
+      // Perform physics calculations (variable mode)
+      ExecutePhysicsVariable(scene, times, i);
+
+      m_logger.StartLog(tc_scenegraph);
+      scene->UpdateParents(m_frameTime);
+
+      m_logger.StartLog(tc_services);
+    }
+
+    FinalizeFrame();
+  }
+
+  // Start logging time spent outside main loop
+  m_logger.StartLog(tc_outside);
+
+  return m_doRender;
+}
+
+/********** MAIN FRAME DISPATCHER **********/
+
+bool KX_KetsjiEngine::NextFrame()
+{
+  m_logger.StartLog(tc_services);
+
+  // Calculate frame timing for current mode
+  const FrameTimes times = GetFrameTimes();
+
+  // Exit if zero frame is scheduled
+  if (times.frames == 0) {
+    m_logger.StartLog(tc_outside);
+    return false;
+  }
+
+  // Dispatch to mode-specific frame execution
+  if (m_useFixedPhysicsTimestep) {
+    return NextFrameFixed(times);
+  }
+  else {
+    return NextFrameVariable(times);
+  }
 }
 
 KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
@@ -1634,12 +1758,16 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 
 double KX_KetsjiEngine::GetTicRate()
 {
-  return m_ticrate;
+  // Polymorphic dispatch - no conditionals needed
+  return m_physicsState ? m_physicsState->GetLogicRate() : 60.0;
 }
 
 void KX_KetsjiEngine::SetTicRate(double ticrate)
 {
-  m_ticrate = ticrate;
+  // Polymorphic dispatch - no conditionals needed
+  if (m_physicsState) {
+    m_physicsState->SetLogicRate(ticrate);
+  }
 }
 
 double KX_KetsjiEngine::GetTimeScale() const
@@ -1654,34 +1782,29 @@ void KX_KetsjiEngine::SetTimeScale(double timescale)
 
 int KX_KetsjiEngine::GetMaxLogicFrame()
 {
-  return m_maxLogicFrame;
+  // Polymorphic dispatch - no conditionals needed
+  return m_physicsState ? m_physicsState->GetMaxLogicFrames() : 5;
 }
 
 void KX_KetsjiEngine::SetMaxLogicFrame(int frame)
 {
-  m_maxLogicFrame = frame;
+  if (frame > 0 && m_physicsState) {
+    // Polymorphic dispatch - no conditionals needed
+    m_physicsState->SetMaxLogicFrames(frame);
+  }
 }
 
 int KX_KetsjiEngine::GetMaxPhysicsFrame()
 {
-  // FIXED MODE: Return max physics substeps per frame
-  if (m_fixedPhysicsState) {
-    return m_fixedPhysicsState->maxPhysicsStepsPerFrame;
-  }
-  // VARIABLE MODE: Physics coupled to logic, return logic frame limit
-  return m_maxLogicFrame;
+  // Polymorphic dispatch - returns maxPhysicsSteps for fixed mode, maxLogicFrames for variable
+  return m_physicsState ? m_physicsState->GetMaxPhysicsSteps() : 5;
 }
 
 void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
 {
-  if (frame > 0) {
-    // FIXED MODE: Set max physics substeps per frame
-    if (m_fixedPhysicsState) {
-      m_fixedPhysicsState->maxPhysicsStepsPerFrame = frame;
-    }
-    // VARIABLE MODE: This setting doesn't apply (physics follows logic frames)
-    // We could set m_maxLogicFrame here, but that might be confusing
-    // Instead, just ignore the setting in variable mode
+  if (frame > 0 && m_physicsState) {
+    // Polymorphic dispatch - affects maxPhysicsSteps in fixed mode, no-op in variable
+    m_physicsState->SetMaxPhysicsSteps(frame);
   }
 }
 
@@ -1700,20 +1823,62 @@ void KX_KetsjiEngine::SetUseFixedPhysicsTimestep(bool useFixed)
   
   m_useFixedPhysicsTimestep = useFixed;
   
+  // Create new state with default values (for runtime mode switching)
   if (useFixed) {
-    // Switching TO fixed mode: allocate fixed state, deallocate variable state
-    if (!m_fixedPhysicsState) {
-      m_fixedPhysicsState = std::make_unique<FixedPhysicsState>(60, 5, false, 60);
-    }
-    m_fixedPhysicsState->Reset();
-    m_variablePhysicsState.reset();
+    m_physicsState = std::make_unique<FixedPhysicsState>(60, 5, false);
   }
   else {
-    // Switching TO variable mode: allocate variable state, deallocate fixed state
-    if (!m_variablePhysicsState) {
-      m_variablePhysicsState = std::make_unique<VariablePhysicsState>();
-    }
-    m_fixedPhysicsState.reset();
+    m_physicsState = std::make_unique<VariablePhysicsState>();
+  }
+}
+
+void KX_KetsjiEngine::InitializePhysicsState(bool useFixed, const GameData &gm)
+{
+  /* Factory-based initialization of physics timestep state from DNA GameData.
+   * 
+   * This is the centralized initialization method that replaces multiple individual
+   * setter calls. It uses PhysicsStateFactory to ensure consistent mapping from
+   * DNA fields to runtime state structs.
+   * 
+   * CRITICAL FOR BACKWARD COMPATIBILITY:
+   * Variable physics mode behavior is preserved exactly as before Phase 2 refactoring.
+   * The factory maps DNA fields (gm.ticrate, gm.maxlogicstep) to the same runtime
+   * state variables that were used previously.
+   * 
+   * Typical call site (LA_Launcher::InitEngine):
+   *   m_ketsjiEngine->InitializePhysicsState(gm.use_fixed_physics_timestep != 0, gm);
+   * 
+   * Replaces this pattern:
+   *   m_ketsjiEngine->SetTicRate(gm.ticrate);
+   *   m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
+   *   m_ketsjiEngine->SetUseFixedPhysicsTimestep(gm.use_fixed_physics_timestep != 0);
+   *   m_ketsjiEngine->SetPhysicsTickRate(gm.physics_tick_rate);
+   *   m_ketsjiEngine->SetFixedLogicRate(gm.fixed_logic_rate);
+   *   m_ketsjiEngine->SetFixedRenderCapRate(gm.fixed_render_cap_rate);
+   *   m_ketsjiEngine->SetFixedMaxLogicStep(gm.fixed_max_logic_step);
+   *   m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
+   */
+  
+  // Set mode flag first (other code may check this)
+  m_useFixedPhysicsTimestep = useFixed;
+  
+  /* Create appropriate state using factory pattern.
+   * The polymorphic IPhysicsState pointer simplifies engine logic.
+   * 
+   * Factory creates either FixedPhysicsState or VariablePhysicsState
+   * with all DNA fields properly mapped (see PhysicsStateFactory for details).
+   * 
+   * Benefits of polymorphic design:
+   * - Single m_physicsState pointer (was m_fixedPhysicsState + m_variablePhysicsState)
+   * - No conditional logic in getters/setters (polymorphism handles it)
+   * - Cleaner code throughout engine (~50 lines of boilerplate eliminated)
+   */
+  if (useFixed) {
+    m_physicsState = PhysicsStateFactory::CreateFixed(gm);
+  }
+  else {
+    // CRITICAL: Variable mode preserves exact legacy BGE behavior
+    m_physicsState = PhysicsStateFactory::CreateVariable(gm);
   }
 }
 
@@ -1721,68 +1886,67 @@ void KX_KetsjiEngine::SetUseFixedPhysicsTimestep(bool useFixed)
 
 int KX_KetsjiEngine::GetPhysicsTickRate()
 {
-  if (m_fixedPhysicsState) {
-    return m_fixedPhysicsState->tickRate;
-  }
-  return 60; // Default value if not in fixed mode
+  return m_physicsState ? m_physicsState->GetPhysicsTickRate() : 60;
 }
 
 void KX_KetsjiEngine::SetPhysicsTickRate(int tickRate)
 {
-  if (tickRate > 0) {
-    // Update or create fixed state
-    if (!m_fixedPhysicsState) {
-      m_fixedPhysicsState = std::make_unique<FixedPhysicsState>(tickRate, 5, false, 60);
-    }
-    else {
-      m_fixedPhysicsState->SetTickRate(tickRate);
-    }
+  if (tickRate > 0 && m_physicsState) {
+    m_physicsState->SetPhysicsTickRate(tickRate);
+  }
+}
+
+bool KX_KetsjiEngine::GetUseFixedFPSCap()
+{
+  return m_physicsState ? m_physicsState->GetUseFPSCap() : false;
+}
+
+void KX_KetsjiEngine::SetUseFixedFPSCap(bool useFixed)
+{
+  if (m_physicsState) {
+    m_physicsState->SetUseFPSCap(useFixed);
+  }
+}
+
+int KX_KetsjiEngine::GetFixedLogicRate()
+{
+  return m_physicsState ? static_cast<int>(m_physicsState->GetLogicRate()) : 60;
+}
+
+void KX_KetsjiEngine::SetFixedLogicRate(int rate)
+{
+  if (rate > 0 && m_physicsState) {
+    m_physicsState->SetLogicRate(static_cast<double>(rate));
+  }
+}
+
+int KX_KetsjiEngine::GetFixedRenderCapRate()
+{
+  return m_physicsState ? m_physicsState->GetRenderCapRate() : 60;
+}
+
+void KX_KetsjiEngine::SetFixedRenderCapRate(int rate)
+{
+  if (rate > 0 && m_physicsState) {
+    m_physicsState->SetRenderCapRate(rate);
+  }
+}
+
+int KX_KetsjiEngine::GetFixedMaxLogicStep()
+{
+  return m_physicsState ? m_physicsState->GetMaxLogicFrames() : 5;
+}
+
+void KX_KetsjiEngine::SetFixedMaxLogicStep(int steps)
+{
+  if (steps > 0 && m_physicsState) {
+    m_physicsState->SetMaxLogicFrames(steps);
   }
 }
 
 double KX_KetsjiEngine::GetAnimFrameRate()
 {
   return m_anim_framerate;
-}
-
-bool KX_KetsjiEngine::GetUseFixedFPSCap()
-{
-  if (m_fixedPhysicsState) {
-    return m_fixedPhysicsState->useFPSCap;
-  }
-  return false; // Not applicable in variable mode
-}
-
-void KX_KetsjiEngine::SetUseFixedFPSCap(bool useFixed)
-{
-  // Update or create fixed state
-  if (!m_fixedPhysicsState) {
-    m_fixedPhysicsState = std::make_unique<FixedPhysicsState>(60, 5, useFixed, 60);
-  }
-  else {
-    m_fixedPhysicsState->useFPSCap = useFixed;
-  }
-}
-
-int KX_KetsjiEngine::GetFixedFPSCap()
-{
-  if (m_fixedPhysicsState) {
-    return m_fixedPhysicsState->fpsCap;
-  }
-  return 60; // Default value if not in fixed mode
-}
-
-void KX_KetsjiEngine::SetFixedFPSCap(int fps)
-{
-  if (fps > 0) {
-    // Update or create fixed state
-    if (!m_fixedPhysicsState) {
-      m_fixedPhysicsState = std::make_unique<FixedPhysicsState>(60, 5, false, fps);
-    }
-    else {
-      m_fixedPhysicsState->fpsCap = fps;
-    }
-  }
 }
 
 bool KX_KetsjiEngine::GetFlag(FlagType flag) const
