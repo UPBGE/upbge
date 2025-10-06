@@ -1113,10 +1113,18 @@ typedef struct GameData {
   short physics_tick_rate;
   short _pad_physics;
 
-  /* Fixed physics render FPS cap (only in fixed physics mode) */
+  /* Fixed physics render FPS cap toggle (only in fixed physics mode)
+   * Value field removed; keep padding to preserve DNA size/alignment. */
   char use_fixed_fps_cap;
   char _pad_fixedfps[3];
-  int fixed_fps_cap;
+  int _pad_fixedfps_value;
+
+  /* Fixed physics mode specific rates (separate from variable mode)
+   * These are only used when use_fixed_physics_timestep is true */
+  short fixed_logic_rate;      /* Logic update rate (Hz) for fixed physics mode */
+  short fixed_render_cap_rate; /* Render FPS cap rate (Hz) for fixed physics mode */
+  short fixed_max_logic_step;  /* Max logic frames per render for fixed physics mode */
+  short _pad_fixed_rates;
 
   void *_pad10;
 } GameData;

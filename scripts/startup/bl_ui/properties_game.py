@@ -573,6 +573,12 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             row.prop(gs, "physics_timestep_method", text="")
             if gs.physics_timestep_method == 'FIXED':
                 layout.prop(gs, "physics_tick_rate", text="Physics Steps")
+                # Fixed mode specific rates
+                box = layout.box()
+                box.label(text="Fixed Mode Rates:")
+                box.prop(gs, "fixed_logic_rate", text="Logic Rate (Hz)")
+                box.prop(gs, "fixed_render_cap_rate", text="Render Cap Rate (Hz)")
+                box.prop(gs, "fixed_max_logic_step", text="Max Logic Steps")
 
             split = layout.split()
 
@@ -594,10 +600,18 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
 
             col = split.column()
             col.label(text="Logic Steps:")
-            col.prop(gs, "logic_step_max", text="Max")
+            # Show different property based on mode
+            if gs.physics_timestep_method == 'FIXED':
+                col.label(text="(See Fixed Mode Rates above)")
+            else:
+                col.prop(gs, "logic_step_max", text="Max")
 
             row = layout.row()
-            row.prop(gs, "fps", text="FPS")
+            # Show different FPS control based on mode
+            if gs.physics_timestep_method == 'FIXED':
+                row.label(text="FPS: (See Fixed Mode Rates above)")
+            else:
+                row.prop(gs, "fps", text="FPS")
             row.prop(gs, "time_scale")
 
             col = layout.column()
