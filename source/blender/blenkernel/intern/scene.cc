@@ -807,6 +807,8 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
+   * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
     if (smd->type == eSeqModifierType_Compositor) {
@@ -846,8 +848,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
   if (scene->ed) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-        data,
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
+        data, blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
   }
 
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
@@ -978,7 +979,7 @@ static void scene_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Scene *scene = (Scene *)id;
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
+    blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
   }
 }
 

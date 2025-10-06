@@ -1992,8 +1992,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 263, 18)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
       }
     }
   }
@@ -2232,7 +2231,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 265, 5)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
     }
 
@@ -2906,7 +2905,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         if (scene->ed) {
-          blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
+          blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
         }
       }
 

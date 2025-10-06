@@ -11521,7 +11521,8 @@ static int ui_handle_menu_event(bContext *C,
                 menu->menuretval = UI_RETURN_OK;
               }
               else {
-                menu->menuretval = UI_RETURN_OUT;
+                menu->menuretval = (U.flag & USER_MENU_CLOSE_LEAVE) ? UI_RETURN_OUT :
+                                                                      UI_RETURN_CANCEL;
               }
             }
           }
@@ -11619,7 +11620,7 @@ static int ui_handle_menu_event(bContext *C,
           }
 
           /* strict check, and include the parent rect */
-          if (!menu->dotowards && !saferct) {
+          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0)) {
             if (block->flag & UI_BLOCK_OUT_1) {
               menu->menuretval = UI_RETURN_OK;
             }

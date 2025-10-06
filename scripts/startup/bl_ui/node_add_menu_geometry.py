@@ -871,8 +871,8 @@ class NODE_MT_gn_utilities_vector_base(node_add_menu.NodeMenu):
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
-        layout.separator()
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
@@ -950,6 +950,12 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeVolumeToMesh")
         self.node_operator(layout, "GeometryNodeGridToMesh")
         self.node_operator(layout, "GeometryNodeSDFGridBoolean")
+        self.node_operator(layout, "GeometryNodeSDFGridFillet")
+        self.node_operator(layout, "GeometryNodeSDFGridLaplacian")
+        self.node_operator(layout, "GeometryNodeSDFGridMean")
+        self.node_operator(layout, "GeometryNodeSDFGridMeanCurvature")
+        self.node_operator(layout, "GeometryNodeSDFGridMedian")
+        self.node_operator(layout, "GeometryNodeSDFGridOffset")
         self.node_operator(layout, "GeometryNodeFieldToGrid")
         self.node_operator(layout, "GeometryNodeGridPrune")
         self.node_operator(layout, "GeometryNodeGridVoxelize")
