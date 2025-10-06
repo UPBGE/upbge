@@ -47,6 +47,8 @@
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_scene_types.h"
+#include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
@@ -957,6 +959,10 @@ void main() {
         Type::int_t,
         "normals_domain",
         mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0);
+    info.specialization_constant(
+        blender::gpu::shader::Type::int_t,
+        "normals_hq",
+        int(bool(GetScene()->GetBlenderScene()->r.perf_flag & SCE_PERF_HQ_NORMALS) || GPU_use_hq_normals_workaround()));
 
     info.compute_source_generated = R"GLSL(
 // Utility accessors
@@ -981,6 +987,13 @@ uint pack_norm(vec3 n) {
   int ny = pack_i10_trunc(n.y);
   int nz = pack_i10_trunc(n.z);
   return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
+}
+
+int pack_i16_trunc(float x) {
+  return clamp(int(round(x * 32767.0)), -32768, 32767);
+}
+uint pack_i16_pair(float a, float b) {
+  return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
 }
 
 vec3 newell_face_normal_object(int f) {
@@ -1032,7 +1045,16 @@ void main() {
   }
 
   vec3 n_world = transform_normal(n_obj, postmat[0]);
-  normals[c] = pack_norm(normalize(n_world));
+  n_world = normalize(n_world);
+
+  if (normals_hq == 0) {
+    normals[c] = pack_norm(n_world);
+  }
+  else {
+    int base = int(c) * 2;
+    normals[base + 0] = pack_i16_pair(n_world.x, n_world.y);
+    normals[base + 1] = pack_i16_pair(n_world.z, 0.0);
+  }
 }
 )GLSL";
     m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info(
