@@ -24,6 +24,5 @@ extern PyObject *bpy_sys_module_backup;
 void BPY_atexit_register();
 void BPY_atexit_unregister();
 
-extern struct CLG_LogRef *BPY_LOG_CONTEXT;
 extern struct CLG_LogRef *BPY_LOG_RNA;
 extern struct CLG_LogRef *BPY_LOG_INTERFACE;

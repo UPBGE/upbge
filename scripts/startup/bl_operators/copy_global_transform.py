@@ -10,17 +10,15 @@ Simple operators for copying world-space transforms.
 It's called "global" to avoid confusion with the Blender World data-block.
 """
 
-import ast
 import abc
 from typing import Iterable, Optional, Any, TypeAlias
 
 import bpy
 from bpy.types import (
     Context, Object, Operator, PoseBone,
-    Camera, ID, ActionChannelbag, PropertyGroup,
+    Camera, ID, ActionChannelbag,
 )
 from mathutils import Matrix
-from bpy_extras.anim_utils import AutoKeying
 
 
 _axis_enum_items = [
@@ -47,6 +45,7 @@ def get_matrix(context: Context) -> Matrix:
 
 
 def set_matrix(context: Context, mat: Matrix) -> None:
+    from bpy_extras.anim_utils import AutoKeying
     bone = context.active_pose_bone
     if bone:
         # Convert matrix to local space
@@ -130,9 +129,9 @@ def _selected_keyframes_for_action_slot(object: Object, rna_path_prefix: str) ->
 
 
 def _copy_matrix_to_clipboard(window_manager: bpy.types.WindowManager, matrix: Matrix) -> None:
-    rows = [f"    {tuple(row)!r}," for row in matrix]
+    rows = ["    {!r},".format(tuple(row)) for row in matrix]
     as_string = "\n".join(rows)
-    window_manager.clipboard = f"Matrix((\n{as_string}\n))"
+    window_manager.clipboard = "Matrix((\n{:s}\n))".format(as_string)
 
 
 class OBJECT_OT_copy_global_transform(Operator):
@@ -301,6 +300,8 @@ class OBJECT_OT_paste_transform(Operator):
         return Matrix(floats)
 
     def execute(self, context: Context) -> set[str]:
+        import ast
+
         clipboard = context.window_manager.clipboard.strip()
         if clipboard.startswith("Matrix"):
             mat = Matrix(ast.literal_eval(clipboard[6:]))
@@ -528,7 +529,7 @@ class TransformableObject(Transformable):
         self.object = object
 
     def __str__(self) -> str:
-        return f"TransformableObject({self.object.name})"
+        return "TransformableObject({:s})".format(self.object.name)
 
     def matrix_world(self) -> Matrix:
         return self.object.matrix_world
@@ -537,6 +538,7 @@ class TransformableObject(Transformable):
         self.object.matrix_world = matrix
 
     def _autokey_matrix_world(self, context: Context) -> None:
+        from bpy_extras.anim_utils import AutoKeying
         AutoKeying.autokey_transformation(context, self.object)
 
     def __hash__(self) -> int:
@@ -559,7 +561,7 @@ class TransformableBone(Transformable):
         self.pose_bone = pose_bone
 
     def __str__(self) -> str:
-        return f"TransformableBone({self.arm_object.name}, bone={self.pose_bone.name})"
+        return "TransformableBone({:s}, bone={:s})".format(self.arm_object.name, self.pose_bone.name)
 
     def matrix_world(self) -> Matrix:
         mat = self.arm_object.matrix_world @ self.pose_bone.matrix
@@ -571,6 +573,7 @@ class TransformableBone(Transformable):
         self.pose_bone.matrix = arm_eval.matrix_world.inverted() @ matrix
 
     def _autokey_matrix_world(self, context: Context) -> None:
+        from bpy_extras.anim_utils import AutoKeying
         AutoKeying.autokey_transformation(context, self.pose_bone)
 
     def __hash__(self) -> int:
@@ -677,6 +680,7 @@ class OBJECT_OT_fix_to_camera(FixToCameraCommon, Operator):
         return {t: camera_mat_inv @ t.matrix_world() for t in transformables}
 
     def _execute(self, context: Context, transformables: list[Transformable]) -> None:
+        from bpy_extras.anim_utils import AutoKeying
         depsgraph = context.view_layer.depsgraph
         scene = context.scene
 
@@ -780,7 +784,7 @@ def _unregister_message_bus() -> None:
 
 
 @bpy.app.handlers.persistent  # type: ignore
-def _on_blendfile_load_post(none: Any, other_none: Any) -> None:
+def _on_blendfile_load_post(_none: Any, _other_none: Any) -> None:
     # The parameters are required, but both are None.
     _register_message_bus()
 

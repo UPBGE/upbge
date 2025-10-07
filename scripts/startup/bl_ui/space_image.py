@@ -870,15 +870,6 @@ class IMAGE_HT_header(Header):
 
             if tool_settings.use_uv_select_sync:
                 layout.template_edit_mode_selection()
-
-                layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
-
-                # Currently this only works for edge-select & face-select modes.
-                row = layout.row()
-                mesh_select_mode = tool_settings.mesh_select_mode
-                if mesh_select_mode[0]:
-                    row.active = False
-                row.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
             else:
                 row = layout.row(align=True)
                 uv_select_mode = tool_settings.uv_select_mode[:]
@@ -889,8 +880,8 @@ class IMAGE_HT_header(Header):
                 row.operator("uv.select_mode", text="", icon='UV_FACESEL',
                              depress=(uv_select_mode == 'FACE')).type = 'FACE'
 
-                layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
-                layout.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
+            layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
+            layout.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
 
         IMAGE_MT_editor_menus.draw_collapsible(context, layout)
 
@@ -940,6 +931,13 @@ class IMAGE_HT_header(Header):
             layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
 
         if ima:
+            seq_scene = context.sequencer_scene
+            scene = context.scene
+
+            if show_render and seq_scene and (seq_scene != scene):
+                row = layout.row()
+                row.prop(sima, "show_sequencer_scene", text="")
+
             if ima.is_stereo_3d:
                 row = layout.row()
                 row.prop(sima, "show_stereo_3d", text="")

@@ -245,6 +245,14 @@ if(WITH_BLENDER OR WITH_PLAYER)
       clipuv_dehlt
       clipuv_hlt
       collapsemenu
+      collection_color_01
+      collection_color_02
+      collection_color_03
+      collection_color_04
+      collection_color_05
+      collection_color_06
+      collection_color_07
+      collection_color_08
       collection_new
       color
       color_blue
@@ -264,6 +272,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       con_floor
       con_followpath
       con_followtrack
+      con_geometryattribute
       con_kinematic
       con_locktrack
       con_loclike

@@ -65,6 +65,8 @@
     .sfra = 1, \
     .efra = 250, \
     .frame_step = 1, \
+    .time_jump_delta = 1.0, \
+    .time_jump_unit = 1, \
     .xsch = 1920, \
     .ysch = 1080, \
     .xasp = 1, \
@@ -432,6 +434,7 @@
     .select_thresh = 0.01f, \
  \
     .selectmode = SCE_SELECT_VERTEX, \
+    .uv_flag = UV_FLAG_SELECT_SYNC, \
     .uv_selectmode = UV_SELECT_VERT, \
     .autokey_mode = AUTOKEY_MODE_NORMAL, \
  \

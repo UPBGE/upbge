@@ -434,7 +434,7 @@ mark_as_advanced(WITH_SYSTEM_AUDASPACE)
 
 if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
   option(WITH_RUBBERBAND "\
-  Build with Rubber Band for audio time-stretching and pitch-scaling (used by Audaspace)" 
+  Build with Rubber Band for audio time-stretching and pitch-scaling (used by Audaspace)"
     ON
   )
 endif()

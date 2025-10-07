@@ -1459,7 +1459,7 @@ elseif(WIN32)
       FILES
         ${LIBDIR}/ffmpeg/lib/avfilter-10.dll
       ALL
-    )  
+    )
   endif()
   if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
     windows_install_shared_manifest(
