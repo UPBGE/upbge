@@ -3555,6 +3555,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
     blo_do_versions_500(fd, lib, main);
   }
   if (!main->is_read_invalid) {
+    blo_do_versions_510(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
     blo_do_versions_upbge(fd, lib, main);
   }
 
@@ -3618,6 +3621,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_500(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_510(fd, main);
   }
 
   main->is_locked_for_linking = false;

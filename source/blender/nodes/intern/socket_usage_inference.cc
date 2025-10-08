@@ -105,8 +105,12 @@ class SocketUsageInferencerImpl {
   bool is_group_input_used(const int input_i)
   {
     for (const bNode *node : root_tree_.group_input_nodes()) {
-      const SocketInContext socket{nullptr, &node->output_socket(input_i)};
-      if (this->is_socket_used(socket)) {
+      const bNodeSocket &socket = node->output_socket(input_i);
+      if (!socket.is_directly_linked()) {
+        continue;
+      }
+      const SocketInContext socket_ctx{nullptr, &socket};
+      if (this->is_socket_used(socket_ctx)) {
         return true;
       }
     }
@@ -539,25 +543,30 @@ class SocketUsageInferencerImpl {
                                           const ComputeContext *dependent_socket_context)
   {
     /* Check if any of the dependent outputs are used. */
-    SocketInContext next_unknown_output;
+    SocketInContext next_unknown_socket;
     bool any_output_used = false;
     for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
       const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
       const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      if (!is_used.has_value() && !next_unknown_output) {
-        next_unknown_output = dependent_socket;
-        continue;
+      if (!is_used.has_value()) {
+        if (dependent_socket_ptr->is_output() && !dependent_socket_ptr->is_directly_linked()) {
+          continue;
+        }
+        if (!next_unknown_socket) {
+          next_unknown_socket = dependent_socket;
+          continue;
+        }
       }
       if (is_used.value_or(false)) {
         any_output_used = true;
         break;
       }
     }
-    if (next_unknown_output) {
+    if (next_unknown_socket) {
       /* Create a task that checks if the next dependent socket is used. Intentionally only create
        * a task for the very next one and not for all, because that could potentially trigger a lot
        * of unnecessary evaluations. */
-      this->push_usage_task(next_unknown_output);
+      this->push_usage_task(next_unknown_socket);
       return;
     }
     if (!any_output_used) {

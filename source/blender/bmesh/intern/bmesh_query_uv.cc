@@ -23,7 +23,7 @@ BMUVOffsets BM_uv_map_offsets_from_layer(const BMesh *bm, const int layer)
   using namespace blender::bke;
   const int layer_index = CustomData_get_layer_index_n(&bm->ldata, CD_PROP_FLOAT2, layer);
   if (layer_index == -1) {
-    return {-1, -1, -1, -1};
+    return BMUVOFFSETS_NONE;
   }
 
   const StringRef name = bm->ldata.layers[layer_index].name;
@@ -31,10 +31,6 @@ BMUVOffsets BM_uv_map_offsets_from_layer(const BMesh *bm, const int layer)
 
   BMUVOffsets offsets;
   offsets.uv = bm->ldata.layers[layer_index].offset;
-  offsets.select_vert = CustomData_get_offset_named(
-      &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(name, buffer));
-  offsets.select_edge = CustomData_get_offset_named(
-      &bm->ldata, CD_PROP_BOOL, BKE_uv_map_edge_select_name_get(name, buffer));
   offsets.pin = CustomData_get_offset_named(
       &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(name, buffer));
 
@@ -45,7 +41,7 @@ BMUVOffsets BM_uv_map_offsets_get(const BMesh *bm)
 {
   const int layer = CustomData_get_active_layer(&bm->ldata, CD_PROP_FLOAT2);
   if (layer == -1) {
-    return {-1, -1, -1, -1};
+    return BMUVOFFSETS_NONE;
   }
   return BM_uv_map_offsets_from_layer(bm, layer);
 }
