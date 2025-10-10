@@ -576,7 +576,8 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 # Fixed mode specific rates
                 box = layout.box()
                 box.label(text="Fixed Mode Rates:")
-                box.prop(gs, "fixed_logic_rate", text="Logic Rate (Hz)")
+                row = box.row()
+                row.label(text=f"Logic Rate: Coupled to Physics ({gs.physics_tick_rate} Hz)")
                 box.prop(gs, "fixed_render_cap_rate", text="Render Cap Rate (Hz)")
                 box.prop(gs, "fixed_max_logic_step", text="Max Logic Steps")
 
