@@ -125,6 +125,12 @@ struct FixedPhysicsState : public IPhysicsState {
   std::chrono::steady_clock::time_point nextFrameDeadline;
   /// Frame start timestamp for deadline pacing
   std::chrono::steady_clock::time_point frameStartSteady;
+  
+  /// Previous clock time for internal dt calculation (fixed mode only)
+  /// This ensures fixed mode time tracking is independent from variable mode
+  double previousClockTime = 0.0;
+  /// Track if this is the first frame in fixed mode (to initialize time tracking)
+  bool isFirstFrame = true;
 
   FixedPhysicsState(int tickRate = 60, 
                     int maxSteps = 5, 
@@ -146,6 +152,8 @@ struct FixedPhysicsState : public IPhysicsState {
   void Reset() override
   {
     accumulator = 0.0;
+    previousClockTime = 0.0;
+    isFirstFrame = true;
     nextFrameDeadline = std::chrono::steady_clock::time_point{};
     frameStartSteady = std::chrono::steady_clock::time_point{};
   }
