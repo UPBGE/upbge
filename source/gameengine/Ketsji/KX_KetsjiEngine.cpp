@@ -426,21 +426,25 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   // Get elapsed time.
   double dt = m_clockTime - m_previousRealTime;
 
-  // Fix strange behavior of deltaTime and physics.
-  const double averageFrameRate = GetAverageFrameRate();
-  double maxDeltaTime = 1.5f;
+  // Only clamp dt for variable physics mode
+  // Fixed physics mode handles large dt correctly via accumulator + maxPhysicsSteps
+  if (!m_useFixedPhysicsTimestep) {
+    // Fix strange behavior of deltaTime and physics.
+    const double averageFrameRate = GetAverageFrameRate();
+    double maxDeltaTime = 1.5f;
 
-  // Below 1fps, deltaTime tends to be close to 1, there is no need to adjust.
-  if (averageFrameRate >= 1.5f) {
-    maxDeltaTime = (averageFrameRate < 15.0f) ? m_previous_deltaTime + 0.5f :
-                                                m_previous_deltaTime + 0.05f;  // Max dt
-  }
-  m_previous_deltaTime = dt;
+    // Below 1fps, deltaTime tends to be close to 1, there is no need to adjust.
+    if (averageFrameRate >= 1.5f) {
+      maxDeltaTime = (averageFrameRate < 15.0f) ? m_previous_deltaTime + 0.5f :
+                                                  m_previous_deltaTime + 0.05f;  // Max dt
+    }
+    m_previous_deltaTime = dt;
 
-  // If it exceeds the maximum value, adjust it to the maximum value, this prevents objects from
-  // having sudden movements.
-  if (dt > maxDeltaTime) {
-    dt = maxDeltaTime;  // set deltaTime to max value.
+    // If it exceeds the maximum value, adjust it to the maximum value, this prevents objects from
+    // having sudden movements.
+    if (dt > maxDeltaTime) {
+      dt = maxDeltaTime;  // set deltaTime to max value.
+    }
   }
 
   // Dispatch to appropriate timestep mode
@@ -452,10 +456,16 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
     times = GetFrameTimesVariable(dt);
   }
 
-  // If the number of frame is non-zero, update previous time.
-  if (times.frames > 0 || times.physicsFrames > 0) {
-    m_previousRealTime = m_clockTime;
+  // Update previous time tracking based on mode:
+  // - FIXED MODE: Time tracking is internal to FixedPhysicsState (already updated)
+  // - VARIABLE MODE: Use shared m_previousRealTime (original behavior)
+  if (!m_useFixedPhysicsTimestep) {
+    // Variable mode: Only update when frames were executed (original BGE behavior)
+    if (times.frames > 0 || times.physicsFrames > 0) {
+      m_previousRealTime = m_clockTime;
+    }
   }
+  // Fixed mode: No action needed here - time already consumed in GetFrameTimesFixed()
 
   return times;
 }
@@ -464,54 +474,72 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 
 KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
 {
-  /* Fixed physics timestep mode with accumulator pattern ("Fix Your Timestep" algorithm).
+  /* Fixed physics timestep mode with proper real-time pacing.
    * 
-   * PHYSICS TIMING: Uses accumulator to decouple physics from framerate.
-   * LOGIC TIMING: Delegated to CalculateLogicFrameTiming() - independent of physics.
+   * KEY PRINCIPLE: Game speed = timescale (independent of FPS and physics tick rate)
+   * - timescale=1.0 → 1 game second = 1 real second
+   * - physics_tick_rate → steps per GAME second (not real second)
+   * - Render FPS → completely independent (only affects visual smoothness)
+   * 
+   * The accumulator tracks scaled real time: dt * timescale
+   * We execute physics steps at the configured tick rate, but the total game time
+   * advancement per real second equals timescale.
+   * 
+   * FIXED MODE TIME TRACKING:
+   * This mode maintains its own independent time tracking (previousClockTime)
+   * separate from variable mode's m_previousRealTime. This ensures dt is
+   * always consumed correctly, even when physicsFrames == 0.
    */
-  
+
   BLI_assert(m_physicsState != nullptr && m_physicsState->IsFixedMode());
-  
-  // Downcast to access fixed-mode specific members (accumulator, fixedTimestep)
-  auto* fixedState = static_cast<FixedPhysicsState*>(m_physicsState.get());
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PHYSICS TIMING CALCULATION (Fixed Mode Specific - Accumulator Pattern)
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  // Add frame time to physics accumulator
-  fixedState->accumulator += dt;
-  
-  // Calculate how many physics steps to perform this frame
-  // Physics runs at constant rate regardless of framerate
-  int physicsFrames = 0;
-  while (fixedState->accumulator >= fixedState->fixedTimestep && 
-         physicsFrames < fixedState->maxPhysicsStepsPerFrame) {
-    physicsFrames++;
-    fixedState->accumulator -= fixedState->fixedTimestep;
+
+  auto *fixedState = static_cast<FixedPhysicsState *>(m_physicsState.get());
+
+  const double fixedTimestep = fixedState->fixedTimestep;
+  const int maxPhysicsSteps = fixedState->maxPhysicsStepsPerFrame;
+
+  // Calculate dt internally for fixed mode (independent time tracking)
+  double actualDt;
+  if (fixedState->isFirstFrame) {
+    // First frame: initialize time tracking, no elapsed time yet
+    fixedState->previousClockTime = m_clockTime;
+    fixedState->isFirstFrame = false;
+    actualDt = 0.0;
   }
+  else {
+    // Calculate elapsed time since last frame
+    actualDt = m_clockTime - fixedState->previousClockTime;
+    // Always update previousClockTime to consume the elapsed time
+    // This prevents time double-counting when physicsFrames == 0
+    fixedState->previousClockTime = m_clockTime;
+  }
+
+  // Apply timescale to real elapsed time to get game time delta
+  // This ensures game speed = timescale regardless of physics tick rate or FPS
+  double gameTimeDelta = actualDt * m_timescale;
   
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LOGIC TIMING CALCULATION (Shared - Independent of Physics Mode)
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  // Logic timing is calculated independently from physics timing
-  // This allows Fixed Physics + Variable Logic, or Fixed Physics + Fixed Logic
-  auto logicTiming = CalculateLogicFrameTiming(
-      dt, fixedState->logicRate, fixedState->maxLogicFramesPerRender);
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ASSEMBLE FRAME TIMING RESULTS
-  // ═══════════════════════════════════════════════════════════════════════════
-  
+  // Clamp to prevent spiral of death (Unity's Maximum Allowed Timestep)
+  const double maxConsume = fixedTimestep * static_cast<double>(maxPhysicsSteps);
+  gameTimeDelta = std::min(gameTimeDelta, maxConsume);
+
+  // Accumulator tracks game time (not real time)
+  fixedState->accumulator += gameTimeDelta;
+
+  // Execute physics steps at fixed intervals
+  int physicsFrames = 0;
+  while (fixedState->accumulator >= fixedTimestep && physicsFrames < maxPhysicsSteps) {
+    fixedState->accumulator -= fixedTimestep;
+    physicsFrames++;
+  }
+
   FrameTimes times;
-  times.frames = logicTiming.frames;
-  times.timestep = logicTiming.timestep;
-  times.framestep = logicTiming.timestep * m_timescale;
   times.useFixedPhysicsTimestep = true;
   times.physicsFrames = physicsFrames;
-  times.physicsTimestep = fixedState->fixedTimestep;
-  
+  times.physicsTimestep = fixedTimestep;
+  times.frames = physicsFrames;
+  times.timestep = fixedTimestep;
+  times.framestep = fixedTimestep;  // Already scaled via accumulator
+
   return times;
 }
 
@@ -569,16 +597,16 @@ void KX_KetsjiEngine::ExecutePhysicsFixed(KX_Scene *scene,
                                           const FrameTimes &times, 
                                           int logicFrameIndex)
 {
-  // Fixed timestep mode: perform multiple physics steps if needed
-  // Uses fixed timestep from state for deterministic physics
-  for (int physicsStep = 0; physicsStep < times.physicsFrames; physicsStep++) {
-    scene->GetPhysicsEnvironment()->ProceedDeltaTime(
-        m_frameTime, times.physicsTimestep, times.physicsTimestep * m_timescale);
-    
-    // Update soft bodies only on the last physics step of the last logic frame
-    if (physicsStep == times.physicsFrames - 1 && logicFrameIndex == times.frames - 1) {
-      scene->GetPhysicsEnvironment()->UpdateSoftBodies();
-    }
+  if (logicFrameIndex >= times.physicsFrames) {
+    return;
+  }
+
+  const double physicsDt = times.physicsTimestep;
+  scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+      m_frameTime, physicsDt, physicsDt);
+
+  if (logicFrameIndex == times.physicsFrames - 1) {
+    scene->GetPhysicsEnvironment()->UpdateSoftBodies();
   }
 }
 
@@ -848,8 +876,9 @@ bool KX_KetsjiEngine::NextFrame()
   // Calculate frame timing for current mode
   const FrameTimes times = GetFrameTimes();
 
-  // Exit if zero frame is scheduled
-  if (times.frames == 0) {
+  // Exit if zero frame is scheduled (only for variable mode)
+  // Fixed mode should always render even if no physics steps this frame
+  if (times.frames == 0 && !m_useFixedPhysicsTimestep) {
     m_logger.StartLog(tc_outside);
     return false;
   }

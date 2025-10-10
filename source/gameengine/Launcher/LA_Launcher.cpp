@@ -154,11 +154,6 @@ void LA_Launcher::InitEngine()
   }
   m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
 
-  /* If Fixed Physics Timestep is enabled (enum), ignore engine-level fixed framerate cap. */
-  if (gm.use_fixed_physics_timestep) {
-    fixed_framerate = false;
-  }
-
   const KX_KetsjiEngine::FlagType flags =
       (KX_KetsjiEngine::FlagType)((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
                                   (frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
