@@ -456,13 +456,12 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 5)) {
     /* Migrate to mode-specific timing variables (Phase 2 refactoring) */
-    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "fixed_logic_rate")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "fixed_render_cap_rate")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        /* Initialize fixed mode rates from legacy shared values
-         * This ensures old .blend files continue to work with same behavior */
-        scene->gm.fixed_logic_rate = scene->gm.ticrate;
+        /* Initialize fixed mode render cap rate from legacy ticrate
+         * This ensures old .blend files continue to work with same behavior.
+         * NOTE: fixed_logic_rate and fixed_max_logic_step removed - logic coupled to physics in fixed mode */
         scene->gm.fixed_render_cap_rate = scene->gm.ticrate;
-        scene->gm.fixed_max_logic_step = scene->gm.maxlogicstep;
       }
     }
   }

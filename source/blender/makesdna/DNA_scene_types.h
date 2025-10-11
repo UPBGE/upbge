@@ -800,12 +800,12 @@ typedef struct GameData {
   short physics_tick_rate = 60;
   short _pad_physics = 0;
 
+  /* Fixed physics mode specific rates */
   /* Fixed physics render FPS cap (only in fixed physics mode) */
   char use_fixed_fps_cap = 1;
   char _pad_fixedfps[3] = {};
   int fixed_fps_cap = 60;
 
-  /* Fixed physics mode specific rates */
   short fixed_logic_rate = 60;      /* Logic update rate (Hz) for fixed physics mode */
   short fixed_render_cap_rate = 60; /* Render FPS cap rate (Hz) for fixed physics mode */
   short fixed_max_logic_step = 5;   /* Max logic frames per render for fixed physics mode */

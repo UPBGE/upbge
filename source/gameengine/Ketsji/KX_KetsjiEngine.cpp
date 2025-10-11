@@ -1882,9 +1882,7 @@ void KX_KetsjiEngine::InitializePhysicsState(bool useFixed, const GameData &gm)
    *   m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
    *   m_ketsjiEngine->SetUseFixedPhysicsTimestep(gm.use_fixed_physics_timestep != 0);
    *   m_ketsjiEngine->SetPhysicsTickRate(gm.physics_tick_rate);
-   *   m_ketsjiEngine->SetFixedLogicRate(gm.fixed_logic_rate);
    *   m_ketsjiEngine->SetFixedRenderCapRate(gm.fixed_render_cap_rate);
-   *   m_ketsjiEngine->SetFixedMaxLogicStep(gm.fixed_max_logic_step);
    *   m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
    */
   
@@ -1937,18 +1935,6 @@ void KX_KetsjiEngine::SetUseFixedFPSCap(bool useFixed)
   }
 }
 
-int KX_KetsjiEngine::GetFixedLogicRate()
-{
-  return m_physicsState ? static_cast<int>(m_physicsState->GetLogicRate()) : 60;
-}
-
-void KX_KetsjiEngine::SetFixedLogicRate(int rate)
-{
-  if (rate > 0 && m_physicsState) {
-    m_physicsState->SetLogicRate(static_cast<double>(rate));
-  }
-}
-
 int KX_KetsjiEngine::GetFixedRenderCapRate()
 {
   return m_physicsState ? m_physicsState->GetRenderCapRate() : 60;
@@ -1958,18 +1944,6 @@ void KX_KetsjiEngine::SetFixedRenderCapRate(int rate)
 {
   if (rate > 0 && m_physicsState) {
     m_physicsState->SetRenderCapRate(rate);
-  }
-}
-
-int KX_KetsjiEngine::GetFixedMaxLogicStep()
-{
-  return m_physicsState ? m_physicsState->GetMaxLogicFrames() : 5;
-}
-
-void KX_KetsjiEngine::SetFixedMaxLogicStep(int steps)
-{
-  if (steps > 0 && m_physicsState) {
-    m_physicsState->SetMaxLogicFrames(steps);
   }
 }
 

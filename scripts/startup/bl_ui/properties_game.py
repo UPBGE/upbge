@@ -571,49 +571,51 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             row = layout.row()
             row.label(text="Physics Timestep Method:")
             row.prop(gs, "physics_timestep_method", text="")
+            
             if gs.physics_timestep_method == 'FIXED':
-                layout.prop(gs, "physics_tick_rate", text="Physics Steps")
-                # Fixed mode specific rates
-                box = layout.box()
-                box.label(text="Fixed Mode Rates:")
-                row = box.row()
-                row.label(text=f"Logic Rate: Coupled to Physics ({gs.physics_tick_rate} Hz)")
-                box.prop(gs, "fixed_render_cap_rate", text="Render Cap Rate (Hz)")
-                box.prop(gs, "fixed_max_logic_step", text="Max Logic Steps")
-
-            split = layout.split()
-
-            col = split.column()
-            col.label(text="Physics Steps:")
-            sub = col.column(align=True)
-            sub.prop(gs, "physics_step_max", text="Max")
-            # Hide substeps when using fixed physics timestep
-            if gs.physics_timestep_method != 'FIXED':
-                sub.prop(gs, "physics_step_sub", text="Substeps")
-            #   Insert FPS Limit toggle here: switches between Variable and Fixed bindings
-            row_ufr = col.row()
-            if gs.physics_timestep_method == 'FIXED':
-                # Fixed physics: use fixed cap toggle (uses FPS value)
-                row_ufr.prop(gs, "use_fixed_fps_cap", text="FPS Limit ( Fixed )")
+                # For Fixed mode: put Logic+Physics Steps Per Second and Max Physics Steps side by side
+                split_rate = layout.split()
+                col_left = split_rate.column()
+                col_left.prop(gs, "physics_tick_rate", text="Logic+Physics Steps Per Second")
+                col_right = split_rate.column()
+                col_right.prop(gs, "physics_step_max", text="Max Logic+Physics Steps")
+                
+                # Continue with FPS Limit and Render Cap Rate in a new split
+                split = layout.split()
+                col = split.column()
+                col.prop(gs, "use_fixed_fps_cap", text="FPS Limit ( Fixed )")
+                # Grey out Render Frames Per Second if FPS Limit is disabled
+                row_render = col.row()
+                row_render.enabled = gs.use_fixed_fps_cap
+                row_render.prop(gs, "fixed_render_cap_rate", text="Render Frames Per Second")
             else:
-                # Variable physics: use legacy engine FPS cap
+                # For Variable mode: keep original layout
+                split = layout.split()
+                col = split.column()
+                col.label(text="Physics Steps:")
+                sub = col.column(align=True)
+                sub.prop(gs, "physics_step_max", text="Max")
+                sub.prop(gs, "physics_step_sub", text="Substeps")
+                row_ufr = col.row()
                 row_ufr.prop(gs, "use_frame_rate", text="FPS Limit ( Variable )")
 
-            col = split.column()
-            col.label(text="Logic Steps:")
-            # Show different property based on mode
-            if gs.physics_timestep_method == 'FIXED':
-                col.label(text="(See Fixed Mode Rates above)")
-            else:
+            # Show Logic Steps section only for variable physics mode
+            if gs.physics_timestep_method != 'FIXED':
+                col = split.column()
+                col.label(text="Logic Steps:")
                 col.prop(gs, "logic_step_max", text="Max")
+            else:
+                # Empty column for fixed mode to maintain layout
+                col = split.column()
 
             row = layout.row()
             # Show different FPS control based on mode
             if gs.physics_timestep_method == 'FIXED':
-                row.label(text="FPS: (See Fixed Mode Rates above)")
+                # No FPS label for fixed mode, just show Time Scale
+                row.prop(gs, "time_scale")
             else:
                 row.prop(gs, "fps", text="FPS")
-            row.prop(gs, "time_scale")
+                row.prop(gs, "time_scale")
 
             col = layout.column()
             col.label(text="Physics Deactivation:")

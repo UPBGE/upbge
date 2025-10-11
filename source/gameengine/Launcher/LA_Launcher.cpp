@@ -226,15 +226,13 @@ void LA_Launcher::InitEngine()
 
   /* Initialize physics timestep state using factory pattern.
    * 
-   * This single call replaces the previous 8+ setter calls below:
+   * This single call replaces the previous setter calls:
    * - SetTicRate(gm.ticrate)
    * - SetMaxLogicFrame(gm.maxlogicstep)
    * - SetMaxPhysicsFrame(gm.maxphystep)
    * - SetUseFixedPhysicsTimestep(...)
    * - SetPhysicsTickRate(gm.physics_tick_rate)
-   * - SetFixedLogicRate(gm.fixed_logic_rate)
    * - SetFixedRenderCapRate(gm.fixed_render_cap_rate)
-   * - SetFixedMaxLogicStep(gm.fixed_max_logic_step)
    * - SetUseFixedFPSCap(...)
    * 
    * The factory ensures consistent initialization from DNA→State mapping.
@@ -246,9 +244,9 @@ void LA_Launcher::InitEngine()
    *     • physics_tick_rate → Physics simulation rate (Hz)
    *     • maxphystep → Max physics substeps per frame
    *     • use_fixed_fps_cap → Render FPS limiter toggle
-   *     • fixed_logic_rate → Logic update rate (Hz, independent)
    *     • fixed_render_cap_rate → Render FPS cap target (Hz)
-   *     • fixed_max_logic_step → Max logic frames per render
+   *   - NOTE: Logic frames coupled to physics frames in fixed mode
+   *   - Logic timing controlled by FIXED_FRAMERATE flag (separate concern)
    * 
    * IF VARIABLE MODE (gm.use_fixed_physics_timestep == 0):
    *   - Creates VariablePhysicsState with:
