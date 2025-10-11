@@ -42,9 +42,10 @@
  * │ physics_tick_rate         │ tickRate             │ Accumulator pattern     │
  * │ maxphystep                │ maxPhysicsSteps      │ GetFrameTimesFixed()    │
  * │ use_fixed_fps_cap         │ useFPSCap            │ NextFrameFixed()        │
- * │ fixed_logic_rate          │ logicRate            │ GetFrameTimesFixed()    │
  * │ fixed_render_cap_rate     │ renderCapRate        │ NextFrameFixed()        │
- * │ fixed_max_logic_step      │ maxLogicFrames       │ GetFrameTimesFixed()    │
+ * │                           │                      │                         │
+ * │ NOTE: In fixed mode, logic frames are coupled to physics frames.           │
+ * │       Logic timing controlled by FIXED_FRAMERATE flag (separate concern).  │
  * ├───────────────────────────┼──────────────────────┼─────────────────────────┤
  * │ VARIABLE MODE (Legacy)    │                      │                         │
  * │ ticrate                   │ logicRate            │ GetFrameTimesVariable() │
@@ -65,16 +66,17 @@ class PhysicsStateFactory {
    * Returns polymorphic IPhysicsState pointer for unified handling.
    * Uses accumulator pattern for deterministic physics at constant rate.
    * See class-level table for complete DNA→State mappings.
+   * 
+   * NOTE: Logic frames are coupled to physics frames in fixed mode.
+   * Logic timing is controlled by FIXED_FRAMERATE flag (independent concern).
    */
   static std::unique_ptr<IPhysicsState> CreateFixed(const GameData &gm)
   {
     return std::make_unique<FixedPhysicsState>(
-        gm.physics_tick_rate,      // Physics simulation rate (Hz) - used by accumulator
+        gm.physics_tick_rate,       // Physics simulation rate (Hz) - used by accumulator
         gm.maxphystep,              // Max physics substeps per frame - prevents spiral of death
         gm.use_fixed_fps_cap != 0,  // Render FPS cap toggle - enables deadline pacing
-        gm.fixed_logic_rate,        // Logic update rate (Hz) - independent from physics
-        gm.fixed_render_cap_rate,   // Render FPS target (Hz) - active when cap enabled
-        gm.fixed_max_logic_step);   // Max logic frames per render - prevents falling behind
+        gm.fixed_render_cap_rate);  // Render FPS target (Hz) - active when cap enabled
   }
 
   /**

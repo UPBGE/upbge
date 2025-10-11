@@ -103,6 +103,9 @@ class IPhysicsState {
 /**
  * State container for Fixed Physics Timestep mode.
  * Contains accumulator and all fixed-mode specific timing variables.
+ * 
+ * NOTE: In fixed physics mode, logic frames are coupled to physics frames.
+ * Logic timing is controlled by the FIXED_FRAMERATE flag (independent concern).
  */
 struct FixedPhysicsState : public IPhysicsState {
   /// Accumulator for leftover time between frames
@@ -113,12 +116,8 @@ struct FixedPhysicsState : public IPhysicsState {
   int tickRate;
   /// Maximum physics substeps per frame (prevents spiral of death)
   int maxPhysicsStepsPerFrame;
-  /// Logic update rate (Hz) for fixed physics mode - independent of physics
-  int logicRate;
   /// Render FPS cap rate (Hz) - only used when useFPSCap is true
   int renderCapRate;
-  /// Maximum logic frames per render frame
-  int maxLogicFramesPerRender;
   /// Whether to cap rendering FPS in fixed mode
   bool useFPSCap;
   /// Persistent deadline for precise frame pacing (fixed mode cap only)
@@ -135,15 +134,11 @@ struct FixedPhysicsState : public IPhysicsState {
   FixedPhysicsState(int tickRate = 60, 
                     int maxSteps = 5, 
                     bool useFPSCap = false,
-                    int logicRate = 60,
-                    int renderCapRate = 60,
-                    int maxLogicFrames = 5)
+                    int renderCapRate = 60)
       : fixedTimestep(1.0 / static_cast<double>(tickRate)),
         tickRate(tickRate),
         maxPhysicsStepsPerFrame(maxSteps),
-        logicRate(logicRate),
         renderCapRate(renderCapRate),
-        maxLogicFramesPerRender(maxLogicFrames),
         useFPSCap(useFPSCap)
   {
   }
@@ -171,11 +166,12 @@ struct FixedPhysicsState : public IPhysicsState {
   // IPhysicsState interface implementation
   bool IsFixedMode() const override { return true; }
   
-  double GetLogicRate() const override { return static_cast<double>(logicRate); }
-  void SetLogicRate(double rate) override { logicRate = static_cast<int>(rate); }
-  
-  int GetMaxLogicFrames() const override { return maxLogicFramesPerRender; }
-  void SetMaxLogicFrames(int frames) override { maxLogicFramesPerRender = frames; }
+  // Logic rate methods - not used in fixed mode (logic coupled to physics frames)
+  // Return dummy values to satisfy interface, actual logic timing via FIXED_FRAMERATE flag
+  double GetLogicRate() const override { return 60.0; }
+  void SetLogicRate(double rate) override { (void)rate; }
+  int GetMaxLogicFrames() const override { return 5; }
+  void SetMaxLogicFrames(int frames) override { (void)frames; }
   
   int GetPhysicsTickRate() const override { return tickRate; }
   void SetPhysicsTickRate(int rate) override { SetTickRate(rate); }
@@ -679,9 +675,7 @@ class KX_KetsjiEngine {
    * Replaces manual calls to:
    * - SetUseFixedPhysicsTimestep()
    * - SetPhysicsTickRate()
-   * - SetFixedLogicRate()
    * - SetFixedRenderCapRate()
-   * - SetFixedMaxLogicStep()
    * - SetTicRate()
    * - SetMaxLogicFrame()
    * - SetUseFixedFPSCap()
@@ -706,15 +700,6 @@ class KX_KetsjiEngine {
   void SetUseFixedFPSCap(bool useFixed);
 
   /**
-   * Gets the logic rate for fixed physics mode
-   */
-  int GetFixedLogicRate();
-  /**
-   * Sets the logic rate for fixed physics mode
-   */
-  void SetFixedLogicRate(int rate);
-  
-  /**
    * Gets the render cap rate for fixed physics mode
    */
   int GetFixedRenderCapRate();
@@ -722,15 +707,6 @@ class KX_KetsjiEngine {
    * Sets the render cap rate for fixed physics mode
    */
   void SetFixedRenderCapRate(int rate);
-  
-  /**
-   * Gets the max logic frames per render for fixed physics mode
-   */
-  int GetFixedMaxLogicStep();
-  /**
-   * Sets the max logic frames per render for fixed physics mode
-   */
-  void SetFixedMaxLogicStep(int steps);
 
   /**
    * Gets the framerate for playing animations. (actions and ipos)
