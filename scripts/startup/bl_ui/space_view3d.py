@@ -1291,7 +1291,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
             layout.operator("transform.skin_resize")
         elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
-        if context.mode in 'EDIT_GREASE_PENCIL':
+        if context.mode == 'EDIT_GREASE_PENCIL':
             layout.operator("transform.transform", text="Opacity").mode = 'GPENCIL_OPACITY'
 
         if context.mode != 'EDIT_CURVES' and context.mode != 'EDIT_GREASE_PENCIL':
@@ -3222,7 +3222,7 @@ class VIEW3D_MT_object_parent(Menu):
     bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
-        from bl_ui_utils.layout import operator_context
+        from _bl_ui_utils.layout import operator_context
 
         layout = self.layout
 

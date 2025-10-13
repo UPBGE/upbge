@@ -709,6 +709,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--window-geometry");
   BLI_args_print_arg_doc(ba, "--start-console");
   BLI_args_print_arg_doc(ba, "--no-native-pixels");
+  BLI_args_print_arg_doc(ba, "--no-window-frame");
   BLI_args_print_arg_doc(ba, "--no-window-focus");
 
   PRINT("\n");
@@ -773,6 +774,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-source");
   if (defs.with_renderdoc) {
     BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
@@ -1555,6 +1557,20 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
   return 0;
 }
 
+static const char arg_handle_debug_gpu_shader_source_doc[] =
+    "\n"
+    "\tCapture the GPU commands issued inside the give scope name."
+    "\tFiles are saved in the current working directory inside a folder named \"Shaders\".";
+static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
+{
+  if (argc > 1) {
+    STRNCPY(G.gpu_debug_scope_name, argv[1]);
+    return 1;
+  }
+  fprintf(stderr, "\nError: you must specify a shader name to capture.\n");
+  return 0;
+}
+
 static const char arg_handle_debug_gpu_renderdoc_set_doc[] =
     "\n"
     "\tEnable RenderDoc integration for GPU frame grabbing and debugging.";
@@ -1897,6 +1913,15 @@ static const char arg_handle_window_maximized_doc[] =
 static int arg_handle_window_maximized(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   WM_init_state_maximized_set();
+  return 0;
+}
+
+static const char arg_handle_no_window_frame_doc[] =
+    "\n\t"
+    "Disable all window decorations (Wayland only).";
+static int arg_handle_no_window_frame(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  WM_init_window_frame_set(false);
   return 0;
 }
 
@@ -3090,6 +3115,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
                "--debug-gpu-compile-shaders",
                CB(arg_handle_debug_gpu_compile_shaders_set),
                nullptr);
+  BLI_args_add(
+      ba, nullptr, "--debug-gpu-shader-source", CB(arg_handle_debug_gpu_shader_source), nullptr);
   if (defs.with_renderdoc) {
     BLI_args_add(ba,
                  nullptr,
@@ -3173,6 +3200,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
   BLI_args_add(ba, "-w", "--window-border", CB(arg_handle_window_border), nullptr);
   BLI_args_add(ba, "-W", "--window-fullscreen", CB(arg_handle_window_fullscreen), nullptr);
   BLI_args_add(ba, "-M", "--window-maximized", CB(arg_handle_window_maximized), nullptr);
+  BLI_args_add(ba, nullptr, "--no-window-frame", CB(arg_handle_no_window_frame), nullptr);
   BLI_args_add(ba, nullptr, "--no-window-focus", CB(arg_handle_no_window_focus), nullptr);
   BLI_args_add(ba, "-con", "--start-console", CB(arg_handle_start_with_console), nullptr);
   BLI_args_add(ba, "-r", "--register", CB(arg_handle_register_extension), nullptr);
