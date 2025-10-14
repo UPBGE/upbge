@@ -415,6 +415,11 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    object_edit
+    --python ${TEST_PYTHON_DIR}/object_edit.py
+  )
+
+  add_blender_test(
     object_conversion
     ${TEST_SRC_DIR}/modeling/object_conversion.blend
     --python ${TEST_PYTHON_DIR}/object_conversion.py
@@ -605,6 +610,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_rigging_symmetrize
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_rigging_symmetrize.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
+    vertex_group_painting
+    --python ${CMAKE_CURRENT_LIST_DIR}/vertex_group_painting.py
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
