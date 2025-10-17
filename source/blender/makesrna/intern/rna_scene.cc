@@ -6585,10 +6585,17 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Fixed Physics Timestep",
                            "Use fixed physics timestep for consistent simulation, "
-                           "otherwise use variable timestep with bullet substepping");
+                           "decoupling physics from render framerate");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
-  /* Physics timestep method enum (Variable/Fixed), mapped to the same SDNA flag. */
+  prop = RNA_def_property(srna, "use_fixed_physics_interpolation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_fixed_physics_interpolation", 1);
+  RNA_def_property_ui_text(prop,
+                           "Physics Interpolation",
+                           "Interpolate transforms between fixed physics steps to smooth "
+                           "rendered motion");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
   static const EnumPropertyItem rna_enum_physics_timestep_method_items[] = {
       {0, "VARIABLE", 0, "Variable", "Variable dt with Bullet substepping"},
       {1, "FIXED", 0, "Fixed", "Fixed physics timestep"},

@@ -257,6 +257,7 @@ void LA_Launcher::InitEngine()
    * Critical for compatibility: Variable mode behavior unchanged!
    */
   m_ketsjiEngine->InitializePhysicsState(gm.use_fixed_physics_timestep != 0, gm);
+  m_ketsjiEngine->SetPhysicsInterpolationEnabled(gm.use_fixed_physics_interpolation != 0);
   
   /* Note: SetMaxPhysicsFrame is still called separately because it has
    * mode-specific behavior that's not just initialization (it's also used

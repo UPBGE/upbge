@@ -52,6 +52,10 @@
 #include "DNA_scene_types.h"
 #include "WM_api.hh"
 
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "BL_SceneConverter.h"
@@ -67,6 +71,7 @@
 #include "KX_PyMath.h"
 #include "KX_PythonComponent.h"
 #include "KX_RayCast.h"
+#include "MT_Quaternion.h"
 #include "SCA_ISensor.h"
 #include "SG_Controller.h"
 
@@ -105,6 +110,9 @@ KX_GameObject::KX_GameObject()
       m_pSGNode(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
+      m_cachedRenderTransform(MT_Transform::Identity()),
+      m_cachedInterpolatedTransform(MT_Transform::Identity()),
+      m_useRenderInterpolation(false),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
       ,
@@ -250,8 +258,14 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     }
     return;
   }
+  MT_Transform syncTransform = NodeGetWorldTransform();
+
+  if (KX_GetActiveEngine()->UseViewportRender() && m_useRenderInterpolation) {
+    syncTransform = m_cachedInterpolatedTransform;
+  }
+
   float object_to_world[4][4];
-  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  syncTransform.getValue(&object_to_world[0][0]);
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
@@ -345,9 +359,14 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
   }
 
   if (ob_orig && !skip_transform) {
+    BKE_object_apply_mat4(ob_orig, object_to_world, false, true);
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
-    copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
-    BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
+    if (ob_eval) {
+      BKE_object_apply_mat4(ob_eval, object_to_world, false, true);
+      copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
+    }
   }
 }
 
@@ -1786,9 +1805,102 @@ MT_Transform KX_GameObject::NodeGetWorldTransform() const
   return m_pSGNode->GetWorldTransform();
 }
 
+MT_Transform KX_GameObject::NodeGetInterpolatedTransform(double alpha) const
+{
+  if (!m_pSGNode->HasPreviousWorldTransform()) {
+    return m_pSGNode->GetWorldTransform();
+  }
+
+  const double clampedAlpha = std::clamp(alpha, 0.0, 1.0);
+  const MT_Scalar t = MT_Scalar(clampedAlpha);
+  const MT_Scalar oneMinusT = MT_Scalar(1.0f) - t;
+
+  const MT_Vector3 &prevPos = m_pSGNode->GetPrevWorldPosition();
+  const MT_Vector3 &prevScale = m_pSGNode->GetPrevWorldScaling();
+  const MT_Matrix3x3 &prevRot = m_pSGNode->GetPrevWorldOrientation();
+
+  const MT_Vector3 &currPos = m_pSGNode->GetWorldPosition();
+  const MT_Vector3 &currScale = m_pSGNode->GetWorldScaling();
+  const MT_Matrix3x3 &currRot = m_pSGNode->GetWorldOrientation();
+
+  const MT_Vector3 pos = (prevPos * oneMinusT) + (currPos * t);
+  const MT_Vector3 scale = (prevScale * oneMinusT) + (currScale * t);
+
+  MT_Quaternion prevQuat = prevRot.getRotation();
+  MT_Quaternion currQuat = currRot.getRotation();
+  MT_Quaternion interpQuat = prevQuat.slerp(currQuat, t);
+  MT_Matrix3x3 rot(interpQuat);
+
+  return MT_Transform(pos, rot.scaled(scale[0], scale[1], scale[2]));
+}
+
 MT_Transform KX_GameObject::NodeGetLocalTransform() const
 {
   return m_pSGNode->GetLocalTransform();
+}
+
+void KX_GameObject::StorePhysicsInterpolationState()
+{
+  if (m_pSGNode != nullptr) {
+    m_pSGNode->StorePreviousWorldTransform();
+    m_useRenderInterpolation = false;
+  }
+}
+
+void KX_GameObject::ApplyPhysicsInterpolation(double alpha)
+{
+  if (m_pSGNode == nullptr) {
+    return;
+  }
+
+  if (!m_useRenderInterpolation) {
+    m_cachedRenderTransform = NodeGetWorldTransform();
+    m_cachedInterpolatedTransform = m_cachedRenderTransform;
+  }
+
+  const MT_Transform interpTransform = NodeGetInterpolatedTransform(alpha);
+  m_cachedInterpolatedTransform = interpTransform;
+  const MT_Vector3 interpPos = interpTransform.getOrigin();
+  MT_Matrix3x3 interpBasis = interpTransform.getBasis();
+
+  MT_Vector3 interpScale;
+  for (int i = 0; i < 3; ++i) {
+    MT_Vector3 column = interpBasis.getColumn(i);
+    interpScale[i] = column.length();
+    const MT_Scalar safeScale = (interpScale[i] > MT_Scalar(FLT_EPSILON)) ? interpScale[i] : MT_Scalar(1.0f);
+    column /= safeScale;
+    interpBasis.setColumn(i, column);
+  }
+
+  m_pSGNode->SetWorldPosition(interpPos);
+  m_pSGNode->SetWorldOrientation(interpBasis);
+  m_pSGNode->SetWorldScale(interpScale);
+  m_useRenderInterpolation = true;
+}
+
+void KX_GameObject::ClearPhysicsInterpolationState()
+{
+  if (m_pSGNode != nullptr) {
+    if (m_useRenderInterpolation) {
+      const MT_Vector3 originalPos = m_cachedRenderTransform.getOrigin();
+      MT_Matrix3x3 originalBasis = m_cachedRenderTransform.getBasis();
+
+      MT_Vector3 originalScale;
+      for (int i = 0; i < 3; ++i) {
+        MT_Vector3 column = originalBasis.getColumn(i);
+        originalScale[i] = column.length();
+        const MT_Scalar safeScale = (originalScale[i] > MT_Scalar(FLT_EPSILON)) ? originalScale[i] : MT_Scalar(1.0f);
+        column /= safeScale;
+        originalBasis.setColumn(i, column);
+      }
+
+      m_pSGNode->SetWorldPosition(originalPos);
+      m_pSGNode->SetWorldOrientation(originalBasis);
+      m_pSGNode->SetWorldScale(originalScale);
+    }
+    m_useRenderInterpolation = false;
+    m_cachedInterpolatedTransform = MT_Transform::Identity();
+  }
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()

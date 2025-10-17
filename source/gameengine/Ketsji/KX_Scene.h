@@ -415,6 +415,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
 
   void LogicEndFrame();
 
+  void StorePhysicsInterpolationState();
+  void ApplyPhysicsInterpolation(double alpha);
+  void ClearPhysicsInterpolationState();
+
   EXP_ListValue<KX_GameObject> *GetObjectList() const;
   EXP_ListValue<KX_GameObject> *GetInactiveList() const;
   EXP_ListValue<KX_GameObject> *GetRootParentList() const;

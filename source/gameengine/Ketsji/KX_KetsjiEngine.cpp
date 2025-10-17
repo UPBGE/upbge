@@ -146,6 +146,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_firstEngineFrame(true),
       m_anim_framerate(25.0),
       m_useFixedPhysicsTimestep(false),
+      m_enablePhysicsInterpolation(false),
+      m_currentInterpolationFraction(0.0),
       m_physicsState(std::make_unique<VariablePhysicsState>()),
       m_doRender(true),
       m_exitkey(130),
@@ -155,6 +157,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_overrideCamZoom(1.0f),
       m_logger(KX_TimeCategoryLogger(m_clock, 25)),
       m_average_framerate(0.0),
+      m_forceInterpolationRender(false),
+      m_cameraOverrideActive(false),
       m_showBoundingBox(KX_DebugOption::DISABLE),
       m_showArmature(KX_DebugOption::DISABLE),
       m_showCameraFrustum(KX_DebugOption::DISABLE),
@@ -532,6 +536,9 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
     physicsFrames++;
   }
 
+  const double leftover = fixedState->accumulator;
+  const double fraction = std::clamp(leftover / fixedTimestep, 0.0, 1.0);
+
   FrameTimes times;
   times.useFixedPhysicsTimestep = true;
   times.physicsFrames = physicsFrames;
@@ -539,6 +546,8 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
   times.frames = physicsFrames;
   times.timestep = fixedTimestep;
   times.framestep = fixedTimestep;  // Already scaled via accumulator
+  times.interpolationFraction = fraction;
+  m_currentInterpolationFraction = fraction;
 
   return times;
 }
@@ -589,6 +598,8 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesVariable(double dt)
   times.useFixedPhysicsTimestep = false;
   times.physicsFrames = physicsFrames;
   times.physicsTimestep = physicsTimestep;
+  times.interpolationFraction = 0.0;
+  m_currentInterpolationFraction = 0.0;
   
   return times;
 }
@@ -696,6 +707,11 @@ void KX_KetsjiEngine::FinalizeFrame()
   m_logger.StartLog(tc_network);
   m_networkMessageManager->ClearMessages();
 
+  // Call the post render functions.
+  if (ShouldForceInterpolationRender()) {
+    ClearForcedInterpolation();
+  }
+
   // update system devices
   m_logger.StartLog(tc_logic);
   m_inputDevice->ClearInputs();
@@ -777,6 +793,26 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
     fixedState->nextFrameDeadline = std::chrono::steady_clock::time_point{};
   }
   
+  /********** INTERPOLATION STATE MANAGEMENT **********/
+  const bool useInterpolation = IsPhysicsInterpolationEnabled() && GetUseFixedPhysicsTimestep();
+  const bool hasInterpolationFraction = m_currentInterpolationFraction > 0.0;
+
+  if (useInterpolation) {
+    // Ensure we operate on the true physics transform before capturing state.
+    for (KX_Scene *scene : m_scenes) {
+      scene->ClearPhysicsInterpolationState();
+    }
+
+    const bool needsInitialization = !fixedState->interpolationInitialized;
+
+    if (times.physicsFrames > 0 || needsInitialization) {
+      for (KX_Scene *scene : m_scenes) {
+        scene->StorePhysicsInterpolationState();
+      }
+      fixedState->interpolationInitialized = true;
+    }
+  }
+
   /********** LOGIC AND PHYSICS LOOP **********/
   for (unsigned short i = 0; i < times.frames; ++i) {
     m_frameTime += times.framestep;
@@ -797,6 +833,21 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
     }
 
     FinalizeFrame();
+  }
+
+  const bool forceInterpolationFrame = ShouldForceInterpolationRender();
+
+  if (forceInterpolationFrame) {
+    ClearForcedInterpolation();
+  }
+
+  /********** APPLY INTERPOLATION AFTER PHYSICS LOOP **********/
+  // Apply interpolation once after all physics steps are complete.
+  // Always apply if we have interpolation fraction, regardless of physics frame count.
+  if (useInterpolation && hasInterpolationFraction) {
+    for (KX_Scene *scene : m_scenes) {
+      scene->ApplyPhysicsInterpolation(m_currentInterpolationFraction);
+    }
   }
 
   // Start logging time spent outside main loop
@@ -1108,11 +1159,19 @@ void KX_KetsjiEngine::Render()
       m_rasterizer->SetAuxilaryClientInfo(scene);
 
       // Draw the scene once for each camera with an enabled viewport or an active camera.
+      // Interpolation has already been applied in NextFrameFixed(), so we just render.
       for (const CameraRenderData &cameraFrameData : sceneFrameData.m_cameraDataList) {
         // do the rendering
         RenderCamera(scene, background_fb, cameraFrameData, pass++);
       }
     }
+  }
+
+  // Interpolation clearing now happens at the START of NextFrameFixed() before state storage.
+  // This ensures we always capture clean physics positions.
+
+  if (ShouldForceInterpolationRender()) {
+    ClearForcedInterpolation();
   }
 
   if (!UseViewportRender()) {
@@ -1221,6 +1280,7 @@ void KX_KetsjiEngine::EnableCameraOverride(const std::string &forscene,
   m_overrideCamProjMat = projmat;
   m_overrideCamViewMat = viewmat;
   m_overrideCamData = camdata;
+  m_cameraOverrideActive = true;
 }
 
 void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene,
@@ -1952,6 +2012,13 @@ double KX_KetsjiEngine::GetAnimFrameRate()
   return m_anim_framerate;
 }
 
+void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
+{
+  if (framerate > 0.0) {
+    m_anim_framerate = framerate;
+  }
+}
+
 bool KX_KetsjiEngine::GetFlag(FlagType flag) const
 {
   return (m_flags & flag);
@@ -1964,7 +2031,20 @@ void KX_KetsjiEngine::SetFlag(FlagType flag, bool enable)
   }
   else {
     m_flags = (FlagType)(m_flags & ~flag);
+    if (flag == CAMERA_OVERRIDE) {
+      m_cameraOverrideActive = false;
+    }
   }
+}
+
+void KX_KetsjiEngine::ForceInterpolationRender()
+{
+  m_forceInterpolationRender = true;
+}
+
+void KX_KetsjiEngine::ClearForcedInterpolation()
+{
+  m_forceInterpolationRender = false;
 }
 
 double KX_KetsjiEngine::GetClockTime(void) const
@@ -1972,29 +2052,40 @@ double KX_KetsjiEngine::GetClockTime(void) const
   return m_clockTime;
 }
 
-void KX_KetsjiEngine::SetClockTime(double externalClockTime)
+void KX_KetsjiEngine::SetPhysicsInterpolationEnabled(bool enable)
 {
-  m_clockTime = externalClockTime;
+  if (m_enablePhysicsInterpolation == enable) {
+    return;
+  }
+
+  m_enablePhysicsInterpolation = enable;
+
+  if (!m_enablePhysicsInterpolation) {
+    m_currentInterpolationFraction = 0.0;
+    for (KX_Scene *scene : m_scenes) {
+      scene->ClearPhysicsInterpolationState();
+    }
+  }
 }
 
-double KX_KetsjiEngine::GetFrameTime(void) const
+double KX_KetsjiEngine::GetCurrentInterpolationFraction() const
 {
-  return m_frameTime;
-}
-
-double KX_KetsjiEngine::GetRealTime(void) const
-{
-  return m_clock.GetTimeSecond();
-}
-
-void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
-{
-  m_anim_framerate = framerate;
+  return m_currentInterpolationFraction;
 }
 
 double KX_KetsjiEngine::GetAverageFrameRate()
 {
   return m_average_framerate;
+}
+
+double KX_KetsjiEngine::GetFrameTime(void) const
+{
+  return m_clockTime;
+}
+
+double KX_KetsjiEngine::GetRealTime(void) const
+{
+  return m_previousRealTime;
 }
 
 void KX_KetsjiEngine::SetExitKey(short key)
@@ -2010,6 +2101,14 @@ short KX_KetsjiEngine::GetExitKey()
 void KX_KetsjiEngine::SetRender(bool render)
 {
   m_doRender = render;
+}
+
+void KX_KetsjiEngine::SetClockTime(double externalClockTime)
+{
+  const double delta = externalClockTime - m_clockTime;
+  m_clockTime = externalClockTime;
+  m_previousRealTime += delta;
+  m_currentanimsync += delta;
 }
 
 bool KX_KetsjiEngine::GetRender()

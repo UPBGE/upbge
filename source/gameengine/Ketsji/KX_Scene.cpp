@@ -127,6 +127,27 @@ void bge_dupli_provider(DEGObjectIterData *data)
   }
 }
 
+void KX_Scene::StorePhysicsInterpolationState()
+{
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    gameobj->StorePhysicsInterpolationState();
+  }
+}
+
+void KX_Scene::ApplyPhysicsInterpolation(double alpha)
+{
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    gameobj->ApplyPhysicsInterpolation(alpha);
+  }
+}
+
+void KX_Scene::ClearPhysicsInterpolationState()
+{
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    gameobj->ClearPhysicsInterpolationState();
+  }
+}
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
   KX_GameObject *replica =
@@ -882,6 +903,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
   samples_per_frame = max_ii(samples_per_frame, 1);
+
+  if (KX_GetActiveEngine()->UseViewportRender() &&
+      KX_GetActiveEngine()->IsPhysicsInterpolationEnabled())
+  {
+    samples_per_frame = 1;
+  }
 
   for (short i = 0; i < samples_per_frame; i++) {
     if (background_fb) {

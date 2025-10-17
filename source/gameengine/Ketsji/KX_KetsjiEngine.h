@@ -130,6 +130,8 @@ struct FixedPhysicsState : public IPhysicsState {
   double previousClockTime = 0.0;
   /// Track if this is the first frame in fixed mode (to initialize time tracking)
   bool isFirstFrame = true;
+  /// Track if interpolation state has been initialized (for HasPreviousWorldTransform)
+  bool interpolationInitialized = false;
 
   FixedPhysicsState(int tickRate = 60, 
                     int maxSteps = 5, 
@@ -149,6 +151,7 @@ struct FixedPhysicsState : public IPhysicsState {
     accumulator = 0.0;
     previousClockTime = 0.0;
     isFirstFrame = true;
+    interpolationInitialized = false;
     nextFrameDeadline = std::chrono::steady_clock::time_point{};
     frameStartSteady = std::chrono::steady_clock::time_point{};
   }
@@ -315,7 +318,10 @@ class KX_KetsjiEngine {
     /// FIXED MODE: Constant value (1.0 / tickRate)
     /// VARIABLE MODE: Same as 'timestep' (varies with framerate)
     double physicsTimestep;
-    
+    /// FIXED MODE: Fractional progress between last completed physics step and visual frame
+    /// VARIABLE MODE: Always 0.0 (no interpolation needed)
+    double interpolationFraction;
+
     // ===== Mode Flag (for dispatch logic) =====
     /// True if using fixed physics timestep mode
     bool useFixedPhysicsTimestep;
@@ -342,24 +348,26 @@ class KX_KetsjiEngine {
   /// game time when the animations were last updated
   double m_previousAnimTime;
   double m_remainingTime;
-  
-  /// Time scaling parameter (BOTH MODES)
-  /// Values: < 1.0 = slow motion, 1.0 = realtime, > 1.0 = fast forward
-  /// Affects BOTH logic and physics timing in both fixed and variable modes
   double m_timescale;
-  
+  double m_lastDisplayedTime;
+  double m_average_framerate;
+  bool m_forceInterpolationRender;
+  bool m_cameraOverrideActive;
   double m_previousRealTime;
   /// Used to fix deltaTime if there is a large variation in the value
   double m_previous_deltaTime;
   /// Used to control strange behavior in clockTime physics when starting the game
   bool m_firstEngineFrame;
 
-  /// Animation playback framerate for IPO and actions (BOTH MODES)
+  double m_previousFrameTime;
+  double m_currentanimsync;
   double m_anim_framerate;
 
   /********** PHYSICS TIMESTEP MODE MANAGEMENT **********/
   /// Mode selection: true = fixed timestep, false = variable timestep
   bool m_useFixedPhysicsTimestep;
+  bool m_enablePhysicsInterpolation;
+  double m_currentInterpolationFraction;
 
   /// Polymorphic physics state - holds either FixedPhysicsState or VariablePhysicsState
   /// Unified interface eliminates conditional logic throughout the engine
@@ -400,13 +408,11 @@ class KX_KetsjiEngine {
     tc_numCategories
   } KX_TimeCategory;
 
-  /// Time logger.
-  KX_TimeCategoryLogger m_logger;
-
   /// Labels for profiling display.
   static const std::string m_profileLabels[tc_numCategories];
-  /// Last estimated framerate
-  double m_average_framerate;
+
+  /// Time logger.
+  KX_TimeCategoryLogger m_logger;
 
   /// Enable debug draw of culling bounding boxes.
   KX_DebugOption m_showBoundingBox;
@@ -501,12 +507,26 @@ class KX_KetsjiEngine {
   /// Execute one complete frame in variable physics mode (no FPS cap)
   bool NextFrameVariable(const FrameTimes &times);
 
- public:
+public:
   KX_KetsjiEngine(KX_ISystem *system,
                   struct bContext *C,
                   bool useViewportRender,
                   int shadingTypeRuntime);
   virtual ~KX_KetsjiEngine();
+  void SetPhysicsInterpolationEnabled(bool enable);
+  bool IsPhysicsInterpolationEnabled() const
+  {
+    return m_enablePhysicsInterpolation;
+  }
+
+  void ForceInterpolationRender();
+  void ClearForcedInterpolation();
+  bool ShouldForceInterpolationRender() const
+  {
+    return m_forceInterpolationRender;
+  }
+
+  double GetCurrentInterpolationFraction() const;
 
   /******** EEVEE integration *********/
   struct bContext *GetContext();
@@ -600,15 +620,7 @@ class KX_KetsjiEngine {
   /// Enable or disable a set of flags.
   void SetFlag(FlagType flag, bool enable);
 
-  /*
-   * Returns next render frame game time
-   */
   double GetClockTime(void) const;
-
-  /**
-   * Set the next render frame game time. It will impact also frame time, as
-   * this one is derived from clocktime
-   */
   void SetClockTime(double externalClockTime);
 
   /**
@@ -726,14 +738,9 @@ class KX_KetsjiEngine {
    * Gets the time scale multiplier
    */
   double GetTimeScale() const;
-
-  /**
-   * Sets the time scale multiplier
-   */
   void SetTimeScale(double scale);
 
   void SetExitKey(short key);
-
   short GetExitKey();
 
   /**
@@ -771,6 +778,9 @@ class KX_KetsjiEngine {
 
   GlobalSettings *GetGlobalSettings(void);
   void SetGlobalSettings(GlobalSettings *gs);
+
+  double GetCurrentAnimationTime() const;
+  KX_Scene *GetCurrentScene() const;
 
   /**
    * Invalidate all the camera matrices and handle other
