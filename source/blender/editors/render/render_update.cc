@@ -30,7 +30,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
@@ -325,7 +325,8 @@ static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bma
         &changed_scene->adt->action->id == id)
     {
       blender::seq::prefetch_stop(changed_scene);
-      blender::seq::cache_cleanup(changed_scene);
+      blender::seq::cache_cleanup_intra(changed_scene);
+      blender::seq::cache_cleanup_final(changed_scene);
     }
   }
 
