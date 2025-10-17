@@ -33,6 +33,7 @@
 
 #include "CM_Message.h"
 #include "KX_BlenderCanvas.h"
+#include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h"
 
 using namespace blender;
@@ -168,6 +169,14 @@ bool LA_BlenderLauncher::EngineNextFrame()
 {
   // Free all window manager events unused.
   wm_event_free_all(m_window);
+
+  const bool shouldForceInterpolation = m_ketsjiEngine->GetUseFixedPhysicsTimestep() &&
+                                        m_ketsjiEngine->IsPhysicsInterpolationEnabled() &&
+                                        m_ketsjiEngine->GetFlag(KX_KetsjiEngine::CAMERA_OVERRIDE);
+
+  if (shouldForceInterpolation) {
+    m_ketsjiEngine->ForceInterpolationRender();
+  }
 
   return LA_Launcher::EngineNextFrame();
 }
