@@ -186,6 +186,13 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       collection.flag |= COLLECTION_IS_SPAWNED;
     }
   }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "GameData", "char", "use_fixed_physics_interpolation"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.use_fixed_physics_interpolation = 1;
+    }
+  }
   if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm") &&
       !DNA_struct_member_exists(fd->filesdna, "Object", "float", "friction"))
   {

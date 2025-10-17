@@ -588,6 +588,7 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 row_render = col.row()
                 row_render.enabled = gs.use_fixed_fps_cap
                 row_render.prop(gs, "fixed_render_cap_rate", text="Render Frames Per Second")
+                col.prop(gs, "use_fixed_physics_interpolation", text="Physics Interpolation")
             else:
                 # For Variable mode: keep original layout
                 split = layout.split()
