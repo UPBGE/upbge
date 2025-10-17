@@ -26,6 +26,10 @@ SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks &callbacks)
       m_worldPosition(0.0f, 0.0f, 0.0f),
       m_worldRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       m_worldScaling(1.0f, 1.0f, 1.0f),
+      m_prevWorldPosition(0.0f, 0.0f, 0.0f),
+      m_prevWorldRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      m_prevWorldScaling(1.0f, 1.0f, 1.0f),
+      m_hasPreviousWorldTransform(false),
       m_parent_relation(nullptr),
       m_familly(new SG_Familly()),
       m_modified(true),
@@ -46,6 +50,10 @@ SG_Node::SG_Node(const SG_Node &other)
       m_worldPosition(other.m_worldPosition),
       m_worldRotation(other.m_worldRotation),
       m_worldScaling(other.m_worldScaling),
+      m_prevWorldPosition(other.m_prevWorldPosition),
+      m_prevWorldRotation(other.m_prevWorldRotation),
+      m_prevWorldScaling(other.m_prevWorldScaling),
+      m_hasPreviousWorldTransform(other.m_hasPreviousWorldTransform),
       m_parent_relation(other.m_parent_relation->NewCopy()),
       m_familly(new SG_Familly()),
       m_dirty(DIRTY_NONE)
@@ -544,6 +552,14 @@ MT_Transform SG_Node::GetWorldTransform() const
   return MT_Transform(
       m_worldPosition,
       m_worldRotation.scaled(m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
+}
+
+void SG_Node::StorePreviousWorldTransform()
+{
+  m_prevWorldPosition = m_worldPosition;
+  m_prevWorldRotation = m_worldRotation;
+  m_prevWorldScaling = m_worldScaling;
+  m_hasPreviousWorldTransform = true;
 }
 
 MT_Transform SG_Node::GetLocalTransform() const

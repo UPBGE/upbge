@@ -135,6 +135,12 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
         sce->master_collection->flag |= COLLECTION_IS_SPAWNED;
       }
 
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "char", "use_fixed_physics_interpolation")) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->gm.use_fixed_physics_interpolation = 1;
+    }
+  }
+
       sce->gm.erp = 0.2f;
       sce->gm.erp2 = 0.8f;
       sce->gm.cfm = 0.0f;

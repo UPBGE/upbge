@@ -1113,6 +1113,9 @@ typedef struct GameData {
   short physics_tick_rate;
   short _pad_physics;
 
+  char use_fixed_physics_interpolation;
+  char _pad_fixed_interpolation[7];
+
   /* Fixed physics render FPS cap toggle (only in fixed physics mode)
    * Value field removed; keep padding to preserve DNA size/alignment. */
   char use_fixed_fps_cap;

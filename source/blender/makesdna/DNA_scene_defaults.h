@@ -225,7 +225,9 @@
     .scehysteresis = 10, \
     .use_fixed_physics_timestep = 0, \
     .physics_tick_rate = 60, \
+    .use_fixed_physics_interpolation = 1, \
     .use_fixed_fps_cap = 1, \
+\
     ._pad_fixedfps_value = 0, \
     ._pad_fixed_logic_rate = 0, \
     .fixed_render_cap_rate = 60, \
