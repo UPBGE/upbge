@@ -45,7 +45,7 @@
 #include "BKE_callbacks.hh"
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_keyconfig.h"
