@@ -108,9 +108,14 @@ class KX_GameObject : public SCA_IObject {
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
   bool m_is_dupli_instance;
-  /* END OF EEVEE INTEGRATION */
 
+  /// external client info (game object in this case)
   KX_ClientObjectInfo *m_pClient_info;
+
+  MT_Transform m_cachedRenderTransform;
+  MT_Transform m_cachedInterpolatedTransform;
+  bool m_useRenderInterpolation;
+
   std::string m_name;
   int m_layer;
   std::vector<RAS_MeshObject *> m_meshes;
@@ -490,11 +495,21 @@ class KX_GameObject : public SCA_IObject {
   const MT_Vector3 &NodeGetWorldScaling() const;
   const MT_Vector3 &NodeGetWorldPosition() const;
   MT_Transform NodeGetWorldTransform() const;
+  MT_Transform NodeGetInterpolatedTransform(double alpha) const;
+
+  const MT_Transform &GetCachedInterpolatedTransform() const
+  {
+    return m_cachedInterpolatedTransform;
+  }
 
   const MT_Matrix3x3 &NodeGetLocalOrientation() const;
   const MT_Vector3 &NodeGetLocalScaling() const;
   const MT_Vector3 &NodeGetLocalPosition() const;
   MT_Transform NodeGetLocalTransform() const;
+
+  void StorePhysicsInterpolationState();
+  void ApplyPhysicsInterpolation(double alpha);
+  void ClearPhysicsInterpolationState();
 
   /**
    * \section scene graph node accessor functions.

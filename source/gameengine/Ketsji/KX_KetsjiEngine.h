@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -67,6 +69,161 @@ enum class KX_DebugOption { DISABLE = 0, FORCE, ALLOW };
 typedef struct {
   short glslflag;
 } GlobalSettings;
+
+/**
+ * Interface for physics timestep state objects.
+ * Provides polymorphic access to timing parameters regardless of mode.
+ * Eliminates conditional logic and enables unified state handling.
+ */
+class IPhysicsState {
+ public:
+  virtual ~IPhysicsState() = default;
+
+  // Core timing getters/setters (common to both modes)
+  virtual double GetLogicRate() const = 0;
+  virtual void SetLogicRate(double rate) = 0;
+  virtual int GetMaxLogicFrames() const = 0;
+  virtual void SetMaxLogicFrames(int frames) = 0;
+
+  // Mode identification
+  virtual bool IsFixedMode() const = 0;
+
+  // Fixed-mode specific (default implementations for variable mode)
+  virtual int GetPhysicsTickRate() const { return 60; }
+  virtual void SetPhysicsTickRate(int rate) { (void)rate; }
+  virtual int GetMaxPhysicsSteps() const { return 1; }
+  virtual void SetMaxPhysicsSteps(int steps) { (void)steps; }
+  virtual bool GetUseFPSCap() const { return false; }
+  virtual void SetUseFPSCap(bool use) { (void)use; }
+  virtual int GetRenderCapRate() const { return 60; }
+  virtual void SetRenderCapRate(int rate) { (void)rate; }
+  virtual void Reset() { }
+};
+
+/**
+ * State container for Fixed Physics Timestep mode.
+ * Contains accumulator and all fixed-mode specific timing variables.
+ * 
+ * NOTE: In fixed physics mode, logic frames are coupled to physics frames.
+ * Logic timing is controlled by the FIXED_FRAMERATE flag (independent concern).
+ */
+struct FixedPhysicsState : public IPhysicsState {
+  /// Accumulator for leftover time between frames
+  double accumulator = 0.0;
+  /// The fixed timestep duration (1.0 / tickRate)
+  double fixedTimestep;
+  /// Physics tick rate (Hz) for fixed mode
+  int tickRate;
+  /// Maximum physics substeps per frame (prevents spiral of death)
+  int maxPhysicsStepsPerFrame;
+  /// Render FPS cap rate (Hz) - only used when useFPSCap is true
+  int renderCapRate;
+  /// Whether to cap rendering FPS in fixed mode
+  bool useFPSCap;
+  /// Persistent deadline for precise frame pacing (fixed mode cap only)
+  std::chrono::steady_clock::time_point nextFrameDeadline;
+  /// Frame start timestamp for deadline pacing
+  std::chrono::steady_clock::time_point frameStartSteady;
+  
+  /// Previous clock time for internal dt calculation (fixed mode only)
+  /// This ensures fixed mode time tracking is independent from variable mode
+  double previousClockTime = 0.0;
+  /// Track if this is the first frame in fixed mode (to initialize time tracking)
+  bool isFirstFrame = true;
+  /// Track if interpolation state has been initialized (for HasPreviousWorldTransform)
+  bool interpolationInitialized = false;
+
+  FixedPhysicsState(int tickRate = 60, 
+                    int maxSteps = 5, 
+                    bool useFPSCap = false,
+                    int renderCapRate = 60)
+      : fixedTimestep(1.0 / static_cast<double>(tickRate)),
+        tickRate(tickRate),
+        maxPhysicsStepsPerFrame(maxSteps),
+        renderCapRate(renderCapRate),
+        useFPSCap(useFPSCap)
+  {
+  }
+
+  /// Reset accumulator and timing state (called when switching modes or changing settings)
+  void Reset() override
+  {
+    accumulator = 0.0;
+    previousClockTime = 0.0;
+    isFirstFrame = true;
+    interpolationInitialized = false;
+    nextFrameDeadline = std::chrono::steady_clock::time_point{};
+    frameStartSteady = std::chrono::steady_clock::time_point{};
+  }
+
+  /// Update tick rate and recalculate fixed timestep
+  void SetTickRate(int newTickRate)
+  {
+    if (newTickRate > 0) {
+      tickRate = newTickRate;
+      fixedTimestep = 1.0 / static_cast<double>(newTickRate);
+      Reset();
+    }
+  }
+
+  // IPhysicsState interface implementation
+  bool IsFixedMode() const override { return true; }
+  
+  // Logic rate methods - not used in fixed mode (logic coupled to physics frames)
+  // Return dummy values to satisfy interface, actual logic timing via FIXED_FRAMERATE flag
+  double GetLogicRate() const override { return 60.0; }
+  void SetLogicRate(double rate) override { (void)rate; }
+  int GetMaxLogicFrames() const override { return 5; }
+  void SetMaxLogicFrames(int frames) override { (void)frames; }
+  
+  int GetPhysicsTickRate() const override { return tickRate; }
+  void SetPhysicsTickRate(int rate) override { SetTickRate(rate); }
+  
+  int GetMaxPhysicsSteps() const override { return maxPhysicsStepsPerFrame; }
+  void SetMaxPhysicsSteps(int steps) override { maxPhysicsStepsPerFrame = steps; }
+  
+  bool GetUseFPSCap() const override { return useFPSCap; }
+  void SetUseFPSCap(bool use) override { 
+    useFPSCap = use; 
+    if (!use) {
+      nextFrameDeadline = std::chrono::steady_clock::time_point{};
+    }
+  }
+  
+  int GetRenderCapRate() const override { return renderCapRate; }
+  void SetRenderCapRate(int rate) override { 
+    renderCapRate = rate; 
+    // Reset deadline when rate changes
+    nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
+};
+
+/**
+ * State container for Variable Physics Timestep mode.
+ * Contains variable mode specific timing variables.
+ */
+struct VariablePhysicsState : public IPhysicsState {
+  /// Logic frame rate (Hz) - used when FIXED_FRAMERATE flag is set
+  double logicRate;
+  /// Maximum logic frames per render frame
+  int maxLogicFrames;
+
+  VariablePhysicsState(double logicRate = 60.0, int maxLogicFrames = 5)
+      : logicRate(logicRate), maxLogicFrames(maxLogicFrames)
+  {
+  }
+
+  // IPhysicsState interface implementation
+  bool IsFixedMode() const override { return false; }
+  
+  double GetLogicRate() const override { return logicRate; }
+  void SetLogicRate(double rate) override { logicRate = rate; }
+  
+  int GetMaxLogicFrames() const override { return maxLogicFrames; }
+  void SetMaxLogicFrames(int frames) override { maxLogicFrames = frames; }
+  
+  // Fixed-mode methods use base class defaults (no-ops or default values)
+};
 
 /**
  * KX_KetsjiEngine is the core game engine class.
@@ -146,12 +303,28 @@ class KX_KetsjiEngine {
   SCA_IInputDevice *m_inputDevice;
 
   struct FrameTimes {
-    // Number of frames to proceed.
+    // ===== Logic Frame Timing (BOTH MODES) =====
+    /// Number of logic frames to execute this render frame
     int frames;
-    // Real duration of a frame.
+    /// Duration of each logic frame (seconds)
     double timestep;
-    // Scaled duration of a frame.
+    /// Scaled duration for logic frame (timestep * m_timescale)
     double framestep;
+    
+    // ===== Physics Frame Timing (MODE-SPECIFIC) =====
+    /// FIXED MODE: Can be 0, 1, 2, 3... (independent of logic frames)
+    /// VARIABLE MODE: Always equals 'frames' (physics coupled to logic)
+    int physicsFrames;
+    /// FIXED MODE: Constant value (1.0 / tickRate)
+    /// VARIABLE MODE: Same as 'timestep' (varies with framerate)
+    double physicsTimestep;
+    /// FIXED MODE: Fractional progress between last completed physics step and visual frame
+    /// VARIABLE MODE: Always 0.0 (no interpolation needed)
+    double interpolationFraction;
+
+    // ===== Mode Flag (for dispatch logic) =====
+    /// True if using fixed physics timestep mode
+    bool useFixedPhysicsTimestep;
   };
 
   CM_Clock m_clock;
@@ -175,22 +348,31 @@ class KX_KetsjiEngine {
   /// game time when the animations were last updated
   double m_previousAnimTime;
   double m_remainingTime;
-  /// time scaling parameter. if > 1.0, time goes faster than real-time. If < 1.0, times goes
-  /// slower than real-time.
   double m_timescale;
+  double m_lastDisplayedTime;
+  double m_average_framerate;
+  bool m_forceInterpolationRender;
+  bool m_cameraOverrideActive;
   double m_previousRealTime;
-  /// used to fix deltaTime if there is a large variation in the value.
+  /// Used to fix deltaTime if there is a large variation in the value
   double m_previous_deltaTime;
-  /// used to control strange behavior in clockTime physics when starting the game.
+  /// Used to control strange behavior in clockTime physics when starting the game
   bool m_firstEngineFrame;
 
-  /// maximum number of consecutive logic frame
-  int m_maxLogicFrame;
-  /// maximum number of consecutive physics frame
-  int m_maxPhysicsFrame;
-  double m_ticrate;
-  /// for animation playback only - ipo and action
+  double m_previousFrameTime;
+  double m_currentanimsync;
   double m_anim_framerate;
+
+  /********** PHYSICS TIMESTEP MODE MANAGEMENT **********/
+  /// Mode selection: true = fixed timestep, false = variable timestep
+  bool m_useFixedPhysicsTimestep;
+  bool m_enablePhysicsInterpolation;
+  double m_currentInterpolationFraction;
+
+  /// Polymorphic physics state - holds either FixedPhysicsState or VariablePhysicsState
+  /// Unified interface eliminates conditional logic throughout the engine
+  std::unique_ptr<IPhysicsState> m_physicsState;
+  /*****************************************************/
 
   bool m_doRender; /* whether or not the scene should be rendered after the logic frame */
 
@@ -226,13 +408,11 @@ class KX_KetsjiEngine {
     tc_numCategories
   } KX_TimeCategory;
 
-  /// Time logger.
-  KX_TimeCategoryLogger m_logger;
-
   /// Labels for profiling display.
   static const std::string m_profileLabels[tc_numCategories];
-  /// Last estimated framerate
-  double m_average_framerate;
+
+  /// Time logger.
+  KX_TimeCategoryLogger m_logger;
 
   /// Enable debug draw of culling bounding boxes.
   KX_DebugOption m_showBoundingBox;
@@ -288,13 +468,65 @@ class KX_KetsjiEngine {
 
   void BeginFrame();
   FrameTimes GetFrameTimes();
+  
+  /********** SHARED FRAME HELPERS **********/
+  /// Process input devices and joystick events
+  void ProcessInputDevices();
+  /// Process logic updates for a scene
+  void ProcessSceneLogic(KX_Scene *scene, const FrameTimes &times, int frameIndex);
+  /// Finalize frame (network, input clear, scene management)
+  void FinalizeFrame();
+  
+  /// Logic frame timing calculation result
+  struct LogicFrameTiming {
+    int frames;        // Number of logic frames to execute
+    double timestep;   // Duration of each logic frame
+  };
+  
+  /// Calculate logic frame timing based on FIXED_FRAMERATE flag
+  /// This is shared by both physics modes - logic timing is independent of physics timing
+  /// @param dt Delta time since last frame
+  /// @param logicRate Target logic update rate (Hz) when FIXED_FRAMERATE is enabled
+  /// @param maxLogicFrames Maximum logic frames per render frame
+  /// @return Calculated logic timing parameters
+  LogicFrameTiming CalculateLogicFrameTiming(double dt, double logicRate, int maxLogicFrames);
+  
+  /********** FIXED PHYSICS MODE FUNCTIONS **********/
+  /// Calculate frame timing for fixed physics timestep mode (uses accumulator pattern)
+  FrameTimes GetFrameTimesFixed(double dt);
+  /// Execute physics for fixed timestep mode (multiple fixed steps per frame)
+  void ExecutePhysicsFixed(KX_Scene *scene, const FrameTimes &times, int logicFrameIndex);
+  /// Execute one complete frame in fixed physics mode (includes FPS cap logic)
+  bool NextFrameFixed(const FrameTimes &times);
+  
+  /********** VARIABLE PHYSICS MODE FUNCTIONS **********/
+  /// Calculate frame timing for variable physics timestep mode (couples physics to framerate)
+  FrameTimes GetFrameTimesVariable(double dt);
+  /// Execute physics for variable timestep mode (physics follows logic frames)
+  void ExecutePhysicsVariable(KX_Scene *scene, const FrameTimes &times, int logicFrameIndex);
+  /// Execute one complete frame in variable physics mode (no FPS cap)
+  bool NextFrameVariable(const FrameTimes &times);
 
- public:
+public:
   KX_KetsjiEngine(KX_ISystem *system,
                   struct bContext *C,
                   bool useViewportRender,
                   int shadingTypeRuntime);
   virtual ~KX_KetsjiEngine();
+  void SetPhysicsInterpolationEnabled(bool enable);
+  bool IsPhysicsInterpolationEnabled() const
+  {
+    return m_enablePhysicsInterpolation;
+  }
+
+  void ForceInterpolationRender();
+  void ClearForcedInterpolation();
+  bool ShouldForceInterpolationRender() const
+  {
+    return m_forceInterpolationRender;
+  }
+
+  double GetCurrentInterpolationFraction() const;
 
   /******** EEVEE integration *********/
   struct bContext *GetContext();
@@ -388,15 +620,7 @@ class KX_KetsjiEngine {
   /// Enable or disable a set of flags.
   void SetFlag(FlagType flag, bool enable);
 
-  /*
-   * Returns next render frame game time
-   */
   double GetClockTime(void) const;
-
-  /**
-   * Set the next render frame game time. It will impact also frame time, as
-   * this one is derived from clocktime
-   */
   void SetClockTime(double externalClockTime);
 
   /**
@@ -426,13 +650,75 @@ class KX_KetsjiEngine {
    */
   void SetMaxLogicFrame(int frame);
   /**
-   * Gets the maximum number of physics frame before render frame
+   * Gets the maximum number of physics steps per frame
+   * FIXED MODE: Returns maxPhysicsStepsPerFrame from FixedPhysicsState
+   * VARIABLE MODE: Returns m_maxLogicFrame (physics coupled to logic)
    */
   int GetMaxPhysicsFrame();
   /**
-   * Sets the maximum number of physics frame before render frame
+   * Sets the maximum number of physics steps per frame
+   * FIXED MODE: Sets maxPhysicsStepsPerFrame in FixedPhysicsState
+   * VARIABLE MODE: Ignored (uses m_maxLogicFrame)
    */
   void SetMaxPhysicsFrame(int frame);
+
+  /**
+   * Gets whether fixed physics timestep is enabled
+   */
+  bool GetUseFixedPhysicsTimestep();
+  /**
+   * Sets whether to use fixed physics timestep
+   */
+  void SetUseFixedPhysicsTimestep(bool useFixed);
+  /**
+   * Initialize physics timestep state from GameData (Factory-based initialization)
+   * 
+   * This method uses PhysicsStateFactory to create the appropriate state object
+   * (FixedPhysicsState or VariablePhysicsState) from Blender scene settings.
+   * It ensures consistent initialization and centralizes the DNA-to-State mapping.
+   * 
+   * @param useFixed True for fixed physics mode, false for variable physics mode
+   * @param gm GameData structure from Scene DNA (scene->gm)
+   * 
+   * Called from:
+   * - LA_Launcher::InitEngine() during game startup
+   * - Scene switching code (if reimplemented)
+   * 
+   * Replaces manual calls to:
+   * - SetUseFixedPhysicsTimestep()
+   * - SetPhysicsTickRate()
+   * - SetFixedRenderCapRate()
+   * - SetTicRate()
+   * - SetMaxLogicFrame()
+   * - SetUseFixedFPSCap()
+   */
+  void InitializePhysicsState(bool useFixed, const struct GameData &gm);
+  /**
+   * Gets the physics tick rate for fixed timestep mode
+   */
+  int GetPhysicsTickRate();
+  /**
+   * Sets the physics tick rate for fixed timestep mode
+   */
+  void SetPhysicsTickRate(int tickRate);
+
+  /**
+   * Gets whether render FPS capping is enabled in fixed mode.
+   */
+  bool GetUseFixedFPSCap();
+  /**
+   * Enables or disables render FPS capping in fixed mode.
+   */
+  void SetUseFixedFPSCap(bool useFixed);
+
+  /**
+   * Gets the render cap rate for fixed physics mode
+   */
+  int GetFixedRenderCapRate();
+  /**
+   * Sets the render cap rate for fixed physics mode
+   */
+  void SetFixedRenderCapRate(int rate);
 
   /**
    * Gets the framerate for playing animations. (actions and ipos)
@@ -452,14 +738,9 @@ class KX_KetsjiEngine {
    * Gets the time scale multiplier
    */
   double GetTimeScale() const;
-
-  /**
-   * Sets the time scale multiplier
-   */
   void SetTimeScale(double scale);
 
   void SetExitKey(short key);
-
   short GetExitKey();
 
   /**
@@ -497,6 +778,9 @@ class KX_KetsjiEngine {
 
   GlobalSettings *GetGlobalSettings(void);
   void SetGlobalSettings(GlobalSettings *gs);
+
+  double GetCurrentAnimationTime() const;
+  KX_Scene *GetCurrentScene() const;
 
   /**
    * Invalidate all the camera matrices and handle other
