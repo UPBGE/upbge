@@ -798,14 +798,14 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
   const bool hasInterpolationFraction = m_currentInterpolationFraction > 0.0;
 
   if (useInterpolation) {
-    // Ensure we operate on the true physics transform before capturing state.
+    const bool needsInitialization = !fixedState->interpolationInitialized;
+    const bool physicsAdvanced = times.physicsFrames > 0;
+
     for (KX_Scene *scene : m_scenes) {
       scene->ClearPhysicsInterpolationState();
     }
 
-    const bool needsInitialization = !fixedState->interpolationInitialized;
-
-    if (times.physicsFrames > 0 || needsInitialization) {
+    if (physicsAdvanced || needsInitialization) {
       for (KX_Scene *scene : m_scenes) {
         scene->StorePhysicsInterpolationState();
       }

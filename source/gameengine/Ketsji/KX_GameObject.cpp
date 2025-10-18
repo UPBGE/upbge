@@ -1842,6 +1842,7 @@ MT_Transform KX_GameObject::NodeGetLocalTransform() const
 void KX_GameObject::StorePhysicsInterpolationState()
 {
   if (m_pSGNode != nullptr) {
+    /* Cache the current physics pose so render interpolation can blend from it later. */
     m_pSGNode->StorePreviousWorldTransform();
     m_useRenderInterpolation = false;
   }
@@ -1854,6 +1855,7 @@ void KX_GameObject::ApplyPhysicsInterpolation(double alpha)
   }
 
   if (!m_useRenderInterpolation) {
+    /* First interpolation call caches the physics pose for restoration when interpolation stops. */
     m_cachedRenderTransform = NodeGetWorldTransform();
     m_cachedInterpolatedTransform = m_cachedRenderTransform;
   }
@@ -1882,6 +1884,7 @@ void KX_GameObject::ClearPhysicsInterpolationState()
 {
   if (m_pSGNode != nullptr) {
     if (m_useRenderInterpolation) {
+      /* Restore the physics pose captured before interpolation modified the SG node. */
       const MT_Vector3 originalPos = m_cachedRenderTransform.getOrigin();
       MT_Matrix3x3 originalBasis = m_cachedRenderTransform.getBasis();
 
