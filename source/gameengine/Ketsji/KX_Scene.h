@@ -142,6 +142,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   RAS_BucketManager *m_bucketmanager;
 
   std::vector<KX_GameObject *> m_tempObjectList;
+  /** Objects that required render interpolation in the previous frame. */
+  std::vector<KX_GameObject *> m_interpolatedObjects;
+  /** Skip render interpolation for objects marked invisible by the renderer. */
+  bool m_skipInvisibleInterpolation;
 
   /**
    * The list of objects which have been removed during the
@@ -418,6 +422,14 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void StorePhysicsInterpolationState();
   void ApplyPhysicsInterpolation(double alpha);
   void ClearPhysicsInterpolationState();
+  /** Track objects that enter render interpolation so we can clear them efficiently. */
+  void RegisterInterpolatedObject(KX_GameObject *gameobj);
+  /** Remove objects from the render interpolation tracking list. */
+  void UnregisterInterpolatedObject(KX_GameObject *gameobj);
+  /** Toggle skipping interpolation for invisible objects (e.g. frustum culled). */
+  void SetSkipInvisibleInterpolation(bool skip);
+  /** Returns whether invisible objects are excluded from interpolation updates. */
+  bool GetSkipInvisibleInterpolation() const;
 
   EXP_ListValue<KX_GameObject> *GetObjectList() const;
   EXP_ListValue<KX_GameObject> *GetInactiveList() const;
