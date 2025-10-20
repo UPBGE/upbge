@@ -801,7 +801,7 @@ typedef struct GameData {
   short _pad_physics = 0;
 
   /* Fixed physics interpolation (global) */
-  char use_fixed_physics_interpolation = 0;
+  char use_fixed_physics_interpolation = 1;
   char _pad_fixed_interpolation[7] = {};
 
   /* Fixed physics render FPS cap (only in fixed physics mode) */

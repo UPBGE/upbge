@@ -224,50 +224,15 @@ void LA_Launcher::InitEngine()
   m_ketsjiEngine->SetFlag(flags, true);
   m_ketsjiEngine->SetRender(true);
 
-  /* Initialize physics timestep state using factory pattern.
-   * 
-   * This single call replaces the previous setter calls:
-   * - SetTicRate(gm.ticrate)
-   * - SetMaxLogicFrame(gm.maxlogicstep)
-   * - SetMaxPhysicsFrame(gm.maxphystep)
-   * - SetUseFixedPhysicsTimestep(...)
-   * - SetPhysicsTickRate(gm.physics_tick_rate)
-   * - SetFixedRenderCapRate(gm.fixed_render_cap_rate)
-   * - SetUseFixedFPSCap(...)
-   * 
-   * The factory ensures consistent initialization from DNA→State mapping.
-   * 
-   * What gets initialized (mode-specific):
-   * 
-   * IF FIXED MODE (gm.use_fixed_physics_timestep == 1):
-   *   - Creates FixedPhysicsState with:
-   *     • physics_tick_rate → Physics simulation rate (Hz)
-   *     • maxphystep → Max physics substeps per frame
-   *     • use_fixed_fps_cap → Render FPS limiter toggle
-   *     • fixed_render_cap_rate → Render FPS cap target (Hz)
-   *   - NOTE: Logic frames coupled to physics frames in fixed mode
-   *   - Logic timing controlled by FIXED_FRAMERATE flag (separate concern)
-   * 
-   * IF VARIABLE MODE (gm.use_fixed_physics_timestep == 0):
-   *   - Creates VariablePhysicsState with:
-   *     • ticrate → Logic/physics rate (Hz, coupled)
-   *     • maxlogicstep → Max logic/physics frames per render
-   *   - PRESERVES ORIGINAL BGE BEHAVIOR (backward compatible)
-   * 
-   * Critical for compatibility: Variable mode behavior unchanged!
-   */
-  m_ketsjiEngine->InitializePhysicsState(gm.use_fixed_physics_timestep != 0, gm);
-  m_ketsjiEngine->SetPhysicsInterpolationEnabled(gm.use_fixed_physics_interpolation != 0);
-  
-  /* Note: SetMaxPhysicsFrame is still called separately because it has
-   * mode-specific behavior that's not just initialization (it's also used
-   * for runtime adjustments). In fixed mode it sets maxPhysicsStepsPerFrame,
-   * in variable mode it's ignored.
-   * 
-   * The factory already initializes this value, but we keep this call for
-   * consistency with any code that might rely on the setter being called.
-   */
+  /* Initialize physics timestep settings from Scene. */
+  m_ketsjiEngine->SetTicRate(gm.ticrate);
+  m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
   m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
+  m_ketsjiEngine->SetUseFixedPhysicsTimestep(gm.use_fixed_physics_timestep != 0);
+  m_ketsjiEngine->SetPhysicsTickRate(gm.physics_tick_rate);
+  m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
+  m_ketsjiEngine->SetFixedRenderCapRate(gm.fixed_render_cap_rate);
+  m_ketsjiEngine->SetPhysicsInterpolationEnabled(gm.use_fixed_physics_interpolation != 0);
   
   /* Time scale is independent of physics mode - applies to both modes
    * uniformly. It affects both logic and physics timing by scaling the
