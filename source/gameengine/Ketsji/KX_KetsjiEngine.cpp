@@ -265,6 +265,9 @@ void KX_KetsjiEngine::StartEngine()
 {
   // Reset the clock to start at 0.0.
   m_clock.Reset();
+  m_clockTime = m_clock.GetTimeSecond();
+  m_previousRealTime = m_clockTime;
+  ResetFixedPhysicsTiming();
 
   m_bInitialized = true;
 }
@@ -718,6 +721,25 @@ void KX_KetsjiEngine::FinalizeFrame()
 
   // scene management
   ProcessScheduledScenes();
+}
+
+void KX_KetsjiEngine::ResetFixedPhysicsTiming()
+{
+  m_currentInterpolationFraction = 0.0;
+
+  if (!m_useFixedPhysicsTimestep) {
+    return;
+  }
+
+  if (!m_physicsState || !m_physicsState->IsFixedMode()) {
+    return;
+  }
+
+  auto *fixedState = static_cast<FixedPhysicsState *>(m_physicsState.get());
+  fixedState->Reset();
+  fixedState->previousClockTime = m_clockTime;
+  fixedState->isFirstFrame = false;
+  m_previousRealTime = m_clockTime;
 }
 
 /********** LOGIC TIMING CALCULATION (SHARED BY BOTH PHYSICS MODES) **********/
@@ -1867,6 +1889,10 @@ double KX_KetsjiEngine::GetTimeScale() const
 void KX_KetsjiEngine::SetTimeScale(double timescale)
 {
   m_timescale = timescale;
+
+  if (m_useFixedPhysicsTimestep) {
+    ResetFixedPhysicsTiming();
+  }
 }
 
 int KX_KetsjiEngine::GetMaxLogicFrame()
@@ -1911,13 +1937,16 @@ void KX_KetsjiEngine::SetUseFixedPhysicsTimestep(bool useFixed)
   }
   
   m_useFixedPhysicsTimestep = useFixed;
-  
+
   // Create new state with default values (for runtime mode switching)
   if (useFixed) {
     m_physicsState = std::make_unique<FixedPhysicsState>(60, 5, false);
+    ResetFixedPhysicsTiming();
   }
   else {
     m_physicsState = std::make_unique<VariablePhysicsState>();
+    m_previousRealTime = m_clockTime;
+    m_currentInterpolationFraction = 0.0;
   }
 }
 
@@ -1962,10 +1991,13 @@ void KX_KetsjiEngine::InitializePhysicsState(bool useFixed, const GameData &gm)
    */
   if (useFixed) {
     m_physicsState = PhysicsStateFactory::CreateFixed(gm);
+    ResetFixedPhysicsTiming();
   }
   else {
     // CRITICAL: Variable mode preserves exact legacy BGE behavior
     m_physicsState = PhysicsStateFactory::CreateVariable(gm);
+    m_previousRealTime = m_clockTime;
+    m_currentInterpolationFraction = 0.0;
   }
 }
 
@@ -1980,6 +2012,7 @@ void KX_KetsjiEngine::SetPhysicsTickRate(int tickRate)
 {
   if (tickRate > 0 && m_physicsState) {
     m_physicsState->SetPhysicsTickRate(tickRate);
+    ResetFixedPhysicsTiming();
   }
 }
 
@@ -2107,7 +2140,12 @@ void KX_KetsjiEngine::SetClockTime(double externalClockTime)
 {
   const double delta = externalClockTime - m_clockTime;
   m_clockTime = externalClockTime;
-  m_previousRealTime += delta;
+  if (m_useFixedPhysicsTimestep) {
+    ResetFixedPhysicsTiming();
+  }
+  else {
+    m_previousRealTime += delta;
+  }
   m_currentanimsync += delta;
 }
 

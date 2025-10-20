@@ -476,7 +476,8 @@ class KX_KetsjiEngine {
   void ProcessSceneLogic(KX_Scene *scene, const FrameTimes &times, int frameIndex);
   /// Finalize frame (network, input clear, scene management)
   void FinalizeFrame();
-  
+  void ResetFixedPhysicsTiming();
+
   /// Logic frame timing calculation result
   struct LogicFrameTiming {
     int frames;        // Number of logic frames to execute
