@@ -3414,7 +3414,9 @@ void ED_region_panels_layout_ex(const bContext *C,
   }
 }
 
-void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rcti *mask)
+void ED_region_draw_overflow_indication(const ScrArea *area,
+                                        const ARegion *region,
+                                        const rcti *mask)
 {
   if (!(region->flag & RGN_FLAG_INDICATE_OVERFLOW)) {
     return;
@@ -3904,7 +3906,7 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
   /* clear */
   ED_region_clear(C, region, region_background_color_id(C, region));
 
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE, GPU_BACKEND_OPENGL))
+  if (GPU_type_matches_ex(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE, GPU_BACKEND_OPENGL))
   {
     /* WORKAROUND: Driver bug. Fixes invalid glyph being rendered (see #147168). */
     BLF_batch_discard();
