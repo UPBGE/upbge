@@ -178,6 +178,8 @@ struct LayoutInternal {
   static void layout_resolve(uiLayout *layout);
   static uiButtonItem *ui_layout_find_button_item(const uiLayout *layout, const uiBut *but);
   static uiLayout *ui_item_prop_split_layout_hack(uiLayout *layout_parent, uiLayout *layout_split);
+  static void layout_offset_size_set(uiLayout *layout, int x, int y, int w, int h);
+  static void layout_move(uiLayout *layout, int delta_xmin, int delta_xmax);
 };
 
 }  // namespace blender::ui
@@ -477,8 +479,17 @@ blender::int2 uiItem::size() const
     const uiButtonItem *bitem = static_cast<const uiButtonItem *>(this);
     return {int(BLI_rctf_size_x(&bitem->but->rect)), int(BLI_rctf_size_y(&bitem->but->rect))};
   }
-  const uiLayout *litem = static_cast<const uiLayout *>(this);
-  return {litem->w_, litem->h_};
+  return static_cast<const uiLayout *>(this)->size();
+}
+
+blender::int2 uiLayout::offset() const
+{
+  return {x_, y_};
+}
+
+blender::int2 uiLayout::size() const
+{
+  return {w_, h_};
 }
 
 blender::int2 uiItem::offset() const
@@ -503,13 +514,16 @@ static void ui_item_position(uiItem *item, const int x, const int y, const int w
     ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
-    uiLayout *litem = static_cast<uiLayout *>(item);
-
-    litem->x_ = x;
-    litem->y_ = y + h;
-    litem->w_ = w;
-    litem->h_ = h;
+    LayoutInternal::layout_offset_size_set(static_cast<uiLayout *>(item), x, y + h, w, h);
   }
+}
+
+void LayoutInternal::layout_offset_size_set(uiLayout *layout, int x, int y, int w, int h)
+{
+  layout->x_ = x;
+  layout->y_ = y;
+  layout->w_ = w;
+  layout->h_ = h;
 }
 
 static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xmax)
@@ -523,14 +537,17 @@ static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xma
     ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
-    uiLayout *litem = static_cast<uiLayout *>(item);
+    LayoutInternal::layout_move(static_cast<uiLayout *>(item), delta_xmin, delta_xmax);
+  }
+}
 
-    if (delta_xmin > 0) {
-      litem->x_ += delta_xmin;
-    }
-    else {
-      litem->w_ += delta_xmax;
-    }
+void LayoutInternal::layout_move(uiLayout *layout, int delta_xmin, int delta_xmax)
+{
+  if (delta_xmin > 0) {
+    layout->x_ += delta_xmin;
+  }
+  else {
+    layout->w_ += delta_xmax;
   }
 }
 
@@ -2242,7 +2259,7 @@ void uiLayout::prop(PointerRNA *ptr,
         results_are_suggestions = true;
       }
     }
-    but = ui_but_add_search(but, ptr, prop, nullptr, nullptr, results_are_suggestions);
+    but = ui_but_add_search(but, ptr, prop, nullptr, nullptr, nullptr, results_are_suggestions);
 
     if (layout->red_alert()) {
       UI_but_flag_enable(but, UI_BUT_REDALERT);
@@ -2617,6 +2634,7 @@ uiBut *ui_but_add_search(uiBut *but,
                          PropertyRNA *prop,
                          PointerRNA *searchptr,
                          PropertyRNA *searchprop,
+                         PropertyRNA *item_searchprop,
                          const bool results_are_suggestions)
 {
   /* for ID's we do automatic lookup */
@@ -2659,11 +2677,13 @@ uiBut *ui_but_add_search(uiBut *but,
     if (searchptr) {
       coll_search->search_ptr = *searchptr;
       coll_search->search_prop = searchprop;
+      coll_search->item_search_prop = item_searchprop;
     }
     else {
       /* Rely on `has_search_fn`. */
       coll_search->search_ptr = PointerRNA_NULL;
       coll_search->search_prop = nullptr;
+      coll_search->item_search_prop = nullptr;
     }
 
     coll_search->search_but = but;
@@ -2705,6 +2725,7 @@ void uiLayout::prop_search(PointerRNA *ptr,
                            PropertyRNA *prop,
                            PointerRNA *searchptr,
                            PropertyRNA *searchprop,
+                           PropertyRNA *item_searchprop,
                            const std::optional<StringRefNull> name_opt,
                            int icon,
                            bool results_are_suggestions)
@@ -2724,6 +2745,12 @@ void uiLayout::prop_search(PointerRNA *ptr,
     RNA_warning("search collection property is not a collection type: %s.%s",
                 RNA_struct_identifier(searchptr->type),
                 RNA_property_identifier(searchprop));
+    return;
+  }
+  if (item_searchprop && RNA_property_type(item_searchprop) != PROP_STRING) {
+    RNA_warning("Search collection items' property is not a string type: %s.%s",
+                RNA_struct_identifier(RNA_property_pointer_type(searchptr, searchprop)),
+                RNA_property_identifier(item_searchprop));
     return;
   }
 
@@ -2753,7 +2780,8 @@ void uiLayout::prop_search(PointerRNA *ptr,
   w += UI_UNIT_X; /* X icon needs more space */
   uiBut *but = ui_item_with_label(this, block, name, icon, ptr, prop, 0, 0, 0, w, h, 0);
 
-  but = ui_but_add_search(but, ptr, prop, searchptr, searchprop, results_are_suggestions);
+  but = ui_but_add_search(
+      but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
 }
 
 void uiLayout::prop_search(PointerRNA *ptr,
@@ -2777,7 +2805,7 @@ void uiLayout::prop_search(PointerRNA *ptr,
     return;
   }
 
-  this->prop_search(ptr, prop, searchptr, searchprop, name, icon, false);
+  this->prop_search(ptr, prop, searchptr, searchprop, nullptr, name, icon, false);
 }
 
 void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
@@ -5375,7 +5403,7 @@ static blender::int2 ui_layout_end(uiBlock *block, uiLayout *layout)
 
   LayoutInternal::layout_estimate(layout);
   LayoutInternal::layout_resolve(layout);
-  return {layout->x_, layout->y_};
+  return layout->offset();
 }
 
 static void ui_layout_free(uiLayout *layout)
@@ -5444,25 +5472,24 @@ uiLayout &block_layout(uiBlock *block,
   /* Only used when 'uiItemInternalFlag::PropSep' is set. */
   layout->use_property_decorate_set(true);
 
-  layout->x_ = x;
-  layout->y_ = y;
   layout->space_ = style->templatespace;
   layout->active_set(true);
   layout->enabled_set(true);
   layout->emboss_set(EmbossType::Undefined);
-
+  int w = 0, h = 0;
   if (ELEM(type, LayoutType::Menu, LayoutType::PieMenu)) {
     layout->space_ = 0;
   }
 
   if (dir == LayoutDirection::Horizontal) {
-    layout->h_ = size;
+    h = size;
     layout->root()->emh = em * UI_UNIT_Y;
   }
   else {
-    layout->w_ = size;
+    w = size;
     layout->root()->emw = em * UI_UNIT_X;
   }
+  LayoutInternal::layout_offset_size_set(layout, x, y, w, h);
 
   block->curlayout = layout;
   root->layout = layout;
