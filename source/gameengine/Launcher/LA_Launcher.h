@@ -54,6 +54,7 @@ class LA_Launcher {
   KX_Scene *m_kxStartScene;
   bool m_useViewportRender;
   int m_shadingTypeRuntime;
+  bool m_forceViewportInterpolation;
 
   /// \section Exit state.
   KX_ExitRequest m_exitRequested;
