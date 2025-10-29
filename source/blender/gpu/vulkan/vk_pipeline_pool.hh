@@ -16,11 +16,10 @@
 
 #include "gpu_state_private.hh"
 
-#include "vk_common.hh"
+#include "vk_resource_pool.hh"
 
 namespace blender::gpu {
 class VKDevice;
-class VKDiscardPool;
 
 /**
  * Struct containing key information to identify a compute pipeline.
@@ -213,6 +212,143 @@ struct VKGraphicsInfo {
 };
 
 /**
+ * Thread safe map to pipelines of a certain type (graphics or compute).
+ */
+template<typename PipelineInfo> class VKPipelineMap {
+  Map<PipelineInfo, VkPipeline> pipelines_;
+  Mutex mutex_;
+  std::condition_variable_any new_pipeline_added_;
+
+ public:
+  /**
+   * Get an existing or create a new pipeline based on the provided PipelineInfo.
+   *
+   * When vk_pipeline_base is a valid pipeline handle, the pipeline base will be used to speed up
+   * pipeline creation process.
+   *
+   * \param compute_info:     Description of the pipeline to compile.
+   * \param vk_pipeline_cache: Pipeline cache to use.
+   * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
+   *                          compiling the pipeline.
+   * \param name:             Name to give as a debug label when creating a pipeline.
+   * \returns The handle of the compiled pipeline.
+   */
+  VkPipeline get_or_create(const PipelineInfo &pipeline_info,
+                           VkPipelineCache vk_pipeline_cache,
+                           VkPipeline vk_pipeline_base,
+                           StringRefNull name)
+  {
+    bool do_wait_for_pipeline = false;
+    bool do_compile_pipeline = false;
+    {
+      std::scoped_lock lock(mutex_);
+      const VkPipeline *found_pipeline = pipelines_.lookup_ptr(pipeline_info);
+      if (found_pipeline) {
+        if (*found_pipeline == VK_NULL_HANDLE) {
+          do_wait_for_pipeline = true;
+        }
+        else {
+          /* Early exit: pipeline_info found and has a valid pipeline. */
+          return *found_pipeline;
+        }
+      }
+      else {
+        pipelines_.add_new(pipeline_info, VK_NULL_HANDLE);
+        do_compile_pipeline = true;
+      }
+    }
+    if (do_wait_for_pipeline) {
+      return wait_for_completion(pipeline_info);
+    }
+    if (do_compile_pipeline) {
+      VkPipeline pipeline = create(pipeline_info, vk_pipeline_cache, vk_pipeline_base, name);
+      /* Store result in the compute pipelines map. */
+      {
+        std::scoped_lock lock(mutex_);
+        VkPipeline &pipeline_item = pipelines_.lookup(pipeline_info);
+        pipeline_item = pipeline;
+      }
+      /* Notify other threads that a new pipeline is available. */
+      {
+        new_pipeline_added_.notify_all();
+      }
+      return pipeline;
+    }
+    BLI_assert_unreachable();
+    return VK_NULL_HANDLE;
+  }
+  /**
+   * Discard all pipelines associated with the given layout
+   */
+  void discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pipeline_layout)
+  {
+    std::scoped_lock lock(mutex_);
+    pipelines_.remove_if([&](auto item) {
+      if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
+        discard_pool.discard_pipeline(item.value);
+        return true;
+      }
+      return false;
+    });
+  }
+  /**
+   * Free all data.
+   *
+   * \note Handle is passed to fix recursive inclusion of vk_device.hh
+   */
+  void free_data(VkDevice vk_device)
+  {
+    std::scoped_lock lock(mutex_);
+    for (VkPipeline &vk_pipeline : pipelines_.values()) {
+      vkDestroyPipeline(vk_device, vk_pipeline, nullptr);
+    }
+    pipelines_.clear();
+  }
+  /**
+   * Number of pipelines stored inside the instance.
+   */
+  uint64_t size() const
+  {
+    return pipelines_.size();
+  }
+
+ private:
+  /**
+   * Create a new pipeline based on the provided PipelineInfo.
+   *
+   * When vk_pipeline_base is a valid pipeline handle, the pipeline base will be used to speed up
+   * pipeline creation process.
+   *
+   * \param pipeline_info:     Description of the pipeline to compile.
+   * \param vk_pipeline_cache: Pipeline cache to use.
+   * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
+   *                          compiling the pipeline.
+   * \param name:             Name to give as a debug label when creating a pipeline.
+   * \returns The handle of the compiled pipeline.
+   */
+  VkPipeline create(const PipelineInfo &pipeline_info,
+                    VkPipelineCache vk_pipeline_cache,
+                    VkPipeline vk_pipeline_base,
+                    StringRefNull name);
+  /**
+   * \brief wait for another thread to complete the same pipeline info.
+   *
+   * \param pipeline_info: Description of the pipeline to wait for.
+   */
+  VkPipeline wait_for_completion(const PipelineInfo &pipeline_info)
+  {
+    std::unique_lock<Mutex> lock(mutex_);
+    const VkPipeline *pipeline = nullptr;
+    new_pipeline_added_.wait(lock, [&]() {
+      pipeline = pipelines_.lookup_ptr(pipeline_info);
+      BLI_assert(pipeline != nullptr);
+      return *pipeline != VK_NULL_HANDLE;
+    });
+    return *pipeline;
+  }
+};
+
+/**
  * Pipelines are lazy initialized and same pipelines should share their handle.
  *
  * A requirement of our render graph implementation is that changes of the pipeline can be detected
@@ -239,55 +375,18 @@ struct VKGraphicsInfo {
  * should also be revisited as the latest drivers all implement pipeline libraries, but there are
  * some platforms where the driver isn't been updated and doesn't implement this extension. In
  * that case shader modules should still be used.
- *
- * TODO: GPUMaterials (or any other large shader) should be unloaded when the gpu::Shader is
- * destroyed. Exact details what the best approach is unclear as support for EEVEE is still
- * lacking.
  */
 class VKPipelinePool : public NonCopyable {
   friend class VKDevice;
 
- public:
  private:
-  Map<VKComputeInfo, VkPipeline> compute_pipelines_;
-  Map<VKGraphicsInfo, VkPipeline> graphic_pipelines_;
-  /* Partially initialized structures to reuse. */
-  VkComputePipelineCreateInfo vk_compute_pipeline_create_info_;
-
-  VkGraphicsPipelineCreateInfo vk_graphics_pipeline_create_info_;
-  VkPipelineRenderingCreateInfo vk_pipeline_rendering_create_info_;
-  VkPipelineShaderStageCreateInfo vk_pipeline_shader_stage_create_info_[3];
-  VkPipelineInputAssemblyStateCreateInfo vk_pipeline_input_assembly_state_create_info_;
-  VkPipelineVertexInputStateCreateInfo vk_pipeline_vertex_input_state_create_info_;
-
-  VkPipelineRasterizationStateCreateInfo vk_pipeline_rasterization_state_create_info_;
-  VkPipelineRasterizationProvokingVertexStateCreateInfoEXT
-      vk_pipeline_rasterization_provoking_vertex_state_info_;
-
-  Vector<VkDynamicState> vk_dynamic_states_;
-  VkPipelineDynamicStateCreateInfo vk_pipeline_dynamic_state_create_info_;
-
-  VkPipelineViewportStateCreateInfo vk_pipeline_viewport_state_create_info_;
-  VkPipelineDepthStencilStateCreateInfo vk_pipeline_depth_stencil_state_create_info_;
-
-  VkPipelineMultisampleStateCreateInfo vk_pipeline_multisample_state_create_info_;
-
-  Vector<VkPipelineColorBlendAttachmentState> vk_pipeline_color_blend_attachment_states_;
-  VkPipelineColorBlendStateCreateInfo vk_pipeline_color_blend_state_create_info_;
-  VkPipelineColorBlendAttachmentState vk_pipeline_color_blend_attachment_state_template_;
-
-  VkSpecializationInfo vk_specialization_info_;
-  Vector<VkSpecializationMapEntry> vk_specialization_map_entries_;
-  VkPushConstantRange vk_push_constant_range_;
-
   VkPipelineCache vk_pipeline_cache_static_;
   VkPipelineCache vk_pipeline_cache_non_static_;
 
-  Mutex mutex_;
+  VKPipelineMap<VKComputeInfo> compute_;
+  VKPipelineMap<VKGraphicsInfo> graphics_;
 
  public:
-  VKPipelinePool();
-
   void init();
 
   /**
@@ -295,8 +394,17 @@ class VKPipelinePool : public NonCopyable {
    *
    * When vk_pipeline_base is a valid pipeline handle, the pipeline base will be used to speed up
    * pipeline creation process.
+   *
+   * \param compute_info:     Description of the pipeline to compile.
+   * \param is_static_shader: Pipelines from static shaders are cached between Blender sessions.
+   *                          Pipelines from dynamic shaders are only cached for the duration of a
+   *                          single Blender session.
+   * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
+   *                          compiling the pipeline.
+   * \param name:             Name to give as a debug label when creating a pipeline.
+   * \returns The handle of the compiled pipeline.
    */
-  VkPipeline get_or_create_compute_pipeline(VKComputeInfo &compute_info,
+  VkPipeline get_or_create_compute_pipeline(const VKComputeInfo &compute_info,
                                             bool is_static_shader,
                                             VkPipeline vk_pipeline_base,
                                             StringRefNull name);
@@ -306,8 +414,17 @@ class VKPipelinePool : public NonCopyable {
    *
    * When vk_pipeline_base is a valid pipeline handle, the pipeline base will be used to speed up
    * pipeline creation process.
+   *
+   * \param graphics_info:    Description of the pipeline to compile.
+   * \param is_static_shader: Pipelines from static shaders are cached between Blender sessions.
+   *                          Pipelines from dynamic shaders are only cached for the duration of
+   *                          a single Blender session.
+   * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
+   *                          compiling the pipeline.
+   * \param name:             Name to give as a debug label when creating a pipeline.
+   * \returns The handle of the compiled pipeline.
    */
-  VkPipeline get_or_create_graphics_pipeline(VKGraphicsInfo &graphics_info,
+  VkPipeline get_or_create_graphics_pipeline(const VKGraphicsInfo &graphics_info,
                                              bool is_static_shader,
                                              VkPipeline vk_pipeline_base,
                                              StringRefNull name);
@@ -348,7 +465,7 @@ class VKPipelinePool : public NonCopyable {
    * shader modules can change and shader module identifiers cannot be used. We use the build info
    * to check if the identifiers can be reused.
    *
-   * The cache will not be written when G_DEBUG_GPU is active. In this case the shader modules have
+   * The cache will not be written when G_DEBUG_GPU is active. In this case the shader modules will
    * been generated with debug information and other compiler settings are used. This will clutter
    * the pipeline cache.
    *
@@ -356,11 +473,6 @@ class VKPipelinePool : public NonCopyable {
    * flag is set.
    */
   void write_to_disk();
-
- private:
-  VkSpecializationInfo *specialization_info_update(
-      Span<shader::SpecializationConstant::Value> specialization_constants);
-  void specialization_info_reset();
 };
 
 }  // namespace blender::gpu

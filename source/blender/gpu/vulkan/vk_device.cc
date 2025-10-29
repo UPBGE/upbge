@@ -251,8 +251,7 @@ void VKDevice::init_dummy_buffer()
 {
   dummy_buffer.create(sizeof(float4x4),
                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                      VkMemoryPropertyFlags(0),
+                      VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
                       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                       1.0f);
   debug::object_label(dummy_buffer.vk_handle(), "DummyBuffer");
@@ -557,8 +556,8 @@ void VKDevice::debug_print()
   resources.debug_print();
   std::ostream &os = std::cout;
   os << "Pipelines\n";
-  os << " Graphics: " << pipelines.graphic_pipelines_.size() << "\n";
-  os << " Compute: " << pipelines.compute_pipelines_.size() << "\n";
+  os << " Graphics: " << pipelines.graphics_.size() << "\n";
+  os << " Compute: " << pipelines.compute_.size() << "\n";
   os << "Descriptor sets\n";
   os << " VkDescriptorSetLayouts: " << descriptor_set_layouts_.size() << "\n";
   for (const VKThreadData *thread_data : thread_data_) {

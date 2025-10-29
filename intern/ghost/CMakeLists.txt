@@ -577,6 +577,14 @@ if(WITH_XR_OPENXR)
     # Header only library.
     ../../extern/tinygltf/tiny_gltf.h
   )
+  if(APPLE)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingMetal.mm
+
+      intern/GHOST_XrGraphicsBindingMetal.hh
+    )
+  endif()
+
   if(WIN32)
     list(APPEND SRC
       intern/GHOST_XrGraphicsBindingD3D.cc
@@ -609,6 +617,9 @@ if(WITH_XR_OPENXR)
 
       intern/GHOST_XrGraphicsBindingVulkan.hh
     )
+  endif()
+  if(WITH_METAL_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_METAL)
   endif()
 
   # Add compiler defines as required by the OpenXR specification.
