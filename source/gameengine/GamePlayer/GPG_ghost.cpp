@@ -69,6 +69,7 @@
 #include "BLF_api.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_memory_cache.hh"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
@@ -1879,6 +1880,10 @@ int main(int argc,
   }
 
   BKE_mball_cubeTable_free();
+
+  /* Clear the cache which may (indirectly) contain e.g. GPU resources which need to be freed
+   * before the GPU backend is destroyed. */
+  blender::memory_cache::clear();
 
   /* render code might still access databases */
   RE_FreeAllRender();
