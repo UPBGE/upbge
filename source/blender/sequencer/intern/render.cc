@@ -33,7 +33,6 @@
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
@@ -60,7 +59,6 @@
 #include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
-#include "SEQ_modifier.hh"
 #include "SEQ_offscreen.hh"
 #include "SEQ_proxy.hh"
 #include "SEQ_relations.hh"
@@ -92,7 +90,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
                                      float timeline_frame,
                                      int chanshown);
 
-static blender::Mutex seq_render_mutex;
+static Mutex seq_render_mutex;
 DrawViewFn view3d_fn = nullptr; /* nullptr in background mode */
 
 /* -------------------------------------------------------------------- */
@@ -1041,7 +1039,7 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
     ibuf = seq_render_image_strip_view(context, strip, filepath, prefix, ext, context->view_id);
   }
 
-  blender::seq::media_presence_set_missing(context->scene, strip, ibuf == nullptr);
+  media_presence_set_missing(context->scene, strip, ibuf == nullptr);
   if (ibuf == nullptr) {
     return create_missing_media_image(context, s_elem->orig_width, s_elem->orig_height);
   }
@@ -1207,7 +1205,7 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
     ibuf = seq_render_movie_strip_view(context, strip, timeline_frame, sanim, r_is_proxy_image);
   }
 
-  blender::seq::media_presence_set_missing(context->scene, strip, ibuf == nullptr);
+  media_presence_set_missing(context->scene, strip, ibuf == nullptr);
   if (ibuf == nullptr) {
     return create_missing_media_image(
         context, strip->data->stripdata->orig_width, strip->data->stripdata->orig_height);
@@ -1799,7 +1797,7 @@ ImBuf *seq_render_strip(const RenderData *context,
 
   /* Proxies are not stored in cache. */
   if (!can_use_proxy(context, strip, rendersize_to_proxysize(context->preview_render_size))) {
-    ibuf = seq::source_image_cache_get(context, strip, timeline_frame);
+    ibuf = source_image_cache_get(context, strip, timeline_frame);
   }
 
   if (ibuf == nullptr) {
@@ -1948,7 +1946,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
 
       /* Check whether the raw (before preprocessing, which can add alpha) strip content
        * was opaque. */
-      ImBuf *ibuf_raw = seq::source_image_cache_get(context, strip, timeline_frame);
+      ImBuf *ibuf_raw = source_image_cache_get(context, strip, timeline_frame);
       if (ibuf_raw != nullptr) {
         if (ibuf_raw->planes != R_IMF_PLANES_RGBA) {
           opaques.add_occluder(context, strip, i);

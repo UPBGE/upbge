@@ -23,7 +23,6 @@
 #include "BLI_vector_set.hh"
 
 #include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -44,8 +43,6 @@
 #include "SEQ_sequencer.hh"
 
 #include "SEQ_time.hh"
-#include "cache/final_image_cache.hh"
-#include "cache/source_image_cache.hh"
 #include "prefetch.hh"
 #include "render.hh"
 
@@ -409,10 +406,9 @@ void seq_prefetch_free(Scene *scene)
   MEM_delete(pfjob);
 }
 
-static blender::VectorSet<Strip *> query_scene_strips(Editing *ed)
+static VectorSet<Strip *> query_scene_strips(Editing *ed)
 {
-  blender::Map<const Scene *, VectorSet<Strip *>> &strips_by_scene =
-      lookup_strips_by_scene_map_get(ed);
+  Map<const Scene *, VectorSet<Strip *>> &strips_by_scene = lookup_strips_by_scene_map_get(ed);
 
   VectorSet<Strip *> scene_strips;
   for (VectorSet<Strip *> strips : strips_by_scene.values()) {
@@ -424,11 +420,11 @@ static blender::VectorSet<Strip *> query_scene_strips(Editing *ed)
 static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
                                                  ListBase *channels,
                                                  ListBase *seqbase,
-                                                 blender::Span<Strip *> scene_strips,
+                                                 Span<Strip *> scene_strips,
                                                  int timeline_frame,
                                                  SeqRenderState state)
 {
-  blender::Vector<Strip *> rendered_strips = seq_shown_strips_get(
+  Vector<Strip *> rendered_strips = seq_shown_strips_get(
       scene, channels, seqbase, timeline_frame, 0);
 
   /* Iterate over rendered strips. */
@@ -456,7 +452,7 @@ static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
         continue;
       }
 
-      blender::VectorSet<Strip *> target_scene_strips = query_scene_strips(target_ed);
+      VectorSet<Strip *> target_scene_strips = query_scene_strips(target_ed);
       int target_timeline_frame = give_frame_index(scene, strip, timeline_frame) +
                                   target_scene->r.sfra;
 
@@ -486,7 +482,7 @@ static bool seq_prefetch_must_skip_frame(PrefetchJob *pfjob, ListBase *channels,
   /* Pass in state to check for infinite recursion of "sequencer-type" scene strips. */
   SeqRenderState state = {};
 
-  blender::VectorSet<Strip *> scene_strips = query_scene_strips(editing_get(pfjob->scene_eval));
+  VectorSet<Strip *> scene_strips = query_scene_strips(editing_get(pfjob->scene_eval));
   return seq_prefetch_scene_strip_is_rendered(
       pfjob->scene_eval, channels, seqbase, scene_strips, seq_prefetch_cfra(pfjob), state);
 }

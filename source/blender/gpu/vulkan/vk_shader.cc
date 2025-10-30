@@ -548,22 +548,26 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
   r_shader_module.is_ready = true;
 }
 
-void VKShader::vertex_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::vertex_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                       MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_vertex_shader, vertex_module);
 }
 
-void VKShader::geometry_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::geometry_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                         MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_geometry_shader, geometry_module);
 }
 
-void VKShader::fragment_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::fragment_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                         MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_fragment_shader, fragment_module);
 }
 
-void VKShader::compute_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::compute_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                        MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_compute_shader, compute_module);
 }
@@ -586,7 +590,7 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
     Vector<StringRefNull> sources;
     sources.append("version");
     sources.append(source);
-    geometry_shader_from_glsl(sources);
+    geometry_shader_from_glsl(*info, sources);
   }
 
   const VKShaderInterface &vk_interface = interface_get();
@@ -1300,10 +1304,7 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.fragment_shader.vk_fragment_module = fragment_module.vk_shader_module;
   graphics_info.state = state_manager.state;
   graphics_info.mutable_state = state_manager.mutable_state;
-  graphics_info.fragment_shader.viewports.clear();
-  framebuffer.vk_viewports_append(graphics_info.fragment_shader.viewports);
-  graphics_info.fragment_shader.scissors.clear();
-  framebuffer.vk_render_areas_append(graphics_info.fragment_shader.scissors);
+  graphics_info.fragment_shader.viewport_count = framebuffer.viewport_size();
 
   graphics_info.fragment_out.depth_attachment_format = framebuffer.depth_attachment_format_get();
   graphics_info.fragment_out.stencil_attachment_format =

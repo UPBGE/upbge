@@ -15,7 +15,6 @@
 #include "DNA_scene_types.h"
 
 #include "GPU_immediate.hh"
-#include "GPU_matrix.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -32,15 +31,10 @@
 #include "BKE_screen.hh"
 
 #include "IMB_colormanagement.hh"
-#include "IMB_imbuf.hh"
 
-#include "GPU_state.hh"
-
-#include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_api.hh"
-#include "ED_time_scrub_ui.hh"
 #include "ED_transform.hh"
 #include "ED_util.hh"
 #include "ED_view3d_offscreen.hh" /* Only for sequencer view3d drawing callback. */
@@ -49,7 +43,6 @@
 #include "WM_message.hh"
 
 #include "SEQ_channels.hh"
-#include "SEQ_modifier.hh"
 #include "SEQ_offscreen.hh"
 #include "SEQ_preview_cache.hh"
 #include "SEQ_retiming.hh"
@@ -367,7 +360,7 @@ static void SEQUENCER_GGT_gizmo2d(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  blender::ed::transform::ED_widgetgroup_gizmo2d_xform_callbacks_set(gzgt);
+  transform::ED_widgetgroup_gizmo2d_xform_callbacks_set(gzgt);
 }
 
 static void SEQUENCER_GGT_gizmo2d_translate(wmGizmoGroupType *gzgt)
@@ -381,7 +374,7 @@ static void SEQUENCER_GGT_gizmo2d_translate(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  blender::ed::transform::ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(gzgt);
+  transform::ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(gzgt);
 }
 
 static void SEQUENCER_GGT_gizmo2d_resize(wmGizmoGroupType *gzgt)
@@ -395,7 +388,7 @@ static void SEQUENCER_GGT_gizmo2d_resize(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  blender::ed::transform::ED_widgetgroup_gizmo2d_resize_callbacks_set(gzgt);
+  transform::ED_widgetgroup_gizmo2d_resize_callbacks_set(gzgt);
 }
 
 static void SEQUENCER_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
@@ -409,7 +402,7 @@ static void SEQUENCER_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  blender::ed::transform::ED_widgetgroup_gizmo2d_rotate_callbacks_set(gzgt);
+  transform::ED_widgetgroup_gizmo2d_rotate_callbacks_set(gzgt);
 }
 
 static void sequencer_gizmos()
@@ -1073,7 +1066,7 @@ static void sequencer_buttons_region_listener(const wmRegionListenerParams *para
 
 static void sequencer_id_remap(ScrArea * /*area*/,
                                SpaceLink *slink,
-                               const blender::bke::id::IDRemapper &mappings)
+                               const bke::id::IDRemapper &mappings)
 {
   SpaceSeq *sseq = (SpaceSeq *)slink;
   mappings.apply(reinterpret_cast<ID **>(&sseq->gpd), ID_REMAP_APPLY_DEFAULT);
