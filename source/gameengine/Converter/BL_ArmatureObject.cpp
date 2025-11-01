@@ -39,6 +39,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -223,13 +224,9 @@ BL_ArmatureObject::~BL_ArmatureObject()
       if (m_skinStatic->shader_skin_vertices) {
         GPU_shader_free(m_skinStatic->shader_skin_vertices);
       }
-      if (m_skinStatic->shader_scatter_to_corners) {
-        GPU_shader_free(m_skinStatic->shader_scatter_to_corners);
-      }
       if (m_skinStatic->ssbo_in_idx) {
         GPU_storagebuf_free(m_skinStatic->ssbo_in_idx);
         GPU_storagebuf_free(m_skinStatic->ssbo_in_wgt);
-        GPU_storagebuf_free(m_skinStatic->ssbo_topology);
         GPU_storagebuf_free(m_skinStatic->ssbo_rest_positions);
         GPU_storagebuf_free(m_skinStatic->ssbo_skinned_vert_positions);
       }
@@ -245,6 +242,11 @@ BL_ArmatureObject::~BL_ArmatureObject()
     m_ssbo_bone_pose_mat = nullptr;
     m_ssbo_premat = nullptr;
     m_ssbo_postmat = nullptr;
+  }
+
+  if (m_deformedObj && m_useGPUDeform) {
+    Mesh *orig_mesh = BKE_object_get_original_mesh(m_deformedObj);
+    BKE_mesh_gpu_free_for_mesh(m_deformedReplicaData ? m_deformedReplicaData : orig_mesh);
   }
 
   if (m_deformedReplicaData) {
@@ -596,69 +598,6 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
       GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
     }
 
-    // 5) Pack topology into a single buffer.
-
-    // face_offsets
-    auto face_offsets = mesh->face_offsets();
-
-    // corner_to_face
-    auto corner_to_face = mesh->corner_to_face_map();
-
-    // corner_verts
-    std::vector<int> corner_verts_vec(corner_verts.begin(), corner_verts.end());
-
-    // vert_to_face_offsets and vert_to_face (CSR)
-    const blender::OffsetIndices<int> v2f_off = mesh->vert_to_face_map_offsets();
-    const blender::GroupedSpan<int> v2f = mesh->vert_to_face_map();
-
-    const int v2f_offsets_size = v2f_off.size();
-    std::vector<int> v2f_offsets(v2f_offsets_size, 0);
-
-    for (int v = 0; v < v2f_offsets_size; ++v) {
-      v2f_offsets[v] = v2f_off.data()[v];
-    }
-    const int total_v2f = v2f_offsets.back();
-
-    std::vector<int> v2f_indices;
-    v2f_indices.resize(std::max(total_v2f, 0));
-    blender::threading::parallel_for(
-        blender::IndexRange(v2f_offsets_size - 1), 4096, [&](const blender::IndexRange range) {
-          for (int v : range) {
-            const blender::Span<int> faces_v = v2f[v];
-            const int dst = v2f_off.data()[v];
-            if (!faces_v.is_empty()) {
-              std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
-            }
-          }
-        });
-
-    // Offsets for each sub-array in the packed buffer.
-    m_skinStatic->face_offsets_offset = 0;
-    m_skinStatic->corner_to_face_offset = m_skinStatic->face_offsets_offset +
-                                          int(face_offsets.size());
-    m_skinStatic->corner_verts_offset = m_skinStatic->corner_to_face_offset +
-                                        int(corner_to_face.size());
-    m_skinStatic->vert_to_face_offsets_offset = m_skinStatic->corner_verts_offset +
-                                                int(corner_verts_vec.size());
-    m_skinStatic->vert_to_face_offset = m_skinStatic->vert_to_face_offsets_offset +
-                                        int(v2f_offsets.size());
-    int topo_total_size = m_skinStatic->vert_to_face_offset + v2f_indices.size();
-
-    // Final packing.
-    std::vector<int> topo;
-    topo.reserve(topo_total_size);
-    topo.insert(topo.end(), face_offsets.begin(), face_offsets.end());
-    topo.insert(topo.end(), corner_to_face.begin(), corner_to_face.end());
-    topo.insert(topo.end(), corner_verts_vec.begin(), corner_verts_vec.end());
-    topo.insert(topo.end(), v2f_offsets.begin(), v2f_offsets.end());
-    topo.insert(topo.end(), v2f_indices.begin(), v2f_indices.end());
-
-    // Create and upload the unique SSBO.
-    if (!m_skinStatic->ssbo_topology) {
-      m_skinStatic->ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
-      GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
-    }
-
     blender::Span<blender::float3> vert_positions = mesh->vert_positions();
     blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(verts_num);
     blender::threading::parallel_for(
@@ -814,8 +753,6 @@ void BL_ArmatureObject::DoGpuSkinning()
   // Prepare skinning Static resources (shared between replicas)
   InitStaticSkinningBuffers();
 
-  int num_corners = mesh_eval->corner_verts().size();
-
   // 3. Prepare bone matrices for GPU skinning
   // Build a list of deforming bone names and a mapping from name to index
   std::vector<std::string> bone_names;
@@ -936,131 +873,6 @@ void main() {
     m_skinStatic->shader_skin_vertices = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
-  if (!m_skinStatic->shader_scatter_to_corners) {
-    ShaderCreateInfo info("BGE_Armature_Scatter_Pass");
-    info.local_group_size(group_size, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
-    info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
-    info.storage_buf(1, Qualifier::write, "uint", "normals[]");
-    info.storage_buf(2, Qualifier::read, "vec4", "skinned_vert_positions[]");
-    info.storage_buf(3, Qualifier::read, "mat4", "postmat[]");
-    info.storage_buf(4, Qualifier::read, "int", "topo[]");
-    info.specialization_constant(
-        Type::int_t, "face_offsets_offset", m_skinStatic->face_offsets_offset);
-    info.specialization_constant(
-        Type::int_t, "corner_to_face_offset", m_skinStatic->corner_to_face_offset);
-    info.specialization_constant(
-        Type::int_t, "corner_verts_offset", m_skinStatic->corner_verts_offset);
-    info.specialization_constant(
-        Type::int_t, "vert_to_face_offsets_offset", m_skinStatic->vert_to_face_offsets_offset);
-    info.specialization_constant(
-        Type::int_t, "vert_to_face_offset", m_skinStatic->vert_to_face_offset);
-    info.specialization_constant(
-        Type::int_t,
-        "normals_domain",
-        mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0);
-    info.specialization_constant(
-        blender::gpu::shader::Type::int_t,
-        "normals_hq",
-        int(bool(GetScene()->GetBlenderScene()->r.perf_flag & SCE_PERF_HQ_NORMALS) || GPU_use_hq_normals_workaround()));
-
-    info.compute_source_generated = R"GLSL(
-// Utility accessors
-int face_offsets(int i) { return topo[face_offsets_offset + i]; }
-int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
-int corner_verts(int i) { return topo[corner_verts_offset + i]; }
-int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
-int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
-
-// 10_10_10_2 packing utility
-int pack_i10_trunc(float x) {
-  const int signed_int_10_max = 511;
-  const int signed_int_10_min = -512;
-  float s = x * float(signed_int_10_max);
-  int q = int(s);
-  q = clamp(q, signed_int_10_min, signed_int_10_max);
-  return q & 0x3FF;
-}
-
-uint pack_norm(vec3 n) {
-  int nx = pack_i10_trunc(n.x);
-  int ny = pack_i10_trunc(n.y);
-  int nz = pack_i10_trunc(n.z);
-  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
-}
-
-int pack_i16_trunc(float x) {
-  return clamp(int(round(x * 32767.0)), -32768, 32767);
-}
-uint pack_i16_pair(float a, float b) {
-  return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
-}
-
-vec3 newell_face_normal_object(int f) {
-  int beg = face_offsets(f);
-  int end = face_offsets(f + 1);
-  vec3 n = vec3(0.0);
-  int v_prev_idx = corner_verts(end - 1);
-  vec3 v_prev = skinned_vert_positions[v_prev_idx].xyz;
-  for (int i = beg; i < end; ++i) {
-    int v_curr_idx = corner_verts(i);
-    vec3 v_curr = skinned_vert_positions[v_curr_idx].xyz;
-    n += cross(v_prev, v_curr);
-    v_prev = v_curr;
-  }
-  return normalize(n);
-}
-
-vec3 transform_normal(vec3 n, mat4 m) {
-  return transpose(inverse(mat3(m))) * n;
-}
-
-void main() {
-  uint c = gl_GlobalInvocationID.x;
-  if (c >= positions.length()) {
-    return;
-  }
-
-  int v = corner_verts(int(c));
-
-  // 1) Scatter position
-  vec4 p_obj = skinned_vert_positions[v];
-  positions[c] = postmat[0] * p_obj;
-
-  // 2) Calculate and scatter normal
-  vec3 n_obj;
-  if (normals_domain == 1) { // Face
-    int f = corner_to_face(int(c));
-    n_obj = newell_face_normal_object(f);
-  }
-  else { // Point
-    int beg = vert_to_face_offsets(v);
-    int end = vert_to_face_offsets(v + 1);
-    vec3 n_accum = vec3(0.0);
-    for (int i = beg; i < end; ++i) {
-      int f = vert_to_face(i);
-      n_accum += newell_face_normal_object(f);
-    }
-    n_obj = n_accum;
-  }
-
-  vec3 n_world = transform_normal(n_obj, postmat[0]);
-  n_world = normalize(n_world);
-
-  if (normals_hq == 0) {
-    normals[c] = pack_norm(n_world);
-  }
-  else {
-    int base = int(c) * 2;
-    normals[base + 0] = pack_i16_pair(n_world.x, n_world.y);
-    normals[base + 1] = pack_i16_pair(n_world.z, 0.0);
-  }
-}
-)GLSL";
-    m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info(
-        (GPUShaderCreateInfo *)&info);
-  }
-
   // 6. Pass 1: Skin vertices
   GPU_shader_bind(m_skinStatic->shader_skin_vertices);
   GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 0);
@@ -1074,27 +886,60 @@ void main() {
   GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
-  // 7. Pass 2: Scatter to corners and calculate normals
-  const blender::gpu::shader::SpecializationConstants *constants_state =
-      &GPU_shader_get_default_constant_state(m_skinStatic->shader_scatter_to_corners);
-  GPU_shader_bind(m_skinStatic->shader_scatter_to_corners, constants_state);
-  vbo_pos->bind_as_ssbo(0);
-  vbo_nor->bind_as_ssbo(1);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 2);
-  GPU_storagebuf_bind(m_ssbo_postmat, 3);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 4);
+  std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
+  caller_bindings.reserve(4);
 
-  const int num_groups_corners = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(
-      m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1, constants_state);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
+  {
+    blender::bke::GpuMeshComputeBinding b = {};
+    b.binding = 0;
+    b.qualifiers = blender::gpu::shader::Qualifier::read_write;
+    b.type_name = "vec4";
+    b.bind_name = "positions_out[]";
+    b.buffer = vbo_pos;
+    caller_bindings.push_back(b);
+  }
+  {
+    blender::bke::GpuMeshComputeBinding b = {};
+    b.binding = 1;
+    b.qualifiers = blender::gpu::shader::Qualifier::write;
+    b.type_name = "uint";
+    b.bind_name = "normals_out[]";
+    b.buffer = vbo_nor;
+    caller_bindings.push_back(b);
+  }
+  {
+    blender::bke::GpuMeshComputeBinding b = {};
+    b.binding = 2;
+    b.qualifiers = blender::gpu::shader::Qualifier::read;
+    b.type_name = "vec4";
+    b.bind_name = "positions_in[]";
+    b.buffer = m_skinStatic->ssbo_skinned_vert_positions;
+    caller_bindings.push_back(b);
+  }
+  {
+    blender::bke::GpuMeshComputeBinding b = {};
+    b.binding = 3;
+    b.qualifiers = blender::gpu::shader::Qualifier::read;
+    b.type_name = "mat4";
+    b.bind_name = "transform_mat[]";
+    b.buffer = m_ssbo_postmat;
+    caller_bindings.push_back(b);
+  }
 
-  GPU_shader_unbind();
+  auto post_bind_fn = [](blender::gpu::Shader *sh) {
+  };
+  auto config_fn = [](blender::gpu::shader::ShaderCreateInfo &info) {
+  };
 
-  // Notify the dependency graph that the deformed mesh's transform has changed.
-  // This updates the object_to_world matrices used by EEVEE without invalidating
-  // render caches, ensuring correct shading after GPU skinning.
-  DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_TRANSFORM);
+  /* A bit complex with ownership : scatter shader and ssbo topology are created with
+   * BKE_mesh_gpu, and the other mesh resources (ssbos) are owned by BL_ArmatureObject */
+  BKE_mesh_gpu_scatter_to_corners(
+      depsgraph,
+      deformed_eval,
+      caller_bindings,
+      config_fn,
+      post_bind_fn,
+      mesh_eval->corners_num);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

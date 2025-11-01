@@ -135,6 +135,15 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const std::function<void(blender::gpu::Shader *)> &post_bind_fn = {},
     int dispatch_count = 0);
 
+
+blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
+    const Depsgraph *depsgraph,
+    const Object *ob_eval,
+    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
+    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
+    int dispatch_count);
+
 /**
  * Free all cached GPU resources associated with a specific mesh.
  * This should be called when a mesh is modified or freed to prevent memory leaks.

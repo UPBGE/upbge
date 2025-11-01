@@ -191,6 +191,93 @@ void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology)
   topology.total_size = 0;
 }
 
+static const char *scatter_to_corners_main_glsl = R"GLSL(
+// 10_10_10_2 packing utility
+int pack_i10_trunc(float x) {
+  const int signed_int_10_max = 511;
+  const int signed_int_10_min = -512;
+  float s = x * float(signed_int_10_max);
+  int q = int(s);
+  q = clamp(q, signed_int_10_min, signed_int_10_max);
+  return q & 0x3FF;
+}
+
+uint pack_norm(vec3 n) {
+  int nx = pack_i10_trunc(n.x);
+  int ny = pack_i10_trunc(n.y);
+  int nz = pack_i10_trunc(n.z);
+  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
+}
+
+int pack_i16_trunc(float x) {
+  return clamp(int(round(x * 32767.0)), -32768, 32767);
+}
+uint pack_i16_pair(float a, float b) {
+  return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
+}
+
+vec3 newell_face_normal_object(int f) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  vec3 n = vec3(0.0);
+  int v_prev_idx = corner_verts(end - 1);
+  vec3 v_prev = positions_in[v_prev_idx].xyz;
+  for (int i = beg; i < end; ++i) {
+    int v_curr_idx = corner_verts(i);
+    vec3 v_curr = positions_in[v_curr_idx].xyz;
+    n += cross(v_prev, v_curr);
+    v_prev = v_curr;
+  }
+  return normalize(n);
+}
+
+vec3 transform_normal(vec3 n, mat4 m) {
+  return transpose(inverse(mat3(m))) * n;
+}
+
+void main() {
+  uint c = gl_GlobalInvocationID.x;
+  if (c >= positions_out.length()) {
+    return;
+  }
+
+  int v = corner_verts(int(c));
+
+  // 1) Scatter position
+  vec4 p_obj = positions_in[v];
+  positions_out[c] = transform_mat[0] * p_obj;
+
+  // 2) Calculate and scatter normal
+  vec3 n_obj;
+  if (normals_domain == 1) { // Face
+    int f = corner_to_face(int(c));
+    n_obj = newell_face_normal_object(f);
+  }
+  else { // Point
+    int beg = vert_to_face_offsets(v);
+    int end = vert_to_face_offsets(v + 1);
+    vec3 n_accum = vec3(0.0);
+    for (int i = beg; i < end; ++i) {
+      int f = vert_to_face(i);
+      n_accum += newell_face_normal_object(f);
+    }
+    n_obj = n_accum;
+  }
+
+  vec3 n_world = transform_normal(n_obj, transform_mat[0]);
+  n_world = normalize(n_world);
+
+  if (normals_hq == 0) {
+    normals_out[c] = pack_norm(n_world);
+  }
+  else {
+    int base = int(c) * 2;
+    normals_out[base + 0] = pack_i16_pair(n_world.x, n_world.y);
+    normals_out[base + 1] = pack_i16_pair(n_world.z, 0.0);
+  }
+}
+)GLSL";
+
 std::string BKE_mesh_gpu_topology_glsl_accessors_string(
     const blender::bke::MeshGPUTopology &topology)
 {
@@ -431,6 +518,24 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   return blender::bke::GpuComputeStatus::Success;
+}
+
+blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
+  const Depsgraph* depsgraph,
+  const Object* ob_eval,
+  blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+  const std::function<void(blender::gpu::shader::ShaderCreateInfo&)>& config_fn,
+  const std::function<void(blender::gpu::Shader*)>& post_bind_fn,
+  int dispatch_count)
+{
+  return BKE_mesh_gpu_run_compute(
+      depsgraph,
+      ob_eval,
+      scatter_to_corners_main_glsl,
+      caller_bindings,
+      config_fn,
+      post_bind_fn,
+      dispatch_count);
 }
 
 void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
