@@ -968,6 +968,18 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
 {
   if (ref.is_dupli() == false) {
     blender::draw::drw_batch_cache_validate(ref.object);
+
+    /* Ensure mesh_owner points to the original mesh (not an evaluated mesh). */
+    if (ref.object && ref.object->type == OB_MESH) {
+      Mesh *mesh_eval = static_cast<Mesh *>(ref.object->data);
+      blender::draw::MeshBatchCache *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+      if (cache) {
+        Object *ob_orig = DEG_get_original(ref.object);
+        if (ob_orig) {
+          cache->mesh_owner = static_cast<Mesh *>(ob_orig->data);
+        }
+      }
+    }
   }
   else {
     dupli_cache.try_add(ref);

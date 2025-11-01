@@ -24,7 +24,8 @@
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_compute_dispatch_doc,
-    ".. function:: dispatch(shader, groups_x_len,  groups_y_len,  groups_z_len)\n"
+    ".. function:: dispatch(shader, groups_x_len, groups_y_len, groups_z_len, "
+    "barrier=GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS)\n"
     "\n"
     "   Dispatches GPU compute.\n"
     "\n"
@@ -36,6 +37,22 @@ PyDoc_STRVAR(
     "   :type groups_y_len: int\n"
     "   :arg groups_z_len: Int for group z length:\n"
     "   :type groups_z_len: int\n"
+    "   :arg barrier: Optional bitmask for GPU_memory_barrier().\n"
+    "      Default: GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS.\n"
+    "   :type barrier: int\n"
+    "   Available flags:\n"
+    "      - gpu.GPU_BARRIER_FRAMEBUFFER\n"
+    "      - gpu.GPU_BARRIER_SHADER_IMAGE_ACCESS\n"
+    "      - gpu.GPU_BARRIER_TEXTURE_FETCH\n"
+    "      - gpu.GPU_BARRIER_TEXTURE_UPDATE\n"
+    "      - gpu.GPU_BARRIER_COMMAND\n"
+    "      - gpu.GPU_BARRIER_SHADER_STORAGE\n"
+    "      - gpu.GPU_BARRIER_VERTEX_ATTRIB_ARRAY\n"
+    "      - gpu.GPU_BARRIER_ELEMENT_ARRAY\n"
+    "      - gpu.GPU_BARRIER_UNIFORM\n"
+    "      - gpu.GPU_BARRIER_BUFFER_UPDATE\n"
+    "   Compose with ``|``, e.g.\n"
+    "      gpu.GPU_BARRIER_SHADER_STORAGE | gpu.GPU_BARRIER_TEXTURE_FETCH\n"
     "   :return: Shader object.\n"
     "   :rtype: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyObject *kwds)
@@ -47,20 +64,23 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
   int groups_y_len;
   int groups_z_len;
 
+  unsigned int barrier = GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS; /* default */
+
   static const char *_keywords[] = {
-      "shader", "groups_x_len", "groups_y_len", "groups_z_len", nullptr};
+      "shader", "groups_x_len", "groups_y_len", "groups_z_len", "barrier", nullptr};
   static _PyArg_Parser _parser = {
         PY_ARG_PARSER_HEAD_COMPAT()
         "O" /* `shader` */
         "i" /* `groups_x_len` */
         "i" /* `groups_y_len` */
         "i" /* `groups_z_len` */
+        "|I" /* optional `barrier` (unsigned int) */
         ":dispatch",
         _keywords,
         nullptr,
     };
   if (_PyArg_ParseTupleAndKeywordsFast(
-          args, kwds, &_parser, &py_shader, &groups_x_len, &groups_y_len, &groups_z_len))
+          args, kwds, &_parser, &py_shader, &groups_x_len, &groups_y_len, &groups_z_len, &barrier))
   {
     if (!BPyGPUShader_Check(py_shader)) {
       PyErr_Format(PyExc_TypeError, "Expected a GPUShader, got %s", Py_TYPE(py_shader)->tp_name);
@@ -97,7 +117,7 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
 
     blender::gpu::Shader *shader = py_shader->shader;
     GPU_compute_dispatch(shader, groups_x_len, groups_y_len, groups_z_len);
-    GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
+    GPU_memory_barrier((GPUBarrier)barrier);
   }
   Py_RETURN_NONE;
 }

@@ -685,6 +685,71 @@ static PyObject *pygpu_shader_info_depth_write(BPyGPUShaderCreateInfo *self, PyO
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pygpu_shader_info_storage_buf_doc,
+    ".. method:: storage_buf(slot, type_name, name, *, qualifiers={'NO_RESTRICT'})\n"
+    "\n"
+    "   Specify a storage buffer (shader storage buffer object).\n"
+    "\n"
+    "   :arg slot: The storage buffer index.\n"
+    "   :type slot: int\n"
+    "   :arg type_name: Name of the data type. It can be a struct type defined in the\n"
+    "      source passed through :meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
+    "   :type type_name: str\n"
+    "   :arg name: The storage buffer variable name.\n"
+    "   :type name: str\n"
+    "   :arg qualifiers: Set containing values that describe how the storage buffer is to be\n"
+    "      accessed. Possible values are:\n"
+    "" PYDOC_QUALIFIERS
+    "\n"
+    "   :type qualifiers: set[str]\n");
+static PyObject *pygpu_shader_info_storage_buf(BPyGPUShaderCreateInfo *self,
+                                               PyObject *args,
+                                               PyObject *kwds)
+{
+  int slot;
+  const char *type_name;
+  const char *name;
+  PyObject *py_qualifiers = nullptr;
+  Qualifier qualifier = Qualifier::no_restrict;
+
+  static const char *_keywords[] = {"slot", "type_name", "name", "qualifiers", nullptr};
+  static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "i"  /* `slot` */
+      "s"  /* `type_name` */
+      "s"  /* `name` */
+      "|$" /* Optional keyword only arguments. */
+      "O"  /* `qualifiers` */
+      ":storage_buf",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kwds, &_parser, &slot, &type_name, &name, &py_qualifiers))
+  {
+    return nullptr;
+  }
+
+  if (py_qualifiers &&
+      PyC_FlagSet_ToBitfield(
+          pygpu_qualifiers, py_qualifiers, (int *)&qualifier, "shader_info.storage_buf") == -1)
+  {
+    return nullptr;
+  }
+
+#ifdef USE_GPU_PY_REFERENCES
+  PyList_Append(self->references, PyTuple_GET_ITEM(args, 1)); /* type_name */
+  PyList_Append(self->references, PyTuple_GET_ITEM(args, 2)); /* name */
+#endif
+
+  ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
+  info->storage_buf(slot, qualifier, type_name, name);
+
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pygpu_shader_info_uniform_buf_doc,
     ".. method:: uniform_buf(slot, type_name, name)\n"
     "\n"
@@ -1261,6 +1326,10 @@ static PyMethodDef pygpu_shader_info__tp_methods[] = {
      (PyCFunction)(void *)pygpu_shader_info_fragment_out,
      METH_VARARGS | METH_KEYWORDS,
      pygpu_shader_info_fragment_out_doc},
+    {"storage_buf",
+     (PyCFunction)(void *)pygpu_shader_info_storage_buf,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_shader_info_storage_buf_doc},
     {"uniform_buf",
      (PyCFunction)(void *)pygpu_shader_info_uniform_buf,
      METH_VARARGS,

@@ -1673,3 +1673,268 @@ void BKE_ocean_free_modifier_cache(OceanModifierData *omd)
   omd->oceancache = nullptr;
   omd->cached = false;
 }
+
+/* --------------------------------------------------------------------
+ * Export helpers to copy ocean internal arrays as float buffers for GPU/Python
+ *
+ * Note:
+ *  - Caller receives pointers allocated with MEM_malloc_arrayN and must free them with
+ * MEM_freeN().
+ *  - All copies are protected by oceanmutex (THREAD_LOCK_READ).
+ * -------------------------------------------------------------------- */
+
+bool BKE_ocean_export_shape(const Ocean *o, int *r_M, int *r_N)
+{
+  if (!o || !r_M || !r_N) {
+    return false;
+  }
+  *r_M = o->_M;
+  *r_N = o->_N;
+  return true;
+}
+
+/* Export htilda as interleaved float (real, imag) array.
+ * *r_data will point to float[ count * 2 ] on success, *r_len = count (complex elements).
+ */
+bool BKE_ocean_export_htilda_float2(const Ocean *o, float **r_data, int *r_len)
+{
+  if (!o || !r_data || !r_len) {
+    return false;
+  }
+
+  *r_data = nullptr;
+  *r_len = 0;
+
+  /* ensure htilda exists */
+  if (!o->_htilda) {
+    return false;
+  }
+
+  const size_t M = size_t(o->_M);
+  const size_t halfN = size_t(1 + o->_N / 2);
+  const size_t count = M * halfN;
+
+  BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
+
+  float *buf = (float *)MEM_malloc_arrayN<float>(count * 2, "ocean_htilda_export");
+  if (!buf) {
+    BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+    return false;
+  }
+
+  for (size_t i = 0; i < count; ++i) {
+    /* fftw_complex: double[2] -> real, imag */
+    buf[2 * i + 0] = (float)o->_htilda[i][0];
+    buf[2 * i + 1] = (float)o->_htilda[i][1];
+  }
+
+  BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+
+  *r_data = buf;
+  *r_len = int(count);
+  return true;
+}
+
+/* Export k (magnitude array) as float array of length count = M * (1 + N/2) */
+bool BKE_ocean_export_k(const Ocean *o, float **r_k, int *r_len)
+{
+  if (!o || !r_k || !r_len) {
+    return false;
+  }
+  *r_k = nullptr;
+  *r_len = 0;
+  if (!o->_k) {
+    return false;
+  }
+
+  const size_t M = size_t(o->_M);
+  const size_t halfN = size_t(1 + o->_N / 2);
+  const size_t count = M * halfN;
+
+  BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
+
+  float *buf = (float *)MEM_malloc_arrayN<float>(count, "ocean_k_export");
+  if (!buf) {
+    BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+    return false;
+  }
+
+  for (size_t i = 0; i < count; ++i) {
+    buf[i] = o->_k[i];
+  }
+
+  BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+
+  *r_k = buf;
+  *r_len = int(count);
+  return true;
+}
+
+/* Export kx and kz arrays. Caller must free both with MEM_freeN. */
+bool BKE_ocean_export_kx_kz(
+    const Ocean *o, float **r_kx, int *r_kx_len, float **r_kz, int *r_kz_len)
+{
+  if (!o || !r_kx || !r_kx_len || !r_kz || !r_kz_len) {
+    return false;
+  }
+  *r_kx = nullptr;
+  *r_kz = nullptr;
+  *r_kx_len = *r_kz_len = 0;
+
+  if (!o->_kx || !o->_kz) {
+    return false;
+  }
+
+  const size_t len_kx = size_t(o->_M);
+  const size_t len_kz = size_t(o->_N);
+
+  BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
+
+  float *buf_kx = (float *)MEM_malloc_arrayN<float>(len_kx, "ocean_kx_export");
+  float *buf_kz = (float *)MEM_malloc_arrayN<float>(len_kz, "ocean_kz_export");
+  if (!buf_kx || !buf_kz) {
+    if (buf_kx) {
+      MEM_freeN(buf_kx);
+    }
+    if (buf_kz) {
+      MEM_freeN(buf_kz);
+    }
+    BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+    return false;
+  }
+
+  for (size_t i = 0; i < len_kx; ++i) {
+    buf_kx[i] = o->_kx[i];
+  }
+  for (size_t j = 0; j < len_kz; ++j) {
+    buf_kz[j] = o->_kz[j];
+  }
+
+  BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+
+  *r_kx = buf_kx;
+  *r_kx_len = int(len_kx);
+  *r_kz = buf_kz;
+  *r_kz_len = int(len_kz);
+  return true;
+}
+
+/* Export displacement fields as float RGB per texel: (disp_x, disp_y, disp_z)
+ * Layout: float[ M * N * 3 ] (x-major: i * N + j)
+ */
+bool BKE_ocean_export_disp_xyz(const Ocean *o, float **r_buf, int *r_len_texels)
+{
+  if (!o || !r_buf || !r_len_texels) {
+    return false;
+  }
+  *r_buf = nullptr;
+  *r_len_texels = 0;
+
+  const int M = o->_M;
+  const int N = o->_N;
+  if (M <= 0 || N <= 0) {
+    return false;
+  }
+
+  const size_t texels = size_t(M) * size_t(N);
+
+  BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
+
+  float *buf = (float *)MEM_malloc_arrayN<float>(texels * 3, "ocean_disp_xyz_export");
+  if (!buf) {
+    BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+    return false;
+  }
+
+  /* convert: note many internal arrays are double precision; convert to float */
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      const size_t idx = size_t(i) * size_t(N) + size_t(j);
+      float dx = 0.0f;
+      float dy = 0.0f;
+      float dz = 0.0f;
+
+      if (o->_do_chop && o->_disp_x) {
+        dx = (float)o->_disp_x[idx];
+      }
+      if (o->_do_disp_y && o->_disp_y) {
+        dy = (float)o->_disp_y[idx];
+      }
+      if (o->_do_chop && o->_disp_z) {
+        dz = (float)o->_disp_z[idx];
+      }
+
+      buf[3 * idx + 0] = dx;
+      buf[3 * idx + 1] = dy;
+      buf[3 * idx + 2] = dz;
+    }
+  }
+
+  BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+
+  *r_buf = buf;
+  *r_len_texels = int(texels);
+  return true;
+}
+
+/* Export normals (N_x, N_y, N_z) as float RGB per texel if present.
+ * Returns false if normals are not generated.
+ */
+bool BKE_ocean_export_normals_xyz(const Ocean *o, float **r_buf, int *r_len_texels)
+{
+  if (!o || !r_buf || !r_len_texels) {
+    return false;
+  }
+  *r_buf = nullptr;
+  *r_len_texels = 0;
+
+  if (!o->_do_normals || !o->_N_x || !o->_N_z) {
+    return false;
+  }
+
+  const int M = o->_M;
+  const int N = o->_N;
+  const size_t texels = size_t(M) * size_t(N);
+
+  BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
+
+  float *buf = (float *)MEM_malloc_arrayN<float>(texels * 3, "ocean_normals_export");
+  if (!buf) {
+    BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+    return false;
+  }
+
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      const size_t idx = size_t(i) * size_t(N) + size_t(j);
+      float nx = (float)o->_N_x[idx];
+      float ny = (float)o->_N_y; /* single value in current implementation */
+      float nz = (float)o->_N_z[idx];
+
+      buf[3 * idx + 0] = nx;
+      buf[3 * idx + 1] = ny;
+      buf[3 * idx + 2] = nz;
+    }
+  }
+
+  BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
+
+  *r_buf = buf;
+  *r_len_texels = int(texels);
+  return true;
+}
+
+/* --------------------------------------------------------------------
+ * Free helpers for exported buffers
+ *
+ * These free the memory allocated with MEM_malloc_arrayN in the export helpers.
+ * Caller (Python wrapper) must call this after data has been consumed/copied.
+ * -------------------------------------------------------------------- */
+
+void BKE_ocean_free_export(void *ptr)
+{
+  if (ptr == nullptr) {
+    return;
+  }
+  MEM_freeN(ptr);
+}

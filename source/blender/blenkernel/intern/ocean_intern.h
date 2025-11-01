@@ -106,6 +106,7 @@ typedef struct Ocean {
   /* two dimensional float array */
   float *_k; /* init w   sim r */
 } Ocean;
+
 #else
 /* stub */
 typedef struct Ocean {

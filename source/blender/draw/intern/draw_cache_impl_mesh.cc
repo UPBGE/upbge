@@ -30,6 +30,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -614,6 +615,10 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
 void DRW_mesh_batch_cache_free(void *batch_cache)
 {
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
+  BLI_assert(cache->mesh_owner != nullptr);
+  if (cache->mesh_owner && cache->mesh_owner->is_using_gpu_deform == 0) {
+    BKE_mesh_gpu_free_for_mesh(cache->mesh_owner);
+  }
   mesh_batch_cache_clear(*cache);
   MEM_delete(cache);
 }

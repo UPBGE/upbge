@@ -161,3 +161,37 @@ float BLI_ocean_spectrum_texelmarsenarsloe(const struct Ocean *oc, float kx, flo
  * called the fetch, or the distance over which the wind blows with constant velocity.
  */
 float BLI_ocean_spectrum_jonswap(const struct Ocean *oc, float kx, float kz);
+
+
+/* --------------------------------------------------------------------
+ * Export helpers (implemented in ocean.cc)
+ *
+ * All functions below allocate buffers with MEM_malloc_arrayN().
+ * Caller MUST free returned buffers with MEM_freeN().
+ * All exports take the ocean mutex (THREAD_LOCK_READ) internally.
+ * -------------------------------------------------------------------- */
+
+/* Query grid shape. */
+bool BKE_ocean_export_shape(const Ocean *o, int *r_M, int *r_N);
+
+/* Export htilda as interleaved float array [ real, imag, real, imag, ... ].
+ * On success: *r_data -> float[ count * 2 ], *r_len = count (complex elements). */
+bool BKE_ocean_export_htilda_float2(const Ocean *o, float **r_data, int *r_len);
+
+/* Export k (magnitude) array length = M * (1 + N/2). */
+bool BKE_ocean_export_k(const Ocean *o, float **r_k, int *r_len);
+
+/* Export kx (length M) and kz (length N). */
+bool BKE_ocean_export_kx_kz(
+    const Ocean *o, float **r_kx, int *r_kx_len, float **r_kz, int *r_kz_len);
+
+/* Export displacement fields as RGB float per texel: (disp_x, disp_y, disp_z)
+ * Layout: float[ M * N * 3 ] (index = i * N + j). *r_len_texels = M * N on success. */
+bool BKE_ocean_export_disp_xyz(const Ocean *o, float **r_buf, int *r_len_texels);
+
+/* Export normals as RGB float per texel: (N_x, N_y, N_z).
+ * Returns false if normals were not generated. *r_len_texels = M * N on success. */
+bool BKE_ocean_export_normals_xyz(const Ocean *o, float **r_buf, int *r_len_texels);
+
+/* Free memory returned by export helpers (caller must call once). */
+void BKE_ocean_free_export(void *ptr);
