@@ -31,7 +31,7 @@ from .interface import NWConnectionListInputs, NWConnectionListOutputs
 from .utils.constants import blend_types, geo_combine_operations, operations, navs, get_texture_node_types, rl_outputs
 from .utils.draw import draw_callback_nodeoutline
 from .utils.paths import match_files_to_socket_names, split_into_components
-from .utils.nodes import (node_mid_pt, autolink, node_at_pos, get_nodes_links,
+from .utils.nodes import (node_mid_pt, autolink, abs_node_location, node_at_pos, get_nodes_links,
                           force_update, nw_check,
                           nw_check_not_empty, nw_check_selected, nw_check_active, nw_check_space_type,
                           nw_check_node_type, nw_check_visible_outputs, get_viewer_image, nw_check_viewer_node, NWBase,
@@ -224,14 +224,14 @@ class NWLazyConnect(Operator, NWBase):
 
 
 class NWDeleteUnused(Operator, NWBase):
-    """Delete all nodes whose output is not used"""
+    """Delete all nodes with unused outputs"""
     bl_idname = 'node.nw_del_unused'
     bl_label = 'Delete Unused Nodes'
     bl_options = {'REGISTER', 'UNDO'}
 
     delete_muted: BoolProperty(
         name="Delete Muted",
-        description="Delete (but reconnect, like Ctrl-X) all muted nodes",
+        description="Dissolve all muted nodes with reconnect",
         default=True)
     delete_frames: BoolProperty(
         name="Delete Empty Frames",
@@ -471,7 +471,7 @@ class NWResetBG(Operator, NWBase):
 class NWAddAttrNode(Operator, NWBase):
     """Add an Attribute node with this name"""
     bl_idname = 'node.nw_add_attr_node'
-    bl_label = 'Add UV map'
+    bl_label = 'Add Attribute'
     bl_options = {'REGISTER', 'UNDO'}
 
     attr_name: StringProperty()
@@ -555,7 +555,7 @@ class NWMergeNodes(Operator, NWBase):
         description="Type of Merge to be used",
         items=(
             ('AUTO', 'Auto', 'Automatic output type detection'),
-            ('SHADER', 'Shader', 'Merge using ADD or MIX Shader'),
+            ('SHADER', 'Shader', 'Merge using Add or Mix Shader'),
             ('GEOMETRY', 'Geometry', 'Merge using Mesh Boolean or Join Geometry nodes'),
             ('MIX', 'Mix Node', 'Merge using Mix nodes'),
             ('MATH', 'Math Node', 'Merge using Math nodes'),
@@ -1286,7 +1286,7 @@ class NWModifyLabels(Operator, NWBase):
 class NWAddTextureSetup(Operator, NWBase):
     bl_idname = "node.nw_add_texture"
     bl_label = "Texture Setup"
-    bl_description = "Add texture node setup to selected shaders"
+    bl_description = "Add a texture node setup to selected shaders"
     bl_options = {'REGISTER', 'UNDO'}
 
     add_mapping: BoolProperty(
@@ -1367,7 +1367,7 @@ class NWAddTextureSetup(Operator, NWBase):
 class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
     bl_idname = "node.nw_add_textures_for_principled"
     bl_label = "Principled Texture Setup"
-    bl_description = "Add texture node setup for Principled BSDF"
+    bl_description = "Add a texture node setup for Principled BSDF"
     bl_options = {'REGISTER', 'UNDO'}
 
     directory: StringProperty(
@@ -1660,10 +1660,10 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
 
 
 class NWAddReroutes(Operator, NWBase):
-    """Add Reroute Nodes and link them to outputs of selected nodes"""
+    """Add Reroute nodes and link them to outputs of selected nodes"""
     bl_idname = "node.nw_add_reroutes"
     bl_label = "Add Reroutes"
-    bl_description = "Add Reroutes to outputs"
+    bl_description = "Add reroutes to outputs"
     bl_options = {'REGISTER', 'UNDO'}
 
     option: EnumProperty(
@@ -1827,7 +1827,7 @@ class NWLinkActiveToSelected(Operator, NWBase):
 
 
 class NWAlignNodes(Operator, NWBase):
-    '''Align the selected nodes neatly in a row/column'''
+    '''Align selected nodes in a grid pattern'''
     bl_idname = "node.nw_align_nodes"
     bl_label = "Align Nodes"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1902,18 +1902,78 @@ class NWAlignNodes(Operator, NWBase):
         return {'FINISHED'}
 
 
+class NWCenterNodes(Operator, NWBase):
+    """Move selected nodes to the center of the node editor"""
+    bl_idname = "node.nw_center_nodes"
+    bl_label = "Center Nodes"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return nw_check(cls, context) and nw_check_selected(cls, context)
+
+    def execute(self, context):
+        selection = context.selected_nodes
+
+        # Pick outermost selected nodes
+        nodes = []
+        for node in selection:
+            if node.parent and node.parent.select:
+                continue
+            nodes.append(node)
+
+        # Get bound center of picked nodes
+        nodes_x = []
+        nodes_y = []
+        nodes_right = []
+        nodes_bottom = []
+        for n in nodes:
+            loc_abs = abs_node_location(n)
+            nodes_x.append(loc_abs.x)
+            nodes_y.append(loc_abs.y)
+            if n.type == 'FRAME':
+                nodes_right.append(loc_abs.x + n.width)
+                nodes_bottom.append(loc_abs.y - n.height)
+            elif n.type == 'REROUTE':
+                nodes_right.append(loc_abs.x)
+                nodes_bottom.append(loc_abs.y)
+            else:
+                nodes_right.append(loc_abs.x + n.width)
+                nodes_bottom.append(loc_abs.y - n.dimensions.y)
+        mid_x = (min(nodes_x) + max(nodes_right)) / 2
+        mid_y = (max(nodes_y) + min(nodes_bottom)) / 2
+
+        for node in nodes:
+            node.location.x -= mid_x
+            node.location.y -= mid_y
+
+        return {'FINISHED'}
+
+
 class NWSelectParentChildren(Operator, NWBase):
     bl_idname = "node.nw_select_parent_child"
     bl_label = "Select Parent or Children"
     bl_options = {'REGISTER', 'UNDO'}
 
+    parent_desc = "Select frame containing the selected nodes"
+    child_desc = "Select members of the selected frame"
+
     option: EnumProperty(
         name="Option",
         items=(
-            ('PARENT', 'Select Parent', 'Select Parent Frame'),
-            ('CHILD', 'Select Children', 'Select members of selected frame'),
+            ('PARENT', 'Select Parent', parent_desc),
+            ('CHILD', 'Select Children', child_desc),
         )
     )
+    
+    @classmethod
+    def description(cls, _context, properties):
+        option = properties.option
+
+        if option == 'PARENT':
+            return cls.parent_desc
+        elif option == 'CHILD':
+            return cls.child_desc
 
     @classmethod
     def poll(cls, context):
@@ -1964,7 +2024,7 @@ class NWDetachOutputs(Operator, NWBase):
 
 
 class NWLinkToOutputNode(Operator):
-    """Link to Composite node or Material Output node"""
+    """Link node to the group or node tree output"""
     bl_idname = "node.nw_link_out"
     bl_label = "Connect to Output"
     bl_options = {'REGISTER', 'UNDO'}
@@ -2268,7 +2328,7 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
 
 
 class NWResetNodes(bpy.types.Operator):
-    """Reset Nodes in Selection"""
+    """Revert nodes back to the default state, but keep connections"""
     bl_idname = "node.nw_reset_nodes"
     bl_label = "Reset Nodes"
     bl_options = {'REGISTER', 'UNDO'}
@@ -2407,6 +2467,7 @@ classes = (
     NWAddReroutes,
     NWLinkActiveToSelected,
     NWAlignNodes,
+    NWCenterNodes,
     NWSelectParentChildren,
     NWDetachOutputs,
     NWLinkToOutputNode,
