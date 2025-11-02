@@ -397,7 +397,7 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (ntree->runtime->geometry_nodes_eval_dependencies) {
     for (ID *&id_ref : ntree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_HASH_IGNORE);
     }
   }
 }
@@ -4997,7 +4997,14 @@ std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 
 StringRefNull node_socket_label(const bNodeSocket &sock)
 {
-  return (sock.label[0] != '\0') ? sock.label : sock.name;
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return (sock.label[0] != '\0') ? sock.label : sock.name;
+  }
+  if (sock.runtime->declaration->label_fn) {
+    return (*sock.runtime->declaration->label_fn)(sock.owner_node());
+  }
+  return sock.name;
 }
 
 const char *node_socket_translation_context(const bNodeSocket &sock)
