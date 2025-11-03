@@ -41,15 +41,6 @@ struct bSound *BKE_sound_new_file_exists_ex(struct Main *bmain,
                                             bool *r_exists);
 struct bSound *BKE_sound_new_file_exists(struct Main *bmain, const char *filepath);
 
-#if 0 /* UNUSED */
-struct bSound *BKE_sound_new_buffer(struct Main *bmain, struct bSound *source);
-
-struct bSound *BKE_sound_new_limiter(struct Main *bmain,
-                                     struct bSound *source,
-                                     float start,
-                                     float end);
-#endif
-
 void BKE_sound_cache(struct bSound *sound);
 
 void BKE_sound_delete_cache(struct bSound *sound);
@@ -211,11 +202,9 @@ void BKE_sound_jack_scene_update(struct Scene *scene, int mode, double time);
 
 /* Dependency graph evaluation. */
 
-struct Depsgraph;
-
 void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct bSound *sound);
 
-void *BKE_sound_add_time_stretch_effect(void *sound_handle, float fps);
+void *BKE_sound_ensure_time_stretch_effect(void *sound_handle, void *sequence_handle, float fps);
 
 /* UPBGE */
 void BKE_sound_load_no_assert(struct Main *main, struct bSound *sound);

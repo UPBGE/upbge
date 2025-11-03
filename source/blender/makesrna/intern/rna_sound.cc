@@ -15,7 +15,7 @@
 #include "DNA_property_types.h"
 #include "DNA_sound_types.h"
 
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 /* Enumeration for Audio Channels, compatible with eSoundChannels */
 static const EnumPropertyItem rna_enum_audio_channels_items[] = {
@@ -35,7 +35,6 @@ static const EnumPropertyItem rna_enum_audio_channels_items[] = {
 
 #  include "BKE_context.hh"
 #  include "BKE_library.hh"
-#  include "BKE_sound.h"
 
 #  include "DEG_depsgraph.hh"
 
