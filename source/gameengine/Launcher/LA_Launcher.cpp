@@ -31,7 +31,7 @@
 #include "LA_Launcher.h"
 
 #include "BKE_main.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "DNA_scene_types.h"
 #include "wm_event_types.hh"
 
