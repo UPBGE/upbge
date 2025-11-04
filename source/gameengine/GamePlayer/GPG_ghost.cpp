@@ -36,6 +36,11 @@
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
 
+#if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG)
+#  pragma comment(lib, "tbbmalloc_proxy.lib")
+#  pragma comment(linker, "/include:__TBB_malloc_proxy")
+#endif
+
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
