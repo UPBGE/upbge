@@ -73,10 +73,9 @@ void GPG_Canvas::BeginDraw()
   m_window->swapBufferAcquire();
   if (!m_useViewportRender) {
     wmWindow *win = CTX_wm_window(m_context);
-    G.is_rendering = true;
     GPU_context_main_lock();
     GPU_render_begin();
-    GPU_render_step();
+    GPU_render_step(true);
 
     BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
