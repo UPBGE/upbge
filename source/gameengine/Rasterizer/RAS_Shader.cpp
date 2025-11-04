@@ -299,6 +299,9 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type)
   static const std::set<std::string> builtin_uniforms = {"bgl_RenderedTexture",
                                                          "bgl_DepthTexture"};
 
+  // List of built-in in/out variables to ignore (already provided by ShaderCreateInfo).
+  static const std::set<std::string> builtin_inout_vars = {"fragColor", "bgl_TexCoord"};
+
   std::string prog = m_progs[type];
   if (prog.empty()) {
     return prog;
@@ -390,6 +393,60 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type)
       // Always comment out the uniform line (even if all variables are ignored)
       output += "// " + line + "\n";
       continue;
+    }
+
+    // Look for "in" or "out" declarations and ignore built-in interface vars.
+    size_t in_pos = trimmed.find("in ");
+    size_t out_pos = trimmed.find("out ");
+    if (in_pos == 0 || out_pos == 0) {
+      size_t prefix_len = (in_pos == 0) ? 3 : 4;  // length of "in " or "out "
+      size_t type_start = prefix_len;
+      while (type_start < trimmed.size() && std::isspace(trimmed[type_start]))
+        ++type_start;
+      size_t type_end = type_start;
+      while (type_end < trimmed.size() &&
+             (std::isalnum(trimmed[type_end]) || trimmed[type_end] == '_'))
+        ++type_end;
+
+      // After the type, get the variable list up to the ';'
+      size_t vars_start = type_end;
+      while (vars_start < trimmed.size() && std::isspace(trimmed[vars_start]))
+        ++vars_start;
+      size_t vars_end = trimmed.find(';', vars_start);
+      if (vars_end == std::string::npos) {
+        // Malformed line, just comment it out.
+        output += "// " + line + "\n";
+        continue;
+      }
+      std::string vars = trimmed.substr(vars_start, vars_end - vars_start);
+
+      // Split the variable list by ','
+      std::istringstream varstream(vars);
+      std::string var;
+      bool has_builtin = false;
+      while (std::getline(varstream, var, ',')) {
+        // Trim spaces
+        size_t vstart = var.find_first_not_of(" \t");
+        size_t vend = var.find_last_not_of(" \t");
+        if (vstart == std::string::npos || vend == std::string::npos)
+          continue;
+        std::string varname = var.substr(vstart, vend - vstart + 1);
+
+        // Handle arrays (e.g. foo[4])
+        size_t arr_pos = varname.find('[');
+        std::string base_name = (arr_pos != std::string::npos) ? varname.substr(0, arr_pos) :
+                                                                 varname;
+
+        if (builtin_inout_vars.count(base_name)) {
+          has_builtin = true;
+        }
+      }
+
+      if (has_builtin) {
+        // Comment out the declaration of built-in in/out variables to avoid redeclaration.
+        output += "// " + line + "\n";
+        continue;
+      }
     }
 
     // Replace built-in variable usages in the line
