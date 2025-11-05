@@ -105,6 +105,7 @@
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
 #include "IMB_imbuf.hh"
+#include "IMB_colormanagement.hh"
 #include "MEM_CacheLimiterC-Api.h"
 #include "MOV_util.hh"
 #include "RE_engine.h"
@@ -1520,6 +1521,8 @@ int main(int argc,
             CTX_data_scene_set(C, scene);
             G.main = maggie;
             G_MAIN = G.main;
+            IMB_colormanagement_working_space_check(bfd->main, false, false);
+
 
             if (firstTimeRunning) {
               G.fileflags = bfd->fileflags;
