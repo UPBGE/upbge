@@ -146,7 +146,10 @@ static void extract_positions_bm(const MeshRenderData &mr, MutableSpan<float3> v
 gpu::VertBufPtr extract_positions(const MeshRenderData &mr)
 {
   // Check if mesh is using GPU deform
-  bool use_gpu_deform = mr.mesh && mr.mesh->is_using_gpu_deform;
+  // For GPU skinning in viewport we may flag the evaluated mesh as "running" GPU deform
+  // (mesh->is_running_gpu_deform). Accept either flag so extraction can produce a float4
+  // position VBO when appropriate.
+  bool use_gpu_deform = mr.mesh && (mr.mesh->is_using_gpu_deform || mr.mesh->is_running_gpu_deform);
 
   // Choose appropriate format
   static const GPUVertFormat format_standard = GPU_vertformat_from_attribute(

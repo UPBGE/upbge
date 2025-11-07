@@ -20,7 +20,8 @@ struct Mesh;
 struct Object;
 struct Depsgraph;
 
-namespace blender::bke {
+namespace blender {
+namespace bke {
 
 /**
  * Mesh GPU topology data for compute shaders.
@@ -77,7 +78,8 @@ enum class GpuComputeStatus {
   Error,
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
 
 // Type alias for the old MeshGPUTopology type for compatibility
 using MeshGPUTopology = blender::bke::MeshGPUTopology;
@@ -180,3 +182,52 @@ std::string BKE_mesh_gpu_topology_glsl_accessors_string(
  */
 void BKE_mesh_gpu_topology_add_specialization_constants(
     blender::gpu::shader::ShaderCreateInfo &info, const blender::bke::MeshGPUTopology &topology);
+
+namespace blender {
+namespace bke {
+
+/**
+ * Internal GPU resources owned by BKE for a mesh. These are meant for internal usage only
+ * (not exposed to Python) and are freed when the mesh batch cache is freed or on invalidation.
+ */
+struct MeshGpuInternalResources {
+  blender::Vector<blender::gpu::StorageBuf *> ssbos;
+  blender::Vector<blender::gpu::VertBuf *> vbos;
+  blender::Vector<blender::gpu::IndexBuf *> ibos;
+  blender::Vector<blender::gpu::UniformBuf *> ubos;
+  blender::Vector<blender::gpu::Shader *> shaders;
+  /* keyed maps to prevent duplicate resources */
+  std::unordered_map<std::string, std::pair<blender::gpu::StorageBuf *, int>> ssbo_map;
+  std::unordered_map<std::string, std::pair<blender::gpu::Shader *, int>> shader_map;
+
+  MeshGpuInternalResources() = default;
+};
+
+} // namespace bke
+} // namespace blender
+
+/* Backwards-compatible alias in global namespace. */
+using MeshGpuInternalResources = blender::bke::MeshGpuInternalResources;
+
+/**
+ * Ensure internal resource container exists for a mesh and return a pointer to it.
+ * The returned pointer is owned by the internal mesh GPU cache and must not be freed by the caller.
+ */
+MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh);
+
+/**
+ * Free internal resources associated with a mesh. Safe to call multiple times.
+ */
+void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh);
+
+/* Helpers to create or lookup keyed internal resources (avoid duplicates). */
+blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
+ Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info);
+void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key);
+
+blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
+ const std::string &key,
+ size_t size);
+void BKE_mesh_gpu_internal_ssbo_update(Mesh *mesh, const std::string &key, const void *data);
+blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key);
+void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key);

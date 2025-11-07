@@ -57,6 +57,7 @@ set(SRC
   intern/mesh_extractors/extract_mesh_vbo_uv.cc
   intern/mesh_extractors/extract_mesh_vbo_vnor.cc
   intern/mesh_extractors/extract_mesh_vbo_weights.cc
+  intern/draw_armature_skinning.cc
   intern/draw_attributes.cc
   intern/draw_cache_impl_curve.cc
   intern/draw_cache_impl_curves.cc
@@ -156,6 +157,7 @@ set(SRC
   intern/DRW_gpu_wrapper.hh
   intern/DRW_render.hh
   intern/attribute_convert.hh
+  intern/draw_armature_skinning.hh
   intern/draw_attributes.hh
   intern/draw_cache.hh
   intern/draw_cache_extract.hh

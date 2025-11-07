@@ -61,6 +61,8 @@
 #include "BL_Action.h"
 #include "BL_SceneConverter.h"
 #include "KX_Globals.h"
+#include "../draw/intern/draw_armature_skinning.hh"
+#include <algorithm>
 
 static void disable_armature_modifiers(Object *ob, std::vector<ModifierStackBackup> &backups)
 {
@@ -87,17 +89,29 @@ static void disable_armature_modifiers(Object *ob, std::vector<ModifierStackBack
 
 void BL_ArmatureObject::RestoreArmatureModifierList(Object *ob)
 {
-  for (const ModifierStackBackup &backup : m_modifiersListbackup) {
+  /* Find the backup list for this deformed object and restore it. */
+  int idx = -1;
+  for (size_t i =0; i < m_deformed_children.size(); ++i) {
+    if (m_deformed_children[i].ob == ob) {
+      idx = (int)i;
+      break;
+    }
+  }
+  if (idx == -1) {
+    return;
+  }
+  auto &backups = m_deformed_children[idx].backups;
+  for (const ModifierStackBackup &backup : backups) {
     ModifierData *md = backup.modifier;
     ModifierData *iter = (ModifierData *)ob->modifiers.first;
-    int idx = 0;
-    if (backup.position == 0 || !iter) {
+    int pos =0;
+    if (backup.position ==0 || !iter) {
       BLI_addhead(&ob->modifiers, md);
     }
     else {
-      while (iter && idx < backup.position - 1) {
+      while (iter && pos < backup.position -1) {
         iter = iter->next;
-        ++idx;
+        ++pos;
       }
       if (iter) {
         BLI_insertlinkafter(&ob->modifiers, iter, md);
@@ -111,7 +125,7 @@ void BL_ArmatureObject::RestoreArmatureModifierList(Object *ob)
   bContext *C = KX_GetActiveEngine()->GetContext();
   DEG_relations_tag_update(CTX_data_main(C));
   BKE_scene_graph_update_tagged(CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C));
-  m_modifiersListbackup.clear();
+  backups.clear();
 }
 
 // Only allowed for Poses with identical channels.
@@ -185,14 +199,11 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = nullptr;
   m_previousArmature = nullptr;
-  m_deformedObj = nullptr;
-  m_useGPUDeform = false;
-  m_deformedReplicaData = nullptr;
+  m_deformed_children.clear();
   m_skinStatic = nullptr;
   m_ssbo_bone_pose_mat = nullptr;
   m_ssbo_premat = nullptr;
   m_ssbo_postmat = nullptr;
-  m_modifiersListbackup = {};
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -201,59 +212,35 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_poseChannels = nullptr;
   m_controlledConstraints->Release();
   if (m_isReplica) {
-    for (const ModifierStackBackup &backup : m_modifiersListbackup) {
-      BKE_modifier_free(backup.modifier);
+    for (auto &child : m_deformed_children) {
+      for (const ModifierStackBackup &backup : child.backups) {
+        BKE_modifier_free(backup.modifier);
+      }
+      child.backups.clear();
     }
-    m_modifiersListbackup.clear();
+    m_deformed_children.clear();
   }
-  if (m_deformedObj && m_useGPUDeform) {
-    RestoreArmatureModifierList(m_deformedObj);
+  else {
+    for (auto &child : m_deformed_children) {
+      RestoreArmatureModifierList(child.ob);
+    }
   }
-  m_modifiersListbackup.clear();
+  /* already cleared per-child above */
 
   /* Restore orig_mesh->is_using_skinning = 0,
    * to extract positions on float3 next time mesh will be reconstructed */
-  if (m_deformedObj && !m_isReplica) {
-    Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
-    orig_mesh->is_using_gpu_deform = 0;
-  }
-  m_deformedObj = nullptr;
-
-  if (m_skinStatic) {
-    if (--m_skinStatic->ref_count == 0) {
-      if (m_skinStatic->shader_skin_vertices) {
-        GPU_shader_free(m_skinStatic->shader_skin_vertices);
-      }
-      if (m_skinStatic->ssbo_in_idx) {
-        GPU_storagebuf_free(m_skinStatic->ssbo_in_idx);
-        GPU_storagebuf_free(m_skinStatic->ssbo_in_wgt);
-        GPU_storagebuf_free(m_skinStatic->ssbo_rest_positions);
-        GPU_storagebuf_free(m_skinStatic->ssbo_skinned_vert_positions);
-      }
-      delete m_skinStatic;
+  for (auto &child : m_deformed_children) {
+    if (child.ob && !m_isReplica) {
+      Mesh *orig_mesh = (Mesh *)child.ob->data;
+      orig_mesh->is_using_gpu_deform =0;
     }
-    m_skinStatic = nullptr;
+    if (child.replica) {
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      BKE_id_delete(CTX_data_main(C), &child.replica->id);
+    }
+    child.replica = nullptr;
   }
-
-  if (m_ssbo_bone_pose_mat) {
-    GPU_storagebuf_free(m_ssbo_bone_pose_mat);
-    GPU_storagebuf_free(m_ssbo_premat);
-    GPU_storagebuf_free(m_ssbo_postmat);
-    m_ssbo_bone_pose_mat = nullptr;
-    m_ssbo_premat = nullptr;
-    m_ssbo_postmat = nullptr;
-  }
-
-  if (m_deformedObj && m_useGPUDeform) {
-    Mesh *orig_mesh = BKE_object_get_original_mesh(m_deformedObj);
-    BKE_mesh_gpu_free_for_mesh(m_deformedReplicaData ? m_deformedReplicaData : orig_mesh);
-  }
-
-  if (m_deformedReplicaData) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    BKE_id_delete(CTX_data_main(C), &m_deformedReplicaData->id);
-    m_deformedReplicaData = nullptr;
-  }
+  m_deformed_children.clear();
 }
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
@@ -267,9 +254,33 @@ void BL_ArmatureObject::SetBlenderObject(Object *obj)
   }
 }
 
+void BL_ArmatureObject::RemapParentChildren()
+{
+  /* When an armature is replicated, child objects that had an armature modifier
+   * pointing to the original armature must be remapped to point to the new replica. */
+  for (KX_GameObject *child : GetChildren()) {
+    Object *child_ob = child->GetBlenderObject();
+    if (!child_ob) {
+      continue;
+    }
+    LISTBASE_FOREACH (ModifierData *, md, &child_ob->modifiers) {
+      if (md->type == eModifierType_Armature) {
+        ArmatureModifierData *amd = (ArmatureModifierData *)md;
+        if (amd && amd->object == m_previousArmature) {
+          amd->object = m_objArma;
+        }
+      }
+    }
+  }
+}
+
 bool BL_ArmatureObject::GetUseGPUDeform()
 {
-  return m_useGPUDeform;
+  if (m_deformed_children.empty()) {
+    return false;
+  }
+  return std::all_of(m_deformed_children.begin(), m_deformed_children.end(),
+                     [](const DeformedChild &c) { return c.use_gpu; });
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
@@ -358,6 +369,7 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string &posec
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string &posechannelconstraint)
 {
   return static_cast<BL_ArmatureConstraint *>(
+//    m_controlledConstraints->FindValue(posechannelconstraint));
       m_controlledConstraints->FindValue(posechannelconstraint));
 }
 
@@ -413,6 +425,7 @@ void BL_ArmatureObject::ProcessReplica()
 
   // Replicate each constraints.
   m_controlledConstraints = static_cast<EXP_ListValue<BL_ArmatureConstraint> *>(
+//    m_controlledConstraints->GetReplica());
       m_controlledConstraints->GetReplica());
 
   m_objArma = m_pBlenderObject;
@@ -473,178 +486,19 @@ void BL_ArmatureObject::ApplyPose()
 
 void BL_ArmatureObject::InitStaticSkinningBuffers()
 {
-  if (!m_skinStatic) {
-    m_skinStatic = new BGE_SkinStaticBuffers();
-  }
-  if (m_skinStatic->in_indices.empty()) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-    Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
-    Mesh *mesh = static_cast<Mesh *>(deformed_eval->data);
-
-    const ListBase *defbase = nullptr;
-    if (mesh) {
-      defbase = BKE_id_defgroup_list_get(&mesh->id);
-    }
-    const ID *id_target = static_cast<const ID *>(m_deformedObj->data);
-    if (BKE_id_supports_vertex_groups(id_target)) {
-      defbase = BKE_id_defgroup_list_get(id_target);
-    }
-
-    blender::Span<MDeformVert> dverts = mesh->deform_verts();
-    const auto corner_verts = mesh->corner_verts();
-    const int verts_num = mesh->verts_num;
-
-    // 1) Build the ordered list of deforming bones and a name->index map.
-    std::vector<std::string> bone_names;
-    std::map<std::string, int> bone_name_to_index;
-    if (m_objArma && m_objArma->pose) {
-      int idx = 0;
-      for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-           pchan = pchan->next)
-      {
-        if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
-          std::string name(pchan->name);
-          bone_names.push_back(name);
-          bone_name_to_index[name] = idx++;
-        }
-      }
-    }
-
-    // 2) Get the vertex group names in mesh order.
-    std::vector<std::string> group_names;
-    if (defbase) {
-      for (bDeformGroup *dg = (bDeformGroup *)defbase->first; dg; dg = dg->next) {
-        group_names.push_back(dg->name);
-      }
-    }
-
-    // 3) Fill index and weight buffers (max 4 influences per corner) in parallel.
-    m_skinStatic->in_indices.resize(verts_num * 4, 0);
-    m_skinStatic->in_weights.resize(verts_num * 4, 0.0f);
-    constexpr float kContribThreshold = 1e-4f;
-
-    blender::threading::parallel_for(
-        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
-          for (int v : range) {
-            const MDeformVert &dvert = dverts[v];
-
-            struct Influence {
-              int bone_idx;
-              float weight;
-            };
-            std::map<int, float> bone_weight_map;
-            for (int j = 0; j < dvert.totweight; ++j) {
-              const int def_nr = dvert.dw[j].def_nr;
-              if (def_nr >= 0 && def_nr < (int)group_names.size()) {
-                const std::string &group_name = group_names[def_nr];
-                auto it = bone_name_to_index.find(group_name);
-                if (it != bone_name_to_index.end()) {
-                  bone_weight_map[it->second] += dvert.dw[j].weight;
-                }
-              }
-            }
-
-            std::vector<Influence> influences;
-            influences.reserve(bone_weight_map.size());
-            float total_raw = 0.0f;
-            for (const auto &kv : bone_weight_map) {
-              influences.push_back({kv.first, kv.second});
-              total_raw += kv.second;
-            }
-
-            if (total_raw <= kContribThreshold || influences.empty()) {
-              for (int j = 0; j < 4; ++j) {
-                m_skinStatic->in_indices[v * 4 + j] = 0;
-                m_skinStatic->in_weights[v * 4 + j] = 0.0f;
-              }
-              continue;
-            }
-
-            std::sort(influences.begin(),
-                      influences.end(),
-                      [](const Influence &a, const Influence &b) { return a.weight > b.weight; });
-
-            float total = 0.0f;
-            for (const auto &inf : influences) {
-              total += inf.weight;
-            }
-            if (total > 0.0f) {
-              for (auto &inf : influences) {
-                inf.weight /= total;
-              }
-            }
-
-            for (int j = 0; j < 4; ++j) {
-              if (j < (int)influences.size()) {
-                m_skinStatic->in_indices[v * 4 + j] = influences[j].bone_idx;
-                m_skinStatic->in_weights[v * 4 + j] = influences[j].weight;
-              }
-              else {
-                m_skinStatic->in_indices[v * 4 + j] = 0;
-                m_skinStatic->in_weights[v * 4 + j] = 0.0f;
-              }
-            }
-          }
-        });
-
-    // 4) Upload SSBOs for influences.
-    if (!m_skinStatic->ssbo_in_idx) {
-      m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * verts_num * 4);
-      GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
-    }
-    if (!m_skinStatic->ssbo_in_wgt) {
-      m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * verts_num * 4);
-      GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
-    }
-
-    blender::Span<blender::float3> vert_positions = mesh->vert_positions();
-    blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(verts_num);
-    blender::threading::parallel_for(
-        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
-          for (int i : range) {
-            const blender::float3 &pos = vert_positions[i];
-            rest_positions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
-          }
-        });
-
-    if (!m_skinStatic->ssbo_rest_positions) {
-      m_skinStatic->ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) *
-                                                                verts_num);
-      GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
-    }
-    if (!m_skinStatic->ssbo_skinned_vert_positions) {
-      m_skinStatic->ssbo_skinned_vert_positions = GPU_storagebuf_create(sizeof(blender::float4) *
-                                                                        verts_num);
-    }
-  }
-}
-
-void BL_ArmatureObject::RemapParentChildren()
-{
-  /* Remapping parent/children */
-  if (!m_deformedObj) {
-    for (KX_GameObject *child : GetChildren()) {
-      Object *child_ob = child->GetBlenderObject();
-      if (!child_ob) {
-        continue;
-      }
-      LISTBASE_FOREACH (ModifierData *, md, &child_ob->modifiers) {
-        if (md->type == eModifierType_Armature) {
-          ArmatureModifierData *amd = (ArmatureModifierData *)md;
-          if (amd && amd->object == m_previousArmature) {
-            amd->object = m_objArma;
-          }
-        }
-      }
-    }
+  // Delegate static (CPU) resource preparation to the draw armature skinning manager.
+  // This will compute and store indices/weights/rest positions during extraction phase.
+  for (auto &child : m_deformed_children) {
+    Mesh *orig_mesh = child.ob ? (Mesh *)child.ob->data : nullptr;
+    blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
+    m_objArma, child.ob, orig_mesh);
   }
 }
 
 void BL_ArmatureObject::GetGpuDeformedObj()
 {
-  if (!m_deformedObj) {
-    /* Get Armature modifier deformedObj */
+  if (m_deformed_children.empty()) {
+    /* Get all children using this armature modifier */
     std::vector<KX_GameObject *> children = GetChildren();
     for (KX_GameObject *child : children) {
       bool is_bone_parented = child->GetBlenderObject()->partype == PARBONE;
@@ -655,14 +509,15 @@ void BL_ArmatureObject::GetGpuDeformedObj()
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd && amd->object == this->GetBlenderObject()) {
-            m_deformedObj = child->GetBlenderObject();
-            m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 &&
-                             !child->IsDupliInstance() && !m_is_dupli_instance;
+            Object *child_ob = child->GetBlenderObject();
+            DeformedChild dc;
+            dc.ob = child_ob;
+            dc.use_gpu = (amd->upbge_deformflag & ARM_DEF_GPU) !=0 &&
+            !child->IsDupliInstance() && !m_is_dupli_instance;
+            dc.replica = nullptr;
+            m_deformed_children.push_back(std::move(dc));
           }
         }
-      }
-      if (m_deformedObj) {
-        break;
       }
     }
   }
@@ -670,276 +525,92 @@ void BL_ArmatureObject::GetGpuDeformedObj()
 
 void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext &evalCtx)
 {
-  // Apply action to armature
-  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
-  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
+	if (!m_objArma || !action) {
+		return;
+	}
+	PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
+	const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
+	animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
 }
 
-/* For gpu skinning, we delay many variables initialisation here to have "up to date" informations.
- * It is a bit tricky in case BL_ArmatureObject is a replica (needs to have right parent/child -> armature/deformed object,
- * a render cache for the deformed object....
- */
 void BL_ArmatureObject::DoGpuSkinning()
 {
-  if (!m_useGPUDeform) {
+  bool any_gpu = false;
+  for (auto &child : m_deformed_children) {
+    if (child.use_gpu) {
+      any_gpu = true;
+      break;
+    }
+  }
+  if (!any_gpu) {
     return;
   }
+
   using namespace blender::gpu::shader;
   using namespace blender::draw;
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  KX_GameObject *kx_deformedObj = GetScene()->GetBlenderSceneConverter()->FindGameObject(
-      m_deformedObj);
-
-  if (kx_deformedObj->IsReplica()) {
-    /* We need to replicate Mesh for deformation on GPU in some files and not in others...
-     * It ensures data to be deformed will be unique */
-    if (!m_deformedReplicaData) {
-      Mesh *orig = (Mesh *)m_deformedObj->data;
-      m_deformedReplicaData = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr, 0);
-      m_deformedObj->data = m_deformedReplicaData;
-      DEG_id_tag_update(&m_deformedObj->id, ID_RECALC_GEOMETRY);
-    }
-  }
-
-  Object *deformed_eval = DEG_get_evaluated(depsgraph, m_deformedObj);
-  Mesh *mesh_eval = static_cast<Mesh *>(deformed_eval->data);
-
-  Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
-
-  /* Set this variable to extract vbo_pos with float4 */
-  orig_mesh->is_using_gpu_deform = 1;
-  /* Set this variable to indicate that the action is currently played.
-   * Will be reset just after render.
-   * Place this flag on runtime/evaluated mesh (the one used for rendering) */
-  mesh_eval->is_running_gpu_deform = 1;
-
-  if (m_modifiersListbackup.empty()) {
-    disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
-    /* 1. Wait the next frame that we have vbos_pos on float4 in render cache.
-     * (Disable_armature_modifiers tags m_deformedObj for geometry recalc, with
-     * the newly assigned mesh, with float4).
-     * 2. Also Restore visibility for the next render frame (previously disabled
-     * in ReplicateBlenderObject to avoid seeing the mesh with wrong pose) if m_deformedObj
-     * is a replica */
-    if (kx_deformedObj->IsReplica()) {
-      kx_deformedObj->SetVisible(true, false);
-    }
-    return;
-  }
-
-  MeshBatchCache *cache = nullptr;
-  if (mesh_eval->runtime && mesh_eval->runtime->batch_cache) {
-    cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
-  }
-
-  blender::gpu::VertBuf *vbo_pos = nullptr;
-  blender::gpu::VertBuf *vbo_nor = nullptr;
-
-  if (cache && cache->final.buff.vbos.size() > 0) {
-    auto pos_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
-    vbo_pos = pos_vbo_it ? pos_vbo_it->get() : nullptr;
-    auto nor_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
-    vbo_nor = nor_vbo_it ? nor_vbo_it->get() : nullptr;
-  }
-  if (!vbo_pos || !vbo_nor) {
-    /* GPU pipeline not ready */
-    return;
-  }
-
-  // Prepare skinning Static resources (shared between replicas)
+  // For each child, prepare and dispatch skinning.
   InitStaticSkinningBuffers();
+  blender::draw::ArmatureSkinningManager &mgr = blender::draw::ArmatureSkinningManager::instance();
+  // Update armature matrices once for this frame.
+  mgr.update_per_frame(m_objArma, nullptr);
 
-  // 3. Prepare bone matrices for GPU skinning
-  // Build a list of deforming bone names and a mapping from name to index
-  std::vector<std::string> bone_names;
-  if (m_objArma && m_objArma->pose) {
-    for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-         pchan = pchan->next)
-    {
-      // Only include bones marked as deforming
-      if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
-        std::string name(pchan->name);
-        bone_names.push_back(name);
-      }
-    }
-  }
-  const int num_deform_bones = bone_names.size();
-
-  // Allocate storage buffer for bone matrices if needed
-  if (!m_ssbo_bone_pose_mat) {
-    m_ssbo_bone_pose_mat = GPU_storagebuf_create(sizeof(float) * num_deform_bones * 16);
-  }
-
-  // Prepare the array of bone matrices (flattened 4x4 matrices)
-  std::vector<float> bone_pose_matrices(num_deform_bones * 16, 0.0f);
-
-  // Build a list of pose channels for deforming bones
-  std::vector<bPoseChannel *> bone_channels;
-  bone_channels.reserve(num_deform_bones);
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-       pchan = pchan->next)
-  {
-    if (pchan->bone->flag & BONE_NO_DEFORM) {
+  for (auto &child : m_deformed_children) {
+    Object *child_ob = child.ob;
+    if (!child_ob) {
       continue;
     }
-    bone_channels.push_back(pchan);
-  }
+    if (!child.use_gpu) {
+      continue;
+    }
 
-  // For each deforming bone, compute the skinning matrix and store it
-  for (int b = 0; b < num_deform_bones; ++b) {
-    bPoseChannel *pchan = bone_channels[b];
-    for (int row = 0; row < 4; ++row) {
-      for (int col = 0; col < 4; ++col) {
-        bone_pose_matrices[b * 16 + row * 4 + col] = pchan->chan_mat[row][col];
+    KX_GameObject *kx_deformedObj = GetScene()->GetBlenderSceneConverter()->FindGameObject(child_ob);
+    if (kx_deformedObj->IsReplica()) {
+      if (!child.replica) {
+        Mesh *orig = (Mesh *)child_ob->data;
+        child.replica = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr,0);
+        child_ob->data = child.replica;
+        DEG_id_tag_update(&child_ob->id, ID_RECALC_GEOMETRY);
       }
     }
-  }
-  // Upload bone matrices to the GPU buffer
-  GPU_storagebuf_update(m_ssbo_bone_pose_mat, bone_pose_matrices.data());
 
-  // 4. Prepare transform matrices
-  float premat[4][4], postmat[4][4], obinv[4][4];
-  copy_m4_m4(premat, m_deformedObj->object_to_world().ptr());
-  invert_m4_m4(obinv, m_deformedObj->object_to_world().ptr());
-  mul_m4_m4m4(postmat, obinv, m_objArma->object_to_world().ptr());
-  invert_m4_m4(premat, postmat);
+    Object *deformed_eval = DEG_get_evaluated(depsgraph, child_ob);
+    Mesh *mesh_eval = static_cast<Mesh *>(deformed_eval->data);
+    Mesh *orig_mesh = (Mesh *)child_ob->data;
 
-  if (!m_ssbo_premat) {
-    m_ssbo_premat = GPU_storagebuf_create(sizeof(float) * 16);
-  }
-  GPU_storagebuf_update(m_ssbo_premat, &premat[0][0]);
-  if (!m_ssbo_postmat) {
-    m_ssbo_postmat = GPU_storagebuf_create(sizeof(float) * 16);
-  }
-  GPU_storagebuf_update(m_ssbo_postmat, &postmat[0][0]);
+    orig_mesh->is_using_gpu_deform =1;
+    mesh_eval->is_running_gpu_deform =1;
 
-  const int verts_num = mesh_eval->verts_num;
-
-  /* We can test different group sizes if it has an influence on some hardwares */
-  const int group_size = 256;
-
-  // 5. Compile skinning shaders.
-  /* Note: While it is possible to perform all skinning operations in a single shader,
-   * here the process is intentionally split into two separate passes:
-   * - First pass: skinning is applied to vertices only,
-   *   using SSBOs sized to the number of vertices, for efficient bone deformation computation.
-   * - Second pass: the skinned positions are scattered to all corners,
-   *   and normals are computed from these positions. This approach produces
-   *   shading results very similar to the CPU pipeline.
-   */
-  if (!m_skinStatic->shader_skin_vertices) {
-    ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
-    info.local_group_size(group_size, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
-    info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
-    info.storage_buf(1, Qualifier::read, "ivec4", "in_idx[]");
-    info.storage_buf(2, Qualifier::read, "vec4", "in_wgt[]");
-    info.storage_buf(3, Qualifier::read, "mat4", "bone_pose_mat[]");
-    info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(5, Qualifier::read, "vec4", "rest_positions[]");
-
-    info.compute_source_generated = R"GLSL(
-#ifndef CONTRIB_THRESHOLD
-#define CONTRIB_THRESHOLD 1e-4
-#endif
-
-vec4 skin_pos_object(int v_idx) {
-  vec4 rest_pos_object = premat[0] * rest_positions[v_idx];
-  vec4 acc = vec4(0.0);
-  float tw = 0.0;
-  for (int i = 0; i < 4; ++i) {
-    int   b = in_idx[v_idx][i];
-    float w = in_wgt[v_idx][i];
-    if (w > 0.0) {
-      acc += (bone_pose_mat[b] * rest_pos_object) * w;
-      tw  += w;
+    if (child.backups.empty()) {
+      disable_armature_modifiers(child_ob, child.backups);
+      if (kx_deformedObj->IsReplica()) {
+        kx_deformedObj->SetVisible(true, false);
+      }
+      continue;
     }
-  }
-  return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
-}
 
-void main() {
-  uint v = gl_GlobalInvocationID.x;
-  if (v >= skinned_vert_positions.length()) {
-    return;
-  }
-  skinned_vert_positions[v] = skin_pos_object(int(v));
-}
-)GLSL";
-    m_skinStatic->shader_skin_vertices = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
-  }
+    MeshBatchCache *cache = nullptr;
+    if (mesh_eval->runtime && mesh_eval->runtime->batch_cache) {
+      cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+    }
 
-  // 6. Pass 1: Skin vertices
-  GPU_shader_bind(m_skinStatic->shader_skin_vertices);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 0);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_in_idx, 1);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 2);
-  GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 3);
-  GPU_storagebuf_bind(m_ssbo_premat, 4);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 5);
+    blender::gpu::VertBuf *vbo_pos = nullptr;
+    blender::gpu::VertBuf *vbo_nor = nullptr;
+    if (cache && cache->final.buff.vbos.size() >0) {
+      auto pos_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
+      vbo_pos = pos_vbo_it ? pos_vbo_it->get() : nullptr;
+      auto nor_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
+      vbo_nor = nor_vbo_it ? nor_vbo_it->get() : nullptr;
+    }
+    if (!vbo_pos || !vbo_nor || !cache) {
+      continue;
+    }
 
-  const int num_groups_verts = (verts_num + group_size - 1) / group_size;
-  GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-
-  std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
-  caller_bindings.reserve(4);
-
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 0;
-    b.qualifiers = blender::gpu::shader::Qualifier::read_write;
-    b.type_name = "vec4";
-    b.bind_name = "positions_out[]";
-    b.buffer = vbo_pos;
-    caller_bindings.push_back(b);
+    mgr.dispatch_skinning(depsgraph, deformed_eval, cache, vbo_pos, vbo_nor);
   }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 1;
-    b.qualifiers = blender::gpu::shader::Qualifier::write;
-    b.type_name = "uint";
-    b.bind_name = "normals_out[]";
-    b.buffer = vbo_nor;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 2;
-    b.qualifiers = blender::gpu::shader::Qualifier::read;
-    b.type_name = "vec4";
-    b.bind_name = "positions_in[]";
-    b.buffer = m_skinStatic->ssbo_skinned_vert_positions;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 3;
-    b.qualifiers = blender::gpu::shader::Qualifier::read;
-    b.type_name = "mat4";
-    b.bind_name = "transform_mat[]";
-    b.buffer = m_ssbo_postmat;
-    caller_bindings.push_back(b);
-  }
-
-  auto post_bind_fn = [](blender::gpu::Shader *sh) {
-  };
-  auto config_fn = [](blender::gpu::shader::ShaderCreateInfo &info) {
-  };
-
-  /* A bit complex with ownership : scatter shader and ssbo topology are created with
-   * BKE_mesh_gpu, and the other mesh resources (ssbos) are owned by BL_ArmatureObject */
-  BKE_mesh_gpu_scatter_to_corners(
-      depsgraph,
-      deformed_eval,
-      caller_bindings,
-      config_fn,
-      post_bind_fn,
-      mesh_eval->corners_num);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

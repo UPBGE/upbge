@@ -83,14 +83,17 @@ class BL_ArmatureObject : public KX_GameObject {
    * after ProcessReplica */
   Object *m_previousArmature;
 
-  Object *m_deformedObj;
-  bool m_useGPUDeform;
+  /* Multiple deformed child objects (consumers of this armature).
+   * Use a single struct to store per-child state to avoid parallel vectors. */
+  struct DeformedChild {
+    Object *ob = nullptr;
+    Mesh *replica = nullptr; /* optional replicated mesh for this child */
+    bool use_gpu = false; /* whether this child uses GPU skinning */
+    std::vector<ModifierStackBackup> backups; /* saved modifiers for restoration */
+  };
 
-  /* If using gpu deform, mesh has to be replicated to ensure
-   * unique data to be deformed by shader */
-  Mesh *m_deformedReplicaData;
+  std::vector<DeformedChild> m_deformed_children;
   BGE_SkinStaticBuffers *m_skinStatic;
-  std::vector<ModifierStackBackup> m_modifiersListbackup;
 
   blender::gpu::StorageBuf *m_ssbo_bone_pose_mat;
   blender::gpu::StorageBuf *m_ssbo_premat;

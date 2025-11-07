@@ -985,6 +985,26 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
         }
       }
     }
+    /*
+     * UPBGE: If the original object has an Armature modifier we may want to
+     * perform GPU skinning in the viewport. Mark the evaluated mesh so the
+     * extractor creates a float4 position VBO (w=1.0) by setting
+     * `is_running_gpu_deform`. Also mark the original mesh with
+     * `is_using_gpu_deform` so resources shared between replicas are aware.
+     */
+    if (ref.object->type == OB_MESH) {
+      Mesh *mesh_eval = static_cast<Mesh *>(ref.object->data);
+      if (mesh_eval) {
+        mesh_eval->is_running_gpu_deform = 1;
+      }
+      Object *ob_orig = DEG_get_original(ref.object);
+      if (ob_orig) {
+        Mesh *orig_mesh = static_cast<Mesh *>(ob_orig->data);
+        if (orig_mesh) {
+          orig_mesh->is_using_gpu_deform = 1;
+        }
+      }
+    }
   }
   else {
     dupli_cache.try_add(ref);
@@ -1579,6 +1599,15 @@ void DRW_draw_view(const bContext *C)
   draw_ctx.release_data();
 }
 
+void DRW_cache_restart()
+{
+  using namespace blender::draw;
+  DRWContext &draw_ctx = drw_get();
+  draw_ctx.data->modules_exit();
+  draw_ctx.acquire_data();
+  draw_ctx.data->modules_begin_sync();
+}
+
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,
                                     ARegion *region,
@@ -1844,15 +1873,6 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx)
 
   blender::gpu::TexturePool::get().reset(true);
   draw_ctx.release_data();
-}
-
-void DRW_cache_restart()
-{
-  using namespace blender::draw;
-  DRWContext &draw_ctx = drw_get();
-  draw_ctx.data->modules_exit();
-  draw_ctx.acquire_data();
-  draw_ctx.data->modules_begin_sync();
 }
 
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
@@ -2636,23 +2656,19 @@ void DRW_game_viewport_render_loop_end()
 {
   while (debug_bge->lines) {
     void *next = debug_bge->lines->next;
-
     MEM_freeN(debug_bge->lines);
     debug_bge->lines = (DRWDebugLine *)next;
   }
-  while (debug_bge->boxes) {
+  while (debug_bge->boxes){
     void *next = debug_bge->boxes->next;
-
     MEM_freeN(debug_bge->boxes);
     debug_bge->boxes = (DRWDebugBox2D *)next;
   }
   while (debug_bge->texts) {
     void *next = debug_bge->texts->next;
-
     MEM_freeN(debug_bge->texts);
     debug_bge->texts = (DRWDebugText2D *)next;
   }
-
   MEM_delete(debug_bge);
   debug_bge = nullptr;
 }
@@ -2719,5 +2735,3 @@ void DRW_transform_to_display_image_render(blender::gpu::Texture *tex)
   immUnbindProgram();
 }
 /***************************End of UPBGE***************************/
-
-/** \} */
