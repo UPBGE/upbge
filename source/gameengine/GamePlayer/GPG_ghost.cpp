@@ -36,6 +36,11 @@
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
 
+#if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG)
+#  pragma comment(lib, "tbbmalloc_proxy.lib")
+#  pragma comment(linker, "/include:__TBB_malloc_proxy")
+#endif
+
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
@@ -59,7 +64,7 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
 #include "BKE_tracking.h"
@@ -101,6 +106,7 @@
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
 #include "IMB_imbuf.hh"
+#include "IMB_colormanagement.hh"
 #include "MEM_CacheLimiterC-Api.h"
 #include "MOV_util.hh"
 #include "RE_engine.h"
@@ -1516,6 +1522,8 @@ int main(int argc,
             CTX_data_scene_set(C, scene);
             G.main = maggie;
             G_MAIN = G.main;
+            IMB_colormanagement_working_space_check(bfd->main, false, false);
+
 
             if (firstTimeRunning) {
               G.fileflags = bfd->fileflags;

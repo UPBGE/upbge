@@ -373,6 +373,15 @@ static void object_remove_parent_deform_modifiers(Object *ob, const Object *par)
   }
 }
 
+static void parent_clear_data(Object *ob)
+{
+  ob->parent = nullptr;
+  /* Set parent type to default PAROBJECT and reset enum explicitly, to prevent rna enum errors
+   * later. */
+  ob->partype = PAROBJECT;
+  ob->parsubstr[0] = '\0';
+}
+
 void parent_clear(Object *ob, const int type)
 {
   if (ob->parent == nullptr) {
@@ -386,15 +395,13 @@ void parent_clear(Object *ob, const int type)
       object_remove_parent_deform_modifiers(ob, ob->parent);
 
       /* clear parenting relationship completely */
-      ob->parent = nullptr;
-      ob->partype = PAROBJECT;
-      ob->parsubstr[0] = 0;
+      parent_clear_data(ob);
       break;
     }
     case CLEAR_PARENT_KEEP_TRANSFORM: {
       /* remove parent, and apply the parented transform
        * result as object's local transforms */
-      ob->parent = nullptr;
+      parent_clear_data(ob);
       BKE_object_apply_mat4(ob, ob->object_to_world().ptr(), true, false);
       /* Don't recalculate the animation because it would change the transform
        * instead of keeping it. */
@@ -463,9 +470,7 @@ void parent_set(Object *ob, Object *par, const int type, const char *substr)
   unit_m4(ob->parentinv);
 
   if (!par || BKE_object_parent_loop_check(par, ob)) {
-    ob->parent = nullptr;
-    ob->partype = PAROBJECT;
-    ob->parsubstr[0] = 0;
+    parent_clear_data(ob);
     return;
   }
 
@@ -644,9 +649,18 @@ static bool parent_set_with_depsgraph(ReportList *reports,
             break;
           case PAR_LATTICE: /* lattice deform */
             if (BKE_modifiers_is_deformed_by_lattice(ob) != par) {
-              md = modifier_add(reports, bmain, scene, ob, nullptr, eModifierType_Lattice);
+              const bool is_grease_pencil = ob->type == OB_GREASE_PENCIL;
+              const ModifierType lattice_modifier_type = is_grease_pencil ?
+                                                             eModifierType_GreasePencilLattice :
+                                                             eModifierType_Lattice;
+              md = modifier_add(reports, bmain, scene, ob, nullptr, lattice_modifier_type);
               if (md) {
-                ((LatticeModifierData *)md)->object = par;
+                if (is_grease_pencil) {
+                  reinterpret_cast<GreasePencilLatticeModifierData *>(md)->object = par;
+                }
+                else {
+                  reinterpret_cast<LatticeModifierData *>(md)->object = par;
+                }
               }
             }
             break;

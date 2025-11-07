@@ -174,6 +174,14 @@ endif()
 
 add_cc_flags_custom_test(blenderplayer)
 
+if(WITH_TBB)
+  list(APPEND INC ${TBB_INCLUDE_DIRS})
+  if(WIN32)
+    # For `pragma` that links `tbbmalloc_proxy.lib`.
+    link_directories(${LIBDIR}/tbb/lib)
+  endif()
+endif()
+
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
   add_definitions(-DWITH_PYTHON_MODULE)

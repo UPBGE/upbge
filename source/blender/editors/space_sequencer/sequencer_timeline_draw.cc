@@ -31,7 +31,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
@@ -1583,6 +1583,8 @@ static void draw_timeline_sfra_efra(const TimelineDrawContext &ctx)
   const View2D *v2d = ctx.v2d;
   const Editing *ed = seq::editing_get(scene);
   const int frame_sta = scene->r.sfra;
+  /* The VSE timeline uses a different convention of displaying frame ranges, since the VSE has to
+   * display the duration the frame. This is why there is the + 1 for the end frame. */
   const int frame_end = scene->r.efra + 1;
 
   GPU_blend(GPU_BLEND_ALPHA);

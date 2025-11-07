@@ -50,8 +50,6 @@
 #include "BKE_undo_system.hh"
 #include "BKE_workspace.hh"
 
-#include "BKE_sound.h"
-
 #include "BLT_translation.hh"
 
 #include "ED_asset.hh"
@@ -5569,8 +5567,7 @@ constexpr wmTabletData wm_event_tablet_data_default()
   wmTabletData tablet_data{};
   tablet_data.active = EVT_TABLET_NONE;
   tablet_data.pressure = 1.0f;
-  tablet_data.tilt.x = 0.0f;
-  tablet_data.tilt.y = 0.0f;
+  tablet_data.tilt = blender::float2(0.0f, 0.0f);
   tablet_data.is_motion_absolute = false;
   return tablet_data;
 }

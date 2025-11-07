@@ -183,7 +183,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   }
 
   show_display_options_ = (state.flag & UI_VIEW_SHOW_FILTER_OPTIONS) != 0;
-  BLI_strncpy(search_string_.get(), state.search_string, sizeof(search_string_));
+  BLI_strncpy(search_string_.get(), state.search_string, UI_MAX_NAME_STR);
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const
@@ -809,8 +809,10 @@ bool AbstractTreeViewItem::matches(const AbstractViewItem &other) const
   return true;
 }
 
-void AbstractTreeViewItem::on_filter_change()
+void AbstractTreeViewItem::on_filter()
 {
+  BLI_assert(this->get_tree_view().search_string_ && this->get_tree_view().search_string_[0]);
+
   if (is_filtered_visible_) {
     foreach_parent([&](AbstractTreeViewItem &item) {
       item.is_filtered_visible_ = true;
@@ -949,7 +951,8 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     int icon = tree_view.show_display_options_ ? ICON_DISCLOSURE_TRI_DOWN :
                                                  ICON_DISCLOSURE_TRI_RIGHT;
     uiBut *but = uiDefIconBut(
-        block, ButType::IconToggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
+        block, ButType::Toggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
+    UI_but_flag_disable(but, UI_BUT_UNDO);
     UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
     UI_block_emboss_set(block, ui::EmbossType::Emboss);
     bottom->column(false);
@@ -982,7 +985,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             UI_MAX_NAME_STR,
                             "");
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
-      UI_but_flag_enable(but, UI_BUT_UNDO);
+      UI_but_flag_disable(but, UI_BUT_UNDO);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
     }
   }
