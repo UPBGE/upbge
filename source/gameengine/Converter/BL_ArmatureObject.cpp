@@ -609,7 +609,7 @@ void BL_ArmatureObject::DoGpuSkinning()
       continue;
     }
 
-    mgr.dispatch_skinning(depsgraph, deformed_eval, cache, vbo_pos, vbo_nor);
+    mgr.dispatch_skinning(depsgraph, m_objArma, deformed_eval, cache, vbo_pos, vbo_nor);
   }
 }
 
