@@ -277,12 +277,21 @@ void ArmatureSkinningManager::update_per_frame(Object *arm_ob, Object *deformed_
   /* Recreate SSBO if bone count changed. */
   if (ad.bones != bones_count) {
     if (ad.ssbo_bone_pose) {
-      GPU_storagebuf_free(ad.ssbo_bone_pose);
+      /* Release our references to keyed internal resources. The actual free is centralized in BKE.
+       */
+      const std::string key_bone_pose = "armature_bone_pose";
+      BKE_armature_gpu_internal_ssbo_release(arm_ob, key_bone_pose);
       ad.ssbo_bone_pose = nullptr;
     }
     if (bones_count > 0) {
-      ad.ssbo_bone_pose = GPU_storagebuf_create(sizeof(float) * 16 * bones_count);
+      /* Create armature-scoped SSBO via BKE helper and record in local map for lookup. */
+      const std::string key_bone_pose = "armature_bone_pose";
       ad.bones = bones_count;
+      blender::gpu::StorageBuf *buf = BKE_armature_gpu_internal_ssbo_ensure(arm_ob, key_bone_pose, sizeof(float) *16 * bones_count);
+      if (buf) {
+        /* Store pointer locally for quick access (do not free here). */
+        ad.ssbo_bone_pose = buf;
+      }
     }
   }
 
@@ -292,8 +301,8 @@ void ArmatureSkinningManager::update_per_frame(Object *arm_ob, Object *deformed_
 
   /* Fill an array of float[16] using pchan->chan_mat in the same order used by the index map. */
   std::vector<float> mats;
-  mats.resize(size_t(bones_count) * 16);
-  int bi = 0;
+  mats.resize(size_t(bones_count) *16);
+  int bi =0;
   for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
        pchan = pchan->next)
   {
@@ -301,11 +310,14 @@ void ArmatureSkinningManager::update_per_frame(Object *arm_ob, Object *deformed_
       continue;
     }
     /* pchan->chan_mat is a4x4 float (row-major in memory). Copy directly. */
-    memcpy(&mats[bi * 16], pchan->chan_mat, sizeof(float) * 16);
+    memcpy(&mats[bi *16], pchan->chan_mat, sizeof(float) *16);
     bi++;
   }
-
-  GPU_storagebuf_update(ad.ssbo_bone_pose, mats.data());
+  /* Upload via BKE armature helper if available, otherwise fallback to local buffer update. */
+  const std::string key_bone_pose = "armature_bone_pose";
+  if (ad.ssbo_bone_pose) {
+    BKE_armature_gpu_internal_ssbo_update(arm_ob, key_bone_pose, mats.data());
+  }
 }
 
 bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
@@ -323,7 +335,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   /* Ensure armature SSBOs are updated for this frame. We call update_per_frame with current
    * arm/deformed objects. */
   /* Note: this may early-return if no armature present. */
-  update_per_frame(nullptr, nullptr);
+  update_per_frame(armature, deformed_eval);
 
   /* Find static data for mesh_owner if present */
   Mesh *mesh_owner = nullptr;

@@ -39,6 +39,9 @@ struct MeshGpuData {
 static std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache;
 static std::vector<MeshGpuData> g_mesh_data_orphans;
 static std::mutex g_mesh_cache_mutex;
+/* Armature-scoped GPU resources (keyed by armature Object*). */
+static std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources>
+    g_armature_gpu_resources;
 
 static void mesh_gpu_orphans_flush()
 {
@@ -450,8 +453,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
     /* User buffer bindings */
     for (const auto &binding : caller_bindings) {
-      info.storage_buf(
-          binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
+      info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
     }
 
     /* Topology buffer binding */
@@ -538,21 +540,20 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 }
 
 blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
-  const Depsgraph* depsgraph,
-  const Object* ob_eval,
-  blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
-  const std::function<void(blender::gpu::shader::ShaderCreateInfo&)>& config_fn,
-  const std::function<void(blender::gpu::Shader*)>& post_bind_fn,
-  int dispatch_count)
+    const Depsgraph *depsgraph,
+    const Object *ob_eval,
+    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
+    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
+    int dispatch_count)
 {
-  return BKE_mesh_gpu_run_compute(
-      depsgraph,
-      ob_eval,
-      scatter_to_corners_main_glsl,
-      caller_bindings,
-      config_fn,
-      post_bind_fn,
-      dispatch_count);
+  return BKE_mesh_gpu_run_compute(depsgraph,
+                                  ob_eval,
+                                  scatter_to_corners_main_glsl,
+                                  caller_bindings,
+                                  config_fn,
+                                  post_bind_fn,
+                                  dispatch_count);
 }
 
 void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
@@ -565,7 +566,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
   auto it = g_mesh_data_cache.find(mesh);
   if (it == g_mesh_data_cache.end()) {
     /* Ensure flag reset even if no cached data */
-    mesh->is_using_gpu_deform =0;
+    mesh->is_using_gpu_deform = 0;
     return;
   }
 
@@ -593,6 +594,16 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
           GPU_vertbuf_clear(vbo);
         }
       }
+      for (auto *ib : data.internal_resources->ibos) {
+        if (ib) {
+          /* Index buffer cleanup handled by GPU module if needed */
+        }
+      }
+      for (auto *ub : data.internal_resources->ubos) {
+        if (ub) {
+          /* Uniform buffer cleanup handled by GPU module if needed */
+        }
+      }
       for (auto *sh : data.internal_resources->shaders) {
         if (sh) {
           GPU_shader_free(sh);
@@ -608,7 +619,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
     g_mesh_data_orphans.push_back(std::move(data));
   }
 
-  mesh->is_using_gpu_deform =0;
+  mesh->is_using_gpu_deform = 0;
 }
 
 MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh)
@@ -670,236 +681,355 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh)
 }
 
 blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
- Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info)
+    Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info)
 {
- if (!mesh) {
- return nullptr;
- }
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
- MeshGpuData &d = g_mesh_data_cache[mesh];
- if (!d.internal_resources) {
- d.internal_resources = new blender::bke::MeshGpuInternalResources();
- }
- auto it = d.internal_resources->shader_map.find(key);
- if (it != d.internal_resources->shader_map.end()) {
- it->second.second +=1;
- return it->second.first;
- }
- /* Create shader (must be called with GL context active). */
- if (!GPU_context_active_get()) {
- return nullptr;
- }
- /* Cast is needed because ShaderCreateInfo is a C++ wrapper; assume compatible here. */
- blender::gpu::Shader *sh = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
- if (!sh) {
- return nullptr;
- }
- d.internal_resources->shader_map.emplace(key, std::make_pair(sh,1));
- d.internal_resources->shaders.append(sh);
- return sh;
+  if (!mesh) {
+    return nullptr;
+  }
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  MeshGpuData &d = g_mesh_data_cache[mesh];
+  if (!d.internal_resources) {
+    d.internal_resources = new blender::bke::MeshGpuInternalResources();
+  }
+  auto it = d.internal_resources->shader_map.find(key);
+  if (it != d.internal_resources->shader_map.end()) {
+    it->second.second += 1;
+    return it->second.first;
+  }
+  /* Create shader (must be called with GL context active). */
+  if (!GPU_context_active_get()) {
+    return nullptr;
+  }
+  /* Cast is needed because ShaderCreateInfo is a C++ wrapper; assume compatible here. */
+  blender::gpu::Shader *sh = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  if (!sh) {
+    return nullptr;
+  }
+  d.internal_resources->shader_map.emplace(key, std::make_pair(sh, 1));
+  d.internal_resources->shaders.append(sh);
+  return sh;
 }
 
-blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh, const std::string &key, size_t size)
+blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
+                                                            const std::string &key,
+                                                            size_t size)
 {
- if (!mesh) {
- return nullptr;
- }
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
- MeshGpuData &d = g_mesh_data_cache[mesh];
- if (!d.internal_resources) {
- d.internal_resources = new blender::bke::MeshGpuInternalResources();
- }
- auto it = d.internal_resources->ssbo_map.find(key);
- if (it != d.internal_resources->ssbo_map.end()) {
- it->second.second +=1;
- return it->second.first;
- }
- if (!GPU_context_active_get()) {
- return nullptr;
- }
- blender::gpu::StorageBuf *buf = GPU_storagebuf_create(size);
- if (!buf) {
- return nullptr;
- }
- d.internal_resources->ssbo_map.emplace(key, std::make_pair(buf,1));
- d.internal_resources->ssbos.append(buf);
- return buf;
-}
-
-void BKE_mesh_gpu_internal_ssbo_update(Mesh *mesh, const std::string &key, const void *data)
-{
- if (!mesh) {
- return;
- }
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
- auto it = g_mesh_data_cache.find(mesh);
- if (it == g_mesh_data_cache.end()) {
- return;
- }
- MeshGpuData &d = it->second;
- if (!d.internal_resources) {
- return;
- }
- auto it2 = d.internal_resources->ssbo_map.find(key);
- if (it2 == d.internal_resources->ssbo_map.end()) {
- return;
- }
- blender::gpu::StorageBuf *buf = it2->second.first;
- if (buf && GPU_context_active_get()) {
- GPU_storagebuf_update(buf, data);
- }
-}
-
-blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key)
-{
- if (!mesh) {
- return nullptr;
- }
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
- auto it = g_mesh_data_cache.find(mesh);
- if (it == g_mesh_data_cache.end()) {
- return nullptr;
- }
- MeshGpuData &d = it->second;
- if (!d.internal_resources) {
- return nullptr;
- }
- auto it2 = d.internal_resources->ssbo_map.find(key);
- if (it2 == d.internal_resources->ssbo_map.end()) {
- return nullptr;
- }
- return it2->second.first;
+  if (!mesh) {
+    return nullptr;
+  }
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  MeshGpuData &d = g_mesh_data_cache[mesh];
+  if (!d.internal_resources) {
+    d.internal_resources = new blender::bke::MeshGpuInternalResources();
+  }
+  auto it = d.internal_resources->ssbo_map.find(key);
+  if (it != d.internal_resources->ssbo_map.end()) {
+    it->second.second += 1;
+    return it->second.first;
+  }
+  if (!GPU_context_active_get()) {
+    return nullptr;
+  }
+  blender::gpu::StorageBuf *buf = GPU_storagebuf_create(size);
+  if (!buf) {
+    return nullptr;
+  }
+  d.internal_resources->ssbo_map.emplace(key, std::make_pair(buf, 1));
+  d.internal_resources->ssbos.append(buf);
+  return buf;
 }
 
 void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key)
 {
- if (!mesh) {
- return;
- }
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
- auto it = g_mesh_data_cache.find(mesh);
- if (it == g_mesh_data_cache.end()) {
- return;
- }
- MeshGpuData &d = it->second;
- if (!d.internal_resources) {
- return;
- }
- auto it2 = d.internal_resources->shader_map.find(key);
- if (it2 == d.internal_resources->shader_map.end()) {
- return;
- }
- auto &entry = it2->second;
- entry.second -=1;
- if (entry.second <=0) {
- if (entry.first && GPU_context_active_get()) {
- GPU_shader_free(entry.first);
- }
- /* remove from vectors if present (linear search) */
- auto &vec = d.internal_resources->shaders;
- for (int i =0; i < vec.size(); ++i) {
- if (vec[i] == entry.first) {
- vec.remove(i);
- break;
- }
- }
- d.internal_resources->shader_map.erase(it2);
- }
+  if (!mesh) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_mesh_data_cache.find(mesh);
+  if (it == g_mesh_data_cache.end()) {
+    return;
+  }
+  MeshGpuData &d = it->second;
+  if (!d.internal_resources) {
+    return;
+  }
+  auto it2 = d.internal_resources->shader_map.find(key);
+  if (it2 == d.internal_resources->shader_map.end()) {
+    return;
+  }
+  auto &entry = it2->second;
+  entry.second -= 1;
+  if (entry.second <= 0) {
+    if (entry.first && GPU_context_active_get()) {
+      GPU_shader_free(entry.first);
+    }
+    /* remove from vector if present */
+    for (int i = 0; i < d.internal_resources->shaders.size(); ++i) {
+      if (d.internal_resources->shaders[i] == entry.first) {
+        d.internal_resources->shaders.remove(i);
+        break;
+      }
+    }
+    d.internal_resources->shader_map.erase(it2);
+  }
+}
+
+void BKE_mesh_gpu_internal_ssbo_update(Mesh *mesh, const std::string &key, const void *data)
+{
+  if (!mesh) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_mesh_data_cache.find(mesh);
+  if (it == g_mesh_data_cache.end()) {
+    return;
+  }
+  MeshGpuData &d = it->second;
+  if (!d.internal_resources) {
+    return;
+  }
+  auto it2 = d.internal_resources->ssbo_map.find(key);
+  if (it2 == d.internal_resources->ssbo_map.end()) {
+    return;
+  }
+  blender::gpu::StorageBuf *buf = it2->second.first;
+  if (buf && GPU_context_active_get()) {
+    GPU_storagebuf_update(buf, data);
+  }
+}
+
+blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key)
+{
+  if (!mesh) {
+    return nullptr;
+  }
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_mesh_data_cache.find(mesh);
+  if (it == g_mesh_data_cache.end()) {
+    return nullptr;
+  }
+  MeshGpuData &d = it->second;
+  if (!d.internal_resources) {
+    return nullptr;
+  }
+  auto it2 = d.internal_resources->ssbo_map.find(key);
+  if (it2 == d.internal_resources->ssbo_map.end()) {
+    return nullptr;
+  }
+  return it2->second.first;
 }
 
 void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key)
 {
- if (!mesh) {
- return;
- }
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
- auto it = g_mesh_data_cache.find(mesh);
- if (it == g_mesh_data_cache.end()) {
- return;
- }
- MeshGpuData &d = it->second;
- if (!d.internal_resources) {
- return;
- }
- auto it2 = d.internal_resources->ssbo_map.find(key);
- if (it2 == d.internal_resources->ssbo_map.end()) {
- return;
- }
- auto &entry = it2->second;
- entry.second -=1;
- if (entry.second <=0) {
- if (entry.first && GPU_context_active_get()) {
- GPU_storagebuf_free(entry.first);
- }
- /* remove from vectors if present (linear search) */
- auto &vec = d.internal_resources->ssbos;
- for (int i =0; i < vec.size(); ++i) {
- if (vec[i] == entry.first) {
- vec.remove(i);
- break;
- }
- }
- d.internal_resources->ssbo_map.erase(it2);
- }
+  if (!mesh) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_mesh_data_cache.find(mesh);
+  if (it == g_mesh_data_cache.end()) {
+    return;
+  }
+  MeshGpuData &d = it->second;
+  if (!d.internal_resources) {
+    return;
+  }
+  auto it2 = d.internal_resources->ssbo_map.find(key);
+  if (it2 == d.internal_resources->ssbo_map.end()) {
+    return;
+  }
+  auto &entry = it2->second;
+  entry.second -= 1;
+  if (entry.second <= 0) {
+    if (entry.first && GPU_context_active_get()) {
+      GPU_storagebuf_free(entry.first);
+    }
+    /* remove from vector if present */
+    for (int i = 0; i < d.internal_resources->ssbos.size(); ++i) {
+      if (d.internal_resources->ssbos[i] == entry.first) {
+        d.internal_resources->ssbos.remove(i);
+        break;
+      }
+    }
+    d.internal_resources->ssbo_map.erase(it2);
+  }
+}
+/* Armature resource helpers. These are simple wrappers reusing MeshGpuInternalResources so we
+ * can store SSBOs/shaders keyed by armature object pointer. */
+blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
+                                                                const std::string &key,
+                                                                size_t size)
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto &res = g_armature_gpu_resources[arm];
+  auto it = res.ssbo_map.find(key);
+  if (it != res.ssbo_map.end()) {
+    it->second.second += 1;
+    return it->second.first;
+  }
+  if (!GPU_context_active_get()) {
+    return nullptr;
+  }
+  blender::gpu::StorageBuf *buf = GPU_storagebuf_create(size);
+  if (!buf) {
+    return nullptr;
+  }
+  res.ssbo_map.emplace(key, std::make_pair(buf, 1));
+  res.ssbos.append(buf);
+  return buf;
+}
+
+void BKE_armature_gpu_internal_ssbo_update(Object *arm, const std::string &key, const void *data)
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_armature_gpu_resources.find(arm);
+  if (it == g_armature_gpu_resources.end()) {
+    return;
+  }
+  auto &res = it->second;
+  auto it2 = res.ssbo_map.find(key);
+  if (it2 == res.ssbo_map.end()) {
+    return;
+  }
+  blender::gpu::StorageBuf *buf = it2->second.first;
+  if (buf && GPU_context_active_get()) {
+    GPU_storagebuf_update(buf, data);
+  }
+}
+
+blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const std::string &key)
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_armature_gpu_resources.find(arm);
+  if (it == g_armature_gpu_resources.end()) {
+    return nullptr;
+  }
+  auto &res = it->second;
+  auto it2 = res.ssbo_map.find(key);
+  if (it2 == res.ssbo_map.end()) {
+    return nullptr;
+  }
+  return it2->second.first;
+}
+
+void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_armature_gpu_resources.find(arm);
+  if (it == g_armature_gpu_resources.end()) {
+    return;
+  }
+  auto &res = it->second;
+  auto it2 = res.ssbo_map.find(key);
+  if (it2 == res.ssbo_map.end()) {
+    return;
+  }
+  auto &entry = it2->second;
+  entry.second -= 1;
+  if (entry.second <= 0) {
+    if (entry.first && GPU_context_active_get()) {
+      GPU_storagebuf_free(entry.first);
+    }
+    /* remove from vector if present */
+    for (int i = 0; i < res.ssbos.size(); ++i) {
+      if (res.ssbos[i] == entry.first) {
+        res.ssbos.remove(i);
+        break;
+      }
+    }
+    res.ssbo_map.erase(it2);
+  }
+}
+
+void BKE_armature_gpu_internal_free_all_armature_caches()
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  if (GPU_context_active_get()) {
+    for (auto &kv : g_armature_gpu_resources) {
+      auto &res = kv.second;
+      for (auto *ssbo : res.ssbos) {
+        if (ssbo) {
+          GPU_storagebuf_free(ssbo);
+        }
+      }
+      for (auto *sh : res.shaders) {
+        if (sh) {
+          GPU_shader_free(sh);
+        }
+      }
+    }
+    g_armature_gpu_resources.clear();
+  }
+  else {
+    /* Move to orphans map? For simplicity, rely on GPU module cleanup. */
+    g_armature_gpu_resources.clear();
+  }
 }
 
 void BKE_mesh_gpu_free_all_caches()
 {
- std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
 
- if (GPU_context_active_get()) {
- /* Free everything now. */
-   for (auto &kv : g_mesh_data_cache) {
-     MeshGpuData &d = kv.second;
-     for (auto &pair : d.compute_shaders) {
-       if (pair.second) {
-         GPU_shader_free(pair.second);
-         pair.second = nullptr;
-       }
-     }
-     d.compute_shaders.clear();
+  if (GPU_context_active_get()) {
+    /* Free mesh scoped resources now. */
+    for (auto &kv : g_mesh_data_cache) {
+      MeshGpuData &d = kv.second;
+      for (auto &pair : d.compute_shaders) {
+        if (pair.second) {
+          GPU_shader_free(pair.second);
+          pair.second = nullptr;
+        }
+      }
+      d.compute_shaders.clear();
 
-     if (d.internal_resources) {
-       for (auto *ssbo : d.internal_resources->ssbos) {
-         if (ssbo) {
-           GPU_storagebuf_free(ssbo);
-         }
-       }
-       for (auto *vbo : d.internal_resources->vbos) {
-         if (vbo) {
-           GPU_vertbuf_clear(vbo);
-         }
-       }
-       for (auto *ibo : d.internal_resources->ibos) {
-         if (ibo) {
-           /* There is no generic "clear" for index buffers in some backends; rely on GPU module cleanup
-            * or leave to specific callers. If an explicit free exists, prefer it here. */
-         }
-       }
-       for (auto *ub : d.internal_resources->ubos) {
-         if (ub) {
-           /* Uniform buffers are freed by GPU module cleanup when no context; explicit free could be added here. */
-         }
-       }
-       for (auto *sh : d.internal_resources->shaders) {
-         if (sh) {
-           GPU_shader_free(sh);
-         }
-       }
-       delete d.internal_resources;
-       d.internal_resources = nullptr;
-     }
+      if (d.internal_resources) {
+        for (auto *ssbo : d.internal_resources->ssbos) {
+          if (ssbo) {
+            GPU_storagebuf_free(ssbo);
+          }
+        }
+        for (auto *vbo : d.internal_resources->vbos) {
+          if (vbo) {
+            GPU_vertbuf_clear(vbo);
+          }
+        }
+        for (auto *ib : d.internal_resources->ibos) {
+          if (ib) {
+            /* Index buffer cleanup handled by GPU module if needed */
+          }
+        }
+        for (auto *ub : d.internal_resources->ubos) {
+          if (ub) {
+            /* Uniform buffer cleanup handled by GPU module if needed */
+          }
+        }
+        for (auto *sh : d.internal_resources->shaders) {
+          if (sh) {
+            GPU_shader_free(sh);
+          }
+        }
+        delete d.internal_resources;
+        d.internal_resources = nullptr;
+      }
 
-     BKE_mesh_gpu_topology_free(d.topology);
-   }
-   g_mesh_data_cache.clear();
-   mesh_gpu_orphans_flush();
- }
- else {
-   /* Move all data to orphans to be freed later when a GL context is available. */
-   for (auto &kv : g_mesh_data_cache) {
-     g_mesh_data_orphans.push_back(std::move(kv.second));
-   }
-   g_mesh_data_cache.clear();
- }
+      BKE_mesh_gpu_topology_free(d.topology);
+    }
+    g_mesh_data_cache.clear();
+
+    /* free armature scoped resources too */
+    BKE_armature_gpu_internal_free_all_armature_caches();
+
+    /* Flush orphans now that context is active. */
+    mesh_gpu_orphans_flush();
+  }
+  else {
+    /* Move all mesh data to orphans to be freed when a GL context becomes available. */
+    for (auto &kv : g_mesh_data_cache) {
+      g_mesh_data_orphans.push_back(std::move(kv.second));
+    }
+    g_mesh_data_cache.clear();
+
+    /* Armature resources: rely on GPU module cleanup or later explicit free. Clear map to drop
+     * references. */
+    g_armature_gpu_resources.clear();
+  }
 }
