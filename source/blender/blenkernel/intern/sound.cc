@@ -1753,14 +1753,12 @@ void BKE_sound_load_no_assert(Main *bmain, struct bSound *sound)
 
 void BKE_sound_use_begin()
 {
-  BKE_sound_exit();
   sound_device_use_begin();
 }
 
 void BKE_sound_use_end()
 {
   sound_device_use_end();
-  BKE_sound_exit();
 }
 
 void *BKE_sound_get_device()

@@ -317,7 +317,7 @@ void BL_ConvertActuators(const char *maggiename,
 #ifdef WITH_AUDASPACE
             bContext *C = KX_GetActiveEngine()->GetContext();
             BKE_sound_load_no_assert(CTX_data_main(C), sound);
-            snd_sound = sound->playback_handle;
+            snd_sound = BKE_sound_playback_handle_get(sound);
 
             // if sound shall be 3D but isn't mono, we have to make it mono!
             if (is3d) {
@@ -339,7 +339,7 @@ void BL_ConvertActuators(const char *maggiename,
 
 #ifdef WITH_AUDASPACE
           // if we made it mono, we have to free it
-          if (sound && snd_sound && snd_sound != sound->playback_handle) {
+          if (sound && snd_sound && snd_sound != BKE_sound_playback_handle_get(sound)) {
             AUD_Sound_free(snd_sound);
           }
 #endif  // WITH_AUDASPACE
