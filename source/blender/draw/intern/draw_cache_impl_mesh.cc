@@ -31,6 +31,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -1075,6 +1076,38 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   bool cd_uv_update = false;
+
+  /* UPBGE: detect if GPU deform is requested (armature modifier wants GPU skinning).
+   * If so, mark the mesh for GPU deform and force re-extraction of position VBO
+   * so it can be created with float4 layout. This is a conservative heuristic: we
+   * enable GPU deform if an armature modifier is present. */
+  bool want_gpu_deform = false;
+  if (mesh.is_using_gpu_deform == 1) {
+    want_gpu_deform = true;
+  }
+  else {
+    for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
+      if (md->type == eModifierType_Armature) {
+        ArmatureModifierData *amd = (ArmatureModifierData *)md;
+        if (amd && amd->upbge_deformflag & ARM_DEF_GPU) {
+          Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+          orig_mesh->is_using_gpu_deform = 1;
+          mesh.is_using_gpu_deform = 1;
+          want_gpu_deform = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (want_gpu_deform && mesh.is_using_gpu_deform ==0) {
+    Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+    orig_mesh->is_using_gpu_deform = 1;
+    mesh.is_using_gpu_deform =1;
+    /* Force re-extraction of position vbo by removing existing ones. Do this for all
+     * buffer lists (final, cage, uv_cage). */
+    cache.final.buff.vbos.remove(VBOType::Position);
+  }
 
   /* Early out */
   if (cache.batch_requested == 0) {

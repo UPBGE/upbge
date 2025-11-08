@@ -119,6 +119,9 @@ static void deform_verts(ModifierData *md,
                          Mesh *mesh,
                          blender::MutableSpan<blender::float3> positions)
 {
+  if (mesh->is_running_gpu_deform) {
+    return;
+  }
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
   std::optional<blender::Span<blender::float3>> vert_coords_prev;
   if (amd->vert_coords_prev) {

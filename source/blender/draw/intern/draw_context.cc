@@ -80,6 +80,10 @@
 #include "WM_api.hh"
 
 #include "DRW_render.hh"
+
+#include "draw_armature_skinning.hh" // UPBGE
+#include <unordered_set>
+
 #include "draw_cache.hh"
 #include "draw_color_management.hh"
 #include "draw_common_c.hh"
@@ -1054,10 +1058,90 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   view_data_active->manager->end_sync();
 }
 
+static void do_gpu_skinning(DRWContext &draw_ctx)
+{
+  using namespace blender::draw;
+  Depsgraph *depsgraph = draw_ctx.depsgraph;
+
+  DEGObjectIterSettings deg_iter_settings = {nullptr};
+  deg_iter_settings.depsgraph = depsgraph;
+  deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
+
+  /* Avoid dispatching skinning multiple times for the same original mesh
+   * (many evaluated objects / dupli instances may reference the same source).
+   * Track processed mesh owners during this pass. */
+  std::unordered_set<Mesh *> processed_meshes;
+
+  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+    if (ob->type != OB_MESH) {
+      continue;
+    }
+    Mesh *mesh_eval = static_cast<Mesh *>(ob->data);
+    if (!mesh_eval) {
+      continue;
+    }
+    MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+    if (!cache) {
+      continue;
+    }
+
+    /* Find an armature modifier that deforms this object (evaluated object). */
+    Object *arm_ob = BKE_modifiers_is_deformed_by_armature(ob);
+    if (!arm_ob) {
+      continue;
+    }
+
+    /* Only dispatch GPU skinning when requested. The extractor marks evaluated meshes
+     * with `is_running_gpu_deform` during cache population and the original mesh
+     * is marked with `is_using_gpu_deform`. This avoids redundant dispatches. */
+    if (!(mesh_eval->is_running_gpu_deform) &&
+        !(cache->mesh_owner && cache->mesh_owner->is_using_gpu_deform))
+    {
+      continue;
+    }
+
+    /* Ensure we only process each original mesh once. */
+    Mesh *mesh_owner = (cache->mesh_owner) ? cache->mesh_owner : mesh_eval;
+    if (!processed_meshes.insert(mesh_owner).second) {
+      /* Already processed this mesh owner. */
+      continue;
+    }
+
+    /* Try to get position and normal VBOs from the final buffer list. */
+    blender::gpu::VertBuf *vbo_pos = nullptr;
+    blender::gpu::VertBuf *vbo_nor = nullptr;
+    if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Position)) {
+      vbo_pos = ptr->get();
+    }
+    if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::VertexNormal)) {
+      vbo_nor = ptr->get();
+    }
+
+    /* Need a position VBO to scatter skinned positions. */
+    if (vbo_pos == nullptr) {
+      if (G.debug & G_DEBUG) {
+        printf("UPBGE: skip GPU skinning for object '%s' (no position VBO)\n", (ob->id.name + 2));
+      }
+      continue;
+    }
+
+    if (G.debug & G_DEBUG) {
+      printf("UPBGE: dispatching GPU skinning for object '%s'\n", (ob->id.name + 2));
+    }
+
+    /* Call dispatch. It will update armature SSBOs and run compute shader if possible. */
+    ArmatureSkinningManager::instance().dispatch_skinning(
+        depsgraph, arm_ob, ob, cache, vbo_pos, vbo_nor);
+  }
+  DEG_OBJECT_ITER_END;
+}
+
 void DRWContext::engines_draw_scene()
 {
   /* Start Drawing */
   blender::draw::command::StateSet::set();
+
+  do_gpu_skinning(*this);
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
 #ifdef __APPLE__
