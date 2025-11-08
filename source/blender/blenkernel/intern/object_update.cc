@@ -132,6 +132,13 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* includes all keys and modifiers */
   switch (ob->type) {
     case OB_MESH: {
+      Mesh *mesh = static_cast<Mesh *>(ob->data);
+      if (mesh->is_running_gpu_deform) {
+        /* When GPU deform is enabled, we skip the regular modifier
+         * stack evaluation as the deformation is done on the GPU. */
+        ob->runtime->last_update_geometry = DEG_get_update_count(depsgraph);
+        break;
+      }
       CustomData_MeshMasks cddata_masks = scene->customdata_mask;
       CustomData_MeshMasks_update(&cddata_masks, &CD_MASK_BAREMESH);
       /* Custom attributes should not be removed automatically. They might be used by the render

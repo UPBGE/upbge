@@ -1100,10 +1100,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
   }
 
-  if (want_gpu_deform && mesh.is_using_gpu_deform ==0) {
+  if (want_gpu_deform && mesh.is_using_gpu_deform == 0) {
     Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
     orig_mesh->is_using_gpu_deform = 1;
-    mesh.is_using_gpu_deform =1;
+    mesh.is_using_gpu_deform = 1;
     /* Force re-extraction of position vbo by removing existing ones. Do this for all
      * buffer lists (final, cage, uv_cage). */
     cache.final.buff.vbos.remove(VBOType::Position);

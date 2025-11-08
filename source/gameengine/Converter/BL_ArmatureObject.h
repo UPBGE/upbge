@@ -130,8 +130,6 @@ class BL_ArmatureObject : public KX_GameObject {
   void RemapParentChildren();
   void GetGpuDeformedObj();
   void ApplyAction(bAction *action, const AnimationEvalContext &evalCtx);
-  // Initialize resources which can be shared between replicas (shader, some ssbos...)
-  void InitStaticSkinningBuffers();
   void DoGpuSkinning();
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 

@@ -228,7 +228,6 @@ void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key);
 blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
  const std::string &key,
  size_t size);
-void BKE_mesh_gpu_internal_ssbo_update(Mesh *mesh, const std::string &key, const void *data);
 blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key);
 void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key);
 
@@ -238,7 +237,6 @@ void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key);
 blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
  const std::string &key,
  size_t size);
-void BKE_armature_gpu_internal_ssbo_update(Object *arm, const std::string &key, const void *data);
 blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const std::string &key);
 void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key);
 void BKE_armature_gpu_internal_free_all_armature_caches();

@@ -774,30 +774,6 @@ void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key)
   }
 }
 
-void BKE_mesh_gpu_internal_ssbo_update(Mesh *mesh, const std::string &key, const void *data)
-{
-  if (!mesh) {
-    return;
-  }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_mesh_data_cache.find(mesh);
-  if (it == g_mesh_data_cache.end()) {
-    return;
-  }
-  MeshGpuData &d = it->second;
-  if (!d.internal_resources) {
-    return;
-  }
-  auto it2 = d.internal_resources->ssbo_map.find(key);
-  if (it2 == d.internal_resources->ssbo_map.end()) {
-    return;
-  }
-  blender::gpu::StorageBuf *buf = it2->second.first;
-  if (buf && GPU_context_active_get()) {
-    GPU_storagebuf_update(buf, data);
-  }
-}
-
 blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key)
 {
   if (!mesh) {
@@ -876,24 +852,6 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
   res.ssbo_map.emplace(key, std::make_pair(buf, 1));
   res.ssbos.append(buf);
   return buf;
-}
-
-void BKE_armature_gpu_internal_ssbo_update(Object *arm, const std::string &key, const void *data)
-{
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_armature_gpu_resources.find(arm);
-  if (it == g_armature_gpu_resources.end()) {
-    return;
-  }
-  auto &res = it->second;
-  auto it2 = res.ssbo_map.find(key);
-  if (it2 == res.ssbo_map.end()) {
-    return;
-  }
-  blender::gpu::StorageBuf *buf = it2->second.first;
-  if (buf && GPU_context_active_get()) {
-    GPU_storagebuf_update(buf, data);
-  }
 }
 
 blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const std::string &key)

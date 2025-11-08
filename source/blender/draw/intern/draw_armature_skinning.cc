@@ -39,41 +39,26 @@ struct blender::draw::ArmatureSkinningManager::Impl {
 
   /* Static CPU-side buffers (kept per original mesh pointer key). */
   struct MeshStaticData {
-    std::vector<int> in_indices;       /* size = verts *4 */
-    std::vector<float> in_weights;     /* size = verts *4 */
+    std::vector<int> in_indices;       /* size = verts * 4 */
+    std::vector<float> in_weights;     /* size = verts * 4 */
     std::vector<float> rest_positions; /* float4 per vert (flattened) */
     int verts_num = 0;
 
-    /* GPU SSBOs (created in GL context when needed) */
-    blender::gpu::StorageBuf *ssbo_in_idx = nullptr;
-    blender::gpu::StorageBuf *ssbo_in_wgt = nullptr;
-    blender::gpu::StorageBuf *ssbo_rest_pos = nullptr;
-    blender::gpu::StorageBuf *ssbo_skinned_pos = nullptr;
-    /* Per-mesh small SSBO for premat (1 mat4). */
-    blender::gpu::StorageBuf *ssbo_premat = nullptr;
-    blender::gpu::StorageBuf *ssbo_postmat = nullptr;
-    /* Armature object and deformed object pointers used to compute premat/postmat. */
+    /* DO NOT store GPU pointers here; resources are owned by BKE_mesh_gpu. */
     Object *arm = nullptr;
     Object *deformed = nullptr;
 
-    /* Pending GPU setup: if true, we will set orig_mesh->is_using_gpu_deform =1 on the first
-     * GL pass and wait one frame for the draw cache to be populated (which requires a DrwContext).
-     * This implements the "pending + retry next frames" strategy without hooking the draw manager.
-     */
     bool pending_gpu_setup = false;
     int gpu_setup_attempts = 0;
   };
 
   Map<Mesh *, MeshStaticData> static_map;
 
-  /* Compute shader used to skin vertices. Created on demand in GL context. */
-  blender::gpu::Shader *compute_shader = nullptr;
-
   struct ArmatureData {
     int refcount = 0;
     int bones = 0;
     int last_update_frame = -1;
-    blender::gpu::StorageBuf *ssbo_bone_pose = nullptr; /* mat4[] */
+    /* Do not store StorageBuf* here. Use BKE_armature_gpu_internal_ssbo_* helpers. */
   };
 
   Map<Object *, ArmatureData> arm_map;
@@ -252,74 +237,6 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
    */
 }
 
-void ArmatureSkinningManager::update_per_frame(Object *arm_ob, Object *deformed_ob)
-{
-  (void)deformed_ob;
-
-  /* Update armature bone matrices (one SSBO per armature). */
-  if (!arm_ob || arm_ob->pose == nullptr) {
-    return;
-  }
-
-  /* Get or create ArmatureData for this armature. */
-  Impl::ArmatureData &ad = impl_->arm_map.lookup_or_add_default(arm_ob);
-
-  /* Count deforming bones in the same order as ensure_static_resources (skip BONE_NO_DEFORM). */
-  int bones_count = 0;
-  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
-       pchan = pchan->next)
-  {
-    if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
-      bones_count++;
-    }
-  }
-
-  /* Recreate SSBO if bone count changed. */
-  if (ad.bones != bones_count) {
-    if (ad.ssbo_bone_pose) {
-      /* Release our references to keyed internal resources. The actual free is centralized in BKE.
-       */
-      const std::string key_bone_pose = "armature_bone_pose";
-      BKE_armature_gpu_internal_ssbo_release(arm_ob, key_bone_pose);
-      ad.ssbo_bone_pose = nullptr;
-    }
-    if (bones_count > 0) {
-      /* Create armature-scoped SSBO via BKE helper and record in local map for lookup. */
-      const std::string key_bone_pose = "armature_bone_pose";
-      ad.bones = bones_count;
-      blender::gpu::StorageBuf *buf = BKE_armature_gpu_internal_ssbo_ensure(arm_ob, key_bone_pose, sizeof(float) *16 * bones_count);
-      if (buf) {
-        /* Store pointer locally for quick access (do not free here). */
-        ad.ssbo_bone_pose = buf;
-      }
-    }
-  }
-
-  if (ad.ssbo_bone_pose == nullptr || bones_count == 0) {
-    return;
-  }
-
-  /* Fill an array of float[16] using pchan->chan_mat in the same order used by the index map. */
-  std::vector<float> mats;
-  mats.resize(size_t(bones_count) *16);
-  int bi =0;
-  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
-       pchan = pchan->next)
-  {
-    if (pchan->bone->flag & BONE_NO_DEFORM) {
-      continue;
-    }
-    /* pchan->chan_mat is a4x4 float (row-major in memory). Copy directly. */
-    memcpy(&mats[bi *16], pchan->chan_mat, sizeof(float) *16);
-    bi++;
-  }
-  /* Upload via BKE armature helper if available, otherwise fallback to local buffer update. */
-  const std::string key_bone_pose = "armature_bone_pose";
-  if (ad.ssbo_bone_pose) {
-    BKE_armature_gpu_internal_ssbo_update(arm_ob, key_bone_pose, mats.data());
-  }
-}
-
 bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
                                                 Object *armature,
                                                 Object *deformed_eval,
@@ -332,50 +249,31 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   (void)depsgraph;
   (void)deformed_eval;
 
-  /* Ensure armature SSBOs are updated for this frame. We call update_per_frame with current
-   * arm/deformed objects. */
-  /* Note: this may early-return if no armature present. */
-  update_per_frame(armature, deformed_eval);
-
-  /* Find static data for mesh_owner if present */
-  Mesh *mesh_owner = nullptr;
-  if (cache && cache->mesh_owner) {
-    mesh_owner = cache->mesh_owner;
-  }
+  Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
     return false;
   }
-
-  auto *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
+  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
   if (!msd_ptr) {
     return false;
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
-  /* If we previously requested GPU-deform setup, ensure we let the draw cache populate while
-   * `is_using_gpu_deform ==1`. We cannot call draw_cache_populate here; instead, we set the flag
-   * on the first GL pass and return false so the draw manager has one frame to populate caches.
-   */
   const int MAX_ATTEMPTS = 3;
   if (msd.pending_gpu_setup) {
     if (msd.gpu_setup_attempts == 0) {
-      /* First GL pass: enable flag so draw extraction will emit float4 positions next frame. */
       mesh_owner->is_using_gpu_deform = 1;
       msd.gpu_setup_attempts = 1;
-      return false; /* retry next frame */
+      return false;
     }
-    else if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      /* Too many attempts: give up and fallback to CPU. Clean up flag and pending state. */
+    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
       mesh_owner->is_using_gpu_deform = 0;
       msd.pending_gpu_setup = false;
       msd.gpu_setup_attempts = 0;
       return false;
     }
-    /* If attempts >0, fall through and try to proceed; if caches are still not populated, we'll
-     * fail later and can increment attempts or clear the pending flag. */
   }
 
-  /* Ensure SSBOs exist and are uploaded via BKE helpers (keyed, refcounted). */
   MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
   if (!ires) {
     return false;
@@ -383,66 +281,109 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
 
   const std::string key_in_idx = "armature_in_idx";
   const std::string key_in_wgt = "armature_in_wgt";
+  const std::string key_bone_pose = "armature_bone_pose";
   const std::string key_rest_pos = "armature_rest_pos";
   const std::string key_skinned_pos = "armature_skinned_pos";
   const std::string key_premat = "armature_premat";
   const std::string key_postmat = "armature_postmat";
 
-  // 4. Prepare transform matrices
   float premat[4][4], postmat[4][4], obinv[4][4];
   copy_m4_m4(premat, deformed_eval->object_to_world().ptr());
   invert_m4_m4(obinv, deformed_eval->object_to_world().ptr());
   mul_m4_m4m4(postmat, obinv, armature->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
-  if (!msd.ssbo_in_idx) {
-    msd.ssbo_in_idx = BKE_mesh_gpu_internal_ssbo_ensure(
+  /* ensure/upload per-mesh SSBOs (use GPU_storagebuf_update directly) */
+  blender::gpu::StorageBuf *ssbo_in_idx = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_in_idx);
+  if (!ssbo_in_idx) {
+    ssbo_in_idx = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_in_idx, sizeof(int) * msd.verts_num * 4);
-    if (!msd.ssbo_in_idx) {
+    if (!ssbo_in_idx) {
       return false;
     }
-    BKE_mesh_gpu_internal_ssbo_update(mesh_owner, key_in_idx, msd.in_indices.data());
+    GPU_storagebuf_update(ssbo_in_idx, msd.in_indices.data());
   }
-  if (!msd.ssbo_in_wgt) {
-    msd.ssbo_in_wgt = BKE_mesh_gpu_internal_ssbo_ensure(
+
+  blender::gpu::StorageBuf *ssbo_in_wgt = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_in_wgt);
+  if (!ssbo_in_wgt) {
+    ssbo_in_wgt = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_in_wgt, sizeof(float) * msd.verts_num * 4);
-    if (!msd.ssbo_in_wgt) {
+    if (!ssbo_in_wgt) {
       return false;
     }
-    BKE_mesh_gpu_internal_ssbo_update(mesh_owner, key_in_wgt, msd.in_weights.data());
+    GPU_storagebuf_update(ssbo_in_wgt, msd.in_weights.data());
   }
-  if (!msd.ssbo_rest_pos) {
-    msd.ssbo_rest_pos = BKE_mesh_gpu_internal_ssbo_ensure(
+
+  blender::gpu::StorageBuf *ssbo_rest_pos = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
+                                                                           key_rest_pos);
+  if (!ssbo_rest_pos) {
+    ssbo_rest_pos = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_rest_pos, sizeof(float) * msd.verts_num * 4);
-    if (!msd.ssbo_rest_pos) {
+    if (!ssbo_rest_pos) {
       return false;
     }
-    BKE_mesh_gpu_internal_ssbo_update(mesh_owner, key_rest_pos, msd.rest_positions.data());
+    GPU_storagebuf_update(ssbo_rest_pos, msd.rest_positions.data());
   }
-  if (!msd.ssbo_skinned_pos) {
-    msd.ssbo_skinned_pos = BKE_mesh_gpu_internal_ssbo_ensure(
+
+  blender::gpu::StorageBuf *ssbo_skinned_pos = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
+                                                                              key_skinned_pos);
+  if (!ssbo_skinned_pos) {
+    ssbo_skinned_pos = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_skinned_pos, sizeof(float) * msd.verts_num * 4);
-    if (!msd.ssbo_skinned_pos) {
-      return false;
-    }
-  }
-  if (!msd.ssbo_premat) {
-    msd.ssbo_premat = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_premat, sizeof(float) * 16);
-    if (!msd.ssbo_premat) {
-      return false;
-    }
-  }
-  if (!msd.ssbo_postmat) {
-    msd.ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_postmat, sizeof(float) * 16);
-    if (!msd.ssbo_postmat) {
+    if (!ssbo_skinned_pos) {
       return false;
     }
   }
 
-  /* Ensure compute shader via BKE helper to avoid duplicates. Use a mesh-scoped key. */
-  blender::gpu::Shader *compute_sh = nullptr;
+  blender::gpu::StorageBuf *ssbo_premat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_premat);
+  if (!ssbo_premat) {
+    ssbo_premat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_premat, sizeof(float) * 16);
+    if (!ssbo_premat) {
+      return false;
+    }
+  }
+  GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
+
+  /* armature bone matrices */
+  blender::gpu::StorageBuf *ssbo_bone_mat = nullptr;
+  if (msd.arm) {
+    Impl::ArmatureData &ad_ref = impl_->arm_map.lookup_or_add_default(msd.arm);
+    if (ad_ref.bones == 0) {
+      int bc = 0;
+      for (bPoseChannel *pchan = (bPoseChannel *)msd.arm->pose->chanbase.first; pchan;
+           pchan = pchan->next)
+      {
+        if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
+          bc++;
+        }
+      }
+      ad_ref.bones = bc;
+    }
+    if (ad_ref.bones > 0) {
+      ssbo_bone_mat = BKE_armature_gpu_internal_ssbo_get(msd.arm, key_bone_pose);
+      if (!ssbo_bone_mat) {
+        ssbo_bone_mat = BKE_armature_gpu_internal_ssbo_ensure(
+            msd.arm, key_bone_pose, sizeof(float) * 16 * ad_ref.bones);
+      }
+      if (ssbo_bone_mat) {
+        std::vector<float> mats;
+        mats.resize(size_t(ad_ref.bones) * 16);
+        int bi = 0;
+        for (bPoseChannel *pchan = (bPoseChannel *)msd.arm->pose->chanbase.first; pchan;
+             pchan = pchan->next)
+        {
+          if (pchan->bone->flag & BONE_NO_DEFORM) {
+            continue;
+          }
+          memcpy(&mats[bi * 16], pchan->chan_mat, sizeof(float) * 16);
+          bi++;
+        }
+        GPU_storagebuf_update(ssbo_bone_mat, mats.data());
+      }
+    }
+  }
+
+  /* create/ensure compute shader and dispatch */
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
   info.local_group_size(256, 1, 1);
@@ -454,50 +395,41 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   info.storage_buf(3, Qualifier::read, "mat4", "bone_pose_mat[]");
   info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
   info.storage_buf(5, Qualifier::read, "vec4", "rest_positions[]");
-
   const std::string shader_key = "armature_skinning_compute";
-  compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+  blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_ensure(
+      mesh_owner, shader_key, info);
   if (!compute_sh) {
     return false;
   }
 
   GPU_shader_bind(compute_sh);
-  GPU_storagebuf_bind(msd.ssbo_skinned_pos, 0);
-  GPU_storagebuf_bind(msd.ssbo_in_idx, 1);
-  GPU_storagebuf_bind(msd.ssbo_in_wgt, 2);
-  /* Bind bone pose SSBO from armature data if available. */
-  if (msd.arm) {
-    if (auto *ad_ptr = impl_->arm_map.lookup_ptr(msd.arm)) {
-      Impl::ArmatureData &ad = *ad_ptr;
-      if (ad.ssbo_bone_pose) {
-        GPU_storagebuf_bind(ad.ssbo_bone_pose, 3);
-      }
-    }
+  GPU_storagebuf_bind(ssbo_skinned_pos, 0);
+  GPU_storagebuf_bind(ssbo_in_idx, 1);
+  GPU_storagebuf_bind(ssbo_in_wgt, 2);
+  if (ssbo_bone_mat) {
+    GPU_storagebuf_bind(ssbo_bone_mat, 3);
   }
-  
-  /* Bind per-mesh premat (slot4) */
-  if (msd.ssbo_premat) {
-    GPU_storagebuf_bind(msd.ssbo_premat, 4);
-    BKE_mesh_gpu_internal_ssbo_update(mesh_owner, key_premat, &premat[0][0]);
-  }
-  /* Bind rest positions SSBO as declared in the compute shader (binding5). */
-  if (msd.ssbo_rest_pos) {
-    GPU_storagebuf_bind(msd.ssbo_rest_pos, 5);
-  }
+  GPU_storagebuf_bind(ssbo_premat, 4);
+  GPU_storagebuf_bind(ssbo_rest_pos, 5);
 
   const int group_size = 256;
   int num_groups = (msd.verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(compute_sh, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-
   GPU_shader_unbind();
 
-  /* Scatter skinned positions to mesh corners and compute normals. */
-
+  /* scatter to corners */
   if (deformed_eval && cache && vbo_pos && vbo_nor) {
-    if (msd.ssbo_postmat) {
-      BKE_mesh_gpu_internal_ssbo_update(mesh_owner, key_postmat, &postmat[0][0]);
+    blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
+                                                                            key_postmat);
+    if (!ssbo_postmat) {
+      ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, key_postmat, sizeof(float) * 16);
+      if (!ssbo_postmat) {
+        return false;
+      }
     }
+    GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
     std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
     caller_bindings.reserve(4);
@@ -526,7 +458,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
       b.qualifiers = blender::gpu::shader::Qualifier::read;
       b.type_name = "vec4";
       b.bind_name = "positions_in[]";
-      b.buffer = msd.ssbo_skinned_pos;
+      b.buffer = ssbo_skinned_pos;
       caller_bindings.push_back(b);
     }
     {
@@ -535,19 +467,18 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
       b.qualifiers = blender::gpu::shader::Qualifier::read;
       b.type_name = "mat4";
       b.bind_name = "transform_mat[]";
-      b.buffer = msd.ssbo_postmat; /* provide postmat to scatter stage */
+      b.buffer = ssbo_postmat;
       caller_bindings.push_back(b);
     }
 
-    auto post_bind_fn = [](blender::gpu::Shader *sh) {};
-    auto config_fn = [](blender::gpu::shader::ShaderCreateInfo &info) {};
+    auto post_bind_fn = [](blender::gpu::Shader * /* sh */) {};
+    auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
 
     Mesh *mesh_eval = BKE_object_get_evaluated_mesh(deformed_eval);
     if (!mesh_eval) {
       return false;
     }
-    /* If we reached here and pending_gpu_setup was set, assume draw cache was populated with
-     * float4 positions and mark setup complete. */
+
     if (msd.pending_gpu_setup) {
       msd.pending_gpu_setup = false;
       msd.gpu_setup_attempts = 0;
@@ -571,51 +502,12 @@ void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
   }
   if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
     Impl::MeshStaticData &msd = *msd_ptr;
-    /* Release our references to keyed internal resources. The actual free is centralized in BKE.
-     */
-    const std::string key_in_idx = "armature_in_idx";
-    const std::string key_in_wgt = "armature_in_wgt";
-    const std::string key_rest_pos = "armature_rest_pos";
-    const std::string key_skinned_pos = "armature_skinned_pos";
-    const std::string key_premat = "armature_premat";
-    const std::string key_postmat = "armature_postmat";
-    const std::string shader_key = "armature_skinning_compute";
-    if (msd.ssbo_in_idx) {
-      BKE_mesh_gpu_internal_ssbo_release(mesh, key_in_idx);
-    }
-    if (msd.ssbo_in_wgt) {
-      BKE_mesh_gpu_internal_ssbo_release(mesh, key_in_wgt);
-    }
-    if (msd.ssbo_rest_pos) {
-      BKE_mesh_gpu_internal_ssbo_release(mesh, key_rest_pos);
-    }
-    if (msd.ssbo_skinned_pos) {
-      BKE_mesh_gpu_internal_ssbo_release(mesh, key_skinned_pos);
-    }
-    if (msd.ssbo_premat) {
-      BKE_mesh_gpu_internal_ssbo_release(mesh, key_premat);
-    }
-    if (msd.ssbo_postmat) {
-      BKE_mesh_gpu_internal_ssbo_release(mesh, key_postmat);
-    }
-    /* Release shader reference */
-    BKE_mesh_gpu_internal_shader_release(mesh, shader_key);
-    msd.ssbo_in_idx = nullptr;
-    msd.ssbo_in_wgt = nullptr;
-    msd.ssbo_rest_pos = nullptr;
-    msd.ssbo_skinned_pos = nullptr;
-    msd.ssbo_premat = nullptr;
-    msd.ssbo_postmat = nullptr;
     /* Decrement armature refcount and free arm data if unused. */
     if (msd.arm) {
       if (auto *ad_ptr = impl_->arm_map.lookup_ptr(msd.arm)) {
         Impl::ArmatureData &ad = *ad_ptr;
         ad.refcount -= 1;
         if (ad.refcount <= 0) {
-          if (ad.ssbo_bone_pose) {
-            GPU_storagebuf_free(ad.ssbo_bone_pose);
-            ad.ssbo_bone_pose = nullptr;
-          }
           impl_->arm_map.remove(msd.arm);
         }
       }

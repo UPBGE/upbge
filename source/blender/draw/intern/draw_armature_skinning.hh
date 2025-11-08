@@ -31,10 +31,6 @@ class ArmatureSkinningManager {
    * Can be called from extraction phase (non-GL thread). */
   void ensure_static_resources(Object *arm_ob, Object *deformed_ob, Mesh *orig_mesh);
 
-  /* Update per-frame GPU-only resources (bone matrices, premat/postmat).
-   * Must be called from GL context before dispatch. */
-  void update_per_frame(Object *arm_ob, Object *deformed_ob);
-
   /* Execute the skinning compute + scatter. Must be called from GL context.
    * Returns true on success; false if a fallback (CPU) should be used. */
   bool dispatch_skinning(Depsgraph *depsgraph,

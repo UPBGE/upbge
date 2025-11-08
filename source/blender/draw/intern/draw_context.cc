@@ -1113,25 +1113,30 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Position)) {
       vbo_pos = ptr->get();
     }
-    if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::VertexNormal)) {
+    if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)) {
       vbo_nor = ptr->get();
     }
 
     /* Need a position VBO to scatter skinned positions. */
     if (vbo_pos == nullptr) {
       if (G.debug & G_DEBUG) {
-        printf("UPBGE: skip GPU skinning for object '%s' (no position VBO)\n", (ob->id.name + 2));
+        printf("skip GPU skinning for object '%s' (no position VBO)\n", (ob->id.name + 2));
       }
       continue;
     }
 
     if (G.debug & G_DEBUG) {
-      printf("UPBGE: dispatching GPU skinning for object '%s'\n", (ob->id.name + 2));
+      printf("dispatching GPU skinning for object '%s'\n", (ob->id.name + 2));
     }
+    Object *orig_arma = DEG_get_original(arm_ob);
 
-    /* Call dispatch. It will update armature SSBOs and run compute shader if possible. */
+    /* Ensure the static CPU/GPU resources exist for this original mesh. */
+    blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
+        orig_arma, ob, mesh_owner);
+
+    /* Dispatch (may return false on first frame while extractor populates VBOs). */
     ArmatureSkinningManager::instance().dispatch_skinning(
-        depsgraph, arm_ob, ob, cache, vbo_pos, vbo_nor);
+        depsgraph, orig_arma, ob, cache, vbo_pos, vbo_nor);
   }
   DEG_OBJECT_ITER_END;
 }

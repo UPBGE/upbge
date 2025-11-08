@@ -484,17 +484,6 @@ void BL_ArmatureObject::ApplyPose()
   }
 }
 
-void BL_ArmatureObject::InitStaticSkinningBuffers()
-{
-  // Delegate static (CPU) resource preparation to the draw armature skinning manager.
-  // This will compute and store indices/weights/rest positions during extraction phase.
-  for (auto &child : m_deformed_children) {
-    Mesh *orig_mesh = child.ob ? (Mesh *)child.ob->data : nullptr;
-    blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
-    m_objArma, child.ob, orig_mesh);
-  }
-}
-
 void BL_ArmatureObject::GetGpuDeformedObj()
 {
   if (m_deformed_children.empty()) {
@@ -552,11 +541,7 @@ void BL_ArmatureObject::DoGpuSkinning()
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  // For each child, prepare and dispatch skinning.
-  InitStaticSkinningBuffers();
   blender::draw::ArmatureSkinningManager &mgr = blender::draw::ArmatureSkinningManager::instance();
-  // Update armature matrices once for this frame.
-  mgr.update_per_frame(m_objArma, nullptr);
 
   for (auto &child : m_deformed_children) {
     Object *child_ob = child.ob;
