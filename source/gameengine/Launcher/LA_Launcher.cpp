@@ -55,6 +55,11 @@
 #  include "Texture.h"  // For FreeAllTextures.
 #endif                  // WITH_PYTHON
 
+#ifdef WITH_AUDASPACE
+#  include "AUD_Device.h"
+#endif
+
+
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
                          Main *maggie,
                          Scene *scene,

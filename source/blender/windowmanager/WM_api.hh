@@ -984,6 +984,21 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
+
+/**
+ * Check poll succeeds or returns false & report an error.
+ *
+ * This can be used from #wmOperatorType::exec for operators that use the file-selector.
+ * It's needed in this case because the context can be changed once the file-selector
+ * has been activated.
+ *
+ * \return true or false & report an error.
+ *
+ * \note It's best practice that `ot->poll` sets the "poll message",
+ * otherwise a generic (unhelpful) error will be used.
+ */
+bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports);
+
 /**
  * For running operators with frozen context (modal handlers, menus).
  *
@@ -1650,6 +1665,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
+bool WM_drag_asset_will_import_packed(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
 ID *WM_drag_get_local_ID(const wmDrag *drag, short idcode);
 ID *WM_drag_get_local_ID_from_event(const wmEvent *event, short idcode);

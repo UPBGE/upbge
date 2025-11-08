@@ -144,7 +144,6 @@ void LA_PlayerLauncher::InitEngine()
 void LA_PlayerLauncher::ExitEngine()
 {
   LA_Launcher::ExitEngine();
-  BKE_sound_exit();
 }
 
 bool LA_PlayerLauncher::EngineNextFrame()

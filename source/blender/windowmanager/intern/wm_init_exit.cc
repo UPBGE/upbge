@@ -491,8 +491,6 @@ bool WM_init_game(bContext *C)
     WM_operator_name_call(
         C, "VIEW3D_OT_game_start", blender::wm::OpCallContext::ExecDefault, NULL, NULL);
 
-    BKE_sound_exit();
-
     return true;
   }
   else {
