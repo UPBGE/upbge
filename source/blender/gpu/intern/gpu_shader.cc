@@ -11,6 +11,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_string.h"
 
+#include "CLG_log.h"
+
 #include "GPU_capabilities.hh"
 #include "GPU_debug.hh"
 #include "GPU_matrix.hh"
@@ -29,6 +31,8 @@
 #include <string>
 
 extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
+
+static CLG_LogRef LOG = {"gpu.shader"};
 
 namespace blender::gpu {
 
@@ -699,6 +703,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
     BLI_assert(false);
   }
 
+  CLOG_INFO(&LOG, "Compiling Shader \"%s\"", orig_info.name_.c_str());
+
   Shader *shader = GPUBackend::get()->shader_alloc(orig_info.name_.c_str());
 
   const shader::ShaderCreateInfo &info = shader->patch_create_info(orig_info);
@@ -860,6 +866,20 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
   return shader;
 }
 
+static ThreadQueueWorkPriority to_work_priority(CompilationPriority priority)
+{
+  switch (priority) {
+    case CompilationPriority::Low:
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_LOW;
+    case CompilationPriority::Medium:
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
+    case CompilationPriority::High:
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH;
+  }
+  BLI_assert_unreachable();
+  return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
+}
+
 ShaderCompiler::ShaderCompiler(uint32_t threads_count,
                                GPUWorker::ContextType context_type,
                                bool support_specializations)
@@ -868,11 +888,7 @@ ShaderCompiler::ShaderCompiler(uint32_t threads_count,
 
   if (!GPU_use_main_context_workaround()) {
     compilation_worker_ = std::make_unique<GPUWorker>(
-        threads_count,
-        context_type,
-        mutex_,
-        [this]() -> void * { return this->pop_work(); },
-        [this](void *work) { this->do_work(work); });
+        threads_count, context_type, do_work_static_cb);
   }
 }
 
@@ -903,10 +919,12 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
 
   if (compilation_worker_) {
     batch->shaders.resize(infos.size(), nullptr);
+    batch->works.reserve(infos.size());
     batch->pending_compilations = infos.size();
     for (int i : infos.index_range()) {
-      compilation_queue_.push({batch, i}, priority);
-      compilation_worker_->wake_up();
+      batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
+      batch->works.last()->id = compilation_worker_->push_work(batch->works.last().get(),
+                                                               to_work_priority(priority));
     }
   }
   else {
@@ -924,7 +942,11 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
     std::unique_lock lock(mutex_);
 
     Batch *batch = batches_.pop(handle);
-    compilation_queue_.remove_batch(batch);
+    for (std::unique_ptr<ParallelWork> &work : batch->works) {
+      if (compilation_worker_->cancel_work(work->id)) {
+        batch->pending_compilations--;
+      }
+    }
 
     /* If it was already being compiled, wait until it's ready so the calling thread can safely
      * delete the ShaderCreateInfos. */
@@ -972,14 +994,16 @@ SpecializationBatchHandle ShaderCompiler::precompile_specializations(
 
   Batch *batch = MEM_new<Batch>(__func__);
   batch->specializations = specializations;
+  batch->works.reserve(specializations.size());
+  batch->pending_compilations = specializations.size();
 
   BatchHandle handle = next_batch_handle_++;
   batches_.add(handle, batch);
 
-  batch->pending_compilations = specializations.size();
   for (int i : specializations.index_range()) {
-    compilation_queue_.push({batch, i}, priority);
-    compilation_worker_->wake_up();
+    batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
+    batch->works.last()->id = compilation_worker_->push_work(batch->works.last().get(),
+                                                             to_work_priority(priority));
   }
 
   return handle;
@@ -998,24 +1022,16 @@ bool ShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &ha
   return handle == 0;
 }
 
-void *ShaderCompiler::pop_work()
+void ShaderCompiler::do_work_static_cb(void *payload)
 {
-  /* NOTE: Already under mutex lock when GPUWorker calls this function. */
-
-  if (compilation_queue_.is_empty()) {
-    return nullptr;
-  }
-
-  ParallelWork work = compilation_queue_.pop();
-  return MEM_new<ParallelWork>(__func__, work);
+  ParallelWork *work = reinterpret_cast<ParallelWork *>(payload);
+  work->compiler->do_work(*work);
 }
 
-void ShaderCompiler::do_work(void *work_payload)
+void ShaderCompiler::do_work(ParallelWork &work)
 {
-  ParallelWork *work = reinterpret_cast<ParallelWork *>(work_payload);
-  Batch *batch = work->batch;
-  int shader_index = work->shader_index;
-  MEM_delete(work);
+  Batch *batch = work.batch;
+  int shader_index = work.shader_index;
 
   /* Compile */
   if (!batch->is_specialization_batch()) {
@@ -1043,7 +1059,7 @@ bool ShaderCompiler::is_compiling_impl()
   /* The mutex should be locked before calling this function. */
   BLI_assert(!mutex_.try_lock());
 
-  if (!compilation_queue_.is_empty()) {
+  if (!compilation_worker_->is_empty()) {
     return true;
   }
 
@@ -1064,6 +1080,8 @@ bool ShaderCompiler::is_compiling()
 
 void ShaderCompiler::wait_for_all()
 {
+  /** NOTE: We can't rely on BLI_thread_queue_wait_finish, since that only waits until the queue is
+   * empty, but the works might still being processed. */
   std::unique_lock lock(mutex_);
   BLI_assert(!is_paused_);
   compilation_finished_notification_.wait(lock, [&]() { return !is_compiling_impl(); });
