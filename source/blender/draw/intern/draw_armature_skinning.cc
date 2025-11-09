@@ -500,27 +500,49 @@ void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
+
   if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
     Impl::MeshStaticData &msd = *msd_ptr;
+
     /* Decrement armature refcount and free arm data if unused. */
     if (msd.arm) {
       if (auto *ad_ptr = impl_->arm_map.lookup_ptr(msd.arm)) {
         Impl::ArmatureData &ad = *ad_ptr;
         ad.refcount -= 1;
         if (ad.refcount <= 0) {
+          /* Release per-armature GPU resources that we created (bone matrices SSBO). */
+          const std::string key_bone_pose = "armature_bone_pose";
+          BKE_armature_gpu_internal_ssbo_release(msd.arm, key_bone_pose);
+
+          /* If in the future you add more per-arm keys, release them here too:
+           * BKE_armature_gpu_internal_ssbo_release(msd.arm, "<other_key>");
+           */
+
           impl_->arm_map.remove(msd.arm);
         }
       }
     }
+
+    /* Remove CPU-side static data for this mesh. GPU resources owned by the mesh
+     * are freed elsewhere via BKE_mesh_gpu_free_for_mesh(mesh). */
     impl_->static_map.remove(mesh);
   }
 }
 
 void ArmatureSkinningManager::free_all()
 {
-  /* SSBOs are owned by BKE mesh internal resources and will be freed by
-   * BKE_mesh_gpu_free_all_caches(). Only clear static CPU data and let BKE handle GPU resources.
-   */
+  const std::string key_bone_pose = "armature_bone_pose";
+
+  /* Iterate using Map::items() (compatible with blender::Map). */
+  for (const auto &[arm, ad] : impl_->arm_map.items()) {
+    if (arm) {
+      BKE_armature_gpu_internal_ssbo_release(arm, key_bone_pose);
+      /* If you add more per-arm keys later, release them here too. */
+    }
+  }
+
+  /* Clear CPU-side maps. Per-mesh GPU resources are freed by BKE_mesh_gpu_free_all_caches()
+   * or per-mesh frees elsewhere. */
   impl_->static_map.clear();
   impl_->arm_map.clear();
 }

@@ -454,6 +454,7 @@ void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize);
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str);
 void drw_debug_draw_bge(Scene *scene);
+void DRW_schedule_mesh_gpu_free(struct Mesh *mesh);
 /*********/
 
 /**************************END OF UPBGE*******************************/

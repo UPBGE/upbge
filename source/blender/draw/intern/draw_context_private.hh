@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <unordered_set>
+
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -58,6 +60,9 @@ struct DRWData {
   blender::draw::PointCloudModule *pointcloud_module;
   /** Default view that feeds every engine. */
   blender::draw::View *default_view;
+
+  /** Set of Mesh* scheduled to free GPU resources from non-GL contexts. */
+  std::unordered_set<struct Mesh *> *meshes_to_free;
 
   /* Ensure modules are created. */
   void modules_init();

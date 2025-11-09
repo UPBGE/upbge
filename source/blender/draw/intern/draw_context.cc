@@ -40,6 +40,7 @@
 #include "BKE_main.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
@@ -438,6 +439,12 @@ void DRW_viewport_data_free(DRWData *drw_data)
   DRW_pointcloud_module_free(drw_data->pointcloud_module);
   DRW_curves_module_free(drw_data->curves_module);
   delete drw_data->default_view;
+
+  if (drw_data->meshes_to_free) {
+    delete drw_data->meshes_to_free;
+    drw_data->meshes_to_free = nullptr;
+  }
+
   MEM_freeN(drw_data);
 }
 
@@ -450,6 +457,58 @@ static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)
     *data_p = data = DRW_viewport_data_create();
   }
   return data;
+}
+
+/* Process scheduled mesh frees. Must run with an active GL context. */
+static void drw_process_scheduled_mesh_frees(DRWData *data)
+{
+  if (data == nullptr || data->meshes_to_free == nullptr) {
+    return;
+  }
+  auto *set = data->meshes_to_free;
+  /* detach so new requests create a new set */
+  data->meshes_to_free = nullptr;
+
+  for (Mesh *mesh : *set) {
+    if (mesh && mesh->is_running_gpu_animation_playback == 0) {
+      /* Free armature skinning static data first, then mesh GPU resources. */
+      blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+      BKE_mesh_gpu_free_for_mesh(mesh);
+    }
+  }
+  delete set;
+}
+
+/* Scheduling API used from other modules. */
+void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
+{
+  if (mesh == nullptr) {
+    return;
+  }
+
+  /* If we have a GL context now, free armature resources then mesh GPU resources immediately. */
+  if (GPU_context_active_get() != nullptr) {
+    blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    BKE_mesh_gpu_free_for_mesh(mesh);
+    return;
+  }
+
+  /* Otherwise queue it on the current DRWData if present. */
+  DRWContext *ctx = DRWContext::is_active() ? &drw_get() : nullptr;
+  if (ctx && ctx->data) {
+    DRWData *data = ctx->data;
+    if (data->meshes_to_free == nullptr) {
+      data->meshes_to_free = new std::unordered_set<Mesh *>();
+    }
+    data->meshes_to_free->insert(mesh);
+    return;
+  }
+
+  /* Fallback: best-effort immediate free if GL becomes available right away. */
+  if (GPU_context_active_get() != nullptr) {
+    blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    BKE_mesh_gpu_free_for_mesh(mesh);
+  }
 }
 
 void DRWContext::acquire_data()
@@ -480,6 +539,8 @@ void DRWContext::acquire_data()
     if (this->viewport) {
       DRW_view_data_default_lists_from_viewport(this->view_data_active, this->viewport);
     }
+    /* Process any meshes scheduled for GPU resource free (must be done with active GL context). */
+    drw_process_scheduled_mesh_frees(this->data);
   }
   {
     /* Create the default view. */
