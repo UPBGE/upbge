@@ -26,6 +26,8 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -119,7 +121,9 @@ static void deform_verts(ModifierData *md,
                          Mesh *mesh,
                          blender::MutableSpan<blender::float3> positions)
 {
-  if (mesh->is_running_gpu_deform) {
+  Object *ob_orig = DEG_get_original(ctx->object);
+  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  if (mesh_orig->is_running_gpu_deform == 1) {
     return;
   }
   ArmatureModifierData *amd = (ArmatureModifierData *)md;

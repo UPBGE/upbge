@@ -940,7 +940,11 @@ bool BKE_modifier_deform_verts(ModifierData *md,
 
   if (mti->deform_verts) {
     mti->deform_verts(md, ctx, mesh, positions);
+    Mesh *mesh_orig = DEG_get_original(mesh);
     if (mesh) {
+      if (mesh_orig->is_running_gpu_deform == 1) {
+        return true;
+      }
       mesh->tag_positions_changed();
     }
     return true;

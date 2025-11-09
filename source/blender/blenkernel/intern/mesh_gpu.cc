@@ -418,6 +418,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   mesh_eval->is_running_gpu_deform = 1;
+  mesh_orig->is_running_gpu_deform = 1;
 
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
 

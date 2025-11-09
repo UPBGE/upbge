@@ -132,8 +132,9 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* includes all keys and modifiers */
   switch (ob->type) {
     case OB_MESH: {
-      Mesh *mesh = static_cast<Mesh *>(ob->data);
-      if (mesh->is_running_gpu_deform) {
+      Object *ob_orig = DEG_get_original(ob);
+      Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+      if (mesh_orig->is_running_gpu_deform == 1) {
         /* When GPU deform is enabled, we skip the regular modifier
          * stack evaluation as the deformation is done on the GPU. */
         ob->runtime->last_update_geometry = DEG_get_update_count(depsgraph);
@@ -261,9 +262,15 @@ void BKE_object_eval_uber_transform(Depsgraph * /*depsgraph*/, Object * /*object
 void BKE_object_batch_cache_dirty_tag(Object *ob)
 {
   switch (ob->type) {
-    case OB_MESH:
-      BKE_mesh_batch_cache_dirty_tag((Mesh *)ob->data, BKE_MESH_BATCH_DIRTY_ALL);
+    case OB_MESH: {
+      Object *ob_orig = DEG_get_original(ob);
+      Mesh *mesh_orig = (Mesh *)ob_orig->data;
+      if (!mesh_orig->is_running_gpu_deform) {
+        BKE_mesh_batch_cache_dirty_tag((Mesh *)ob->data, BKE_MESH_BATCH_DIRTY_ALL);
+        break;
+      }
       break;
+    }
     case OB_LATTICE:
       BKE_lattice_batch_cache_dirty_tag((Lattice *)ob->data, BKE_LATTICE_BATCH_DIRTY_ALL);
       break;
