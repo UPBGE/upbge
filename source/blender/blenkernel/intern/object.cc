@@ -2053,7 +2053,7 @@ void BKE_object_free_derived_caches(Object *ob)
 {
   Object *ob_orig = DEG_get_original(ob);
   Mesh *mesh_orig = (Mesh *)ob_orig->data;
-  if (mesh_orig->is_running_gpu_deform == 1) {
+  if (mesh_orig->is_running_gpu_animation_playback == 1) {
     return;
   }
   ob->runtime->bounds_eval.reset();
@@ -5368,7 +5368,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   /* UPBGE: For GPU deform (on evaluated Object/Mesh) */
   if (ob->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob->data;
-    if (me_eval && me_eval->is_running_gpu_deform) {
+    if (me_eval && me_eval->is_running_gpu_animation_playback) {
       flag |= eModifierMode_Realtime;
     }
   }

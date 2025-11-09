@@ -380,7 +380,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   }
   void AddDupliObjectToList(KX_GameObject *gameobj);
   void RemoveDupliObjectFromList(KX_GameObject *gameobj);
-  void ResetGpuActionPlayingFlag(const Depsgraph *depsgraph);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

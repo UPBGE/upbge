@@ -398,27 +398,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
   auto *vbo_pos = vbo_pos_ptr->get();
   const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
-  if (format->stride != 16) {
-    BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    if (mesh_orig) {
-      mesh_orig->is_using_gpu_deform = 1;
-    }
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_WINDOW, nullptr);
-    return blender::bke::GpuComputeStatus::NotReady;
-  }
-  else {
-    // reset is_using_gpu_deform as soon as possible
-    mesh_orig->is_using_gpu_deform = 0;
-  }
 
   if (format->stride == 16 && (ob_orig->id.recalc & ID_RECALC_GEOMETRY) != 0) {
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
     return blender::bke::GpuComputeStatus::NotReady;
   }
-
-  mesh_eval->is_running_gpu_deform = 1;
-  mesh_orig->is_running_gpu_deform = 1;
 
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
 
@@ -429,7 +413,6 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
         !BKE_mesh_gpu_topology_upload(mesh_data.topology))
     {
       BKE_mesh_gpu_free_for_mesh(mesh_orig);
-      mesh_eval->is_running_gpu_deform = 0;
       return blender::bke::GpuComputeStatus::Error;
     }
   }
@@ -567,7 +550,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
   auto it = g_mesh_data_cache.find(mesh);
   if (it == g_mesh_data_cache.end()) {
     /* Ensure flag reset even if no cached data */
-    mesh->is_using_gpu_deform = 0;
+    mesh->is_running_gpu_animation_playback = 0;
     return;
   }
 
@@ -620,7 +603,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
     g_mesh_data_orphans.push_back(std::move(data));
   }
 
-  mesh->is_using_gpu_deform = 0;
+  mesh->is_running_gpu_animation_playback = 0;
 }
 
 MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh)

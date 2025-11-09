@@ -262,12 +262,12 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   const int MAX_ATTEMPTS = 3;
   if (msd.pending_gpu_setup) {
     if (msd.gpu_setup_attempts == 0) {
-      mesh_owner->is_using_gpu_deform = 1;
+      mesh_owner->is_running_gpu_animation_playback = 1;
       msd.gpu_setup_attempts = 1;
       return false;
     }
     if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      mesh_owner->is_using_gpu_deform = 0;
+      mesh_owner->is_running_gpu_animation_playback = 0;
       msd.pending_gpu_setup = false;
       msd.gpu_setup_attempts = 0;
       return false;

@@ -232,7 +232,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
   for (auto &child : m_deformed_children) {
     if (child.ob && !m_isReplica) {
       Mesh *orig_mesh = (Mesh *)child.ob->data;
-      orig_mesh->is_using_gpu_deform =0;
+      orig_mesh->is_running_gpu_animation_playback = 0;
     }
     if (child.replica) {
       bContext *C = KX_GetActiveEngine()->GetContext();
@@ -566,8 +566,8 @@ void BL_ArmatureObject::DoGpuSkinning()
     Mesh *mesh_eval = static_cast<Mesh *>(deformed_eval->data);
     Mesh *orig_mesh = (Mesh *)child_ob->data;
 
-    orig_mesh->is_using_gpu_deform =1;
-    mesh_eval->is_running_gpu_deform =1;
+    orig_mesh->is_running_gpu_animation_playback = 1;
+    mesh_eval->is_running_gpu_animation_playback = 1;
 
     if (child.backups.empty()) {
       disable_armature_modifiers(child_ob, child.backups);

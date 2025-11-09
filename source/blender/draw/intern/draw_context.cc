@@ -989,26 +989,6 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
         }
       }
     }
-    /*
-     * UPBGE: If the original object has an Armature modifier we may want to
-     * perform GPU skinning in the viewport. Mark the evaluated mesh so the
-     * extractor creates a float4 position VBO (w=1.0) by setting
-     * `is_running_gpu_deform`. Also mark the original mesh with
-     * `is_using_gpu_deform` so resources shared between replicas are aware.
-     */
-    if (ref.object->type == OB_MESH) {
-      Mesh *mesh_eval = static_cast<Mesh *>(ref.object->data);
-      if (mesh_eval) {
-        mesh_eval->is_running_gpu_deform = 1;
-      }
-      Object *ob_orig = DEG_get_original(ref.object);
-      if (ob_orig) {
-        Mesh *orig_mesh = static_cast<Mesh *>(ob_orig->data);
-        if (orig_mesh) {
-          orig_mesh->is_using_gpu_deform = 1;
-        }
-      }
-    }
   }
   else {
     dupli_cache.try_add(ref);
@@ -1093,10 +1073,8 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
 
     /* Only dispatch GPU skinning when requested. The extractor marks evaluated meshes
      * with `is_running_gpu_deform` during cache population and the original mesh
-     * is marked with `is_using_gpu_deform`. This avoids redundant dispatches. */
-    if (!(mesh_eval->is_running_gpu_deform) &&
-        !(cache->mesh_owner && cache->mesh_owner->is_using_gpu_deform))
-    {
+     * is marked with `is_running_gpu_animation_playback`. This avoids redundant dispatches. */
+    if (!(cache->mesh_owner && cache->mesh_owner->is_running_gpu_animation_playback)) {
       continue;
     }
 

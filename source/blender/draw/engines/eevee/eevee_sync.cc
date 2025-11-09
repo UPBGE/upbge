@@ -100,7 +100,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
   /* UPBGE shadows artifacts GPU deform fix */
   if (ob->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob->data;
-    if (me_eval->is_running_gpu_deform) {
+    if (me_eval->is_running_gpu_animation_playback) {
       // Clear to avoid shadow artifacts.
       inst_.shadows.mark_gpu_deform_clear_needed();
     }

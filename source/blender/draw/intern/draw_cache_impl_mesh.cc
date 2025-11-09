@@ -617,7 +617,7 @@ void DRW_mesh_batch_cache_free(void *batch_cache)
 {
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
   BLI_assert(cache->mesh_owner != nullptr);
-  if (cache->mesh_owner && !cache->mesh_owner->is_running_gpu_deform) {
+  if (cache->mesh_owner && !cache->mesh_owner->is_running_gpu_animation_playback) {
     BKE_mesh_gpu_free_for_mesh(cache->mesh_owner);
   }
   mesh_batch_cache_clear(*cache);
@@ -1065,6 +1065,41 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
   GPU_batch_vertbuf_add(&batch, vbo, true);
 }
 
+static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
+{
+  /* Detect if GPU deform is requested (armature modifier wants GPU deform animation playback).
+   * If so, mark the mesh for GPU deform and force re-extraction of position VBO
+   * so it can be created with float4 layout. */
+  bool armature_requests_gpu = false;
+  for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
+    if (md->type == eModifierType_Armature) {
+      ArmatureModifierData *amd = (ArmatureModifierData *)md;
+      if (amd && (amd->upbge_deformflag & ARM_DEF_GPU)) {
+        armature_requests_gpu = true;
+        break;
+      }
+    }
+  }
+
+  /* Only enable GPU animation playback when an armature modifier explicitly requests it
+   * and an animation playback is currently active in the viewport. Otherwise ensure the flag
+   * is cleared so VBOs are extracted with the normal (float3) layout. */
+  if (armature_requests_gpu && DRWContext::is_active() && DRW_context_get()->is_playback()) {
+    Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+    if (orig_mesh) {
+      orig_mesh->is_running_gpu_animation_playback = 1;
+    }
+    mesh.is_running_gpu_animation_playback = 1;
+  }
+  else {
+    Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+    if (orig_mesh) {
+      orig_mesh->is_running_gpu_animation_playback = 0;
+    }
+    mesh.is_running_gpu_animation_playback = 0;
+  }
+}
+
 void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Object &ob,
                                            Mesh &mesh,
@@ -1077,37 +1112,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   bool cd_uv_update = false;
 
-  /* UPBGE: detect if GPU deform is requested (armature modifier wants GPU skinning).
-   * If so, mark the mesh for GPU deform and force re-extraction of position VBO
-   * so it can be created with float4 layout. This is a conservative heuristic: we
-   * enable GPU deform if an armature modifier is present. */
-  bool want_gpu_deform = false;
-  if (mesh.is_using_gpu_deform == 1) {
-    want_gpu_deform = true;
-  }
-  else {
-    for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
-      if (md->type == eModifierType_Armature) {
-        ArmatureModifierData *amd = (ArmatureModifierData *)md;
-        if (amd && amd->upbge_deformflag & ARM_DEF_GPU) {
-          Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
-          orig_mesh->is_using_gpu_deform = 1;
-          mesh.is_using_gpu_deform = 1;
-          want_gpu_deform = true;
-          break;
-        }
-      }
-    }
-  }
-
-  if (want_gpu_deform && mesh.is_using_gpu_deform == 0) {
-    Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
-    orig_mesh->is_using_gpu_deform = 1;
-    mesh.is_using_gpu_deform = 1;
-    /* Force re-extraction of position vbo by removing existing ones. Do this for all
-     * buffer lists (final, cage, uv_cage). */
-    cache.final.buff.vbos.remove(VBOType::Position);
-  }
+  set_gpu_animation_playback_state(ob, mesh);
 
   /* Early out */
   if (cache.batch_requested == 0) {
@@ -1150,7 +1155,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
         /* If GPU deform is requested for this mesh (UPBGE flags), keep the request for Orco.
          * We need Orco (or its fallback) for tangents/shading even when modifiers were removed
          * to perform GPU skinning. Else the draw cache will drop Orco and shading breaks. */
-        const bool gpu_deform_requested = me_final->is_using_gpu_deform == 1;
+        const bool gpu_deform_requested = me_final->is_running_gpu_animation_playback == 1;
 
         if (!gpu_deform_requested) {
           /* Skip orco calculation */

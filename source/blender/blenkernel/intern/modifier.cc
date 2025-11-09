@@ -941,7 +941,7 @@ bool BKE_modifier_deform_verts(ModifierData *md,
   if (mti->deform_verts) {
     if (mesh) {
       Mesh *mesh_orig = DEG_get_original(mesh);
-      if (mesh_orig->is_running_gpu_deform == 1) {
+      if (mesh_orig->is_running_gpu_animation_playback == 1) {
         return true;
       }
     }

@@ -481,22 +481,6 @@ KX_Scene::~KX_Scene()
 
 /*******************EEVEE INTEGRATION******************/
 
-void KX_Scene::ResetGpuActionPlayingFlag(const Depsgraph *depsgraph)
-{
-  for (KX_GameObject *gameobj : m_animatedlist) {
-    if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-      for (KX_GameObject *child : gameobj->GetChildren()) {
-        Object *ob = child->GetBlenderObject();
-        if (ob && ob->type == OB_MESH) {
-          Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-          Mesh *me_eval = (Mesh *)ob_eval->data;
-          me_eval->is_running_gpu_deform = 0;
-        }
-      }
-    }
-  }
-}
-
 void KX_Scene::AddDupliObjectToList(KX_GameObject *gameobj)
 {
   auto it = std::find(m_duplilist.begin(), m_duplilist.end(), gameobj);
@@ -940,9 +924,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     /* Draw custom viewport render loop into its own GPUViewport */
     DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
-
-  /* Reset GPU skinning "is playing action flag" after render for gpu animated meshes */
-  ResetGpuActionPlayingFlag(depsgraph);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
