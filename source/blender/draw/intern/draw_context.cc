@@ -2474,15 +2474,19 @@ void DRW_module_exit()
   GPU_TEXTURE_FREE_SAFE(g_select_buffer.texture_depth);
   GPU_FRAMEBUFFER_FREE_SAFE(g_select_buffer.framebuffer_depth_only);
 
-  /* Free all per-mesh GPU caches (VBO/SSBO/shaders owned by BKE). */
+  /* Ensure GL context and sync GPU work before global frees. */
+  GPU_render_begin();
+
+  /* Free global caches owned by BKE (VBO/SSBO/shaders per-mesh). */
   BKE_mesh_gpu_free_all_caches();
 
-  /* Free all per-armature GPU caches (SSBOs keyed by armature). */
+  /* Free global armature caches (SSBOs keyed by armature). */
   BKE_armature_gpu_internal_free_all_armature_caches();
 
-  /* Clear armature manager CPU-side bookkeeping (don't free GPU SSBOs here to avoid double-free).
-   */
+  /* Clear manager CPU-side bookkeeping (no SSBO release here to avoid double-free). */
   blender::draw::ArmatureSkinningManager::instance().free_all();
+
+  GPU_render_end();
 
   DRW_shaders_free();
 }

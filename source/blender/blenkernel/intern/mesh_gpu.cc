@@ -909,69 +909,83 @@ void BKE_armature_gpu_internal_free_all_armature_caches()
 
 void BKE_mesh_gpu_free_all_caches()
 {
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  /* Capture context state early so we can safely release the mutex before calling
+   * functions that may need the same mutex internally. */
+  const bool has_ctx = GPU_context_active_get();
 
-  if (GPU_context_active_get()) {
-    /* Free mesh scoped resources now. */
-    for (auto &kv : g_mesh_data_cache) {
-      MeshGpuData &d = kv.second;
-      for (auto &pair : d.compute_shaders) {
-        if (pair.second) {
-          GPU_shader_free(pair.second);
-          pair.second = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+
+    if (has_ctx) {
+      /* Free mesh scoped resources now. */
+      for (auto &kv : g_mesh_data_cache) {
+        MeshGpuData &d = kv.second;
+        for (auto &pair : d.compute_shaders) {
+          if (pair.second) {
+            GPU_shader_free(pair.second);
+            pair.second = nullptr;
+          }
         }
+        d.compute_shaders.clear();
+
+        if (d.internal_resources) {
+          for (auto *ssbo : d.internal_resources->ssbos) {
+            if (ssbo) {
+              GPU_storagebuf_free(ssbo);
+            }
+          }
+          for (auto *vbo : d.internal_resources->vbos) {
+            if (vbo) {
+              GPU_vertbuf_clear(vbo);
+            }
+          }
+          for (auto *ib : d.internal_resources->ibos) {
+            if (ib) {
+              /* Index buffer cleanup handled by GPU module if needed */
+            }
+          }
+          for (auto *ub : d.internal_resources->ubos) {
+            if (ub) {
+              /* Uniform buffer cleanup handled by GPU module if needed */
+            }
+          }
+          for (auto *sh : d.internal_resources->shaders) {
+            if (sh) {
+              GPU_shader_free(sh);
+            }
+          }
+          delete d.internal_resources;
+          d.internal_resources = nullptr;
+        }
+
+        BKE_mesh_gpu_topology_free(d.topology);
       }
-      d.compute_shaders.clear();
+      g_mesh_data_cache.clear();
 
-      if (d.internal_resources) {
-        for (auto *ssbo : d.internal_resources->ssbos) {
-          if (ssbo) {
-            GPU_storagebuf_free(ssbo);
-          }
-        }
-        for (auto *vbo : d.internal_resources->vbos) {
-          if (vbo) {
-            GPU_vertbuf_clear(vbo);
-          }
-        }
-        for (auto *ib : d.internal_resources->ibos) {
-          if (ib) {
-            /* Index buffer cleanup handled by GPU module if needed */
-          }
-        }
-        for (auto *ub : d.internal_resources->ubos) {
-          if (ub) {
-            /* Uniform buffer cleanup handled by GPU module if needed */
-          }
-        }
-        for (auto *sh : d.internal_resources->shaders) {
-          if (sh) {
-            GPU_shader_free(sh);
-          }
-        }
-        delete d.internal_resources;
-        d.internal_resources = nullptr;
-      }
-
-      BKE_mesh_gpu_topology_free(d.topology);
+      /* NOTE: don't call armature/more complex frees while holding the mutex –
+       * these functions may take the same mutex internally. They are called after
+       * the lock scope below. */
     }
-    g_mesh_data_cache.clear();
+    else {
+      /* Move all mesh data to orphans to be freed when a GL context becomes available. */
+      for (auto &kv : g_mesh_data_cache) {
+        g_mesh_data_orphans.push_back(std::move(kv.second));
+      }
+      g_mesh_data_cache.clear();
 
+      /* Armature resources: rely on GPU module cleanup or later explicit free. Clear map to drop
+       * references. */
+      g_armature_gpu_resources.clear();
+    }
+  }
+
+  /* Call free functions that may lock g_mesh_cache_mutex. Do this outside the previous lock scope
+   * to avoid deadlocks. */
+  if (has_ctx) {
     /* free armature scoped resources too */
     BKE_armature_gpu_internal_free_all_armature_caches();
 
     /* Flush orphans now that context is active. */
     mesh_gpu_orphans_flush();
-  }
-  else {
-    /* Move all mesh data to orphans to be freed when a GL context becomes available. */
-    for (auto &kv : g_mesh_data_cache) {
-      g_mesh_data_orphans.push_back(std::move(kv.second));
-    }
-    g_mesh_data_cache.clear();
-
-    /* Armature resources: rely on GPU module cleanup or later explicit free. Clear map to drop
-     * references. */
-    g_armature_gpu_resources.clear();
   }
 }
