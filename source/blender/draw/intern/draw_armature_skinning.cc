@@ -474,7 +474,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     auto post_bind_fn = [](blender::gpu::Shader * /* sh */) {};
     auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
 
-    Mesh *mesh_eval = BKE_object_get_evaluated_mesh(deformed_eval);
+    Mesh *mesh_eval = (Mesh *)deformed_eval->data;
     if (!mesh_eval) {
       return false;
     }

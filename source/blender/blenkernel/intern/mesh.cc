@@ -1418,10 +1418,6 @@ Mesh *BKE_mesh_new_nomain_from_template(const Mesh *me_src,
 
 Mesh *BKE_mesh_copy_for_eval(const Mesh &source)
 {
-  Mesh *mesh_orig = (Mesh *)DEG_get_original(&source.id);
-  if (mesh_orig->is_running_gpu_deform == 1) {
-    return const_cast<Mesh *>(&(source));
-  }
   return reinterpret_cast<Mesh *>(
       BKE_id_copy_ex(nullptr, &source.id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
