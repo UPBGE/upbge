@@ -545,16 +545,6 @@ void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
 
 void ArmatureSkinningManager::free_all()
 {
-  const std::string key_bone_pose = "armature_bone_pose";
-
-  /* Iterate using Map::items() (compatible with blender::Map). */
-  for (const auto &[arm, ad] : impl_->arm_map.items()) {
-    if (arm) {
-      BKE_armature_gpu_internal_ssbo_release(arm, key_bone_pose);
-      /* If you add more per-arm keys later, release them here too. */
-    }
-  }
-
   /* Clear CPU-side maps. Per-mesh GPU resources are freed by BKE_mesh_gpu_free_all_caches()
    * or per-mesh frees elsewhere. */
   impl_->static_map.clear();
