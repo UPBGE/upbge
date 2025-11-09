@@ -32,6 +32,8 @@
 #include "DNA_mesh_types.h"
 #include <cstring>
 
+#include "DEG_depsgraph_query.hh"
+
 using namespace blender::draw;
 
 struct blender::draw::ArmatureSkinningManager::Impl {
@@ -39,8 +41,8 @@ struct blender::draw::ArmatureSkinningManager::Impl {
 
   /* Static CPU-side buffers (kept per original mesh pointer key). */
   struct MeshStaticData {
-    std::vector<int> in_indices;       /* size = verts * 4 */
-    std::vector<float> in_weights;     /* size = verts * 4 */
+    std::vector<int> in_indices;       /* size = verts *4 */
+    std::vector<float> in_weights;     /* size = verts *4 */
     std::vector<float> rest_positions; /* float4 per vert (flattened) */
     int verts_num = 0;
 
@@ -66,7 +68,7 @@ struct blender::draw::ArmatureSkinningManager::Impl {
 
 static const char *skin_compute_src = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
-#define CONTRIB_THRESHOLD 1e-4
+  #define CONTRIB_THRESHOLD 1e-4
 #endif
 
 vec4 skin_pos_object(int v_idx) {
@@ -74,22 +76,22 @@ vec4 skin_pos_object(int v_idx) {
   vec4 acc = vec4(0.0);
   float tw =0.0;
   for (int i =0; i <4; ++i) {
- int b = in_idx[v_idx][i];
- float w = in_wgt[v_idx][i];
- if (w >0.0) {
- acc += (bone_pose_mat[b] * rest_pos_object) * w;
- tw += w;
- }
- }
- return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
+    int b = in_idx[v_idx][i];
+    float w = in_wgt[v_idx][i];
+    if (w >0.0) {
+      acc += (bone_pose_mat[b] * rest_pos_object) * w;
+      tw += w;
+    }
+  }
+  return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
 }
 
 void main() {
- uint v = gl_GlobalInvocationID.x;
- if (v >= skinned_vert_positions.length()) {
- return;
- }
- skinned_vert_positions[v] = skin_pos_object(int(v));
+  uint v = gl_GlobalInvocationID.x;
+  if (v >= skinned_vert_positions.length()) {
+    return;
+  }
+  skinned_vert_positions[v] = skin_pos_object(int(v));
 }
 )GLSL";
 
@@ -100,9 +102,7 @@ ArmatureSkinningManager &ArmatureSkinningManager::instance()
 }
 
 ArmatureSkinningManager::ArmatureSkinningManager() : impl_(new Impl()) {}
-ArmatureSkinningManager::~ArmatureSkinningManager()
-{
-}
+ArmatureSkinningManager::~ArmatureSkinningManager() {}
 
 void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
                                                       Object *deformed_ob,
@@ -246,8 +246,9 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
 {
   (void)vbo_pos;
   (void)vbo_nor;
-  (void)depsgraph;
   (void)deformed_eval;
+
+  const int deps_update = int(DEG_get_update_count(depsgraph));
 
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
@@ -346,8 +347,15 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
 
   /* armature bone matrices */
   blender::gpu::StorageBuf *ssbo_bone_mat = nullptr;
+  Impl::ArmatureData *ad_ref_ptr = nullptr;
   if (msd.arm) {
     Impl::ArmatureData &ad_ref = impl_->arm_map.lookup_or_add_default(msd.arm);
+    /* Skip dispatch if we've already skinned this armature for the current depsgraph update. */
+    if (ad_ref.last_update_frame == deps_update) {
+      return true;
+    }
+    ad_ref_ptr = &ad_ref;
+
     if (ad_ref.bones == 0) {
       int bc = 0;
       for (bPoseChannel *pchan = (bPoseChannel *)msd.arm->pose->chanbase.first; pchan;
@@ -490,6 +498,12 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
                                     config_fn,
                                     post_bind_fn,
                                     mesh_eval->corners_num);
+  }
+
+  /* Mark armature as processed for this depsgraph update so other objects sharing the same
+   * armature won't redundantly dispatch again. */
+  if (ad_ref_ptr) {
+    ad_ref_ptr->last_update_frame = deps_update;
   }
 
   return true;
