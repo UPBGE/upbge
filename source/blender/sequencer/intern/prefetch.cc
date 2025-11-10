@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include <algorithm>
@@ -306,8 +306,7 @@ void prefetch_stop_all()
 
 void prefetch_stop(Scene *scene)
 {
-  PrefetchJob *pfjob;
-  pfjob = seq_prefetch_job_get(scene);
+  PrefetchJob *pfjob = seq_prefetch_job_get(scene);
 
   if (!pfjob) {
     return;
@@ -322,8 +321,7 @@ void prefetch_stop(Scene *scene)
 
 static void seq_prefetch_update_context(const RenderData *context)
 {
-  PrefetchJob *pfjob;
-  pfjob = seq_prefetch_job_get(context->scene);
+  PrefetchJob *pfjob = seq_prefetch_job_get(context->scene);
 
   render_new_render_data(pfjob->bmain_eval,
                          pfjob->depsgraph,
