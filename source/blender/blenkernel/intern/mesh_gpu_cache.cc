@@ -81,5 +81,14 @@ void MeshGPUCacheManager::flush_orphans()
   mesh_gpu_orphans_flush_impl();
 }
 
+void MeshGPUCacheManager::release_cpu_memory()
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex_);
+  std::unordered_map<const Mesh *, MeshGpuData>().swap(g_mesh_data_cache_);
+  std::vector<MeshGpuData>().swap(g_mesh_data_orphans_);
+  std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources>().swap(
+      g_armature_gpu_resources_);
+}
+
 }  // namespace bke
 }  // namespace blender

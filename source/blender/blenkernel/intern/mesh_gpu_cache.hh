@@ -53,6 +53,9 @@ class MeshGPUCacheManager {
   /* Flush orphans while GL context is active. */
   void flush_orphans();
 
+  /* Release CPU-side memory held by the containers (call after GPU frees). */
+  void release_cpu_memory();
+
  private:
   MeshGPUCacheManager() = default;
   ~MeshGPUCacheManager() = default;

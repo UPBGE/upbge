@@ -82,6 +82,7 @@
 
 #include "DRW_render.hh"
 
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
 #include "draw_armature_skinning.hh" // UPBGE
 #include <unordered_set>
 
@@ -2483,6 +2484,9 @@ void DRW_module_exit()
   GPU_render_end();
 
   DRW_shaders_free();
+
+  /* Release CPU-side containers (maps/vectors) after GPU resources have been freed. */
+  blender::bke::MeshGPUCacheManager::get().release_cpu_memory();
 }
 
 /****************UPBGE**************************/
