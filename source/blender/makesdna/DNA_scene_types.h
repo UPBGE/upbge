@@ -2841,7 +2841,6 @@ enum {
   SCE_IS_BLENDERPLAYER = 1 << 12,
   SCE_IS_GAME_XR_SESSION = 1 << 13,
   SCE_INTERACTIVE_VIEWPORT = 1 << 14,
-  SCE_GAME_ANIM_PLAYING = 1 << 15,
 };
 
 /* Return flag BKE_scene_base_iter_next functions. */

@@ -475,8 +475,6 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
     obj->GetPose(&m_blendpose);
   }
 
-  m_obj->GetScene()->GetBlenderScene()->flag |= SCE_GAME_ANIM_PLAYING;
-
   obj->ApplyAction(m_action, animEvalContext);
 
   ProcessArmatureBlending(obj, curtime);
