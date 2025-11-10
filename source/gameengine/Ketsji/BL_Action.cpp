@@ -493,7 +493,24 @@ void BL_Action::ProcessCPUPipeline(BL_ArmatureObject *obj,
                                    const AnimationEvalContext &animEvalContext)
 {
   // === CPU PIPELINE ===
-  scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+  bool is_running_gpu_skinning = false;
+  for (KX_GameObject *child : m_obj->GetChildren()) {
+    Object *child_ob = child->GetBlenderObject();
+    if (!child_ob) {
+      continue;
+    }
+    if (child_ob->type != OB_MESH) {
+      continue;
+    }
+    Mesh *me = static_cast<Mesh *>(child_ob->data);
+    if (me->is_running_gpu_animation_playback) {
+      is_running_gpu_skinning = true;
+      break;
+    }
+  }
+  if (!is_running_gpu_skinning) {
+    scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+  }
   m_obj->ForceIgnoreParentTx();
 }
 
