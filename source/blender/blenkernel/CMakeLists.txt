@@ -203,6 +203,7 @@ set(SRC
   intern/mesh_fair.cc
   intern/mesh_flip_faces.cc
   intern/mesh_gpu.cc
+  intern/mesh_gpu_cache.cc
   intern/mesh_iterators.cc
   intern/mesh_legacy_convert.cc
   intern/mesh_mapping.cc
@@ -563,6 +564,7 @@ set(SRC
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh
+  intern/mesh_gpu_cache.hh
   intern/multires_reshape.hh
   intern/multires_unsubdivide.hh
   intern/ocean_intern.h

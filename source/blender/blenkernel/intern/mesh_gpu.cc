@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "mesh_gpu_cache.hh"
+
 #include "BKE_mesh_gpu.hh"
 
 #include <fmt/format.h>
@@ -28,75 +30,22 @@
 
 #include "../draw/intern/draw_cache_extract.hh"
 
-struct MeshGpuData {
-  blender::bke::MeshGPUTopology topology;
-  /* Support multiple compute shaders per mesh keyed by hash of generated source. */
-  std::unordered_map<size_t, blender::gpu::Shader *> compute_shaders;
-  /* Optional internal resources container (owned here). */
-  blender::bke::MeshGpuInternalResources *internal_resources = nullptr;
-};
+using blender::bke::MeshGPUCacheManager;
+using blender::bke::MeshGpuData;
 
-static std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache;
-static std::vector<MeshGpuData> g_mesh_data_orphans;
-static std::mutex g_mesh_cache_mutex;
-/* Armature-scoped GPU resources (keyed by armature Object*). */
-static std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources>
-    g_armature_gpu_resources;
-
-/* Forward declaration so the manager can call flush_orphans from an inline method. */
-static void mesh_gpu_orphans_flush();
-
-/* Lightweight manager to centralize access to the static caches. This is an
- * incremental step: it does not move storage yet but provides a single place
- * to access/manipulate the caches and will make a future refactor easier. */
-struct MeshGPUCacheManager {
-  static MeshGPUCacheManager &get()
-  {
-    static MeshGPUCacheManager instance;
-    return instance;
-  }
-
-  std::unordered_map<const Mesh *, MeshGpuData> &mesh_cache()
-  {
-    return g_mesh_data_cache;
-  }
-
-  std::vector<MeshGpuData> &orphans()
-  {
-    return g_mesh_data_orphans;
-  }
-
-  std::mutex &mutex()
-  {
-    return g_mesh_cache_mutex;
-  }
-
-  std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources> &armature_resources()
-  {
-    return g_armature_gpu_resources;
-  }
-
-  void flush_orphans()
-  {
-    mesh_gpu_orphans_flush();
-  }
-
- private:
-  MeshGPUCacheManager() = default;
-  ~MeshGPUCacheManager() = default;
-  MeshGPUCacheManager(const MeshGPUCacheManager &) = delete;
-  MeshGPUCacheManager &operator=(const MeshGPUCacheManager &) = delete;
-};
-
-static void mesh_gpu_orphans_flush()
+/* Implementation of the orphans flush previously local to this file. This is the
+ * actual function that performs GPU frees. The public wrapper in mesh_gpu_cache.cc
+ * calls this implementation. */
+void mesh_gpu_orphans_flush_impl()
 {
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
   if (!GPU_context_active_get()) {
     return;
   }
 
-  for (MeshGpuData &d : g_mesh_data_orphans) {
+  auto &orphan_list = MeshGPUCacheManager::get().orphans();
+  for (MeshGpuData &d : orphan_list) {
     for (auto &pair : d.compute_shaders) {
       if (pair.second) {
         GPU_shader_free(pair.second);
@@ -120,8 +69,10 @@ static void mesh_gpu_orphans_flush()
     }
     BKE_mesh_gpu_topology_free(d.topology);
   }
-  g_mesh_data_orphans.clear();
+  orphan_list.clear();
 }
+
+/* Note: functions now use MeshGPUCacheManager accessors instead of globals. */
 
 bool BKE_mesh_gpu_topology_create(const Mesh *mesh, blender::bke::MeshGPUTopology &topology)
 {
@@ -404,7 +355,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
   /* Attempt to free any deferred resources now that we are on a GPU context. */
   if (GPU_context_active_get()) {
-    mesh_gpu_orphans_flush();
+    MeshGPUCacheManager::get().flush_orphans();
   }
 
   Object *ob_orig = DEG_get_original(const_cast<Object *>(ob_eval));
@@ -449,9 +400,9 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     return blender::bke::GpuComputeStatus::NotReady;
   }
 
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
-  auto &mesh_data = g_mesh_data_cache[mesh_orig];
+  auto &mesh_data = MeshGPUCacheManager::get().mesh_cache()[mesh_orig];
   /* Create/upload topology (from evaluated mesh) if needed. On failure cleanup. */
   if (!mesh_data.topology.ssbo) {
     if (!BKE_mesh_gpu_topology_create(mesh_eval, mesh_data.topology) ||
@@ -591,9 +542,9 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_mesh_data_cache.find(mesh);
-  if (it == g_mesh_data_cache.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     /* Ensure flag reset even if no cached data */
     mesh->is_running_gpu_animation_playback = 0;
     return;
@@ -601,7 +552,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
 
   /* Move data out of the cache map. */
   MeshGpuData data = std::move(it->second);
-  g_mesh_data_cache.erase(it);
+  MeshGPUCacheManager::get().mesh_cache().erase(it);
 
   if (GPU_context_active_get()) {
     /* Immediate GPU-safe deletion. */
@@ -645,7 +596,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
   }
   else {
     /* Defer freeing until a GPU context is available. */
-    g_mesh_data_orphans.push_back(std::move(data));
+    MeshGPUCacheManager::get().orphans().push_back(std::move(data));
   }
 
   mesh->is_running_gpu_animation_playback = 0;
@@ -656,8 +607,8 @@ MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh)
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto &d = g_mesh_data_cache[mesh];
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }
@@ -669,9 +620,9 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_mesh_data_cache.find(mesh);
-  if (it == g_mesh_data_cache.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return;
   }
   MeshGpuData &d = it->second;
@@ -698,9 +649,9 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh)
     d.internal_resources = nullptr;
   }
   else {
-    g_mesh_data_orphans.push_back(MeshGpuData());
+    MeshGPUCacheManager::get().orphans().push_back(MeshGpuData());
     // move internals to the orphan entry we just appended
-    MeshGpuData &orphan = g_mesh_data_orphans.back();
+    MeshGpuData &orphan = MeshGPUCacheManager::get().orphans().back();
     orphan.internal_resources = d.internal_resources;
     orphan.topology = std::move(d.topology);
     orphan.compute_shaders = std::move(d.compute_shaders);
@@ -715,8 +666,8 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  MeshGpuData &d = g_mesh_data_cache[mesh];
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  MeshGpuData &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }
@@ -746,8 +697,8 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  MeshGpuData &d = g_mesh_data_cache[mesh];
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  MeshGpuData &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }
@@ -773,9 +724,9 @@ void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key)
   if (!mesh) {
     return;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_mesh_data_cache.find(mesh);
-  if (it == g_mesh_data_cache.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return;
   }
   MeshGpuData &d = it->second;
@@ -808,9 +759,9 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_mesh_data_cache.find(mesh);
-  if (it == g_mesh_data_cache.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return nullptr;
   }
   MeshGpuData &d = it->second;
@@ -829,9 +780,9 @@ void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key)
   if (!mesh) {
     return;
   }
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_mesh_data_cache.find(mesh);
-  if (it == g_mesh_data_cache.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return;
   }
   MeshGpuData &d = it->second;
@@ -864,8 +815,9 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
                                                                 const std::string &key,
                                                                 size_t size)
 {
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto &res = g_armature_gpu_resources[arm];
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
+  auto &res = arm_res_map[arm];
   auto it = res.ssbo_map.find(key);
   if (it != res.ssbo_map.end()) {
     it->second.second += 1;
@@ -885,9 +837,10 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
 
 blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const std::string &key)
 {
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_armature_gpu_resources.find(arm);
-  if (it == g_armature_gpu_resources.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
+  auto it = arm_res_map.find(arm);
+  if (it == arm_res_map.end()) {
     return nullptr;
   }
   auto &res = it->second;
@@ -900,9 +853,10 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const 
 
 void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
 {
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-  auto it = g_armature_gpu_resources.find(arm);
-  if (it == g_armature_gpu_resources.end()) {
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
+  auto it = arm_res_map.find(arm);
+  if (it == arm_res_map.end()) {
     return;
   }
   auto &res = it->second;
@@ -929,9 +883,10 @@ void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
 
 void BKE_armature_gpu_internal_free_all_armature_caches()
 {
-  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
   if (GPU_context_active_get()) {
-    for (auto &kv : g_armature_gpu_resources) {
+    for (auto &kv : arm_res_map) {
       auto &res = kv.second;
       for (auto *ssbo : res.ssbos) {
         if (ssbo) {
@@ -944,11 +899,11 @@ void BKE_armature_gpu_internal_free_all_armature_caches()
         }
       }
     }
-    g_armature_gpu_resources.clear();
+    arm_res_map.clear();
   }
   else {
     /* Move to orphans map? For simplicity, rely on GPU module cleanup. */
-    g_armature_gpu_resources.clear();
+    arm_res_map.clear();
   }
 }
 
@@ -959,11 +914,11 @@ void BKE_mesh_gpu_free_all_caches()
   const bool has_ctx = GPU_context_active_get();
 
   {
-    std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+    std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
     if (has_ctx) {
       /* Free mesh scoped resources now. */
-      for (auto &kv : g_mesh_data_cache) {
+      for (auto &kv : MeshGPUCacheManager::get().mesh_cache()) {
         MeshGpuData &d = kv.second;
         for (auto &pair : d.compute_shaders) {
           if (pair.second) {
@@ -1005,7 +960,7 @@ void BKE_mesh_gpu_free_all_caches()
 
         BKE_mesh_gpu_topology_free(d.topology);
       }
-      g_mesh_data_cache.clear();
+      MeshGPUCacheManager::get().mesh_cache().clear();
 
       /* NOTE: don't call armature/more complex frees while holding the mutex –
        * these functions may take the same mutex internally. They are called after
@@ -1013,14 +968,14 @@ void BKE_mesh_gpu_free_all_caches()
     }
     else {
       /* Move all mesh data to orphans to be freed when a GL context becomes available. */
-      for (auto &kv : g_mesh_data_cache) {
-        g_mesh_data_orphans.push_back(std::move(kv.second));
+      for (auto &kv : MeshGPUCacheManager::get().mesh_cache()) {
+        MeshGPUCacheManager::get().orphans().push_back(std::move(kv.second));
       }
-      g_mesh_data_cache.clear();
+      MeshGPUCacheManager::get().mesh_cache().clear();
 
       /* Armature resources: rely on GPU module cleanup or later explicit free. Clear map to drop
        * references. */
-      g_armature_gpu_resources.clear();
+      MeshGPUCacheManager::get().armature_resources().clear();
     }
   }
 
@@ -1031,6 +986,6 @@ void BKE_mesh_gpu_free_all_caches()
     BKE_armature_gpu_internal_free_all_armature_caches();
 
     /* Flush orphans now that context is active. */
-    mesh_gpu_orphans_flush();
+    MeshGPUCacheManager::get().flush_orphans();
   }
 }
