@@ -490,6 +490,9 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
     delete map;
     return;
   }
+
+  /* If you still had old containers (meshes_to_free/meshes_to_skin) you would free them here.
+   * In the new design only meshes_to_process is used. */
 }
 
 /* Scheduling API used from other modules. */
@@ -1177,9 +1180,22 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
         depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
   }
 
-  /* Clear skinning entries for next frame but keep allocation for reuse. */
-  for (auto &it : map) {
-    it.second.eval_obj_for_skinning = nullptr;
+  /* Cleanup: remove transient entries and clear eval_obj_for_skinning for remaining entries.
+   * Keep entries that have scheduled_free == true so they are processed by
+   * drw_process_scheduled_mesh_frees. */
+  for (auto it = map.begin(); it != map.end();) {
+    if (it->second.eval_obj_for_skinning == nullptr) {
+      if (it->second.scheduled_free) {
+        ++it;
+      }
+      else {
+        it = map.erase(it);
+      }
+    }
+    else {
+      it->second.eval_obj_for_skinning = nullptr;
+      ++it;
+    }
   }
 }
 
@@ -2353,13 +2369,11 @@ const DRWContext *DRW_context_get()
 bool DRWContext::is_playback() const
 {
   if (this->evil_C != nullptr) {
-    /* Temp: Force animation playback state at bge runtime.
-     * TODO: Replace with animation playback state when calling anim_sys_evaluate_action. */
     bool is_scene_interactive = false;
     if (this->scene != nullptr) {
       Scene *scene_orig = DEG_get_original(this->scene);
-      is_scene_interactive = bool((scene_orig->flag & SCE_INTERACTIVE) != 0 ||
-                             (scene_orig->flag & SCE_INTERACTIVE_VIEWPORT) != 0);
+      /* Consider the new game animation playback flag too. */
+      is_scene_interactive = bool(scene_orig->flag & SCE_GAME_ANIM_PLAYING != 0);
     }
     wmWindowManager *wm = CTX_wm_manager(this->evil_C);
     return (ED_screen_animation_playing(wm) != nullptr) || is_scene_interactive;

@@ -925,6 +925,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
 
+  GetBlenderScene()->flag &= ~SCE_GAME_ANIM_PLAYING;
+
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
