@@ -39,94 +39,19 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_gpu.hh"
 #include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_threads.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
-#include "GPU_capabilities.hh"
-#include "GPU_compute.hh"
-#include "GPU_shader.hh"
-#include "GPU_state.hh"
-#include "GPU_storage_buffer.hh"
-#include "../draw/intern/draw_cache_extract.hh"
-#include "../gpu/intern/gpu_shader_create_info.hh"
 #include "RNA_access.hh"
 
 #include "BL_Action.h"
 #include "BL_SceneConverter.h"
 #include "KX_Globals.h"
-#include "../draw/intern/draw_armature_skinning.hh"
-#include <algorithm>
-
-static void disable_armature_modifiers(Object *ob, std::vector<ModifierStackBackup> &backups)
-{
-  if (!ob) {
-    return;
-  }
-  int idx = 0;
-  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;) {
-    ModifierData *next = md->next;
-    if (md->type == eModifierType_Armature) {
-      backups.push_back({md, idx});
-      BKE_modifier_remove_from_list(ob, md);
-      // Don't free original armature modifier
-    }
-    else {
-      ++idx;
-    }
-    md = next;
-  }
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  DEG_relations_tag_update(CTX_data_main(C));
-}
-
-void BL_ArmatureObject::RestoreArmatureModifierList(Object *ob)
-{
-  /* Find the backup list for this deformed object and restore it. */
-  int idx = -1;
-  for (size_t i =0; i < m_deformed_children.size(); ++i) {
-    if (m_deformed_children[i].ob == ob) {
-      idx = (int)i;
-      break;
-    }
-  }
-  if (idx == -1) {
-    return;
-  }
-  auto &backups = m_deformed_children[idx].backups;
-  for (const ModifierStackBackup &backup : backups) {
-    ModifierData *md = backup.modifier;
-    ModifierData *iter = (ModifierData *)ob->modifiers.first;
-    int pos =0;
-    if (backup.position ==0 || !iter) {
-      BLI_addhead(&ob->modifiers, md);
-    }
-    else {
-      while (iter && pos < backup.position -1) {
-        iter = iter->next;
-        ++pos;
-      }
-      if (iter) {
-        BLI_insertlinkafter(&ob->modifiers, iter, md);
-      }
-      else {
-        BLI_addtail(&ob->modifiers, md);
-      }
-    }
-  }
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  DEG_relations_tag_update(CTX_data_main(C));
-  BKE_scene_graph_update_tagged(CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C));
-  backups.clear();
-}
 
 // Only allowed for Poses with identical channels.
 void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode)
@@ -199,11 +124,6 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = nullptr;
   m_previousArmature = nullptr;
-  m_deformed_children.clear();
-  m_skinStatic = nullptr;
-  m_ssbo_bone_pose_mat = nullptr;
-  m_ssbo_premat = nullptr;
-  m_ssbo_postmat = nullptr;
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -211,36 +131,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_poseChannels->Release();
   m_poseChannels = nullptr;
   m_controlledConstraints->Release();
-  if (m_isReplica) {
-    for (auto &child : m_deformed_children) {
-      for (const ModifierStackBackup &backup : child.backups) {
-        BKE_modifier_free(backup.modifier);
-      }
-      child.backups.clear();
-    }
-    m_deformed_children.clear();
-  }
-  else {
-    for (auto &child : m_deformed_children) {
-      RestoreArmatureModifierList(child.ob);
-    }
-  }
-  /* already cleared per-child above */
-
-  /* Restore orig_mesh->is_using_skinning = 0,
-   * to extract positions on float3 next time mesh will be reconstructed */
-  for (auto &child : m_deformed_children) {
-    if (child.ob && !m_isReplica) {
-      Mesh *orig_mesh = (Mesh *)child.ob->data;
-      orig_mesh->is_running_gpu_animation_playback = 0;
-    }
-    if (child.replica) {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      BKE_id_delete(CTX_data_main(C), &child.replica->id);
-    }
-    child.replica = nullptr;
-  }
-  m_deformed_children.clear();
 }
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
@@ -272,15 +162,6 @@ void BL_ArmatureObject::RemapParentChildren()
       }
     }
   }
-}
-
-bool BL_ArmatureObject::GetUseGPUDeform()
-{
-  if (m_deformed_children.empty()) {
-    return false;
-  }
-  return std::all_of(m_deformed_children.begin(), m_deformed_children.end(),
-                     [](const DeformedChild &c) { return c.use_gpu; });
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
@@ -430,10 +311,6 @@ void BL_ArmatureObject::ProcessReplica()
 
   m_objArma = m_pBlenderObject;
 
-  if (m_skinStatic) {
-    m_skinStatic->ref_count++;
-  }
-
   LoadChannels();
 }
 
@@ -484,34 +361,6 @@ void BL_ArmatureObject::ApplyPose()
   }
 }
 
-void BL_ArmatureObject::GetGpuDeformedObj()
-{
-  if (m_deformed_children.empty()) {
-    /* Get all children using this armature modifier */
-    std::vector<KX_GameObject *> children = GetChildren();
-    for (KX_GameObject *child : children) {
-      bool is_bone_parented = child->GetBlenderObject()->partype == PARBONE;
-      if (is_bone_parented || child->GetBlenderObject()->type != OB_MESH) {
-        continue;
-      }
-      LISTBASE_FOREACH (ModifierData *, md, &child->GetBlenderObject()->modifiers) {
-        if (md->type == eModifierType_Armature) {
-          ArmatureModifierData *amd = (ArmatureModifierData *)md;
-          if (amd && amd->object == this->GetBlenderObject()) {
-            Object *child_ob = child->GetBlenderObject();
-            DeformedChild dc;
-            dc.ob = child_ob;
-            dc.use_gpu = (amd->upbge_deformflag & ARM_DEF_GPU) !=0 &&
-            !child->IsDupliInstance() && !m_is_dupli_instance;
-            dc.replica = nullptr;
-            m_deformed_children.push_back(std::move(dc));
-          }
-        }
-      }
-    }
-  }
-}
-
 void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext &evalCtx)
 {
 	if (!m_objArma || !action) {
@@ -520,82 +369,6 @@ void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext 
 	PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
 	const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
 	animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
-}
-
-void BL_ArmatureObject::DoGpuSkinning()
-{
-  bool any_gpu = false;
-  for (auto &child : m_deformed_children) {
-    if (child.use_gpu) {
-      any_gpu = true;
-      break;
-    }
-  }
-  if (!any_gpu) {
-    return;
-  }
-
-  using namespace blender::gpu::shader;
-  using namespace blender::draw;
-
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-
-  blender::draw::ArmatureSkinningManager &mgr = blender::draw::ArmatureSkinningManager::instance();
-
-  for (auto &child : m_deformed_children) {
-    Object *child_ob = child.ob;
-    if (!child_ob) {
-      continue;
-    }
-    if (!child.use_gpu) {
-      continue;
-    }
-
-    KX_GameObject *kx_deformedObj = GetScene()->GetBlenderSceneConverter()->FindGameObject(child_ob);
-    if (kx_deformedObj->IsReplica()) {
-      if (!child.replica) {
-        Mesh *orig = (Mesh *)child_ob->data;
-        child.replica = (Mesh *)BKE_id_copy_ex(CTX_data_main(C), (ID *)orig, nullptr,0);
-        child_ob->data = child.replica;
-        DEG_id_tag_update(&child_ob->id, ID_RECALC_GEOMETRY);
-      }
-    }
-
-    Object *deformed_eval = DEG_get_evaluated(depsgraph, child_ob);
-    Mesh *mesh_eval = static_cast<Mesh *>(deformed_eval->data);
-    Mesh *orig_mesh = (Mesh *)child_ob->data;
-
-    orig_mesh->is_running_gpu_animation_playback = 1;
-    mesh_eval->is_running_gpu_animation_playback = 1;
-
-    if (child.backups.empty()) {
-      disable_armature_modifiers(child_ob, child.backups);
-      if (kx_deformedObj->IsReplica()) {
-        kx_deformedObj->SetVisible(true, false);
-      }
-      continue;
-    }
-
-    MeshBatchCache *cache = nullptr;
-    if (mesh_eval->runtime && mesh_eval->runtime->batch_cache) {
-      cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
-    }
-
-    blender::gpu::VertBuf *vbo_pos = nullptr;
-    blender::gpu::VertBuf *vbo_nor = nullptr;
-    if (cache && cache->final.buff.vbos.size() >0) {
-      auto pos_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
-      vbo_pos = pos_vbo_it ? pos_vbo_it->get() : nullptr;
-      auto nor_vbo_it = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
-      vbo_nor = nor_vbo_it ? nor_vbo_it->get() : nullptr;
-    }
-    if (!vbo_pos || !vbo_nor || !cache) {
-      continue;
-    }
-
-    mgr.dispatch_skinning(depsgraph, m_objArma, deformed_eval, cache, vbo_pos, vbo_nor);
-  }
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)

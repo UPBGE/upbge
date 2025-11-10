@@ -51,25 +51,6 @@ class MT_Matrix4x4;
 class BL_SceneConverter;
 class RAS_DebugDraw;
 
-struct ModifierStackBackup {
-  ModifierData *modifier;
-  int position;
-};
-
-/* Used to share resources used by several replicas */
-struct BGE_SkinStaticBuffers {
-  blender::gpu::Shader *shader_skin_vertices = nullptr;
-
-  std::vector<int> in_indices = {};
-  std::vector<float> in_weights = {};
-  blender::gpu::StorageBuf *ssbo_in_idx = nullptr;
-  blender::gpu::StorageBuf *ssbo_in_wgt = nullptr;
-  blender::gpu::StorageBuf *ssbo_rest_positions = nullptr;
-  blender::gpu::StorageBuf *ssbo_skinned_vert_positions = nullptr;
-
-  int ref_count = 1;
-};
-
 class BL_ArmatureObject : public KX_GameObject {
   Py_Header
 
@@ -82,22 +63,6 @@ class BL_ArmatureObject : public KX_GameObject {
   /* Used to do the remapping between Parent (armature) and children
    * after ProcessReplica */
   Object *m_previousArmature;
-
-  /* Multiple deformed child objects (consumers of this armature).
-   * Use a single struct to store per-child state to avoid parallel vectors. */
-  struct DeformedChild {
-    Object *ob = nullptr;
-    Mesh *replica = nullptr; /* optional replicated mesh for this child */
-    bool use_gpu = false; /* whether this child uses GPU skinning */
-    std::vector<ModifierStackBackup> backups; /* saved modifiers for restoration */
-  };
-
-  std::vector<DeformedChild> m_deformed_children;
-  BGE_SkinStaticBuffers *m_skinStatic;
-
-  blender::gpu::StorageBuf *m_ssbo_bone_pose_mat;
-  blender::gpu::StorageBuf *m_ssbo_premat;
-  blender::gpu::StorageBuf *m_ssbo_postmat;
 
   double m_lastframe;
   size_t m_constraintNumber;
@@ -128,15 +93,11 @@ class BL_ArmatureObject : public KX_GameObject {
   void ApplyPose();
   void GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode);
   void RemapParentChildren();
-  void GetGpuDeformedObj();
   void ApplyAction(bAction *action, const AnimationEvalContext &evalCtx);
-  void DoGpuSkinning();
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);
 
-  bool GetUseGPUDeform();
-  void RestoreArmatureModifierList(Object *ob);
   Object *GetArmatureObject();
   Object *GetOrigArmatureObject();
   bool GetDrawDebug() const;

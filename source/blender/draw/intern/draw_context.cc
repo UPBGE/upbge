@@ -2336,8 +2336,16 @@ const DRWContext *DRW_context_get()
 bool DRWContext::is_playback() const
 {
   if (this->evil_C != nullptr) {
+    /* Temp: Force animation playback state at bge runtime.
+     * TODO: Replace with animation playback state when calling anim_sys_evaluate_action. */
+    bool is_scene_interactive = false;
+    if (this->scene != nullptr) {
+      Scene *scene_orig = DEG_get_original(this->scene);
+      is_scene_interactive = bool((scene_orig->flag & SCE_INTERACTIVE) != 0 ||
+                             (scene_orig->flag & SCE_INTERACTIVE_VIEWPORT) != 0);
+    }
     wmWindowManager *wm = CTX_wm_manager(this->evil_C);
-    return ED_screen_animation_playing(wm) != nullptr;
+    return (ED_screen_animation_playing(wm) != nullptr) || is_scene_interactive;
   }
   return false;
 }

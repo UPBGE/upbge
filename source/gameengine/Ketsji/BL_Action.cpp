@@ -470,9 +470,6 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
   KX_Scene *scene = m_obj->GetScene();
 
   obj->RemapParentChildren();
-  obj->GetGpuDeformedObj();
-
-  bool gpu_deform = obj && obj->GetUseGPUDeform();
 
   if (m_layer_weight >= 0) {
     obj->GetPose(&m_blendpose);
@@ -484,21 +481,10 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
 
   obj->ApplyPose();
 
-  if (gpu_deform) {
-    ProcessGPUPipeline(obj, animEvalContext);
-  }
-  else {
-    ProcessCPUPipeline(obj, ob, scene, animEvalContext);
-  }
+  /* GPU skinning handled on blender side now */
+  ProcessCPUPipeline(obj, ob, scene, animEvalContext);
 
   obj->UpdateTimestep(curtime);
-}
-
-void BL_Action::ProcessGPUPipeline(BL_ArmatureObject *obj,
-                                   const AnimationEvalContext &animEvalContext)
-{
-  // === GPU PIPELINE ===
-  obj->DoGpuSkinning();
 }
 
 void BL_Action::ProcessCPUPipeline(BL_ArmatureObject *obj,

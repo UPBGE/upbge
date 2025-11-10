@@ -102,8 +102,6 @@ class BL_Action {
   void UpdateArmatureAnimation(float curtime,
                                Object *ob,
                                const AnimationEvalContext &animEvalContext);
-  void ProcessGPUPipeline(BL_ArmatureObject *armatureObj,
-                          const AnimationEvalContext &animEvalContext);
   void ProcessCPUPipeline(BL_ArmatureObject *armatureObj,
                           Object *ob,
                           KX_Scene *scene,
