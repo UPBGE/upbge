@@ -43,6 +43,51 @@ static std::mutex g_mesh_cache_mutex;
 static std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources>
     g_armature_gpu_resources;
 
+/* Forward declaration so the manager can call flush_orphans from an inline method. */
+static void mesh_gpu_orphans_flush();
+
+/* Lightweight manager to centralize access to the static caches. This is an
+ * incremental step: it does not move storage yet but provides a single place
+ * to access/manipulate the caches and will make a future refactor easier. */
+struct MeshGPUCacheManager {
+  static MeshGPUCacheManager &get()
+  {
+    static MeshGPUCacheManager instance;
+    return instance;
+  }
+
+  std::unordered_map<const Mesh *, MeshGpuData> &mesh_cache()
+  {
+    return g_mesh_data_cache;
+  }
+
+  std::vector<MeshGpuData> &orphans()
+  {
+    return g_mesh_data_orphans;
+  }
+
+  std::mutex &mutex()
+  {
+    return g_mesh_cache_mutex;
+  }
+
+  std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources> &armature_resources()
+  {
+    return g_armature_gpu_resources;
+  }
+
+  void flush_orphans()
+  {
+    mesh_gpu_orphans_flush();
+  }
+
+ private:
+  MeshGPUCacheManager() = default;
+  ~MeshGPUCacheManager() = default;
+  MeshGPUCacheManager(const MeshGPUCacheManager &) = delete;
+  MeshGPUCacheManager &operator=(const MeshGPUCacheManager &) = delete;
+};
+
 static void mesh_gpu_orphans_flush()
 {
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
