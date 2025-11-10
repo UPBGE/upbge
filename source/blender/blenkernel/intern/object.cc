@@ -2051,10 +2051,12 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
 
 void BKE_object_free_derived_caches(Object *ob)
 {
-  Object *ob_orig = DEG_get_original(ob);
-  Mesh *mesh_orig = (Mesh *)ob_orig->data;
-  if (mesh_orig->is_running_gpu_animation_playback == 1) {
-    return;
+  if (ob->type == OB_MESH) {
+    Object *ob_orig = DEG_get_original(ob);
+    Mesh *mesh_orig = (Mesh *)ob_orig->data;
+    if (mesh_orig->is_running_gpu_animation_playback == 1) {
+      return;
+    }
   }
   ob->runtime->bounds_eval.reset();
 
