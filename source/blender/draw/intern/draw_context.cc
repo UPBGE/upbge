@@ -441,9 +441,10 @@ void DRW_viewport_data_free(DRWData *drw_data)
   DRW_curves_module_free(drw_data->curves_module);
   delete drw_data->default_view;
 
-  if (drw_data->meshes_to_free) {
-    delete drw_data->meshes_to_free;
-    drw_data->meshes_to_free = nullptr;
+  /* New unified container. */
+  if (drw_data->meshes_to_process) {
+    delete drw_data->meshes_to_process;
+    drw_data->meshes_to_process = nullptr;
   }
 
   MEM_freeN(drw_data);
@@ -463,21 +464,32 @@ static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)
 /* Process scheduled mesh frees. Must run with an active GL context. */
 static void drw_process_scheduled_mesh_frees(DRWData *data)
 {
-  if (data == nullptr || data->meshes_to_free == nullptr) {
+  if (data == nullptr) {
     return;
   }
-  auto *set = data->meshes_to_free;
-  /* detach so new requests create a new set */
-  data->meshes_to_free = nullptr;
 
-  for (Mesh *mesh : *set) {
-    if (mesh && mesh->is_running_gpu_animation_playback == 0) {
-      /* Free armature skinning static data first, then mesh GPU resources. */
-      blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
-      BKE_mesh_gpu_free_for_mesh(mesh);
+  /* Prefer the new unified container if present. */
+  if (data->meshes_to_process) {
+    auto *map = data->meshes_to_process;
+    /* Detach so new requests create a fresh container. */
+    data->meshes_to_process = nullptr;
+
+    for (auto &it : *map) {
+      Mesh *mesh = it.first;
+      auto &entry = it.second;
+      if (!entry.scheduled_free) {
+        continue;
+      }
+      if (mesh && mesh->is_running_gpu_animation_playback == 0) {
+        /* Free armature skinning static data first, then mesh GPU resources. */
+        blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+        BKE_mesh_gpu_free_for_mesh(mesh);
+      }
     }
+
+    delete map;
+    return;
   }
-  delete set;
 }
 
 /* Scheduling API used from other modules. */
@@ -498,10 +510,11 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
   DRWContext *ctx = DRWContext::is_active() ? &drw_get() : nullptr;
   if (ctx && ctx->data) {
     DRWData *data = ctx->data;
-    if (data->meshes_to_free == nullptr) {
-      data->meshes_to_free = new std::unordered_set<Mesh *>();
+    if (data->meshes_to_process == nullptr) {
+      data->meshes_to_process = new std::unordered_map<Mesh *, MeshProcessEntry>();
     }
-    data->meshes_to_free->insert(mesh);
+    auto &entry = (*data->meshes_to_process)[mesh];
+    entry.scheduled_free = true;
     return;
   }
 
@@ -1105,18 +1118,19 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
   using namespace blender::draw;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
 
-  if (draw_ctx.data == nullptr || draw_ctx.data->meshes_to_skin == nullptr) {
+  if (draw_ctx.data == nullptr || draw_ctx.data->meshes_to_process == nullptr) {
     return;
   }
 
-  auto &map = *draw_ctx.data->meshes_to_skin;
+  auto &map = *draw_ctx.data->meshes_to_process;
   if (map.empty()) {
     return;
   }
 
-  for (auto &entry : map) {
-    Mesh *mesh_owner = entry.first;
-    Object *eval_obj = entry.second;
+  for (auto &it : map) {
+    Mesh *mesh_owner = it.first;
+    auto &entry = it.second;
+    Object *eval_obj = entry.eval_obj_for_skinning;
     if (!mesh_owner || !eval_obj) {
       continue;
     }
@@ -1163,8 +1177,10 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
         depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
   }
 
-  /* Clear collection for next frame but keep allocation for reuse. */
-  map.clear();
+  /* Clear skinning entries for next frame but keep allocation for reuse. */
+  for (auto &it : map) {
+    it.second.eval_obj_for_skinning = nullptr;
+  }
 }
 
 void DRWContext::engines_draw_scene()

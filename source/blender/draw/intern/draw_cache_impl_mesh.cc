@@ -1102,10 +1102,6 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
 
 static void register_meshes_to_skin(Object &ob, Mesh &mesh)
 {
-  /* If GPU animation playback was enabled for this mesh, and we have an active DRWContext,
-   * register the original mesh -> evaluated object mapping so the GPU skinning pass can
-   * iterate only the meshes that requested GPU skinning. Remove the entry when playback is
-   * disabled. */
   const bool gpu_playback = mesh.is_running_gpu_animation_playback != 0;
   if (!DRWContext::is_active()) {
     return;
@@ -1127,18 +1123,26 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
   }
 
   if (gpu_playback) {
-    if (dd->meshes_to_skin == nullptr) {
-      dd->meshes_to_skin = new std::unordered_map<Mesh *, Object *>();
+    if (dd->meshes_to_process == nullptr) {
+      dd->meshes_to_process = new std::unordered_map<Mesh *, MeshProcessEntry>();
     }
-    auto &map = *dd->meshes_to_skin;
-    if (map.find(orig_mesh) == map.end()) {
-      map.emplace(orig_mesh, &ob);
-    }
+    auto &map = *dd->meshes_to_process;
+    auto &entry = map[orig_mesh];
+    entry.eval_obj_for_skinning = &ob;
+    /* keep scheduled_free as-is (may be true if a free was requested elsewhere) */
   }
   else {
-    if (dd->meshes_to_skin) {
-      dd->meshes_to_skin->erase(orig_mesh);
-      /* keep the allocated map for reuse; do not delete here. */
+    if (dd->meshes_to_process) {
+      auto &map = *dd->meshes_to_process;
+      auto it = map.find(orig_mesh);
+      if (it != map.end()) {
+        /* Clear skinning request. If no free is scheduled, remove the entry to keep the map small.
+         */
+        it->second.eval_obj_for_skinning = nullptr;
+        if (!it->second.scheduled_free) {
+          map.erase(it);
+        }
+      }
     }
   }
 }

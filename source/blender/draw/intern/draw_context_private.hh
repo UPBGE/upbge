@@ -47,6 +47,12 @@ struct GSet;
 /** \name Memory Pools
  * \{ */
 
+/** Set of Mesh* scheduled to free GPU resources from non-GL contexts. */
+struct MeshProcessEntry {
+  struct Object *eval_obj_for_skinning = nullptr; /* nullptr if no skinning requested */
+  bool scheduled_free = false; /* true if GPU free was scheduled from non-GL context */
+};
+
 /** Contains memory pools information. */
 struct DRWData {
   /** Instance data. */
@@ -62,11 +68,9 @@ struct DRWData {
   /** Default view that feeds every engine. */
   blender::draw::View *default_view;
 
-  /** Set of Mesh* scheduled to free GPU resources from non-GL contexts. */
-  std::unordered_set<struct Mesh *> *meshes_to_free;
-  /** Map of original Mesh* -> any evaluated Object* requesting GPU skinning for that mesh.
-   * Collected during cache populate to avoid iterating all objects on the GPU skinning pass. */
-  std::unordered_map<struct Mesh *, struct Object *> *meshes_to_skin;
+  /** Map of original Mesh* -> processing info. Contains both scheduled free flag and optional
+   * evaluated object used for GPU skinning. This replaces the previous two containers. */
+  std::unordered_map<struct Mesh *, MeshProcessEntry> *meshes_to_process;
 
   /* Ensure modules are created. */
   void modules_init();
