@@ -1104,45 +1104,29 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
   using namespace blender::draw;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
 
-  DEGObjectIterSettings deg_iter_settings = {nullptr};
-  deg_iter_settings.depsgraph = depsgraph;
-  deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
+  if (draw_ctx.data == nullptr || draw_ctx.data->meshes_to_skin == nullptr) {
+    return;
+  }
 
-  /* Avoid dispatching skinning multiple times for the same original mesh
-   * (many evaluated objects / dupli instances may reference the same source).
-   * Track processed mesh owners during this pass. */
-  std::unordered_set<Mesh *> processed_meshes;
+  auto &map = *draw_ctx.data->meshes_to_skin;
+  if (map.empty()) {
+    return;
+  }
 
-  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if (ob->type != OB_MESH) {
+  for (auto &entry : map) {
+    Mesh *mesh_owner = entry.first;
+    Object *eval_obj = entry.second;
+    if (!mesh_owner || !eval_obj) {
       continue;
     }
-    Mesh *mesh_eval = static_cast<Mesh *>(ob->data);
+
+    Mesh *mesh_eval = static_cast<Mesh *>(eval_obj->data);
     if (!mesh_eval) {
       continue;
     }
+
     MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
     if (!cache) {
-      continue;
-    }
-
-    /* Find an armature modifier that deforms this object (evaluated object). */
-    Object *arm_ob = BKE_modifiers_is_deformed_by_armature(ob);
-    if (!arm_ob) {
-      continue;
-    }
-
-    /* Only dispatch GPU skinning when requested. The extractor marks evaluated meshes
-     * with `is_running_gpu_deform` during cache population and the original mesh
-     * is marked with `is_running_gpu_animation_playback`. This avoids redundant dispatches. */
-    if (!(cache->mesh_owner && cache->mesh_owner->is_running_gpu_animation_playback)) {
-      continue;
-    }
-
-    /* Ensure we only process each original mesh once. */
-    Mesh *mesh_owner = (cache->mesh_owner) ? cache->mesh_owner : mesh_eval;
-    if (!processed_meshes.insert(mesh_owner).second) {
-      /* Already processed this mesh owner. */
       continue;
     }
 
@@ -1156,28 +1140,30 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       vbo_nor = ptr->get();
     }
 
-    /* Need a position VBO to scatter skinned positions. */
     if (vbo_pos == nullptr) {
       if (G.debug & G_DEBUG) {
-        printf("skip GPU skinning for object '%s' (no position VBO)\n", (ob->id.name + 2));
+        printf("skip GPU skinning for mesh owner '%s' (no position VBO)\n",
+               (eval_obj->id.name + 2));
       }
       continue;
     }
 
-    if (G.debug & G_DEBUG) {
-      printf("dispatching GPU skinning for object '%s'\n", (ob->id.name + 2));
+    /* Find an armature modifier that deforms this evaluated object. */
+    Object *arm_ob = BKE_modifiers_is_deformed_by_armature(eval_obj);
+    if (!arm_ob) {
+      continue;
     }
+
     Object *orig_arma = DEG_get_original(arm_ob);
-
-    /* Ensure the static CPU/GPU resources exist for this original mesh. */
     blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
-        orig_arma, ob, mesh_owner);
+        orig_arma, eval_obj, mesh_owner);
 
-    /* Dispatch (may return false on first frame while extractor populates VBOs). */
     ArmatureSkinningManager::instance().dispatch_skinning(
-        depsgraph, orig_arma, ob, cache, vbo_pos, vbo_nor);
+        depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
   }
-  DEG_OBJECT_ITER_END;
+
+  /* Clear collection for next frame but keep allocation for reuse. */
+  map.clear();
 }
 
 void DRWContext::engines_draw_scene()

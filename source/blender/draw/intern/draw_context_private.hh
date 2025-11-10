@@ -11,6 +11,7 @@
 #pragma once
 
 #include <unordered_set>
+#include <unordered_map>
 
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
@@ -63,6 +64,9 @@ struct DRWData {
 
   /** Set of Mesh* scheduled to free GPU resources from non-GL contexts. */
   std::unordered_set<struct Mesh *> *meshes_to_free;
+  /** Map of original Mesh* -> any evaluated Object* requesting GPU skinning for that mesh.
+   * Collected during cache populate to avoid iterating all objects on the GPU skinning pass. */
+  std::unordered_map<struct Mesh *, struct Object *> *meshes_to_skin;
 
   /* Ensure modules are created. */
   void modules_init();

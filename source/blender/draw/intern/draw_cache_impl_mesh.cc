@@ -1100,6 +1100,49 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
   }
 }
 
+static void register_meshes_to_skin(Object &ob, Mesh &mesh)
+{
+  /* If GPU animation playback was enabled for this mesh, and we have an active DRWContext,
+   * register the original mesh -> evaluated object mapping so the GPU skinning pass can
+   * iterate only the meshes that requested GPU skinning. Remove the entry when playback is
+   * disabled. */
+  const bool gpu_playback = mesh.is_running_gpu_animation_playback != 0;
+  if (!DRWContext::is_active()) {
+    return;
+  }
+
+  DRWData *dd = drw_get().data;
+  if (dd == nullptr) {
+    return;
+  }
+
+  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  if (orig_mesh == nullptr) {
+    return;
+  }
+
+  /* Only consider meshes actually deformed by an armature. */
+  if (!BKE_modifiers_is_deformed_by_armature(&ob)) {
+    return;
+  }
+
+  if (gpu_playback) {
+    if (dd->meshes_to_skin == nullptr) {
+      dd->meshes_to_skin = new std::unordered_map<Mesh *, Object *>();
+    }
+    auto &map = *dd->meshes_to_skin;
+    if (map.find(orig_mesh) == map.end()) {
+      map.emplace(orig_mesh, &ob);
+    }
+  }
+  else {
+    if (dd->meshes_to_skin) {
+      dd->meshes_to_skin->erase(orig_mesh);
+      /* keep the allocated map for reuse; do not delete here. */
+    }
+  }
+}
+
 void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Object &ob,
                                            Mesh &mesh,
@@ -1113,6 +1156,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   bool cd_uv_update = false;
 
   set_gpu_animation_playback_state(ob, mesh);
+  register_meshes_to_skin(ob, mesh);
 
   /* Early out */
   if (cache.batch_requested == 0) {
