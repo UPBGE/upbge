@@ -417,18 +417,6 @@ void KX_GameObject::ReplicateBlenderObject()
 
     m_pBlenderObject = newob;
     m_isReplica = true;
-
-    LISTBASE_FOREACH (ModifierData *, md, &newob->modifiers) {
-      if (md->type == eModifierType_Armature) {
-        ArmatureModifierData *amd = (ArmatureModifierData *)md;
-        if (amd && amd->upbge_deformflag & ARM_DEF_GPU) {
-          /* Disable visibility of newob waiting
-           * render cache is ready for GPU skinning */
-          SetVisible(false, false);
-          break;
-        }
-      }
-    }
   }
 }
 void KX_GameObject::DiscardRenderedObject()
