@@ -76,7 +76,7 @@
 #  include "python_utildefines.hh"
 
 #  ifdef WITH_AUDASPACE
-#    include "../../../../intern/audaspace/intern/AUD_PyInit.h"
+#    include "../python/intern/bpy_audaspace.hh"
 #  endif  // WITH_AUDASPACE
 
 #  ifdef WITH_CYCLES
