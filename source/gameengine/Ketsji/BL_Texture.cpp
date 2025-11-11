@@ -38,7 +38,7 @@ BL_Texture::BL_Texture(Image *ima)
   m_textarget = TEXTARGET_2D;
   /* only add support for existing gputextures */
   if (BKE_image_has_opengl_texture(ima)) {
-    m_gpuTex = ima->gputexture[TEXTARGET_2D][0];
+    m_gpuTex = ima->runtime->gputexture[TEXTARGET_2D][0];
   }
 }
 
