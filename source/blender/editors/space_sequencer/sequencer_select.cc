@@ -47,8 +47,6 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
-/* For menu, popup, icons, etc. */
-
 #include "ED_outliner.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -56,7 +54,6 @@
 
 #include "UI_view2d.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -1615,7 +1612,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
     return false;
   }
 
-  GSet *neighbors = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "Linked strips");
+  Set<Strip *> neighbors;
   const int neighbor_selection_filter = select_more ? 0 : SELECT;
   const int selection_filter = select_more ? SELECT : 0;
 
@@ -1626,19 +1623,16 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
     Strip *neighbor = find_neighboring_strip(
         scene, strip, seq::SIDE_LEFT, neighbor_selection_filter);
     if (neighbor) {
-      BLI_gset_add(neighbors, neighbor);
+      neighbors.add(neighbor);
     }
     neighbor = find_neighboring_strip(scene, strip, seq::SIDE_RIGHT, neighbor_selection_filter);
     if (neighbor) {
-      BLI_gset_add(neighbors, neighbor);
+      neighbors.add(neighbor);
     }
   }
 
   bool changed = false;
-  GSetIterator gsi;
-  BLI_gsetIterator_init(&gsi, neighbors);
-  while (!BLI_gsetIterator_done(&gsi)) {
-    Strip *neighbor = static_cast<Strip *>(BLI_gsetIterator_getKey(&gsi));
+  for (Strip *neighbor : neighbors) {
     if (select_more) {
       neighbor->flag |= SELECT;
       recurs_sel_strip(neighbor);
@@ -1647,10 +1641,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
       neighbor->flag &= ~SELECT;
     }
     changed = true;
-    BLI_gsetIterator_step(&gsi);
   }
-
-  BLI_gset_free(neighbors, nullptr);
   return changed;
 }
 
