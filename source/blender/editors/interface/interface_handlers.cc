@@ -1312,18 +1312,20 @@ static void ui_apply_but_TEX(bContext *C, uiBut *but, uiHandleButtonData *data)
   ui_but_string_set(C, but, data->text_edit.edit_string);
   ui_but_update_edited(but);
 
-  /* give butfunc a copy of the original text too.
-   * feature used for bone renaming, channels, etc.
-   * afterfunc frees rename_orig */
-  if (data->text_edit.original_string && (but->flag & UI_BUT_TEXTEDIT_UPDATE)) {
-    /* In this case, we need to keep `original_string` available,
-     * to restore real org string in case we cancel after having typed something already. */
-    but->rename_orig = BLI_strdup(data->text_edit.original_string);
-  }
   /* only if there are afterfuncs, otherwise 'renam_orig' isn't freed */
-  else if (ui_afterfunc_check(but->block, but)) {
-    but->rename_orig = data->text_edit.original_string;
-    data->text_edit.original_string = nullptr;
+  if (ui_afterfunc_check(but->block, but)) {
+    /* give butfunc a copy of the original text too.
+     * feature used for bone renaming, channels, etc.
+     * afterfunc frees rename_orig */
+    if (data->text_edit.original_string && (but->flag & UI_BUT_TEXTEDIT_UPDATE)) {
+      /* In this case, we need to keep `original_string` available,
+       * to restore real org string in case we cancel after having typed something already. */
+      but->rename_orig = BLI_strdup(data->text_edit.original_string);
+    }
+    else {
+      but->rename_orig = data->text_edit.original_string;
+      data->text_edit.original_string = nullptr;
+    }
   }
 
   void *orig_arg2 = but->func_arg2;
@@ -5239,8 +5241,17 @@ static int ui_do_but_TEX(
       }
     }
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
-      const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
-      return ui_do_but_text_value_cycle(C, but, data, inc_value);
+      if ((but->type == ButType::SearchMenu) && but->func_argN &&
+          (static_cast<uiButSearch *>(but)->arg == but->func_argN))
+      {
+        /* Disable value cycling for search buttons with an allocated search data argument. This
+         * causes issues because the search data is moved to the "afterfuncs", but search updating
+         * requires it again. See #147539. */
+      }
+      else {
+        const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
+        return ui_do_but_text_value_cycle(C, but, data, inc_value);
+      }
     }
   }
   else if (data->state == BUTTON_STATE_TEXT_EDITING) {

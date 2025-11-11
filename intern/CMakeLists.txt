@@ -24,10 +24,6 @@ if (WITH_GAMEENGINE_BPPLAYER)
   add_subdirectory(spindle)
 endif()
 
-if(WITH_AUDASPACE)
-  add_subdirectory(audaspace)
-endif()
-
 if(WITH_MOD_REMESH)
   add_subdirectory(dualcon)
 endif()
