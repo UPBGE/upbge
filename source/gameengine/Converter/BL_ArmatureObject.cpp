@@ -70,7 +70,8 @@ void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, s
 
   bPoseChannel *schan = (bPoseChannel *)src->chanbase.first;
   for (bPoseChannel *dchan = (bPoseChannel *)dst->chanbase.first; dchan;
-       dchan = (bPoseChannel *)dchan->next, schan = (bPoseChannel *)schan->next) {
+       dchan = (bPoseChannel *)dchan->next, schan = (bPoseChannel *)schan->next)
+  {
     // always blend on all channels since we don't know which one has been set
     /* quat interpolation done separate */
     if (schan->rotmode == ROT_MODE_QUAT) {
@@ -97,7 +98,7 @@ void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, s
       /* blending for loc and scale are pretty self-explanatory... */
       dchan->loc[i] = (dchan->loc[i] * dstweight) + (schan->loc[i] * srcweight);
       dchan->scale[i] = 1.0f + ((dchan->scale[i] - 1.0f) * dstweight) +
-                       ((schan->scale[i] - 1.0f) * srcweight);
+                        ((schan->scale[i] - 1.0f) * srcweight);
 
       /* euler-rotation interpolation done here instead... */
       // FIXME: are these results decent?
@@ -108,7 +109,8 @@ void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, s
     for (bConstraint *dcon = (bConstraint *)dchan->constraints.first,
                      *scon = (bConstraint *)schan->constraints.first;
          dcon && scon;
-         dcon = dcon->next, scon = scon->next) {
+         dcon = dcon->next, scon = scon->next)
+    {
       /* no 'add' option for constraint blending */
       dcon->enforce = dcon->enforce * (1.0f - srcweight) + scon->enforce * srcweight;
     }
@@ -124,6 +126,7 @@ BL_ArmatureObject::BL_ArmatureObject()
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = nullptr;
   m_previousArmature = nullptr;
+  // m_replicaMeshes default constructed
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -131,6 +134,34 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_poseChannels->Release();
   m_poseChannels = nullptr;
   m_controlledConstraints->Release();
+
+  if (!m_replicaMeshes.empty() && m_isReplica) {
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = C ? CTX_data_main(C) : nullptr;
+
+    /* Restore original data pointers for children before deleting replica meshes when possible. */
+    for (auto &item : m_replacedOriginalData) {
+      Object *child_ob = item.first;
+      ID *orig_data = item.second;
+      if (!child_ob || !orig_data) {
+        continue;
+      }
+      child_ob->data = orig_data;
+    }
+    for (auto &item : m_replicaMeshes) {
+      Mesh *replica = item.second;
+      if (replica) {
+        replica->is_running_gpu_animation_playback = 0;
+        BKE_id_delete(bmain, (ID *)replica);
+        replica = nullptr;
+        DEG_relations_tag_update(bmain);
+        BKE_scene_graph_update_tagged(CTX_data_depsgraph_pointer(C), bmain);
+      }
+    }
+
+    m_replicaMeshes.clear();
+    m_replacedOriginalData.clear();
+  }
 }
 
 void BL_ArmatureObject::SetBlenderObject(Object *obj)
@@ -158,6 +189,31 @@ void BL_ArmatureObject::RemapParentChildren()
         ArmatureModifierData *amd = (ArmatureModifierData *)md;
         if (amd && amd->object == m_previousArmature) {
           amd->object = m_objArma;
+          bool is_using_gpu_deform = amd->upbge_deformflag & ARM_DEF_GPU && !m_is_dupli_instance &&
+                                     !child->IsDupliInstance();
+          if (child->IsReplica() && is_using_gpu_deform) {
+            if (m_replicaMeshes.find(child_ob) == m_replicaMeshes.end()) {
+              bContext *C = KX_GetActiveEngine()->GetContext();
+              Main *bmain = CTX_data_main(C);
+
+              /* Cache the replica mesh data to avoid multiple lookups. */
+              Mesh *orig = (Mesh *)child_ob->data;
+              Mesh *replica = (Mesh *)BKE_id_copy_ex(bmain, (ID *)orig, nullptr, 0);
+
+              child_ob->data = replica;
+
+              /* Store original data pointer to restore it later. */
+              if (m_replacedOriginalData.find(child_ob) == m_replacedOriginalData.end()) {
+                m_replacedOriginalData[child_ob] = (ID *)orig;
+              }
+              DEG_id_tag_update(&child_ob->id, ID_RECALC_GEOMETRY);
+              DEG_relations_tag_update(bmain);
+
+              replica->is_running_gpu_animation_playback = 1;
+
+              m_replicaMeshes[child_ob] = replica;
+            }
+          }
         }
       }
     }
@@ -250,7 +306,7 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string &posec
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string &posechannelconstraint)
 {
   return static_cast<BL_ArmatureConstraint *>(
-//    m_controlledConstraints->FindValue(posechannelconstraint));
+      //    m_controlledConstraints->FindValue(posechannelconstraint));
       m_controlledConstraints->FindValue(posechannelconstraint));
 }
 
@@ -263,7 +319,8 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 void BL_ArmatureObject::LoadChannels()
 {
   m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan; pchan = (bPoseChannel *)pchan->next) {
+  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+       pchan = (bPoseChannel *)pchan->next) {
     BL_ArmatureChannel *channel = new BL_ArmatureChannel(this, pchan);
     m_poseChannels->Add(channel);
   }
@@ -306,8 +363,8 @@ void BL_ArmatureObject::ProcessReplica()
 
   // Replicate each constraints.
   m_controlledConstraints = static_cast<EXP_ListValue<BL_ArmatureConstraint> *>(
-//    m_controlledConstraints->GetReplica());
-      m_controlledConstraints->GetReplica());
+  // m_controlledConstraints->GetReplica());
+  m_controlledConstraints->GetReplica());
 
   m_objArma = m_pBlenderObject;
 
@@ -342,6 +399,7 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
   for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
     res |= constraint->UnlinkObject(clientobj);
   }
+
   return res;
 }
 
@@ -363,12 +421,12 @@ void BL_ArmatureObject::ApplyPose()
 
 void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext &evalCtx)
 {
-	if (!m_objArma || !action) {
-		return;
-	}
-	PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
-	const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-	animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
+  if (!m_objArma || !action) {
+    return;
+  }
+  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
+  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
+  animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
@@ -454,7 +512,8 @@ void BL_ArmatureObject::DrawDebug(RAS_DebugDraw &debugDraw)
   const MT_Vector3 &pos = NodeGetWorldPosition();
 
   for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-       pchan = pchan->next) {
+       pchan = pchan->next)
+  {
     MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
     MT_Vector3 tail = rot * (MT_Vector3(pchan->pose_tail) * scale) + pos;
     debugDraw.DrawLine(tail, head, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));

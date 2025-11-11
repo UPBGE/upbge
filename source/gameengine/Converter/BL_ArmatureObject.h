@@ -38,20 +38,25 @@
 #include "BL_ArmatureConstraint.h"
 #include "KX_GameObject.h"
 
+#include <unordered_map>
+
 namespace blender::gpu {
- class Shader;
- class StorageBuf;
+class Shader;
+class StorageBuf;
 }  // namespace blender::gpu
 
 struct AnimationEvalContext;
 struct Bone;
 struct bPose;
 struct Object;
+struct Mesh;
+struct ID; /* forward declare ID for storing original data pointers */
 class MT_Matrix4x4;
 class BL_SceneConverter;
 class RAS_DebugDraw;
 
 class BL_ArmatureObject : public KX_GameObject {
+
   Py_Header
 
   protected :
@@ -63,6 +68,11 @@ class BL_ArmatureObject : public KX_GameObject {
   /* Used to do the remapping between Parent (armature) and children
    * after ProcessReplica */
   Object *m_previousArmature;
+
+  /* Map of replica meshes created for specific child objects. */
+  std::unordered_map<Object *, Mesh *> m_replicaMeshes;
+  /* Store the original data pointers for replaced children so they can be restored on cleanup. */
+  std::unordered_map<Object *, ID *> m_replacedOriginalData;
 
   double m_lastframe;
   size_t m_constraintNumber;
@@ -122,7 +132,7 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Returns true on success.
   bool GetBoneMatrix(Bone *bone, MT_Matrix4x4 &matrix);
 
-  /// Returns the bone length.  The end of the bone is in the local y direction.
+  /// Returns the bone length. The end of the bone is in the local y direction.
   float GetBoneLength(Bone *bone) const;
 
   virtual void SetBlenderObject(Object *obj);

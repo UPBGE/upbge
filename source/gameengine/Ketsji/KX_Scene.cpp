@@ -354,20 +354,6 @@ KX_Scene::~KX_Scene()
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  for (KX_GameObject *kxob : m_objectlist) {
-    BL_ArmatureObject *armobj = dynamic_cast<BL_ArmatureObject *>(kxob);
-    if (armobj) {
-      for (KX_GameObject *child : armobj->GetChildren()) {
-        Object *child_ob = child->GetBlenderObject();
-        if (!child_ob || !(child_ob->type == OB_MESH)) {
-          continue;
-        }
-        Mesh *mesh = static_cast<Mesh *>(child_ob->data);
-        mesh->is_running_gpu_animation_playback = false;
-      }
-    }
-  }
-
   /* Restore Objects object_to_world mat */
   if (scene->gm.flag & GAME_USE_UNDO) {
     RestoreObjectsMatToWorld();
