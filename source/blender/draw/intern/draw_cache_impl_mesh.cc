@@ -616,11 +616,11 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
 void DRW_mesh_batch_cache_free(void *batch_cache)
 {
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
-  BLI_assert(cache->mesh_owner != nullptr);
   if (cache->mesh_owner && !cache->mesh_owner->is_running_gpu_animation_playback) {
     DRW_schedule_mesh_gpu_free(cache->mesh_owner);
   }
   mesh_batch_cache_clear(*cache);
+  cache->mesh_owner = nullptr;
   MEM_delete(cache);
 }
 
