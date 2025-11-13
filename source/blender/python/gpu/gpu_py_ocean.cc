@@ -4337,7 +4337,6 @@ void main() {
     if (Mesh *orig_me = BKE_object_get_original_mesh(ob_eval)) {
       orig_me->is_running_gpu_animation_playback = 1;
       me->is_running_gpu_animation_playback = 1;
-      BKE_object_free_derived_caches(ob_eval);
       DEG_id_tag_update(&DEG_get_original(ob_eval)->id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_WINDOW, nullptr);
       return false;

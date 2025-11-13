@@ -88,6 +88,12 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
   *object->runtime = runtime;
   object->runtime->data_orig = data_orig;
   object->runtime->bounds_eval = bounds;
+  if (object->type == OB_MESH) {
+    Mesh *me = static_cast<Mesh *>(object->data);
+    if (me->is_running_gpu_animation_playback) {
+      return;
+    }
+  }
   if (ELEM(object->type, OB_MESH, OB_LATTICE, OB_CURVES_LEGACY, OB_FONT) && data_eval != nullptr) {
     if (object->id.recalc & ID_RECALC_GEOMETRY) {
       /* If geometry is tagged for update it means, that part of
@@ -100,13 +106,6 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 
       /* After that, immediately free the invalidated caches. */
       BKE_object_free_derived_caches(object);
-
-      if (object->type == OB_MESH) {
-        Mesh *me = static_cast<Mesh *>(object->data);
-        if (me->is_running_gpu_animation_playback) {
-          return;
-        }
-      }
     }
     else {
       /* Do same thing as object update: override actual object data pointer with evaluated
