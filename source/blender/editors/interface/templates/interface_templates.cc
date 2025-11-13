@@ -405,7 +405,6 @@ void uiTemplateGameStates(uiLayout *layout,
 
         but = uiDefIconButR_prop(block,
                                  ButType::IconToggle,
-                                 0,
                                  icon,
                                  0,
                                  0,

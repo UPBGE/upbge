@@ -737,7 +737,6 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
 
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Show Objects"),
            0,
            (short)(yco -= 20),
@@ -747,10 +746,10 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 0); });
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Hide Objects"),
            0,
            (short)(yco -= 20),
@@ -760,12 +759,12 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, ButType::SeprLine, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButType::SeprLine, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Show Sensors"),
            0,
            (short)(yco -= 20),
@@ -775,10 +774,10 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Hide Sensors"),
            0,
            (short)(yco -= 20),
@@ -788,6 +787,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
@@ -844,7 +844,6 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
 
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Show Objects"),
            0,
            (short)(yco -= 20),
@@ -854,11 +853,11 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 0);
   });
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Hide Objects"),
            0,
            (short)(yco -= 20),
@@ -868,12 +867,12 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, ButType::SeprLine, 0, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButType::SeprLine, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Show Controllers"),
            0,
            (short)(yco -= 20),
@@ -883,10 +882,10 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Hide Controllers"),
            0,
            (short)(yco -= 20),
@@ -896,6 +895,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
@@ -952,7 +952,6 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
 
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Show Objects"),
            0,
            (short)(xco -= 20),
@@ -962,10 +961,10 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 0); });
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Hide Objects"),
            0,
            (short)(xco -= 20),
@@ -975,12 +974,12 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, ButType::SeprLine, 0, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButType::SeprLine, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Show Actuators"),
            0,
            (short)(xco -= 20),
@@ -990,10 +989,10 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
            ButType::ButMenu,
-           1,
            IFACE_("Hide Actuators"),
            0,
            (short)(xco -= 20),
@@ -1003,6 +1002,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
+  UI_but_retval_set(but, 1);
   UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 3); });
 
   UI_block_direction_set(block, UI_DIR_UP);
@@ -1032,7 +1032,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
   block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   /* use this for a fake extra empy space around the buttons */
-  uiDefBut(block, ButType::Label, 0, "", -5, -5, 200, 34, nullptr, 0, 0, "");
+  uiDefBut(block, ButType::Label, "", -5, -5, 200, 34, nullptr, 0, 0, "");
 
   for (offset = 0; offset < 15; offset += 5) {
     UI_block_align_begin(block);
@@ -1040,7 +1040,6 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
       but = uiDefButBitI(block,
                          ButType::Toggle,
                          (1 << (stbit + offset)),
-                         (stbit + offset),
                          "",
                          (short)(xco + 12 * stbit + 13 * offset),
                          yco,
@@ -1050,13 +1049,13 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
                          0,
                          0,
                          "");
+      UI_but_retval_set(but, (stbit + offset));
       UI_but_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
     }
     for (stbit = 0; stbit < 5; stbit++) {
       but = uiDefButBitI(block,
                          ButType::Toggle,
                          (1 << (stbit + offset + 15)),
-                         (stbit + offset + 15),
                          "",
                          (short)(xco + 12 * stbit + 13 * offset),
                          yco - 12,
@@ -1066,6 +1065,7 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
                          0,
                          0,
                          "");
+      UI_but_retval_set(but, (stbit + offset + 15));
       UI_but_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
     }
   }
@@ -2706,10 +2706,9 @@ void logic_buttons(bContext *C, ARegion *region)
     split->prop(&settings_ptr, "show_state_panel", UI_ITEM_R_NO_BG, "", ICON_DISCLOSURE_TRI_RIGHT);
 
     row = &split->row(true);
-    uiDefButBitS(block,
+    but = uiDefButBitS(block,
                  ButType::Toggle,
                  OB_SHOWCONT,
-                 B_REDR,
                  ob->id.name + 2,
                  (short)(xco - U.widget_unit / 2),
                  yco,
@@ -2719,6 +2718,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  0,
                  31,
                  TIP_("Object name, click to show/hide controllers"));
+    UI_but_retval_set(but, B_REDR);
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
@@ -2768,7 +2768,6 @@ void logic_buttons(bContext *C, ARegion *region)
       col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
                          ButType::Inlink,
-                         0,
                          ICON_LINKED,
                          0,
                          0,
@@ -2801,7 +2800,6 @@ void logic_buttons(bContext *C, ARegion *region)
       col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
                          ButType::Link,
-                         0,
                          ICON_LINKED,
                          0,
                          0,
@@ -2863,10 +2861,9 @@ void logic_buttons(bContext *C, ARegion *region)
       continue;
 
     row = &layout->row(true);
-    uiDefButBitS(block,
+    but = uiDefButBitS(block,
                  ButType::Toggle,
                  OB_SHOWSENS,
-                 B_REDR,
                  ob->id.name + 2,
                  (short)(xco - U.widget_unit / 2),
                  yco,
@@ -2876,6 +2873,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  0,
                  31,
                  TIP_("Object name, click to show/hide sensors"));
+    UI_but_retval_set(but, B_REDR);
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
@@ -2916,7 +2914,6 @@ void logic_buttons(bContext *C, ARegion *region)
         col->active_set(RNA_boolean_get(&ptr, "active"));
         but = uiDefIconBut(block,
                            ButType::Link,
-                           0,
                            ICON_LINKED,
                            0,
                            0,
@@ -2981,10 +2978,9 @@ void logic_buttons(bContext *C, ARegion *region)
     }
 
     row = &layout->row(true);
-    uiDefButBitS(block,
+    but = uiDefButBitS(block,
                  ButType::Toggle,
                  OB_SHOWACT,
-                 B_REDR,
                  ob->id.name + 2,
                  (short)(xco - U.widget_unit / 2),
                  yco,
@@ -2994,7 +2990,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  0,
                  31,
                  TIP_("Object name, click to show/hide actuators"));
-
+    UI_but_retval_set(but, B_REDR);
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
     row->op_menu_enum(C, "LOGIC_OT_actuator_add", "type", IFACE_("Add Actuator"), ICON_NONE);
@@ -3028,7 +3024,6 @@ void logic_buttons(bContext *C, ARegion *region)
         col->active_set(RNA_boolean_get(&ptr, "active"));
         but = uiDefIconBut(block,
                            ButType::Inlink,
-                           0,
                            ICON_LINKED,
                            0,
                            0,
