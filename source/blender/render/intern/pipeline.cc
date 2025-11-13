@@ -398,8 +398,6 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
       }
 
       rr->layers = re->result->layers;
-      rr->xof = re->disprect.xmin;
-      rr->yof = re->disprect.ymin;
       rr->stamp_data = re->result->stamp_data;
     }
   }
@@ -452,10 +450,6 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
       rr->layers = re->result->layers;
       rr->views = re->result->views;
-
-      rr->xof = re->disprect.xmin;
-      rr->yof = re->disprect.ymin;
-
       rr->stamp_data = re->result->stamp_data;
     }
   }
@@ -509,7 +503,7 @@ Render *RE_NewRender(const void *owner)
     re->owner = owner;
   }
 
-  RE_display_init(re, false);
+  RE_display_init(re);
 
   return re;
 }
@@ -932,10 +926,10 @@ void RE_prepare_viewlayer_cb(Render *re,
 /** \name Display and GPU context
  * \{ */
 
-void RE_display_init(Render *re, const bool use_gpu_context)
+void RE_display_init(Render *re)
 {
   re->display_shared = false;
-  re->display = std::make_shared<RenderDisplay>(use_gpu_context);
+  re->display = std::make_shared<RenderDisplay>();
 
   re->display->display_update_cb = result_rcti_nothing;
   re->display->current_scene_update_cb = current_scene_nothing;
@@ -947,6 +941,11 @@ void RE_display_init(Render *re, const bool use_gpu_context)
   else {
     re->display->stats_draw_cb = stats_nothing;
   }
+}
+
+void RE_display_ensure_gpu_context(Render *re)
+{
+  re->display->ensure_system_gpu_context();
 }
 
 void RE_display_share(Render *re, const Render *parent_re)
@@ -963,12 +962,8 @@ void RE_display_share(Render *re, const Render *parent_re)
 
 void RE_display_free(Render *re)
 {
-  if (re->display_shared) {
-    RE_display_init(re, false);
-  }
-  else {
-    re->display->clear();
-  }
+  /* Re-initializing with a new RenderDisplay will free the GPU contexts. */
+  RE_display_init(re);
 }
 
 void *RE_system_gpu_context_get(Render *re)
@@ -1046,11 +1041,6 @@ static void render_result_uncrop(Render *re)
       re->disprect = orig_disprect;
       re->rectx = orig_rectx;
       re->recty = orig_recty;
-    }
-    else {
-      /* set offset (again) for use in compositor, disprect was manipulated. */
-      re->result->xof = 0;
-      re->result->yof = 0;
     }
   }
 }
