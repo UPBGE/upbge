@@ -100,6 +100,13 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 
       /* After that, immediately free the invalidated caches. */
       BKE_object_free_derived_caches(object);
+
+      if (object->type == OB_MESH) {
+        Mesh *me = static_cast<Mesh *>(object->data);
+        if (me->is_running_gpu_animation_playback) {
+          return;
+        }
+      }
     }
     else {
       /* Do same thing as object update: override actual object data pointer with evaluated

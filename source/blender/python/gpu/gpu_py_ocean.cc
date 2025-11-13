@@ -15,7 +15,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
-#include "BKE_ocean.h"
 
 #include "BLI_task.h"
 
@@ -25,7 +24,7 @@
 #include "../python/intern/bpy_rna.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
-
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
 #include "GPU_batch.hh"
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
@@ -35,6 +34,8 @@
 #include "../blenkernel/intern/ocean_intern.h"
 
 #include "gpu_py_storagebuffer.hh"
+
+#include "../windowmanager/WM_api.hh"
 
 using blender::gpu::StorageBuf;
 using namespace blender::bke;
@@ -69,17 +70,10 @@ enum InternalSSBORole {
   /* add more roles as needed */
 };
 
-struct InternalSSBOEntry {
-  StorageBuf *ssbo;
-  size_t capacity; /* bytes capacity */
-};
-
 static std::unordered_map<Ocean *, SSBOCacheEntry> g_ocean_ssbo_cache;
 static std::unordered_map<Ocean *, SSBOCacheEntry> g_ocean_base_ssbo_cache;
 static std::unordered_map<Ocean *, SSBOCacheEntry> g_ocean_out_ssbo_cache;
 static std::unordered_map<Ocean *, std::pair<float *, size_t>> g_ocean_padded_cpu_cache;
-static std::unordered_map<Ocean *, std::unordered_map<int, InternalSSBOEntry>>
-    g_ocean_internal_ssbo_cache;
 static std::unordered_map<Ocean *, PyObject *> g_ocean_object_cache;
 static std::unordered_map<Ocean *, std::tuple<float, float, int>> g_ocean_base_state;
 static std::unordered_map<Ocean *, const void *> g_ocean_h0_last_ptr;
@@ -163,7 +157,7 @@ static void gpu_generate_ocean_geometry_uvs(void *__restrict userdata,
   }
 }
 
-static const int64_t GPU_OCEAN_MAX_VERTS = 50000000; /* sÈcuritÈ: 50M vertices max */
+static const int64_t GPU_OCEAN_MAX_VERTS = 50000000; /* s√©curit√©: 50M vertices max */
 
 static Mesh *gpu_generate_ocean_geometry_nomain(OceanModifierData *omd, const int resolution)
 {
@@ -527,62 +521,75 @@ static StorageBuf *pygpu_ocean_get_or_create_internal_ssbo(Ocean *o,
   if (!o) {
     return nullptr;
   }
-  auto &map = g_ocean_internal_ssbo_cache[o];
-  auto it = map.find(role);
-  if (it != map.end()) {
-    InternalSSBOEntry &e = it->second;
-    if (e.ssbo && e.capacity >= bytes) {
-      return e.ssbo; /* reuse */
-    }
-    /* free old one before replacing */
-    if (e.ssbo) {
-      GPU_storagebuf_free(e.ssbo);
-      e.ssbo = nullptr;
-    }
-    map.erase(it);
+  // Cl√© lisible: on mappe le role -> string stable
+  std::string key;
+  switch (role) {
+    case SSBO_ROLE_PONG:
+      key = "pong";
+      break;
+    case SSBO_ROLE_PONG2:
+      key = "pong2";
+      break;
+    case SSBO_ROLE_TRANSPOSED:
+      key = "transposed";
+      break;
+    case SSBO_ROLE_HTILDA_EXPANDED:
+      key = "htilda_expanded";
+      break;
+    case SSBO_ROLE_ROTATED:
+      key = "rotated";
+      break;
+    case SSBO_ROLE_FFT_IN_X:
+      key = "fft_in_x";
+      break;
+    case SSBO_ROLE_FFT_IN_Z:
+      key = "fft_in_z";
+      break;
+    case SSBO_ROLE_SPATIAL_COMPLEX_X:
+      key = "spatial_complex_x";
+      break;
+    case SSBO_ROLE_SPATIAL_COMPLEX_Z:
+      key = "spatial_complex_z";
+      break;
+    case SSBO_ROLE_SPATIAL_COMPLEX:
+      key = "spatial_complex";
+      break;
+    case SSBO_ROLE_DST:
+      key = "dst";
+      break;
+    case SSBO_ROLE_TEMP:
+      key = "temp";
+      break;
+    case SSBO_ROLE_OMEGA:
+      key = "omega";
+      break;
+    case SSBO_ROLE_H0_COMPACT:
+      key = "h0_compact";
+      break;
+    case SSBO_ROLE_H0M_COMPACT:
+      key = "h0m_compact";
+      break;
+    default:
+      key = name ? name : "unknown";
+      break;
   }
 
-  /* Create new raw SSBO (no Python wrapper). */
-  StorageBuf *sb = GPU_storagebuf_create_ex(bytes, nullptr, GPU_USAGE_STATIC, name);
-  if (!sb) {
-    return nullptr;
-  }
-
-  InternalSSBOEntry entry;
-  entry.ssbo = sb;
-  entry.capacity = bytes;
-  map.emplace(role, std::move(entry));
-  return sb;
+  auto &mgr = blender::bke::MeshGPUCacheManager::get();
+  return mgr.ocean_internal_ssbo_ensure(o, key, bytes);
 }
 
 /* Free all internal SSBOs for an Ocean (call on ocean free or module free) */
 static void pygpu_ocean_free_internal_ssbos_for_ocean(Ocean *o)
 {
-  auto it = g_ocean_internal_ssbo_cache.find(o);
-  if (it == g_ocean_internal_ssbo_cache.end()) {
-    return;
+  if (o) {
+    MeshGPUCacheManager::get().free_ocean_cache(o);
   }
-  for (auto &kv : it->second) {
-    InternalSSBOEntry &e = kv.second;
-    if (e.ssbo) {
-      GPU_storagebuf_free(e.ssbo);
-      e.ssbo = nullptr;
-    }
-  }
-  g_ocean_internal_ssbo_cache.erase(it);
 }
 
 /* Free everything on module unload */
 static void pygpu_ocean_free_all_internal_ssbos()
 {
-  for (auto &kv : g_ocean_internal_ssbo_cache) {
-    for (auto &kv2 : kv.second) {
-      if (kv2.second.ssbo) {
-        GPU_storagebuf_free(kv2.second.ssbo);
-      }
-    }
-  }
-  g_ocean_internal_ssbo_cache.clear();
+  MeshGPUCacheManager::get().free_all_ocean_caches();
 }
 
 /* -------------------------------------------------------------------- */
@@ -823,8 +830,8 @@ static PyObject *pygpu_ocean_generate_object(PyObject * /*self*/, PyObject *args
     return nullptr;
   }
 
-  /* NOTE: Ne pas incrÈmenter ici le compteur d'utilisateurs du mesh.
-   * L'incrÈmentation sera faite une seule fois ci-dessous lors de l'affectation au Object. */
+  /* NOTE: Ne pas incr√©menter ici le compteur d'utilisateurs du mesh.
+   * L'incr√©mentation sera faite une seule fois ci-dessous lors de l'affectation au Object. */
 
   /* Create an Object ID in Main and assign the mesh as its data. */
   Object *ob = static_cast<Object *>(BKE_id_new(G_MAIN, ID_OB, name));
@@ -894,7 +901,7 @@ static PyObject *pygpu_ocean_get_or_create_object(PyObject *py_ocean_obj, int re
     /* Get the referenced object (borrowed reference). */
     PyObject *target = PyWeakref_GetObject(weak);
     if (target == nullptr) {
-      /* Unexpected: weakref API failure ó remove entry and continue to create a new one. */
+      /* Unexpected: weakref API failure ‚Äî remove entry and continue to create a new one. */
       PyErr_Clear();
       Py_DECREF(weak);
       g_ocean_object_cache.erase(it);
@@ -942,7 +949,7 @@ static PyObject *pygpu_ocean_get_or_create_object(PyObject *py_ocean_obj, int re
   }
 
   /* Create a weakref to the created wrapper and store it in cache.
-   * Note: we DO NOT INCREF py_created for the cache ó we create a weakref object which
+   * Note: we DO NOT INCREF py_created for the cache ‚Äî we create a weakref object which
    * owns its own reference. The caller receives the new-ref py_created.
    */
   PyObject *weakref = PyWeakref_NewRef(py_created, nullptr);
@@ -1171,7 +1178,7 @@ static inline bool pygpu_is_power_of_two(int v)
 
 static blender::gpu::Shader *g_ocean_eval_shader = nullptr;
 
-// GLSL compute body (sans les `layout` et `uniform`, ‡ injecter dans un R"GLSL(...)GLSL" string)
+// GLSL compute body (sans les `layout` et `uniform`, √† injecter dans un R"GLSL(...)GLSL" string)
 static const char *OCEAN_EVAL_COMP_BODY_GLSL = R"GLSL(
 /* positive modulo helper */
 int mod_pos(int a, int b) {
@@ -2459,14 +2466,8 @@ static PyObject *pygpu_ocean_debug_compare_spatial(PyObject * /*self*/, PyObject
 
   /* Try to find spatial_complex SSBO in internal cache. If missing, fall back to cached disp vec4.
    */
-  StorageBuf *spatial_sb = nullptr;
-  auto it_map = g_ocean_internal_ssbo_cache.find(o);
-  if (it_map != g_ocean_internal_ssbo_cache.end()) {
-    auto it_role = it_map->second.find(SSBO_ROLE_SPATIAL_COMPLEX);
-    if (it_role != it_map->second.end()) {
-      spatial_sb = it_role->second.ssbo;
-    }
-  }
+  StorageBuf *spatial_sb = MeshGPUCacheManager::get().ocean_internal_ssbo_get(o,
+                                                                              "spatial_complex");
 
   bool used_disp_fallback = false;
   std::vector<float> disp_vec4;       /* vec4 per texel if fallback */
@@ -2644,7 +2645,7 @@ static void gpu_generate_ocean_geometry_uvs_debug(void *__restrict userdata,
     const int i = y * gogd->res_x + x;
     float(*luv)[2] = &gogd->uv_map[i * 4];
 
-    // GÈnÈration des UVs
+    // G√©n√©ration des UVs
     (*luv)[0] = x * gogd->ix;
     (*luv)[1] = y * gogd->iy;
     luv++;
@@ -2661,7 +2662,7 @@ static void gpu_generate_ocean_geometry_uvs_debug(void *__restrict userdata,
     (*luv)[1] = (y + 1) * gogd->iy;
     luv++;
 
-    // Ajout de logs pour dÈboguer les UVs
+    // Ajout de logs pour d√©boguer les UVs
     fprintf(stderr,
             "UV[%d]: (%f, %f), (%f, %f), (%f, %f), (%f, %f)\n",
             i,
@@ -2810,14 +2811,8 @@ static PyObject *pygpu_ocean_debug_compare_spatial_extended(PyObject * /*self*/,
   }
 
   /* Try to locate internal spatial_complex SSBO (raw) */
-  StorageBuf *spatial_sb = nullptr;
-  auto it_map = g_ocean_internal_ssbo_cache.find(o);
-  if (it_map != g_ocean_internal_ssbo_cache.end()) {
-    auto it_role = it_map->second.find(SSBO_ROLE_SPATIAL_COMPLEX);
-    if (it_role != it_map->second.end()) {
-      spatial_sb = it_role->second.ssbo;
-    }
-  }
+  StorageBuf *spatial_sb = MeshGPUCacheManager::get().ocean_internal_ssbo_get(o,
+                                                                              "spatial_complex");
 
   std::vector<float> gpu_complex_raw; /* if we read complex vec2 raw */
   std::vector<float> disp_vec4;       /* if we fallback to cached disp vec4 */
@@ -4150,29 +4145,14 @@ static PyObject *pygpu_ocean_gpu_fft_rows(PyObject * /*self*/, PyObject *args)
   }
 
   if (!py_sb) {
-    /* Create Python wrapper for dst_internal. Before inserting into python cache,
-     * remove the internal entry to avoid double-free. */
     PyObject *created = BPyGPUStorageBuf_CreatePyObject(
         reinterpret_cast<StorageBuf *>(dst_internal));
     if (!created) {
       PyErr_SetString(PyExc_RuntimeError, "Failed to wrap dst SSBO");
       return nullptr;
     }
+    MeshGPUCacheManager::get().ocean_internal_ssbo_detach(o, std::string("dst"));
 
-    /* Remove dst_internal from internal cache if present (so wrapper owns it). */
-    auto it_map = g_ocean_internal_ssbo_cache.find(o);
-    if (it_map != g_ocean_internal_ssbo_cache.end()) {
-      auto it_role = it_map->second.find(SSBO_ROLE_DST);
-      if (it_role != it_map->second.end() && it_role->second.ssbo == dst_internal) {
-        /* erase without freeing (wrapper will free) */
-        it_map->second.erase(it_role);
-        if (it_map->second.empty()) {
-          g_ocean_internal_ssbo_cache.erase(it_map);
-        }
-      }
-    }
-
-    /* Evict any existing python cache entry for this ocean (safe) */
     auto it_existing = g_ocean_ssbo_cache.find(o);
     if (it_existing != g_ocean_ssbo_cache.end()) {
       pygpu_ocean_evict_cache_entry(g_ocean_ssbo_cache, it_existing);
@@ -4183,13 +4163,12 @@ static PyObject *pygpu_ocean_gpu_fft_rows(PyObject * /*self*/, PyObject *args)
     new_entry.capacity = full_bytes2;
     auto insert_res = g_ocean_ssbo_cache.emplace(o, std::move(new_entry));
     if (!insert_res.second) {
-      /* insertion failed: DECREF wrapper and return transient wrapper fallback */
+      /* insertion fail: DECREF wrapper et remonter erreur */
       Py_DECREF(created);
       PyErr_SetString(PyExc_RuntimeError, "Failed to insert SSBO into ocean python cache");
       return nullptr;
     }
 
-    /* Return the cached wrapper */
     Py_INCREF(insert_res.first->second.py_ssbo);
     py_sb = insert_res.first->second.py_ssbo;
   }
@@ -4352,6 +4331,19 @@ void main() {
     PyErr_SetString(PyExc_RuntimeError, "Failed to get position or normal VBO from batch");
     return false;
   }
+
+  const GPUVertFormat *fmt = GPU_vertbuf_get_format(vbo_pos);
+  if (!fmt || fmt->stride != 16) {
+    if (Mesh *orig_me = BKE_object_get_original_mesh(ob_eval)) {
+      orig_me->is_running_gpu_animation_playback = 1;
+      me->is_running_gpu_animation_playback = 1;
+      BKE_object_free_derived_caches(ob_eval);
+      DEG_id_tag_update(&DEG_get_original(ob_eval)->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_WINDOW, nullptr);
+      return false;
+    }
+  }
+
   int M_val = ocean->_M;
   int N_val = ocean->_N;
   /* Build caller bindings vector.
@@ -5103,7 +5095,7 @@ static PyObject *pygpu_ocean_simulate_and_export_disp_ssbo(PyObject * /*self*/,
                                     .count() /
                                 1000.0;
 
-  /* Affichage pÈriodique (1s) : print instantanÈ (plus intuitif que l'EMA/Welford). */
+  /* Affichage p√©riodique (1s) : print instantan√© (plus intuitif que l'EMA/Welford). */
   double elapsed_since_print = std::chrono::duration_cast<std::chrono::duration<double>>(
                                    prof_t1 - g_ocean_prof_last_print_time)
                                    .count();
@@ -5123,7 +5115,7 @@ static PyObject *pygpu_ocean_simulate_and_export_disp_ssbo(PyObject * /*self*/,
     return nullptr; /* error already set */
   }
 
-  /* Met ‡ jour l'instant de la derniËre frame pour la prochaine invocation. */
+  /* Met √† jour l'instant de la derni√®re frame pour la prochaine invocation. */
   g_ocean_prof_last_frame_time = prof_t0;
 
   PyObject *py_return_ssbo = nullptr;
@@ -5145,7 +5137,7 @@ static PyObject *pygpu_ocean_simulate_and_export_disp_ssbo(PyObject * /*self*/,
     }
 
     if (!py_return_ssbo) {
-      /* Create a new Python wrapper for the native StorageBuf* */
+      MeshGPUCacheManager::get().ocean_internal_ssbo_detach(o, std::string("dst"));
       py_return_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(out_ssbo));
       if (!py_return_ssbo) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to create GPUStorageBuf Python wrapper");
@@ -5154,7 +5146,7 @@ static PyObject *pygpu_ocean_simulate_and_export_disp_ssbo(PyObject * /*self*/,
     }
   }
 
-  /* Profile summary si demandÈ : afficher aussi durÈe depuis la derniËre frame (simple). */
+  /* Profile summary si demand√© : afficher aussi dur√©e depuis la derni√®re frame (simple). */
   if (g_ocean_show_fps) {
     printf("[gpu.ocean.prof] simulate_and_export: since_last_frame=%.3f ms tex_side=%d\n",
            frame_delta_ms,
@@ -5396,7 +5388,12 @@ static PyObject *pygpu_ocean_scatter_to_mesh(PyObject * /*self*/, PyObject *args
       o, depsgraph, ob_eval, disp_sb, base_sb, float(o->_Lx), float(height_scale));
 
   if (!ok) {
-    return nullptr; /* exception already set by dispatch helper */
+    /* Pas d'erreur Python active => VBO pas encore pr√™t (ex: Position non float4).
+     * Ne pas lever d'exception; laisser le caller r√©essayer au prochain frame. */
+    if (!PyErr_Occurred()) {
+      Py_RETURN_NONE;
+    }
+    return nullptr; /* exception d√©j√† d√©finie par le helper */
   }
   Py_RETURN_NONE;
 }
@@ -5472,7 +5469,7 @@ static PyObject *pygpu_ocean_free_ocean(PyObject * /*self*/, PyObject *args)
     }
   }
 
-  /* Note: do NOT clear the entire g_ocean_object_cache here ó free_resources() and module
+  /* Note: do NOT clear the entire g_ocean_object_cache here ‚Äî free_resources() and module
    * cleanup handle global teardown. We only remove the entry related to the Ocean being freed. */
 
   if (o) {
@@ -5839,7 +5836,6 @@ static void pygpu_ocean_module_free(void * /*module*/)
 
     g_ocean_base_ssbo_cache.clear();
     g_ocean_out_ssbo_cache.clear();
-    g_ocean_internal_ssbo_cache.clear();
   }
 }
 

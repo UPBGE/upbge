@@ -129,12 +129,17 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
 {
   DEG_debug_print_eval(depsgraph, __func__, ob->id.name, ob);
 
+  bool is_running_gpu_animation_playback = false;
+  if (ob->type == OB_MESH) {
+    Object *ob_orig = DEG_get_original(ob);
+    Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+    is_running_gpu_animation_playback = (mesh_orig->is_running_gpu_animation_playback == 1);
+  }
+
   /* includes all keys and modifiers */
   switch (ob->type) {
     case OB_MESH: {
-      Object *ob_orig = DEG_get_original(ob);
-      Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
-      if (mesh_orig->is_running_gpu_animation_playback == 1) {
+      if (is_running_gpu_animation_playback) {
         /* When GPU deform is enabled, we skip the regular modifier
          * stack evaluation as the deformation is done on the GPU. */
         ob->runtime->last_update_geometry = DEG_get_update_count(depsgraph);
@@ -221,7 +226,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
     }
   }
 
-  if (DEG_is_active(depsgraph)) {
+  if (DEG_is_active(depsgraph) && !is_running_gpu_animation_playback) {
     Object *object_orig = DEG_get_original(ob);
     object_orig->runtime->bounds_eval = BKE_object_evaluated_geometry_bounds(ob);
   }

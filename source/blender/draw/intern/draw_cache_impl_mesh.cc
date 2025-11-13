@@ -1067,9 +1067,7 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
 
 static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
 {
-  /* Detect if GPU deform is requested (armature modifier wants GPU deform animation playback).
-   * If so, mark the mesh for GPU deform and force re-extraction of position VBO
-   * so it can be created with float4 layout. */
+  /* 1) Détection Armature -> GPU deform. */
   bool armature_requests_gpu = false;
   for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
     if (md->type == eModifierType_Armature) {
@@ -1081,18 +1079,24 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
     }
   }
 
-  /* Only enable GPU animation playback when an armature modifier explicitly requests it
-   * and an animation playback is currently active in the viewport. Otherwise ensure the flag
-   * is cleared so VBOs are extracted with the normal (float3) layout. */
-  if (armature_requests_gpu && DRWContext::is_active() && DRW_context_get()->is_playback()) {
-    Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  /* 2) Honorer un flag déjà posé (ex: mesh créé par gpu.ocean qui requiert float4). */
+  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  const bool python_requests_gpu = (mesh.is_running_gpu_animation_playback != 0) ||
+                                   (orig_mesh &&
+                                    orig_mesh->is_running_gpu_animation_playback != 0);
+
+  /* 3) Condition finale: Armature+Playback OU demande explicite côté mesh/python. */
+  const bool want_gpu_float4 = python_requests_gpu ||
+                               (armature_requests_gpu && DRWContext::is_active() &&
+                                DRW_context_get()->is_playback());
+
+  if (want_gpu_float4) {
     if (orig_mesh) {
       orig_mesh->is_running_gpu_animation_playback = 1;
     }
     mesh.is_running_gpu_animation_playback = 1;
   }
   else {
-    Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
     if (orig_mesh) {
       orig_mesh->is_running_gpu_animation_playback = 0;
     }

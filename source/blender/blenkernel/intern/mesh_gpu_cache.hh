@@ -8,9 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "BKE_mesh_gpu.hh"
-
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
+#include "BKE_ocean.h"
+
 #include "DNA_object_types.h"
 
 namespace blender {
@@ -44,6 +45,17 @@ class MeshGPUCacheManager {
   blender::gpu::StorageBuf *armature_internal_ssbo_get(struct Object *arm, const std::string &key);
   void armature_internal_ssbo_release(struct Object *arm, const std::string &key);
 
+  /* Ocean helpers (INTERNAL SSBOs ONLY, not exposed to Python wrappers). */
+  blender::gpu::StorageBuf *ocean_internal_ssbo_ensure(struct Ocean *ocean,
+                                                       const std::string &key,
+                                                       size_t size);
+  blender::gpu::StorageBuf *ocean_internal_ssbo_get(struct Ocean *ocean, const std::string &key);
+  void ocean_internal_ssbo_release(struct Ocean *ocean, const std::string &key);
+  void ocean_internal_ssbo_detach(struct Ocean *ocean, const std::string &key);
+  /* Free all SSBOs cached for a single Ocean owner. */
+  void free_ocean_cache(struct Ocean *ocean);
+  void free_all_ocean_caches();
+
   /* Accessors for existing code to migrate gradually. */
   std::unordered_map<const Mesh *, MeshGpuData> &mesh_cache();
   std::vector<MeshGpuData> &orphans();
@@ -68,6 +80,14 @@ class MeshGPUCacheManager {
   std::mutex g_mesh_cache_mutex_;
   std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources>
       g_armature_gpu_resources_;
+
+  /* Ocean: map owner -> { key -> (ssbo, capacity_bytes) } */
+  struct InternalSSBOEntry {
+    blender::gpu::StorageBuf *ssbo = nullptr;
+    size_t capacity = 0;
+  };
+  std::unordered_map<const Ocean *, std::unordered_map<std::string, InternalSSBOEntry>>
+      g_ocean_gpu_ssbos_;
 };
 
 }  // namespace bke
