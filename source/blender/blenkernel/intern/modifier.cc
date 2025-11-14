@@ -939,9 +939,11 @@ bool BKE_modifier_deform_verts(ModifierData *md,
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
   if (mti->deform_verts) {
-    if (mesh) {
-      Mesh *mesh_orig = DEG_get_original(mesh);
-      if (mesh_orig->is_running_gpu_animation_playback == 1) {
+    /* Skip CPU deformation for armature when GPU skinning is active for THIS evaluated mesh.
+     * Do not look at the original mesh here, as multiple objects may share it with
+     * different animation/evaluation contexts. */
+    if (mesh && md->type == eModifierType_Armature) {
+      if (mesh->is_running_gpu_animation_playback == 1) {
         return true;
       }
     }
