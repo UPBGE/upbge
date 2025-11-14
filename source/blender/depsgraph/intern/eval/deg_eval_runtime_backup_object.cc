@@ -88,12 +88,11 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
   *object->runtime = runtime;
   object->runtime->data_orig = data_orig;
   object->runtime->bounds_eval = bounds;
-  if (object->type == OB_MESH) {
-    Mesh *me = static_cast<Mesh *>(object->data);
-    if (me->is_running_gpu_animation_playback) {
-      return;
-    }
-  }
+
+  /* Detect if this mesh is currently driven by GPU deformation playback. */
+  const bool is_gpu_anim_mesh = (object->type == OB_MESH) &&
+                                static_cast<Mesh *>(object->data)->is_running_gpu_animation_playback;
+
   if (ELEM(object->type, OB_MESH, OB_LATTICE, OB_CURVES_LEGACY, OB_FONT) && data_eval != nullptr) {
     if (object->id.recalc & ID_RECALC_GEOMETRY) {
       /* If geometry is tagged for update it means, that part of
@@ -102,25 +101,29 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
        *
        * We restore object's data datablock to an original copy of
        * that datablock. */
-      object->data = data_orig;
+      if (!(object->type == OB_MESH && is_gpu_anim_mesh)) {
+        object->data = data_orig;
 
-      /* After that, immediately free the invalidated caches. */
-      BKE_object_free_derived_caches(object);
+        /* After that, immediately free the invalidated caches. */
+        BKE_object_free_derived_caches(object);
+      }
     }
     else {
       /* Do same thing as object update: override actual object data pointer with evaluated
        * datablock, but only if the evaluated data has the same type as the original data. */
-      if (GS(((ID *)object->data)->name) == GS(data_eval->name)) {
-        object->data = data_eval;
-      }
+      if (!(object->type == OB_MESH && is_gpu_anim_mesh)) {
+        if (GS(((ID *)object->data)->name) == GS(data_eval->name)) {
+          object->data = data_eval;
+        }
 
-      /* Evaluated mesh simply copied edit_mesh pointer from
-       * original mesh during update, need to make sure no dead
-       * pointers are left behind. */
-      if (object->type == OB_MESH) {
-        Mesh *mesh_eval = (Mesh *)data_eval;
-        Mesh *mesh_orig = (Mesh *)data_orig;
-        mesh_eval->runtime->edit_mesh = mesh_orig->runtime->edit_mesh;
+        /* Evaluated mesh simply copied edit_mesh pointer from
+         * original mesh during update, need to make sure no dead
+         * pointers are left behind. */
+        if (object->type == OB_MESH) {
+          Mesh *mesh_eval = (Mesh *)data_eval;
+          Mesh *mesh_orig = (Mesh *)data_orig;
+          mesh_eval->runtime->edit_mesh = mesh_orig->runtime->edit_mesh;
+        }
       }
     }
   }
