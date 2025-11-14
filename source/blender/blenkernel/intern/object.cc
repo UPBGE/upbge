@@ -131,7 +131,7 @@
 #include "BKE_rigidbody.h"
 #include "BKE_sca.hh"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_softbody.h"
 #include "BKE_speaker.hh"
 #include "BKE_subdiv_ccg.hh"

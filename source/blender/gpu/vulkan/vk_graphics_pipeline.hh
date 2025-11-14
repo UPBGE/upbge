@@ -351,15 +351,6 @@ struct VKGraphicsPipelineCreateInfoBuilder {
 
     vk_pipeline_rasterization_state_create_info.cullMode = to_vk_cull_mode_flags(
         static_cast<GPUFaceCullTest>(shaders_info.state.culling_test));
-    if (shaders_info.state.shadow_bias) {
-      vk_pipeline_rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-      vk_pipeline_rasterization_state_create_info.depthBiasSlopeFactor = 2.0f;
-      vk_pipeline_rasterization_state_create_info.depthBiasConstantFactor = 1.0f;
-      vk_pipeline_rasterization_state_create_info.depthBiasClamp = 0.0f;
-    }
-    else {
-      vk_pipeline_rasterization_state_create_info.depthBiasEnable = VK_FALSE;
-    }
     vk_pipeline_rasterization_state_create_info.frontFace = shaders_info.state.invert_facing ?
                                                                 VK_FRONT_FACE_COUNTER_CLOCKWISE :
                                                                 VK_FRONT_FACE_CLOCKWISE;
@@ -495,15 +486,14 @@ struct VKGraphicsPipelineCreateInfoBuilder {
 
   void build_dynamic_rendering(const VKGraphicsInfo::FragmentOut &fragment_output_info)
   {
-    vk_pipeline_rendering_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-                                         nullptr,
-                                         0,
-                                         fragment_output_info.color_attachment_size,
-                                         fragment_output_info.color_attachment_formats.data(),
-                                         fragment_output_info.depth_attachment_format,
-                                         fragment_output_info.stencil_attachment_format
-
-    };
+    vk_pipeline_rendering_create_info = {
+        VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        nullptr,
+        0,
+        uint32_t(fragment_output_info.color_attachment_formats.size()),
+        fragment_output_info.color_attachment_formats.data(),
+        fragment_output_info.depth_attachment_format,
+        fragment_output_info.stencil_attachment_format};
   }
 
   /* Shaders lib only requires the viewmask to be set. */
@@ -646,7 +636,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     }
 
     vk_pipeline_color_blend_attachment_states.append_n_times(
-        attachment_state, fragment_output_info.color_attachment_size);
+        attachment_state, fragment_output_info.color_attachment_formats.size());
   }
 
   void build_color_blend_state(const VKGraphicsInfo::FragmentOut &fragment_output_info,
