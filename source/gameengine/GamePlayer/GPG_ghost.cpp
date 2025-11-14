@@ -63,7 +63,7 @@
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_sound.hh"
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
