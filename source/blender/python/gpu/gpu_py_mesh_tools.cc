@@ -163,6 +163,21 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   auto *vbo_pos = cache->final.buff.vbos.lookup_ptr(VBOType::Position)->get();
   auto *vbo_nor = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)->get();
 
+  const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
+  if (format->stride != 16) {
+  /* VBO is not in float4 format, request a redraw and tell Python to try again later. */
+    Object *ob_orig = DEG_get_original(ob_eval);
+    if (ob_orig) {
+      Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+      Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+      mesh_orig->is_running_gpu_animation_playback = 1;
+      mesh_eval->is_running_gpu_animation_playback = 1;
+      DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_WINDOW, nullptr);
+      Py_RETURN_NONE;
+    }
+  }
+
   /* Transform SSBO: optional. If not provided, create an identity SSBO and mark it
    * as owned by this function (we will free it unless compute is deferred). */
   blender::gpu::StorageBuf *transform_ssbo = nullptr;
