@@ -28,6 +28,7 @@
 #include "gpu_shader_dependency_private.hh"
 #include "gpu_shader_private.hh"
 
+#include <filesystem>
 #include <string>
 
 extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
@@ -35,6 +36,51 @@ extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
 static CLG_LogRef LOG = {"gpu.shader"};
 
 namespace blender::gpu {
+
+void Shader::dump_source_to_disk(StringRef shader_name,
+                                 StringRef shader_name_with_stage_name,
+                                 StringRef extension,
+                                 StringRef source)
+{
+  StringRefNull pattern = G.gpu_debug_shader_source_name;
+  /* Support starting and/or ending with a wildcard. */
+  if (pattern == "*") {
+    /* If using a single wildcard, match everything. */
+  }
+  else if (pattern.startswith("*") && pattern.endswith("*")) {
+    if (!shader_name.find(pattern.substr(1, pattern.size() - 2))) {
+      return;
+    }
+  }
+  else if (pattern.startswith("*")) {
+    if (!shader_name.endswith(pattern.substr(1))) {
+      return;
+    }
+  }
+  else if (pattern.endswith("*")) {
+    if (!shader_name.startswith(pattern.substr(0, pattern.size() - 1))) {
+      return;
+    }
+  }
+  else if (shader_name != pattern) {
+    return;
+  }
+
+  namespace fs = std::filesystem;
+  fs::path shader_dir = fs::current_path() / "Shaders";
+  fs::create_directories(shader_dir);
+  fs::path file_path = shader_dir / (shader_name_with_stage_name + extension);
+
+  std::ofstream output_source_file(file_path);
+  if (output_source_file) {
+    output_source_file << source;
+    output_source_file.close();
+    std::cout << "Shader Source Debug: Writing file: " << file_path << "\n";
+  }
+  else {
+    std::cerr << "Shader Source Debug: Failed to open file: " << file_path << "\n";
+  }
+}
 
 std::string Shader::defines_declare(const shader::ShaderCreateInfo &info)
 {
@@ -921,6 +967,7 @@ AsyncCompilationHandle ShaderCompiler::async_compilation(const shader::ShaderCre
   }
   else {
     compilation->shader = compile(*info, false);
+    compilation->is_ready = true;
   }
 
   return handle;
@@ -932,7 +979,7 @@ void ShaderCompiler::asyc_compilation_cancel(AsyncCompilationHandle &handle)
     std::unique_lock lock(mutex_);
 
     AsyncCompilation *compilation = async_compilations_.pop(handle);
-    if (compilation_worker_->cancel_work(compilation->work->id)) {
+    if (compilation_worker_ && compilation_worker_->cancel_work(compilation->work->id)) {
       compilation->is_ready = true;
     }
 
@@ -1045,6 +1092,10 @@ bool ShaderCompiler::is_compiling_impl()
 {
   /* The mutex should be locked before calling this function. */
   BLI_assert(!mutex_.try_lock());
+
+  if (compilation_worker_ == nullptr) {
+    return false;
+  }
 
   if (!compilation_worker_->is_empty()) {
     return true;

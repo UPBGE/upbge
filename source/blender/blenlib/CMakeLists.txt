@@ -175,7 +175,7 @@ set(SRC
   ../../../extern/wcwidth/wcwidth.c
 
   # Header as source (included in C files above).
-  intern/kdtree_impl.h
+  intern/kdtree_impl.hh
   intern/list_sort_impl.h
   intern/radial_tiling_shared.hh
 
@@ -280,8 +280,8 @@ set(SRC
   BLI_iterator.h
   BLI_jitter_2d.h
   BLI_kdopbvh.hh
-  BLI_kdtree.h
-  BLI_kdtree_impl.h
+  BLI_kdtree.hh
+  BLI_kdtree_impl.hh
   BLI_lasso_2d.hh
   BLI_lazy_threading.hh
   BLI_length_parameterize.hh
