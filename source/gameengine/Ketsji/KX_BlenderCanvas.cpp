@@ -117,9 +117,9 @@ bool KX_BlenderCanvas::GetFullScreen()
 void KX_BlenderCanvas::BeginDraw()
 {
   wm_window_make_drawable(m_wm, m_win);
-  wm_window_swap_buffer_acquire(m_win);
 
   if (!m_useViewportRender) {
+    wm_window_swap_buffer_acquire(m_win);
     GPU_context_main_lock();
     GPU_render_begin();
     GPU_render_step(true);
