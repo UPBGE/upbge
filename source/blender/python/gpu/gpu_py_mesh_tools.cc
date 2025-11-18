@@ -95,7 +95,7 @@ PyDoc_STRVAR(
     "   Binding indices used by the builtin scatter shader (for reference):\n"
     "     - binding=0 : `positions_out[]` (write, VBO::Position)\n"
     "     - binding=1 : `normals_out[]` (write, VBO::CornerNormal)\n"
-    "     - binding=2 : `skinned_positions_in[]` (read, vec4 SSBO - provided by caller)\n"
+    "     - binding=2 : `positions_in[]` (read, vec4 SSBO - provided by caller)\n"
     "     - binding=3 : `transform_mat[]` (read, mat4 SSBO)\n"
     "     - binding=15: `topo[]` (read, int SSBO injected automatically)\n\n"
     "   Returns\n"
@@ -202,7 +202,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   std::vector<GpuMeshComputeBinding> bindings = {
       {0, vbo_pos, Qualifier::write, "vec4", "positions_out[]"},
       {1, vbo_nor, Qualifier::write, "uint", "normals_out[]"},
-      {2, py_ssbo_skinned_pos->ssbo, Qualifier::read, "vec4", "skinned_positions_in[]"},
+      {2, py_ssbo_skinned_pos->ssbo, Qualifier::read, "vec4", "positions_in[]"},
       {3,
        transform_owned ? transform_ssbo : py_ssbo_transform->ssbo,
        Qualifier::read,
