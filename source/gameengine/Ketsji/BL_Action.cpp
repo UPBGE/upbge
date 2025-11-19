@@ -84,6 +84,10 @@ BL_Action::~BL_Action()
     BKE_pose_free(m_blendinpose);
   ClearControllerList();
 
+  // free shape key snapshots
+  m_blendshape.clear();
+  m_blendinshape.clear();
+
   Object *ob = m_obj->GetBlenderObject();
   if (ob && ob->adt && m_action) {
     ob->adt->action = m_action;
@@ -181,6 +185,32 @@ bool BL_Action::Play(const std::string &name,
     obj->GetPose(&m_blendinpose);
   }
   else {
+    /* Capture a snapshot of current shape key curvals to blend from.
+     * Only do this when we actually will blend (blendin > 0 or layer active). */
+    if (blendin > 0.0f || layer_weight >= 0.0f) {
+      Object *ob = m_obj->GetBlenderObject();
+      m_blendinshape.clear();
+      m_blendshape.clear();
+      if (ob && ob->type == OB_MESH) {
+        Mesh *me = static_cast<Mesh *>(ob->data);
+        if (me && me->key) {
+          /* Reserve exact size (totkey minus possibly the refkey). */
+          int tot = me->key->totkey;
+          int has_ref = (me->key->refkey != nullptr) ? 1 : 0;
+          int expected = std::max(0, tot - has_ref);
+          m_blendinshape.resize(expected);
+          int i = 0;
+          for (KeyBlock *kb = static_cast<KeyBlock *>(me->key->block.first); kb; kb = kb->next) {
+            if (kb == me->key->refkey) {
+              continue;
+            }
+            m_blendinshape[i++] = kb->curval;
+          }
+          /* keep a working buffer if needed later */
+          m_blendshape = m_blendinshape;
+        }
+      }
+    }
   }
 
   // Now that we have an action, we have something we can play
@@ -293,6 +323,23 @@ void BL_Action::IncrementBlending(float curtime)
 
 void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blendshape)
 {
+  if (!key) {
+    return;
+  }
+
+  const float dstweight = 1.0f - srcweight;
+  size_t i = 0;
+  KeyBlock *kb = static_cast<KeyBlock *>(key->block.first);
+
+  /* Advance through blocks, but only consume `blendshape` entries for non-refkey
+   * entries so indexes stay aligned with the snapshot created in Play(). */
+  for (; kb && i < blendshape.size(); kb = kb->next) {
+    if (kb == key->refkey) {
+      continue;
+    }
+    kb->curval = kb->curval * dstweight + blendshape[i] * srcweight;
+    ++i;
+  }
 }
 
 enum eActionType {
@@ -736,29 +783,33 @@ bool BL_Action::IsNLAShapeKeyActionMatch(Key *key)
 
 void BL_Action::ProcessShapeKeyBlending(Key *key)
 {
-  // Handle blending between shape actions
-  if (m_blendin && m_blendframe < m_blendin) {
+  if (!key) {
+    return;
+  }
+
+  /* Blend-in: interpolate from captured snapshot to evaluated action values.
+   * We clear curvals first to avoid interference then apply the snapshot blend.
+   * Skip the refkey so we keep alignment with m_blendinshape which stores only
+   * non-ref keyblocks. */
+  if (m_blendin && m_blendframe < m_blendin && !m_blendinshape.empty()) {
     IncrementBlending(KX_GetActiveEngine()->GetFrameTime());
+    float weight = 1.0f - (m_blendframe / m_blendin);
 
-    // float weight = 1.f - (m_blendframe / m_blendin);
-
-    // We go through and clear out the keyblocks so there isn't any interference
-    // from other shape actions
-    KeyBlock *kb;
-    for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
-      kb->curval = 0.f;
+    for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
+      if (kb == key->refkey) {
+        continue;
+      }
+      kb->curval = 0.0f;
     }
 
-    // Now blend the shape
-    // BlendShape(key, weight, m_blendinshape);
+    BlendShape(key, weight, m_blendinshape);
   }
-  //// Handle layer blending
-  // if (m_layer_weight >= 0) {
-  //  shape_deformer->GetShape(m_blendshape);
-  //  BlendShape(key, m_layer_weight, m_blendshape);
-  //}
 
-  // shape_deformer->SetLastFrame(curtime);
+  /* Layer blending: apply stored layer snapshot on top if requested.
+   * m_blendshape was captured similarly to m_blendinshape. */
+  if (m_layer_weight >= 0.0f && !m_blendshape.empty()) {
+    BlendShape(key, m_layer_weight, m_blendshape);
+  }
 }
 
 /* To sync m_obj and children in SceneGraph after potential m_obj transform update in SG_Controller actions */
