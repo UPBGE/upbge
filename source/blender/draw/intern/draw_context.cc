@@ -1101,6 +1101,11 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 static void do_gpu_skinning(DRWContext &draw_ctx)
 {
   using namespace blender::draw;
+
+  if (!(draw_ctx.object_mode & OB_MODE_OBJECT)) {
+    return;
+  }
+
   Depsgraph *depsgraph = draw_ctx.depsgraph;
 
   if (draw_ctx.data == nullptr || draw_ctx.data->meshes_to_process == nullptr) {
