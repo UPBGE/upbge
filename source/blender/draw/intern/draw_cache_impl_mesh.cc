@@ -1092,9 +1092,9 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
                                     orig_mesh->is_running_gpu_animation_playback != 0);
 
   /* 3) Condition finale: Armature+Playback OU demande explicite côté mesh/python. */
-  const bool want_gpu_float4 = python_requests_gpu ||
-                               (need_gpu_process && DRWContext::is_active() &&
-                                DRW_context_get()->is_playback());
+  const bool want_gpu_float4 = (python_requests_gpu ||
+                               need_gpu_process) && DRWContext::is_active() &&
+                                DRW_context_get()->is_playback();
 
   if (want_gpu_float4) {
     if (orig_mesh) {
