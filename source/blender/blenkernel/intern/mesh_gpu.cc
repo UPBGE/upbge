@@ -340,6 +340,51 @@ void BKE_mesh_gpu_topology_add_specialization_constants(
 
 #define MESH_GPU_TOPOLOGY_BINDING 15
 
+/* Helper to check if a bind_name is present (accepts both "name" and "name[]"). */
+static bool has_bind_name(const char *name, const std::vector<blender::bke::GpuMeshComputeBinding> &local_bindings)
+{
+  if (!name) {
+    return false;
+  }
+  for (const auto &b : local_bindings) {
+    if (b.bind_name == nullptr) {
+      continue;
+    }
+    if (STR_ELEM(b.bind_name, name)) {
+      return true;
+    }
+    /* accept array form too */
+    std::string s = std::string(name) + "[]";
+    if (b.bind_name && s == b.bind_name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/* Find next free binding index (avoid MESH_GPU_TOPOLOGY_BINDING). */
+static int find_free_binding(
+    const std::vector<blender::bke::GpuMeshComputeBinding> &local_bindings, int start = 0)
+{
+  int candidate = start;
+  for (;;) {
+    bool used = false;
+    for (const auto &b : local_bindings) {
+      if (b.binding == candidate) {
+        used = true;
+        break;
+      }
+    }
+    if (candidate == MESH_GPU_TOPOLOGY_BINDING) {
+      used = true;
+    }
+    if (!used) {
+      return candidate;
+    }
+    ++candidate;
+  }
+}
+
 blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
@@ -400,6 +445,15 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     return blender::bke::GpuComputeStatus::NotReady;
   }
 
+  if (format->stride != 16) {
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
+    mesh_orig->is_running_gpu_animation_playback = true;
+    mesh_eval->is_running_gpu_animation_playback = true;
+    DEG_id_tag_update(const_cast<ID *>(&DEG_get_original(ob_eval)->id), ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    return blender::bke::GpuComputeStatus::NotReady;
+  }
+
   std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
   auto &mesh_data = MeshGPUCacheManager::get().mesh_cache()[mesh_orig];
@@ -412,6 +466,72 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
       return blender::bke::GpuComputeStatus::Error;
     }
   }
+
+  /* --- Prepare bindings vector, inject defaults for scatter shader if needed --- */
+  std::vector<blender::bke::GpuMeshComputeBinding> local_bindings;
+  local_bindings.reserve(caller_bindings.size() + 4);
+  for (const auto &b : caller_bindings) {
+    local_bindings.push_back(b);
+  }
+
+  /* Only special-case the scatter shader. If called via scatter_to_corners, ensure we have
+   * `positions_in` and `transform_mat` SSBOs available and declared. */
+  if (main_glsl && STREQ(main_glsl, scatter_to_corners_main_glsl)) {
+    const bool has_positions_in = has_bind_name("positions_in", local_bindings);
+    const bool has_transform_mat = has_bind_name("transform_mat", local_bindings);
+
+    /* Create default positions_in SSBO from mesh_eval->vert_positions() if missing. */
+    if (!has_positions_in) {
+      const int verts = mesh_eval->verts_num;
+      if (verts > 0 && GPU_context_active_get()) {
+        const std::string key = "scatter_positions_in";
+        const size_t size_bytes = size_t(verts) * sizeof(float) * 4; /* vec4 per vertex */
+        blender::Vector<blender::float4> pos_data;
+        pos_data.resize(size_t(verts));
+        blender::Span<blender::float3> pos_span = mesh_eval->vert_positions();
+        blender::threading::parallel_for(blender::IndexRange(verts), 4096, [&](blender::IndexRange range) {
+          for (int i : range) {
+            pos_data[i] = blender::float4(pos_span[i].xyz(), 1.0f);
+          }
+        });
+
+        blender::gpu::StorageBuf *ssbo = BKE_mesh_gpu_internal_ssbo_ensure(
+            mesh_eval, key, size_bytes);
+        if (ssbo) {
+          GPU_storagebuf_update(ssbo, pos_data.data());
+          blender::bke::GpuMeshComputeBinding gb;
+          gb.binding = find_free_binding(local_bindings, 0);
+          gb.buffer = ssbo;
+          gb.qualifiers = blender::gpu::shader::Qualifier::read;
+          gb.type_name = "vec4";
+          gb.bind_name = "positions_in[]";
+          local_bindings.push_back(gb);
+        }
+      }
+    }
+
+    /* Create default transform_mat SSBO with identity matrix if missing. */
+    if (!has_transform_mat) {
+      if (GPU_context_active_get()) {
+        const std::string key = "scatter_transform_mat";
+        float mat[4][4];
+        unit_m4(mat);
+        blender::gpu::StorageBuf *ssbo = BKE_mesh_gpu_internal_ssbo_ensure(
+            mesh_eval, key, sizeof(float) * 16);
+        if (ssbo) {
+          GPU_storagebuf_update(ssbo, &mat[0][0]);
+          blender::bke::GpuMeshComputeBinding gb;
+          gb.binding = find_free_binding(local_bindings, 0);
+          gb.buffer = ssbo;
+          gb.qualifiers = blender::gpu::shader::Qualifier::read;
+          gb.type_name = "mat4";
+          gb.bind_name = "transform_mat[]";
+          local_bindings.push_back(gb);
+        }
+      }
+    }
+  }
+
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
   const std::string shader_source = glsl_accessors + main_glsl;
   /* Build shader identifier only from user glsl sources (not 100% fiable) */
@@ -431,8 +551,8 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     info.compute_source("draw_colormanagement_lib.glsl");
     info.compute_source_generated = shader_source;
 
-    /* User buffer bindings */
-    for (const auto &binding : caller_bindings) {
+    /* User buffer bindings (use local_bindings which may contain injected defaults). */
+    for (const auto &binding : local_bindings) {
       info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
     }
 
@@ -471,7 +591,8 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
       &GPU_shader_get_default_constant_state(shader);
   GPU_shader_bind(shader, constants);
 
-  for (const auto &binding : caller_bindings) {
+  /* Use local_bindings for actual binding as well. */
+  for (const auto &binding : local_bindings) {
     std::visit(
         [&](auto &&arg) {
           using T = std::decay_t<decltype(arg)>;
