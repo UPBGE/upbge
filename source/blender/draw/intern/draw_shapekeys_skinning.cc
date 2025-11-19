@@ -249,10 +249,43 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   }
   std::vector<float> weights;
   weights.reserve(kcount);
-  for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
-    if (kb == key->refkey)
-      continue;
-    weights.push_back(kb->curval);
+  if (key->type & KEY_RELATIVE) {
+    for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
+      if (kb == key->refkey)
+        continue;
+      weights.push_back(kb->curval);
+    }
+  }
+  else {
+    // mode absolu — conversion unités :
+    const float t = mesh_owner->key->ctime;  // eval_time en frames
+    // construire liste keyframes en frames
+    std::vector<float> kpos;
+    for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
+      if (kb == key->refkey)
+        continue;
+      kpos.push_back(kb->pos * 100.0f);  // kb->pos -> frame
+    }
+    // interpolation LINÉAIRE (simple implémentation)
+    weights.assign(kpos.size(), 0.0f);
+    if (kpos.size() == 1) {
+      weights[0] = 1.0f;
+    }
+    else {
+      // trouver intervalle
+      int i = 0;
+      while (i + 1 < (int)kpos.size() && t >= kpos[i + 1])
+        ++i;
+      if (i + 1 >= (int)kpos.size()) {
+        weights.back() = 1.0f;
+      }
+      else {
+        float p0 = kpos[i], p1 = kpos[i + 1];
+        float u = (p1 == p0) ? 0.0f : (t - p0) / (p1 - p0);
+        weights[i] = 1.0f - u;
+        weights[i + 1] = u;
+      }
+    }
   }
   blender::gpu::StorageBuf *ssbo_w = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_weights);
   if (!ssbo_w) {

@@ -83,6 +83,7 @@
 #include "DRW_render.hh"
 
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
+#include "DNA_key_types.h"            // UPBGE
 #include "draw_armature_skinning.hh" // UPBGE
 #include "draw_shapekeys_skinning.hh"  // UPBGE
 #include <unordered_set>
@@ -1149,28 +1150,35 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
 
     /* Find an armature modifier that deforms this evaluated object. */
     Object *arm_ob = BKE_modifiers_is_deformed_by_armature(eval_obj);
-    if (!arm_ob) {
+    bool is_shapekey_deformed = mesh_eval->key &&
+                                mesh_eval->key->deform_method & KEY_DEFORM_METHOD_GPU;
+    if (!arm_ob && !is_shapekey_deformed) {
       continue;
     }
 
     Object *orig_arma = DEG_get_original(arm_ob);
-    blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
-        orig_arma, eval_obj, mesh_owner);
+    if (!is_shapekey_deformed) {
+      blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
+          orig_arma, eval_obj, mesh_owner);
 
-    ArmatureSkinningManager::instance().dispatch_skinning(
-        depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
-
-    /* --------------------
-     * Shape keys: prepare CPU data (extraction thread filled it) and dispatch GPU compute.
-     * Must run before skinning so morphs are applied prior to bone deformation.
-     * The manager is a no-op if no shapekeys present or if GPU setup is pending.
-     */
-    blender::draw::ShapeKeySkinningManager::instance().ensure_static_resources(eval_obj, mesh_owner);
-    /* Dispatch shapekey compute+scatter in GL context. Return value true means compute succeeded.
-     * If it returns false no-op (manager handles pending/setup). We do not early-continue here:
-     * allow armature skinning to run anyway (case: animation uses only skinning). */
-    ShapeKeySkinningManager::instance().dispatch_shapekeys(
-        depsgraph, eval_obj, cache, vbo_pos, vbo_nor);
+      ArmatureSkinningManager::instance().dispatch_skinning(
+          depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
+    }
+    else {
+      /* --------------------
+       * Shape keys: prepare CPU data (extraction thread filled it) and dispatch GPU compute.
+       * Must run before skinning so morphs are applied prior to bone deformation.
+       * The manager is a no-op if no shapekeys present or if GPU setup is pending.
+       */
+      blender::draw::ShapeKeySkinningManager::instance().ensure_static_resources(eval_obj,
+                                                                                 mesh_owner);
+      /* Dispatch shapekey compute+scatter in GL context. Return value true means compute
+       * succeeded. If it returns false no-op (manager handles pending/setup). We do not
+       * early-continue here: allow armature skinning to run anyway (case: animation uses only
+       * skinning). */
+      ShapeKeySkinningManager::instance().dispatch_shapekeys(
+          depsgraph, eval_obj, cache, vbo_pos, vbo_nor);
+    }
   }
 
   /* Clear skinning entries for next frame but keep allocation for reuse. */

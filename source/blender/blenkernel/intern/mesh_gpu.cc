@@ -38,7 +38,7 @@ using blender::bke::MeshGpuData;
  * calls this implementation. */
 void mesh_gpu_orphans_flush_impl()
 {
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
   if (!GPU_context_active_get()) {
     return;
@@ -454,7 +454,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     return blender::bke::GpuComputeStatus::NotReady;
   }
 
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
   auto &mesh_data = MeshGPUCacheManager::get().mesh_cache()[mesh_orig];
   /* Create/upload topology (from evaluated mesh) if needed. On failure cleanup. */
@@ -495,18 +495,26 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
           }
         });
 
-        blender::gpu::StorageBuf *ssbo = BKE_mesh_gpu_internal_ssbo_ensure(
-            mesh_eval, key, size_bytes);
-        if (ssbo) {
-          GPU_storagebuf_update(ssbo, pos_data.data());
-          blender::bke::GpuMeshComputeBinding gb;
-          gb.binding = find_free_binding(local_bindings, 0);
-          gb.buffer = ssbo;
-          gb.qualifiers = blender::gpu::shader::Qualifier::read;
-          gb.type_name = "vec4";
-          gb.bind_name = "positions_in[]";
-          local_bindings.push_back(gb);
+        lock.unlock();
+        blender::gpu::StorageBuf *ssbo = nullptr;
+        try {
+          ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_eval, key, size_bytes);
+          if (ssbo) {
+            GPU_storagebuf_update(ssbo, pos_data.data());
+            blender::bke::GpuMeshComputeBinding gb;
+            gb.binding = find_free_binding(local_bindings, 0);
+            gb.buffer = ssbo;
+            gb.qualifiers = blender::gpu::shader::Qualifier::read;
+            gb.type_name = "vec4";
+            gb.bind_name = "positions_in[]";
+            local_bindings.push_back(gb);
+          }
         }
+        catch (...) {
+          lock.lock();
+          throw;
+        }
+        lock.lock();
       }
     }
 
@@ -516,18 +524,26 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
         const std::string key = "scatter_transform_mat";
         float mat[4][4];
         unit_m4(mat);
-        blender::gpu::StorageBuf *ssbo = BKE_mesh_gpu_internal_ssbo_ensure(
-            mesh_eval, key, sizeof(float) * 16);
-        if (ssbo) {
-          GPU_storagebuf_update(ssbo, &mat[0][0]);
-          blender::bke::GpuMeshComputeBinding gb;
-          gb.binding = find_free_binding(local_bindings, 0);
-          gb.buffer = ssbo;
-          gb.qualifiers = blender::gpu::shader::Qualifier::read;
-          gb.type_name = "mat4";
-          gb.bind_name = "transform_mat[]";
-          local_bindings.push_back(gb);
+        lock.unlock();
+        blender::gpu::StorageBuf *ssbo = nullptr;
+        try {
+          ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_eval, key, sizeof(float) * 16);
+          if (ssbo) {
+            GPU_storagebuf_update(ssbo, &mat[0][0]);
+            blender::bke::GpuMeshComputeBinding gb;
+            gb.binding = find_free_binding(local_bindings, 0);
+            gb.buffer = ssbo;
+            gb.qualifiers = blender::gpu::shader::Qualifier::read;
+            gb.type_name = "mat4";
+            gb.bind_name = "transform_mat[]";
+            local_bindings.push_back(gb);
+          }
         }
+        catch (...) {
+          lock.lock();
+          throw;
+        }
+        lock.lock();
       }
     }
   }
@@ -663,7 +679,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
   if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     /* Ensure flag reset even if no cached data */
@@ -728,7 +744,7 @@ MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh)
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
@@ -741,7 +757,7 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
   if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return;
@@ -787,7 +803,7 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   MeshGpuData &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
@@ -818,7 +834,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   MeshGpuData &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
@@ -845,7 +861,7 @@ void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key)
   if (!mesh) {
     return;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
   if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return;
@@ -880,7 +896,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::
   if (!mesh) {
     return nullptr;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
   if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return nullptr;
@@ -901,7 +917,7 @@ void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key)
   if (!mesh) {
     return;
   }
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
   if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
     return;
@@ -936,7 +952,7 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
                                                                 const std::string &key,
                                                                 size_t size)
 {
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
   auto &res = arm_res_map[arm];
   auto it = res.ssbo_map.find(key);
@@ -958,7 +974,7 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
 
 blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const std::string &key)
 {
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
   auto it = arm_res_map.find(arm);
   if (it == arm_res_map.end()) {
@@ -974,7 +990,7 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const 
 
 void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
 {
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
   auto it = arm_res_map.find(arm);
   if (it == arm_res_map.end()) {
@@ -1004,7 +1020,7 @@ void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
 
 void BKE_armature_gpu_internal_free_all_armature_caches()
 {
-  std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
   if (GPU_context_active_get()) {
     for (auto &kv : arm_res_map) {
@@ -1035,7 +1051,7 @@ void BKE_mesh_gpu_free_all_caches()
   const bool has_ctx = GPU_context_active_get();
 
   {
-    std::lock_guard<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+    std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
 
     if (has_ctx) {
       /* Free mesh scoped resources now. */

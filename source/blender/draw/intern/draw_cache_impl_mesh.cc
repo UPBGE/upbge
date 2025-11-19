@@ -1081,7 +1081,7 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
   }
 
   const bool key_requests_gpu = (mesh.key &&
-                                 (mesh.key->deform_method == KEY_DEFORM_METHOD_GPU));
+                                 (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
 
   const bool need_gpu_process = modifier_requests_gpu || key_requests_gpu;
 
@@ -1128,7 +1128,7 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
   }
 
   /* Only consider meshes actually deformed by an armature. */
-  if (!BKE_modifiers_is_deformed_by_armature(&ob)) {
+  if (!BKE_modifiers_is_deformed_by_armature(&ob) && (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU) == 0)) {
     return;
   }
 

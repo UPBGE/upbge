@@ -704,7 +704,10 @@ bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
     }
 
     if (play_normal_key_action || play_nla_key_action) {
-      scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
+      bool gpu_deformation = me->is_running_gpu_animation_playback;
+      if (!gpu_deformation) {
+        scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
+      }
       Key *key = me->key;
 
       PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
