@@ -85,7 +85,7 @@ typedef struct Key {
   char elemstr[32];
   /** Size of each element in #KeyBlock.data, use for allocation and stride. */
   int elemsize;
-  char _pad[4];
+  int deform_method;
 
   /** A list of KeyBlock's. */
   ListBase block;
@@ -112,6 +112,11 @@ typedef struct Key {
 } Key;
 
 /* **************** KEY ********************* */
+
+enum {
+  KEY_DEFORM_METHOD_CPU = 0,
+  KEY_DEFORM_METHOD_GPU = 1,
+};
 
 /* Key::type: KeyBlocks are interpreted as... */
 typedef enum ShapekeyContainerType {

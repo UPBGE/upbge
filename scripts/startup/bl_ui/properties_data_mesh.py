@@ -293,6 +293,8 @@ def draw_shape_key_properties(context, layout):
         row = layout.column()
         row.active = enable_edit_value
         row.prop(key, "eval_time")
+    row = layout.row()
+    row.prop(key, "use_gpu_deform", text="Use GPU Shape Keys")
 
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):

@@ -13,7 +13,7 @@
 #define _DNA_DEFAULT_ArmatureModifierData \
   { \
     .deformflag = ARM_DEF_VGROUP, \
-    .upbge_deformflag = ARM_DEF_CPU, \
+    .deform_method = ARM_DEFORM_METHOD_CPU, \
     .multi = 0.0f, \
     .object = NULL, \
     .defgrp_name = "", \

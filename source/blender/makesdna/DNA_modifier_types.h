@@ -863,13 +863,18 @@ typedef struct ArmatureModifierData {
 
   /** #eArmature_DeformFlag use instead of #bArmature.deformflag. */
   short deformflag, multi;
-  short upbge_deformflag;
-  char _pad2[2];
+  int deform_method;
   struct Object *object;
   /** Stored input of previous modifier, for vertex-group blending. */
   float (*vert_coords_prev)[3];
   char defgrp_name[/*MAX_VGROUP_NAME*/ 64];
 } ArmatureModifierData;
+
+/** ArmatureModifierData.deform_method */
+typedef enum {
+  ARM_DEFORM_METHOD_CPU = 0,
+  ARM_DEFORM_METHOD_GPU = 1,
+} ArmatureModifierDeformMethod;
 
 typedef enum {
   MOD_HOOK_UNIFORM_SPACE = (1 << 0),

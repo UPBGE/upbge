@@ -1100,6 +1100,12 @@ static void rna_def_key(BlenderRNA *brna)
       srna, "Key", "Shape keys data-block containing different shapes of geometric data-blocks");
   RNA_def_struct_ui_icon(srna, ICON_SHAPEKEY_DATA);
 
+  prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", KEY_DEFORM_METHOD_CPU);
+  RNA_def_property_ui_text(
+      prop, "Deform Method", "Choose whether shape keys are evaluated on CPU or GPU");
+  RNA_def_property_update(prop, 0, "rna_Key_update_data");
+
   prop = RNA_def_property(srna, "reference_key", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

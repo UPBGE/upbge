@@ -20,6 +20,7 @@
 
 #include "DEG_depsgraph_query.hh"  // UPBGE
 
+#include "DNA_key_types.h"  // UPBGE
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -1068,16 +1069,21 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
 static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
 {
   /* 1) Détection Armature -> GPU deform. */
-  bool armature_requests_gpu = false;
+  bool modifier_requests_gpu = false;
   for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
     if (md->type == eModifierType_Armature) {
       ArmatureModifierData *amd = (ArmatureModifierData *)md;
-      if (amd && (amd->upbge_deformflag & ARM_DEF_GPU)) {
-        armature_requests_gpu = true;
+      if (amd && (amd->deform_method & ARM_DEFORM_METHOD_GPU)) {
+        modifier_requests_gpu = true;
         break;
       }
     }
   }
+
+  const bool key_requests_gpu = (mesh.key &&
+                                 (mesh.key->deform_method == KEY_DEFORM_METHOD_GPU));
+
+  const bool need_gpu_process = modifier_requests_gpu || key_requests_gpu;
 
   /* 2) Honorer un flag déjà posé (ex: mesh créé par gpu.ocean qui requiert float4). */
   Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
@@ -1087,7 +1093,7 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
 
   /* 3) Condition finale: Armature+Playback OU demande explicite côté mesh/python. */
   const bool want_gpu_float4 = python_requests_gpu ||
-                               (armature_requests_gpu && DRWContext::is_active() &&
+                               (need_gpu_process && DRWContext::is_active() &&
                                 DRW_context_get()->is_playback());
 
   if (want_gpu_float4) {
@@ -1126,13 +1132,22 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
     return;
   }
 
-  if (gpu_playback) {
+  /* We need to schedule GPU processing either when:
+   *  - GPU animation playback is requested for this mesh (armature GPU deform), or
+   *  - the original mesh contains shape keys (we will run shapekey compute+scatter).
+   * Register under the original mesh key so `do_gpu_skinning` can find the evaluated object.
+   */
+  const bool need_gpu_process = gpu_playback;
+
+  if (need_gpu_process) {
     if (dd->meshes_to_process == nullptr) {
       dd->meshes_to_process = new std::unordered_map<Mesh *, MeshProcessEntry>();
     }
     auto &map = *dd->meshes_to_process;
     auto &entry = map[orig_mesh];
-    entry.eval_obj_for_skinning = &ob;
+    if (entry.eval_obj_for_skinning == nullptr) {
+      entry.eval_obj_for_skinning = &ob;
+    }
     /* keep scheduled_free as-is (may be true if a free was requested elsewhere) */
   }
   else {
@@ -1140,8 +1155,7 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
       auto &map = *dd->meshes_to_process;
       auto it = map.find(orig_mesh);
       if (it != map.end()) {
-        /* Clear skinning request. If no free is scheduled, remove the entry to keep the map small.
-         */
+        /* Clear processing request. If no free is scheduled, remove the entry to keep the map small. */
         it->second.eval_obj_for_skinning = nullptr;
         if (!it->second.scheduled_free) {
           map.erase(it);
@@ -1150,6 +1164,8 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
     }
   }
 }
+
+/** \} */
 
 void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Object &ob,

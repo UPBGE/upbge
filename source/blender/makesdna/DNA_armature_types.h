@@ -410,11 +410,6 @@ typedef enum eArmature_DeformFlag {
   ARM_DEF_INVERT_VGROUP = (1 << 4),
 } eArmature_DeformFlag;
 
-typedef enum eArmature_upbge_DeformFlag {
-  ARM_DEF_CPU = (1 << 0),
-  ARM_DEF_GPU = (1 << 1),
-} eArmature_upbge_DeformFlag;
-
 #ifdef DNA_DEPRECATED_ALLOW /* Old animation system (armature only viz). */
 /** #bArmature.pathflag */
 typedef enum eArmature_PathFlag {

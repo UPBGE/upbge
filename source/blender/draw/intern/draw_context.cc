@@ -84,6 +84,7 @@
 
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 #include "draw_armature_skinning.hh" // UPBGE
+#include "draw_shapekeys_skinning.hh"  // UPBGE
 #include <unordered_set>
 
 #include "draw_cache.hh"
@@ -1158,6 +1159,18 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
 
     ArmatureSkinningManager::instance().dispatch_skinning(
         depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
+
+    /* --------------------
+     * Shape keys: prepare CPU data (extraction thread filled it) and dispatch GPU compute.
+     * Must run before skinning so morphs are applied prior to bone deformation.
+     * The manager is a no-op if no shapekeys present or if GPU setup is pending.
+     */
+    blender::draw::ShapeKeySkinningManager::instance().ensure_static_resources(eval_obj, mesh_owner);
+    /* Dispatch shapekey compute+scatter in GL context. Return value true means compute succeeded.
+     * If it returns false no-op (manager handles pending/setup). We do not early-continue here:
+     * allow armature skinning to run anyway (case: animation uses only skinning). */
+    ShapeKeySkinningManager::instance().dispatch_shapekeys(
+        depsgraph, eval_obj, cache, vbo_pos, vbo_nor);
   }
 
   /* Clear skinning entries for next frame but keep allocation for reuse. */

@@ -39,6 +39,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_genfile.h"
+#include "DNA_key_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -440,7 +441,7 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
-          amd->upbge_deformflag |= ARM_DEF_CPU;
+          amd->deform_method |= ARM_DEFORM_METHOD_CPU;
         }
       }
     }
@@ -448,6 +449,13 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       BKE_mesh_legacy_recast_to_generic(mesh);
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 1)) {
+    LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
+      if (me->key) {
+        me->key->deform_method |= KEY_DEFORM_METHOD_CPU;
+      }
     }
   }
 }
