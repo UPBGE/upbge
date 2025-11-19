@@ -4194,24 +4194,24 @@ static PyObject *pygpu_ocean_gpu_fft_rows(PyObject * /*self*/, PyObject *args)
  * - height_scale: vertical displacement scale
  * - modifies evaluated mesh vertex positions and normals in-place
  */
-static bool pygpu_ocean_dispatch_final_shader(Ocean *ocean,
-                                              Depsgraph *depsgraph,
-                                              Object *ob_eval,
-                                              StorageBuf *disp_sb,
-                                              StorageBuf *base_sb,
-                                              float size_param,
-                                              float height_scale)
+static GpuComputeStatus pygpu_ocean_dispatch_final_shader(Ocean *ocean,
+                                                          Depsgraph *depsgraph,
+                                                          Object *ob_eval,
+                                                          StorageBuf *disp_sb,
+                                                          StorageBuf *base_sb,
+                                                          float size_param,
+                                                          float height_scale)
 {
   using namespace blender::bke;
   using namespace blender::gpu::shader;
 
   if (!GPU_context_active_get()) {
     PyErr_SetString(PyExc_RuntimeError, "GPU context not active");
-    return false;
+    return GpuComputeStatus::Error;
   }
   if (!depsgraph || !ob_eval) {
     PyErr_SetString(PyExc_ValueError, "Invalid depsgraph or object");
-    return false;
+    return GpuComputeStatus::Error;
   }
 
   /* Build the GLSL compute body (will be concatenated with topology accessors by
@@ -4316,20 +4316,21 @@ void main() {
   Mesh *me = static_cast<Mesh *>(ob_eval->data);
   if (!me) {
     PyErr_SetString(PyExc_RuntimeError, "Object has no mesh data");
-    return false;
+    return GpuComputeStatus::Error;
   }
   using namespace blender::draw;
-  blender::gpu::Batch *batch = DRW_cache_object_surface_get(ob_eval);
-  if (!batch) {
-    PyErr_SetString(PyExc_RuntimeError, "Failed to get batch for object");
-    return false;
-  }
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(me->runtime->batch_cache);
+  if (!cache) {
+    return GpuComputeStatus::NotReady;
+  }
+  blender::gpu::VertBufPtr *vbo_pos_ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
+  if (!vbo_pos_ptr) {
+    return GpuComputeStatus::NotReady;
+  }
   blender::gpu::VertBuf *vbo_pos = cache->final.buff.vbos.lookup(VBOType::Position).get(); /* positions */
   blender::gpu::VertBuf *vbo_nor = cache->final.buff.vbos.lookup(VBOType::CornerNormal).get(); /* normals */
   if (!vbo_pos || !vbo_nor) {
-    PyErr_SetString(PyExc_RuntimeError, "Failed to get position or normal VBO from batch");
-    return false;
+    return GpuComputeStatus::NotReady;
   }
 
   const GPUVertFormat *fmt = GPU_vertbuf_get_format(vbo_pos);
@@ -4339,7 +4340,7 @@ void main() {
       me->is_running_gpu_animation_playback = 1;
       DEG_id_tag_update(&DEG_get_original(ob_eval)->id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_WINDOW, nullptr);
-      return false;
+      return GpuComputeStatus::NotReady;
     }
   }
 
@@ -4437,10 +4438,10 @@ void main() {
   if (status == blender::bke::GpuComputeStatus::Error) {
     PyErr_SetString(PyExc_RuntimeError,
                     "BKE_mesh_gpu_run_compute failed to dispatch final compute");
-    return false;
+    return GpuComputeStatus::Error;
   }
 
-  return true;
+  return GpuComputeStatus::Success;
 }
 
 /* -------------------------------------------------------------------- */
@@ -5383,15 +5384,13 @@ static PyObject *pygpu_ocean_scatter_to_mesh(PyObject * /*self*/, PyObject *args
   }
 
   /* Dispatch final mesh compute */
-  bool ok = pygpu_ocean_dispatch_final_shader(
+  GpuComputeStatus status = pygpu_ocean_dispatch_final_shader(
       o, depsgraph, ob_eval, disp_sb, base_sb, float(o->_Lx), float(height_scale));
 
-  if (!ok) {
-    /* Pas d'erreur Python active => VBO pas encore prêt (ex: Position non float4).
-     * Ne pas lever d'exception; laisser le caller réessayer au prochain frame. */
-    if (!PyErr_Occurred()) {
-      Py_RETURN_NONE;
-    }
+  if (status == GpuComputeStatus::NotReady) {
+    Py_RETURN_NONE;
+  }
+  else if (status == GpuComputeStatus::Error) {
     return nullptr; /* exception déjà définie par le helper */
   }
   Py_RETURN_NONE;
