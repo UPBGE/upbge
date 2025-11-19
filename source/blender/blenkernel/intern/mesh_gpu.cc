@@ -480,41 +480,62 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const bool has_positions_in = has_bind_name("positions_in", local_bindings);
     const bool has_transform_mat = has_bind_name("transform_mat", local_bindings);
 
-    /* Create default positions_in SSBO from mesh_eval->vert_positions() if missing. */
+    /* Create default positions_in SSBO from mesh_eval->vert_positions() if missing.
+     * First, check if the mesh internal resources already contain the SSBO to avoid
+     * the costly CPU copy/upload. */
     if (!has_positions_in) {
-      const int verts = mesh_eval->verts_num;
-      if (verts > 0 && GPU_context_active_get()) {
-        const std::string key = "scatter_positions_in";
-        const size_t size_bytes = size_t(verts) * sizeof(float) * 4; /* vec4 per vertex */
-        blender::Vector<blender::float4> pos_data;
-        pos_data.resize(size_t(verts));
-        blender::Span<blender::float3> pos_span = mesh_eval->vert_positions();
-        blender::threading::parallel_for(blender::IndexRange(verts), 4096, [&](blender::IndexRange range) {
-          for (int i : range) {
-            pos_data[i] = blender::float4(pos_span[i].xyz(), 1.0f);
-          }
-        });
+      const std::string key = "scatter_positions_in";
+      blender::gpu::StorageBuf *ssbo = nullptr;
 
-        lock.unlock();
-        blender::gpu::StorageBuf *ssbo = nullptr;
-        try {
-          ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_eval, key, size_bytes);
-          if (ssbo) {
-            GPU_storagebuf_update(ssbo, pos_data.data());
-            blender::bke::GpuMeshComputeBinding gb;
-            gb.binding = find_free_binding(local_bindings, 0);
-            gb.buffer = ssbo;
-            gb.qualifiers = blender::gpu::shader::Qualifier::read;
-            gb.type_name = "vec4";
-            gb.bind_name = "positions_in[]";
-            local_bindings.push_back(gb);
+      /* Fast-path: look up existing SSBO in mesh_data.internal_resources while holding the mutex. */
+      if (mesh_data.internal_resources) {
+        auto it_ssbo = mesh_data.internal_resources->ssbo_map.find(key);
+        if (it_ssbo != mesh_data.internal_resources->ssbo_map.end()) {
+          ssbo = it_ssbo->second.first;
+        }
+      }
+
+      /* If no SSBO found, create + upload it (do heavy work then create while unlocked). */
+      if (!ssbo) {
+        const int verts = mesh_eval->verts_num;
+        if (verts > 0 && GPU_context_active_get()) {
+          const size_t size_bytes = size_t(verts) * sizeof(float) * 4; /* vec4 per vertex */
+
+          /* Build CPU buffer while still holding mutex (cheap) — parallel fill is fast.
+           * We could also build outside lock if races are acceptable in your use case. */
+          blender::Vector<blender::float4> pos_data;
+          pos_data.resize(size_t(verts));
+          blender::Span<blender::float3> pos_span = mesh_eval->vert_positions();
+          blender::threading::parallel_for(blender::IndexRange(verts), 4096, [&](blender::IndexRange range) {
+            for (int i : range) {
+              pos_data[i] = blender::float4(pos_span[i].xyz(), 1.0f);
+            }
+          });
+
+          lock.unlock();
+          try {
+            ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_eval, key, size_bytes);
+            if (ssbo) {
+              GPU_storagebuf_update(ssbo, pos_data.data());
+            }
           }
-        }
-        catch (...) {
+          catch (...) {
+            lock.lock();
+            throw;
+          }
           lock.lock();
-          throw;
         }
-        lock.lock();
+      }
+
+      /* If we now have an SSBO (existing or newly created), inject binding. */
+      if (ssbo) {
+        blender::bke::GpuMeshComputeBinding gb;
+        gb.binding = find_free_binding(local_bindings, 0);
+        gb.buffer = ssbo;
+        gb.qualifiers = blender::gpu::shader::Qualifier::read;
+        gb.type_name = "vec4";
+        gb.bind_name = "positions_in[]";
+        local_bindings.push_back(gb);
       }
     }
 
