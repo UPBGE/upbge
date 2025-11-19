@@ -45,6 +45,9 @@ struct blender::draw::ShapeKeySkinningManager::Impl {
     int key_count = 0; /* excluding basis */
     bool pending_gpu_setup = false;
     int gpu_setup_attempts = 0;
+    /* Cache last uploaded weights to avoid redundant GPU updates. */
+    std::vector<float> prev_weights;
+    bool prev_weights_valid = false;
   };
 
   Map<Mesh *, MeshStaticData> static_map;
@@ -293,8 +296,30 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
         mesh_owner, key_weights, sizeof(float) * weights.size());
     if (!ssbo_w)
       return false;
+    /* Freshly created buffer: upload weights. */
+    GPU_storagebuf_update(ssbo_w, weights.data());
+    msd.prev_weights = weights;
+    msd.prev_weights_valid = true;
   }
-  GPU_storagebuf_update(ssbo_w, weights.data());
+  else {
+    /* Compare to previous weights with small epsilon to avoid noise updates. */
+    bool changed = !msd.prev_weights_valid || (msd.prev_weights.size() != weights.size());
+    const float EPS = 1e-6f;
+    if (!changed) {
+      for (size_t i = 0; i < weights.size(); ++i) {
+        if (fabsf(weights[i] - msd.prev_weights[i]) > EPS) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) {
+      GPU_storagebuf_update(ssbo_w, weights.data());
+      msd.prev_weights = weights;
+      msd.prev_weights_valid = true;
+    }
+    /* If not changed, skip upload (compute still runs, but upload cost avoided). */
+  }
 
   /* Create/ensure compute shader */
   using namespace blender::gpu::shader;

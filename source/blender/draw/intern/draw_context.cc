@@ -2501,6 +2501,7 @@ void DRW_module_exit()
 
   /* Clear manager CPU-side bookkeeping (no SSBO release here to avoid double-free). */
   blender::draw::ArmatureSkinningManager::instance().free_all();
+  blender::draw::ShapeKeySkinningManager::instance().free_all();
 
   GPU_render_end();
 
