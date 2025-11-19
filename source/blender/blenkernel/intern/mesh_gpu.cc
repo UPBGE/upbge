@@ -546,6 +546,43 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
         lock.lock();
       }
     }
+
+    /* Inject default outputs if caller forgot them: positions_out -> position VBO,
+     * normals_out -> corner normal VBO. This mirrors how we inject inputs above. */
+    const bool has_positions_out = has_bind_name("positions_out", local_bindings);
+    const bool has_normals_out = has_bind_name("normals_out", local_bindings);
+    if (!has_positions_out) {
+      if (cache) {
+        if (auto *pos_ptr = cache->final.buff.vbos.lookup_ptr(blender::draw::VBOType::Position)) {
+          blender::gpu::VertBuf *vbo = pos_ptr->get();
+          if (vbo) {
+            blender::bke::GpuMeshComputeBinding gb = {};
+            gb.binding = find_free_binding(local_bindings, 0);
+            gb.buffer = vbo;
+            gb.qualifiers = blender::gpu::shader::Qualifier::read_write;
+            gb.type_name = "vec4";
+            gb.bind_name = "positions_out[]";
+            local_bindings.push_back(gb);
+          }
+        }
+      }
+    }
+    if (!has_normals_out) {
+      if (cache) {
+        if (auto *nor_ptr = cache->final.buff.vbos.lookup_ptr(blender::draw::VBOType::CornerNormal)) {
+          blender::gpu::VertBuf *vbo_nor = nor_ptr->get();
+          if (vbo_nor) {
+            blender::bke::GpuMeshComputeBinding gb = {};
+            gb.binding = find_free_binding(local_bindings, 0);
+            gb.buffer = vbo_nor;
+            gb.qualifiers = blender::gpu::shader::Qualifier::write;
+            gb.type_name = "uint";
+            gb.bind_name = "normals_out[]";
+            local_bindings.push_back(gb);
+          }
+        }
+      }
+    }
   }
 
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
