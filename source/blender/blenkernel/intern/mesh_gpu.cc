@@ -481,13 +481,14 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const bool has_transform_mat = has_bind_name("transform_mat", local_bindings);
 
     /* Create default positions_in SSBO from mesh_eval->vert_positions() if missing.
-     * First, check if the mesh internal resources already contain the SSBO to avoid
-     * the costly CPU copy/upload. */
+     * Fast-path: check under mutex to avoid expensive work when SSBO already exists.
+     * If missing, build CPU buffer outside the mutex, then call ensure (which will
+     * safely create-or-return the SSBO). */
     if (!has_positions_in) {
       const std::string key = "scatter_positions_in";
       blender::gpu::StorageBuf *ssbo = nullptr;
 
-      /* Fast-path: look up existing SSBO in mesh_data.internal_resources while holding the mutex. */
+      /* Quick check while holding the mutex. */
       if (mesh_data.internal_resources) {
         auto it_ssbo = mesh_data.internal_resources->ssbo_map.find(key);
         if (it_ssbo != mesh_data.internal_resources->ssbo_map.end()) {
@@ -495,34 +496,36 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
         }
       }
 
-      /* If no SSBO found, create + upload it (do heavy work then create while unlocked). */
       if (!ssbo) {
         const int verts = mesh_eval->verts_num;
         if (verts > 0 && GPU_context_active_get()) {
           const size_t size_bytes = size_t(verts) * sizeof(float) * 4; /* vec4 per vertex */
 
-          /* Build CPU buffer while still holding mutex (cheap) — parallel fill is fast.
-           * We could also build outside lock if races are acceptable in your use case. */
+          /* Build CPU buffer OUTSIDE the mutex to avoid holding the lock during heavy work. */
+          lock.unlock();
           blender::Vector<blender::float4> pos_data;
           pos_data.resize(size_t(verts));
           blender::Span<blender::float3> pos_span = mesh_eval->vert_positions();
-          blender::threading::parallel_for(blender::IndexRange(verts), 4096, [&](blender::IndexRange range) {
-            for (int i : range) {
-              pos_data[i] = blender::float4(pos_span[i].xyz(), 1.0f);
-            }
-          });
+          blender::threading::parallel_for(
+              blender::IndexRange(verts), 4096, [&](blender::IndexRange range) {
+                for (int i : range) {
+                  pos_data[i] = blender::float4(pos_span[i].xyz(), 1.0f);
+                }
+              });
 
-          lock.unlock();
           try {
+            /* Ensure (may return existing SSBO if another thread created it meanwhile). */
             ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_eval, key, size_bytes);
             if (ssbo) {
               GPU_storagebuf_update(ssbo, pos_data.data());
             }
           }
           catch (...) {
+            /* Re-acquire mutex before propagating the exception to keep invariants. */
             lock.lock();
             throw;
           }
+          /* Re-acquire mutex for map/binding manipulation. */
           lock.lock();
         }
       }
