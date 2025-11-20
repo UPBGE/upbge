@@ -53,6 +53,8 @@
 
 #include "mesh_extractors/extract_mesh.hh"
 
+#include "CLG_log.h"
+
 namespace blender::draw {
 
 /* ---------------------------------------------------------------------- */
@@ -1066,9 +1068,87 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
   GPU_batch_vertbuf_add(&batch, vbo, true);
 }
 
+static CLG_LogRef LOG = {"draw"};
+
+/* Helper: prints a short diagnostic when GPU playback was refused while requested. */
+static void report_gpu_refused(Object *ob,
+                               bool topology_mismatch,
+                               bool topology_modifier_present,
+                               bool modifier_requests_gpu,
+                               bool key_requests_gpu)
+{
+  const char *objname = (ob && ob->id.name[0]) ? ob->id.name + 2 : "Unknown";
+
+  std::string reasons;
+  if (topology_mismatch) {
+    reasons += "topology mismatch";
+  }
+  if (topology_modifier_present) {
+    if (!reasons.empty()) {
+      reasons += ", ";
+    }
+    reasons += "topology-changing modifier in stack";
+  }
+  if (reasons.empty()) {
+    reasons = "unknown/other";
+  }
+
+  std::string requested_by;
+  if (modifier_requests_gpu) {
+    requested_by += "modifier(armature)";
+  }
+  if (key_requests_gpu) {
+    if (!requested_by.empty()) {
+      requested_by += ", ";
+    }
+    requested_by += "shapekeys";
+  }
+  if (requested_by.empty()) {
+    requested_by = "unknown";
+  }
+
+  CLOG_WARN(&LOG,
+            "Refusing GPU animation playback for object '%s'. Reasons: %s. Requested by: %s",
+            objname,
+            reasons.c_str(),
+            requested_by.c_str());
+}
+
+static bool modifier_stack_has_topology_changer(Object *ob)
+{
+  for (ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+    /* Detect modifiers that implement modify_mesh or modify_geometry_set
+     * (constructive/destructive). */
+    const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
+    if (mti) {
+      if (mti->modify_mesh != nullptr) {
+        return true;
+      }
+      if (mti->modify_geometry_set != nullptr) {
+        return true;
+      }
+      /* Conservative: if modifier type is not OnlyDeform, consider it may change geometry. */
+      if (mti->type != ModifierTypeType::OnlyDeform) {
+        return true;
+      }
+    }
+    /* Particle systems produce/emit geometry. Treat as topology-changing. */
+    if (md->type == eModifierType_ParticleSystem) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
 {
-  /* 1) Détection Armature -> GPU deform. */
+  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  /* 1) Honor an already set flag (e.g. mesh created by gpu.ocean that requires float4). */
+  const bool python_requests_gpu = (mesh.is_running_gpu_animation_playback != 0) ||
+                                   (orig_mesh &&
+                                    orig_mesh->is_running_gpu_animation_playback != 0);
+
+  /* 2) Detect Armature -> GPU deform. */
   bool modifier_requests_gpu = false;
   for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
     if (md->type == eModifierType_Armature) {
@@ -1080,15 +1160,41 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
     }
   }
 
+  /* 3) Detect Shape Key -> GPU deform. */
   const bool key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
 
-  const bool need_gpu_process = modifier_requests_gpu || key_requests_gpu;
+  bool need_gpu_process = modifier_requests_gpu || key_requests_gpu;
 
-  /* 2) Honor an already set flag (e.g. mesh created by gpu.ocean that requires float4). */
-  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
-  const bool python_requests_gpu = (mesh.is_running_gpu_animation_playback != 0) ||
-                                   (orig_mesh &&
-                                    orig_mesh->is_running_gpu_animation_playback != 0);
+  /* --------------- TOPOLOGY / STABILITY SAFEGUARDS -----------------
+   * Keep a conservative policy:
+   *  - refuse automatic GPU path when evaluated topology differs from original
+   *  - refuse automatic GPU path when any modifier in the stack is likely to change topology
+   * Python-forced requests (mesh.is_running_gpu_animation_playback) override these safeties.
+   */
+
+  /* Compute reasons (keep flags for reporting). */
+  const bool topology_mismatch = (orig_mesh != nullptr) &&
+                                 ((mesh.verts_num != orig_mesh->verts_num) ||
+                                 (mesh.corners_num != orig_mesh->corners_num));
+
+  if (topology_mismatch) {
+    need_gpu_process = false;
+  }
+
+  const bool topology_modifier_present = modifier_stack_has_topology_changer(&ob);
+  if (need_gpu_process && topology_modifier_present) {
+    need_gpu_process = false;
+  }
+
+  /* If execution was requested by modifiers/keys but got refused and not forced by Python,
+   * emit a short report to stderr so the user/dev can trace why GPU path was skipped. */
+  if (!python_requests_gpu && (modifier_requests_gpu || key_requests_gpu) && !need_gpu_process) {
+    report_gpu_refused(&ob,
+                       topology_mismatch,
+                       topology_modifier_present,
+                       modifier_requests_gpu,
+                       key_requests_gpu);
+  }
 
   /* Decision:
    * - If the request comes from Python/mesh explicitly (gpu_py_*), allow GPU execution
