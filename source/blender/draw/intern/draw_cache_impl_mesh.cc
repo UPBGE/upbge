@@ -1080,21 +1080,29 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
     }
   }
 
-  const bool key_requests_gpu = (mesh.key &&
-                                 (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
+  const bool key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
 
   const bool need_gpu_process = modifier_requests_gpu || key_requests_gpu;
 
-  /* 2) Honorer un flag déjà posé (ex: mesh créé par gpu.ocean qui requiert float4). */
+  /* 2) Honor an already set flag (e.g. mesh created by gpu.ocean that requires float4). */
   Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
   const bool python_requests_gpu = (mesh.is_running_gpu_animation_playback != 0) ||
                                    (orig_mesh &&
                                     orig_mesh->is_running_gpu_animation_playback != 0);
 
-  /* 3) Condition finale: Armature+Playback OU demande explicite côté mesh/python. */
-  const bool want_gpu_float4 = (python_requests_gpu ||
-                               need_gpu_process) && DRWContext::is_active() &&
-                                DRW_context_get()->is_playback();
+  /* Decision:
+   * - If the request comes from Python/mesh explicitly (gpu_py_*), allow GPU execution
+   *   as soon as DRW is active. This lets scripts trigger compute even outside timeline playback.
+   * - If the request comes from modifiers/shape-keys, only allow GPU execution during
+   *   interactive playback (or equivalent) to avoid triggering GPU skinning on every redraw.
+   */
+  const bool drw_active = DRWContext::is_active();
+  const bool interactive_playback = (DRW_context_get() != nullptr) ?
+                                        DRW_context_get()->is_playback() :
+                                        false;
+
+  const bool want_gpu_float4 = drw_active &&
+                               (python_requests_gpu || (need_gpu_process && interactive_playback));
 
   if (want_gpu_float4) {
     if (orig_mesh) {
