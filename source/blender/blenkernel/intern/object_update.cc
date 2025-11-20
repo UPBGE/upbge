@@ -268,10 +268,9 @@ void BKE_object_batch_cache_dirty_tag(Object *ob)
 {
   switch (ob->type) {
     case OB_MESH: {
-      Object *ob_orig = DEG_get_original(ob);
-      Mesh *mesh_orig = (Mesh *)ob_orig->data;
-      if (!mesh_orig->is_running_gpu_animation_playback) {
-        BKE_mesh_batch_cache_dirty_tag((Mesh *)ob->data, BKE_MESH_BATCH_DIRTY_ALL);
+      Mesh *mesh = (Mesh *)ob->data;
+      if (!mesh->is_running_gpu_animation_playback) {
+        BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
         break;
       }
       break;
