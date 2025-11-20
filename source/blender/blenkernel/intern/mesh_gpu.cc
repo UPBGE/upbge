@@ -476,7 +476,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
   /* Only special-case the scatter shader. If called via scatter_to_corners, ensure we have
    * `positions_in` and `transform_mat` SSBOs available and declared. */
-  if (main_glsl && STREQ(main_glsl, scatter_to_corners_main_glsl)) {
+  if (main_glsl && (main_glsl == scatter_to_corners_main_glsl)) {
     const bool has_positions_in = has_bind_name("positions_in", local_bindings);
     const bool has_transform_mat = has_bind_name("transform_mat", local_bindings);
 
