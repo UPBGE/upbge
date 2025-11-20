@@ -161,9 +161,9 @@ typedef struct Mesh {
 
   /* UPBGE: Use this flag to switch between float3/float4
    * vbo_pos extraction */
-  int _pad2;
   /* To indicate that an animation must be played on gpu */
   int is_running_gpu_animation_playback;
+  int is_python_request_gpu;
 
   float smoothresh_legacy DNA_DEPRECATED;
 

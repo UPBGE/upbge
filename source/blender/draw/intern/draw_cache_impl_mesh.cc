@@ -1144,9 +1144,9 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
 {
   Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
   /* 1) Honor an already set flag (e.g. mesh created by gpu.ocean that requires float4). */
-  const bool python_requests_gpu = (mesh.is_running_gpu_animation_playback != 0) ||
+  const bool python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
                                    (orig_mesh &&
-                                    orig_mesh->is_running_gpu_animation_playback != 0);
+                                    orig_mesh->is_python_request_gpu != 0);
 
   /* 2) Detect Armature -> GPU deform. */
   bool modifier_requests_gpu = false;
@@ -1219,8 +1219,10 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
   else {
     if (orig_mesh) {
       orig_mesh->is_running_gpu_animation_playback = 0;
+      orig_mesh->is_python_request_gpu = 0;
     }
     mesh.is_running_gpu_animation_playback = 0;
+    mesh.is_python_request_gpu = 0;
   }
 }
 

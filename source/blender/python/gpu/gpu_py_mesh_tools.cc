@@ -163,19 +163,17 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   auto *vbo_pos = cache->final.buff.vbos.lookup_ptr(VBOType::Position)->get();
   auto *vbo_nor = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)->get();
 
+  Object *ob_orig = DEG_get_original(ob_eval);
+  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  mesh_orig->is_python_request_gpu = 1;
+  mesh_eval->is_python_request_gpu = 1;
+
   const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
   if (format->stride != 16) {
-  /* VBO is not in float4 format, request a redraw and tell Python to try again later. */
-    Object *ob_orig = DEG_get_original(ob_eval);
-    if (ob_orig) {
-      Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
-      Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
-      mesh_orig->is_running_gpu_animation_playback = 1;
-      mesh_eval->is_running_gpu_animation_playback = 1;
-      DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-      WM_main_add_notifier(NC_WINDOW, nullptr);
-      Py_RETURN_NONE;
-    }
+    /* VBO is not in float4 format, request a redraw and tell Python to try again later. */
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    Py_RETURN_NONE;
   }
 
   /* Transform SSBO: optional. If not provided, create an identity SSBO and mark it
@@ -291,11 +289,8 @@ static PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, Py
   BKE_mesh_gpu_free_for_mesh(mesh_orig);
   if (mesh_orig) {
     mesh_orig->is_running_gpu_animation_playback = 0;
+    mesh_orig->is_python_request_gpu = 0;
   }
-  if (ob->data == mesh_orig) {
-    static_cast<Mesh *>(ob->data)->is_running_gpu_animation_playback = 0;
-  }
-
   Py_RETURN_NONE;
 }
 
@@ -588,6 +583,11 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     }
     Py_RETURN_NONE;
   }
+
+  Object *ob_orig = DEG_get_original(ob_eval);
+  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  mesh_orig->is_python_request_gpu = 1;
+  mesh_eval->is_python_request_gpu = 1;
 
   auto *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
 
