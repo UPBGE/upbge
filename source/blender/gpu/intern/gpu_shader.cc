@@ -243,7 +243,9 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
   return processed_str;
 };
 
-blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info)
+blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info,
+                                                         bool preprocess,
+                                                         const char *typedef_source)
 {
   using namespace blender::gpu::shader;
   ShaderCreateInfo info = *const_cast<ShaderCreateInfo *>(
@@ -261,9 +263,12 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
     processed_str += "#ifdef CREATE_INFO_RES_PASS_pyGPU_Shader\n";
     processed_str += "CREATE_INFO_RES_PASS_pyGPU_Shader\n";
     processed_str += "#endif\n";
-    processed_str += GPU_shader_preprocess_source(input_src, info);
+    processed_str += preprocess ? GPU_shader_preprocess_source(input_src, info) : input_src;
     return processed_str;
   };
+
+  std::string typedef_content = typedef_source ? typedef_source : "\n";
+  info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, typedef_content});
 
   if (is_compute) {
     info.compute_source("gpu_shader_python_comp.glsl");

@@ -548,47 +548,24 @@ bool RAS_Shader::LinkProgram()
 {
   std::string vert = GetParsedProgram(VERTEX_PROGRAM);
   std::string frag = GetParsedProgram(FRAGMENT_PROGRAM);
-  std::string geom = GetParsedProgram(GEOMETRY_PROGRAM);
 
   if (m_progs[VERTEX_PROGRAM].empty() || m_progs[FRAGMENT_PROGRAM].empty()) {
     CM_Error("invalid GLSL sources.");
     return false;
   }
 
-  if (vert.empty()) {
-    CM_Error("Parsed vertex shader is empty!");
-  }
-  if (frag.empty()) {
-    CM_Error("Parsed fragment shader is empty!");
-  }
-
   m_ubo = GPU_uniformbuf_create_ex(sizeof(m_uboData), nullptr, "g_data");
 
-  // Use "pyGPU_Shader"
   ShaderCreateInfo info("pyGPU_Shader");
 
-  // === Typedef header (structure bgl_Data) ===
-  std::string typedef_header = "struct bgl_Data {float width; float height; vec4 coo_offset[9];};";
-  typedef_header += "\n";
+  // Typedef
+  const char * typedef_header = "struct bgl_Data {float width; float height; vec4 coo_offset[9];};\n";
 
-  // === Interface ===
+  // Interface
   StageInterfaceInfo iface("bge_interface", "");
   iface.smooth(Type::float4_t, "bgl_TexCoord");
   info.vertex_out(iface);
-
-  // === Ressources ===
-  info.uniform_buf(0, "bgl_Data", "g_data", Frequency::BATCH);
-
-  // Force info_name
-  for (auto &res : info.batch_resources_) {
-    res.info_name = "pyGPU_Shader";
-  }
-  for (auto &res : info.pass_resources_) {
-    res.info_name = "pyGPU_Shader";
-  }
-  for (auto &res : info.geometry_resources_) {
-    res.info_name = "pyGPU_Shader";
-  }
+  info.uniform_buf(0, "bgl_Data", "g_data");
 
   // Samplers
   for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
@@ -609,48 +586,14 @@ bool RAS_Shader::LinkProgram()
 
   info.fragment_out(0, Type::float4_t, "fragColor");
 
-  // === Includes ===
-  blender::Vector<blender::StringRefNull> includes = {
-      "draw_colormanagement_lib.glsl",
-      "gpu_shader_python_typedef_lib.glsl",
-  };
-
-  auto add_resource_macros = [&](const std::string &input_src) -> std::string {
-    std::string processed_str;
-    processed_str += "#ifdef CREATE_INFO_RES_PASS_pyGPU_Shader\n";
-    processed_str += "CREATE_INFO_RES_PASS_pyGPU_Shader\n";
-    processed_str += "#endif\n";
-    processed_str += "#ifdef CREATE_INFO_RES_BATCH_pyGPU_Shader\n";
-    processed_str += "CREATE_INFO_RES_BATCH_pyGPU_Shader\n";
-    processed_str += "#endif\n";
-    processed_str += "#ifdef CREATE_INFO_RES_GEOMETRY_pyGPU_Shader\n";
-    processed_str += "CREATE_INFO_RES_GEOMETRY_pyGPU_Shader\n";
-    processed_str += "#endif\n";
-    processed_str += "\n";
-    processed_str += input_src;
-    return processed_str;
-  };
-  // === Typedef header ===
-  info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, typedef_header});
-
-  // === Vertex ===
-  info.vertex_source("gpu_shader_python_vert.glsl");
-  std::string processed_vert = add_resource_macros(vert);
-  info.generated_sources.append({"gpu_shader_python_vert.glsl", includes, processed_vert});
-
-  // === Fragment ===
-  info.fragment_source("gpu_shader_python_frag.glsl");
-  std::string processed_frag = add_resource_macros(frag);
-
-  CM_Debug("Processed fragment shader length: " << processed_frag.length());
-
-  info.generated_sources.append({"gpu_shader_python_frag.glsl", includes, processed_frag});
+  info.vertex_source_generated = vert;
+  info.fragment_source_generated = frag;
 
   if (m_error) {
     goto program_error;
   }
 
-  m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  m_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false, typedef_header);
 
   if (!m_shader) {
     CM_Error("GPU_shader_create_from_info returned nullptr");
@@ -660,12 +603,11 @@ bool RAS_Shader::LinkProgram()
   m_error = 0;
   return true;
 
-program_error: {
+program_error:
   CM_Error("Shader compilation failed");
   m_use = 0;
   m_error = 1;
   return false;
-}
 }
 
 void RAS_Shader::ValidateProgram()
