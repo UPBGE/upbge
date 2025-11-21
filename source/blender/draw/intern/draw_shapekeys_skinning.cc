@@ -323,9 +323,8 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
 
   /* Create/ensure compute shader */
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("BGE_ShapeKey_Compute");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(256, 1, 1);
-  info.compute_source("draw_colormanagement_lib.glsl");
   info.compute_source_generated = shapekey_compute_src;
   info.storage_buf(0, Qualifier::read, "vec4", "rest_pos[]");
   info.storage_buf(1, Qualifier::read, "vec4", "deltas[]");

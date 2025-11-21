@@ -393,10 +393,9 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
 
   /* create/ensure compute shader and dispatch */
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(256, 1, 1);
   info.compute_source_generated = skin_compute_src;
-  info.compute_source("draw_colormanagement_lib.glsl");
   info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
   info.storage_buf(1, Qualifier::read, "ivec4", "in_idx[]");
   info.storage_buf(2, Qualifier::read, "vec4", "in_wgt[]");

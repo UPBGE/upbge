@@ -623,7 +623,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
   else {
     using namespace blender::gpu::shader;
-    ShaderCreateInfo info("compute_shader");
+    ShaderCreateInfo info("pyGPU_Shader");
     info.local_group_size(256, 1, 1);
     info.compute_source("draw_colormanagement_lib.glsl");
     info.compute_source_generated = shader_source;
@@ -656,7 +656,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     }
 
     /* Cast is needed because ShaderCreateInfo is a C++ wrapper; assume compatible here. */
-    shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+    shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
     if (!shader) {
       return blender::bke::GpuComputeStatus::Error;
     }
@@ -879,7 +879,7 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
     return nullptr;
   }
   /* Cast is needed because ShaderCreateInfo is a C++ wrapper; assume compatible here. */
-  blender::gpu::Shader *sh = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  blender::gpu::Shader *sh = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   if (!sh) {
     return nullptr;
   }

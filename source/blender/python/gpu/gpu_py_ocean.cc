@@ -1266,12 +1266,11 @@ static blender::gpu::Shader *pygpu_ocean_ensure_eval_shader()
 
   using namespace blender::gpu::shader;
 
-  ShaderCreateInfo info("ocean_eval_comp");
+  ShaderCreateInfo info("pyGPU_Shader");
 
   /* Use only the GLSL compute body: resource declarations (bindings) are provided
    * by the ShaderCreateInfo machinery / runtime when the shader is created. */
   info.compute_source_generated = OCEAN_EVAL_COMP_BODY_GLSL;
-  info.compute_source("draw_colormanagement_lib.glsl");
 
   info.local_group_size(256, 1, 1);
 
@@ -1289,7 +1288,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_eval_shader()
    * (then replace any hard-coded layout(local_size_x = ...) in the GLSL body). */
 
   /* Create and cache the shader */
-  g_ocean_eval_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_eval_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   if (!g_ocean_eval_shader) {
     return nullptr;
   }
@@ -3488,8 +3487,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_htilda_simulate_shader()
     return g_ocean_htilda_simulate_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_htilda_simulate");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_HTILDA_SIMULATE_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
 
@@ -3507,7 +3505,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_htilda_simulate_shader()
   info.push_constant(Type::float_t, "SCALE_FAC");
   info.push_constant(Type::float_t, "SIZE_PARAM");
 
-  g_ocean_htilda_simulate_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_htilda_simulate_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_htilda_simulate_shader;
 }
 
@@ -3588,8 +3586,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_prep_fftin_chop_shader()
     return g_ocean_prep_fftin_chop_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_prep_fftin_chop");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_PREP_FFTIN_CHOP_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
 
@@ -3605,7 +3602,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_prep_fftin_chop_shader()
   info.push_constant(Type::float_t, "SIZE_PARAM");
   info.push_constant(Type::float_t, "SCALE_FAC");
 
-  g_ocean_prep_fftin_chop_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_prep_fftin_chop_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_prep_fftin_chop_shader;
 }
 
@@ -3679,8 +3676,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_complex3_to_disp_shader()
     return g_ocean_complex3_to_disp_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_complex3_to_disp");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_COMPLEX3_TO_DISP_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
 
@@ -3690,7 +3686,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_complex3_to_disp_shader()
   info.storage_buf(2, Qualifier::read, "vec2", "src_z[]");
   info.storage_buf(3, Qualifier::write, "vec4", "dst[]");
 
-  g_ocean_complex3_to_disp_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_complex3_to_disp_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_complex3_to_disp_shader;
 }
 
@@ -3748,8 +3744,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_fft_row_dft_shader()
     return g_ocean_fft_row_dft_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_fft_row_dft");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_FFT_ROW_DFT_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
   /* rows_in and rows_out both vec2[] */
@@ -3758,7 +3753,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_fft_row_dft_shader()
   info.push_constant(Type::int_t, "M", 0);
   info.push_constant(Type::int_t, "N", 0);
   info.push_constant(Type::float_t, "SCALE_FAC");
-  g_ocean_fft_row_dft_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_fft_row_dft_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_fft_row_dft_shader;
 }
 
@@ -3768,15 +3763,14 @@ static blender::gpu::Shader *pygpu_ocean_ensure_transpose_shader()
     return g_ocean_transpose_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_transpose");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_TRANSPOSE_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
   info.storage_buf(0, Qualifier::read, "vec2", "srcbuf[]");
   info.storage_buf(1, Qualifier::write, "vec2", "transposed[]");
   info.push_constant(Type::int_t, "M", 0);
   info.push_constant(Type::int_t, "N", 0);
-  g_ocean_transpose_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_transpose_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_transpose_shader;
 }
 
@@ -3821,8 +3815,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_htilda_expand_shader()
     return g_ocean_htilda_expand_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_htilda_expand");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_HTILDA_EXPAND_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
   info.storage_buf(0, Qualifier::read, "vec2", "src_half[]");
@@ -3830,7 +3823,7 @@ static blender::gpu::Shader *pygpu_ocean_ensure_htilda_expand_shader()
   info.push_constant(Type::int_t, "M", 0);
   info.push_constant(Type::int_t, "N", 0);
   info.push_constant(Type::int_t, "halfN", 0);
-  g_ocean_htilda_expand_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_htilda_expand_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_htilda_expand_shader;
 }
 
@@ -3879,13 +3872,12 @@ static blender::gpu::Shader *pygpu_ocean_ensure_vec2_copy_shader()
     return g_ocean_vec2_copy_shader;
   }
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("ocean_vec2_copy");
-  info.compute_source("draw_colormanagement_lib.glsl");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.compute_source_generated = OCEAN_VEC2_COPY_COMP_BODY_GLSL;
   info.local_group_size(256, 1, 1);
   info.storage_buf(0, Qualifier::read, "vec2", "src_vec2[]");
   info.storage_buf(1, Qualifier::write, "vec2", "dst_vec2[]");
-  g_ocean_vec2_copy_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+  g_ocean_vec2_copy_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
   return g_ocean_vec2_copy_shader;
 }
 
