@@ -546,63 +546,122 @@ static int CalcPushConstantsSize(const std::vector<UniformConstant> &constants)
 
 bool RAS_Shader::LinkProgram()
 {
-  std::string vert;
-  std::string frag;
-  std::string geom;
-
-  vert = GetParsedProgram(VERTEX_PROGRAM);
-  frag = GetParsedProgram(FRAGMENT_PROGRAM);
-  geom = GetParsedProgram(GEOMETRY_PROGRAM);
-
-  m_ubo = GPU_uniformbuf_create_ex(sizeof(m_uboData), nullptr, "g_data");
-  const char *ubo_str = "struct bgl_Data {float width; float height; vec4 coo_offset[9];};";
-
-  StageInterfaceInfo iface("s_Interface", "");
-  iface.smooth(Type::float4_t, "bgl_TexCoord");
-
-  ShaderCreateInfo info("s_Display");
-  info.uniform_buf(0, "bgl_Data", "g_data", Frequency::BATCH);
-  info.typedef_source_generated = ubo_str;
-  for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
-    info.sampler(sampler.first, ImageType::Float2D, sampler.second);
-  }
-  info.sampler(8, ImageType::Float2D, "bgl_RenderedTexture");
-  info.sampler(9, ImageType::Float2D, "bgl_DepthTexture");
-  for (UniformConstant &constant : m_constantUniforms) {
-    info.push_constant(constant.type, constant.name);
-  }
-  info.vertex_out(iface);
-  info.fragment_out(0, Type::float4_t, "fragColor");
-  info.vertex_source("draw_colormanagement_lib.glsl");
-  info.fragment_source("draw_colormanagement_lib.glsl");
-  info.vertex_source_generated = vert;
-  info.fragment_source_generated = frag;
-
-  int size = CalcPushConstantsSize(m_constantUniforms);
-  if (size > 128) {
-    CM_Error("Push constants size exceeds 128 bytes");
-    goto program_error;
-  }
-
-  if (m_error) {
-    goto program_error;
-  }
+  std::string vert = GetParsedProgram(VERTEX_PROGRAM);
+  std::string frag = GetParsedProgram(FRAGMENT_PROGRAM);
+  std::string geom = GetParsedProgram(GEOMETRY_PROGRAM);
 
   if (m_progs[VERTEX_PROGRAM].empty() || m_progs[FRAGMENT_PROGRAM].empty()) {
     CM_Error("invalid GLSL sources.");
     return false;
   }
 
+  if (vert.empty()) {
+    CM_Error("Parsed vertex shader is empty!");
+  }
+  if (frag.empty()) {
+    CM_Error("Parsed fragment shader is empty!");
+  }
+
+  m_ubo = GPU_uniformbuf_create_ex(sizeof(m_uboData), nullptr, "g_data");
+
+  // Use "pyGPU_Shader"
+  ShaderCreateInfo info("pyGPU_Shader");
+
+  // === Typedef header (structure bgl_Data) ===
+  std::string typedef_header = "struct bgl_Data {float width; float height; vec4 coo_offset[9];};";
+  typedef_header += "\n";
+
+  // === Interface ===
+  StageInterfaceInfo iface("bge_interface", "");
+  iface.smooth(Type::float4_t, "bgl_TexCoord");
+  info.vertex_out(iface);
+
+  // === Ressources ===
+  info.uniform_buf(0, "bgl_Data", "g_data", Frequency::BATCH);
+
+  // Force info_name
+  for (auto &res : info.batch_resources_) {
+    res.info_name = "pyGPU_Shader";
+  }
+  for (auto &res : info.pass_resources_) {
+    res.info_name = "pyGPU_Shader";
+  }
+  for (auto &res : info.geometry_resources_) {
+    res.info_name = "pyGPU_Shader";
+  }
+
+  // Samplers
+  for (std::pair<int, std::string> &sampler : m_samplerUniforms) {
+    info.sampler(sampler.first, ImageType::Float2D, sampler.second);
+  }
+  info.sampler(8, ImageType::Float2D, "bgl_RenderedTexture");
+  info.sampler(9, ImageType::Float2D, "bgl_DepthTexture");
+
+  // Push constants
+  for (UniformConstant &constant : m_constantUniforms) {
+    info.push_constant(constant.type, constant.name);
+  }
+
+  int size = CalcPushConstantsSize(m_constantUniforms);
+  if (size > 128) {
+    CM_Error("Push constants size exceeds 128 bytes");
+  }
+
+  info.fragment_out(0, Type::float4_t, "fragColor");
+
+  // === Includes ===
+  blender::Vector<blender::StringRefNull> includes = {
+      "draw_colormanagement_lib.glsl",
+      "gpu_shader_python_typedef_lib.glsl",
+  };
+
+  auto add_resource_macros = [&](const std::string &input_src) -> std::string {
+    std::string processed_str;
+    processed_str += "#ifdef CREATE_INFO_RES_PASS_pyGPU_Shader\n";
+    processed_str += "CREATE_INFO_RES_PASS_pyGPU_Shader\n";
+    processed_str += "#endif\n";
+    processed_str += "#ifdef CREATE_INFO_RES_BATCH_pyGPU_Shader\n";
+    processed_str += "CREATE_INFO_RES_BATCH_pyGPU_Shader\n";
+    processed_str += "#endif\n";
+    processed_str += "#ifdef CREATE_INFO_RES_GEOMETRY_pyGPU_Shader\n";
+    processed_str += "CREATE_INFO_RES_GEOMETRY_pyGPU_Shader\n";
+    processed_str += "#endif\n";
+    processed_str += "\n";
+    processed_str += input_src;
+    return processed_str;
+  };
+  // === Typedef header ===
+  info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, typedef_header});
+
+  // === Vertex ===
+  info.vertex_source("gpu_shader_python_vert.glsl");
+  std::string processed_vert = add_resource_macros(vert);
+  info.generated_sources.append({"gpu_shader_python_vert.glsl", includes, processed_vert});
+
+  // === Fragment ===
+  info.fragment_source("gpu_shader_python_frag.glsl");
+  std::string processed_frag = add_resource_macros(frag);
+
+  CM_Debug("Processed fragment shader length: " << processed_frag.length());
+
+  info.generated_sources.append({"gpu_shader_python_frag.glsl", includes, processed_frag});
+
+  if (m_error) {
+    goto program_error;
+  }
+
   m_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
 
   if (!m_shader) {
+    CM_Error("GPU_shader_create_from_info returned nullptr");
     goto program_error;
   }
 
   m_error = 0;
   return true;
 
-program_error : {
+program_error: {
+  CM_Error("Shader compilation failed");
   m_use = 0;
   m_error = 1;
   return false;

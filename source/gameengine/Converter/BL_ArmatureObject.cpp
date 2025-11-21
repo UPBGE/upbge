@@ -894,10 +894,14 @@ void BL_ArmatureObject::DoGpuSkinning()
    *   and normals are computed from these positions. This approach produces
    *   shading results very similar to the CPU pipeline.
    */
+  // === SHADER 1: Skin Vertices ===
   if (!m_skinStatic->shader_skin_vertices) {
-    ShaderCreateInfo info("BGE_Armature_Skin_Vertices_Pass");
+    ShaderCreateInfo info("BGE_Armature_Skin_Vertices");
+
+    // Local group size
     info.local_group_size(group_size, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
+
+    // Storage buffers (ressources)
     info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
     info.storage_buf(1, Qualifier::read, "ivec4", "in_idx[]");
     info.storage_buf(2, Qualifier::read, "vec4", "in_wgt[]");
@@ -905,7 +909,24 @@ void BL_ArmatureObject::DoGpuSkinning()
     info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
     info.storage_buf(5, Qualifier::read, "vec4", "rest_positions[]");
 
-    info.compute_source_generated = R"GLSL(
+    // Force info_name pour to avoid conflits
+    for (auto &res : info.batch_resources_) {
+      res.info_name = "BGE_Armature_Skin_Vertices";
+    }
+    for (auto &res : info.pass_resources_) {
+      res.info_name = "BGE_Armature_Skin_Vertices";
+    }
+    for (auto &res : info.geometry_resources_) {
+      res.info_name = "BGE_Armature_Skin_Vertices";
+    }
+
+    // Includes
+    blender::Vector<blender::StringRefNull> includes = {
+        "draw_colormanagement_lib.glsl",
+    };
+
+    // Source GLSL brute
+    std::string compute_src = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
 #define CONTRIB_THRESHOLD 1e-4
 #endif
@@ -933,18 +954,42 @@ void main() {
   skinned_vert_positions[v] = skin_pos_object(int(v));
 }
 )GLSL";
+
+    // Add macros ressources
+    std::string processed_src;
+    processed_src += "#ifdef CREATE_INFO_RES_PASS_BGE_Armature_Skin_Vertices\n";
+    processed_src += "CREATE_INFO_RES_PASS_BGE_Armature_Skin_Vertices\n";
+    processed_src += "#endif\n";
+    processed_src += "#ifdef CREATE_INFO_RES_BATCH_BGE_Armature_Skin_Vertices\n";
+    processed_src += "CREATE_INFO_RES_BATCH_BGE_Armature_Skin_Vertices\n";
+    processed_src += "#endif\n";
+    processed_src += "#ifdef CREATE_INFO_RES_GEOMETRY_BGE_Armature_Skin_Vertices\n";
+    processed_src += "CREATE_INFO_RES_GEOMETRY_BGE_Armature_Skin_Vertices\n";
+    processed_src += "#endif\n";
+    processed_src += "\n";
+    processed_src += compute_src;
+
+    // Use generated_sources.append
+    info.compute_source("gpu_shader_python_comp.glsl");
+    info.generated_sources.append({"gpu_shader_python_comp.glsl", includes, processed_src});
+
     m_skinStatic->shader_skin_vertices = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   }
 
+  // === SHADER 2: Scatter to Corners ===
   if (!m_skinStatic->shader_scatter_to_corners) {
-    ShaderCreateInfo info("BGE_Armature_Scatter_Pass");
+    ShaderCreateInfo info("BGE_Armature_Scatter");
+
     info.local_group_size(group_size, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
+
+    // Storage buffers
     info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
     info.storage_buf(1, Qualifier::write, "uint", "normals[]");
     info.storage_buf(2, Qualifier::read, "vec4", "skinned_vert_positions[]");
     info.storage_buf(3, Qualifier::read, "mat4", "postmat[]");
     info.storage_buf(4, Qualifier::read, "int", "topo[]");
+
+    // Specialization constants
     info.specialization_constant(
         Type::int_t, "face_offsets_offset", m_skinStatic->face_offsets_offset);
     info.specialization_constant(
@@ -960,11 +1005,27 @@ void main() {
         "normals_domain",
         mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0);
     info.specialization_constant(
-        blender::gpu::shader::Type::int_t,
+        Type::int_t,
         "normals_hq",
-        int(bool(GetScene()->GetBlenderScene()->r.perf_flag & SCE_PERF_HQ_NORMALS) || GPU_use_hq_normals_workaround()));
+        int(bool(GetScene()->GetBlenderScene()->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+            GPU_use_hq_normals_workaround()));
 
-    info.compute_source_generated = R"GLSL(
+    // Forcer info_name
+    for (auto &res : info.batch_resources_) {
+      res.info_name = "BGE_Armature_Scatter";
+    }
+    for (auto &res : info.pass_resources_) {
+      res.info_name = "BGE_Armature_Scatter";
+    }
+    for (auto &res : info.geometry_resources_) {
+      res.info_name = "BGE_Armature_Scatter";
+    }
+
+    blender::Vector<blender::StringRefNull> includes = {
+        "draw_colormanagement_lib.glsl",
+    };
+
+    std::string compute_src = R"GLSL(
 // Utility accessors
 int face_offsets(int i) { return topo[face_offsets_offset + i]; }
 int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
@@ -1057,6 +1118,23 @@ void main() {
   }
 }
 )GLSL";
+
+    std::string processed_src;
+    processed_src += "#ifdef CREATE_INFO_RES_PASS_BGE_Armature_Scatter\n";
+    processed_src += "CREATE_INFO_RES_PASS_BGE_Armature_Scatter\n";
+    processed_src += "#endif\n";
+    processed_src += "#ifdef CREATE_INFO_RES_BATCH_BGE_Armature_Scatter\n";
+    processed_src += "CREATE_INFO_RES_BATCH_BGE_Armature_Scatter\n";
+    processed_src += "#endif\n";
+    processed_src += "#ifdef CREATE_INFO_RES_GEOMETRY_BGE_Armature_Scatter\n";
+    processed_src += "CREATE_INFO_RES_GEOMETRY_BGE_Armature_Scatter\n";
+    processed_src += "#endif\n";
+    processed_src += "\n";
+    processed_src += compute_src;
+
+    info.compute_source("gpu_shader_python_comp.glsl");
+    info.generated_sources.append({"gpu_shader_python_comp.glsl", includes, processed_src});
+
     m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info(
         (GPUShaderCreateInfo *)&info);
   }
