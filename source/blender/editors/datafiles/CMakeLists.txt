@@ -764,6 +764,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       preview_loading
       preview_range
       prev_keyframe
+      project
       properties
       prop_con
       prop_off

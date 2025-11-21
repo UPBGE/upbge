@@ -23,6 +23,9 @@
 namespace blender::gpu {
 class VertBuf;
 class Shader;
+namespace shader {
+struct ShaderCreateInfo;
+}  // namespace shader
 }  // namespace blender::gpu
 
 /** Opaque type hiding #blender::gpu::shader::ShaderCreateInfo */
@@ -42,8 +45,10 @@ constexpr static int GPU_MAX_UNIFORM_ATTR = 8;
 /**
  * Preprocess a raw GLSL source to adhere to our backend compatible shader language.
  * Needed if the string was not part of our build system and is used in a #GPUShaderCreateInfo.
+ * `info` is the create info to add builtin flags parsed from the original string.
  */
-std::string GPU_shader_preprocess_source(blender::StringRefNull original);
+std::string GPU_shader_preprocess_source(blender::StringRefNull original,
+                                         blender::gpu::shader::ShaderCreateInfo &info);
 
 /**
  * Create a shader using the given #GPUShaderCreateInfo.
@@ -54,7 +59,9 @@ blender::gpu::Shader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_in
 /**
  * Same as GPU_shader_create_from_info but will run preprocessor on source strings.
  */
-blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info);
+blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *info,
+                                                         bool preprocess = true,
+                                                         const char *typedef_source = nullptr);
 
 /**
  * Create a shader using a named #GPUShaderCreateInfo registered at startup.
