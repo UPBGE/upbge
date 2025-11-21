@@ -2546,6 +2546,7 @@ bool uiTemplateEventFromKeymapItem(blender::ui::Layout *layout,
 /* Draw keymap item for status bar. Returns number of items consumed,
  * as X/Y/Z items may get merged to use less space. */
 int uiTemplateStatusBarModalItem(blender::ui::Layout *layout,
+                                 wmOperator *op,
                                  const wmKeyMap *keymap,
                                  const EnumPropertyItem *item);
 

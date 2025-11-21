@@ -4,6 +4,12 @@
 
 /* Blender OpenColorIO implementation */
 
+#include "ocio_shader_shared.hh"
+
+#include "gpu_shader_create_info.hh"
+
+#include "gpu_shader_display_transform_lib.glsl"
+
 /* -------------------------------------------------------------------- */
 /** \name Hardcoded color space conversion for fallback implementation
  *
@@ -179,12 +185,6 @@ float4 apply_dither(float4 col, uint2 uv)
 /* -------------------------------------------------------------------- */
 /** \name Main Processing
  * \{ */
-
-/* Prototypes: Implementation is generated and defined after. */
-#ifndef GPU_METAL /* Forward declaration invalid in MSL. */
-float4 OCIO_to_scene_linear(float4 pixel);
-float4 OCIO_to_display(float4 pixel);
-#endif
 
 float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
 {
