@@ -612,7 +612,18 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
   const std::string shader_source = glsl_accessors + main_glsl;
   /* Build shader identifier only from user glsl sources (not 100% fiable) */
-  std::string shader_key_src = shader_source;
+  Scene *scene = DEG_get_input_scene(depsgraph);
+  int normals_domain_val = (mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face) ?
+                               1 :
+                               0;
+  int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+                           GPU_use_hq_normals_workaround());
+
+  std::string shader_key_src;
+  shader_key_src.reserve(shader_source.size() + 128);
+  shader_key_src = shader_source;
+  shader_key_src += "|nd=" + std::to_string(normals_domain_val);
+  shader_key_src += "|nhq=" + std::to_string(normals_hq_val);
   const size_t shader_key = std::hash<std::string>()(shader_key_src);
 
   /* Lookup existing shader for this mesh + variant. */
