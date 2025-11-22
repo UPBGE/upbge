@@ -565,19 +565,13 @@ static void animsys_write_orig_anim_rna(PointerRNA *ptr,
   }
 }
 
-/**
- * Evaluate all the F-Curves in the given list
- * This performs a set of standard checks. If extra checks are required,
- * separate code should be used.
- */
-static void animsys_evaluate_fcurves(PointerRNA *ptr,
-                                     Span<FCurve *> fcurves,
-                                     const AnimationEvalContext *anim_eval_context,
-                                     bool flush_to_original)
+static void animsys_evaluate_fcurves_sequential(PointerRNA *ptr,
+                                                Span<FCurve *> fcurves,
+                                                const AnimationEvalContext *anim_eval_context,
+                                                bool flush_to_original)
 {
-  /* Calculate then execute each curve. */
+  // Original code unchanged
   for (FCurve *fcu : fcurves) {
-
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
     }
@@ -591,6 +585,52 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
       }
     }
   }
+}
+
+/**
+ * Evaluate all the F-Curves in the given list
+ * This performs a set of standard checks. If extra checks are required,
+ * separate code should be used.
+ */
+static void animsys_evaluate_fcurves(PointerRNA *ptr,
+                                     Span<FCurve *> fcurves,
+                                     const AnimationEvalContext *anim_eval_context,
+                                     bool flush_to_original)
+{
+  if (fcurves.size() < 100) {
+    // Sequential for small fcurves count
+    animsys_evaluate_fcurves_sequential(ptr, fcurves, anim_eval_context, flush_to_original);
+    return;
+  }
+
+  // Group fcurves by rna_path to avoid conflits
+  blender::Map<std::string, blender::Vector<FCurve *>> fcurves_by_path;
+
+  for (FCurve *fcu : fcurves) {
+    if (!is_fcurve_evaluatable(fcu)) {
+      continue;
+    }
+    if (fcu->rna_path) {
+      fcurves_by_path.lookup_or_add(fcu->rna_path, {}).append(fcu);
+    }
+  }
+
+  // Evaluate each group in parallell
+  blender::threading::parallel_for_each(fcurves_by_path.items(), [&](const auto &item) {
+    const blender::Vector<FCurve *> &group_fcurves = item.value;
+
+    // Inside same group, sequential (same property)
+    for (FCurve *fcu : group_fcurves) {
+      PathResolvedRNA anim_rna;
+      if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+        const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
+        BKE_animsys_write_to_rna_path(&anim_rna, curval);
+        if (flush_to_original) {
+          animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
+        }
+      }
+    }
+  });
 }
 
 /**
