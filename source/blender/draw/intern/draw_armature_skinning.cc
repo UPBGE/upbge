@@ -59,7 +59,6 @@ struct blender::draw::ArmatureSkinningManager::Impl {
   struct ArmatureData {
     int refcount = 0;
     int bones = 0;
-    int last_update_frame = -1;
     /* Do not store StorageBuf* here. Use BKE_armature_gpu_internal_ssbo_* helpers. */
   };
 
@@ -248,8 +247,6 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   (void)vbo_nor;
   (void)deformed_eval;
 
-  const int deps_update = int(DEG_get_update_count(depsgraph));
-
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
     return false;
@@ -350,10 +347,6 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   Impl::ArmatureData *ad_ref_ptr = nullptr;
   if (msd.arm) {
     Impl::ArmatureData &ad_ref = impl_->arm_map.lookup_or_add_default(msd.arm);
-    /* Skip dispatch if we've already skinned this armature for the current depsgraph update. */
-    if (ad_ref.last_update_frame == deps_update) {
-      return true;
-    }
     ad_ref_ptr = &ad_ref;
 
     if (ad_ref.bones == 0) {
@@ -497,12 +490,6 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
                                     config_fn,
                                     post_bind_fn,
                                     mesh_eval->corners_num);
-  }
-
-  /* Mark armature as processed for this depsgraph update so other objects sharing the same
-   * armature won't redundantly dispatch again. */
-  if (ad_ref_ptr) {
-    ad_ref_ptr->last_update_frame = deps_update;
   }
 
   return true;

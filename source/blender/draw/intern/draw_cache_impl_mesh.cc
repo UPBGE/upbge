@@ -1124,13 +1124,6 @@ static bool modifier_stack_has_topology_changer(Object *ob)
       if (mti->modify_mesh != nullptr) {
         return true;
       }
-      if (mti->modify_geometry_set != nullptr) {
-        return true;
-      }
-      /* Conservative: if modifier type is not OnlyDeform, consider it may change geometry. */
-      if (mti->type != ModifierTypeType::OnlyDeform) {
-        return true;
-      }
     }
     /* Particle systems produce/emit geometry. Treat as topology-changing. */
     if (md->type == eModifierType_ParticleSystem) {
