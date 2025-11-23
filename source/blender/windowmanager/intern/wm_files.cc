@@ -4326,7 +4326,7 @@ void wm_test_foreign_file_warning(bContext *C)
     CTX_wm_window_set(C, win);
     UI_alert(C,
              RPT_("Unable to Load File"),
-             RPT_("The file specified is not a valid Blend document."),
+             RPT_("The file is not a valid Blender file."),
              blender::ui::AlertIcon::Error,
              false);
 
