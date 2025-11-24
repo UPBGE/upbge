@@ -794,7 +794,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
       DEG_get_depsgraph_by_id(ob_eval->id),
       ob_eval,
       shader_src,
-      blender::Span<GpuMeshComputeBinding>(local_bindings),
+      std::vector<GpuMeshComputeBinding>(local_bindings),
       config_with_specs,
       post_bind_fn,
       dispatch);

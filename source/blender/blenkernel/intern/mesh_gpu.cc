@@ -389,7 +389,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
     const char *main_glsl,
-    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+    const std::vector<blender::bke::GpuMeshComputeBinding> &caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
     const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
     int dispatch_count)
@@ -731,7 +731,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
-    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+    const std::vector<blender::bke::GpuMeshComputeBinding> &caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
     const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
     int dispatch_count)

@@ -4428,7 +4428,7 @@ void main() {
       depsgraph,
       ob_eval,
       main_glsl.c_str(),
-      blender::Span<blender::bke::GpuMeshComputeBinding>(caller_bindings),
+      std::vector<blender::bke::GpuMeshComputeBinding>(caller_bindings),
       config_fn,
       post_bind_fn,
       me->corners_num);

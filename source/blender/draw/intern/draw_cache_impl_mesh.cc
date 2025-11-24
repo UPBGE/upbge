@@ -1133,30 +1133,28 @@ static bool modifier_stack_has_topology_changer(Object *ob)
   return false;
 }
 
-static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
+/* Compute decision without side-effects. */
+static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 {
+  GPUPlaybackDecision d;
   Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
-  /* 1) Honor an already set flag (e.g. mesh created by gpu.ocean that requires float4). */
-  const bool python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
-                                   (orig_mesh &&
-                                    orig_mesh->is_python_request_gpu != 0);
 
-  /* 2) Detect Armature -> GPU deform. */
-  bool modifier_requests_gpu = false;
+  d.python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
+                          (orig_mesh && orig_mesh->is_python_request_gpu != 0);
+
   for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
     if (md->type == eModifierType_Armature) {
       ArmatureModifierData *amd = (ArmatureModifierData *)md;
       if (amd && (amd->deform_method & ARM_DEFORM_METHOD_GPU)) {
-        modifier_requests_gpu = true;
+        d.modifier_requests_gpu = true;
         break;
       }
     }
   }
 
-  /* 3) Detect Shape Key -> GPU deform. */
-  const bool key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
+  d.key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
 
-  bool need_gpu_process = modifier_requests_gpu || key_requests_gpu;
+  bool need_gpu_process = d.modifier_requests_gpu || d.key_requests_gpu;
 
   /* --------------- TOPOLOGY / STABILITY SAFEGUARDS -----------------
    * Keep a conservative policy:
@@ -1164,64 +1162,43 @@ static void set_gpu_animation_playback_state(Object &ob, Mesh &mesh)
    *  - refuse automatic GPU path when any modifier in the stack is likely to change topology
    * Python-forced requests (mesh.is_running_gpu_animation_playback) override these safeties.
    */
-
-  /* Compute reasons (keep flags for reporting). */
   const bool topology_mismatch = (orig_mesh != nullptr) &&
                                  ((mesh.verts_num != orig_mesh->verts_num) ||
-                                 (mesh.corners_num != orig_mesh->corners_num));
-
+                                  (mesh.corners_num != orig_mesh->corners_num));
   if (topology_mismatch) {
     need_gpu_process = false;
-  }
-
-  const bool topology_modifier_present = modifier_stack_has_topology_changer(&ob);
-  if (need_gpu_process && topology_modifier_present) {
-    need_gpu_process = false;
-  }
-
-  /* If execution was requested by modifiers/keys but got refused and not forced by Python,
-   * emit a short report to stderr so the user/dev can trace why GPU path was skipped. */
-  if (!python_requests_gpu && (modifier_requests_gpu || key_requests_gpu) && !need_gpu_process) {
-    report_gpu_refused(&ob,
-                       topology_mismatch,
-                       topology_modifier_present,
-                       modifier_requests_gpu,
-                       key_requests_gpu);
-  }
-
-  /* Decision:
-   * - If the request comes from Python/mesh explicitly (gpu_py_*), allow GPU execution
-   *   as soon as DRW is active. This lets scripts trigger compute even outside timeline playback.
-   * - If the request comes from modifiers/shape-keys, only allow GPU execution during
-   *   interactive playback (or equivalent) to avoid triggering GPU skinning on every redraw.
-   */
-  const bool drw_active = DRWContext::is_active();
-  const bool interactive_playback = (DRW_context_get() != nullptr) ?
-                                        DRW_context_get()->is_playback() :
-                                        false;
-
-  const bool want_gpu_float4 = drw_active &&
-                               (python_requests_gpu || (need_gpu_process && interactive_playback));
-
-  if (want_gpu_float4) {
-    if (orig_mesh) {
-      orig_mesh->is_running_gpu_animation_playback = 1;
-    }
-    mesh.is_running_gpu_animation_playback = 1;
+    d.refused_reason = PlaybackRefuseReason::TopologyMismatch;
   }
   else {
-    if (orig_mesh) {
-      orig_mesh->is_running_gpu_animation_playback = 0;
-      orig_mesh->is_python_request_gpu = 0;
+    const bool topology_modifier_present = modifier_stack_has_topology_changer(&ob);
+    if (need_gpu_process && topology_modifier_present) {
+      need_gpu_process = false;
+      d.refused_reason = PlaybackRefuseReason::TopologyModifier;
     }
-    mesh.is_running_gpu_animation_playback = 0;
-    mesh.is_python_request_gpu = 0;
+
+    /* Detect mixed CPU/GPU shapekey data: if any KeyBlock has a different element count than
+     * the current mesh verts, the shape-key data isn't compatible for GPU playback. */
+    if (mesh.key && !d.refused_reason) {
+      Key *key = mesh.key;
+      for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
+        if (kb->totelem != mesh.verts_num) {
+          need_gpu_process = false;
+          d.refused_reason = PlaybackRefuseReason::MixedCPUAndGPU;
+          break;
+        }
+      }
+    }
   }
+
+  d.allow_gpu = DRWContext::is_active() &&
+                (d.python_requests_gpu || (need_gpu_process && DRW_context_get()->is_playback()));
+
+  return d;
 }
 
-static void register_meshes_to_skin(Object &ob, Mesh &mesh)
+/* Note: register_meshes_to_skin now accepts a precomputed decision. */
+static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDecision &decision)
 {
-  const bool gpu_playback = mesh.is_running_gpu_animation_playback != 0;
   if (!DRWContext::is_active()) {
     return;
   }
@@ -1236,17 +1213,22 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
     return;
   }
 
-  /* Only consider meshes actually deformed by an armature. */
-  if (!BKE_modifiers_is_deformed_by_armature(&ob) && (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU) == 0)) {
+  /* Use the precomputed decision to avoid duplicating checks. */
+  const bool has_gpu_shapekey = decision.key_requests_gpu;
+  const bool has_gpu_armature_modifier = decision.modifier_requests_gpu;
+  Object *arm_ob = BKE_modifiers_is_deformed_by_armature(&ob);
+
+  /* Quick out if nothing requested at all: no armature deformation and no shapekeys
+   * and no explicit Python request. */
+  const bool python_or_running = decision.python_requests_gpu;
+  if (!arm_ob && !has_gpu_shapekey && !python_or_running) {
     return;
   }
 
-  /* We need to schedule GPU processing either when:
-   *  - GPU animation playback is requested for this mesh (armature GPU deform), or
-   *  - the original mesh contains shape keys (we will run shapekey compute+scatter).
-   * Register under the original mesh key so `do_gpu_skinning` can find the evaluated object.
-   */
-  const bool need_gpu_process = gpu_playback;
+  /* Only register actual GPU work when allowed by the decision. */
+  const bool need_gpu_process = decision.allow_gpu &&
+                                (has_gpu_shapekey || has_gpu_armature_modifier ||
+                                 arm_ob);
 
   if (need_gpu_process) {
     if (dd->meshes_to_process == nullptr) {
@@ -1257,24 +1239,52 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh)
     if (entry.eval_obj_for_skinning == nullptr) {
       entry.eval_obj_for_skinning = &ob;
     }
-    /* keep scheduled_free as-is (may be true if a free was requested elsewhere) */
+    if (has_gpu_shapekey) {
+      entry.key_owner = orig_mesh->key;
+    }
+    if (has_gpu_armature_modifier) {
+      if (arm_ob) {
+        entry.armature_owner = DEG_get_original(arm_ob);
+      }
+    }
+    /* clear previous refusal info; adapt assignment to your header field type. */
+    entry.playback_refused =
+        std::nullopt; /* if your field is std::optional<PlaybackRefuseReason> */
+
+    /* Mark mesh as running GPU animation playback since we registered work. */
+    if (orig_mesh) {
+      orig_mesh->is_running_gpu_animation_playback = 1;
+    }
+    mesh.is_running_gpu_animation_playback = 1;
   }
   else {
+    if (decision.refused_reason) {
+      /* Log refusal immediately for diagnostics. */
+      bool topology_mismatch = (decision.refused_reason == PlaybackRefuseReason::TopologyMismatch);
+      bool topology_modifier_present = (decision.refused_reason ==
+                                        PlaybackRefuseReason::TopologyModifier);
+      report_gpu_refused(&ob,
+                         topology_mismatch,
+                         topology_modifier_present,
+                         decision.modifier_requests_gpu,
+                         decision.key_requests_gpu);
+    }
+
     if (dd->meshes_to_process) {
       auto &map = *dd->meshes_to_process;
       auto it = map.find(orig_mesh);
       if (it != map.end()) {
-        /* Clear processing request. If no free is scheduled, remove the entry to keep the map small. */
-        it->second.eval_obj_for_skinning = nullptr;
-        if (!it->second.scheduled_free) {
-          map.erase(it);
-        }
+        map.erase(it);
       }
     }
+    if (orig_mesh) {
+      orig_mesh->is_running_gpu_animation_playback = 0;
+      orig_mesh->is_python_request_gpu = 0;
+    }
+    mesh.is_running_gpu_animation_playback = 0;
+    mesh.is_python_request_gpu = 0;
   }
 }
-
-/** \} */
 
 void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Object &ob,
@@ -1287,9 +1297,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   bool cd_uv_update = false;
-
-  set_gpu_animation_playback_state(ob, mesh);
-  register_meshes_to_skin(ob, mesh);
+  /* Determine GPU playback decision early (before registering). */
+  const GPUPlaybackDecision gpu_playback_decision = compute_gpu_playback_decision(ob, mesh);
+  /* Register for GPU skinning if needed. */
+  register_meshes_to_skin(ob, mesh, gpu_playback_decision);
 
   /* Early out */
   if (cache.batch_requested == 0) {

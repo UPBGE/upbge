@@ -1107,7 +1107,6 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
   using namespace blender::draw;
 
   Depsgraph *depsgraph = draw_ctx.depsgraph;
-
   if (draw_ctx.data == nullptr || draw_ctx.data->meshes_to_process == nullptr) {
     return;
   }
@@ -1153,27 +1152,151 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       continue;
     }
 
-    /* Find an armature modifier that deforms this evaluated object. */
-    Object *arm_ob = BKE_modifiers_is_deformed_by_armature(eval_obj);
-    /* Mesh has both shapekeys and armature deformation. */
-    bool has_shapekeys = mesh_eval->key && mesh_eval->key->deform_method & KEY_DEFORM_METHOD_GPU;
+    /* Decide from recorded pointers whether to run shapekeys / armature on GPU. */
+    const bool has_shapekeys = (entry.key_owner != nullptr);
+    const bool has_armature = (entry.armature_owner != nullptr);
 
-    /* Step 1: Shape Keys (morphs base geometry) */
-    if (has_shapekeys) {
-      blender::draw::ShapeKeySkinningManager::instance().ensure_static_resources(eval_obj,
-                                                                                 mesh_owner);
-      ShapeKeySkinningManager::instance().dispatch_shapekeys(
-          depsgraph, eval_obj, cache, vbo_pos, vbo_nor);
+    /* Obtain original armature and its evaluated instance (for transforms). */
+    Object *orig_armature = entry.armature_owner;
+    Object *arm_ob_eval = nullptr;
+    if (orig_armature && depsgraph) {
+      arm_ob_eval = static_cast<Object *>(DEG_get_evaluated(depsgraph, orig_armature));
     }
 
-    /* Step 2: Armature (deforms morphed geometry) */
-    if (arm_ob) {
-      Object *orig_arma = DEG_get_original(arm_ob);
-      blender::draw::ArmatureSkinningManager::instance().ensure_static_resources(
-          orig_arma, eval_obj, mesh_owner);
+    /* Prepare an intermediate SSBO to chain deformers when needed. */
+    const std::string key_chain = "deform_chain_pos";
+    const bool use_chain = (has_shapekeys && has_armature);
+    blender::gpu::StorageBuf *ssbo_chain = nullptr;
+    if (use_chain) {
+      ssbo_chain = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_chain);
+      if (!ssbo_chain) {
+        ssbo_chain = BKE_mesh_gpu_internal_ssbo_ensure(
+            mesh_owner, key_chain, sizeof(float) * size_t(mesh_owner->verts_num) * 4u);
+        /* If ensure failed and returned nullptr, we'll fallback to per-deformer scatter. */
+      }
+    }
 
+    bool ran_shapekey = false;
+    bool ran_armature = false;
+
+    /* Step 1: Shape Keys (morph base geometry). */
+    if (has_shapekeys) {
+      ShapeKeySkinningManager::instance().ensure_static_resources(eval_obj, mesh_owner);
+      bool do_scatter = !use_chain || (ssbo_chain == nullptr);
+      ShapeKeySkinningManager::instance().dispatch_shapekeys(
+          depsgraph, eval_obj, cache, vbo_pos, vbo_nor, ssbo_chain, do_scatter);
+      ran_shapekey = true;
+    }
+
+    /* Step 2: Armature (deform morphed geometry). */
+    if (has_armature) {
+      Object *orig_arma = orig_armature;
+      ArmatureSkinningManager::instance().ensure_static_resources(orig_arma, eval_obj, mesh_owner);
+
+      bool do_scatter = !use_chain || (ssbo_chain == nullptr);
+      blender::gpu::StorageBuf *ssbo_in_for_arm = (ran_shapekey && use_chain && ssbo_chain) ?
+                                                      ssbo_chain :
+                                                      nullptr;
       ArmatureSkinningManager::instance().dispatch_skinning(
-          depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor);
+          depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor, ssbo_in_for_arm, do_scatter);
+      ran_armature = true;
+    }
+
+    /* Final scatter if we chained deformers into SSBOs. */
+    if ((ran_shapekey || ran_armature) && use_chain && ssbo_chain && eval_obj && cache &&
+        vbo_pos && vbo_nor)
+    {
+      const std::string key_shapekey_out = "shapekey_out_pos";
+      const std::string key_armature_out = "armature_skinned_pos";
+      blender::gpu::StorageBuf *final_ssbo = nullptr;
+      if (ran_armature) {
+        final_ssbo = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_armature_out);
+      }
+      if (!final_ssbo && ran_shapekey) {
+        final_ssbo = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_shapekey_out);
+      }
+      if (!final_ssbo) {
+        continue;
+      }
+
+      /* Compute postmat if evaluated armature present so scatter can apply transform. */
+      float premat[4][4], postmat[4][4], obinv[4][4];
+      if (arm_ob_eval) {
+        copy_m4_m4(premat, eval_obj->object_to_world().ptr());
+        invert_m4_m4(obinv, eval_obj->object_to_world().ptr());
+        mul_m4_m4m4(postmat, obinv, arm_ob_eval->object_to_world().ptr());
+        invert_m4_m4(premat, postmat);
+      }
+
+      const std::string key_postmat = "armature_postmat";
+      blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
+                                                                              key_postmat);
+      if (!ssbo_postmat) {
+        ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
+            mesh_owner, key_postmat, sizeof(float) * 16);
+        if (!ssbo_postmat) {
+          continue;
+        }
+      }
+      if (arm_ob_eval) {
+        GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
+      }
+
+      std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
+      caller_bindings.reserve(4);
+
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 0;
+        b.qualifiers = blender::gpu::shader::Qualifier::read_write;
+        b.type_name = "vec4";
+        b.bind_name = "positions_out[]";
+        b.buffer = vbo_pos;
+        caller_bindings.push_back(b);
+      }
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 1;
+        b.qualifiers = blender::gpu::shader::Qualifier::write;
+        b.type_name = "uint";
+        b.bind_name = "normals_out[]";
+        b.buffer = vbo_nor;
+        caller_bindings.push_back(b);
+      }
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 2;
+        b.qualifiers = blender::gpu::shader::Qualifier::read;
+        b.type_name = "vec4";
+        b.bind_name = "positions_in[]";
+        b.buffer = final_ssbo;
+        caller_bindings.push_back(b);
+      }
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 3;
+        b.qualifiers = blender::gpu::shader::Qualifier::read;
+        b.type_name = "mat4";
+        b.bind_name = "transform_mat[]";
+        b.buffer = ssbo_postmat;
+        caller_bindings.push_back(b);
+      }
+
+      auto post_bind_fn = [](blender::gpu::Shader * /*sh*/) {};
+      auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
+
+      Mesh *mesh_eval_local = (Mesh *)eval_obj->data;
+      if (!mesh_eval_local) {
+        continue;
+      }
+
+      BKE_mesh_gpu_scatter_to_corners(
+          depsgraph,
+          eval_obj,
+          std::vector<blender::bke::GpuMeshComputeBinding>(caller_bindings),
+          config_fn,
+          post_bind_fn,
+          mesh_eval_local->corners_num);
     }
   }
 

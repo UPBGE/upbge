@@ -488,7 +488,9 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
                                                 Object *deformed_eval,
                                                 MeshBatchCache *cache,
                                                 blender::gpu::VertBuf *vbo_pos,
-                                                blender::gpu::VertBuf *vbo_nor)
+                                                blender::gpu::VertBuf *vbo_nor,
+                                                blender::gpu::StorageBuf *ssbo_in,
+                                                bool do_scatter)
 {
   (void)vbo_pos;
   (void)vbo_nor;
@@ -790,11 +792,13 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     return false;
   }
 
+  blender::gpu::StorageBuf *pos_to_bind = ssbo_in ? ssbo_in : ssbo_skinned_pos;
+
   GPU_shader_bind(compute_sh);
 
   if (use_dual_quaternions) {
     /* Bind DQS buffers */
-    GPU_storagebuf_bind(ssbo_skinned_pos, 0);
+    GPU_storagebuf_bind(pos_to_bind, 0);
     GPU_storagebuf_bind(ssbo_in_offsets, 1);
     GPU_storagebuf_bind(ssbo_in_idx, 2);
     GPU_storagebuf_bind(ssbo_in_wgt, 3);
@@ -815,7 +819,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   }
   else {
     /* Bind LBS buffers */
-    GPU_storagebuf_bind(ssbo_skinned_pos, 0);
+    GPU_storagebuf_bind(pos_to_bind, 0);
     GPU_storagebuf_bind(ssbo_in_offsets, 1);
     GPU_storagebuf_bind(ssbo_in_idx, 2);
     GPU_storagebuf_bind(ssbo_in_wgt, 3);
@@ -832,78 +836,80 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
 
-  /* scatter to corners */
-  if (deformed_eval && cache && vbo_pos && vbo_nor) {
-    blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
-                                                                            key_postmat);
-    if (!ssbo_postmat) {
-      ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, key_postmat, sizeof(float) * 16);
+  if (do_scatter)
+  {
+    /* scatter to corners */
+    if (deformed_eval && cache && vbo_pos && vbo_nor) {
+      blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
+                                                                              key_postmat);
       if (!ssbo_postmat) {
+        ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
+            mesh_owner, key_postmat, sizeof(float) * 16);
+        if (!ssbo_postmat) {
+          return false;
+        }
+      }
+      GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
+
+      std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
+      caller_bindings.reserve(4);
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 0;
+        b.qualifiers = blender::gpu::shader::Qualifier::read_write;
+        b.type_name = "vec4";
+        b.bind_name = "positions_out[]";
+        b.buffer = vbo_pos;
+        caller_bindings.push_back(b);
+      }
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 1;
+        b.qualifiers = blender::gpu::shader::Qualifier::write;
+        b.type_name = "uint";
+        b.bind_name = "normals_out[]";
+        b.buffer = vbo_nor;
+        caller_bindings.push_back(b);
+      }
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 2;
+        b.qualifiers = blender::gpu::shader::Qualifier::read;
+        b.type_name = "vec4";
+        b.bind_name = "positions_in[]";
+        b.buffer = pos_to_bind;
+        caller_bindings.push_back(b);
+      }
+      {
+        blender::bke::GpuMeshComputeBinding b = {};
+        b.binding = 3;
+        b.qualifiers = blender::gpu::shader::Qualifier::read;
+        b.type_name = "mat4";
+        b.bind_name = "transform_mat[]";
+        b.buffer = ssbo_postmat;
+        caller_bindings.push_back(b);
+      }
+
+      auto post_bind_fn = [](blender::gpu::Shader * /* sh */) {};
+      auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
+
+      Mesh *mesh_eval = (Mesh *)deformed_eval->data;
+      if (!mesh_eval) {
         return false;
       }
-    }
-    GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
-    std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
-    caller_bindings.reserve(4);
+      if (msd.pending_gpu_setup) {
+        msd.pending_gpu_setup = false;
+        msd.gpu_setup_attempts = 0;
+      }
 
-    {
-      blender::bke::GpuMeshComputeBinding b = {};
-      b.binding = 0;
-      b.qualifiers = blender::gpu::shader::Qualifier::read_write;
-      b.type_name = "vec4";
-      b.bind_name = "positions_out[]";
-      b.buffer = vbo_pos;
-      caller_bindings.push_back(b);
+      BKE_mesh_gpu_scatter_to_corners(depsgraph,
+                                      deformed_eval,
+                                      caller_bindings,
+                                      config_fn,
+                                      post_bind_fn,
+                                      mesh_eval->corners_num);
     }
-    {
-      blender::bke::GpuMeshComputeBinding b = {};
-      b.binding = 1;
-      b.qualifiers = blender::gpu::shader::Qualifier::write;
-      b.type_name = "uint";
-      b.bind_name = "normals_out[]";
-      b.buffer = vbo_nor;
-      caller_bindings.push_back(b);
-    }
-    {
-      blender::bke::GpuMeshComputeBinding b = {};
-      b.binding = 2;
-      b.qualifiers = blender::gpu::shader::Qualifier::read;
-      b.type_name = "vec4";
-      b.bind_name = "positions_in[]";
-      b.buffer = ssbo_skinned_pos;
-      caller_bindings.push_back(b);
-    }
-    {
-      blender::bke::GpuMeshComputeBinding b = {};
-      b.binding = 3;
-      b.qualifiers = blender::gpu::shader::Qualifier::read;
-      b.type_name = "mat4";
-      b.bind_name = "transform_mat[]";
-      b.buffer = ssbo_postmat;
-      caller_bindings.push_back(b);
-    }
-
-    auto post_bind_fn = [](blender::gpu::Shader * /* sh */) {};
-    auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
-
-    Mesh *mesh_eval = (Mesh *)deformed_eval->data;
-    if (!mesh_eval) {
-      return false;
-    }
-
-    if (msd.pending_gpu_setup) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-    }
-
-    BKE_mesh_gpu_scatter_to_corners(depsgraph,
-                                    deformed_eval,
-                                    caller_bindings,
-                                    config_fn,
-                                    post_bind_fn,
-                                    mesh_eval->corners_num);
   }
 
   return true;

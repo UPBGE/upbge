@@ -46,10 +46,32 @@ struct GPUMaterial;
 /** \name Memory Pools
  * \{ */
 
+/* Decision / reason for GPU playback refusal (local enum). */
+enum class PlaybackRefuseReason : uint8_t {
+  None = 0,
+  TopologyMismatch,
+  TopologyModifier,
+  MixedCPUAndGPU,
+  Unknown,
+};
+
+struct GPUPlaybackDecision {
+  bool python_requests_gpu = false;
+  bool modifier_requests_gpu = false;
+  bool key_requests_gpu = false;
+  bool allow_gpu = false; /* final decision */
+  std::optional<PlaybackRefuseReason> refused_reason;
+};
+
 /** Set of Mesh* scheduled to free GPU resources from non-GL contexts. */
 struct MeshProcessEntry {
-  struct Object *eval_obj_for_skinning = nullptr; /* nullptr if no skinning requested */
-  bool scheduled_free = false; /* true if GPU free was scheduled from non-GL context */
+  struct Object *eval_obj_for_skinning = nullptr;
+  bool scheduled_free = false;
+
+  /* Optional direct pointers recorded at extraction time. */
+  struct Key *key_owner = nullptr;
+  struct Object *armature_owner = nullptr;
+  std::optional<PlaybackRefuseReason> playback_refused = std::nullopt;
 };
 
 /** Contains memory pools information. */
