@@ -32,20 +32,17 @@ class ArmatureSkinningManager {
    * Can be called from extraction phase (non-GL thread). */
   void ensure_static_resources(Object *arm_ob, Object *deformed_ob, Mesh *orig_mesh);
 
-  /* Execute the skinning compute + scatter. Must be called from GL context.
-   * Returns true on success; false if a fallback (CPU) should be used.
-   * If `ssbo_in` is provided, it will be used as the rest positions input (useful when
-   * chaining deformers). If `do_scatter` is false, no scatter-to-corners will be performed and
-   * the skinned positions will remain in the internal SSBO (useful to chain additional
-   * deformers and scatter once at the end). */
-  bool dispatch_skinning(Depsgraph *depsgraph,
-                         Object *armature,
-                         Object *deformed_eval,
-                         MeshBatchCache *cache,
-                         blender::gpu::VertBuf *vbo_pos,
-                         blender::gpu::VertBuf *vbo_nor,
-                         blender::gpu::StorageBuf *ssbo_in = nullptr,
-                         bool do_scatter = true);
+  /* Execute the skinning compute. Must be called from GL context.
+   * Returns an SSBO containing the skinned positions on success (either the provided `ssbo_in`
+   * or an internal SSBO). Returns nullptr on failure. The caller should perform the final
+   * scatter-to-corners when chaining multiple deformers. */
+  blender::gpu::StorageBuf *dispatch_skinning(Depsgraph *depsgraph,
+                                              Object *armature,
+                                              Object *deformed_eval,
+                                              MeshBatchCache *cache,
+                                              blender::gpu::VertBuf *vbo_pos,
+                                              blender::gpu::VertBuf *vbo_nor,
+                                              blender::gpu::StorageBuf *ssbo_in = nullptr);
 
   /* Free resources associated to a specific mesh. */
   void free_resources_for_mesh(Mesh *mesh);

@@ -26,19 +26,13 @@ class ShapeKeySkinningManager {
 
   /* Prepare CPU-only static resources (deltas, rest positions). Safe to call from extraction
    * thread. */
-  void ensure_static_resources(Object *ob_eval, Mesh *orig_mesh);
+  void ensure_static_resources(Mesh *orig_mesh);
 
-  /* Execute shape-key blending compute + scatter. Must be called from GL context (draw pass).
-   * If `ssbo_out` is provided the result will be written into that buffer instead of an
-   * internally managed buffer. If `do_scatter` is false, no scatter-to-corners will be
-   * performed (useful to chain multiple deformers and scatter once at the end). */
-  bool dispatch_shapekeys(Depsgraph *depsgraph,
-                          Object *ob_eval,
-                          struct MeshBatchCache *cache,
-                          blender::gpu::VertBuf *vbo_pos,
-                          blender::gpu::VertBuf *vbo_nor,
-                          blender::gpu::StorageBuf *ssbo_out = nullptr,
-                          bool do_scatter = true);
+  /* Execute shape-key blending compute. Must be called from GL context (draw pass).
+   * Returns an SSBO containing the skinned positions on success (either the provided `ssbo_out`
+   * or an internal SSBO). Returns nullptr on failure. The caller should perform final
+   * scatter-to-corners when chaining deformers. */
+  blender::gpu::StorageBuf *dispatch_shapekeys(struct MeshBatchCache *cache, blender::gpu::StorageBuf *ssbo_out = nullptr);
 
   /* Free resources associated to a specific mesh (CPU-side). GPU resources freed by BKE mesh GPU
    * cache. */

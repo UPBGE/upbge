@@ -86,7 +86,7 @@ ShapeKeySkinningManager &ShapeKeySkinningManager::instance()
 ShapeKeySkinningManager::ShapeKeySkinningManager() : impl_(new Impl()) {}
 ShapeKeySkinningManager::~ShapeKeySkinningManager() {}
 
-void ShapeKeySkinningManager::ensure_static_resources(Object *ob_eval, Mesh *orig_mesh)
+void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
 {
   if (!orig_mesh) {
     return;
@@ -175,37 +175,24 @@ void ShapeKeySkinningManager::ensure_static_resources(Object *ob_eval, Mesh *ori
 }
 
 /* Dispatch shapekey compute + scatter. Returns true on GPU success. */
-bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
-                                                 Object *ob_eval,
-                                                 MeshBatchCache *cache,
-                                                 blender::gpu::VertBuf *vbo_pos,
-                                                 blender::gpu::VertBuf *vbo_nor,
-                                                 blender::gpu::StorageBuf *ssbo_out,
-                                                 bool do_scatter)
+blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cache,
+                                                                     blender::gpu::StorageBuf *ssbo_out)
 {
-  if (!ob_eval || ob_eval->type != OB_MESH) {
-    return false;
-  }
-
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
-  if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
-    return false;
-  }
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
-    return false;
+    return nullptr;
   }
 
   Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
   if (!msd_ptr) {
-    return false;
+    return nullptr;
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
   const int verts = msd.verts_num;
   const int kcount = msd.key_count;
   if (verts == 0 || kcount == 0) {
-    return false;
+    return nullptr;
   }
 
   const std::string key_rest = "shapekey_rest_pos";
@@ -216,7 +203,7 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   /* Ensure internal resources container exists. */
   MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
   if (!ires) {
-    return false;
+    return nullptr;
   }
 
   /* Ensure SSBOs and upload if missing. */
@@ -224,8 +211,9 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   if (!ssbo_rest) {
     ssbo_rest = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_rest, sizeof(float) * size_t(verts) * 4u);
-    if (!ssbo_rest)
-      return false;
+    if (!ssbo_rest) {
+      return nullptr;
+    }
     GPU_storagebuf_update(ssbo_rest, msd.rest_positions.data());
   }
 
@@ -233,8 +221,9 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   if (!ssbo_deltas) {
     ssbo_deltas = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_deltas, sizeof(float) * size_t(kcount) * size_t(verts) * 4u);
-    if (!ssbo_deltas)
-      return false;
+    if (!ssbo_deltas) {
+      return nullptr;
+    }
     GPU_storagebuf_update(ssbo_deltas, msd.deltas.data());
   }
 
@@ -245,15 +234,16 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
     if (!ssbo_out_local) {
       ssbo_out_local = BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, key_out, sizeof(float) * size_t(verts) * 4u);
-      if (!ssbo_out_local)
-        return false;
+      if (!ssbo_out_local) {
+        return nullptr;
+      }
     }
   }
 
   /* Prepare weights array (simple curval per KeyBlock; no per-vertex vgroup support here) */
   Key *key = mesh_owner->key;
   if (!key) {
-    return false;
+    return nullptr;
   }
   std::vector<float> weights;
   weights.reserve(kcount);
@@ -299,8 +289,9 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   if (!ssbo_w) {
     ssbo_w = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_weights, sizeof(float) * weights.size());
-    if (!ssbo_w)
-      return false;
+    if (!ssbo_w) {
+      return nullptr;
+    }
     /* Freshly created buffer: upload weights. */
     GPU_storagebuf_update(ssbo_w, weights.data());
     msd.prev_weights = weights;
@@ -342,7 +333,7 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, shader_key, info);
   if (!compute_sh) {
-    return false;
+    return nullptr;
   }
 
   /* Bind and dispatch compute */
@@ -367,57 +358,8 @@ bool ShapeKeySkinningManager::dispatch_shapekeys(Depsgraph *depsgraph,
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
 
-  if (!do_scatter) {
-    return true;
-  }
-
-  /* Scatter to corners (recompute normals) using BKE helper.
-   * Provide positions_out SSBO as positions_in for scatter pass; premat/transform injected if
-   * missing. */
-  std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
-  caller_bindings.reserve(4);
-
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 0;
-    b.qualifiers = blender::gpu::shader::Qualifier::read_write;
-    b.type_name = "vec4";
-    b.bind_name = "positions_out[]";
-    b.buffer = vbo_pos;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 1;
-    b.qualifiers = blender::gpu::shader::Qualifier::write;
-    b.type_name = "uint";
-    b.bind_name = "normals_out[]";
-    b.buffer = vbo_nor;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 2;
-    b.qualifiers = blender::gpu::shader::Qualifier::read;
-    b.type_name = "vec4";
-    b.bind_name = "positions_in[]";
-    b.buffer = ssbo_out_local;
-    caller_bindings.push_back(b);
-  }
-  /* Let BKE_mesh_gpu_run_compute inject transform_mat default if needed. */
-  auto post_bind_fn = [](blender::gpu::Shader * /*sh*/) {};
-  auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
-
-  /* Call scatter: it will handle topology and write into VBOs. */
-  blender::bke::GpuComputeStatus status = BKE_mesh_gpu_scatter_to_corners(
-      depsgraph,
-      ob_eval,
-      std::vector<blender::bke::GpuMeshComputeBinding>(caller_bindings),
-      config_fn,
-      post_bind_fn,
-      mesh_eval->corners_num);
-
-  return status == blender::bke::GpuComputeStatus::Success;
+  /* Return SSBO containing computed positions. Caller will scatter_to_corners when needed. */
+  return ssbo_out_local;
 }
 
 void ShapeKeySkinningManager::free_resources_for_mesh(Mesh *mesh)

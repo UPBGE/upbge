@@ -4,6 +4,7 @@
 
 #include "draw_armature_skinning.hh"
 
+#include <cstring>
 #include <map>
 
 #include "BLI_listbase.h"
@@ -37,7 +38,6 @@
 #include "draw_cache_impl.hh"
 
 #include "DNA_mesh_types.h"
-#include <cstring>
 
 #include "DEG_depsgraph_query.hh"
 
@@ -83,35 +83,6 @@ struct blender::draw::ArmatureSkinningManager::Impl {
 
   Map<Object *, ArmatureData> arm_map;
 };
-
-static const char *skin_compute_src = R"GLSL(
-#ifndef CONTRIB_THRESHOLD
-  #define CONTRIB_THRESHOLD 1e-4
-#endif
-
-vec4 skin_pos_object(int v_idx) {
-  vec4 rest_pos_object = premat[0] * rest_positions[v_idx];
-  vec4 acc = vec4(0.0);
-  float tw =0.0;
-  for (int i =0; i <4; ++i) {
-    int b = in_idx[v_idx][i];
-    float w = in_wgt[v_idx][i];
-    if (w >0.0) {
-      acc += (bone_pose_mat[b] * rest_pos_object) * w;
-      tw += w;
-    }
-  }
-  return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
-}
-
-void main() {
-  uint v = gl_GlobalInvocationID.x;
-  if (v >= skinned_vert_positions.length()) {
-    return;
-  }
-  skinned_vert_positions[v] = skin_pos_object(int(v));
-}
-)GLSL";
 
 /* Linear Blend Skinning shader */
 static const char *skin_compute_lbs_src = R"GLSL(
@@ -483,28 +454,27 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
    */
 }
 
-bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
-                                                Object *armature,
-                                                Object *deformed_eval,
-                                                MeshBatchCache *cache,
-                                                blender::gpu::VertBuf *vbo_pos,
-                                                blender::gpu::VertBuf *vbo_nor,
-                                                blender::gpu::StorageBuf *ssbo_in,
-                                                bool do_scatter)
-{
-  (void)vbo_pos;
-  (void)vbo_nor;
-  (void)deformed_eval;
+blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
+                                                                     Object *armature,
+                                                                     Object *deformed_eval,
+                                                                     MeshBatchCache *cache,
+                                                                     blender::gpu::VertBuf *vbo_pos,
+                                                                     blender::gpu::VertBuf *vbo_nor,
+                                                                     blender::gpu::StorageBuf *ssbo_in)
+ {
+   (void)vbo_pos;
+   (void)vbo_nor;
+   (void)deformed_eval;
 
-  Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
-  if (!mesh_owner) {
-    return false;
-  }
-  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
-  if (!msd_ptr) {
-    return false;
-  }
-  Impl::MeshStaticData &msd = *msd_ptr;
+   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
+   if (!mesh_owner) {
+     return nullptr;
+   }
+   Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
+   if (!msd_ptr) {
+     return nullptr;
+   }
+   Impl::MeshStaticData &msd = *msd_ptr;
 
   /* Check if dual quaternion skinning is enabled (check every frame for UI changes) */
   bool use_dual_quaternions = false;
@@ -523,19 +493,19 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     if (msd.gpu_setup_attempts == 0) {
       mesh_owner->is_running_gpu_animation_playback = 1;
       msd.gpu_setup_attempts = 1;
-      return false;
+      return nullptr;
     }
     if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
       mesh_owner->is_running_gpu_animation_playback = 0;
       msd.pending_gpu_setup = false;
       msd.gpu_setup_attempts = 0;
-      return false;
+      return nullptr;
     }
   }
 
   MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
   if (!ires) {
-    return false;
+    return nullptr;
   }
 
   const std::string key_in_idx = "armature_in_idx";
@@ -559,7 +529,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     ssbo_in_offsets = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_in_offsets, sizeof(int) * (msd.verts_num + 1));
     if (!ssbo_in_offsets) {
-      return false;
+      return nullptr;
     }
     GPU_storagebuf_update(ssbo_in_offsets, msd.in_influence_offsets.data());
   }
@@ -569,7 +539,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     ssbo_in_idx = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_in_idx, sizeof(int) * msd.in_indices.size());
     if (!ssbo_in_idx) {
-      return false;
+      return nullptr;
     }
     GPU_storagebuf_update(ssbo_in_idx, msd.in_indices.data());
   }
@@ -579,7 +549,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     ssbo_in_wgt = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_in_wgt, sizeof(float) * msd.in_weights.size());
     if (!ssbo_in_wgt) {
-      return false;
+      return nullptr;
     }
     GPU_storagebuf_update(ssbo_in_wgt, msd.in_weights.data());
   }
@@ -590,7 +560,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     ssbo_rest_pos = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_rest_pos, sizeof(float) * msd.verts_num * 4);
     if (!ssbo_rest_pos) {
-      return false;
+      return nullptr;
     }
     GPU_storagebuf_update(ssbo_rest_pos, msd.rest_positions.data());
   }
@@ -601,7 +571,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
     ssbo_skinned_pos = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_skinned_pos, sizeof(float) * msd.verts_num * 4);
     if (!ssbo_skinned_pos) {
-      return false;
+      return nullptr;
     }
   }
 
@@ -609,7 +579,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   if (!ssbo_premat) {
     ssbo_premat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_premat, sizeof(float) * 16);
     if (!ssbo_premat) {
-      return false;
+      return nullptr;
     }
   }
   GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
@@ -789,7 +759,7 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, shader_key, info);
   if (!compute_sh) {
-    return false;
+    return nullptr;
   }
 
   blender::gpu::StorageBuf *pos_to_bind = ssbo_in ? ssbo_in : ssbo_skinned_pos;
@@ -836,86 +806,11 @@ bool ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
 
-  if (do_scatter)
-  {
-    /* scatter to corners */
-    if (deformed_eval && cache && vbo_pos && vbo_nor) {
-      blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
-                                                                              key_postmat);
-      if (!ssbo_postmat) {
-        ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
-            mesh_owner, key_postmat, sizeof(float) * 16);
-        if (!ssbo_postmat) {
-          return false;
-        }
-      }
-      GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
+  /* Return the SSBO containing the skinned positions. Caller will perform scatter if needed. */
+  return pos_to_bind;
+ }
 
-      std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
-      caller_bindings.reserve(4);
-      {
-        blender::bke::GpuMeshComputeBinding b = {};
-        b.binding = 0;
-        b.qualifiers = blender::gpu::shader::Qualifier::read_write;
-        b.type_name = "vec4";
-        b.bind_name = "positions_out[]";
-        b.buffer = vbo_pos;
-        caller_bindings.push_back(b);
-      }
-      {
-        blender::bke::GpuMeshComputeBinding b = {};
-        b.binding = 1;
-        b.qualifiers = blender::gpu::shader::Qualifier::write;
-        b.type_name = "uint";
-        b.bind_name = "normals_out[]";
-        b.buffer = vbo_nor;
-        caller_bindings.push_back(b);
-      }
-      {
-        blender::bke::GpuMeshComputeBinding b = {};
-        b.binding = 2;
-        b.qualifiers = blender::gpu::shader::Qualifier::read;
-        b.type_name = "vec4";
-        b.bind_name = "positions_in[]";
-        b.buffer = pos_to_bind;
-        caller_bindings.push_back(b);
-      }
-      {
-        blender::bke::GpuMeshComputeBinding b = {};
-        b.binding = 3;
-        b.qualifiers = blender::gpu::shader::Qualifier::read;
-        b.type_name = "mat4";
-        b.bind_name = "transform_mat[]";
-        b.buffer = ssbo_postmat;
-        caller_bindings.push_back(b);
-      }
-
-      auto post_bind_fn = [](blender::gpu::Shader * /* sh */) {};
-      auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
-
-      Mesh *mesh_eval = (Mesh *)deformed_eval->data;
-      if (!mesh_eval) {
-        return false;
-      }
-
-      if (msd.pending_gpu_setup) {
-        msd.pending_gpu_setup = false;
-        msd.gpu_setup_attempts = 0;
-      }
-
-      BKE_mesh_gpu_scatter_to_corners(depsgraph,
-                                      deformed_eval,
-                                      caller_bindings,
-                                      config_fn,
-                                      post_bind_fn,
-                                      mesh_eval->corners_num);
-    }
-  }
-
-  return true;
-}
-
-void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
+ void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
 {
   if (!mesh) {
     return;
