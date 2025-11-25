@@ -4358,45 +4358,12 @@ void main() {
    *   2: disp_pos_in   (read vec4)
    *   3: base_pos_in   (read vec4)
    */
-  std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings;
-  caller_bindings.reserve(4);
-
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 0;
-    b.qualifiers = blender::gpu::shader::Qualifier::read_write;
-    b.type_name = "vec4";
-    b.bind_name = "positions_out[]";
-    b.buffer = vbo_pos;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 1;
-    b.qualifiers = blender::gpu::shader::Qualifier::write;
-    b.type_name = "uint";
-    b.bind_name = "normals_out[]";
-    b.buffer = vbo_nor;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 2;
-    b.qualifiers = blender::gpu::shader::Qualifier::read;
-    b.type_name = "vec4";
-    b.bind_name = "disp_pos_in[]";
-    b.buffer = disp_sb;
-    caller_bindings.push_back(b);
-  }
-  {
-    blender::bke::GpuMeshComputeBinding b = {};
-    b.binding = 3;
-    b.qualifiers = blender::gpu::shader::Qualifier::read;
-    b.type_name = "vec4";
-    b.bind_name = "base_pos_in[]";
-    b.buffer = base_sb;
-    caller_bindings.push_back(b);
-  }
+  std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings = {
+      {0, vbo_pos, blender::gpu::shader::Qualifier::read_write, "vec4", "positions_out[]"},
+      {1, vbo_nor, blender::gpu::shader::Qualifier::write, "uint", "normals_out[]"},
+      {2, disp_sb, blender::gpu::shader::Qualifier::read, "vec4", "disp_pos_in[]"},
+      {3, base_sb, blender::gpu::shader::Qualifier::read, "vec4", "base_pos_in[]"},
+  };
 
   auto post_bind_fn = [&](blender::gpu::Shader *sh) {
     int loc = GPU_shader_get_uniform(sh, "M");
